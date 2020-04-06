@@ -7,5 +7,5 @@ LDFLAGS += -L$(HOME)/lib -L/u/smurman/share/eddy/hdf5-1.10.1/lib -L/u/smurman/sh
 LDLIBS += -lmpi -lparmetis -lmetis -lhdf5 -lhdf5_hl -ldl
 
 all:
-	h5pcc $(CXXFLAGS) main.cpp -o compute_jacobians $(LDFLAGS) $(LDLIBS)
+	h5pcc $(CXXFLAGS) main.cpp -o adept $(LDFLAGS) $(LDLIBS)
 #	rm -rf *.o *.mod
