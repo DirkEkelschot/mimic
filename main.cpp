@@ -3,7 +3,6 @@
 #include <stdlib.h>
 #include <assert.h>
 //#include "petsc.h"
-#include "array.h"
 #include <mpi.h>
 //#include <hdf5.h>
 #include <math.h>
