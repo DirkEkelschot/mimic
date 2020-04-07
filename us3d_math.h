@@ -1,3 +1,5 @@
+/*
+
 extern "C" {
   void dgeev_(char const * __restrict JOBVL, char const * __restrict JOBVR, int const * __restrict n, double * __restrict A, int const * lda, double * __restrict WR, double * __restrict WI, double * __restrict VL, int const * __restrict ldvl, double * __restrict VR, int const * __restrict ldvr, double * __restrict Work, int const * __restrict lwork, int       * __restrict info );
   // LU decomoposition of a general matrix
@@ -8,6 +10,10 @@ extern "C" {
   void dgetri_(int* N, double* A, int* lda, int* IPIV, double* WORK, int* lwork, int* INFO);
 
 }
+*/
+
+
+/*
 
 void EigenDecomp(int n, double * A,  double * WR, double * WI, double * V, double * iV )
 {
@@ -19,19 +25,21 @@ void EigenDecomp(int n, double * A,  double * WR, double * WI, double * V, doubl
   int i,j;
   int Pivot[n];
   
-  /* Copy A into V */
+  // Copy A into V 
   memcpy( V, A, n*n*sizeof(double) );
   
-  /* Factor A, right eigenvectors are in iV though column major */
+  // Factor A, right eigenvectors are in iV though column major
   dgeev_( &JOBVL, &JOBVR, &n, V, &n, WR, WI, iV, &n, NULL, &n, WORK, &size, &info );
   
-  /* Copy right eigenvectors into V (with transpose) */
+  // Copy right eigenvectors into V (with transpose)
   for ( i = 0; i < n; i++)
     for ( j = 0; j < n; j++)
       V[i*n+j] = iV[j*n+i];
   
-  /* Compute inverse of V1 */
+  // Compute inverse of V1 
   memcpy( iV, V, n*n*sizeof(double) );
   dgetrf_(&n, &n, iV, &n, Pivot, &info);
   dgetri_(&n, iV, &n, Pivot, WORK, &size, &info);
 }
+
+*/

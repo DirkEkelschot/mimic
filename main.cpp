@@ -26,8 +26,6 @@ int mpi_size, mpi_rank;
 #define MAX(a,b) (((a)>(b))?(a):(b))
 
 
-
-
 extern "C" {
   void dgeev_(char const * __restrict JOBVL, char const * __restrict JOBVR, int const * __restrict n, double * __restrict A, int const * lda, double * __restrict WR, double * __restrict WI, double * __restrict VL, int const * __restrict ldvl, double * __restrict VR, int const * __restrict ldvr, double * __restrict Work, int const * __restrict lwork, int       * __restrict info );
   // LU decomoposition of a general matrix
@@ -38,6 +36,7 @@ extern "C" {
   void dgetri_(int* N, double* A, int* lda, int* IPIV, double* WORK, int* lwork, int* INFO);
 
 }
+
 
 using namespace std;
 
@@ -52,6 +51,35 @@ struct HalfEdge
    int face_g;
    int face_l;
 };
+
+
+
+void EigenDecomp(int n, double * A,  double * WR, double * WI, double * V, double * iV )
+{
+  char JOBVL = 'V';
+  char JOBVR = 'N';
+  int size = 10*n;
+  double WORK [size];
+  int info;
+  int i,j;
+  int Pivot[n];
+  
+  // Copy A into V 
+  memcpy( V, A, n*n*sizeof(double) );
+  
+  // Factor A, right eigenvectors are in iV though column major
+  dgeev_( &JOBVL, &JOBVR, &n, V, &n, WR, WI, iV, &n, NULL, &n, WORK, &size, &info );
+  
+  // Copy right eigenvectors into V (with transpose)
+  for ( i = 0; i < n; i++)
+    for ( j = 0; j < n; j++)
+      V[i*n+j] = iV[j*n+i];
+  
+  // Compute inverse of V1 
+  memcpy( iV, V, n*n*sizeof(double) );
+  dgetrf_(&n, &n, iV, &n, Pivot, &info);
+  dgetri_(&n, iV, &n, Pivot, WORK, &size, &info);
+}
 
 
 
@@ -240,6 +268,8 @@ map< pair<int,int>, HalfEdge* > GetHalfEdges(int* element_verts, int* M, int nlo
     return Edges;
 }
 
+
+
 void UnitTestEigenDecomp()
 {
     double *M = new double[3*3];
@@ -283,6 +313,7 @@ void UnitTestEigenDecomp()
     }
     std::cout << std::endl;
 }
+
 
 void UnitTestJacobian()
 {
@@ -1075,8 +1106,8 @@ int main(int argc, char** argv) {
     //Array<int> ife   = ReadDataSetFromFileInParallel<int>("../data_files/conn.h5","ife",comm,info);
     //Array<double> bound_par = ReadDataSetFromRunInFileInParallel<double>("../data_files/data_r.h5","run_1","boundaries",comm,info);
     //Array<double>* bound = ReadDataSetFromRunInFile<double>("../data_files/adept_geom/data_r.h5","run_1","boundaries");
-    
-    
+    std::cout << "rank = " << world_rank << std::endl; 
+    //UnitTestEigenDecomp();    
     
     // Read in adept geometry.
     
@@ -1088,17 +1119,21 @@ int main(int argc, char** argv) {
     //Array<int>*      ien = ReadDataSetFromFileInParallel<int>("../data_files/adept_geom/conn.h5","ien",comm,info);
     Array<int>*      ien = ReadDataSetFromFile<int>("../data_files/adept_geom/conn.h5","ien");
      */
-     
-    Array<int>*    zdefs = ReadDataSetFromGroupFromFile<int>("../data_files/conn_kl4.h5","zones","zdefs");
-    Array<char>*  znames = ReadDataSetFromGroupFromFile<char>("../data_files/conn_kl4.h5","zones","znames");
-    Array<int>*      ifn = ReadDataSetFromFile<int>("../data_files/grid_kl4.h5","ifn");
+
+//============================================================
+    const char* fn_conn="/nobackupp2/dekelsch/adept_real/conn.h5";
+    const char* fn_grid="/nobackupp2/dekelsch/adept_real/grid.h5";     
+
+    Array<int>*    zdefs = ReadDataSetFromGroupFromFile<int>(fn_conn,"zones","zdefs");
+    Array<char>*  znames = ReadDataSetFromGroupFromFile<char>(fn_conn,"zones","znames");
+    Array<int>*      ifn = ReadDataSetFromFile<int>(fn_grid,"ifn");
     
     //Array<double>*   xcn = ReadDataSetFromFile<double>("../data_files/grid_pstn.h5","xcn");
     //Array<int>*      ien = ReadDataSetFromFile<int>("../data_files/conn_pstn.h5","ien");
     
     
-    Array<double>*   xcn = ReadDataSetFromFile<double>("../data_files/adept_geom/grid.h5","xcn");
-    Array<int>*      ien = ReadDataSetFromFile<int>("../data_files/adept_geom/conn.h5","ien");
+    Array<double>*   xcn = ReadDataSetFromFile<double>(fn_grid,"xcn");
+    Array<int>*      ien = ReadDataSetFromFile<int>(fn_conn,"ien");
     
     int Nnodes = xcn->nrow;
     int Nelement = ien->nrow;
@@ -1106,6 +1141,15 @@ int main(int argc, char** argv) {
     int nloc     = int(ien->nrow/world_size) + ( world_rank < ien->nrow%world_size );
     //  compute offset of rows for each proc;
     int offset   = world_rank*int(ien->nrow/world_size) + MIN(world_rank, ien->nrow%world_size);
+
+
+//============================================================
+
+
+
+
+
+
     /*
     // returns array with volumes for elements with length of local number of elements;
     start = std::clock();
@@ -1130,6 +1174,8 @@ int main(int argc, char** argv) {
     
     //Example3DPartitioning(comm);
     
+
+//============================================================
     
     start = std::clock();
     PartitionBigMesh(xcn,ien,comm);
@@ -1149,6 +1195,11 @@ int main(int argc, char** argv) {
     
     duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
     std::cout << world_rank << " timer partitioning myself = " << duration << std::endl;
+
+
+//============================================================
+
+
     //WriteBoundaryDataInSerial2(xcn,zdefs,ifn,Vollie_verts);
 
     /*
