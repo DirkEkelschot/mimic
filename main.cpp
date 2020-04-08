@@ -4,6 +4,7 @@
 #include <assert.h>
 //#include "petsc.h"
 #include <mpi.h>
+
 //#include <hdf5.h>
 #include <math.h>
 #include "us3d_io.h"
@@ -18,6 +19,7 @@
 #include <math.h>
 #include <map>
 #include <unordered_set>
+#include <set>
 #include "parmetis.h"
 
 int mpi_size, mpi_rank;
@@ -1268,31 +1270,22 @@ int main(int argc, char** argv) {
     start = std::clock();
     
     std::cout << "range " << pv_xcn->offsets[world_rank] << " " << pv_xcn->offsets[world_rank+1] << std::endl;
-    map< int, int > Request;
-    
+    map< int, std::set<int> > Request;
+    int rank_f = 0;
     for(int i=0;i<ien->nloc;i++)
     {
-        //std::cout << pv_xcn->offsets[world_rank] << " :: " << pv_xcn->offsets[world_rank+1] << " ---> ";
-
         for(int j=1;j<ien->ncol;j++)
         {
-            
             val = ien->getVal(i,j);
             
-            //std::cout << val << " ";
-            if(val < pv_xcn->offsets[world_rank+1] && val > pv_xcn->offsets[world_rank] )
+            if(val>pv_xcn->offsets[world_rank+1] || val < pv_xcn->offsets[world_rank])
             {
-                cnt=cnt+1;
-            }
-            else
-            {
-                if ( Request.find( val ) == Request.end() )
-                {
-                    //int rank_f = FindRank(pv_xcn->offsets,world_size+1,val);
-                    Request[val] = FindRank(pv_xcn->offsets,world_size+1,val);
-                }
+                rank_f = FindRank(pv_xcn->offsets,world_size+1,val);
                 
-                cnt2=cnt2+1;
+                if ( Request[rank_f].find( val ) == Request[rank_f].end() )
+                {
+                    Request[rank_f].insert(val);
+                }
             }
             ien_cpy->setVal(i,j,val);
         }
@@ -1301,6 +1294,49 @@ int main(int argc, char** argv) {
     duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
     std::cout << world_rank << " copying = " << duration << std::endl;
     std::cout << "number counter " << cnt << " " << cnt2 << " " << xcn->nloc << " " << Request.size() <<  std::endl;
+    
+    int s, snew;
+    std::set<int>::iterator it_set;
+    if (world_rank == 1)
+    {
+        map<int, std::set<int> >::iterator it;
+        for (it = Request.begin(); it != Request.end(); it++)
+        {
+            std::cout << "Requested from partition " << it->first << " " << it->second.size() << std::endl;
+            
+            int min = *(it->second).begin();
+            int max = *(it->second).rbegin();
+            
+            std::cout << "min/max " << min << " " << max << std::endl;
+            //std::cout << it->second.begin() << " " << it->second.rbegin() << std::endl;
+            
+            
+            //if(it->second.size()<2)
+            //{
+                
+            
+                std::cout << "printing set ";
+                int cnt = 0;
+                for(it_set=it->second.begin();it_set != it->second.end();++it_set)
+                {
+                    
+                    if (cnt > 0)
+                    {
+                        snew = *it_set;
+                        if((snew-s)>1)
+                        {
+                            std::cout << "contiguious!!! " << (snew-s) <<std::endl;
+                        }
+                    }
+                    s = *it_set;
+                    cnt++;
+                }
+                std::cout << std::endl;
+            //}
+             //How do I access each element?
+        }
+    }
+    
     //int Nnodes = xcn->nrow;
     
     //std::cout << Nelement << " " << Nnodes << std::endl;
