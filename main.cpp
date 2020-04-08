@@ -1292,13 +1292,13 @@ int main(int argc, char** argv) {
         //std::cout << std::endl;
     }
     duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
-    std::cout << world_rank << " copying = " << duration << std::endl;
-    std::cout << "number counter " << cnt << " " << cnt2 << " " << xcn->nloc << " " << Request.size() <<  std::endl;
+    //std::cout << world_rank << " copying = " << duration << std::endl;
+    //std::cout << "number counter " << cnt << " " << cnt2 << " " << xcn->nloc << " " << Request.size() <<  std::endl;
     
     int s, snew;
     std::set<int>::iterator it_set;
-    if (world_rank == 1)
-    {
+    //if (world_rank == 1)
+    //{
         map<int, std::set<int> >::iterator it;
         for (it = Request.begin(); it != Request.end(); it++)
         {
@@ -1307,14 +1307,14 @@ int main(int argc, char** argv) {
             int min = *(it->second).begin();
             int max = *(it->second).rbegin();
             
-            std::cout << "min/max " << min << " " << max << std::endl;
+            std::cout << "min/max " << min << " " << max << " " it->second.size() << std::endl;
             //std::cout << it->second.begin() << " " << it->second.rbegin() << std::endl;
             
             
             //if(it->second.size()<2)
             //{
                 
-            
+                /*
                 std::cout << "printing set ";
                 int cnt = 0;
                 for(it_set=it->second.begin();it_set != it->second.end();++it_set)
@@ -1331,11 +1331,13 @@ int main(int argc, char** argv) {
                     s = *it_set;
                     cnt++;
                 }
+                 
                 std::cout << std::endl;
+                 */
             //}
              //How do I access each element?
         }
-    }
+    //}
     
     //int Nnodes = xcn->nrow;
     
