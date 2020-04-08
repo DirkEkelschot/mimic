@@ -1197,7 +1197,7 @@ int main(int argc, char** argv) {
     double duration;
     
     int* arr = new int[10];
-    
+    int* arr_recv = new int[10];
     arr[0] = 0;
     arr[1] = 10;
     arr[2] = 12;
@@ -1213,12 +1213,12 @@ int main(int argc, char** argv) {
     int value = 82;
     
     int res = FindRank(arr,10,value);
-    std::cout << "result " << res << " " << arr[res] << " " << value << std::endl;
+    //std::cout << "result " << res << " " << arr[res] << " " << value << std::endl;
     //Array<int> iee   = ReadDataSetFromFileInParallel<int>("../data_files/conn.h5","ife",comm,info);
     //Array<int> ife   = ReadDataSetFromFileInParallel<int>("../data_files/conn.h5","ife",comm,info);
     //Array<double> bound_par = ReadDataSetFromRunInFileInParallel<double>("../data_files/data_r.h5","run_1","boundaries",comm,info);
     //Array<double>* bound = ReadDataSetFromRunInFile<double>("../data_files/adept_geom/data_r.h5","run_1","boundaries");
-    std::cout << "rank = " << world_rank << std::endl; 
+    //std::cout << "rank = " << world_rank << std::endl;
     //UnitTestEigenDecomp();    
     
     // Read in adept geometry.
@@ -1255,23 +1255,24 @@ int main(int argc, char** argv) {
     start = std::clock();
     Array<int>*      ien = ReadDataSetFromFileInParallel<int>(fn_conn,"ien",comm,info);
     duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
-    std::cout << world_rank << " reading = " << duration << std::endl;
+    //std::cout << world_rank << " reading = " << duration << std::endl;
     
     int Nelements = ien->nglob;
     ParVar* pv_ien = ComputeParallelStateArray(ien->nglob, comm);
     
-    std::cout << world_rank << " " << pv_ien->nlocs[world_rank] << " " << pv_ien->offsets[world_rank] << " " << pv_xcn->nlocs[world_rank] << " " << pv_xcn->offsets[world_rank] << std::endl;
+    //std::cout << world_rank << " " << pv_ien->nlocs[world_rank] << " " << pv_ien->offsets[world_rank] << " " << pv_xcn->nlocs[world_rank] << " " << pv_xcn->offsets[world_rank] << std::endl;
     
 
-    Array<int>*      ien_cpy = new Array<int>(ien->nloc,ien->ncol);
+    //Array<int>*      ien_cpy = new Array<int>(ien->nloc,ien->ncol);
     int val = 0;
     int cnt = 0;
     int cnt2 = 0;
     start = std::clock();
     
-    std::cout << "range " << pv_xcn->offsets[world_rank] << " " << pv_xcn->offsets[world_rank+1] << std::endl;
+    //std::cout << "range " << pv_xcn->offsets[world_rank] << " " << pv_xcn->offsets[world_rank+1] << std::endl;
     map< int, std::set<int> > Request;
     int rank_f = 0;
+    std::vector<std::vector<int>> req;
     for(int i=0;i<ien->nloc;i++)
     {
         for(int j=1;j<ien->ncol;j++)
@@ -1287,61 +1288,87 @@ int main(int argc, char** argv) {
                     Request[rank_f].insert(val);
                 }
             }
-            ien_cpy->setVal(i,j,val);
         }
-        //std::cout << std::endl;
     }
     duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
     //std::cout << world_rank << " copying = " << duration << std::endl;
     //std::cout << "number counter " << cnt << " " << cnt2 << " " << xcn->nloc << " " << Request.size() <<  std::endl;
     
-    int s, snew;
+    
+    map<int, std::set<int> >::iterator it;
     std::set<int>::iterator it_set;
-    //if (world_rank == 1)
-    //{
-        map<int, std::set<int> >::iterator it;
-        for (it = Request.begin(); it != Request.end(); it++)
+    int i=0;
+    
+    
+    int source = 0;
+    int dest = 1;
+    
+    if(world_rank == source)
+    {
+        MPI_Send(arr, 10, MPI_INT, dest,  1234, comm);
+    }
+    if(world_rank == dest)
+    {
+        MPI_Recv(arr_recv, 10, MPI_INT, source, 1234, comm, MPI_STATUS_IGNORE);
+    }
+        
+    
+    
+    for (it = Request.begin(); it != Request.end(); it++)
+    {
+        // current rank = world_rank
+        // rank to request = it->first;
+        
+        int n_req = it->second.size();
+        int* req_arr_send = new int[n_req];
+        int* req_arr_recv = new int[n_req];
+        
+        int dest   = it->first;
+        int source = world_rank;
+        
+        int tag = i;
+        
+        for(it_set=it->second.begin();it_set != it->second.end();++it_set)
         {
-            std::cout << "Requested from partition " << it->first << " " << it->second.size() << std::endl;
-            
-            int min = *(it->second).begin();
-            int max = *(it->second).rbegin();
-            
-            std::cout << "min/max " << min << " " << max << " " it->second.size() << std::endl;
-            //std::cout << it->second.begin() << " " << it->second.rbegin() << std::endl;
-            
-            
-            //if(it->second.size()<2)
-            //{
-                
-                /*
-                std::cout << "printing set ";
-                int cnt = 0;
-                for(it_set=it->second.begin();it_set != it->second.end();++it_set)
-                {
-                    
-                    if (cnt > 0)
-                    {
-                        snew = *it_set;
-                        if((snew-s)>1)
-                        {
-                            std::cout << "contiguious!!! " << (snew-s) <<std::endl;
-                        }
-                    }
-                    s = *it_set;
-                    cnt++;
-                }
-                 
-                std::cout << std::endl;
-                 */
-            //}
-             //How do I access each element?
+            req_arr_send[i] = *it_set;
         }
-    //}
+        
+        std::cout << world_rank << " " << source << " " << dest << " " << it->second.size() << std::endl;
+        if(world_rank == 0)
+        {
+            MPI_Send(req_arr_send, it->second.size(), MPI_INT, 3, i, comm);
+        }
+        
+        if(world_rank == 3)
+        {
+            MPI_Recv(req_arr_recv, it->second.size(), MPI_INT, 0, i, comm, MPI_STATUS_IGNORE);
+        }
+        //MPI_Barrier(comm);
+        /*
+        if(world_rank == 3)
+        {
+            MPI_Send(req_arr_send, it->second.size(), MPI_INT, 0, 3*i, comm);
+        }
+        
+        if(world_rank == 2)
+        {
+            MPI_Send(req_arr_send, it->second.size(), MPI_INT, 0, 2*i, comm);
+        }
+        if(world_rank == 0)
+        {
+            MPI_Recv(req_arr_recv, it->second.size(), MPI_INT, 3, 3*i, comm, MPI_STATUS_IGNORE);
+            MPI_Recv(req_arr_recv, it->second.size(), MPI_INT, 2, 2*i, comm, MPI_STATUS_IGNORE);
+        }
+        */
+        
+        
+        i++;
+    }
     
-    //int Nnodes = xcn->nrow;
     
-    //std::cout << Nelement << " " << Nnodes << std::endl;
+    
+    
+    
     
     //std::cout << "Nelement = " << Nelement << " " << Nnodes << std::endl;
     //int nloc     = int(ien->nrow/world_size) + ( world_rank < ien->nrow%world_size );
