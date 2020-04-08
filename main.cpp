@@ -361,7 +361,7 @@ void PartitionBigMesh(Array<double>* xcn, Array<int>* ien, MPI_Comm comm)
     MPI_Comm_rank(comm, &world_rank);
     
     int eltype = 8;
-    int nel    = ien->nrow;
+    int nel    = ien->nglob;
     int npo    = 0;
     
     for(int i = 0;i<nel;i++)
@@ -832,14 +832,14 @@ void Example3DPartitioning(MPI_Comm comm)
 
 void PlotBoundaryData(Array<char>* znames, Array<int>* zdefs)
 {
-    for(int i=0;i<zdefs->nrow;i++)
+    for(int i=0;i<zdefs->nglob;i++)
     {
         for(int j=0;j<znames->ncol;j++)
         {
             std::cout << znames->getVal(i,j) << "";
         }
         std::cout << " :: ";
-        for(int j=0;j<zdefs->ncol;j++)
+        for(int j=0;j<zdefs->nglob;j++)
         {
             std::cout << zdefs->getVal(i,j) << " ";
         }
@@ -930,7 +930,7 @@ void WriteBoundaryDataInParallel(Array<double>* xcn, Array<int>* zdefs, Array<in
 
 void WriteBoundaryDataInSerial(Array<double>* xcn, Array<int>* zdefs, Array<int>* ifn, double* detJ_verts, double* vol_verts, double* Jnorm_verts)
 {
-    for(int bc=3;bc<zdefs->nrow;bc++)
+    for(int bc=3;bc<zdefs->nglob;bc++)
     {
         int b_offset = zdefs->getVal(2,4);
         map< int, int > Loc2GlobBound;
@@ -1010,7 +1010,7 @@ void WriteBoundaryDataInSerial(Array<double>* xcn, Array<int>* zdefs, Array<int>
 
 void WriteBoundaryDataInSerial2(Array<double>* xcn, Array<int>* zdefs, Array<int>* ifn, double* vol_verts)
 {
-    for(int bc=3;bc<zdefs->nrow;bc++)
+    for(int bc=3;bc<zdefs->nglob;bc++)
     {
         int b_offset = zdefs->getVal(2,4);
         map< int, int > Loc2GlobBound;
@@ -1084,7 +1084,100 @@ void WriteBoundaryDataInSerial2(Array<double>* xcn, Array<int>* zdefs, Array<int
 
 
 
+ParVar* ComputeParallelStateArray(int nel,MPI_Comm comm)
+{
+    int world_size;
+    MPI_Comm_size(comm, &world_size);
+    // Get the rank of the process
+    int world_rank;
+    MPI_Comm_rank(comm, &world_rank);
+    
+    int nloc     = int(nel/world_size) + ( world_rank < nel%world_size );
+    //  compute offset of rows for each proc;
+    int offset   = world_rank*int(nel/world_size) + MIN(world_rank, nel%world_size);
+    
+    int* locs        = new int[world_size];
+    
+    for(int i=0;i<world_size;i++)
+    {
+        if (i==world_rank)
+        {
+            locs[i]     = nloc;
+        }
+        else
+        {
+            locs[i]     = 0;
+        }
+    }
+    
+    int* offsets = new int[world_size+1];
+    for(int i=0;i<world_size;i++)
+    {
+        if (i==world_rank)
+        {
+            offsets[i]    = offset;
+        }
+        else
+        {
+            offsets[i]    = 0;
+        }
+    }
+    
+    int* red_locs       = new int[world_size];
+    int* red_offsets    = new int[world_size+1];
+    
+    for(int i=0;i<world_size;i++)
+    {
+        red_locs[i]    = 0;
+        red_offsets[i] = 0;
+    }
+    
+    MPI_Allreduce(locs,     red_locs,     world_size,   MPI_INT, MPI_SUM,  MPI_COMM_WORLD);
+    MPI_Allreduce(offsets,  red_offsets,  world_size, MPI_INT, MPI_SUM,  MPI_COMM_WORLD);
+    
+    red_offsets[world_size] = nel;
+    ParVar* pv = new ParVar;
+    
+    pv->size    = world_size;
+    pv->nlocs   = red_locs;
+    pv->offsets = red_offsets;
+    
+    return pv;
+    
+}
 
+
+int FindRank(int* arr, int size, int val)
+{
+    int start = 0;
+    int last  = size;
+    
+    int mid = (start+last)/2;
+    
+    int found = 1;
+    while (start<=last)
+    {
+        //std::cout << val << " " << arr[mid] << " " << mid << " " << start << " " << last <<  std::endl;
+        
+        if (arr[mid]<val)
+        {
+            start = mid + 1;
+        }
+        /*else if(val<arr[mid+1] && val>arr[mid])
+        {
+            std::cout << "printuhn!"<<std::endl;
+            found = 0;
+            
+        }*/
+        else
+        {
+            last = mid - 1;
+        }
+        mid = (start+last)/2;
+    }
+    
+    return mid;
+}
 
 int main(int argc, char** argv) {
     
@@ -1101,7 +1194,24 @@ int main(int argc, char** argv) {
     std::clock_t start;
     double duration;
     
+    int* arr = new int[10];
     
+    arr[0] = 0;
+    arr[1] = 10;
+    arr[2] = 12;
+    arr[3] = 24;
+    arr[4] = 42;
+    arr[5] = 55;
+    arr[6] = 65;
+    arr[7] = 66;
+    arr[8] = 78;
+    arr[9] = 81;
+    
+    
+    int value = 82;
+    
+    int res = FindRank(arr,10,value);
+    std::cout << "result " << res << " " << arr[res] << " " << value << std::endl;
     //Array<int> iee   = ReadDataSetFromFileInParallel<int>("../data_files/conn.h5","ife",comm,info);
     //Array<int> ife   = ReadDataSetFromFileInParallel<int>("../data_files/conn.h5","ife",comm,info);
     //Array<double> bound_par = ReadDataSetFromRunInFileInParallel<double>("../data_files/data_r.h5","run_1","boundaries",comm,info);
@@ -1121,26 +1231,84 @@ int main(int argc, char** argv) {
      */
 
 //============================================================
-    const char* fn_conn="/nobackupp2/dekelsch/adept_real/conn.h5";
-    const char* fn_grid="/nobackupp2/dekelsch/adept_real/grid.h5";     
-
+    const char* fn_conn="grids/conn.h5";
+    const char* fn_grid="grids/grid.h5";
+    
+    /*
     Array<int>*    zdefs = ReadDataSetFromGroupFromFile<int>(fn_conn,"zones","zdefs");
     Array<char>*  znames = ReadDataSetFromGroupFromFile<char>(fn_conn,"zones","znames");
+    
     Array<int>*      ifn = ReadDataSetFromFile<int>(fn_grid,"ifn");
-    
-    //Array<double>*   xcn = ReadDataSetFromFile<double>("../data_files/grid_pstn.h5","xcn");
-    //Array<int>*      ien = ReadDataSetFromFile<int>("../data_files/conn_pstn.h5","ien");
-    
-    
     Array<double>*   xcn = ReadDataSetFromFile<double>(fn_grid,"xcn");
-    Array<int>*      ien = ReadDataSetFromFile<int>(fn_conn,"ien");
+     int Nnodes = xcn->nrow;
+    */
     
-    int Nnodes = xcn->nrow;
-    int Nelement = ien->nrow;
+    //============================================================
+    
+    Array<double>*   xcn = ReadDataSetFromFileInParallel<double>(fn_grid,"xcn",comm,info);
+    
+    int Nnodes     = xcn->nglob;
+    ParVar* pv_xcn = ComputeParallelStateArray(xcn->nglob, comm);
+    
+    start = std::clock();
+    Array<int>*      ien = ReadDataSetFromFileInParallel<int>(fn_conn,"ien",comm,info);
+    duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
+    std::cout << world_rank << " reading = " << duration << std::endl;
+    
+    int Nelements = ien->nglob;
+    ParVar* pv_ien = ComputeParallelStateArray(ien->nglob, comm);
+    
+    std::cout << world_rank << " " << pv_ien->nlocs[world_rank] << " " << pv_ien->offsets[world_rank] << " " << pv_xcn->nlocs[world_rank] << " " << pv_xcn->offsets[world_rank] << std::endl;
+    
+
+    Array<int>*      ien_cpy = new Array<int>(ien->nloc,ien->ncol);
+    int val = 0;
+    int cnt = 0;
+    int cnt2 = 0;
+    start = std::clock();
+    
+    std::cout << "range " << pv_xcn->offsets[world_rank] << " " << pv_xcn->offsets[world_rank+1] << std::endl;
+    map< int, int > Request;
+    
+    for(int i=0;i<ien->nloc;i++)
+    {
+        //std::cout << pv_xcn->offsets[world_rank] << " :: " << pv_xcn->offsets[world_rank+1] << " ---> ";
+
+        for(int j=1;j<ien->ncol;j++)
+        {
+            
+            val = ien->getVal(i,j);
+            
+            //std::cout << val << " ";
+            if(val < pv_xcn->offsets[world_rank+1] && val > pv_xcn->offsets[world_rank] )
+            {
+                cnt=cnt+1;
+            }
+            else
+            {
+                if ( Request.find( val ) == Request.end() )
+                {
+                    //int rank_f = FindRank(pv_xcn->offsets,world_size+1,val);
+                    Request[val] = FindRank(pv_xcn->offsets,world_size+1,val);
+                }
+                
+                cnt2=cnt2+1;
+            }
+            ien_cpy->setVal(i,j,val);
+        }
+        //std::cout << std::endl;
+    }
+    duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
+    std::cout << world_rank << " copying = " << duration << std::endl;
+    std::cout << "number counter " << cnt << " " << cnt2 << " " << xcn->nloc << " " << Request.size() <<  std::endl;
+    //int Nnodes = xcn->nrow;
+    
+    //std::cout << Nelement << " " << Nnodes << std::endl;
+    
     //std::cout << "Nelement = " << Nelement << " " << Nnodes << std::endl;
-    int nloc     = int(ien->nrow/world_size) + ( world_rank < ien->nrow%world_size );
+    //int nloc     = int(ien->nrow/world_size) + ( world_rank < ien->nrow%world_size );
     //  compute offset of rows for each proc;
-    int offset   = world_rank*int(ien->nrow/world_size) + MIN(world_rank, ien->nrow%world_size);
+    //int offset   = world_rank*int(ien->nrow/world_size) + MIN(world_rank, ien->nrow%world_size);
 
 
 //============================================================
@@ -1176,7 +1344,7 @@ int main(int argc, char** argv) {
     
 
 //============================================================
-    
+    /*
     start = std::clock();
     PartitionBigMesh(xcn,ien,comm);
     duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
@@ -1195,7 +1363,7 @@ int main(int argc, char** argv) {
     
     duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
     std::cout << world_rank << " timer partitioning myself = " << duration << std::endl;
-
+*/
 
 //============================================================
 

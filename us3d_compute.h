@@ -364,7 +364,7 @@ double* ComputeDeterminantofJacobian(Array<double>* xcn, Array<int>* ien, int nl
     
     std::cout << "offset = " << offset << std::endl;
     int np = 8;
-    int nel = ien->nrow;
+    int nel = ien->nglob;
     double* Jac = new double[nloc];
     double* P = new double[np*3];
     int Vid;
@@ -405,9 +405,9 @@ double* ComputeVolumeCells(Array<double>* xcn, Array<int>* ien, MPI_Comm comm)
     int world_rank;
     MPI_Comm_rank(comm, &world_rank);
     
-    int nloc     = int(ien->nrow/world_size) + ( world_rank < ien->nrow%world_size );
+    int nloc     = int(ien->nglob/world_size) + ( world_rank < ien->nglob%world_size );
     //  compute offset of rows for each proc;
-    int offset   = world_rank*int(ien->nrow/world_size) + MIN(world_rank, ien->nrow%world_size);
+    int offset   = world_rank*int(ien->nglob/world_size) + MIN(world_rank, ien->nglob%world_size);
     
     int Nelements = nloc;
     double * vol_cells = new double[Nelements];
@@ -460,8 +460,8 @@ double* ComputeVolumeCellsReducedToVerts(Array<double>* xcn, Array<int>* ien)
 {
     
     
-    int Nelements = ien->nrow;
-    int Nnodes = xcn->nrow;
+    int Nelements = ien->nglob;
+    int Nnodes = xcn->nglob;
     
     double * vol_cells = new double[Nelements];
     double * vert_cnt   = new double[Nnodes];

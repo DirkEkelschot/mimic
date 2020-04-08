@@ -8,20 +8,21 @@ template <typename T> class Array {
     private:
     
     public:
-
-    int nrow;
-    int ncol;
     
+    int nglob;
+    int nloc;
     int offset;
+    int ncol;
     
     T *data;
     Array(){}
     
     Array(int r, int c)
     {
-        nrow = r;
+        
+        nloc = r;
         ncol = c;
-        int size = nrow*ncol;
+        int size = nloc*ncol;
         
         data = new T[size];
         
@@ -31,15 +32,14 @@ template <typename T> class Array {
             data[i] = 0;
         }
         */
-        
     }
     
     Array(int r, int c, int o)
     {
-        nrow   = r;
+        nloc   = r;
         ncol   = c;
         offset = o;
-        int size = nrow*ncol;
+        int size = nloc*ncol;
         
         data = new T[size];
         
@@ -67,7 +67,7 @@ template <typename T> class Array {
     int* getDim()
     {
         int* dim = new int[2];
-        dim[0] = nrow;
+        dim[0] = nloc;
         dim[1] = ncol;
         return  dim;
     }
@@ -88,6 +88,13 @@ struct Vert
     double x;
     double y;
     double z;
+};
+
+struct ParVar
+{
+    int size;
+    int* nlocs;
+    int* offsets;
 };
 
 //template<typename T>

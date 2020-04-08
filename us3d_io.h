@@ -329,14 +329,17 @@ Array<T>* ReadDataSetFromFileInParallel(const char* file_name, const char* datas
     int nrow             = dims[0];
     int ncol             = dims[1];
     int N                = nrow;
-
+    
     //Partition the array;
     // compute local number of rows per proc;
     int nloc             = int(N/size) + ( rank < N%size );
     //  compute offset of rows for each proc;
     int offset           = rank*int(N/size) + MIN(rank, N%size);
+    
     Array<T>* A_pt = new Array<T>(nloc,ncol);
-    //std::cout << "rank = " << rank << " " << nloc << " " << offset << std::endl;
+    
+    A_pt->offset = offset;
+    A_pt->nglob  = nrow;
     
     hsize_t              offsets[2];
     hsize_t              counts[2];
@@ -360,11 +363,22 @@ Array<T>* ReadDataSetFromFileInParallel(const char* file_name, const char* datas
     counts_out[0]  = nloc;
     counts_out[1]  = ncol;
     
-    
     ret = H5Sselect_hyperslab (memspace, H5S_SELECT_SET, offsets_out, NULL,counts_out, NULL);
     
     ret = H5Dread (dset_id, hid_from_type<T>(), memspace, dspace, H5P_DEFAULT, A_pt->data);
+    
+    double *recv = new double[nrow*ncol];
+    //double *data = new double[nloc*ncol];
+    
+    /*
+    for(int i=0;i<nloc*ncol;i++)
+    {
+        data[i] = A_pt->data[i];
+    }*/
+    
 
+    //MPI_Gather( A_pt->data, nloc*ncol, MPI_INT, recv, nloc*ncol, MPI_INT, 0, comm);
+    
     H5Dclose(dset_id);
     H5Fclose(file_id);
     return A_pt;
