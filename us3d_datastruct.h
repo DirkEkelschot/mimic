@@ -3,6 +3,35 @@
 
 
 
+template <typename T> class JaggedArray {
+private:
+
+public:
+    
+    int nloc;
+    int* ncols;
+    int* offset;
+    T *data;
+    JaggedArray(){}
+    
+    JaggedArray(int r, int* nc)
+    {
+        
+        nloc = r;
+        ncols = nc;
+        
+        int size = 0;
+        for(int i=0;i<r;i++)
+        {
+            size = size+ncols[i];
+        }
+        
+        data = new T[size];
+    
+    }
+};
+
+
 
 template <typename T> class Array {
     private:
@@ -95,6 +124,13 @@ struct ParVar
     int size;
     int* nlocs;
     int* offsets;
+};
+
+struct TmpStruct
+{
+    int* data;
+    int* offsets;
+    int* nlocs;
 };
 
 //template<typename T>
