@@ -1388,8 +1388,8 @@ int main(int argc, char** argv) {
     //duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
     //std::cout << world_rank << " copying = " << duration << std::endl;
     //std::cout << "number counter " << cnt << " " << cnt2 << " " << xcn->nloc << " " << Request.size() <<  std::endl;
-    //map< int, std::set<int> > Request = GetRequestedVertices(ien,xcn,comm);
-    //map<int,  std::set<int> >::iterator it;
+    map< int, std::set<int> > Request = GetRequestedVertices(ien,xcn,comm);
+    map<int,  std::set<int> >::iterator it;
     TmpStruct* schedule = GetSchedule(ien,xcn,comm);
     std::map< int, set<int> > sch;
     std::cout << "we are jagged " << std::endl;
@@ -1406,6 +1406,40 @@ int main(int argc, char** argv) {
             //    cnt++;
         }
         std::cout << std::endl;
+    }
+    int n_req_recv;
+    
+    for(int q=0;q<world_size;q++)
+    {
+        if (world_rank == q)
+        {
+            int tel = 0;
+            int i = 0;
+            for (it = Request.begin(); it != Request.end(); it++)
+            {
+                int n_req = it->second.size();
+                int* req_arr_send = new int[n_req];
+                int* req_arr_recv = new int[n_req];
+                int dest   = it->first;
+                //
+                //for(it_set=it->second.begin();it_set != it->second.end();++it_set)
+                //{
+                //    req_arr_send[i] = *it_set;
+                //}
+                
+                std::cout << "wr = " << q << " " << dest << " ";
+                
+                MPI_Send(&n_req, 1, MPI_INT, dest, dest, comm);
+                tel = tel + 1;
+                i++;
+            }
+        }
+        else if (sch[q].find( world_rank ) != sch[q].end())
+        {
+            MPI_Recv(&n_req_recv, 1, MPI_INT, q, world_rank, comm, MPI_STATUS_IGNORE);
+            std::cout << "vliegtieover? " << world_rank << " " << n_req_recv << " " << q << std::endl;
+        }
+        
     }
     //std::cout << std::endl;
     /*
