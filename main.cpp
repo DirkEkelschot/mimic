@@ -1194,7 +1194,7 @@ map< int, std::set<int> > GetRequestedVertices(Array<int>* ien, Array<double>* x
     
     map< int, std::set<int> > Request;
     int rank_f = 0;
-    std::vector<std::vector<int>> req;
+    std::vector<std::vector<int> > req;
     
     ParVar* pv_xcn = ComputeParallelStateArray(xcn->nglob, comm);
     int val;
