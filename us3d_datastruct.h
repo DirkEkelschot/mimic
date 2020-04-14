@@ -131,6 +131,10 @@ struct TmpStruct
     int* data;
     int* offsets;
     int* nlocs;
+    
+    int* sizing;
+    int* offsets_sizing;
+    int* nlocs_sizing;
 };
 
 //template<typename T>

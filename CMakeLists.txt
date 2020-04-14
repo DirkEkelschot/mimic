@@ -28,7 +28,7 @@ add_executable(adapt main.cpp)
 
 find_package(MPI REQUIRED)
 include_directories(SYSTEM ${MPI_INCLUDE_PATH})
-list(APPEND EXTERNAL_LIB ${MPI_LIBRARIES})
+#list(APPEND EXTERNAL_LIB ${MPI_LIBRARIES})
 
 find_package(LAPACK)
 
@@ -70,8 +70,8 @@ set(PARMETIS_INCLUDE_DIRS ${PARMETIS_INCLUDE_DIR} ${METIS_INCLUDE_DIR})
 include_directories(${PARMETIS_INCLUDE_DIRS})
 include_directories(${HDF5_INCLUDE_DIR})
 
-list(APPEND EXTERNAL_LIB ${PARMETIS_LIBRARIES})
-list(APPEND EXTERNAL_LIB ${HDF5_LIBRARY})
+#list(APPEND EXTERNAL_LIB ${PARMETIS_LIBRARIES})
+#list(APPEND EXTERNAL_LIB ${HDF5_LIBRARY})
 
 target_link_libraries(adapt ${HDF5_LIBRARY})
 target_link_libraries(adapt ${PARMETIS_LIBRARIES})

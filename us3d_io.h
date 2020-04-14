@@ -67,7 +67,6 @@ Array<T>* ReadDataSetFromFile(const char* file_name, const char* dataset_name)
     hid_t file_id        = H5Fopen(file_name, H5F_ACC_RDONLY,H5P_DEFAULT);
     hid_t dset_id        = H5Dopen(file_id,dataset_name,H5P_DEFAULT);
     hid_t dspace          = H5Dget_space(dset_id);
-    int npoints         = H5Sget_simple_extent_npoints(dspace);
     int ndims            = H5Sget_simple_extent_ndims(dspace);
     hsize_t dims[ndims];
     H5Sget_simple_extent_dims(dspace, dims, NULL);
@@ -76,7 +75,6 @@ Array<T>* ReadDataSetFromFile(const char* file_name, const char* dataset_name)
     int ncol            = dims[1];
     
     hid_t memspace_id   = H5Screate_simple( 2, dims, NULL );
-    hid_t memtype_id    = hid_from_type<T>();
     hid_t file_space_id = H5Dget_space(dset_id);
     
     Array<T>* A_t = new Array<T>(nrow,ncol);
@@ -98,7 +96,6 @@ Array<T>* ReadDataSetFromGroupFromFile(const char* file_name, const char* group_
     hid_t dset_id        = H5Dopen(group_id,dataset_name,H5P_DEFAULT);
     
     hid_t dspace         = H5Dget_space(dset_id);
-    int npoints          = H5Sget_simple_extent_npoints(dspace);
     int ndims            = H5Sget_simple_extent_ndims(dspace);
     hsize_t dims[ndims];
     H5Sget_simple_extent_dims(dspace, dims, NULL);
@@ -107,7 +104,6 @@ Array<T>* ReadDataSetFromGroupFromFile(const char* file_name, const char* group_
     int ncol            = dims[1];
     
     hid_t memspace_id   = H5Screate_simple( 2, dims, NULL );
-    hid_t memtype_id    = hid_from_type<T>();
     hid_t file_space_id = H5Dget_space(dset_id);
 
     Array<T>* A_t;
@@ -118,7 +114,6 @@ Array<T>* ReadDataSetFromGroupFromFile(const char* file_name, const char* group_
         hid_t native_type = h5tools_get_native_type(type);
         int n_element = dims[0];
         size_t type_size = std::max(H5Tget_size(type), H5Tget_size(native_type));
-        int alloc_size = n_element * type_size;
         
         A_t = new Array<T>(n_element,type_size);
         
@@ -160,7 +155,6 @@ Array<T>* ReadDataSetFromRunInFile(const char* file_name, const char* run_name,c
     hid_t run_id         = H5Gopen(group_id,run_name,H5P_DEFAULT);
     hid_t dset_id        = H5Dopen(run_id,dataset_name,H5P_DEFAULT);
     hid_t dspace         = H5Dget_space(dset_id);
-    int npoints          = H5Sget_simple_extent_npoints(dspace);
     int ndims            = H5Sget_simple_extent_ndims(dspace);
     
     hsize_t dims[ndims];
@@ -170,7 +164,6 @@ Array<T>* ReadDataSetFromRunInFile(const char* file_name, const char* run_name,c
     int ncol             = dims[1];
     
     hid_t memspace_id    = H5Screate_simple( 2, dims, NULL );
-    hid_t memtype_id     = hid_from_type<T>();
     hid_t file_space_id  = H5Dget_space(dset_id);
     
     Array<T>* A_t = new Array<T>(nrow,ncol);
@@ -193,6 +186,9 @@ Array<T>* ReadDataSetFromRunInFile(const char* file_name, const char* run_name,c
 
 
 
+
+
+
 template<typename T>
 Array<T> ReadDataSetFromRunInFileInParallel(const char* file_name, const char* run_name,const char* dataset_name, MPI_Comm comm, MPI_Info info)
 {
@@ -208,7 +204,6 @@ Array<T> ReadDataSetFromRunInFileInParallel(const char* file_name, const char* r
     hid_t run_id         = H5Gopen(group_id,run_name,H5P_DEFAULT);
     hid_t dset_id        = H5Dopen(run_id,dataset_name,H5P_DEFAULT);
     hid_t dspace         = H5Dget_space(dset_id);
-    int npoints          = H5Sget_simple_extent_npoints(dspace);
     int ndims            = H5Sget_simple_extent_ndims(dspace);
     
     hsize_t dims[ndims];
@@ -298,6 +293,9 @@ Array<T> ReadDataSetFromRunInFileInParallel(const char* file_name, const char* r
 
 
 
+
+
+
 template<typename T>
 Array<T>* ReadDataSetFromFileInParallel(const char* file_name, const char* dataset_name, MPI_Comm comm, MPI_Info info)
 {
@@ -321,7 +319,6 @@ Array<T>* ReadDataSetFromFileInParallel(const char* file_name, const char* datas
     hid_t file_id        = H5Fopen(file_name, H5F_ACC_RDONLY,H5P_DEFAULT);
     hid_t dset_id        = H5Dopen(file_id,dataset_name,H5P_DEFAULT);
     hid_t dspace         = H5Dget_space(dset_id);
-    int npoints          = H5Sget_simple_extent_npoints(dspace);
     int ndims            = H5Sget_simple_extent_ndims(dspace);
     
     hsize_t dims[ndims];
@@ -393,18 +390,20 @@ Array<T>* ReadDataSetFromFileInParallel(const char* file_name, const char* datas
 
 
 
+
+
 US3dData ReadUS3Ddata(const char* filename, const char* run){
     //
     
-    hid_t status;
+    //hid_t status;
     
     US3dData V;
     
-    Array<double>* C          = ReadDataSetFromFile<double>("grid_kl4.h5","xcn");
-    Array<double>* boundaries = ReadDataSetFromRunInFile<double>("data_r.h5","run_1","boundaries");
-    Array<double>* interior   = ReadDataSetFromRunInFile<double>("data_r.h5","run_1","interior");
+   // Array<double>* C          = ReadDataSetFromFile<double>("../../grids/grid_kl4.h5","xcn");
+    //Array<double>* boundaries = ReadDataSetFromRunInFile<double>("../../grids/data_r.h5","run_1","boundaries");
+    //Array<double>* interior   = ReadDataSetFromRunInFile<double>("../../grids/data_r.h5","run_1","interior");
     
-    int* dim = boundaries->getDim();
+    //int* dim = boundaries->getDim();
    
     //std::cout << dim[0] << " " << dim[1] << std::endl;
     

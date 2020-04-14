@@ -364,11 +364,9 @@ double* ComputeDeterminantofJacobian(Array<double>* xcn, Array<int>* ien, int nl
     
     std::cout << "offset = " << offset << std::endl;
     int np = 8;
-    int nel = ien->nglob;
     double* Jac = new double[nloc];
     double* P = new double[np*3];
     int Vid;
-    int newcnt;
     for(int i=0;i<nloc;i++)
     {
         np = 8;
@@ -414,18 +412,7 @@ double* ComputeVolumeCells(Array<double>* xcn, Array<int>* ien, MPI_Comm comm)
     int np = 8;
     double* P = new double[np*3];
     
-    double L01=0.0;
-    double L15=0.0;
-    double L04=0.0;
-    double L45=0.0;
-    double L37=0.0;
-    double L23=0.0;
-    double L26=0.0;
-    double L67=0.0;
     
-    double b0,b1,b2,b3;
-    double v0,v1,v2,v3;
-    double H12,H47,H30,H56;
     double vhex = 0.0;
     
     int Vid;
@@ -471,18 +458,6 @@ double* ComputeVolumeCellsReducedToVerts(Array<double>* xcn, Array<int>* ien)
     int np = 8;
     double* P = new double[np*3];
     
-    double L01=0.0;
-    double L15=0.0;
-    double L04=0.0;
-    double L45=0.0;
-    double L37=0.0;
-    double L23=0.0;
-    double L26=0.0;
-    double L67=0.0;
-    
-    double b0,b1,b2,b3;
-    double v0,v1,v2,v3;
-    double H12,H47,H30,H56;
     double vhex = 0.0;
     
     int Vid;

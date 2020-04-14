@@ -460,6 +460,7 @@ void PartitionBigMesh(Array<double>* xcn, Array<int>* ien, MPI_Comm comm)
     //std::cout << "extra check " << eptr[nloc] << " " << npo_loc << std::endl;
     //std::cout << "ntot " <<  nloc*8 << " " << npo_loc << std::endl;
     
+    /*
     idx_t numflag_[] = {0};
     idx_t *numflag = numflag_;
     idx_t ncommonnodes_[] = {4};
@@ -495,7 +496,7 @@ void PartitionBigMesh(Array<double>* xcn, Array<int>* ien, MPI_Comm comm)
     
     idx_t part_[]    = {nloc};
     idx_t *part      = part_;
-    
+    */
     /*
     if(world_rank == 0)
     {
@@ -522,9 +523,9 @@ void PartitionBigMesh(Array<double>* xcn, Array<int>* ien, MPI_Comm comm)
     */
     //ParMETIS_V3_PartMeshKway(red_elmdist, eptr, eind, elmwgt, wgtflag, numflag, ncon, ncommonnodes, nparts, tpwgts, ubvec, options, &edgecut, part, &comm);
     
-    ParMETIS_V3_Mesh2Dual(red_elmdist,eptr,eind,numflag,ncommonnodes,&xadj,&adjncy,&comm);
+    //ParMETIS_V3_Mesh2Dual(red_elmdist,eptr,eind,numflag,ncommonnodes,&xadj,&adjncy,&comm);
     
-    idx_t *nparts2 = nparts_;
+    //idx_t *nparts2 = nparts_;
     
     //ParMETIS_V3_AdaptiveRepart(red_elmdist, xadj, adjncy, elmwgt, adjwgt, vsize, wgtflag, numflag, ncon, nparts2, tpwgts, ubvec, itr, options, &edgecut, part, &comm);
     
@@ -541,17 +542,11 @@ void PartitionBigMesh(Array<double>* xcn, Array<int>* ien, MPI_Comm comm)
         }
     }
    */ //===================================================================================================================================
-    
+    /*
     int rank = 0;
     if(world_rank == rank)
     {
-    
-        //std::cout << "rank :: " << world_rank << std::endl;
-        /*for(int i=0;i<nloc+1;i++)
-        {
-            std::cout << xadj[i] << " --> ";
-        }
-         */
+
         int cnt = 0;
         
         int nshow = 20;
@@ -576,6 +571,7 @@ void PartitionBigMesh(Array<double>* xcn, Array<int>* ien, MPI_Comm comm)
             cnt++;
         }
     }
+    */
 }
 
 void Example3DPartitioning(MPI_Comm comm)
@@ -749,6 +745,8 @@ void Example3DPartitioning(MPI_Comm comm)
     }
     */
     //===================================================================================================================================
+    
+    
     idx_t numflag_[] = {0};
     idx_t *numflag = numflag_;
     idx_t ncommonnodes_[] = {4};
@@ -1191,7 +1189,6 @@ map< int, std::set<int> > GetRequestedVertices(Array<int>* ien, Array<double>* x
     int world_rank;
     MPI_Comm_rank(comm, &world_rank);
     
-    
     map< int, std::set<int> > Request;
     int rank_f = 0;
     std::vector<std::vector<int> > req;
@@ -1233,22 +1230,34 @@ TmpStruct* GetSchedule(Array<int>* ien, Array<double>* xcn, MPI_Comm comm)
     map<int,  std::set<int> >::iterator it;
     int num_req_proc = Request.size();
     
+    for(it=Request.begin();it!=Request.end();it++)
+    {
+        std::cout << "sizing :: " << " " << world_rank << " " << it->second.size() << std::endl;
+    }
+    
+    
     int* collect = new int[num_req_proc+1];
+    int* sizing  = new int[num_req_proc];
     int tot_req_proc = 0;
     
     
     int* num_req_procs = new int[world_size];
     int* red_num_req_procs = new int[world_size];
+    int* num_req_sizing = new int[world_size];
+    int* red_num_req_sizing = new int[world_size];
     int* proc_offset = new int[world_size];
+    int* proc_offset_sizing = new int[world_size];
     for(int i=0;i<world_size;i++)
     {
         if(i==world_rank)
         {
             num_req_procs[i] = num_req_proc+1;
+            num_req_sizing[i] = num_req_proc;
         }
         else
         {
             num_req_procs[i]=0;
+            num_req_sizing[i] = 0;
         }
     }
     
@@ -1256,38 +1265,70 @@ TmpStruct* GetSchedule(Array<int>* ien, Array<double>* xcn, MPI_Comm comm)
     
     
     MPI_Allreduce(num_req_procs, red_num_req_procs, world_size, MPI_INT, MPI_SUM, comm);
+    MPI_Allreduce(num_req_sizing, red_num_req_sizing, world_size, MPI_INT, MPI_SUM, comm);
+
+    for(int i=0;i<world_size;i++)
+    {
+        std::cout << world_rank << " " << red_num_req_sizing[i] << std::endl;
+    }
+    
+    std::cout << "=====" << std::endl;
     int offset = 0;
+    int offset_sizing = 0;
     for(int i=0;i<world_size;i++)
     {
         proc_offset[i] = offset;
+        proc_offset_sizing[i] = offset_sizing;
         
         offset = offset + red_num_req_procs[i];
+        offset_sizing = offset_sizing+red_num_req_sizing[i];
     }
+    
+    
     
     MPI_Allreduce(&num_req_proc, &tot_req_proc, 1, MPI_INT, MPI_SUM, comm);
     int* reduce_req_procs = new int[world_size+tot_req_proc];
-    
+    int* reduce_req_sizing = new int[world_size+tot_req_proc];
     collect[0] = world_rank;
+    sizing[0] = -1;
     int t = 1;
     for(it = Request.begin(); it != Request.end(); it++)
     {
         collect[t] = it->first;
+        sizing[t] = it->second.size();
         t++;
     }
     
     //std::cout << world_rank << " " << num_req_proc+1 << std::endl;
     MPI_Gatherv(&collect[0], (num_req_proc+1), MPI_INT, &reduce_req_procs[0], red_num_req_procs, proc_offset, MPI_INT, 0, comm);
+    MPI_Gatherv(&sizing[0], (num_req_proc+1), MPI_INT, &reduce_req_sizing[0], red_num_req_procs, proc_offset, MPI_INT, 0, comm);
     MPI_Bcast(reduce_req_procs, world_size+tot_req_proc, MPI_INT, 0, comm);
+    MPI_Bcast(reduce_req_sizing, world_size+tot_req_proc, MPI_INT, 0, comm);
     
     Array<int>* schedule = new Array<int>(world_size+tot_req_proc,1);
     //JaggedArray<int> schedule_jag = new JaggedArray<int>(nrow);
     schedule->data = reduce_req_procs;
+    //schedule->sizing = reduce_req_sizing;
+
+    if (world_rank == 0)
+    {
+        for(int i=0;i<tot_req_proc;i++)
+        {
+            std::cout<< reduce_req_sizing[i] << std::endl;
+        }
+        
+        std::cout << "++++++++++++++++++++++++" << std::endl;
+    }
+    
+    
     
     TmpStruct* t_struct = new TmpStruct;
-    
     t_struct->data = reduce_req_procs;
+    t_struct->sizing = reduce_req_sizing;
     t_struct->offsets = proc_offset;
     t_struct->nlocs = red_num_req_procs;
+    t_struct->offsets_sizing = proc_offset_sizing;
+    t_struct->nlocs_sizing = red_num_req_sizing;
     
     return t_struct;
 }
@@ -1345,8 +1386,8 @@ int main(int argc, char** argv) {
      */
 
 //============================================================
-    const char* fn_conn="grids/conn.h5";
-    const char* fn_grid="grids/grid.h5";
+    const char* fn_conn="../../grids/conn.h5";
+    const char* fn_grid="../../grids/grid.h5";
     
     /*
     Array<int>*    zdefs = ReadDataSetFromGroupFromFile<int>(fn_conn,"zones","zdefs");
@@ -1361,29 +1402,27 @@ int main(int argc, char** argv) {
     
     Array<double>*   xcn = ReadDataSetFromFileInParallel<double>(fn_grid,"xcn",comm,info);
     
-    int Nnodes     = xcn->nglob;
-    ParVar* pv_xcn = ComputeParallelStateArray(xcn->nglob, comm);
+    //int Nnodes     = xcn->nglob;
+    //ParVar* pv_xcn = ComputeParallelStateArray(xcn->nglob, comm);
     
     start = std::clock();
     Array<int>*      ien = ReadDataSetFromFileInParallel<int>(fn_conn,"ien",comm,info);
     duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
     //std::cout << world_rank << " reading = " << duration << std::endl;
     
-    int Nelements = ien->nglob;
-    ParVar* pv_ien = ComputeParallelStateArray(ien->nglob, comm);
+    //int Nelements = ien->nglob;
+    //ParVar* pv_ien = ComputeParallelStateArray(ien->nglob, comm);
     
     //std::cout << world_rank << " " << pv_ien->nlocs[world_rank] << " " << pv_ien->offsets[world_rank] << " " << pv_xcn->nlocs[world_rank] << " " << pv_xcn->offsets[world_rank] << std::endl;
     
 
     //Array<int>*      ien_cpy = new Array<int>(ien->nloc,ien->ncol);
-    int val = 0;
-    int cnt = 0;
-    int cnt2 = 0;
+    //int val = 0;
+    //int cnt = 0;
+    //int cnt2 = 0;
     start = std::clock();
     
     //std::cout << "range " << pv_xcn->offsets[world_rank] << " " << pv_xcn->offsets[world_rank+1] << std::endl;
-    
-    
     
     //duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
     //std::cout << world_rank << " copying = " << duration << std::endl;
@@ -1391,26 +1430,119 @@ int main(int argc, char** argv) {
     map< int, std::set<int> > Request = GetRequestedVertices(ien,xcn,comm);
     map<int,  std::set<int> >::iterator it;
     TmpStruct* schedule = GetSchedule(ien,xcn,comm);
-    std::map< int, set<int> > sch;
-    std::cout << "we are jagged " << std::endl;
+    std::map< int, set<int> > s_send;
+    std::map< int, set<int> > s_recv;
+    std::map< int, std::vector<int> > s_send_size;
+    std::map< int, std::vector<int> > s_recv_size;
+    
+    std::map< int, std::map< int, int> > s_alloc;
+    //std::cout << "we are jagged " << std::endl;
+    int nval_tot = 0;
     for(int i=0;i<world_size;i++)
     {
             
         int nloc   = schedule->nlocs[i];
         int offset = schedule->offsets[i];
-
-        for(int j=offset;j<(offset+nloc);j++)
+        
+        int nloc_sizing   = schedule->nlocs_sizing[i];
+        int offset_sizing = schedule->offsets_sizing[i];
+        for(int j=offset+1;j<(offset+nloc);j++)
         {
-            sch[i].insert(schedule->data[j]);
-            std::cout << schedule->data[j] << " ";
-            //    cnt++;
+            s_send[i].insert(schedule->data[j]);
+            s_recv[schedule->data[j]].insert(i);
+            
+            s_send_size[i].push_back(schedule->sizing[j]);
+            s_recv_size[schedule->data[j]].push_back(schedule->sizing[j]);
+            
+            s_alloc[i][schedule->data[j]] = schedule->sizing[j];
         }
-        std::cout << std::endl;
     }
+    
+    
+    if (world_rank == 0)
+    {
+        std::cout << "mappie mappie mappie " << std::endl;
+        std::map< int, std::map< int, int> >::iterator it;
+        for(it=s_alloc.begin();it!=s_alloc.end();it++)
+        {
+            
+            std::cout<< it->first << " :: ";
+            std::map< int, int>::iterator it2;
+            for(it2=(*it).second.begin();it2!=(*it).second.end();it2++)
+            {
+                std::cout << (*it2).first << " " << (*it2).second << " ";
+            }
+            std::cout << std::endl;
+            
+        }
+    }
+    
     int n_req_recv;
+    int* req_arr_recv = new int[nval_tot];
+    
+    if(world_rank == 0)
+    {
+        /*
+        std::cout << "Initial sizing " << std::endl;
+        
+        for(int i=0;i<world_size;i++)
+        {
+            std::set<int>::iterator it_set2;
+            for(it_set2=s_send[i].begin();it_set2 != s_send[i].end();++it_set2)
+            {
+                std::cout << *it_set2 << " ";
+            }
+            std::cout << std::endl;
+        }
+        
+        for(int i=0;i<world_size;i++)
+        {
+            std::set<int>::iterator it_set2;
+            for(it_set2=s_recv[i].begin();it_set2 != s_recv[i].end();++it_set2)
+            {
+                std::cout << *it_set2 << " ";
+            }
+            std::cout << std::endl;
+        }
+        
+        
+        for(int i=0;i<world_size;i++)
+        {
+            std::vector<int>::iterator it_set2;
+            std::cout << "work_rank = " << i << " ";
+            for(it_set2=s_recv_size[i].begin();it_set2 != s_recv_size[i].end();++it_set2)
+            {
+                std::cout << *it_set2 << " ";
+            }
+            std::cout << std::endl;
+        }
+        
+        std::cout << "The inverse - " << std::endl;
+        
+        for(int i=0;i<world_size;i++)
+        {
+            std::cout << "work_rank = " <<  i << " ";
+            std::vector<int>::iterator it_set2;
+            for(it_set2=s_send_size[i].begin();it_set2 != s_send_size[i].end();++it_set2)
+            {
+                std::cout << *it_set2 << " ";
+            }
+            std::cout << std::endl;
+        }
+         
+         */
+    }
+
+    //set up receiving arrays:
     
     for(int q=0;q<world_size;q++)
     {
+        //std::set<int>::iterator it_set2;
+        //for(it_set2=sch[q].begin();it_set2 != sch[q].end();++it_set2)
+        //{
+        //    std::cout << "sch " << q << " " << *it_set2 << std::endl;
+        //}
+        
         if (world_rank == q)
         {
             int tel = 0;
@@ -1419,25 +1551,30 @@ int main(int argc, char** argv) {
             {
                 int n_req = it->second.size();
                 int* req_arr_send = new int[n_req];
-                int* req_arr_recv = new int[n_req];
+                
                 int dest   = it->first;
-                //
+                std::set<int>::iterator it_set;
+                
                 //for(it_set=it->second.begin();it_set != it->second.end();++it_set)
                 //{
-                //    req_arr_send[i] = *it_set;
+                    //req_arr_send[i] = *it_set;
                 //}
-                
-                std::cout << "wr = " << q << " " << dest << " ";
+                //std::cout << "wr = " << q << " " << dest << " ";
                 
                 MPI_Send(&n_req, 1, MPI_INT, dest, dest, comm);
+                //MPI_Send(&req_arr_send, n_req, MPI_INT, dest, dest*2, comm);
                 tel = tel + 1;
                 i++;
             }
         }
-        else if (sch[q].find( world_rank ) != sch[q].end())
+        else if (s_send[q].find( world_rank ) != s_send[q].end())
         {
             MPI_Recv(&n_req_recv, 1, MPI_INT, q, world_rank, comm, MPI_STATUS_IGNORE);
-            std::cout << "vliegtieover? " << world_rank << " " << n_req_recv << " " << q << std::endl;
+            
+            //MPI_Recv(req_arr_recv, n_req_recv, MPI_INT, q, world_rank*2, comm, MPI_STATUS_IGNORE);
+            //std::cout << "vliegtieover? " << world_rank << " " << n_req_recv << " " << q << " size " << s_send[q].size() << std::endl;
+            
+            
         }
         
     }
