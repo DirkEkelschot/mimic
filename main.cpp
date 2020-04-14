@@ -1470,7 +1470,7 @@ int main(int argc, char** argv) {
             std::map< int, int>::iterator it2;
             for(it2=(*it).second.begin();it2!=(*it).second.end();it2++)
             {
-                std::cout << (*it2).first << " " << (*it2).second << " ";
+                std::cout << (*it2).first << " " << (*it2).second << " ---> ";
             }
             std::cout << std::endl;
             
@@ -1570,11 +1570,20 @@ int main(int argc, char** argv) {
         else if (s_send[q].find( world_rank ) != s_send[q].end())
         {
             MPI_Recv(&n_req_recv, 1, MPI_INT, q, world_rank, comm, MPI_STATUS_IGNORE);
+            //std::cout << "alloc values = " << q << " " << world_rank << "  " << s_alloc[q].size() << " "  << std::endl;
+            if(world_rank == 1)
+            {
+                std::cout << "for this number " << q << std::endl;
+                std::cout << "stats - >" << s_alloc[q].size() << " " << world_rank << " :: ";
+                for(int s = 0;s < s_alloc[q].size();s++)
+                {
+                    std::cout << s_alloc[q][s] << " ";
+                }
+                std::cout << std::endl;
+            }
             
             //MPI_Recv(req_arr_recv, n_req_recv, MPI_INT, q, world_rank*2, comm, MPI_STATUS_IGNORE);
             //std::cout << "vliegtieover? " << world_rank << " " << n_req_recv << " " << q << " size " << s_send[q].size() << std::endl;
-            
-            
         }
         
     }
