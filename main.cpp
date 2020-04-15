@@ -1157,25 +1157,16 @@ int FindRank(int* arr, int size, int val)
     int found = 1;
     while (start<=last)
     {
-        //std::cout << val << " " << arr[mid] << " " << mid << " " << start << " " << last <<  std::endl;
-        
         if (arr[mid]<val)
         {
             start = mid + 1;
         }
-        /*else if(val<arr[mid+1] && val>arr[mid])
-        {
-            std::cout << "printuhn!"<<std::endl;
-            found = 0;
-            
-        }*/
         else
         {
             last = mid - 1;
         }
         mid = (start+last)/2;
     }
-    
     return mid;
 }
 
@@ -1230,11 +1221,12 @@ TmpStruct* GetSchedule(Array<int>* ien, Array<double>* xcn, MPI_Comm comm)
     map<int,  std::set<int> >::iterator it;
     int num_req_proc = Request.size();
     
+    /*
     for(it=Request.begin();it!=Request.end();it++)
     {
         std::cout << "sizing :: " << " " << world_rank << " " << it->second.size() << std::endl;
     }
-    
+    */
     
     int* collect = new int[num_req_proc+1];
     int* sizing  = new int[num_req_proc];
@@ -1261,18 +1253,16 @@ TmpStruct* GetSchedule(Array<int>* ien, Array<double>* xcn, MPI_Comm comm)
         }
     }
     
-    
-    
-    
     MPI_Allreduce(num_req_procs, red_num_req_procs, world_size, MPI_INT, MPI_SUM, comm);
     MPI_Allreduce(num_req_sizing, red_num_req_sizing, world_size, MPI_INT, MPI_SUM, comm);
-
+    /*
     for(int i=0;i<world_size;i++)
     {
         std::cout << world_rank << " " << red_num_req_sizing[i] << std::endl;
     }
     
     std::cout << "=====" << std::endl;
+     */
     int offset = 0;
     int offset_sizing = 0;
     for(int i=0;i<world_size;i++)
@@ -1309,7 +1299,7 @@ TmpStruct* GetSchedule(Array<int>* ien, Array<double>* xcn, MPI_Comm comm)
     //JaggedArray<int> schedule_jag = new JaggedArray<int>(nrow);
     schedule->data = reduce_req_procs;
     //schedule->sizing = reduce_req_sizing;
-
+    
     if (world_rank == 0)
     {
         for(int i=0;i<tot_req_proc;i++)
@@ -1386,8 +1376,8 @@ int main(int argc, char** argv) {
      */
 
 //============================================================
-    const char* fn_conn="../../grids/conn.h5";
-    const char* fn_grid="../../grids/grid.h5";
+    const char* fn_conn="grids/conn.h5";
+    const char* fn_grid="grids/grid.h5";
     
     /*
     Array<int>*    zdefs = ReadDataSetFromGroupFromFile<int>(fn_conn,"zones","zdefs");
@@ -1399,16 +1389,16 @@ int main(int argc, char** argv) {
     */
     
     //============================================================
-    
+    start = std::clock();
     Array<double>*   xcn = ReadDataSetFromFileInParallel<double>(fn_grid,"xcn",comm,info);
     
     //int Nnodes     = xcn->nglob;
     //ParVar* pv_xcn = ComputeParallelStateArray(xcn->nglob, comm);
     
-    start = std::clock();
+    
     Array<int>*      ien = ReadDataSetFromFileInParallel<int>(fn_conn,"ien",comm,info);
     duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
-    //std::cout << world_rank << " reading = " << duration << std::endl;
+    std::cout << world_rank << " reading = " << duration << std::endl;
     
     //int Nelements = ien->nglob;
     //ParVar* pv_ien = ComputeParallelStateArray(ien->nglob, comm);
@@ -1420,22 +1410,36 @@ int main(int argc, char** argv) {
     //int val = 0;
     //int cnt = 0;
     //int cnt2 = 0;
-    start = std::clock();
+    //start = std::clock();
     
     //std::cout << "range " << pv_xcn->offsets[world_rank] << " " << pv_xcn->offsets[world_rank+1] << std::endl;
     
     //duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
     //std::cout << world_rank << " copying = " << duration << std::endl;
     //std::cout << "number counter " << cnt << " " << cnt2 << " " << xcn->nloc << " " << Request.size() <<  std::endl;
-    map< int, std::set<int> > Request = GetRequestedVertices(ien,xcn,comm);
+    
+    //start = std::clock();
+    //map< int, std::set<int> > Request = GetRequestedVertices(ien,xcn,comm);
+    
+    //duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
+    //std::cout << world_rank << " requesting = " << duration << std::endl;
     map<int,  std::set<int> >::iterator it;
+    
+    
+    start = std::clock();
     TmpStruct* schedule = GetSchedule(ien,xcn,comm);
+    duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
+
+    std::cout << world_rank << " scheduling = " << duration << std::endl;
+    
+    
     std::map< int, set<int> > s_send;
     std::map< int, set<int> > s_recv;
     std::map< int, std::vector<int> > s_send_size;
     std::map< int, std::vector<int> > s_recv_size;
     
     std::map< int, std::map< int, int> > s_alloc;
+    std::map< int, std::map< int, int> > s_recv_alloc;
     //std::cout << "we are jagged " << std::endl;
     int nval_tot = 0;
     for(int i=0;i<world_size;i++)
@@ -1455,10 +1459,14 @@ int main(int argc, char** argv) {
             s_recv_size[schedule->data[j]].push_back(schedule->sizing[j]);
             
             s_alloc[i][schedule->data[j]] = schedule->sizing[j];
+            s_recv_alloc[schedule->data[j]][i] = schedule->sizing[j];
         }
     }
     
     
+    
+    
+    /*
     if (world_rank == 0)
     {
         std::cout << "mappie mappie mappie " << std::endl;
@@ -1473,17 +1481,69 @@ int main(int argc, char** argv) {
                 std::cout << (*it2).first << " " << (*it2).second << " ---> ";
             }
             std::cout << std::endl;
-            
         }
+        
+        for(int s=0;s<world_size;s++)
+        //for(it=s_recv_alloc.begin();it!=s_recv_alloc.end();it++)
+        {
+            
+            std::map< int, int>::iterator it2;
+            for(it2=(*it).second.begin();it2!=(*it).second.end();it2++)
+            {
+                std::cout << (*it2).first << " " << (*it2).second << " ---> ";
+            }
+            std::cout << std::endl;
+        }
+        
+        
+        
+    }
+    */
+    
+    
+    //std::cout << "world _ rank " << world_rank << ":::==>";
+    std::map< int, int> loc_alloc = s_recv_alloc[world_rank];
+    
+    
+    //std::cout << " loc_alloc.size()  = " << loc_alloc.size() << std::endl;
+    int* recv_offset = new int[loc_alloc.size()+1];
+    recv_offset[0]   = 0;
+    int* recv_loc    = new int[loc_alloc.size()];;
+    int recv_size    = 0;
+    int i = 0;
+    
+    std::map< int, int> offset_map;
+    std::map< int, int> loc_map;
+    std::map< int, int>::iterator it_loc;
+    for(it_loc=loc_alloc.begin();it_loc!=loc_alloc.end();it_loc++)
+    {
+        recv_loc[i]           = it_loc->second;
+        recv_offset[i+1]      = recv_offset[i]+recv_loc[i];
+        recv_size = recv_size+it_loc->second;
+        
+        loc_map[it_loc->first]=recv_loc[i];
+        offset_map[it_loc->first]=recv_offset[i];
+        
+        i++;
     }
     
     int n_req_recv;
-    int* req_arr_recv = new int[nval_tot];
+    int* recv_collector = new int[recv_size];
+    /*
+    for(int i=0;i<loc_alloc.size();i++)
+    {
+        std::cout << recv_loc[i] << " " << recv_offset[i+1] << std::endl;
+    }
+    std::cout << "recv_size = " << recv_size << std::endl;
+    std::cout << std::endl;
     
+    int n_req_recv;
+    int* req_arr_recv = new int[nval_tot];
+    */
     if(world_rank == 0)
     {
-        /*
-        std::cout << "Initial sizing " << std::endl;
+        
+        std::cout << " PLANNED IS SCHEDULE " << std::endl;
         
         for(int i=0;i<world_size;i++)
         {
@@ -1494,7 +1554,7 @@ int main(int argc, char** argv) {
             }
             std::cout << std::endl;
         }
-        
+        /*
         for(int i=0;i<world_size;i++)
         {
             std::set<int>::iterator it_set2;
@@ -1532,17 +1592,20 @@ int main(int argc, char** argv) {
          
          */
     }
+    
+    // create receiving space
+    
+    
+    
+    
+    
 
     //set up receiving arrays:
+    start = std::clock();
     
     for(int q=0;q<world_size;q++)
     {
-        //std::set<int>::iterator it_set2;
-        //for(it_set2=sch[q].begin();it_set2 != sch[q].end();++it_set2)
-        //{
-        //    std::cout << "sch " << q << " " << *it_set2 << std::endl;
-        //}
-        
+        std::cout << std::endl;
         if (world_rank == q)
         {
             int tel = 0;
@@ -1555,14 +1618,14 @@ int main(int argc, char** argv) {
                 int dest   = it->first;
                 std::set<int>::iterator it_set;
                 
-                //for(it_set=it->second.begin();it_set != it->second.end();++it_set)
-                //{
-                    //req_arr_send[i] = *it_set;
-                //}
-                //std::cout << "wr = " << q << " " << dest << " ";
+                for(it_set=it->second.begin();it_set != it->second.end();++it_set)
+                {
+                    req_arr_send[i] = *it_set;
+                }
+                std::cout << "wr = " << q << " dest " << dest << " " << n_req << " ";
                 
                 MPI_Send(&n_req, 1, MPI_INT, dest, dest, comm);
-                //MPI_Send(&req_arr_send, n_req, MPI_INT, dest, dest*2, comm);
+                MPI_Send(&req_arr_send[0], n_req, MPI_INT, dest, 100+dest*2, comm);
                 tel = tel + 1;
                 i++;
             }
@@ -1571,22 +1634,48 @@ int main(int argc, char** argv) {
         {
             MPI_Recv(&n_req_recv, 1, MPI_INT, q, world_rank, comm, MPI_STATUS_IGNORE);
             //std::cout << "alloc values = " << q << " " << world_rank << "  " << s_alloc[q].size() << " "  << std::endl;
-            if(world_rank == 1)
+            std::cout << " for this number " << q  << " world rank is in and  = " << world_rank << std::endl;
+            std::cout << " recv_sizer = " << recv_size << " " << loc_map[q] << " " << offset_map[q] << " " << n_req_recv << std::endl;
+            set<int> ::iterator itset;
+            for(itset = s_send[q].begin();itset!=s_send[q].end();itset++)
             {
-                std::cout << "for this number " << q << std::endl;
-                std::cout << "stats - >" << s_alloc[q].size() << " " << world_rank << " :: ";
-                for(int s = 0;s < s_alloc[q].size();s++)
-                {
-                    std::cout << s_alloc[q][s] << " ";
-                }
-                std::cout << std::endl;
+                std::cout << *itset << " ";
+                
+                
             }
+            std::cout << "==========================================================="<<std::endl;
+            std::map< int, int>::iterator it_loc;
+        
+            for(it_loc=loc_map.begin();it_loc!=loc_map.end();it_loc++)
+            {
+                std::cout << world_rank << " loc_map " << it_loc->first << " " << it_loc->second << std::endl;
+            }
+            
+            
+            /*
+            
+            */
+            MPI_Recv(&recv_collector[offset_map[q]], n_req_recv, MPI_INT, q, 100+world_rank*2, comm, MPI_STATUS_IGNORE);
+
+            //std::cout << "the map is " << std::endl;
+            /*
+            std::cout << std::endl;
+            std::map<int, int> ::iterator itmap;
+            for(itmap = s_alloc[q].begin();itmap!=s_alloc[q].end();itmap++)
+            {
+                std::cout << itmap->first << " " << itmap->second << " :: ";
+            }
+            std::cout << std::endl;
+            */
             
             //MPI_Recv(req_arr_recv, n_req_recv, MPI_INT, q, world_rank*2, comm, MPI_STATUS_IGNORE);
             //std::cout << "vliegtieover? " << world_rank << " " << n_req_recv << " " << q << " size " << s_send[q].size() << std::endl;
         }
         
     }
+    
+    duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
+    std::cout << world_rank << " send recv = " << duration << std::endl;
     //std::cout << std::endl;
     /*
     int i=0;
@@ -1855,6 +1944,7 @@ int main(int argc, char** argv) {
     
 
     std::cout <<std::endl;
+     start = std::clock();
     duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
     //std::cout << world_rank << " send recv = " << duration << std::endl;
     

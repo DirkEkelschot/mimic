@@ -10,14 +10,8 @@ project(ADAPT VERSION 1.0)
 #set(CMAKE_CXX_STANDARD 11)
 #set(CMAKE_CXX_STANDARD_REQUIRED True)
 
+include(platforms/MacOSX_Dirk_work.cmake)
 
-include(MacOSX_Dirk_work.cmake)
-
-#set (DEFAULT_PARALLEL_MPI ON)
-#set (DEFAULT_PARMETIS_ROOT /Users/dekelschot/Software/parmetis-4.0.3/installation)
-#set (DEFAULT_HDF5_ROOT /Users/dekelschot/Software/hdf5-1.10.6/hdf5)
-#set (DEFAULT_METIS_ROOT /Users/dekelschot/Software/parmetis-4.0.3/metis/installation)
-#set (DEFAULT_MPI_ROOT /Users/dekelschot/Software/mpich-3.3.2/installation)
 #set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c++11 -Wno-dev)
 
 #set(LIBRARY_OUTPUT_PATH lib/)
@@ -25,20 +19,15 @@ include(MacOSX_Dirk_work.cmake)
 set(SRC main.cpp)
 
 #set(EXECUTABLE_OUTPUT_PATH bin/)
-#set(COMPILE_FLAGS ${COMPILE_FLAGS} ${MPI_COMPILE_FLAGS})
+set(COMPILE_FLAGS ${COMPILE_FLAGS} ${MPI_COMPILE_FLAGS})
 
 add_executable(adapt main.cpp)
 
-#find_package(MPI REQUIRED)
-#include_directories(SYSTEM ${MPI_INCLUDE_PATH})
-#list(APPEND EXTERNAL_LIB ${MPI_LIBRARIES})
+find_package(MPI REQUIRED)
+include_directories(SYSTEM ${MPI_INCLUDE_PATH})
+list(APPEND EXTERNAL_LIB ${MPI_LIBRARIES})
 
 find_package(LAPACK)
-
-find_path(MPI_INCLUDE_DIR mpi.h PATHS "${DEFAULT_MPI_ROOT}/include")
-if(NOT EXISTS "${MPI_INCLUDE_DIR}")
-  message(FATAL_ERROR "mpi include dir not found")
-endif()
 
 find_path(HDF5_INCLUDE_DIR hdf5.h PATHS "${DEFAULT_HDF5_ROOT}/include")
 if(NOT EXISTS "${HDF5_INCLUDE_DIR}")
@@ -55,10 +44,6 @@ if(NOT EXISTS "${METIS_INCLUDE_DIR}")
   message(FATAL_ERROR "metis include dir not found")
 endif()
 
-find_library(MPI_LIBRARY mpi PATHS "${DEFAULT_MPI_ROOT}/lib")
-if(NOT EXISTS "${MPI_LIBRARY}")
-  message(FATAL_ERROR "mpi library not found")
-endif()
 
 find_library(HDF5_LIBRARY hdf5 PATHS "${DEFAULT_HDF5_ROOT}/lib")
 if(NOT EXISTS "${HDF5_LIBRARY}")
@@ -79,12 +64,10 @@ set(PARMETIS_LIBRARIES ${PARMETIS_LIBRARY} ${METIS_LIBRARY})
 set(PARMETIS_INCLUDE_DIRS ${PARMETIS_INCLUDE_DIR} ${METIS_INCLUDE_DIR})
 include_directories(${PARMETIS_INCLUDE_DIRS})
 include_directories(${HDF5_INCLUDE_DIR})
-include_directories(${MPI_INCLUDE_DIR})
-list(APPEND EXTERNAL_LIB ${MPI_LIBRARY})
-list(APPEND EXTERNAL_LIB ${PARMETIS_LIBRARIES})
-list(APPEND EXTERNAL_LIB ${HDF5_LIBRARY})
 
-target_link_libraries(adapt ${MPI_LIBRARY})
+#list(APPEND EXTERNAL_LIB ${PARMETIS_LIBRARIES})
+#list(APPEND EXTERNAL_LIB ${HDF5_LIBRARY})
+
 target_link_libraries(adapt ${HDF5_LIBRARY})
 target_link_libraries(adapt ${PARMETIS_LIBRARIES})
 target_link_libraries(adapt ${MPI_LIBRARIES})
