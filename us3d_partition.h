@@ -69,6 +69,7 @@ ParVar_ParMetis* CreateParallelDataParmetis(Array<int>* e2n, MPI_Comm comm, int 
     int rank;
     MPI_Comm_rank(comm, &rank);
     int Nel = e2n->nloc;
+    //std::cout << "number of elements = " << Nel;
     int nloc             = int(Nel/size) + ( rank < Nel%size );
     //  compute offset of rows for each proc;
     int offset           = rank*int(Nel/size) + MIN(rank, Nel%size);
@@ -102,35 +103,35 @@ ParVar_ParMetis* CreateParallelDataParmetis(Array<int>* e2n, MPI_Comm comm, int 
     }
     
     int* elm_dist              = new int[size+1];
+    int* npo_offset            = new int[size+1];
     int* red_elm_dist          = new int[size+1];
-
+    int* red_npo_offset        = new int[size+1];
+    
     for(int i=0;i<size+1;i++)
     {
         red_elm_dist[i]   = 0;
-        
+        red_npo_offset[i] = 0;
         if(i==rank)
         {
             elm_dist[i]   = offset;
+            npo_offset[i] = offset*8;
         }
         else
         {
             elm_dist[i]  = 0;
+            npo_offset[i] = 0;
         }
     }
     
-    MPI_Allreduce(nlocs,     red_nlocs,     size,  MPI_INT, MPI_SUM, comm);
-    MPI_Allreduce(npo_locs,  red_npo_locs,  size,  MPI_INT, MPI_SUM, comm);
-    MPI_Allreduce(elm_dist,  red_elm_dist, size+1, MPI_INT, MPI_SUM, comm);
     
+    MPI_Allreduce(nlocs,        red_nlocs,      size,   MPI_INT, MPI_SUM, comm);
+    MPI_Allreduce(npo_locs,     red_npo_locs,   size,   MPI_INT, MPI_SUM, comm);
+    MPI_Allreduce(elm_dist,     red_elm_dist,   size+1, MPI_INT, MPI_SUM, comm);
+    MPI_Allreduce(npo_offset,   red_npo_offset, size+1,   MPI_INT, MPI_SUM, comm);
+
     red_elm_dist[size] = Nel;
-    
-    
-    int* npo_offset  = new int[size+1];
-    npo_offset[0]=0;
-    for(int i=0;i<size;i++)
-    {
-        npo_offset[i+1] = npo_offset[i]+red_npo_locs[i];
-    }
+    red_npo_offset[size] = Nel*8;
+
     
     int* eptr = new int[nloc+1];
     int* eind = new int[npo_loc];
@@ -145,12 +146,22 @@ ParVar_ParMetis* CreateParallelDataParmetis(Array<int>* e2n, MPI_Comm comm, int 
         }
     }
     
+    if (rank == 0)
+    {
+        for(int i=0;i<size+1;i++)
+        {
+            std::cout << red_elm_dist[i] << " " << red_npo_offset[i] << std::endl;
+        }
+    }
+    //std::cout << rank << " npo " << npo_loc << std::endl;
+    
     ParVar_ParMetis* pv_parmetis = new ParVar_ParMetis;
     
     pv_parmetis->size        =  size;
     pv_parmetis->nlocs       =  red_nlocs;
     pv_parmetis->elmdist     =  red_elm_dist;
     pv_parmetis->npo_locs    =  red_npo_locs;
+    pv_parmetis->npo_offset  =  red_npo_offset;
     pv_parmetis->eptr        =  eptr;
     pv_parmetis->eind        =  eind;
     

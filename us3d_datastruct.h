@@ -15,6 +15,7 @@ struct ParVar_ParMetis
     int* nlocs;
     int* elmdist;
     int* npo_locs;
+    int* npo_offset;
     int* eptr;
     int* eind;
 };

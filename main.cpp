@@ -1754,6 +1754,82 @@ void Example3DPartitioningWithParVarParMetis()
 }
 
 
+void ExampleUS3DPartitioningWithParVarParMetis()
+{
+    MPI_Comm comm = MPI_COMM_WORLD;
+    MPI_Info info = MPI_INFO_NULL;
+    int world_size;
+    MPI_Comm_size(comm, &world_size);
+    // Get the rank of the process
+    int world_rank;
+    MPI_Comm_rank(comm, &world_rank);
+    
+    const char* fn_conn="grids/conn.h5";
+    const char* fn_grid="grids/grid.h5";
+    Array<double>*   xcn = ReadDataSetFromFileInParallel<double>(fn_grid,"xcn",comm,info);
+    Array<int>*      ien = ReadDataSetFromFile<int>(fn_conn,"ien");
+    Array<int>* ien_copy = new Array<int>(ien->nloc,ien->ncol-1);
+    
+    double val = 0.0;
+    
+    for(int i=0;i<ien->nloc;i++)
+    {
+        for(int j=0;j<ien->ncol-1;j++)
+        {
+            val = ien->getVal(i,j+1)-1;
+            ien_copy->setVal(i,j,val);
+        }
+    }
+    
+    int N = ien->nglob;
+    ParVar_ParMetis* pv_parmetis = CreateParallelDataParmetis(ien_copy,comm,8);
+    
+    idx_t numflag_[] = {0};
+    idx_t *numflag = numflag_;
+    idx_t ncommonnodes_[] = {4};
+    idx_t *ncommonnodes = ncommonnodes_;
+    int edgecut      = 0;
+    idx_t *xadj      = NULL;
+    idx_t *adjncy    = NULL;
+    idx_t *adjwgt    = NULL;
+    idx_t *vsize     = NULL;
+    idx_t options_[] = {0, 0, 0};
+    idx_t *options   = options_;
+    idx_t wgtflag_[] = {0};
+    idx_t *wgtflag   = wgtflag_;
+    real_t ubvec_[]  = {1.05};
+    real_t *ubvec    = ubvec_;
+
+    idx_t *elmwgt;
+    
+    real_t itr_[]    = {1.05};
+    real_t *itr      = itr_;
+    int np           = world_size;
+    idx_t ncon_[]    = {1};
+    idx_t *ncon      = ncon_;
+    real_t *tpwgts   = new real_t[np*ncon[0]];
+
+    for(int i=0; i<np*ncon[0]; i++)
+    {
+        tpwgts[i] = 1.0/np;
+    }
+    
+    idx_t nparts_[] = {np};
+    idx_t *nparts = nparts_;
+    
+    idx_t part_[]    = {pv_parmetis->nlocs[world_rank]};
+    idx_t *part      = part_;
+    int nloc = pv_parmetis->nlocs[world_rank];
+    if(world_rank == 1)
+    {
+        for(int i=0;i<world_size+1;i++)
+        {
+            std::cout << pv_parmetis->npo_offset[i] << std::endl;
+        }
+    }
+    ParMETIS_V3_Mesh2Dual(pv_parmetis->elmdist,pv_parmetis->eptr,pv_parmetis->eind,numflag,ncommonnodes,&xadj,&adjncy,&comm);
+}
+
 
 
 
@@ -1787,13 +1863,9 @@ int main(int argc, char** argv) {
     }
     Example3DPartitioningWithParVarParMetis();
 
+    ExampleUS3DPartitioningWithParVarParMetis();
     
-    Array<double>*   xcn = ReadDataSetFromFileInParallel<double>(fn_grid,"xcn",comm,info);
-    Array<int>*      ien = ReadDataSetFromFileInParallel<int>(fn_conn,"ien",comm,info);
-    
-    //std::cout << ien->nglob << std::endl;
-    int N = ien->nglob;
-    //ParVar_ParMetis* pv_parmetis = CreateParallelDataParmetis(N,comm,8);
+    //ParMETIS_V3_PartMeshKway(pv_parmetis->elmdist, pv_parmetis->eptr, pv_parmetis->eind, elmwgt, wgtflag, numflag, ncon, ncommonnodes, nparts, tpwgts, ubvec, options, &edgecut, part, &comm);
     
 //    if (world_rank == 0)
 //    {
