@@ -1,0 +1,5 @@
+set (DEFAULT_PARALLEL_MPI ON)
+set (DEFAULT_PARMETIS_ROOT /Users/dekelschot/Software/parmetis-4.0.3/installation)
+set (DEFAULT_HDF5_ROOT /Users/dekelschot/Software/hdf5-1.10.6/hdf5)
+set (DEFAULT_METIS_ROOT /Users/dekelschot/Software/parmetis-4.0.3/metis/installation)
+set (DEFAULT_MPI_ROOT /Users/dekelschot/Software/mpich-3.3.2/installation)

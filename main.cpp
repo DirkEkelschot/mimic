@@ -574,8 +574,9 @@ void PartitionBigMesh(Array<double>* xcn, Array<int>* ien, MPI_Comm comm)
     */
 }
 
-void Example3DPartitioning(MPI_Comm comm)
+void Example3DPartitioning()
 {
+    MPI_Comm comm = MPI_COMM_WORLD;
     int world_size;
     MPI_Comm_size(comm, &world_size);
 
@@ -800,8 +801,8 @@ void Example3DPartitioning(MPI_Comm comm)
     idx_t *nparts2 = nparts_;
     
     //ParMETIS_V3_AdaptiveRepart(red_elmdist, xadj, adjncy, elmwgt, adjwgt, vsize, wgtflag, numflag, ncon, nparts2, tpwgts, ubvec, itr, options, &edgecut, part, &comm);
-    
-    if(world_rank == 1)
+    int rank = 0;
+    if(world_rank == 0)
     {
         std::cout << std::endl;
         
@@ -811,7 +812,7 @@ void Example3DPartitioning(MPI_Comm comm)
         }
     }
     //===================================================================================================================================
-    int rank = 0;
+    
     if(world_rank == rank)
     {
     
@@ -830,21 +831,32 @@ void Example3DPartitioning(MPI_Comm comm)
 
 
 
-void PlotBoundaryData(Array<char>* znames, Array<int>* zdefs)
+void PlotBoundaryData(Array<char>* znames, Array<int>* zdefs,MPI_Comm comm)
 {
-    for(int i=0;i<zdefs->nglob;i++)
+    int world_size;
+    MPI_Comm_size(comm, &world_size);
+    // Get the rank of the process
+    int world_rank;
+    MPI_Comm_rank(comm, &world_rank);
+    
+    if (world_rank == 0)
     {
-        for(int j=0;j<znames->ncol;j++)
+        std::cout << "printing boundary data..." << std::endl;
+        for(int i=0;i<zdefs->nloc;i++)
         {
-            std::cout << znames->getVal(i,j) << "";
+            for(int j=0;j<znames->ncol;j++)
+            {
+                std::cout << znames->getVal(i,j) << "";
+            }
+            std::cout << " :: ";
+            for(int j=0;j<zdefs->nloc;j++)
+            {
+                std::cout << zdefs->getVal(i,j) << " ";
+            }
+            std::cout << std::endl;
         }
-        std::cout << " :: ";
-        for(int j=0;j<zdefs->nglob;j++)
-        {
-            std::cout << zdefs->getVal(i,j) << " ";
-        }
-        std::cout << std::endl;
     }
+    
 }
 
 void WriteBoundaryDataInParallel(Array<double>* xcn, Array<int>* zdefs, Array<int>* ifn, Array<double>* Variables, MPI_Comm comm)
@@ -856,8 +868,6 @@ void WriteBoundaryDataInParallel(Array<double>* xcn, Array<int>* zdefs, Array<in
     // Get the rank of the process
     int world_rank;
     MPI_Comm_rank(comm, &world_rank);
-    
-    
     
     
     for(int bc=3;bc<zdefs->nrow;bc++)
@@ -1002,15 +1012,43 @@ void WriteBoundaryDataInSerial(Array<double>* xcn, Array<int>* zdefs, Array<int>
 
 
 
+int largest(int arr[], int n)
+{
+    int i;
+      
+    // Initialize maximum element
+    int max = arr[0];
+  
+    // Traverse array elements
+    // from second and compare
+    // every element with current max
+    for (i = 1; i < n; i++)
+        if (arr[i] > max)
+            max = arr[i];
+  
+    return max;
+}
 
 
-
+void WriteBoundaryDataInSerial3(Array<double>* xcn)
+{
+    string filename = "boundary_nodes.dat";
+    ofstream myfile;
+    myfile.open(filename);
+    
+    
+    for(int i=0;i<3097156;i++)
+    {
+        myfile << xcn->getVal(i,0) << " " << xcn->getVal(i,1) << " " << xcn->getVal(i,2) << std::endl;
+    }
+    myfile.close();
+}
 
 
 
 void WriteBoundaryDataInSerial2(Array<double>* xcn, Array<int>* zdefs, Array<int>* ifn, double* vol_verts)
 {
-    for(int bc=3;bc<zdefs->nglob;bc++)
+    for(int bc=3;bc<zdefs->nloc;bc++)
     {
         int b_offset = zdefs->getVal(2,4);
         map< int, int > Loc2GlobBound;
@@ -1027,12 +1065,14 @@ void WriteBoundaryDataInSerial2(Array<double>* xcn, Array<int>* zdefs, Array<int
         Vert V;
         int tel = 0;
         int* pltJ = new int[n_bc_faces*4];
+        int teller = 0;
         for(int j=b_start;j<b_end;j++)
         {
             for(int k=0;k<4;k++)
             {
                 int val = ifn->getVal(j,k+1);
-                
+                pltJ[teller] = val;
+                //std::cout << val << " ";
                 if ( Loc2GlobBound.find( val ) != Loc2GlobBound.end() )
                 {
                     Loc[tel*4+k]=Loc2GlobBound[val];
@@ -1050,9 +1090,13 @@ void WriteBoundaryDataInSerial2(Array<double>* xcn, Array<int>* zdefs, Array<int
                     V_verts[cnt]   = vol_verts[val-1];
                     cnt++;
                 }
+                
+                teller=teller+1;
             }
+            //std::cout << std::endl;
             tel++;
         }
+        cout << "\nlargest id = " << largest(pltJ,n_bc_faces*4) << std::endl;
         
         ofstream myfile;
         
@@ -1063,6 +1107,9 @@ void WriteBoundaryDataInSerial2(Array<double>* xcn, Array<int>* zdefs, Array<int
         myfile <<"VARIABLES = \"X\", \"Y\", \"Z\", \"Vol\"" << std::endl;
         //ZONE N = 64, E = 48, DATAPACKING = POINT, ZONETYPE = FEQUADRILATERAL
         myfile <<"ZONE N = " << BC_verts.size() << ", E = " << n_bc_faces << ", DATAPACKING = POINT, ZONETYPE = FEQUADRILATERAL" << std::endl;
+        
+        std::cout << "number of boundary nodes -> " << BC_verts.size() << std::endl;
+        
         for(int i=0;i<BC_verts.size();i++)
         {
            myfile << BC_verts[(i)].x << "   " << BC_verts[(i)].y << "   " << BC_verts[(i)].z << "   " << V_verts[i] << std::endl;
@@ -1157,7 +1204,7 @@ int FindRank(int* arr, int size, int val)
     int found = 1;
     while (start<=last)
     {
-        if (arr[mid]<val)
+        if (arr[mid]<=val)
         {
             start = mid + 1;
         }
@@ -1186,12 +1233,35 @@ map< int, std::set<int> > GetRequestedVertices(Array<int>* ien, Array<double>* x
     
     ParVar* pv_xcn = ComputeParallelStateArray(xcn->nglob, comm);
     int val;
+    
+    std::clock_t start;
+    double duration;
+    start = std::clock();
+    
+    if(world_rank == 0)
+    {
+        for(int i=0;i<world_size+1;i++)
+        {
+            std::cout << "offsets ien " << pv_xcn->offsets[i] << std::endl;
+        }
+    }
+    
+    //std::cout << "size decreases right? " << world_rank << " " << ien->nloc << std::endl;
+    //ofstream myfile,myfile2;
+    //myfile.open("val_"+std::to_string(world_rank)+".dat");
+
+    //myfile2.open("rank_"+std::to_string(world_rank)+".dat");
+    
     for(int i=0;i<ien->nloc;i++)
     {
+        //std::cout << pv_xcn->offsets[world_rank] << " " << pv_xcn->offsets[world_rank+1] << "   ::  ";
         for(int j=1;j<ien->ncol;j++)
         {
             val = ien->getVal(i,j);
-            
+            //rank_f = FindRank(pv_xcn->offsets,world_size+1,val);
+            //myfile <<val<< " ";
+
+            //myfile2 <<rank_f << " ";
             if(val>pv_xcn->offsets[world_rank+1] || val < pv_xcn->offsets[world_rank])
             {
                 rank_f = FindRank(pv_xcn->offsets,world_size+1,val);
@@ -1202,7 +1272,14 @@ map< int, std::set<int> > GetRequestedVertices(Array<int>* ien, Array<double>* x
                 }
             }
         }
+        //myfile << std::endl;
+        //myfile2 << std::endl;
     }
+    
+    
+    //duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
+
+    //std::cout << world_rank << " loopie loop = " << duration << std::endl;
     
     return Request;
 }
@@ -1217,6 +1294,9 @@ TmpStruct* GetSchedule(Array<int>* ien, Array<double>* xcn, MPI_Comm comm)
     MPI_Comm_rank(comm, &world_rank);
     
     
+
+    
+    
     map< int, std::set<int> > Request = GetRequestedVertices(ien,xcn,comm);
     map<int,  std::set<int> >::iterator it;
     int num_req_proc = Request.size();
@@ -1227,7 +1307,9 @@ TmpStruct* GetSchedule(Array<int>* ien, Array<double>* xcn, MPI_Comm comm)
         std::cout << "sizing :: " << " " << world_rank << " " << it->second.size() << std::endl;
     }
     */
-    
+    std::clock_t start;
+    double duration;
+    start = std::clock();
     int* collect = new int[num_req_proc+1];
     int* sizing  = new int[num_req_proc];
     int tot_req_proc = 0;
@@ -1320,9 +1402,205 @@ TmpStruct* GetSchedule(Array<int>* ien, Array<double>* xcn, MPI_Comm comm)
     t_struct->offsets_sizing = proc_offset_sizing;
     t_struct->nlocs_sizing = red_num_req_sizing;
     
+    duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
+
+    std::cout << world_rank << " scheduling inside = " << duration << std::endl;
+    
     return t_struct;
 }
 
+
+void TestReadInParallelToRoot(MPI_Comm comm, MPI_Info info)
+{
+    int world_size;
+    MPI_Comm_size(comm, &world_size);
+    // Get the rank of the process
+    int world_rank;
+    MPI_Comm_rank(comm, &world_rank);
+    
+    std::clock_t start;
+    double duration;
+
+    start = std::clock();
+    Array<int>*   iee    = ReadDataSetFromFile<int>("grids/conn.h5","iee");
+    duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
+    std::cout << world_rank << " reading_serial = " << duration << std::endl;
+    
+    start = std::clock();
+    Array<int>*   iee_r  = ReadDataSetFromFileInParallelToRoot<int>("grids/conn.h5","iee",comm,info);
+    duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
+    std::cout << world_rank << " reading_par= " << duration << std::endl;
+    
+    //little test testing the reading
+    if(world_rank == 0)
+    {
+        for(int i=0;i<iee_r->nloc;i++)
+        {
+            for(int j=0;j<iee_r->ncol;j++)
+            {
+                if((iee->getVal(i,j)-iee_r->getVal(i,j))!=0)
+                {
+                    std::cout << "not the same" << std::endl;
+                }
+            }
+        }
+    }
+}
+
+
+void TestBrutePartioningUS3D()
+{
+    MPI_Comm comm = MPI_COMM_WORLD;
+    MPI_Info info = MPI_INFO_NULL;
+    int world_size;
+    MPI_Comm_size(comm, &world_size);
+    // Get the rank of the process
+    int world_rank;
+    MPI_Comm_rank(comm, &world_rank);
+    
+    const char* fn_conn="grids/conn.h5";
+    const char* fn_grid="grids/grid.h5";
+    
+    Array<double>*   xcn = ReadDataSetFromFileInParallel<double>(fn_grid,"xcn",comm,info);
+    Array<int>*      ien = ReadDataSetFromFileInParallel<int>(fn_conn,"ien",comm,info);
+    
+    map< int, std::set<int> > Request = GetRequestedVertices(ien,xcn,comm);
+    map<int,  std::set<int> >::iterator it;
+    
+    
+    TmpStruct* schedule = GetSchedule(ien,xcn,comm);
+
+    std::map< int, set<int> > s_send;
+    std::map< int, set<int> > s_recv;
+    std::map< int, std::vector<int> > s_send_size;
+    std::map< int, std::vector<int> > s_recv_size;
+
+    std::map< int, std::map< int, int> > s_alloc;
+    std::map< int, std::map< int, int> > s_recv_alloc;
+    //std::cout << "we are jagged " << std::endl;
+    int nval_tot = 0;
+    for(int i=0;i<world_size;i++)
+    {
+
+       int nloc   = schedule->nlocs[i];
+       int offset = schedule->offsets[i];
+
+       int nloc_sizing   = schedule->nlocs_sizing[i];
+       int offset_sizing = schedule->offsets_sizing[i];
+        
+       for(int j=offset+1;j<(offset+nloc);j++)
+       {
+           s_send[i].insert(schedule->data[j]);
+           s_recv[schedule->data[j]].insert(i);
+
+           s_send_size[i].push_back(schedule->sizing[j]);
+           s_recv_size[schedule->data[j]].push_back(schedule->sizing[j]);
+
+           s_alloc[i][schedule->data[j]] = schedule->sizing[j];
+           s_recv_alloc[schedule->data[j]][i] = schedule->sizing[j];
+       }
+    }
+
+
+
+    std::map< int, int> loc_alloc = s_recv_alloc[world_rank];
+
+
+    //std::cout << " loc_alloc.size()  = " << loc_alloc.size() << std::endl;
+    int* recv_offset = new int[loc_alloc.size()+1];
+    recv_offset[0]   = 0;
+    int* recv_loc    = new int[loc_alloc.size()];;
+    int recv_size    = 0;
+    int i = 0;
+
+    std::map< int, int> offset_map;
+    std::map< int, int> loc_map;
+    std::map< int, int>::iterator it_loc;
+    
+    for(it_loc=loc_alloc.begin();it_loc!=loc_alloc.end();it_loc++)
+    {
+        recv_loc[i]           = it_loc->second;
+        recv_offset[i+1]      = recv_offset[i]+recv_loc[i];
+        recv_size = recv_size+it_loc->second;
+
+        loc_map[it_loc->first]=recv_loc[i];
+        offset_map[it_loc->first]=recv_offset[i];
+
+        i++;
+    }
+
+    int* recv_collector = new int[recv_size];
+
+    int n_req_recv;
+
+    for(int q=0;q<world_size;q++)
+    {
+        if (world_rank == q)
+        {
+            int tel = 0;
+            int i = 0;
+            for (it = Request.begin(); it != Request.end(); it++)
+            {
+                int n_req = it->second.size();
+                int* req_arr_send = new int[n_req];
+
+                int dest   = it->first;
+                std::set<int>::iterator it_set;
+
+                for(it_set=it->second.begin();it_set != it->second.end();++it_set)
+                {
+                    req_arr_send[i] = *it_set;
+                }
+                std::cout << "wr = " << q << " dest " << dest << " " << n_req << " ";
+
+                MPI_Send(&n_req, 1, MPI_INT, dest, dest, comm);
+                MPI_Send(&req_arr_send[0], n_req, MPI_INT, dest, 100+dest*2, comm);
+                tel = tel + 1;
+                i++;
+            }
+        }
+        else if (s_send[q].find( world_rank ) != s_send[q].end())
+        {
+            MPI_Recv(&n_req_recv, 1, MPI_INT, q, world_rank, comm, MPI_STATUS_IGNORE);
+
+            MPI_Recv(&recv_collector[offset_map[q]], n_req_recv, MPI_INT, q, 100+world_rank*2, comm, MPI_STATUS_IGNORE);
+
+        }
+    }
+}
+
+void TestFindRank()
+{
+    int* arr = new int[10];
+    int* arr_recv = new int[10];
+    
+    
+    arr[0] = 0;
+    arr[1] = 10;
+    arr[2] = 12;
+    arr[3] = 24;
+    arr[4] = 42;
+    arr[5] = 55;
+    arr[6] = 65;
+    arr[7] = 66;
+    arr[8] = 78;
+    arr[9] = 81;
+    
+    
+    int value = 25;
+    
+    int res = FindRank(arr,10,value);
+    if(res == 3)
+    {
+        std::cout << "TestFindRank passed!" << std::endl;
+    }
+    else
+    {
+        std::cout << "TestFindRank failed!" << std::endl;
+
+    }
+    
+}
 
 int main(int argc, char** argv) {
     
@@ -1336,684 +1614,32 @@ int main(int argc, char** argv) {
     int world_rank;
     MPI_Comm_rank(comm, &world_rank);
     
-    std::clock_t start;
-    double duration;
+    //GetXadjandAdjcyArrays(iee,ien,comm);
     
-    int* arr = new int[10];
-    int* arr_recv = new int[10];
-    arr[0] = 0;
-    arr[1] = 10;
-    arr[2] = 12;
-    arr[3] = 24;
-    arr[4] = 42;
-    arr[5] = 55;
-    arr[6] = 65;
-    arr[7] = 66;
-    arr[8] = 78;
-    arr[9] = 81;
-    
-    
-    int value = 82;
-    
-    int res = FindRank(arr,10,value);
-    //std::cout << "result " << res << " " << arr[res] << " " << value << std::endl;
-    //Array<int> iee   = ReadDataSetFromFileInParallel<int>("../data_files/conn.h5","ife",comm,info);
-    //Array<int> ife   = ReadDataSetFromFileInParallel<int>("../data_files/conn.h5","ife",comm,info);
-    //Array<double> bound_par = ReadDataSetFromRunInFileInParallel<double>("../data_files/data_r.h5","run_1","boundaries",comm,info);
-    //Array<double>* bound = ReadDataSetFromRunInFile<double>("../data_files/adept_geom/data_r.h5","run_1","boundaries");
-    //std::cout << "rank = " << world_rank << std::endl;
-    //UnitTestEigenDecomp();    
-    
-    // Read in adept geometry.
-    
-    /*
-    Array<int>*    zdefs = ReadDataSetFromGroupFromFile<int>("../data_files/adept_geom/conn.h5","zones","zdefs");
-    Array<char>*  znames = ReadDataSetFromGroupFromFile<char>("../data_files/adept_geom/conn.h5","zones","znames");
-    Array<int>*      ifn = ReadDataSetFromFile<int>("../data_files/adept_geom/grid.h5","ifn");
-    Array<double>*   xcn = ReadDataSetFromFile<double>("../data_files/adept_geom/grid.h5","xcn");
-    //Array<int>*      ien = ReadDataSetFromFileInParallel<int>("../data_files/adept_geom/conn.h5","ien",comm,info);
-    Array<int>*      ien = ReadDataSetFromFile<int>("../data_files/adept_geom/conn.h5","ien");
-     */
-
 //============================================================
+    
     const char* fn_conn="grids/conn.h5";
     const char* fn_grid="grids/grid.h5";
     
-    /*
-    Array<int>*    zdefs = ReadDataSetFromGroupFromFile<int>(fn_conn,"zones","zdefs");
-    Array<char>*  znames = ReadDataSetFromGroupFromFile<char>(fn_conn,"zones","znames");
+    //Array<int>*    zdefs = ReadDataSetFromGroupFromFile<int>(fn_conn,"zones","zdefs");
+    //Array<char>*  znames = ReadDataSetFromGroupFromFile<char>(fn_conn,"zones","znames");
+    //PlotBoundaryData(znames,zdefs,comm);
+    //TestBrutePartioningUS3D();
     
-    Array<int>*      ifn = ReadDataSetFromFile<int>(fn_grid,"ifn");
-    Array<double>*   xcn = ReadDataSetFromFile<double>(fn_grid,"xcn");
-     int Nnodes = xcn->nrow;
-    */
-    
-    //============================================================
-    start = std::clock();
-    Array<double>*   xcn = ReadDataSetFromFileInParallel<double>(fn_grid,"xcn",comm,info);
-    
-    //int Nnodes     = xcn->nglob;
-    //ParVar* pv_xcn = ComputeParallelStateArray(xcn->nglob, comm);
-    
-    
-    Array<int>*      ien = ReadDataSetFromFileInParallel<int>(fn_conn,"ien",comm,info);
-    duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
-    std::cout << world_rank << " reading = " << duration << std::endl;
-    
-    //int Nelements = ien->nglob;
-    //ParVar* pv_ien = ComputeParallelStateArray(ien->nglob, comm);
-    
-    //std::cout << world_rank << " " << pv_ien->nlocs[world_rank] << " " << pv_ien->offsets[world_rank] << " " << pv_xcn->nlocs[world_rank] << " " << pv_xcn->offsets[world_rank] << std::endl;
-    
-
-    //Array<int>*      ien_cpy = new Array<int>(ien->nloc,ien->ncol);
-    //int val = 0;
-    //int cnt = 0;
-    //int cnt2 = 0;
-    //start = std::clock();
-    
-    //std::cout << "range " << pv_xcn->offsets[world_rank] << " " << pv_xcn->offsets[world_rank+1] << std::endl;
-    
-    //duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
-    //std::cout << world_rank << " copying = " << duration << std::endl;
-    //std::cout << "number counter " << cnt << " " << cnt2 << " " << xcn->nloc << " " << Request.size() <<  std::endl;
-    
-    //start = std::clock();
-    //map< int, std::set<int> > Request = GetRequestedVertices(ien,xcn,comm);
-    
-    //duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
-    //std::cout << world_rank << " requesting = " << duration << std::endl;
-    map<int,  std::set<int> >::iterator it;
-    
-    
-    start = std::clock();
-    TmpStruct* schedule = GetSchedule(ien,xcn,comm);
-    duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
-
-    std::cout << world_rank << " scheduling = " << duration << std::endl;
-    
-    
-    std::map< int, set<int> > s_send;
-    std::map< int, set<int> > s_recv;
-    std::map< int, std::vector<int> > s_send_size;
-    std::map< int, std::vector<int> > s_recv_size;
-    
-    std::map< int, std::map< int, int> > s_alloc;
-    std::map< int, std::map< int, int> > s_recv_alloc;
-    //std::cout << "we are jagged " << std::endl;
-    int nval_tot = 0;
-    for(int i=0;i<world_size;i++)
-    {
-            
-        int nloc   = schedule->nlocs[i];
-        int offset = schedule->offsets[i];
-        
-        int nloc_sizing   = schedule->nlocs_sizing[i];
-        int offset_sizing = schedule->offsets_sizing[i];
-        for(int j=offset+1;j<(offset+nloc);j++)
-        {
-            s_send[i].insert(schedule->data[j]);
-            s_recv[schedule->data[j]].insert(i);
-            
-            s_send_size[i].push_back(schedule->sizing[j]);
-            s_recv_size[schedule->data[j]].push_back(schedule->sizing[j]);
-            
-            s_alloc[i][schedule->data[j]] = schedule->sizing[j];
-            s_recv_alloc[schedule->data[j]][i] = schedule->sizing[j];
-        }
-    }
-    
-    
-    
-    
-    /*
     if (world_rank == 0)
     {
-        std::cout << "mappie mappie mappie " << std::endl;
-        std::map< int, std::map< int, int> >::iterator it;
-        for(it=s_alloc.begin();it!=s_alloc.end();it++)
-        {
-            
-            std::cout<< it->first << " :: ";
-            std::map< int, int>::iterator it2;
-            for(it2=(*it).second.begin();it2!=(*it).second.end();it2++)
-            {
-                std::cout << (*it2).first << " " << (*it2).second << " ---> ";
-            }
-            std::cout << std::endl;
-        }
-        
-        for(int s=0;s<world_size;s++)
-        //for(it=s_recv_alloc.begin();it!=s_recv_alloc.end();it++)
-        {
-            
-            std::map< int, int>::iterator it2;
-            for(it2=(*it).second.begin();it2!=(*it).second.end();it2++)
-            {
-                std::cout << (*it2).first << " " << (*it2).second << " ---> ";
-            }
-            std::cout << std::endl;
-        }
-        
-        
-        
-    }
-    */
-    
-    
-    //std::cout << "world _ rank " << world_rank << ":::==>";
-    std::map< int, int> loc_alloc = s_recv_alloc[world_rank];
-    
-    
-    //std::cout << " loc_alloc.size()  = " << loc_alloc.size() << std::endl;
-    int* recv_offset = new int[loc_alloc.size()+1];
-    recv_offset[0]   = 0;
-    int* recv_loc    = new int[loc_alloc.size()];;
-    int recv_size    = 0;
-    int i = 0;
-    
-    std::map< int, int> offset_map;
-    std::map< int, int> loc_map;
-    std::map< int, int>::iterator it_loc;
-    for(it_loc=loc_alloc.begin();it_loc!=loc_alloc.end();it_loc++)
-    {
-        recv_loc[i]           = it_loc->second;
-        recv_offset[i+1]      = recv_offset[i]+recv_loc[i];
-        recv_size = recv_size+it_loc->second;
-        
-        loc_map[it_loc->first]=recv_loc[i];
-        offset_map[it_loc->first]=recv_offset[i];
-        
-        i++;
+        TestFindRank();
     }
     
-    int n_req_recv;
-    int* recv_collector = new int[recv_size];
-    /*
-    for(int i=0;i<loc_alloc.size();i++)
-    {
-        std::cout << recv_loc[i] << " " << recv_offset[i+1] << std::endl;
-    }
-    std::cout << "recv_size = " << recv_size << std::endl;
-    std::cout << std::endl;
-    
-    int n_req_recv;
-    int* req_arr_recv = new int[nval_tot];
-    */
-    if(world_rank == 0)
-    {
-        
-        std::cout << " PLANNED IS SCHEDULE " << std::endl;
-        
-        for(int i=0;i<world_size;i++)
-        {
-            std::set<int>::iterator it_set2;
-            for(it_set2=s_send[i].begin();it_set2 != s_send[i].end();++it_set2)
-            {
-                std::cout << *it_set2 << " ";
-            }
-            std::cout << std::endl;
-        }
-        /*
-        for(int i=0;i<world_size;i++)
-        {
-            std::set<int>::iterator it_set2;
-            for(it_set2=s_recv[i].begin();it_set2 != s_recv[i].end();++it_set2)
-            {
-                std::cout << *it_set2 << " ";
-            }
-            std::cout << std::endl;
-        }
-        
-        
-        for(int i=0;i<world_size;i++)
-        {
-            std::vector<int>::iterator it_set2;
-            std::cout << "work_rank = " << i << " ";
-            for(it_set2=s_recv_size[i].begin();it_set2 != s_recv_size[i].end();++it_set2)
-            {
-                std::cout << *it_set2 << " ";
-            }
-            std::cout << std::endl;
-        }
-        
-        std::cout << "The inverse - " << std::endl;
-        
-        for(int i=0;i<world_size;i++)
-        {
-            std::cout << "work_rank = " <<  i << " ";
-            std::vector<int>::iterator it_set2;
-            for(it_set2=s_send_size[i].begin();it_set2 != s_send_size[i].end();++it_set2)
-            {
-                std::cout << *it_set2 << " ";
-            }
-            std::cout << std::endl;
-        }
-         
-         */
-    }
-    
-    // create receiving space
-    
-    
-    
-    
+    Example3DPartitioning();
+
     
 
-    //set up receiving arrays:
-    start = std::clock();
-    
-    for(int q=0;q<world_size;q++)
-    {
-        std::cout << std::endl;
-        if (world_rank == q)
-        {
-            int tel = 0;
-            int i = 0;
-            for (it = Request.begin(); it != Request.end(); it++)
-            {
-                int n_req = it->second.size();
-                int* req_arr_send = new int[n_req];
-                
-                int dest   = it->first;
-                std::set<int>::iterator it_set;
-                
-                for(it_set=it->second.begin();it_set != it->second.end();++it_set)
-                {
-                    req_arr_send[i] = *it_set;
-                }
-                std::cout << "wr = " << q << " dest " << dest << " " << n_req << " ";
-                
-                MPI_Send(&n_req, 1, MPI_INT, dest, dest, comm);
-                MPI_Send(&req_arr_send[0], n_req, MPI_INT, dest, 100+dest*2, comm);
-                tel = tel + 1;
-                i++;
-            }
-        }
-        else if (s_send[q].find( world_rank ) != s_send[q].end())
-        {
-            MPI_Recv(&n_req_recv, 1, MPI_INT, q, world_rank, comm, MPI_STATUS_IGNORE);
-            //std::cout << "alloc values = " << q << " " << world_rank << "  " << s_alloc[q].size() << " "  << std::endl;
-            std::cout << " for this number " << q  << " world rank is in and  = " << world_rank << std::endl;
-            std::cout << " recv_sizer = " << recv_size << " " << loc_map[q] << " " << offset_map[q] << " " << n_req_recv << std::endl;
-            set<int> ::iterator itset;
-            for(itset = s_send[q].begin();itset!=s_send[q].end();itset++)
-            {
-                std::cout << *itset << " ";
-                
-                
-            }
-            std::cout << "==========================================================="<<std::endl;
-            std::map< int, int>::iterator it_loc;
-        
-            for(it_loc=loc_map.begin();it_loc!=loc_map.end();it_loc++)
-            {
-                std::cout << world_rank << " loc_map " << it_loc->first << " " << it_loc->second << std::endl;
-            }
-            
-            
-            /*
-            
-            */
-            MPI_Recv(&recv_collector[offset_map[q]], n_req_recv, MPI_INT, q, 100+world_rank*2, comm, MPI_STATUS_IGNORE);
 
-            //std::cout << "the map is " << std::endl;
-            /*
-            std::cout << std::endl;
-            std::map<int, int> ::iterator itmap;
-            for(itmap = s_alloc[q].begin();itmap!=s_alloc[q].end();itmap++)
-            {
-                std::cout << itmap->first << " " << itmap->second << " :: ";
-            }
-            std::cout << std::endl;
-            */
-            
-            //MPI_Recv(req_arr_recv, n_req_recv, MPI_INT, q, world_rank*2, comm, MPI_STATUS_IGNORE);
-            //std::cout << "vliegtieover? " << world_rank << " " << n_req_recv << " " << q << " size " << s_send[q].size() << std::endl;
-        }
-        
-    }
-    
-    duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
-    std::cout << world_rank << " send recv = " << duration << std::endl;
-    //std::cout << std::endl;
-    /*
-    int i=0;
-    for(int rank=0;rank<world_size;rank++)
-    {
-        int nloc   = schedule->nlocs[i];
-        int offset = schedule->offsets[i];
-        
-        
-        if(world_rank == rank)
-        {
-            std::cout << world_rank << " ==> ";
-            for(int j=offset;j<(offset+nloc);j++)
-            {
-                std::cout << schedule->data[j] << " ";
-            }
-            
-        }
-    }
-    */
-    /*
-    int rank = 0;
-    int n_req_recv;
-    std::set<int> lijst;
-    if (world_rank == schedule->data[0])
-    {
-        
-        int tel = 0;
-        for (it = Request.begin(); it != Request.end(); it++)
-        {
-            int n_req = it->second.size();
-            int* req_arr_send = new int[n_req];
-            int* req_arr_recv = new int[n_req];
-            int dest   = it->first;
-            
-            int tag = i;
-            //
-            //for(it_set=it->second.begin();it_set != it->second.end();++it_set)
-            //{
-            //    req_arr_send[i] = *it_set;
-            //}
-            
-            std::cout << "wr = " << world_rank << " " << dest << " ";
-            
-            MPI_Send(&n_req, 1, MPI_INT, dest, dest, comm);
-            lijst.insert(it->first);
-            tel = tel + 1;
-            i++;
-        }
-    }
-    else if (world_rank == schedule->data[1])
-    //else if (lijst.find( world_rank ) != lijst.end())
-    {
-        
-        MPI_Recv(&n_req_recv, 1, MPI_INT, rank, world_rank, comm, MPI_STATUS_IGNORE);
-        std::cout << "vliegtieover? " << world_rank << " " << n_req_recv << std::endl;
-    }
-    
-    */
-    
-    //int num_req_proc = Request.size();
-    
-    //GetSchedule();
-    /*
-    if (world_rank == 3)
-    {
-        std::cout << "======================================" << std::endl;
-        for(int q =0;q<(num_req_proc+1);q++)
-        {
-            std::cout  << world_rank << " " << collect[q] << " " << (num_req_proc+1) << " " << num_req_proc << std::endl;
-        }
-        std::cout << "======================================" << std::endl;
-        std::cout << std::endl;
-        for(int q =0;q<(world_size+tot_req_proc);q++)
-        {
-            std::cout << "rankie " << world_rank << " " << reduce_req_procs[q] << std::endl;
-        }
-    }
-    */
-    /*
-    int source = 0;
-    int dest = 1;
-    
-    if(world_rank == source)
-    {
-        MPI_Send(arr, 10, MPI_INT, dest,  1234, comm);
-    }
-    if(world_rank == dest)
-    {
-        MPI_Recv(arr_recv, 10, MPI_INT, source, 1234, comm, MPI_STATUS_IGNORE);
-    }
-        
-    start = std::clock();
-    int nreq_rcv,nreq_rcv2,nreq_rcv3;
-    //std::cout << world_rank << " ==> ";
-    
-    int tel = 0;
-    std::map<int, int> lijst;
-    std::set<int> lijst2;
-    for (it = Request.begin(); it != Request.end(); it++)
-    {
-        lijst[tel] = it->first;
-        lijst2.insert(it->first);
-        //std::cout << lijst[tel] << std::endl;
-        tel = tel + 1;
-    }
-    
-    
-    for (it = Request.begin(); it != Request.end(); it++)
-    {
-        int n_req = it->second.size();
-        int* req_arr_send = new int[n_req];
-        int* req_arr_recv = new int[n_req];
-        int dest   = it->first;
-        
-        int tag = i;
-        
-        for(it_set=it->second.begin();it_set != it->second.end();++it_set)
-        {
-            req_arr_send[i] = *it_set;
-        }
-        
-        std::cout << "wr = " << world_rank << " " << dest << " " << std::endl;
-        
-        //MPI_Send(&n_req, 1, MPI_INT, dest, dest, comm);
-        
-        i++;
-    }
-    */
-    /*
-    int rank = 0;
-    int n_req_recv;
-    if (world_rank == rank)
-    {   for (it = Request.begin(); it != Request.end(); it++)
-        {
-            int n_req = it->second.size();
-            int* req_arr_send = new int[n_req];
-            int* req_arr_recv = new int[n_req];
-            int dest   = it->first;
-            
-            int tag = i;
-            //
-            //for(it_set=it->second.begin();it_set != it->second.end();++it_set)
-            //{
-            //    req_arr_send[i] = *it_set;
-            //}
-            
-            std::cout << "wr = " << world_rank << " " << dest << " ";
-            
-            MPI_Send(&n_req, 1, MPI_INT, dest, dest, comm);
-            
-            i++;
-        }
-    }
-    else if (world_rank == 1)
-    {
-        for(int q =0;q<lijst.size();q++)
-        {
-            std::cout << world_rank << " lijst[q] " << lijst[q] << std::endl;
-        }
-        
-        MPI_Recv(&n_req_recv, 1, MPI_INT, rank, world_rank, comm, MPI_STATUS_IGNORE);
-        std::cout << "vliegtieover? " << world_rank << " " << n_req_recv << std::endl;
-    }
     
     
     
-    rank = 1;
-    if (world_rank == rank)
-    {   for (it = Request.begin(); it != Request.end(); it++)
-        {
-            int n_req = it->second.size();
-            int* req_arr_send = new int[n_req];
-            int* req_arr_recv = new int[n_req];
-            int dest   = it->first;
-            
-            int tag = i;
-            //
-            //for(it_set=it->second.begin();it_set != it->second.end();++it_set)
-            //{
-            //    req_arr_send[i] = *it_set;
-            //}
-            std::cout << "wr = " << world_rank << " " << dest << " ";
-            
-            MPI_Send(&n_req, 1, MPI_INT, dest, dest, comm);
-            
-            i++;
-        }
-    }
-    else if (world_rank == 0 || world_rank == 2)
-    {
-        for(int q =0;q<lijst.size();q++)
-        {
-            std::cout << world_rank << " lijst[q] " << lijst[q] << std::endl;
-        }
-        
-        MPI_Recv(&n_req_recv, 1, MPI_INT, rank, world_rank, comm, MPI_STATUS_IGNORE);
-        std::cout << "vliegtieover? " << world_rank << " " << n_req_recv << std::endl;
-    }
     
-    rank = 2;
-    if (world_rank == rank)
-    {   for (it = Request.begin(); it != Request.end(); it++)
-        {
-            int n_req = it->second.size();
-            int* req_arr_send = new int[n_req];
-            int* req_arr_recv = new int[n_req];
-            int dest   = it->first;
-            
-            int tag = i;
-            //
-            //for(it_set=it->second.begin();it_set != it->second.end();++it_set)
-            //{
-            //    req_arr_send[i] = *it_set;
-            //}
-            std::cout << "wr = " << world_rank << " " << dest << " ";
-            
-            MPI_Send(&n_req, 1, MPI_INT, dest, dest, comm);
-            
-            i++;
-        }
-    }
-    else if (world_rank == 0 || world_rank == 3)
-    {
-        for(int q =0;q<lijst.size();q++)
-        {
-            std::cout << world_rank << " lijst[q] " << lijst[q] << std::endl;
-        }
-        MPI_Recv(&n_req_recv, 1, MPI_INT, rank, world_rank, comm, MPI_STATUS_IGNORE);
-        std::cout << "vliegtieover? " << world_rank << " " << n_req_recv << std::endl;
-    }
-    
-    rank = 3;
-    if (world_rank == rank)
-    {   for (it = Request.begin(); it != Request.end(); it++)
-        {
-            int n_req = it->second.size();
-            int* req_arr_send = new int[n_req];
-            int* req_arr_recv = new int[n_req];
-            int dest   = it->first;
-            
-            int tag = i;
-            //
-            //for(it_set=it->second.begin();it_set != it->second.end();++it_set)
-            //{
-            //    req_arr_send[i] = *it_set;
-            //}
-            std::cout << "wr = " << world_rank << " " << dest << " ";
-            
-            MPI_Send(&n_req, 1, MPI_INT, dest, dest, comm);
-            
-            i++;
-        }
-    }
-    else if (world_rank == 0)
-    {
-        for(int q =0;q<lijst.size();q++)
-        {
-            std::cout << world_rank << " lijst[q] " << lijst[q] << std::endl;
-        }
-        
-        MPI_Recv(&n_req_recv, 1, MPI_INT, rank, world_rank, comm, MPI_STATUS_IGNORE);
-        std::cout << "vliegtieover? " << world_rank << " " << n_req_recv << std::endl;
-    }
-    
-    
-
-    std::cout <<std::endl;
-     start = std::clock();
-    duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
-    //std::cout << world_rank << " send recv = " << duration << std::endl;
-    
-    */
-    
-    
-    //std::cout << "Nelement = " << Nelement << " " << Nnodes << std::endl;
-    //int nloc     = int(ien->nrow/world_size) + ( world_rank < ien->nrow%world_size );
-    //  compute offset of rows for each proc;
-    //int offset   = world_rank*int(ien->nrow/world_size) + MIN(world_rank, ien->nrow%world_size);
-
-
-//============================================================
-
-
-
-
-
-
-    /*
-    // returns array with volumes for elements with length of local number of elements;
-    start = std::clock();
-    double* Vollie = ComputeVolumeCells(xcn,ien,comm);
-    duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
-    std::cout << world_rank << " timer vollie cell = " << duration << std::endl;
-    
-    start = std::clock();
-    double* Vollie_verts = ComputeVolumeCellsReducedToVerts(xcn,ien);
-    duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
-    std::cout << world_rank << " timer vollie vert = " << duration << std::endl;
-    */
-    /*
-    double *recv = new double[ien->nrow];
-    
-    Array<double>* Volumes = new Array<double>(ien->nrow,0);
-    Array<double>* Jvert2  = new Array<double>(ien->nrow,0);
-    Array<double>* Vvert2  = new Array<double>(ien->nrow,0);
-    
-    MPI_Gather(Vollie, nloc, MPI_DOUBLE, recv, nloc, MPI_DOUBLE, 0, comm);
-    */
-    
-    //Example3DPartitioning(comm);
-    
-
-//============================================================
-    /*
-    start = std::clock();
-    PartitionBigMesh(xcn,ien,comm);
-    duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
-    std::cout << world_rank << " timer partitioning = " << duration << std::endl;
-    
-    start = std::clock();
-    
-    double* xadjn = new double[nloc*8];
-    for(int i=0;i<nloc;i++)
-    {
-        for(int j=0;j<8;j++)
-        {
-            xadjn[i*8+j] = ien->getVal(offset+i,j+1)-1;
-        }
-    }
-    
-    duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
-    std::cout << world_rank << " timer partitioning myself = " << duration << std::endl;
-*/
-
-//============================================================
-
-
     //WriteBoundaryDataInSerial2(xcn,zdefs,ifn,Vollie_verts);
 
     /*
@@ -2209,7 +1835,6 @@ int main(int argc, char** argv) {
     //                                                                                                            map< pair<int, int>, HalfEdge* > HE = GetHalfEdges(test,eptr,nloc,offset);
     //map< pair<int, int>, HalfEdge* >::iterator it;
     
-    //Example3DPartitioning(comm);
     //UnitTestJacobian();
     //UnitTestEigenDecomp();
     MPI_Finalize();

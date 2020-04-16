@@ -126,6 +126,14 @@ struct ParVar
     int* offsets;
 };
 
+struct ParVar_ParMetis
+{
+    int size;
+    int* nlocs;
+    int* elmdist;
+    int* npo_locs;
+};
+
 struct TmpStruct
 {
     int* data;
