@@ -51,7 +51,16 @@ ParVar* CreateParallelData(int N, MPI_Comm comm)
     return pv;
 }
 
-ParVar_ParMetis* CreateParallelDataParmetis(int N, MPI_Comm comm, int type)
+
+
+// This function computes the eptr and eind array which are required for most ParMetis APIs.
+// This is done based on the global element2node (e2n) array, the number of elements, the communicator
+// and the type of elements we are currently using. For now the type of elements is fixed to an integer
+// assuming that we use one type of element throughout the whole mesh. However this needs to become
+// an int* in order to allow for hybrid meshes.
+// e2n has the Nvert per element stored consecutively for each element. Hence this array is Nel*NvertPerElement long.
+
+ParVar_ParMetis* CreateParallelDataParmetis(Array<int>* e2n, MPI_Comm comm, int type)
 {
     int size;
     MPI_Comm_size(comm, &size);
@@ -59,10 +68,10 @@ ParVar_ParMetis* CreateParallelDataParmetis(int N, MPI_Comm comm, int type)
     // Get the rank of the process;
     int rank;
     MPI_Comm_rank(comm, &rank);
-    
-    int nloc             = int(N/size) + ( rank < N%size );
+    int Nel = e2n->nloc;
+    int nloc             = int(Nel/size) + ( rank < Nel%size );
     //  compute offset of rows for each proc;
-    int offset           = rank*int(N/size) + MIN(rank, N%size);
+    int offset           = rank*int(Nel/size) + MIN(rank, Nel%size);
     
     int npo_loc = 0;
     for(int i=0;i<nloc;i++)
@@ -113,15 +122,37 @@ ParVar_ParMetis* CreateParallelDataParmetis(int N, MPI_Comm comm, int type)
     MPI_Allreduce(npo_locs,  red_npo_locs,  size,  MPI_INT, MPI_SUM, comm);
     MPI_Allreduce(elm_dist,  red_elm_dist, size+1, MPI_INT, MPI_SUM, comm);
     
-    red_elm_dist[size] = N;
+    red_elm_dist[size] = Nel;
+    
+    
+    int* npo_offset  = new int[size+1];
+    npo_offset[0]=0;
+    for(int i=0;i<size;i++)
+    {
+        npo_offset[i+1] = npo_offset[i]+red_npo_locs[i];
+    }
+    
+    int* eptr = new int[nloc+1];
+    int* eind = new int[npo_loc];
+    eptr[0]  = 0;
+    for(int i=0;i<nloc;i++)
+    {
+        eptr[i+1]  = eptr[i]+type;
+        
+        for(int j=eptr[i];j<eptr[i+1];j++)
+        {
+            eind[j] = e2n->data[npo_offset[rank]+j];
+        }
+    }
     
     ParVar_ParMetis* pv_parmetis = new ParVar_ParMetis;
     
     pv_parmetis->size        =  size;
     pv_parmetis->nlocs       =  red_nlocs;
-    pv_parmetis->npo_locs    =  red_npo_locs;
     pv_parmetis->elmdist     =  red_elm_dist;
-    
+    pv_parmetis->npo_locs    =  red_npo_locs;
+    pv_parmetis->eptr        =  eptr;
+    pv_parmetis->eind        =  eind;
     
     return pv_parmetis;
 }

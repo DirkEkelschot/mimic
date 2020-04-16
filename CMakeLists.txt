@@ -10,7 +10,7 @@ project(ADAPT VERSION 1.0)
 #set(CMAKE_CXX_STANDARD 11)
 #set(CMAKE_CXX_STANDARD_REQUIRED True)
 
-include(platforms/MacOSX_Dirk_work.cmake)
+include(platforms/MacOSX_Dirk_home.cmake)
 
 #set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c++11 -Wno-dev)
 

@@ -2,6 +2,24 @@
 #include <vector>
 
 
+struct ParVar
+{
+    int size;
+    int* nlocs;
+    int* offsets;
+};
+
+struct ParVar_ParMetis
+{
+    int size;
+    int* nlocs;
+    int* elmdist;
+    int* npo_locs;
+    int* eptr;
+    int* eind;
+};
+
+
 
 template <typename T> class JaggedArray {
 private:
@@ -30,7 +48,6 @@ public:
     
     }
 };
-
 
 
 template <typename T> class Array {
@@ -102,6 +119,18 @@ template <typename T> class Array {
     }
 };
     
+
+template <typename T> class ParallelArray : public Array<T>
+{
+    public:
+        ParVar* pv;
+    
+    ParallelArray(ParVar* pv_)
+    {
+        pv = pv_;
+    }
+};
+
     
 template<typename T>
 struct Array2
@@ -119,20 +148,6 @@ struct Vert
     double z;
 };
 
-struct ParVar
-{
-    int size;
-    int* nlocs;
-    int* offsets;
-};
-
-struct ParVar_ParMetis
-{
-    int size;
-    int* nlocs;
-    int* elmdist;
-    int* npo_locs;
-};
 
 struct TmpStruct
 {
