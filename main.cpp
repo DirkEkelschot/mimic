@@ -1428,7 +1428,6 @@ void TestReadInParallelToRoot(MPI_Comm comm, MPI_Info info)
     Array<int>*   iee    = ReadDataSetFromFile<int>("grids/conn.h5","iee");
     duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
     std::cout << world_rank << " reading_serial = " << duration << std::endl;
-    
     start = std::clock();
     Array<int>*   iee_r  = ReadDataSetFromFileInParallelToRoot<int>("grids/conn.h5","iee",comm,info);
     duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
@@ -1766,7 +1765,7 @@ void ExampleUS3DPartitioningWithParVarParMetis()
     
     const char* fn_conn="grids/conn.h5";
     const char* fn_grid="grids/grid.h5";
-    Array<double>*   xcn = ReadDataSetFromFileInParallel<double>(fn_grid,"xcn",comm,info);
+    //Array<double>*   xcn = ReadDataSetFromFileInParallel<double>(fn_grid,"xcn",comm,info);
     Array<int>*      ien = ReadDataSetFromFile<int>(fn_conn,"ien");
     Array<int>* ien_copy = new Array<int>(ien->nloc,ien->ncol-1);
     
@@ -1820,14 +1819,19 @@ void ExampleUS3DPartitioningWithParVarParMetis()
     idx_t part_[]    = {pv_parmetis->nlocs[world_rank]};
     idx_t *part      = part_;
     int nloc = pv_parmetis->nlocs[world_rank];
-    if(world_rank == 1)
+    std::cout << world_rank << " " << nloc << " " << ien->ncol-1 << " " << np << std::endl;
+    if(world_rank==0){
+
+
+    for(int i=0;i<world_size;i++)
     {
-        for(int i=0;i<world_size+1;i++)
-        {
-            std::cout << pv_parmetis->npo_offset[i] << std::endl;
-        }
+	std::cout <<i << " "<< pv_parmetis->nlocs[i] << std::endl;
     }
-    ParMETIS_V3_Mesh2Dual(pv_parmetis->elmdist,pv_parmetis->eptr,pv_parmetis->eind,numflag,ncommonnodes,&xadj,&adjncy,&comm);
+}
+    int status = ParMETIS_V3_Mesh2Dual(pv_parmetis->elmdist,pv_parmetis->eptr,pv_parmetis->eind,numflag,ncommonnodes,&xadj,&adjncy,&comm);
+
+    std::cout << "status " << world_rank << " " << status << std::endl;
+
 }
 
 
@@ -1861,11 +1865,17 @@ int main(int argc, char** argv) {
     {
         TestFindRank();
     }
-    Example3DPartitioningWithParVarParMetis();
-
+    //if(world_size < 6)
+    //{
+    //	Example3DPartitioningWithParVarParMetis();
+    //}
+    std::clock_t start;
+    double duration;
+    start = std::clock();
     ExampleUS3DPartitioningWithParVarParMetis();
-    
-    //ParMETIS_V3_PartMeshKway(pv_parmetis->elmdist, pv_parmetis->eptr, pv_parmetis->eind, elmwgt, wgtflag, numflag, ncon, ncommonnodes, nparts, tpwgts, ubvec, options, &edgecut, part, &comm);
+    duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
+    std::cout << world_rank << " reading_par= " << duration << std::endl;
+   //ParMETIS_V3_PartMeshKway(pv_parmetis->elmdist, pv_parmetis->eptr, pv_parmetis->eind, elmwgt, wgtflag, numflag, ncon, ncommonnodes, nparts, tpwgts, ubvec, options, &edgecut, part, &comm);
     
 //    if (world_rank == 0)
 //    {

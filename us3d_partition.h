@@ -146,15 +146,6 @@ ParVar_ParMetis* CreateParallelDataParmetis(Array<int>* e2n, MPI_Comm comm, int 
         }
     }
     
-    if (rank == 0)
-    {
-        for(int i=0;i<size+1;i++)
-        {
-            std::cout << red_elm_dist[i] << " " << red_npo_offset[i] << std::endl;
-        }
-    }
-    //std::cout << rank << " npo " << npo_loc << std::endl;
-    
     ParVar_ParMetis* pv_parmetis = new ParVar_ParMetis;
     
     pv_parmetis->size        =  size;
