@@ -1,14 +1,16 @@
 OBJECTS = main.cpp
 
-#HDF5_HOME = /u/smurman/share/eddy/hdf5-1.10.1
-#PARMETIS_HOME = /nasa/modulefiles/sles12/parmetis/4.0.3
-#MPI_HOME = /nasa/hpe/mpt/2.17r13
-#CXXFLAGS += -std=c++11 -DMPI_NO_CPPBIND -I$(MPI_HOME)/include
-CXXFLAGS += -std=c++11 -DMPI_NO_CPPBIND
-#LDFLAGS += -L$(MPI_HOME)/lib
+PARMETIS_HOME = /Users/dekelsch/Software/parmetis-4.0.3/parmetis-install
+METIS_HOME = /Users/dekelsch/Software/parmetis-4.0.3/metis/metis-install
+HDF5_HOME = /Users/dekelsch/Software/hdf5-1.12.0/hdf5-install
+MPICH_HOME = /Users/dekelsch/Software/mpich-3.3.2/mpich-install
 
-LDLIBS += -lmpi -lparmetis -lmetis -lhdf5 -mkl
+CXXFLAGS += -std=c++11 -I$(PARMETIS_HOME)/include -I$(MPICH_HOME)/include -I$(HDF5_HOME)/include -I$(METIS_HOME)/include
+
+LDFLAGS += -L$(PARMETIS_HOME)/lib -L$(METIS_HOME)/lib -L$(MPICH_HOME)/lib -L$(HDF5_HOME)/lib
+
+LDLIBS += -lmetis -lparmetis -lhdf5 -lmpi -llapack -lblas
 
 all:
-	icpc $(CXXFLAGS) main.cpp -o adapt $(LDLIBS)
+	/Users/dekelsch/Software/mpich-3.3.2/mpich-install/bin/mpic++ $(CXXFLAGS) main.cpp -o adapt $(LDFLAGS) $(LDLIBS)
 #	rm -rf *.o *.mod

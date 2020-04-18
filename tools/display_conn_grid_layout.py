@@ -127,7 +127,7 @@ print(ien)
 print("========================================================")
 print("==================== Print Conn data ===================")
 print("========================================================")
-filename = '../data_files/adept_geom/conn.h5'
+filename = '../../grids/conn.h5'
 data = h5.File(filename, 'r')
 for group in data.keys():
     print("DATATA === ", data[group])
@@ -162,15 +162,15 @@ for group in data.keys():
         if group=='ife':
             ife = ds
 
-print(znames[:])
-print(zdefs[:])
+#print(znames[:])
+#print(zdefs[:])
 
 
 
 print("========================================================")
 print("==================== Print Grid data ===================")
 print("========================================================")
-filename = '../data_files/adept_geom/grid.h5'
+filename = '../../grids/grid.h5'
 data = h5.File(filename, 'r')
 for group in data.keys():
     if isinstance(data[group], h5.Group):

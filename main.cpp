@@ -1465,6 +1465,9 @@ void TestBrutePartioningUS3D()
     
     Array<double>*   xcn = ReadDataSetFromFileInParallel<double>(fn_grid,"xcn",comm,info);
     Array<int>*      ien = ReadDataSetFromFileInParallel<int>(fn_conn,"ien",comm,info);
+    Array<double>*   ief = ReadDataSetFromFileInParallel<double>(fn_grid,"ief",comm,info);
+    Array<double>*   ifn = ReadDataSetFromFileInParallel<double>(fn_grid,"ifn",comm,info);
+
     
     map< int, std::set<int> > Request = GetRequestedVertices(ien,xcn,comm);
     map<int,  std::set<int> >::iterator it;
@@ -1763,10 +1766,13 @@ void ExampleUS3DPartitioningWithParVarParMetis()
     int world_rank;
     MPI_Comm_rank(comm, &world_rank);
     
-    const char* fn_conn="grids/conn.h5";
-    const char* fn_grid="grids/grid.h5";
-    //Array<double>*   xcn = ReadDataSetFromFileInParallel<double>(fn_grid,"xcn",comm,info);
+    const char* fn_conn="grids/adept/conn.h5";
+    const char* fn_grid="grids/adept/grid.h5";
+    Array<double>*   xcn = ReadDataSetFromFile<double>(fn_grid,"xcn");
     Array<int>*      ien = ReadDataSetFromFile<int>(fn_conn,"ien");
+    Array<double>*   ifn = ReadDataSetFromFile<double>(fn_grid,"ifn");
+    Array<int>*      ief = ReadDataSetFromFile<int>(fn_conn,"ief");
+
     Array<int>* ien_copy = new Array<int>(ien->nloc,ien->ncol-1);
     
     double val = 0.0;
@@ -1819,18 +1825,102 @@ void ExampleUS3DPartitioningWithParVarParMetis()
     idx_t part_[]    = {pv_parmetis->nlocs[world_rank]};
     idx_t *part      = part_;
     int nloc = pv_parmetis->nlocs[world_rank];
-    std::cout << world_rank << " " << nloc << " " << ien->ncol-1 << " " << np << std::endl;
-    if(world_rank==0){
 
-
-    for(int i=0;i<world_size;i++)
-    {
-	std::cout <<i << " "<< pv_parmetis->nlocs[i] << std::endl;
-    }
-}
+//    if(world_rank==0)
+//    {
+//        for(int i=0;i<world_size;i++)
+//        {
+//            std::cout <<i << " "<< pv_parmetis->nlocs[i] << std::endl;
+//        }
+//    }
+    
     int status = ParMETIS_V3_Mesh2Dual(pv_parmetis->elmdist,pv_parmetis->eptr,pv_parmetis->eind,numflag,ncommonnodes,&xadj,&adjncy,&comm);
-
+    
     std::cout << "status " << world_rank << " " << status << std::endl;
+    
+    
+    std::vector<int> xadj_vec;
+    std::vector<int> adjcny_vec;
+    set<int> b_id_unique;
+    std::vector<int> b_id_unique_vec;
+    int cnt = 0;
+    std::clock_t start;
+    double duration;
+    start = std::clock();
+    for(int i=0;i<nloc;i++)
+    {
+        if(xadj[i+1]-xadj[i]<6)
+        {
+            xadj_vec.push_back(xadj[i]);
+            xadj_vec.push_back(xadj[i+1]);
+                        
+            for(int j=xadj[i];j<xadj[i+1];j++)
+            {
+                adjcny_vec.push_back(adjncy[j]);
+                
+                if(b_id_unique.find(adjncy[j]) == b_id_unique.end())
+                {
+                    b_id_unique.insert(adjncy[j]);
+                    b_id_unique_vec.push_back(adjncy[j]);
+                }
+            }
+            cnt++;
+        }
+    }
+    
+    duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
+    std::cout << world_rank << " filtering boundaries = " << duration << " " << b_id_unique.size() << std::endl;
+    std::vector<int>::iterator it;
+    std::map<int, int> unique_vid;
+    Vert p;
+    int n_bc_element = b_id_unique.size();
+    std::map<int, Vert> bel_map;
+    cnt=0;
+    int tel=0;
+    int* LocVert = new int[n_bc_element*8];
+    for(int i=0;i<b_id_unique_vec.size();i++)
+    {
+        int id = b_id_unique_vec[i];
+        for(int j=0;j<8;j++)
+        {
+            val = ien_copy->getVal(id,j);
+            if(unique_vid.find(val) != unique_vid.end())
+            {
+                LocVert[tel*8+j]=unique_vid[val];
+            }
+            else
+            {
+                unique_vid[val]  = cnt;
+                LocVert[tel*8+j] = cnt;
+                p.x = xcn->getVal(val-1,0);
+                p.y = xcn->getVal(val-1,1);
+                p.z = xcn->getVal(val-1,2);
+                bel_map[cnt] = p;
+                cnt++;
+            }
+        }
+        tel++;
+    }
+    
+    string filename = "boundaryelements_per_rank_" + std::to_string(world_rank) + ".dat";
+    ofstream myfile;
+    myfile.open(filename);
+    myfile << "TITLE=\"boundary.tec\"" << std::endl;
+    myfile <<"VARIABLES = \"X\", \"Y\", \"Z\"" << std::endl;
+    myfile <<"ZONE N = " << bel_map.size() << ", E = " << n_bc_element << ", DATAPACKING = POINT, ZONETYPE = FEBRICK" << std::endl;
+
+    std::cout << "number of boundary nodes -> " << bel_map.size() << std::endl;
+
+    for(int i=0;i<bel_map.size();i++)
+    {
+       myfile << bel_map[(i)].x << "   " << bel_map[(i)].y << "   " << bel_map[(i)].z << std::endl;
+    }
+
+    for(int i=0;i<n_bc_element;i++)
+    {
+       myfile << LocVert[i*8+0]+1 << "    " << LocVert[i*8+1]+1 << "   " << LocVert[i*8+2]+1 << "  " << LocVert[i*8+3]+1 << "  " << LocVert[i*8+4]+1 << "  " << LocVert[i*8+5]+1 << "  " << LocVert[i*8+6]+1 << "  " << LocVert[i*8+7]+1 << std::endl;
+    }
+    myfile.close();
 
 }
 
