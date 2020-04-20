@@ -1775,12 +1775,12 @@ void ExampleUS3DPartitioningWithParVarParMetis()
     int world_rank;
     MPI_Comm_rank(comm, &world_rank);
     
-    const char* fn_conn="grids/piston/conn.h5";
-    const char* fn_grid="grids/piston/grid.h5";
+    const char* fn_conn="grids/adept/conn.h5";
+    const char* fn_grid="grids/adept/grid.h5";
     Array<double>*   xcn = ReadDataSetFromFile<double>(fn_grid,"xcn");
     Array<int>*      ien = ReadDataSetFromFile<int>(fn_conn,"ien");
-    Array<double>*   ifn = ReadDataSetFromFile<double>(fn_grid,"ifn");
-    Array<int>*      ief = ReadDataSetFromFile<int>(fn_conn,"ief");
+    //Array<double>*   ifn = ReadDataSetFromFile<double>(fn_grid,"ifn");
+    //Array<int>*      ief = ReadDataSetFromFile<int>(fn_conn,"ief");
 
     Array<int>* ien_copy = new Array<int>(ien->nloc,ien->ncol-1);
     
@@ -1902,19 +1902,14 @@ void ExampleUS3DPartitioningWithParVarParMetis()
             {
                 unique_vid[val]  = cnt;
                 LocVert[tel*8+j] = cnt;
-                p.x = xcn->getVal(val-1,0);
-                p.y = xcn->getVal(val-1,1);
-                p.z = xcn->getVal(val-1,2);
+                p.x = xcn->getVal(val,0);
+                p.y = xcn->getVal(val,1);
+                p.z = xcn->getVal(val,2);
                 bel_map[cnt] = p;
                 cnt++;
             }
         }
         tel++;
-    }
-    
-    for(int q=0;q<n_bc_element*8;q++)
-    {
-        std::cout << LocVert[q] << std::endl;
     }
     
 //    for(int j=b_start;j<b_end;j++)
