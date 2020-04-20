@@ -366,7 +366,7 @@ Array<T>* ReadDataSetFromFileInParallel(const char* file_name, const char* datas
     
     ret = H5Dread (dset_id, hid_from_type<T>(), memspace, dspace, H5P_DEFAULT, A_pt->data);
     
-    double *recv = new double[nrow*ncol];
+    //double *recv = new double[nrow*ncol];
     //double *data = new double[nloc*ncol];
     
     /*
@@ -473,6 +473,9 @@ Array<T>* ReadDataSetFromFileInParallelToRoot(const char* file_name, const char*
 
     H5Dclose(dset_id);
     H5Fclose(file_id);
+    
+    delete A_pt;
+    delete pv;
     return A_ptot;
 }
 

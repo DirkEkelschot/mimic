@@ -406,7 +406,6 @@ void PartitionBigMesh(Array<double>* xcn, Array<int>* ien, MPI_Comm comm)
     
      
      
-    int* offsets = new int[world_size+1];
     for(int i=0;i<world_size+1;i++)
     {
         if (i==world_rank)
@@ -447,13 +446,14 @@ void PartitionBigMesh(Array<double>* xcn, Array<int>* ien, MPI_Comm comm)
     int* eind = new int[npo_loc];
     
     eptr[0]  = 0;
-    for(int i=0;i<nloc;i++)
+    for(int k=0;k<nloc;k++)
     {
-        eptr[i+1] = eptr[i]+8;
+        eptr[k+1] = eptr[k]+8;
         
         for(int j=0;j<8;j++)
         {
-            eind[i*8+j] = ien->getVal(offset+i,j+1)-1;
+            int val = ien->getVal(offset+k,j+1)-1;
+            eind[k*8+j] = val;
         }
     }
     
@@ -572,6 +572,9 @@ void PartitionBigMesh(Array<double>* xcn, Array<int>* ien, MPI_Comm comm)
         }
     }
     */
+    delete[] npo_offset;
+    delete[] eind;
+    delete[] eptr;
 }
 
 void Example3DPartitioning()
@@ -646,7 +649,6 @@ void Example3DPartitioning()
         }
     }
     
-    int* offsets = new int[world_size+1];
     for(int i=0;i<world_size+1;i++)
     {
         if (i==world_rank)
@@ -945,7 +947,6 @@ void WriteBoundaryDataInSerial(Array<double>* xcn, Array<int>* zdefs, Array<int>
 {
     for(int bc=3;bc<zdefs->nglob;bc++)
     {
-        int b_offset = zdefs->getVal(2,4);
         map< int, int > Loc2GlobBound;
         map< int, Vert> BC_verts;
         map< int, double> J_verts;
@@ -959,7 +960,6 @@ void WriteBoundaryDataInSerial(Array<double>* xcn, Array<int>* zdefs, Array<int>
         int cnt = 0;
         Vert V;
         int tel = 0;
-        int* pltJ = new int[n_bc_faces*4];
         for(int j=b_start;j<b_end;j++)
         {
             for(int k=0;k<4;k++)
@@ -1008,7 +1008,11 @@ void WriteBoundaryDataInSerial(Array<double>* xcn, Array<int>* zdefs, Array<int>
            myfile << Loc[i*4+0]+1 << "    " << Loc[i*4+1]+1 << "   " << Loc[i*4+2]+1 << "  " << Loc[i*4+3]+1 << std::endl;
         }
         myfile.close();
+        
+        delete[] Loc;
     }
+    
+    
 }
 
 
@@ -1053,7 +1057,6 @@ void WriteBoundaryDataInSerial2(Array<double>* xcn, Array<int>* zdefs, Array<int
 {
     for(int bc=3;bc<zdefs->nloc;bc++)
     {
-        int b_offset = zdefs->getVal(2,4);
         map< int, int > Loc2GlobBound;
         map< int, Vert> BC_verts;
         map< int, double> J_verts;
@@ -1067,14 +1070,14 @@ void WriteBoundaryDataInSerial2(Array<double>* xcn, Array<int>* zdefs, Array<int
         int cnt = 0;
         Vert V;
         int tel = 0;
-        int* pltJ = new int[n_bc_faces*4];
+        //int* pltJ = new int[n_bc_faces*4];
         int teller = 0;
         for(int j=b_start;j<b_end;j++)
         {
             for(int k=0;k<4;k++)
             {
                 int val = ifn->getVal(j,k+1);
-                pltJ[teller] = val;
+                //pltJ[teller] = val;
                 //std::cout << val << " ";
                 if ( Loc2GlobBound.find( val ) != Loc2GlobBound.end() )
                 {
@@ -1099,7 +1102,7 @@ void WriteBoundaryDataInSerial2(Array<double>* xcn, Array<int>* zdefs, Array<int
             //std::cout << std::endl;
             tel++;
         }
-        cout << "\nlargest id = " << largest(pltJ,n_bc_faces*4) << std::endl;
+        //cout << "\nlargest id = " << largest(pltJ,n_bc_faces*4) << std::endl;
         
         ofstream myfile;
         
@@ -1123,6 +1126,8 @@ void WriteBoundaryDataInSerial2(Array<double>* xcn, Array<int>* zdefs, Array<int
            myfile << Loc[i*4+0]+1 << "    " << Loc[i*4+1]+1 << "   " << Loc[i*4+2]+1 << "  " << Loc[i*4+3]+1 << std::endl;
         }
         myfile.close();
+        
+        delete[] Loc;
     }
 }
 
@@ -1237,9 +1242,6 @@ map< int, std::set<int> > GetRequestedVertices(Array<int>* ien, Array<double>* x
     ParVar* pv_xcn = ComputeParallelStateArray(xcn->nglob, comm);
     int val;
     
-    std::clock_t start;
-    double duration;
-    start = std::clock();
     
     if(world_rank == 0)
     {
@@ -1283,7 +1285,7 @@ map< int, std::set<int> > GetRequestedVertices(Array<int>* ien, Array<double>* x
     //duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
 
     //std::cout << world_rank << " loopie loop = " << duration << std::endl;
-    
+    delete pv_xcn;
     return Request;
 }
 
@@ -1396,6 +1398,7 @@ TmpStruct* GetSchedule(Array<int>* ien, Array<double>* xcn, MPI_Comm comm)
     }
     
     
+    delete schedule;
     
     TmpStruct* t_struct = new TmpStruct;
     t_struct->data = reduce_req_procs;
@@ -1447,10 +1450,13 @@ void TestReadInParallelToRoot(MPI_Comm comm, MPI_Info info)
             }
         }
     }
+    
+    delete iee_r;
+    delete iee;
 }
 
 
-void TestBrutePartioningUS3D()
+int* TestBrutePartioningUS3D()
 {
     MPI_Comm comm = MPI_COMM_WORLD;
     MPI_Info info = MPI_INFO_NULL;
@@ -1465,7 +1471,7 @@ void TestBrutePartioningUS3D()
     
     Array<double>*   xcn = ReadDataSetFromFileInParallel<double>(fn_grid,"xcn",comm,info);
     Array<int>*      ien = ReadDataSetFromFileInParallel<int>(fn_conn,"ien",comm,info);
-    Array<double>*   ief = ReadDataSetFromFileInParallel<double>(fn_grid,"ief",comm,info);
+    //Array<double>*   ief = ReadDataSetFromFileInParallel<double>(fn_grid,"ief",comm,info);
     Array<double>*   ifn = ReadDataSetFromFileInParallel<double>(fn_grid,"ifn",comm,info);
 
     
@@ -1489,9 +1495,6 @@ void TestBrutePartioningUS3D()
 
        int nloc   = schedule->nlocs[i];
        int offset = schedule->offsets[i];
-
-       int nloc_sizing   = schedule->nlocs_sizing[i];
-       int offset_sizing = schedule->offsets_sizing[i];
         
        for(int j=offset+1;j<(offset+nloc);j++)
        {
@@ -1572,12 +1575,20 @@ void TestBrutePartioningUS3D()
 
         }
     }
+    
+    delete xcn;
+    delete ien;
+    delete ifn;
+    //delete[] req_arr_send;
+    delete[] recv_loc;
+    //delete ief;
+    return recv_collector;
+
 }
 
 void TestFindRank()
 {
     int* arr = new int[10];
-    int* arr_recv = new int[10];
     
     
     arr[0] = 0;
@@ -1641,8 +1652,6 @@ void Example3DPartitioningWithParVarParMetis()
     {
         npo += eltype[i];
     }
-    
-    int * test = new int[npo];
     
     Array<int>* e2n = new Array<int>(8,8);
     
@@ -1766,8 +1775,8 @@ void ExampleUS3DPartitioningWithParVarParMetis()
     int world_rank;
     MPI_Comm_rank(comm, &world_rank);
     
-    const char* fn_conn="grids/adept/conn.h5";
-    const char* fn_grid="grids/adept/grid.h5";
+    const char* fn_conn="grids/piston/conn.h5";
+    const char* fn_grid="grids/piston/grid.h5";
     Array<double>*   xcn = ReadDataSetFromFile<double>(fn_grid,"xcn");
     Array<int>*      ien = ReadDataSetFromFile<int>(fn_conn,"ien");
     Array<double>*   ifn = ReadDataSetFromFile<double>(fn_grid,"ifn");
@@ -1786,7 +1795,7 @@ void ExampleUS3DPartitioningWithParVarParMetis()
         }
     }
     
-    int N = ien->nglob;
+    //int N = ien->nglob;
     ParVar_ParMetis* pv_parmetis = CreateParallelDataParmetis(ien_copy,comm,8);
     
     idx_t numflag_[] = {0};
@@ -1798,17 +1807,17 @@ void ExampleUS3DPartitioningWithParVarParMetis()
     idx_t *adjncy    = NULL;
     idx_t *adjwgt    = NULL;
     idx_t *vsize     = NULL;
-    idx_t options_[] = {0, 0, 0};
-    idx_t *options   = options_;
-    idx_t wgtflag_[] = {0};
-    idx_t *wgtflag   = wgtflag_;
-    real_t ubvec_[]  = {1.05};
-    real_t *ubvec    = ubvec_;
+    //idx_t options_[] = {0, 0, 0};
+    //idx_t *options   = options_;
+    //idx_t wgtflag_[] = {0};
+    //idx_t *wgtflag   = wgtflag_;
+    //real_t ubvec_[]  = {1.05};
+    //real_t *ubvec    = ubvec_;
 
     idx_t *elmwgt;
     
-    real_t itr_[]    = {1.05};
-    real_t *itr      = itr_;
+    //real_t itr_[]    = {1.05};
+    //real_t *itr      = itr_;
     int np           = world_size;
     idx_t ncon_[]    = {1};
     idx_t *ncon      = ncon_;
@@ -1819,11 +1828,11 @@ void ExampleUS3DPartitioningWithParVarParMetis()
         tpwgts[i] = 1.0/np;
     }
     
-    idx_t nparts_[] = {np};
-    idx_t *nparts = nparts_;
+    //idx_t nparts_[] = {np};
+    //idx_t *nparts = nparts_;
     
-    idx_t part_[]    = {pv_parmetis->nlocs[world_rank]};
-    idx_t *part      = part_;
+    //idx_t part_[]    = {pv_parmetis->nlocs[world_rank]};
+    //idx_t *part      = part_;
     int nloc = pv_parmetis->nlocs[world_rank];
 
 //    if(world_rank==0)
@@ -1881,6 +1890,7 @@ void ExampleUS3DPartitioningWithParVarParMetis()
     for(int i=0;i<b_id_unique_vec.size();i++)
     {
         int id = b_id_unique_vec[i];
+        
         for(int j=0;j<8;j++)
         {
             val = ien_copy->getVal(id,j);
@@ -1902,6 +1912,40 @@ void ExampleUS3DPartitioningWithParVarParMetis()
         tel++;
     }
     
+    for(int q=0;q<n_bc_element*8;q++)
+    {
+        std::cout << LocVert[q] << std::endl;
+    }
+    
+//    for(int j=b_start;j<b_end;j++)
+//    {
+//        for(int k=0;k<4;k++)
+//        {
+//            int val = ifn->getVal(j,k+1);
+//
+//            if ( Loc2GlobBound.find( val ) != Loc2GlobBound.end() )
+//            {
+//                Loc[tel*4+k]=Loc2GlobBound[val];
+//            }
+//            else
+//            {
+//                Loc2GlobBound[val] = cnt;
+//                Loc[tel*4+k]=cnt;
+//                V.x = xcn->getVal(val-1,0);
+//                V.y = xcn->getVal(val-1,1);
+//                V.z = xcn->getVal(val-1,2);
+//                BC_verts[cnt] = V;
+//                //std::cout << detJ_verts->getVal(val-1,0)*1.0e08 << std::endl;
+//
+//                J_verts[cnt]  = detJ_verts[val-1];
+//                V_verts[cnt]  = vol_verts[val-1];
+//                Jno_verts[cnt]  = Jnorm_verts[val-1];
+//                cnt++;
+//            }
+//        }
+//        tel++;
+//    }
+    
     string filename = "boundaryelements_per_rank_" + std::to_string(world_rank) + ".dat";
     ofstream myfile;
     myfile.open(filename);
@@ -1921,7 +1965,14 @@ void ExampleUS3DPartitioningWithParVarParMetis()
        myfile << LocVert[i*8+0]+1 << "    " << LocVert[i*8+1]+1 << "   " << LocVert[i*8+2]+1 << "  " << LocVert[i*8+3]+1 << "  " << LocVert[i*8+4]+1 << "  " << LocVert[i*8+5]+1 << "  " << LocVert[i*8+6]+1 << "  " << LocVert[i*8+7]+1 << std::endl;
     }
     myfile.close();
-
+    
+    delete[] LocVert;
+    delete xcn;
+    delete ien;
+    delete ifn;
+    delete ief;
+    delete ien_copy;
+    delete pv_parmetis;
 }
 
 
@@ -1943,8 +1994,8 @@ int main(int argc, char** argv) {
     
 //============================================================
     
-    const char* fn_conn="grids/conn.h5";
-    const char* fn_grid="grids/grid.h5";
+    const char* fn_conn="grids/piston/conn.h5";
+    const char* fn_grid="grids/piston/grid.h5";
     
     //Array<int>*    zdefs = ReadDataSetFromGroupFromFile<int>(fn_conn,"zones","zdefs");
     //Array<char>*  znames = ReadDataSetFromGroupFromFile<char>(fn_conn,"zones","znames");
