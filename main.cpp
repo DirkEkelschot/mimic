@@ -1227,7 +1227,7 @@ int FindRank(int* arr, int size, int val)
 
 
 
-map< int, std::set<int> > GetRequestedVertices(Array<int>* ien, Array<double>* xcn, MPI_Comm comm)
+map< int, std::set<int> > GetRequestedVertices(ParallelArray<int>* ien, ParallelArray<double>* xcn, MPI_Comm comm)
 {
     int world_size;
     MPI_Comm_size(comm, &world_size);
@@ -1290,7 +1290,7 @@ map< int, std::set<int> > GetRequestedVertices(Array<int>* ien, Array<double>* x
 }
 
 
-TmpStruct* GetSchedule(Array<int>* ien, Array<double>* xcn, MPI_Comm comm)
+TmpStruct* GetSchedule(ParallelArray<int>* ien, ParallelArray<double>* xcn, MPI_Comm comm)
 {
     int world_size;
     MPI_Comm_size(comm, &world_size);
@@ -1469,10 +1469,10 @@ int* TestBrutePartioningUS3D()
     const char* fn_conn="grids/conn.h5";
     const char* fn_grid="grids/grid.h5";
     
-    Array<double>*   xcn = ReadDataSetFromFileInParallel<double>(fn_grid,"xcn",comm,info);
-    Array<int>*      ien = ReadDataSetFromFileInParallel<int>(fn_conn,"ien",comm,info);
+    ParallelArray<double>*   xcn = ReadDataSetFromFileInParallel<double>(fn_grid,"xcn",comm,info);
+    ParallelArray<int>*      ien = ReadDataSetFromFileInParallel<int>(fn_conn,"ien",comm,info);
     //Array<double>*   ief = ReadDataSetFromFileInParallel<double>(fn_grid,"ief",comm,info);
-    Array<double>*   ifn = ReadDataSetFromFileInParallel<double>(fn_grid,"ifn",comm,info);
+    //ParallelArray<double>*   ifn = ReadDataSetFromFileInParallel<double>(fn_grid,"ifn",comm,info);
 
     
     map< int, std::set<int> > Request = GetRequestedVertices(ien,xcn,comm);
@@ -1578,7 +1578,7 @@ int* TestBrutePartioningUS3D()
     
     delete xcn;
     delete ien;
-    delete ifn;
+    //delete ifn;
     //delete[] req_arr_send;
     delete[] recv_loc;
     //delete ief;
@@ -1855,7 +1855,7 @@ void ExampleUS3DPartitioningWithParVarParMetis()
     int cnt = 0;
     std::clock_t start;
     double duration;
-    start = std::clock();
+//    start = std::clock();
     for(int i=0;i<nloc;i++)
     {
         if(xadj[i+1]-xadj[i]<6)
@@ -1877,9 +1877,9 @@ void ExampleUS3DPartitioningWithParVarParMetis()
         }
     }
     
-    duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
-    std::cout << world_rank << " filtering boundaries = " << duration << " " << b_id_unique.size() << std::endl;
-    std::vector<int>::iterator it;
+//    duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
+//    std::cout << world_rank << " filtering boundaries = " << duration << " " << b_id_unique.size() << std::endl;
+//    std::vector<int>::iterator it;
     std::map<int, int> unique_vid;
     Vert p;
     int n_bc_element = b_id_unique.size();
@@ -1964,12 +1964,64 @@ void ExampleUS3DPartitioningWithParVarParMetis()
     delete[] LocVert;
     delete xcn;
     delete ien;
-    delete ifn;
-    delete ief;
+    //delete ifn;
+    //delete ief;
     delete ien_copy;
     delete pv_parmetis;
 }
 
+
+//
+LocalPartitionData* GetPartitionData(Array<double>* xcn, ParallelArray<int>* ien, MPI_Comm comm)
+{
+    int size;
+    MPI_Comm_size(comm, &size);
+    // Get the rank of the process
+    int rank;
+    MPI_Comm_rank(comm, &rank);
+    
+    
+    std::map<int, int> Loc2GlobElement;
+    std::map<int, int> Glob2LocElement;
+    
+    std::map<int, int> Loc2GlobNodes;
+    std::map<int, int> Glob2LocNodes;
+    
+    Array<int>* ien_loc = new Array<int>(ien->nloc,ien->ncol-1);
+    
+    int cnt = 0;
+    int val = 0;
+    for(int i=0;i<ien->nloc;i++)
+    {
+        Loc2GlobElement[i] = ien->pv->offsets[rank]+i;
+        Glob2LocElement[ien->pv->offsets[rank]+i] = i;
+        
+        for(int j=0;j<ien->ncol-1;i++)
+        {
+            val = ien->getVal(i,j+1)-1;
+
+            if ( Loc2GlobNodes.find( val ) == Loc2GlobNodes.end())
+            {
+                Loc2GlobNodes[cnt] = val;
+                Glob2LocNodes[val] = cnt;
+                ien_loc->setVal(i,j,cnt);
+                cnt++;
+            }
+            else{
+                ien_loc->setVal(i,j,Glob2LocNodes[val]);
+            }
+        }
+    }
+    
+    LocalPartitionData* lpd = new LocalPartitionData;
+    lpd->loc2glob_el        = Loc2GlobElement;
+    lpd->glob2loc_el        = Glob2LocElement;
+    lpd->ien_loc            = ien_loc;
+    lpd->loc2glob_vrt       = Loc2GlobNodes;
+    lpd->glob2loc_vrt       = Glob2LocNodes;
+    
+    return lpd;
+}
 
 
 
@@ -2011,6 +2063,10 @@ int main(int argc, char** argv) {
     ExampleUS3DPartitioningWithParVarParMetis();
     duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
     std::cout << world_rank << " reading_par= " << duration << std::endl;
+    
+    
+    //NodesOnPartition = GetRequestedNodes(ien);
+    
    //ParMETIS_V3_PartMeshKway(pv_parmetis->elmdist, pv_parmetis->eptr, pv_parmetis->eind, elmwgt, wgtflag, numflag, ncon, ncommonnodes, nparts, tpwgts, ubvec, options, &edgecut, part, &comm);
     
 //    if (world_rank == 0)

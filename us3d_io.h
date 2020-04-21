@@ -299,7 +299,7 @@ Array<T> ReadDataSetFromRunInFileInParallel(const char* file_name, const char* r
 
 
 template<typename T>
-Array<T>* ReadDataSetFromFileInParallel(const char* file_name, const char* dataset_name, MPI_Comm comm, MPI_Info info)
+ParallelArray<T>* ReadDataSetFromFileInParallel(const char* file_name, const char* dataset_name, MPI_Comm comm, MPI_Info info)
 {
     
     // Get the size of the process;
@@ -329,28 +329,22 @@ Array<T>* ReadDataSetFromFileInParallel(const char* file_name, const char* datas
     int ncol             = dims[1];
     int N                = nrow;
     
-    //Partition the array;
-    // compute local number of rows per proc;
-    int nloc             = int(N/size) + ( rank < N%size );
-    //  compute offset of rows for each proc;
-    int offset           = rank*int(N/size) + MIN(rank, N%size);
+    ParVar* pv = CreateParallelData(N, comm);
     
-    Array<T>* A_pt = new Array<T>(nloc,ncol);
-    
-    A_pt->offset = offset;
-    A_pt->nglob  = nrow;
+    Array<T>* A_pt             = new Array<T>(pv->nlocs[rank],ncol);
+    ParallelArray<T>* A_pt_par = new ParallelArray<T>(pv->nlocs[rank],ncol,pv);
     
     hsize_t              offsets[2];
     hsize_t              counts[2];
-    offsets[0]           = offset;
+    offsets[0]           = pv->offsets[rank];
     offsets[1]           = 0;
-    counts[0]            = nloc;
+    counts[0]            = pv->nlocs[rank];
     counts[1]            = ncol;
     
     ret=H5Sselect_hyperslab(dspace, H5S_SELECT_SET, offsets, NULL, counts, NULL);
     
     hsize_t     dimsm[2];
-    dimsm[0] = nloc;
+    dimsm[0] = pv->nlocs[rank];
     dimsm[1] = ncol;
     
     hid_t memspace = H5Screate_simple (2, dimsm, NULL);
@@ -359,12 +353,12 @@ Array<T>* ReadDataSetFromFileInParallel(const char* file_name, const char* datas
     hsize_t     counts_out[2];
     offsets_out[0] = 0;
     offsets_out[1] = 0;
-    counts_out[0]  = nloc;
+    counts_out[0]  = pv->nlocs[rank];
     counts_out[1]  = ncol;
     
     ret = H5Sselect_hyperslab (memspace, H5S_SELECT_SET, offsets_out, NULL,counts_out, NULL);
     
-    ret = H5Dread (dset_id, hid_from_type<T>(), memspace, dspace, H5P_DEFAULT, A_pt->data);
+    ret = H5Dread (dset_id, hid_from_type<T>(), memspace, dspace, H5P_DEFAULT, A_pt_par->data);
     
     //double *recv = new double[nrow*ncol];
     //double *data = new double[nloc*ncol];
@@ -380,7 +374,7 @@ Array<T>* ReadDataSetFromFileInParallel(const char* file_name, const char* datas
     
     H5Dclose(dset_id);
     H5Fclose(file_id);
-    return A_pt;
+    return A_pt_par;
 }
 
 

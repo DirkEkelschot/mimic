@@ -1,6 +1,6 @@
 #include <string>
 #include <vector>
-
+#include <map>
 
 struct ParVar
 {
@@ -126,7 +126,7 @@ template <typename T> class ParallelArray : public Array<T>
     public:
         ParVar* pv;
     
-    ParallelArray(ParVar* pv_)
+    ParallelArray(int r, int c, ParVar* pv_): Array<T>(r,c)
     {
         pv = pv_;
     }
@@ -150,6 +150,8 @@ struct Vert
 };
 
 
+
+
 struct TmpStruct
 {
     int* data;
@@ -159,6 +161,17 @@ struct TmpStruct
     int* sizing;
     int* offsets_sizing;
     int* nlocs_sizing;
+};
+
+struct LocalPartitionData
+{
+    std::map<int, int> loc2glob_el;
+    std::map<int, int> glob2loc_el;
+    
+    std::map<int, int> loc2glob_vrt;
+    std::map<int, int> glob2loc_vrt;
+    
+    Array<int>* ien_loc;
 };
 
 //template<typename T>
