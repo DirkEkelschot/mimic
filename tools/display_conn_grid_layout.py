@@ -127,7 +127,7 @@ print(ien)
 print("========================================================")
 print("==================== Print Conn data ===================")
 print("========================================================")
-filename = '../../grids/conn.h5'
+filename = '../grids/piston/conn.h5'
 data = h5.File(filename, 'r')
 for group in data.keys():
     print("DATATA === ", data[group])
@@ -164,13 +164,13 @@ for group in data.keys():
 
 #print(znames[:])
 #print(zdefs[:])
-
+print(ife)
 
 
 print("========================================================")
 print("==================== Print Grid data ===================")
 print("========================================================")
-filename = '../../grids/grid.h5'
+filename = '../grids/piston/grid.h5'
 data = h5.File(filename, 'r')
 for group in data.keys():
     if isinstance(data[group], h5.Group):
@@ -432,7 +432,7 @@ for i in range(0,8):
     ax.scatter(Points[i][0],Points[i][1],Points[i][2],'.',color='red')
 plt.show()
 '''
-
+'''
 
 
 test = [13428254, 1, 28462350, 1740, 29,
@@ -521,7 +521,7 @@ for i in range(0,len(test)):
     ax.plot([xcn[vid3][0],xcn[vid7][0]],[xcn[vid3][1],xcn[vid7][1]],[xcn[vid3][2],xcn[vid7][2]],'-b')
 
 
-'''
+
 
 
 '''

@@ -1779,12 +1779,24 @@ void ExampleUS3DPartitioningWithParVarParMetis()
     const char* fn_grid="grids/adept/grid.h5";
     Array<double>*   xcn = ReadDataSetFromFile<double>(fn_grid,"xcn");
     Array<int>*      ien = ReadDataSetFromFile<int>(fn_conn,"ien");
+    //Array<int>*      ife = ReadDataSetFromFile<int>(fn_conn,"ife");
     //Array<double>*   ifn = ReadDataSetFromFile<double>(fn_grid,"ifn");
     //Array<int>*      ief = ReadDataSetFromFile<int>(fn_conn,"ief");
 
     Array<int>* ien_copy = new Array<int>(ien->nloc,ien->ncol-1);
     
+//    for(int i=0;i<ife->nloc;i++)
+//    {
+//        //std::cout << i << " :: ";
+//        for(int j=0;j<ife->ncol;j++)
+//        {
+//            std::cout << ife->getVal(i,j) << " ";
+//        }
+//        std::cout << std::endl;
+//    }
+    
     double val = 0.0;
+
     
     for(int i=0;i<ien->nloc;i++)
     {
@@ -1794,6 +1806,31 @@ void ExampleUS3DPartitioningWithParVarParMetis()
             ien_copy->setVal(i,j,val);
         }
     }
+//    std::map<int, set<int> > el2v;
+//    std::map<int, set<int> > v2el;
+//    int nnodes = xcn->nloc;
+//
+//    std::cout << "nnodes " << nnodes << std::endl;
+//
+//    for(int i=0;i<ien->nloc;i++)
+//    {
+//        for(int j=0;j<ien_copy->ncol;j++)
+//        {
+//            val = ien_copy->getVal(i,j);
+//
+//            if(val < nnodes)
+//            {
+//                el2v[i].insert(val);
+//
+//                if(v2el[val].find(i) == v2el[val].end())
+//                {
+//                    v2el[val].insert(i);
+//                }
+//            }
+//        }
+//    }
+    
+    
     
     //int N = ien->nglob;
     ParVar_ParMetis* pv_parmetis = CreateParallelDataParmetis(ien_copy,comm,8);
@@ -1802,19 +1839,25 @@ void ExampleUS3DPartitioningWithParVarParMetis()
     idx_t *numflag = numflag_;
     idx_t ncommonnodes_[] = {4};
     idx_t *ncommonnodes = ncommonnodes_;
-    int edgecut      = 0;
+    idx_t edgecut;
     idx_t *xadj      = NULL;
     idx_t *adjncy    = NULL;
-    idx_t *adjwgt    = NULL;
     idx_t *vsize     = NULL;
-    //idx_t options_[] = {0, 0, 0};
-    //idx_t *options   = options_;
-    //idx_t wgtflag_[] = {0};
-    //idx_t *wgtflag   = wgtflag_;
-    //real_t ubvec_[]  = {1.05};
-    //real_t *ubvec    = ubvec_;
+    idx_t options_[] = {0, 0, 0};
+    idx_t *options   = options_;
+    idx_t wgtflag_[] = {0};
+    idx_t *wgtflag   = wgtflag_;
+    real_t ubvec_[]  = {1.1};
+    real_t *ubvec    = ubvec_;
 
-    idx_t *elmwgt;
+    idx_t *elmwgt = new idx_t[pv_parmetis->nlocs[world_rank]];
+    idx_t *adjwgt = new idx_t[pv_parmetis->nlocs[world_rank]];
+
+    for(int i=0;i<pv_parmetis->nlocs[world_rank];i++)
+    {
+        elmwgt[i] = 1;
+        adjwgt[i] = 1;
+    }
     
     //real_t itr_[]    = {1.05};
     //real_t *itr      = itr_;
@@ -1828,146 +1871,147 @@ void ExampleUS3DPartitioningWithParVarParMetis()
         tpwgts[i] = 1.0/np;
     }
     
-    //idx_t nparts_[] = {np};
-    //idx_t *nparts = nparts_;
+    idx_t nparts_[] = {np};
+    idx_t *nparts = nparts_;
     
-    //idx_t part_[]    = {pv_parmetis->nlocs[world_rank]};
-    //idx_t *part      = part_;
     int nloc = pv_parmetis->nlocs[world_rank];
 
-//    if(world_rank==0)
-//    {
-//        for(int i=0;i<world_size;i++)
-//        {
-//            std::cout <<i << " "<< pv_parmetis->nlocs[i] << std::endl;
-//        }
-//    }
+    int* part = new int[nloc];
     
-    int status = ParMETIS_V3_Mesh2Dual(pv_parmetis->elmdist,pv_parmetis->eptr,pv_parmetis->eind,numflag,ncommonnodes,&xadj,&adjncy,&comm);
-    
-    std::cout << "status " << world_rank << " " << status << std::endl;
-    
-    
-    std::vector<int> xadj_vec;
-    std::vector<int> adjcny_vec;
-    set<int> b_id_unique;
-    std::vector<int> b_id_unique_vec;
-    int cnt = 0;
-    std::clock_t start;
-    double duration;
-//    start = std::clock();
     for(int i=0;i<nloc;i++)
     {
-        if(xadj[i+1]-xadj[i]<6)
-        {
-            xadj_vec.push_back(xadj[i]);
-            xadj_vec.push_back(xadj[i+1]);
-                        
-            for(int j=xadj[i];j<xadj[i+1];j++)
-            {
-                adjcny_vec.push_back(adjncy[j]);
-                
-                if(b_id_unique.find(adjncy[j]) == b_id_unique.end())
-                {
-                    b_id_unique.insert(adjncy[j]);
-                    b_id_unique_vec.push_back(adjncy[j]);
-                }
-            }
-            cnt++;
-        }
+        part[i] = 0.0;
     }
     
-//    duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
-//    std::cout << world_rank << " filtering boundaries = " << duration << " " << b_id_unique.size() << std::endl;
-//    std::vector<int>::iterator it;
-    std::map<int, int> unique_vid;
-    Vert p;
-    int n_bc_element = b_id_unique.size();
-    std::map<int, Vert> bel_map;
-    cnt=0;
-    int tel=0;
-    int* LocVert = new int[n_bc_element*8];
-    for(int i=0;i<b_id_unique_vec.size();i++)
-    {
-        int id = b_id_unique_vec[i];
-        
-        for(int j=0;j<8;j++)
-        {
-            val = ien_copy->getVal(id,j);
-            if(unique_vid.find(val) != unique_vid.end())
-            {
-                LocVert[tel*8+j]=unique_vid[val];
-            }
-            else
-            {
-                unique_vid[val]  = cnt;
-                LocVert[tel*8+j] = cnt;
-                p.x = xcn->getVal(val,0);
-                p.y = xcn->getVal(val,1);
-                p.z = xcn->getVal(val,2);
-                bel_map[cnt] = p;
-                cnt++;
-            }
-        }
-        tel++;
-    }
+    int status = ParMETIS_V3_Mesh2Dual(pv_parmetis->elmdist, pv_parmetis->eptr, pv_parmetis->eind, numflag, ncommonnodes, &xadj, &adjncy, &comm);
     
-//    for(int j=b_start;j<b_end;j++)
+    status = ParMETIS_V3_PartKway(pv_parmetis->elmdist, xadj, adjncy, elmwgt, adjwgt, wgtflag, numflag, ncon, nparts, tpwgts, ubvec, options, &edgecut, part, &comm);
+    
+    
+   // std::cout << "              " << std::endl;
+    std::cout << "status2 " << world_rank << " " << status << std::endl;
+
+    
+//    std::vector<int> xadj_vec;
+//    std::vector<int> adjcny_vec;
+//    set<int> b_id_unique;
+//    std::vector<int> b_id_unique_vec;
+//    int cnt = 0;
+//    std::clock_t start;
+//    double duration;
+////    start = std::clock();
+//    for(int i=0;i<nloc;i++)
 //    {
-//        for(int k=0;k<4;k++)
+//        if(xadj[i+1]-xadj[i]<6)
 //        {
-//            int val = ifn->getVal(j,k+1);
+//            xadj_vec.push_back(xadj[i]);
+//            xadj_vec.push_back(xadj[i+1]);
 //
-//            if ( Loc2GlobBound.find( val ) != Loc2GlobBound.end() )
+//            for(int j=xadj[i];j<xadj[i+1];j++)
 //            {
-//                Loc[tel*4+k]=Loc2GlobBound[val];
+//                adjcny_vec.push_back(adjncy[j]);
+//
+//                if(b_id_unique.find(adjncy[j]) == b_id_unique.end())
+//                {
+//                    b_id_unique.insert(adjncy[j]);
+//                    b_id_unique_vec.push_back(adjncy[j]);
+//                }
+//            }
+//            cnt++;
+//        }
+//    }
+//
+////    duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
+////    std::cout << world_rank << " filtering boundaries = " << duration << " " << b_id_unique.size() << std::endl;
+////    std::vector<int>::iterator it;
+//    std::map<int, int> unique_vid;
+//    Vert p;
+//    int n_bc_element = b_id_unique.size();
+//    std::map<int, Vert> bel_map;
+//    cnt=0;
+//    int tel=0;
+//    int* LocVert = new int[n_bc_element*8];
+//    for(int i=0;i<b_id_unique_vec.size();i++)
+//    {
+//        int id = b_id_unique_vec[i];
+//
+//        for(int j=0;j<8;j++)
+//        {
+//            val = ien_copy->getVal(id,j);
+//            if(unique_vid.find(val) != unique_vid.end())
+//            {
+//                LocVert[tel*8+j]=unique_vid[val];
 //            }
 //            else
 //            {
-//                Loc2GlobBound[val] = cnt;
-//                Loc[tel*4+k]=cnt;
-//                V.x = xcn->getVal(val-1,0);
-//                V.y = xcn->getVal(val-1,1);
-//                V.z = xcn->getVal(val-1,2);
-//                BC_verts[cnt] = V;
-//                //std::cout << detJ_verts->getVal(val-1,0)*1.0e08 << std::endl;
-//
-//                J_verts[cnt]  = detJ_verts[val-1];
-//                V_verts[cnt]  = vol_verts[val-1];
-//                Jno_verts[cnt]  = Jnorm_verts[val-1];
+//                unique_vid[val]  = cnt;
+//                LocVert[tel*8+j] = cnt;
+//                p.x = xcn->getVal(val,0);
+//                p.y = xcn->getVal(val,1);
+//                p.z = xcn->getVal(val,2);
+//                bel_map[cnt] = p;
 //                cnt++;
 //            }
 //        }
 //        tel++;
 //    }
+//
+////    for(int j=b_start;j<b_end;j++)
+////    {
+////        for(int k=0;k<4;k++)
+////        {
+////            int val = ifn->getVal(j,k+1);
+////
+////            if ( Loc2GlobBound.find( val ) != Loc2GlobBound.end() )
+////            {
+////                Loc[tel*4+k]=Loc2GlobBound[val];
+////            }
+////            else
+////            {
+////                Loc2GlobBound[val] = cnt;
+////                Loc[tel*4+k]=cnt;
+////                V.x = xcn->getVal(val-1,0);
+////                V.y = xcn->getVal(val-1,1);
+////                V.z = xcn->getVal(val-1,2);
+////                BC_verts[cnt] = V;
+////                //std::cout << detJ_verts->getVal(val-1,0)*1.0e08 << std::endl;
+////
+////                J_verts[cnt]  = detJ_verts[val-1];
+////                V_verts[cnt]  = vol_verts[val-1];
+////                Jno_verts[cnt]  = Jnorm_verts[val-1];
+////                cnt++;
+////            }
+////        }
+////        tel++;
+////    }
+//
+//    string filename = "boundaryelements_per_rank_" + std::to_string(world_rank) + ".dat";
+//    ofstream myfile;
+//    myfile.open(filename);
+//    myfile << "TITLE=\"boundary.tec\"" << std::endl;
+//    myfile <<"VARIABLES = \"X\", \"Y\", \"Z\"" << std::endl;
+//    myfile <<"ZONE N = " << bel_map.size() << ", E = " << n_bc_element << ", DATAPACKING = POINT, ZONETYPE = FEBRICK" << std::endl;
+//
+//    std::cout << "number of boundary nodes -> " << bel_map.size() << std::endl;
+//
+//    for(int i=0;i<bel_map.size();i++)
+//    {
+//       myfile << bel_map[(i)].x << "   " << bel_map[(i)].y << "   " << bel_map[(i)].z << std::endl;
+//    }
+//
+//    for(int i=0;i<n_bc_element;i++)
+//    {
+//       myfile << LocVert[i*8+0]+1 << "    " << LocVert[i*8+1]+1 << "   " << LocVert[i*8+2]+1 << "  " << LocVert[i*8+3]+1 << "  " << LocVert[i*8+4]+1 << "  " << LocVert[i*8+5]+1 << "  " << LocVert[i*8+6]+1 << "  " << LocVert[i*8+7]+1 << std::endl;
+//    }
+//    myfile.close();
     
-    string filename = "boundaryelements_per_rank_" + std::to_string(world_rank) + ".dat";
-    ofstream myfile;
-    myfile.open(filename);
-    myfile << "TITLE=\"boundary.tec\"" << std::endl;
-    myfile <<"VARIABLES = \"X\", \"Y\", \"Z\"" << std::endl;
-    myfile <<"ZONE N = " << bel_map.size() << ", E = " << n_bc_element << ", DATAPACKING = POINT, ZONETYPE = FEBRICK" << std::endl;
-
-    std::cout << "number of boundary nodes -> " << bel_map.size() << std::endl;
-
-    for(int i=0;i<bel_map.size();i++)
-    {
-       myfile << bel_map[(i)].x << "   " << bel_map[(i)].y << "   " << bel_map[(i)].z << std::endl;
-    }
-
-    for(int i=0;i<n_bc_element;i++)
-    {
-       myfile << LocVert[i*8+0]+1 << "    " << LocVert[i*8+1]+1 << "   " << LocVert[i*8+2]+1 << "  " << LocVert[i*8+3]+1 << "  " << LocVert[i*8+4]+1 << "  " << LocVert[i*8+5]+1 << "  " << LocVert[i*8+6]+1 << "  " << LocVert[i*8+7]+1 << std::endl;
-    }
-    myfile.close();
-    
-    delete[] LocVert;
-    delete xcn;
-    delete ien;
-    //delete ifn;
-    //delete ief;
-    delete ien_copy;
-    delete pv_parmetis;
+    //delete[] LocVert;
+//    delete xcn;
+//    delete ien;
+//    //delete ifn;
+//    //delete ief;
+//    delete ien_copy;
+//    delete pv_parmetis;
 }
 
 
@@ -2024,6 +2068,36 @@ LocalPartitionData* GetPartitionData(Array<double>* xcn, ParallelArray<int>* ien
 }
 
 
+void BuildGraph(Array<double>* xcn, ParallelArray<int>* ien, MPI_Comm comm)
+{
+    int size;
+    MPI_Comm_size(comm, &size);
+    // Get the rank of the process
+    int rank;
+    MPI_Comm_rank(comm, &rank);
+    
+    int nloc   = ien->pv->nlocs[rank];
+    int* xadj  = new int[nloc+1];
+    int nnodes = xcn->nglob;
+    
+    //pair<int,int> edge = make_pair(id0,id1);
+    int vid;
+    for(int i=0;i<nloc;i++)
+    {
+        for(int j=0;j<8;j++)
+        {
+            vid = ien->getVal(i,j);
+            
+            
+        }
+    }
+    
+    
+    
+}
+
+
+
 
 int main(int argc, char** argv) {
     
@@ -2053,6 +2127,9 @@ int main(int argc, char** argv) {
     {
         TestFindRank();
     }
+
+    Array<double>* xcn         = ReadDataSetFromFile<double>(fn_grid,"xcn");
+    ParallelArray<int>*    ien = ReadDataSetFromFileInParallel<int>(fn_conn,"ien",comm,info);
     //if(world_size < 6)
     //{
     //	Example3DPartitioningWithParVarParMetis();
@@ -2061,6 +2138,7 @@ int main(int argc, char** argv) {
     double duration;
     start = std::clock();
     ExampleUS3DPartitioningWithParVarParMetis();
+    //BuildGraph(xcn,ien,comm);
     duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
     std::cout << world_rank << " reading_par= " << duration << std::endl;
     
