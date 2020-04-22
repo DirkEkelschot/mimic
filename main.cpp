@@ -1764,6 +1764,13 @@ void Example3DPartitioningWithParVarParMetis()
     }
 }
 
+//
+//This function generates the adjacency map based on the element2face and face2element maps which are
+//For now this map is read in from us3d grid data files but could potentially be used in general.
+//
+
+
+
 void GetAdjacencyForUS3D(Array<int>* ife, ParallelArray<int>* ief, int nelem, MPI_Comm comm)
 {
     
@@ -1812,9 +1819,10 @@ void GetAdjacencyForUS3D(Array<int>* ife, ParallelArray<int>* ief, int nelem, MP
     }
 }
 
-
-
-
+//
+//This function generates the adjacency map based on the element2face map.adjacency
+//For now this map is read in from us3d grid data files but could potentially be used in general.
+//
 
 void GetAdjacencyForUS3D_V2(ParallelArray<int>* ief, int nelem, MPI_Comm comm)
 {
