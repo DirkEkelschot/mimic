@@ -1764,6 +1764,121 @@ void Example3DPartitioningWithParVarParMetis()
     }
 }
 
+void GetAdjacencyForUS3D(Array<int>* ife, ParallelArray<int>* ief, int nelem, MPI_Comm comm)
+{
+    
+
+    MPI_Info info = MPI_INFO_NULL;
+    int world_size;
+    MPI_Comm_size(comm, &world_size);
+    // Get the rank of the process
+    int world_rank;
+    MPI_Comm_rank(comm, &world_rank);
+    
+    
+    int fid = 0;
+    int eid = 0;
+    
+    std::map<int, set<int> > e2e;
+    
+    for(int i=0;i<ief->nloc;i++)
+    {
+        for(int j=0;j<ief->ncol-1;j++)
+        {
+            fid = fabs(ief->getVal(i,j+1))-1;
+            
+            for(int k=0;k<ife->ncol;k++)
+            {
+                eid = ife->getVal(fid,k)-1;
+                //std::cout << eid << " ";
+                if(e2e[i].find(eid) == e2e[i].end() && (eid<nelem) && eid!=i+ief->pv->offsets[world_rank])
+                {
+                    e2e[i].insert(eid);
+                }
+            }
+        }
+    }
+    
+    set<int>::iterator it;
+    for(int i=0;i<ief->nloc;i++)
+    {
+        std::cout << world_rank << " " << i << " :: ";
+        for (it=e2e[i].begin(); it != e2e[i].end(); ++it)
+        {
+            cout << *it << " " ;
+        }
+
+        std::cout << std::endl;
+    }
+}
+
+
+
+
+
+void GetAdjacencyForUS3D_V2(ParallelArray<int>* ief, int nelem, MPI_Comm comm)
+{
+    MPI_Info info = MPI_INFO_NULL;
+    int world_size;
+    MPI_Comm_size(comm, &world_size);
+    // Get the rank of the process
+    int world_rank;
+    MPI_Comm_rank(comm, &world_rank);
+    
+    int fid = 0;
+    int eid = 0;
+    
+    std::map<int, set<int> > f2e;
+    std::map<int, std::vector<int> > f2e_vec;
+    std::map<int, set<int> > e2f;
+    std::map<int, std::vector<int> > e2f_vec;
+    int offset = ief->pv->offsets[world_rank];
+    for(int i=0;i<ief->nloc;i++)
+    {
+        for(int j=0;j<ief->ncol-1;j++)
+        {
+            fid = fabs(ief->getVal(i,j+1))-1;
+            
+            if(f2e[fid].find(i) == f2e[fid].end())
+            {
+                f2e[fid].insert(offset+i);
+                f2e_vec[fid].push_back(offset+i);
+            }
+            if(e2f[i].find(fid) == e2f[i].end())
+            {
+                e2f[offset+i].insert(fid);
+                e2f_vec[offset+i].push_back(fid);
+            }
+        }
+    }
+    
+    set<int>::iterator it;
+    std::map<int, std::vector<int> > e2e;
+    for(int i=0;i<f2e_vec.size();i++)
+    {
+        if(f2e_vec[i].size()==2)
+        {
+            e2e[f2e_vec[i][0]].push_back(f2e_vec[i][1]);
+            e2e[f2e_vec[i][1]].push_back(f2e_vec[i][0]);
+        }
+    }
+    
+    std::cout << "e2e.size() " << e2e.size() << std::endl;
+    for(int i=0;i<e2e.size();i++)
+    {
+        std::cout << world_rank << " element = " << i << " :: ";
+        for(int j=0;j<e2e[i].size();j++)
+        {
+            std::cout << e2e[i][j] << " ";
+        }
+        std::cout << std::endl;
+    }
+}
+
+
+
+
+
 
 void ExampleUS3DPartitioningWithParVarParMetis()
 {
@@ -1775,28 +1890,22 @@ void ExampleUS3DPartitioningWithParVarParMetis()
     int world_rank;
     MPI_Comm_rank(comm, &world_rank);
     
-    const char* fn_conn="grids/adept/conn.h5";
-    const char* fn_grid="grids/adept/grid.h5";
-    Array<double>*   xcn = ReadDataSetFromFile<double>(fn_grid,"xcn");
-    Array<int>*      ien = ReadDataSetFromFile<int>(fn_conn,"ien");
-    //Array<int>*      ife = ReadDataSetFromFile<int>(fn_conn,"ife");
+    const char* fn_conn="grids/piston/conn.h5";
+    const char* fn_grid="grids/piston/grid.h5";
+    Array<double>*      xcn = ReadDataSetFromFile<double>(fn_grid,"xcn");
+    Array<int>*         ien = ReadDataSetFromFile<int>(fn_conn,"ien");
+    Array<int>* ife         = ReadDataSetFromFile<int>(fn_conn,"ife");
+    ParallelArray<int>* ief = ReadDataSetFromFileInParallel<int>(fn_conn,"ief",comm,info);
+
+    std::cout << ife->nloc << " " << ief->nloc << " " << xcn->nloc << std::endl;
     //Array<double>*   ifn = ReadDataSetFromFile<double>(fn_grid,"ifn");
     //Array<int>*      ief = ReadDataSetFromFile<int>(fn_conn,"ief");
-
+    int nelem = ien->nloc;
+    GetAdjacencyForUS3D_V2(ief,nelem,comm);
+    //GetAdjacencyForUS3D(ife,ief,nelem,comm);
     Array<int>* ien_copy = new Array<int>(ien->nloc,ien->ncol-1);
-    
-//    for(int i=0;i<ife->nloc;i++)
-//    {
-//        //std::cout << i << " :: ";
-//        for(int j=0;j<ife->ncol;j++)
-//        {
-//            std::cout << ife->getVal(i,j) << " ";
-//        }
-//        std::cout << std::endl;
-//    }
-    
-    double val = 0.0;
 
+    double val = 0.0;
     
     for(int i=0;i<ien->nloc;i++)
     {
@@ -1806,31 +1915,28 @@ void ExampleUS3DPartitioningWithParVarParMetis()
             ien_copy->setVal(i,j,val);
         }
     }
-//    std::map<int, set<int> > el2v;
-//    std::map<int, set<int> > v2el;
-//    int nnodes = xcn->nloc;
-//
-//    std::cout << "nnodes " << nnodes << std::endl;
-//
-//    for(int i=0;i<ien->nloc;i++)
-//    {
-//        for(int j=0;j<ien_copy->ncol;j++)
-//        {
-//            val = ien_copy->getVal(i,j);
-//
-//            if(val < nnodes)
-//            {
-//                el2v[i].insert(val);
-//
-//                if(v2el[val].find(i) == v2el[val].end())
-//                {
-//                    v2el[val].insert(i);
-//                }
-//            }
-//        }
-//    }
     
-    
+    std::map<int, set<int> > el2v;
+    std::map<int, set<int> > v2el;
+    int nnodes = xcn->nloc;
+//
+    for(int i=0;i<ien->nloc;i++)
+    {
+        for(int j=0;j<ien_copy->ncol;j++)
+        {
+            val = ien_copy->getVal(i,j);
+
+            if(val < nnodes)
+            {
+                el2v[i].insert(val);
+
+                if(v2el[val].find(i) == v2el[val].end())
+                {
+                    v2el[val].insert(i);
+                }
+            }
+        }
+    }
     
     //int N = ien->nglob;
     ParVar_ParMetis* pv_parmetis = CreateParallelDataParmetis(ien_copy,comm,8);
@@ -1847,7 +1953,7 @@ void ExampleUS3DPartitioningWithParVarParMetis()
     idx_t *options   = options_;
     idx_t wgtflag_[] = {0};
     idx_t *wgtflag   = wgtflag_;
-    real_t ubvec_[]  = {1.1};
+    real_t ubvec_[]  = {1.05};
     real_t *ubvec    = ubvec_;
 
     idx_t *elmwgt = new idx_t[pv_parmetis->nlocs[world_rank]];
@@ -1859,8 +1965,8 @@ void ExampleUS3DPartitioningWithParVarParMetis()
         adjwgt[i] = 1;
     }
     
-    //real_t itr_[]    = {1.05};
-    //real_t *itr      = itr_;
+    real_t itr_[]    = {1.05};
+    real_t *itr      = itr_;
     int np           = world_size;
     idx_t ncon_[]    = {1};
     idx_t *ncon      = ncon_;
@@ -1885,11 +1991,12 @@ void ExampleUS3DPartitioningWithParVarParMetis()
     
     int status = ParMETIS_V3_Mesh2Dual(pv_parmetis->elmdist, pv_parmetis->eptr, pv_parmetis->eind, numflag, ncommonnodes, &xadj, &adjncy, &comm);
     
-    status = ParMETIS_V3_PartKway(pv_parmetis->elmdist, xadj, adjncy, elmwgt, adjwgt, wgtflag, numflag, ncon, nparts, tpwgts, ubvec, options, &edgecut, part, &comm);
+    //status = ParMETIS_V3_PartKway(pv_parmetis->elmdist, xadj, adjncy, elmwgt, adjwgt, wgtflag, numflag, ncon, nparts, tpwgts, ubvec, options, &edgecut, part, &comm);
+    //std::cout << "status2 " << world_rank << " " << status << std::endl;
+
+    status = ParMETIS_V3_AdaptiveRepart(pv_parmetis->elmdist, xadj, adjncy, elmwgt, adjwgt, vsize, wgtflag, numflag, ncon, nparts, tpwgts, ubvec, itr, options, &edgecut, part, &comm);
     
-    
-   // std::cout << "              " << std::endl;
-    std::cout << "status2 " << world_rank << " " << status << std::endl;
+    //std::cout << "status3 " << world_rank << " " << status << std::endl;
 
     
 //    std::vector<int> xadj_vec;
