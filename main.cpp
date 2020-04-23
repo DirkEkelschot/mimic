@@ -1896,7 +1896,7 @@ void GetAdjacencyForUS3D_V3()
     int rank;
     MPI_Comm_rank(comm, &rank);
     
-    const char* fn_conn="grids/adept/conn.h5";
+    const char* fn_conn="grids/piston/conn.h5";
 
     ParallelArray<int>* ief = ReadDataSetFromFileInParallel<int>(fn_conn,"ief",comm,info);
 //    Array<int>*type;
@@ -1969,7 +1969,7 @@ void GetAdjacencyForUS3D_V3()
     //int* recv = new int[nbc_tot];
     std::vector<int> recv(nexter_tot);
     MPI_Allgatherv(&exter_loc[0], exter_size, MPI_INT, &recv[0], red_exter_nlocs, red_exter_offset, MPI_INT, comm);
-    
+    /*
     sort(recv.begin(),recv.end());
     
     std::vector<int> inter;
@@ -1987,7 +1987,7 @@ void GetAdjacencyForUS3D_V3()
         }
     }
     
-    
+    */
 //
 /*
     std::vector<int> inter;
@@ -2154,6 +2154,56 @@ void GetAdjacencyForUS3D_V3()
 //        }
 //        std::cout << std::endl;
 //    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+void GetAdjacencyForUS3D_V4()
+{
+    MPI_Comm comm = MPI_COMM_WORLD;
+    MPI_Info info = MPI_INFO_NULL;
+    int size;
+    MPI_Comm_size(comm, &size);
+    // Get the rank of the process
+    int rank;
+    MPI_Comm_rank(comm, &rank);
+    
+    const char* fn_conn="grids/adept/conn.h5";
+
+    ParallelArray<int>* ief = ReadDataSetFromFileInParallel<int>(fn_conn,"ief",comm,info);
+//    Array<int>*type;
+    std::vector<int> ief_copy(ief->nloc*(ief->ncol-1));
+    set<int> unique_faces;
+    set<int> double_faces;
+    int fid;
+    for(int i=0;i<ief->nloc;i++)
+    {
+        for(int j=0;j<ief->ncol-1;j++)
+        {
+            fid = fabs(ief->getVal(i,j+1))-1;
+            
+            if(unique_faces.find(fid) == unique_faces.end())
+            {
+                unique_faces.insert(fid);
+            }
+            else
+            {
+                double_faces.insert(fid);
+            }
+        }
+    }
+    std::cout << unique_faces.size() << " " << double_faces.size() << std::endl;
 }
 
 
@@ -2531,7 +2581,7 @@ int main(int argc, char** argv) {
     double duration;
     start = std::clock();
     //ExampleUS3DPartitioningWithParVarParMetis();
-    GetAdjacencyForUS3D_V3();
+    GetAdjacencyForUS3D_V4();
     //BuildGraph(xcn,ien,comm);
     duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
     std::cout << world_rank << " reading_par = " << duration << std::endl;
