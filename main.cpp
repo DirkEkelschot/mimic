@@ -1885,6 +1885,313 @@ void GetAdjacencyForUS3D_V2(ParallelArray<int>* ief, int nelem, MPI_Comm comm)
 
 
 
+void GetAdjacencyForUS3D_V3()
+{
+    MPI_Comm comm = MPI_COMM_WORLD;
+    MPI_Info info = MPI_INFO_NULL;
+    int size;
+    MPI_Comm_size(comm, &size);
+    // Get the rank of the process
+    int rank;
+    MPI_Comm_rank(comm, &rank);
+    
+    const char* fn_conn="grids/adept/conn.h5";
+
+    ParallelArray<int>* ief = ReadDataSetFromFileInParallel<int>(fn_conn,"ief",comm,info);
+    Array<int>* ife = ReadDataSetFromFile<int>(fn_conn,"ife");
+    std::cout << "ife size = " << ife->nloc << " " << ief->nloc*(ief->ncol-1) << std::endl;
+    Array<int>*type;
+    //Array<int>*ife_copy = new Array<int>(ief->nloc,ief->ncol-1);
+    std::vector<int> ife_copy(ief->nloc*(ief->ncol-1));
+    int fid;
+    for(int i=0;i<ief->nloc;i++)
+    {
+        for(int j=0;j<ief->ncol-1;j++)
+        {
+            fid = fabs(ief->getVal(i,j+1))-1;
+            ife_copy.push_back(fid);
+        }
+    }
+    
+    sort(ife_copy.begin(),ife_copy.end());
+    std::vector<int> inter_loc;
+    std::vector<int> exter_loc;
+    for(int i=0;i<ife_copy.size()-1;i++)
+    {
+        if(ife_copy[i]==ife_copy[i+1])
+        {
+            inter_loc.push_back(i);
+        }
+        else
+        {
+            exter_loc.push_back(i);
+        }
+    }
+    
+    std::cout << ife_copy.size() << " " << inter_loc.size() << " " << exter_loc.size() << std::endl;
+
+    //    +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    
+
+//
+//
+//
+//    int nelem = ief->nglob;
+//    Array<int>*type = new Array<int>(nelem*6,1);
+//    for(int i=0;i<nelem*6;i++)
+//    {
+//        type->setVal(i,0,0);
+//    }
+//
+//
+//
+//
+//    int fid;
+//    int interior = 0;
+//    for(int i=0;i<ief->nloc;i++)
+//    {
+//        for(int j=0;j<ief->ncol-1;j++)
+//        {
+//            fid = fabs(ief->getVal(i,j+1))-1;
+//            type->setVal(fid,0,type->getVal(fid,0)+1);
+//        }
+//    }
+//
+//    int tel=0;
+//    std::vector<int> bc_vec;
+//    for(int i=0;i<ief->nloc;i++)
+//    {
+//        for(int j=0;j<ief->ncol-1;j++)
+//        {
+//            fid = fabs(ief->getVal(i,j+1))-1;
+//
+//            if(type->getVal(fid,0)==1)
+//            {
+//                bc_vec.push_back(fid);
+//                tel = tel + 1;
+//            }
+//        }
+//    }
+//    std::cout << "tel = " << tel << std::endl;
+//
+//    int bcvec_size = bc_vec.size();
+//    std::cout << rank << " bcvec_size " << bcvec_size << std::endl;
+//    int* bc_nlocs                 = new int[size];
+//    int* bc_offset                = new int[size];
+//    int* red_bc_nlocs             = new int[size];
+//    int* red_bc_offset            = new int[size];
+//
+//    for(int i=0;i<size;i++)
+//    {
+//        red_bc_nlocs[i] = 0;
+//        red_bc_offset[i] = 0;
+//
+//        if(i==rank)
+//        {
+//            bc_nlocs[i]  = bcvec_size;
+//            //bc_offset[i] = offset;
+//        }
+//        else
+//        {
+//            bc_nlocs[i]  = 0;
+//            bc_offset[i] = 0;
+//        }
+//    }
+//
+//    MPI_Allreduce(bc_nlocs,  red_bc_nlocs,  size, MPI_INT, MPI_SUM, comm);
+//    red_bc_offset[0]=0;
+//
+//    for(int i=0;i<size-1;i++)
+//    {
+//        red_bc_offset[i+1]=red_bc_offset[i]+red_bc_nlocs[i];
+//    }
+//
+//    int nbc_tot = red_bc_offset[size-1]+red_bc_nlocs[size-1];
+//    for(int i=0;i<bc_vec.size();i++)
+//    {
+//        if(bc_vec[i] == 0)
+//        {
+//            std::cout << bc_vec[i] << std::endl;
+//        }
+//    }
+//
+//
+//    for(int i=0;i<size;i++)
+//    {
+//        std::cout << rank << " " << nbc_tot << " " << red_bc_nlocs[i] << " " << red_bc_offset[i] << std::endl;
+//    }
+//
+//    //int* recv = new int[nbc_tot];
+//    std::vector<int> recv(nbc_tot);
+//    MPI_Gatherv(&bc_vec[0], bcvec_size, MPI_INT, &recv[0], red_bc_nlocs, red_bc_offset, MPI_INT, 0, comm);
+//    std::vector<int> inter;
+//    std::vector<int> exter;
+//
+//    if (rank == 0)
+//    {
+//        std::clock_t start;
+//        start = std::clock() ;
+//        double duration;
+//
+//        sort(recv.begin(),recv.end());
+//        for(int i=0;i<recv.size()-1;i++)
+//        {
+//            if(recv[i]==recv[i+1])
+//            {
+//                inter.push_back(i);
+//            }
+//            else
+//            {
+//                exter.push_back(i);
+//            }
+//        }
+//
+//        std::cout << recv.size() << " " << inter.size() << " " << exter.size() << std::endl;
+//        duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
+//        std::cout << rank << " getting bc faces  = " << duration << std::endl;
+//
+//    }
+//    +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    //sort(recv.begin(),recv.end());
+    
+    
+
+//
+//
+//    Array<int>*teller = new Array<int>(nelem*6,1);
+//    for(int i=0;i<nelem*6;i++)
+//    {
+//        teller->setVal(i,0,0);
+//    }
+//
+//    tel=0;
+//    for(int i=0;i<nelem*6;i++)
+//    {
+//        teller->setVal(recv[i],0,teller->getVal(recv[i],0)+1);
+//    }
+//
+//    std::vector<int> bc_real;
+//
+//    for(int i=0;i<nelem*6;i++)
+//    {
+//        if(teller->getVal(i,0)==1)
+//        {
+//            bc_real.push_back(recv[i]);
+//            tel++;
+//        }
+//    }
+//
+    
+    
+    
+    delete type;
+    
+    
+    //std::cout << "interior faces " << interior << " :: total faces = " << tfaces << " :: boundary faces = " << tfaces-interior << " " << nelem*6 << " " << (nelem*6)/(tfaces-interior) << " " << tel << " " << (nelem*6)/tel << std::endl;
+    
+    
+//    for(int i=0;i<ief->nloc;i++)
+//    {
+//        for(int j=0;j<ief->ncol-1;j++)
+//        {
+//            fid = fabs(ief->getVal(i,j+1))-1;
+//            type->setVal(fid,0,type->getVal(fid,0)+1);
+//
+//            if(type->getVal(fid,0)==1)
+//            {
+//                interior = interior+1;
+//            }
+//        }
+//    }
+    
+    
+//    MPI_Reduce(&type->data[0], &red_type->data[0], nelem*6, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+//
+//    int cnt = 0;
+//
+//    if (world_rank == 0)
+//    {
+//
+//        for(int i=0;i<red_type->nloc;i++)
+//        {
+//            if(red_type->getVal(i,0)==1)
+//            {
+//                cnt=cnt+1;
+//            }
+//        }
+//
+//        std::cout << "boundary faces " << cnt << std::endl;
+//    }
+  
+    
+    //Array<int>*type = new Array<int>(nelem*6,1);
+    //Array<int>*type_buf = new Array<int>(nelem*6,1);
+    //Array<int>*type2 = new Array<int>(ief->nloc,ief->ncol-1);
+//
+//    for(int i=0;i<nelem*6;i++)
+//    {
+//        type->setVal(i,0,0);
+//        type_buf->setVal(i,0,0);
+//    }
+//
+//    int cur = 0;
+//
+//    // For now this function only works for hexes.
+//    std::cout << "nelem*6 =" << nelem*6 << " " << ief->nloc*( ief->ncol-1 ) << std::endl;
+//    int fid;
+//    for(int i=0;i<ief->nloc;i++)
+//    {
+//        for(int j=0;j<ief->ncol-1;j++)
+//        {
+//            fid = fabs(ief->getVal(i,j+1))-1;
+//            type->setVal(fid,0,type->getVal(fid,0)+1);
+//        }
+//    }
+//
+//    int cnt = 0;
+//    std::vector<int> bc_vec;
+//    for(int i=0;i<type->nloc;i++)
+//    {
+//        if(type->getVal(i,0)==1)
+//        {
+//            bc_vec.push_back(i);
+//            cnt=cnt+1;
+//        }
+//    }
+//
+//    int* bc_arr = new int[bc_vec.size()];
+//    for(int i=0;i<bc_vec.size();i++)
+//    {
+//        bc_arr[i] = bc_vec[i];
+//    }
+//
+    //std::cout << "boundary faces " << cnt << std::endl;
+    
+//    set<int>::iterator it;
+//    std::map<int, std::vector<int> > e2e;
+//    for(int i=0;i<f2e_vec.size();i++)
+//    {
+//        if(f2e_vec[i].size()==2)
+//        {
+//            e2e[f2e_vec[i][0]].push_back(f2e_vec[i][1]);
+//            e2e[f2e_vec[i][1]].push_back(f2e_vec[i][0]);
+//        }
+//    }
+//
+//    std::cout << "e2e.size() " << e2e.size() << std::endl;
+//    for(int i=0;i<e2e.size();i++)
+//    {
+//        std::cout << world_rank << " element = " << i << " :: ";
+//        for(int j=0;j<e2e[i].size();j++)
+//        {
+//            std::cout << e2e[i][j] << " ";
+//        }
+//        std::cout << std::endl;
+//    }
+}
+
+
+
 
 
 
@@ -1898,23 +2205,26 @@ void ExampleUS3DPartitioningWithParVarParMetis()
     int world_rank;
     MPI_Comm_rank(comm, &world_rank);
     
-    const char* fn_conn="grids/piston/conn.h5";
-    const char* fn_grid="grids/piston/grid.h5";
+    const char* fn_conn="grids/adept/conn.h5";
+    const char* fn_grid="grids/adept/grid.h5";
     Array<double>*      xcn = ReadDataSetFromFile<double>(fn_grid,"xcn");
     Array<int>*         ien = ReadDataSetFromFile<int>(fn_conn,"ien");
     Array<int>* ife         = ReadDataSetFromFile<int>(fn_conn,"ife");
     ParallelArray<int>* ief = ReadDataSetFromFileInParallel<int>(fn_conn,"ief",comm,info);
 
-    std::cout << ife->nloc << " " << ief->nloc << " " << xcn->nloc << std::endl;
-    //Array<double>*   ifn = ReadDataSetFromFile<double>(fn_grid,"ifn");
-    //Array<int>*      ief = ReadDataSetFromFile<int>(fn_conn,"ief");
-    int nelem = ien->nloc;
-    GetAdjacencyForUS3D_V2(ief,nelem,comm);
-    //GetAdjacencyForUS3D(ife,ief,nelem,comm);
+//    std::cout << ife->nloc << " " << ief->nloc << " " << xcn->nloc << std::endl;
+//    //Array<double>*   ifn = ReadDataSetFromFile<double>(fn_grid,"ifn");
+//    //Array<int>*      ief = ReadDataSetFromFile<int>(fn_conn,"ief");
+//    int nelem = ien->nloc;
+//    GetAdjacencyForUS3D_V2(ief,nelem,comm);
+//
+//    std::cout << "secodn time " << ife->nloc << " " << ief->nloc << " " << xcn->nloc << std::endl;
+//
+//    //GetAdjacencyForUS3D(ife,ief,nelem,comm);
     Array<int>* ien_copy = new Array<int>(ien->nloc,ien->ncol-1);
-
-    double val = 0.0;
-    
+//
+    int val = 0.0;
+//
     for(int i=0;i<ien->nloc;i++)
     {
         for(int j=0;j<ien->ncol-1;j++)
@@ -1923,28 +2233,28 @@ void ExampleUS3DPartitioningWithParVarParMetis()
             ien_copy->setVal(i,j,val);
         }
     }
-    
-    std::map<int, set<int> > el2v;
-    std::map<int, set<int> > v2el;
-    int nnodes = xcn->nloc;
 //
-    for(int i=0;i<ien->nloc;i++)
-    {
-        for(int j=0;j<ien_copy->ncol;j++)
-        {
-            val = ien_copy->getVal(i,j);
-
-            if(val < nnodes)
-            {
-                el2v[i].insert(val);
-
-                if(v2el[val].find(i) == v2el[val].end())
-                {
-                    v2el[val].insert(i);
-                }
-            }
-        }
-    }
+//    std::map<int, set<int> > el2v;
+//    std::map<int, set<int> > v2el;
+//    int nnodes = xcn->nloc;
+////
+//    for(int i=0;i<ien->nloc;i++)
+//    {
+//        for(int j=0;j<ien_copy->ncol;j++)
+//        {
+//            val = ien_copy->getVal(i,j);
+//
+//            if(val < nnodes)
+//            {
+//                el2v[i].insert(val);
+//
+//                if(v2el[val].find(i) == v2el[val].end())
+//                {
+//                    v2el[val].insert(i);
+//                }
+//            }
+//        }
+//    }
     
     //int N = ien->nglob;
     ParVar_ParMetis* pv_parmetis = CreateParallelDataParmetis(ien_copy,comm,8);
@@ -2034,8 +2344,8 @@ void ExampleUS3DPartitioningWithParVarParMetis()
 //            }
 //            cnt++;
 //        }
-//    }
-//
+//    }//    std::clock_t start;
+//    double duration;
 ////    duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
 ////    std::cout << world_rank << " filtering boundaries = " << duration << " " << b_id_unique.size() << std::endl;
 ////    std::vector<int>::iterator it;
@@ -2230,12 +2540,12 @@ int main(int argc, char** argv) {
     
 //============================================================
     
-    const char* fn_conn="grids/piston/conn.h5";
-    const char* fn_grid="grids/piston/grid.h5";
+    const char* fn_conn="grids/adept/conn.h5";
+    const char* fn_grid="grids/adept/grid.h5";
     
-    //Array<int>*    zdefs = ReadDataSetFromGroupFromFile<int>(fn_conn,"zones","zdefs");
-    //Array<char>*  znames = ReadDataSetFromGroupFromFile<char>(fn_conn,"zones","znames");
-    //PlotBoundaryData(znames,zdefs,comm);
+    Array<int>*    zdefs = ReadDataSetFromGroupFromFile<int>(fn_conn,"zones","zdefs");
+    Array<char>*  znames = ReadDataSetFromGroupFromFile<char>(fn_conn,"zones","znames");
+    PlotBoundaryData(znames,zdefs,comm);
     //TestBrutePartioningUS3D();
     
     if (world_rank == 0)
@@ -2245,6 +2555,8 @@ int main(int argc, char** argv) {
 
     Array<double>* xcn         = ReadDataSetFromFile<double>(fn_grid,"xcn");
     ParallelArray<int>*    ien = ReadDataSetFromFileInParallel<int>(fn_conn,"ien",comm,info);
+    Array<int>*    ief = ReadDataSetFromFile<int>(fn_conn,"ief");
+    int nelem = ief->nloc;
     //if(world_size < 6)
     //{
     //	Example3DPartitioningWithParVarParMetis();
@@ -2252,10 +2564,11 @@ int main(int argc, char** argv) {
     std::clock_t start;
     double duration;
     start = std::clock();
-    ExampleUS3DPartitioningWithParVarParMetis();
+    //ExampleUS3DPartitioningWithParVarParMetis();
+    GetAdjacencyForUS3D_V3();
     //BuildGraph(xcn,ien,comm);
     duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
-    std::cout << world_rank << " reading_par= " << duration << std::endl;
+    std::cout << world_rank << " reading_par = " << duration << std::endl;
     
     
     //NodesOnPartition = GetRequestedNodes(ien);

@@ -333,7 +333,7 @@ ParallelArray<T>* ReadDataSetFromFileInParallel(const char* file_name, const cha
     
     Array<T>* A_pt             = new Array<T>(pv->nlocs[rank],ncol);
     ParallelArray<T>* A_pt_par = new ParallelArray<T>(pv->nlocs[rank],ncol,pv);
-    
+    A_pt_par->nglob = N;
     hsize_t              offsets[2];
     hsize_t              counts[2];
     offsets[0]           = pv->offsets[rank];
