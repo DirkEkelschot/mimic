@@ -1899,7 +1899,7 @@ void GetAdjacencyForUS3D_V3()
     const char* fn_conn="grids/adept/conn.h5";
 
     ParallelArray<int>* ief = ReadDataSetFromFileInParallel<int>(fn_conn,"ief",comm,info);
-    Array<int>*type;
+//    Array<int>*type;
     std::vector<int> ief_copy(ief->nloc*(ief->ncol-1));
     int fid;
     for(int i=0;i<ief->nloc;i++)
@@ -1910,7 +1910,7 @@ void GetAdjacencyForUS3D_V3()
             ief_copy.push_back(fid);
         }
     }
-    
+//
     std::sort(ief_copy.begin(),ief_copy.end());
     std::vector<int> inter_loc;
     std::vector<int> exter_loc;
@@ -1925,10 +1925,10 @@ void GetAdjacencyForUS3D_V3()
             exter_loc.push_back(i);
         }
     }
-    
-    //std::cout << ief_copy.size() << " " << inter_loc.size() << " " << exter_loc.size() << std::endl;
-    
-    //    +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//
+    std::cout << ief_copy.size() << " " << inter_loc.size() << " " << exter_loc.size() << std::endl;
+//
+//    //    +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     int exter_size = exter_loc.size();
 
     int* exter_nlocs                 = new int[size];
@@ -1942,7 +1942,7 @@ void GetAdjacencyForUS3D_V3()
         red_exter_offset[i] = 0;
 
         if(i==rank)
-        { 
+        {
            exter_nlocs[i]  = exter_size;
         }
         else
@@ -1968,7 +1968,26 @@ void GetAdjacencyForUS3D_V3()
 
     //int* recv = new int[nbc_tot];
     std::vector<int> recv(nexter_tot);
-    MPI_Gatherv(&exter_loc[0], exter_size, MPI_INT, &recv[0], red_exter_nlocs, red_exter_offset, MPI_INT, 0, comm);
+    MPI_Allgatherv(&exter_loc[0], exter_size, MPI_INT, &recv[0], red_exter_nlocs, red_exter_offset, MPI_INT, comm);
+    
+    sort(recv.begin(),recv.end());
+    
+    std::vector<int> inter;
+    std::vector<int> exter;
+    
+    for(int i=0;i<red_exter_nlocs[rank]-1;i++)
+    {
+        if(recv[red_exter_offset[rank]+i]==recv[red_exter_offset[rank]+i+1])
+        {
+            inter.push_back(i);
+        }
+        else
+        {
+            exter.push_back(i);
+        }
+    }
+    
+    
 //
 /*
     std::vector<int> inter;
@@ -2031,7 +2050,7 @@ void GetAdjacencyForUS3D_V3()
     
     
     
-    delete type;
+    //delete type;
     
     
     //std::cout << "interior faces " << interior << " :: total faces = " << tfaces << " :: boundary faces = " << tfaces-interior << " " << nelem*6 << " " << (nelem*6)/(tfaces-interior) << " " << tel << " " << (nelem*6)/tel << std::endl;
