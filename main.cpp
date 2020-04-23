@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <iostream>
 #include <string.h>
 #include <stdlib.h>
@@ -1898,27 +1899,24 @@ void GetAdjacencyForUS3D_V3()
     const char* fn_conn="grids/adept/conn.h5";
 
     ParallelArray<int>* ief = ReadDataSetFromFileInParallel<int>(fn_conn,"ief",comm,info);
-    Array<int>* ife = ReadDataSetFromFile<int>(fn_conn,"ife");
-    std::cout << "ife size = " << ife->nloc << " " << ief->nloc*(ief->ncol-1) << std::endl;
     Array<int>*type;
-    //Array<int>*ife_copy = new Array<int>(ief->nloc,ief->ncol-1);
-    std::vector<int> ife_copy(ief->nloc*(ief->ncol-1));
+    std::vector<int> ief_copy(ief->nloc*(ief->ncol-1));
     int fid;
     for(int i=0;i<ief->nloc;i++)
     {
         for(int j=0;j<ief->ncol-1;j++)
         {
             fid = fabs(ief->getVal(i,j+1))-1;
-            ife_copy.push_back(fid);
+            ief_copy.push_back(fid);
         }
     }
     
-    sort(ife_copy.begin(),ife_copy.end());
+    std::sort(ief_copy.begin(),ief_copy.end());
     std::vector<int> inter_loc;
     std::vector<int> exter_loc;
-    for(int i=0;i<ife_copy.size()-1;i++)
+    for(int i=0;i<ief_copy.size()-1;i++)
     {
-        if(ife_copy[i]==ife_copy[i+1])
+        if(ief_copy[i]==ief_copy[i+1])
         {
             inter_loc.push_back(i);
         }
@@ -1928,129 +1926,78 @@ void GetAdjacencyForUS3D_V3()
         }
     }
     
-    std::cout << ife_copy.size() << " " << inter_loc.size() << " " << exter_loc.size() << std::endl;
-
-    //    +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    //std::cout << ief_copy.size() << " " << inter_loc.size() << " " << exter_loc.size() << std::endl;
     
+    //    +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    int exter_size = exter_loc.size();
 
+    int* exter_nlocs                 = new int[size];
+    int* exter_offset                = new int[size];
+    int* red_exter_nlocs             = new int[size];
+    int* red_exter_offset            = new int[size];
+
+    for(int i=0;i<size;i++)
+    {
+        red_exter_nlocs[i] = 0;
+        red_exter_offset[i] = 0;
+
+        if(i==rank)
+        { 
+           exter_nlocs[i]  = exter_size;
+        }
+        else
+        {
+            exter_nlocs[i]  = 0;
+            exter_offset[i] = 0;
+        }
+    }
 //
+    MPI_Allreduce(exter_nlocs,  red_exter_nlocs,  size, MPI_INT, MPI_SUM, comm);
+    red_exter_offset[0]=0;
 //
+    for(int i=0;i<size-1;i++)
+    {
+        red_exter_offset[i+1]=red_exter_offset[i]+red_exter_nlocs[i];
+    }
 //
-//    int nelem = ief->nglob;
-//    Array<int>*type = new Array<int>(nelem*6,1);
-//    for(int i=0;i<nelem*6;i++)
-//    {
-//        type->setVal(i,0,0);
-//    }
+    int nexter_tot = red_exter_offset[size-1]+red_exter_nlocs[size-1];
+    //for(int i=0;i<size;i++)
+    //{
+    //    std::cout << rank << " " << nexter_tot << " " << red_exter_nlocs[i] << " " << red_exter_offset[i] << std::endl;
+    //}
+
+    //int* recv = new int[nbc_tot];
+    std::vector<int> recv(nexter_tot);
+    MPI_Gatherv(&exter_loc[0], exter_size, MPI_INT, &recv[0], red_exter_nlocs, red_exter_offset, MPI_INT, 0, comm);
 //
+/*
+    std::vector<int> inter;
+    std::vector<int> exter;
+    if (rank == 0)
+    {
+        std::clock_t start;
+        start = std::clock() ;
+        double duration;
+
+        sort(recv.begin(),recv.end());
+        for(int i=0;i<recv.size()-1;i++)
+        {
+            if(recv[i]==recv[i+1])
+            {
+                inter.push_back(i);
+            }
+            else
+            {
+                exter.push_back(i);
+            }
+        }
 //
+        std::cout << recv.size() << " " << inter.size() << " " << exter.size() << std::endl;
+        duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
+        std::cout << rank << " getting bc faces  = " << duration << std::endl;
 //
-//
-//    int fid;
-//    int interior = 0;
-//    for(int i=0;i<ief->nloc;i++)
-//    {
-//        for(int j=0;j<ief->ncol-1;j++)
-//        {
-//            fid = fabs(ief->getVal(i,j+1))-1;
-//            type->setVal(fid,0,type->getVal(fid,0)+1);
-//        }
-//    }
-//
-//    int tel=0;
-//    std::vector<int> bc_vec;
-//    for(int i=0;i<ief->nloc;i++)
-//    {
-//        for(int j=0;j<ief->ncol-1;j++)
-//        {
-//            fid = fabs(ief->getVal(i,j+1))-1;
-//
-//            if(type->getVal(fid,0)==1)
-//            {
-//                bc_vec.push_back(fid);
-//                tel = tel + 1;
-//            }
-//        }
-//    }
-//    std::cout << "tel = " << tel << std::endl;
-//
-//    int bcvec_size = bc_vec.size();
-//    std::cout << rank << " bcvec_size " << bcvec_size << std::endl;
-//    int* bc_nlocs                 = new int[size];
-//    int* bc_offset                = new int[size];
-//    int* red_bc_nlocs             = new int[size];
-//    int* red_bc_offset            = new int[size];
-//
-//    for(int i=0;i<size;i++)
-//    {
-//        red_bc_nlocs[i] = 0;
-//        red_bc_offset[i] = 0;
-//
-//        if(i==rank)
-//        {
-//            bc_nlocs[i]  = bcvec_size;
-//            //bc_offset[i] = offset;
-//        }
-//        else
-//        {
-//            bc_nlocs[i]  = 0;
-//            bc_offset[i] = 0;
-//        }
-//    }
-//
-//    MPI_Allreduce(bc_nlocs,  red_bc_nlocs,  size, MPI_INT, MPI_SUM, comm);
-//    red_bc_offset[0]=0;
-//
-//    for(int i=0;i<size-1;i++)
-//    {
-//        red_bc_offset[i+1]=red_bc_offset[i]+red_bc_nlocs[i];
-//    }
-//
-//    int nbc_tot = red_bc_offset[size-1]+red_bc_nlocs[size-1];
-//    for(int i=0;i<bc_vec.size();i++)
-//    {
-//        if(bc_vec[i] == 0)
-//        {
-//            std::cout << bc_vec[i] << std::endl;
-//        }
-//    }
-//
-//
-//    for(int i=0;i<size;i++)
-//    {
-//        std::cout << rank << " " << nbc_tot << " " << red_bc_nlocs[i] << " " << red_bc_offset[i] << std::endl;
-//    }
-//
-//    //int* recv = new int[nbc_tot];
-//    std::vector<int> recv(nbc_tot);
-//    MPI_Gatherv(&bc_vec[0], bcvec_size, MPI_INT, &recv[0], red_bc_nlocs, red_bc_offset, MPI_INT, 0, comm);
-//    std::vector<int> inter;
-//    std::vector<int> exter;
-//
-//    if (rank == 0)
-//    {
-//        std::clock_t start;
-//        start = std::clock() ;
-//        double duration;
-//
-//        sort(recv.begin(),recv.end());
-//        for(int i=0;i<recv.size()-1;i++)
-//        {
-//            if(recv[i]==recv[i+1])
-//            {
-//                inter.push_back(i);
-//            }
-//            else
-//            {
-//                exter.push_back(i);
-//            }
-//        }
-//
-//        std::cout << recv.size() << " " << inter.size() << " " << exter.size() << std::endl;
-//        duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
-//        std::cout << rank << " getting bc faces  = " << duration << std::endl;
-//
-//    }
+    }
+*/
 //    +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     //sort(recv.begin(),recv.end());
     
@@ -2553,10 +2500,10 @@ int main(int argc, char** argv) {
         TestFindRank();
     }
 
-    Array<double>* xcn         = ReadDataSetFromFile<double>(fn_grid,"xcn");
-    ParallelArray<int>*    ien = ReadDataSetFromFileInParallel<int>(fn_conn,"ien",comm,info);
-    Array<int>*    ief = ReadDataSetFromFile<int>(fn_conn,"ief");
-    int nelem = ief->nloc;
+//    Array<double>* xcn         = ReadDataSetFromFile<double>(fn_grid,"xcn");
+//    ParallelArray<int>*    ien = ReadDataSetFromFileInParallel<int>(fn_conn,"ien",comm,info);
+//    Array<int>*    ief = ReadDataSetFromFile<int>(fn_conn,"ief");
+//    int nelem = ief->nloc;
     //if(world_size < 6)
     //{
     //	Example3DPartitioningWithParVarParMetis();
