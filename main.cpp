@@ -85,6 +85,27 @@ void EigenDecomp(int n, double * A,  double * WR, double * WI, double * V, doubl
 }
 
 
+std::vector<int> FindDuplicates(std::vector<int> arr)
+{
+    int N = arr.size();
+    sort(arr.begin(),arr.end());
+    std::vector<int> res;
+    set<int> check;
+    for(int i=0;i<N;i++)
+    {
+        if(arr[i+1]==arr[i])
+        {
+            if(check.find(arr[i])==check.end())
+            {
+                check.insert(arr[i]);
+                res.push_back(arr[i]);
+            }
+        }
+    }
+    
+    return res;
+}
+
 
 
 //typedef map<pair<int, int>, HalfEdge *> MapType;
@@ -1896,7 +1917,7 @@ void GetAdjacencyForUS3D_V3()
     int rank;
     MPI_Comm_rank(comm, &rank);
     
-    const char* fn_conn="grids/piston/conn.h5";
+    const char* fn_conn="grids/adept/conn.h5";
 
     ParallelArray<int>* ief = ReadDataSetFromFileInParallel<int>(fn_conn,"ief",comm,info);
 //    Array<int>*type;
@@ -1928,7 +1949,7 @@ void GetAdjacencyForUS3D_V3()
 //
     std::cout << ief_copy.size() << " " << inter_loc.size() << " " << exter_loc.size() << std::endl;
 //
-//    //    +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//    //    +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     int exter_size = exter_loc.size();
 
     int* exter_nlocs                 = new int[size];
@@ -1938,7 +1959,7 @@ void GetAdjacencyForUS3D_V3()
 
     for(int i=0;i<size;i++)
     {
-        red_exter_nlocs[i] = 0;
+        red_exter_nlocs[i]  = 0;
         red_exter_offset[i] = 0;
 
         if(i==rank)
@@ -1952,23 +1973,56 @@ void GetAdjacencyForUS3D_V3()
         }
     }
 //
-    MPI_Allreduce(exter_nlocs,  red_exter_nlocs,  size, MPI_INT, MPI_SUM, comm);
+    MPI_Allreduce(exter_nlocs,
+                  red_exter_nlocs,
+                  size,
+                  MPI_INT,
+                  MPI_SUM,
+                  comm);
+    
     red_exter_offset[0]=0;
+    
 //
     for(int i=0;i<size-1;i++)
     {
         red_exter_offset[i+1]=red_exter_offset[i]+red_exter_nlocs[i];
     }
 //
+    
     int nexter_tot = red_exter_offset[size-1]+red_exter_nlocs[size-1];
-    //for(int i=0;i<size;i++)
-    //{
-    //    std::cout << rank << " " << nexter_tot << " " << red_exter_nlocs[i] << " " << red_exter_offset[i] << std::endl;
-    //}
-
-    //int* recv = new int[nbc_tot];
+    
     std::vector<int> recv(nexter_tot);
-    MPI_Allgatherv(&exter_loc[0], exter_size, MPI_INT, &recv[0], red_exter_nlocs, red_exter_offset, MPI_INT, comm);
+    
+    
+    MPI_Allgatherv(&exter_loc[0],
+                   exter_size,
+                   MPI_INT,
+                   &recv[0],
+                   red_exter_nlocs,
+                   red_exter_offset,
+                   MPI_INT, comm);
+    
+    
+    
+    std::cout << "hello = " << red_exter_offset[rank] << " " << red_exter_nlocs[rank] << std::endl;
+    for(int i=red_exter_offset[rank];i<red_exter_offset[rank]+red_exter_nlocs[rank];i++)
+    {
+        //std::cout << rank << " " << i << " " << recv[i] << std::endl;
+    }
+    
+    std::clock_t start;
+    double duration;
+    start = std::clock();
+    
+    std::vector<int> recv2 = FindDuplicates(recv);
+    
+    duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
+    std::cout << rank << " duplicates = " << duration << " " << std::endl;
+//    for(int i=0;i<recv2.size();i++)
+//    {
+//        //std::cout << recv2[i] << std::endl;
+//    }
+    
     /*
     sort(recv.begin(),recv.end());
     
@@ -2179,14 +2233,19 @@ void GetAdjacencyForUS3D_V4()
     int rank;
     MPI_Comm_rank(comm, &rank);
     
-    const char* fn_conn="grids/adept/conn.h5";
+    const char* fn_conn="grids/piston/conn.h5";
 
     ParallelArray<int>* ief = ReadDataSetFromFileInParallel<int>(fn_conn,"ief",comm,info);
 //    Array<int>*type;
     std::vector<int> ief_copy(ief->nloc*(ief->ncol-1));
     set<int> unique_faces;
     set<int> double_faces;
+    std::vector<int> d_faces;
+    std::vector<int> u_faces;
+    
+    
     int fid;
+    
     for(int i=0;i<ief->nloc;i++)
     {
         for(int j=0;j<ief->ncol-1;j++)
@@ -2196,14 +2255,104 @@ void GetAdjacencyForUS3D_V4()
             if(unique_faces.find(fid) == unique_faces.end())
             {
                 unique_faces.insert(fid);
+                u_faces.push_back(fid);
             }
             else
             {
                 double_faces.insert(fid);
+                d_faces.push_back(fid);
             }
         }
     }
-    std::cout << unique_faces.size() << " " << double_faces.size() << std::endl;
+    
+    //std::cout << "sizes = = " << unique_faces.size() << " " << double_faces.size() << std::endl;
+    
+    //std::vector<int> double_faces2 = FindDuplicates(d_faces);
+    
+    int exter_size = u_faces.size();
+
+    int* exter_nlocs                 = new int[size];
+    int* exter_offset                = new int[size];
+    int* red_exter_nlocs             = new int[size];
+    int* red_exter_offset            = new int[size];
+
+    for(int i=0;i<size;i++)
+    {
+        red_exter_nlocs[i]  = 0;
+        red_exter_offset[i] = 0;
+        if(i==rank)
+        {
+            exter_nlocs[i] = exter_size;
+        }
+        else
+        {
+            exter_nlocs[i]  = 0;
+            exter_offset[i] = 0;
+        }
+    }
+    
+    MPI_Allreduce(exter_nlocs,
+                  red_exter_nlocs,
+                  size,
+                  MPI_INT,
+                  MPI_SUM,
+                  comm);
+    
+    
+    red_exter_offset[0]=0;
+        
+    
+    //
+    for(int i=0;i<size-1;i++)
+    {
+        red_exter_offset[i+1]=red_exter_offset[i]+red_exter_nlocs[i];
+    }
+    //
+    
+    int nexter_tot = red_exter_offset[size-1]+red_exter_nlocs[size-1];
+        
+    std::vector<int> recv(nexter_tot);
+     
+    MPI_Allgatherv(&u_faces[0],
+                   exter_size,
+                   MPI_INT,
+                   &recv[0],
+                   red_exter_nlocs,
+                   red_exter_offset,
+                   MPI_INT, comm);
+
+    std::clock_t start;
+    double duration;
+    start = std::clock();
+    
+    std::vector<int> recv2 = FindDuplicates(recv);
+    
+    duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
+    std::cout << rank << " duplicates = " << duration << " " << std::endl;
+    
+//std::cout << "ada " << recv2.size() << std::endl;
+        
+//    for(int i=0;i<recv2.size();i++)
+//    {
+//        std::cout << "there we go! " << rank << " " << recv2[i] << std::endl;
+//    }
+//
+//    std::cout << recv
+//
+//    std::cout << "sizew = " << recv2.size() << " " << recv.size() << " " << d_faces.size() << std::endl;
+//
+    /*
+        
+        
+    std::cout << "hello = " << red_exter_offset[rank] << " " << red_exter_nlocs[rank] << std::endl;
+    for(int i=red_exter_offset[rank];i<red_exter_offset[rank]+red_exter_nlocs[rank];i++)
+    {
+        //std::cout << rank << " " << i << " " << recv[i] << std::endl;
+    }
+        
+
+     
+     */
 }
 
 
@@ -2540,6 +2689,38 @@ void BuildGraph(Array<double>* xcn, ParallelArray<int>* ien, MPI_Comm comm)
 
 
 
+
+void FindDuplicateTest()
+{
+    std::vector<int> vec;
+    vec.push_back(1);
+    vec.push_back(3);
+    vec.push_back(2);
+    vec.push_back(14);
+    vec.push_back(8);
+    vec.push_back(2);
+    vec.push_back(3);
+    vec.push_back(14);
+    vec.push_back(9);
+    vec.push_back(15);
+    vec.push_back(1);
+    vec.push_back(14);
+    std::vector<int> res = FindDuplicates(vec);
+    
+    std::cout << "====" << std::endl;
+    for(int i = 0;i<res.size();i++)
+    {
+        std::cout << res[i] << std::endl;
+    }
+    std::cout << "====" << std::endl;
+}
+
+
+
+
+
+
+
 int main(int argc, char** argv) {
     
     MPI_Init(NULL, NULL);
@@ -2567,7 +2748,10 @@ int main(int argc, char** argv) {
     if (world_rank == 0)
     {
         TestFindRank();
+        FindDuplicateTest();
     }
+    
+    //GetAdjacencyForUS3D_V4();
 
 //    Array<double>* xcn         = ReadDataSetFromFile<double>(fn_grid,"xcn");
 //    ParallelArray<int>*    ien = ReadDataSetFromFileInParallel<int>(fn_conn,"ien",comm,info);
@@ -2581,12 +2765,12 @@ int main(int argc, char** argv) {
     double duration;
     start = std::clock();
     //ExampleUS3DPartitioningWithParVarParMetis();
-    GetAdjacencyForUS3D_V4();
+    //GetAdjacencyForUS3D_V4();
+    GetAdjacencyForUS3D_V3();
     //BuildGraph(xcn,ien,comm);
     duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
     std::cout << world_rank << " reading_par = " << duration << std::endl;
-    
-    
+
     //NodesOnPartition = GetRequestedNodes(ien);
     
    //ParMETIS_V3_PartMeshKway(pv_parmetis->elmdist, pv_parmetis->eptr, pv_parmetis->eind, elmwgt, wgtflag, numflag, ncon, ncommonnodes, nparts, tpwgts, ubvec, options, &edgecut, part, &comm);
@@ -2652,7 +2836,6 @@ int main(int argc, char** argv) {
     
     duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
     std::cout << world_rank << " timer = " << duration << std::endl;
-    
     
     for(int i=0;i<Nelement;i++)
     {
