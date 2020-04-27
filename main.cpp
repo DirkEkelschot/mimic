@@ -2004,17 +2004,26 @@ void GetAdjacencyForUS3D_V3()
     
     
     
-    std::cout << "hello = " << red_exter_offset[rank] << " " << red_exter_nlocs[rank] << std::endl;
-    for(int i=red_exter_offset[rank];i<red_exter_offset[rank]+red_exter_nlocs[rank];i++)
-    {
-        //std::cout << rank << " " << i << " " << recv[i] << std::endl;
-    }
+    //std::cout << "hello = " << red_exter_offset[rank] << " " << red_exter_nlocs[rank] << std::endl;
+    
+    int offset = red_exter_offset[rank];
+    int nloc = red_exter_nlocs[rank];
+    
+//    std::vector<int> dupl;
+//    for(int i=0;i<nloc;i++)
+//    {
+//        duple.push_back(recv[red_exter_offset[rank]+i])
+//    }
+    
+    
     
     std::clock_t start;
     double duration;
     start = std::clock();
     
-    std::vector<int> recv2 = FindDuplicates(recv);
+    sort(recv.begin(),recv.end());
+    //std::vector<int> recv2 = FindDuplicates(recv);
+
     
     duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
     std::cout << rank << " duplicates = " << duration << " " << std::endl;
@@ -2328,7 +2337,7 @@ void GetAdjacencyForUS3D_V4()
     std::vector<int> recv2 = FindDuplicates(recv);
     
     duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
-    std::cout << rank << " duplicates = " << duration << " " << std::endl;
+    std::cout << rank << " duplicates2 = " << duration << " " << std::endl;
     
 //std::cout << "ada " << recv2.size() << std::endl;
         
@@ -2687,6 +2696,122 @@ void BuildGraph(Array<double>* xcn, ParallelArray<int>* ien, MPI_Comm comm)
 }
 
 
+int* merge(int* a, int* b, int* merged, int size)
+{
+
+    int size_res = 2*size_res;
+    
+    int i=0;
+    int j=0;
+    int k=0;
+    
+    while(i<=size-1 && j<=size-1)
+    {
+        if(a[i] <= b[j])
+        {
+            merged[k++] = a[i++];
+        }
+        else
+        {
+            merged[k++] = b[j++];
+        }
+    }
+    while(i <= size-1)
+    {
+        merged[k++] = a[i++];
+    }
+    while(j <= size-1)
+    {
+        merged[k++] = b[j++];
+    }
+    
+    return merged;
+}
+
+
+std::vector<int> merge_vec(std::vector<int> a, std::vector<int> b)
+{
+    int n = a.size();
+    int m = b.size();
+    int size = n+m;
+    
+    std::vector<int> merged(size);
+    int i=0;
+    int j=0;
+    int k=0;
+    
+    while(i<=n-1 && j<=m-1)
+    {
+        if(a[i] <= b[j])
+        {
+            merged[k++] = a[i++];
+        }
+        else
+        {
+            merged[k++] = b[j++];
+        }
+    }
+    while(i <= n-1)
+    {
+        merged[k++] = a[i++];
+    }
+    while(j <= m-1)
+    {
+        merged[k++] = b[j++];
+    }
+    
+    return merged;
+}
+
+
+void MergeTest()
+{
+    std::vector<int> vec;
+    vec.push_back(1);
+    vec.push_back(3);
+    vec.push_back(2);
+    vec.push_back(14);
+    vec.push_back(8);
+    vec.push_back(2);
+    vec.push_back(3);
+    vec.push_back(14);
+    vec.push_back(9);
+    vec.push_back(15);
+    vec.push_back(1);
+    vec.push_back(14);
+    sort(vec.begin(),vec.end());
+    std::cout << "==vec1==" << std::endl;
+    for(int i = 0;i<vec.size();i++)
+    {
+        std::cout << vec[i] << std::endl;
+    }
+    std::cout << "====" << std::endl;
+    std::vector<int> vec2;
+    vec2.push_back(2);
+    vec2.push_back(6);
+    vec2.push_back(5);
+    vec2.push_back(7);
+    vec2.push_back(9);
+    vec2.push_back(4);
+    vec2.push_back(31);
+    vec2.push_back(4);
+    sort(vec2.begin(),vec2.end());
+    std::cout << "==vec2==" << std::endl;
+    for(int i = 0;i<vec2.size();i++)
+    {
+        std::cout << vec2[i] << std::endl;
+    }
+    std::cout << "====" << std::endl;
+    
+    std::vector<int> res = merge_vec(vec,vec2);
+    
+    std::cout << "====" << std::endl;
+    for(int i = 0;i<res.size();i++)
+    {
+        std::cout << res[i] << std::endl;
+    }
+    std::cout << "====" << std::endl;
+}
 
 
 
@@ -2716,9 +2841,190 @@ void FindDuplicateTest()
 }
 
 
+//std::vector<int> mergeSort(int levels, int rank, std::vector<int> local_vec, int size, MPI_Comm comm){
+//    int parent, rightChild, mylevel;
+//    std::vector<int> half1;
+//    std::vector<int> half2;
+//    std::vector<int> mergeResult(size*2);
+//    mylevel = 0;
+//    std::vector<int>global_sorted;
+//    sort(local_vec.begin(),local_vec.end());
+//    half1 = local_vec;  // assign half1 to local_vec
+//
+//    std::cout << "size vector = " << size << std::endl;
+//    while (mylevel < levels) { // not yet at top
+//        parent = (rank & (~(1 << mylevel)));
+//        if (parent == rank) { // left child
+//            int myleveln = mylevel;
+//            rightChild = (rank | (1 << (mylevel)));
+//
+//            //allocate memory and receive array of right child
+//            //std::cout << "parent -> " << parent  << " rightChild -> " << rightChild << std::endl;
+//            MPI_Recv(&half2[0], size, MPI_INT, rightChild, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+//
+//            mergeResult = merge(half1, half2);
+//              // reassign half1 to merge result
+//            half1 = mergeResult;
+//            size = size * 2;  // double size
+//
+//            half2.clear();
+//            mergeResult.clear();
+//
+//            mylevel++;
+//
+//        }
+//        else
+//        { // right child
+//              // send local array to parent
+//            MPI_Send(&half1[0], size, MPI_INT, parent, 0, MPI_COMM_WORLD);
+//            if(mylevel != 0)
+//            {
+//                half1.clear();
+//            }
+//
+//            mylevel = levels;
+//        }
+//    }
+//
+//    if(rank == 0){
+//        global_sorted = half1;   // reassign globalArray to half1
+//    }
+//    return global_sorted;
+//}
 
 
+int compare (const void * a, const void * b)
+{
+  return ( *(int*)a - *(int*)b );
+}
 
+int* mergeSort(int height, int id, int* localArray, int size, MPI_Comm comm, int* globalArray){
+    int parent, rightChild, myHeight;
+    int *half1, *half2, *mergeResult;
+
+    myHeight = 0;
+    qsort(localArray, size, sizeof(int), compare); // sort local array
+    half1 = localArray;  // assign half1 to localArray
+    
+    while (myHeight < height) { // not yet at top
+        parent = (id & (~(1 << myHeight)));
+
+        if (parent == id) { // left child
+            rightChild = (id | (1 << myHeight));
+
+              // allocate memory and receive array of right child
+              half2 = (int*) malloc (size * sizeof(int));
+              MPI_Recv(half2, size, MPI_INT, rightChild, 0,
+                MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+              // allocate memory for result of merge
+              mergeResult = (int*) malloc (size * 2 * sizeof(int));
+              // merge half1 and half2 into mergeResult
+              mergeResult = merge(half1, half2, mergeResult, size);
+              // reassign half1 to merge result
+            half1 = mergeResult;
+            size = size * 2;  // double size
+            
+            free(half2);
+            mergeResult = NULL;
+
+            myHeight++;
+
+        } else { // right child
+              // send local array to parent
+              MPI_Send(half1, size, MPI_INT, parent, 0, MPI_COMM_WORLD);
+              if(myHeight != 0) free(half1);
+              myHeight = height;
+        }
+    }
+
+    if(id == 0){
+        globalArray = half1;   // reassign globalArray to half1
+    }
+    return globalArray;
+}
+
+
+void ParallelSort()
+{
+    MPI_Comm comm = MPI_COMM_WORLD;
+    MPI_Info info = MPI_INFO_NULL;
+    int size;
+    MPI_Comm_size(comm, &size);
+    // Get the rank of the process
+    int rank;
+    MPI_Comm_rank(comm, &rank);
+    
+    int levels = log2(size);
+    
+    const char* fn_conn="grids/adept/conn.h5";
+    const char* fn_grid="grids/adept/grid.h5";
+    
+    ParallelArray<int>* ief = ReadDataSetFromFileInParallel<int>(fn_conn,"ief",comm,info);
+    int *data = new int[ief->nloc*(ief->ncol-1)];
+    std::vector<int> ief_copy(ief->nloc*(ief->ncol-1));
+    int fid;
+    int cnt=0;
+    for(int i=0;i<ief->nloc;i++)
+    {
+        for(int j=0;j<ief->ncol-1;j++)
+        {
+            fid = fabs(ief->getVal(i,j+1))-1;
+            ief_copy[cnt] = fid;
+            cnt++;
+        }
+    }
+    int lsize = ief_copy.size();
+    int* ief_arr = new int[lsize];
+    for(int i=0;i<lsize;i++)
+    {
+        ief_arr[i] = ief_copy[i];
+    }
+    int *glob_arr;
+    if (rank == 0)
+    {
+        glob_arr = new int[ief->nglob*6];
+    }
+    
+    std::clock_t start;
+    double duration;
+    start = std::clock();
+    
+    int* sorted = mergeSort(levels, rank, ief_arr, lsize, comm, glob_arr);
+    duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
+    std::cout << rank << " merge sort = " << duration << std::endl;
+//    if(rank == 0)
+//    {
+//        std::cout << "hoi " << rank << " " << ief->nglob*6 << std::endl;
+//       for(int i=0;i<ief->nglob*6;i++)
+//        {
+//           std::cout << rank << " " << i << " " << sorted[i] << std::endl;
+//        }
+//    }
+    
+    
+}
+
+//void communicate ( int myHeight, int myRank )
+//{  int parent = myRank & ~(1<<myHeight);
+//
+//   if ( myHeight > 0 )
+//   {  int nxt     = myHeight - 1;
+//      int rtChild = myRank | ( 1 << nxt );
+//
+//      std::cout << myRank << " sending data to " << rtChild << std::endl;
+//      communicate ( nxt, myRank );
+//      communicate ( nxt, rtChild );
+//      std::cout << myRank << " getting data from " << rtChild << std::endl;
+//
+//      //printf ("%d getting data from %d\n", myRank, rtChild);
+//   }
+//   if ( parent != myRank )
+//   {
+//       std::cout << myRank << " transmitting to " << parent << std::endl;
+//   }
+//      //printf ("%d transmitting to %d\n", myRank, parent);
+//}
 
 
 int main(int argc, char** argv) {
@@ -2749,7 +3055,16 @@ int main(int argc, char** argv) {
     {
         TestFindRank();
         FindDuplicateTest();
+        MergeTest();
+        
     }
+    int levels = log2(world_size);
+    //int myHeight = 3, myRank = 0;
+    std::cout << "levels = " << levels << std::endl;
+    //std::cout << "Building a height " << myHeight << " tree" << std::endl;
+    //communicate(myHeight, myRank);
+    //return 0;
+    ParallelSort();
     
     //GetAdjacencyForUS3D_V4();
 
@@ -2766,14 +3081,14 @@ int main(int argc, char** argv) {
     start = std::clock();
     //ExampleUS3DPartitioningWithParVarParMetis();
     //GetAdjacencyForUS3D_V4();
-    GetAdjacencyForUS3D_V3();
+    //GetAdjacencyForUS3D_V3();
     //BuildGraph(xcn,ien,comm);
     duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
-    std::cout << world_rank << " reading_par = " << duration << std::endl;
+    //std::cout << world_rank << " reading_par = " << duration << std::endl;
 
     //NodesOnPartition = GetRequestedNodes(ien);
     
-   //ParMETIS_V3_PartMeshKway(pv_parmetis->elmdist, pv_parmetis->eptr, pv_parmetis->eind, elmwgt, wgtflag, numflag, ncon, ncommonnodes, nparts, tpwgts, ubvec, options, &edgecut, part, &comm);
+    //ParMETIS_V3_PartMeshKway(pv_parmetis->elmdist, pv_parmetis->eptr, pv_parmetis->eind, elmwgt, wgtflag, numflag, ncon, ncommonnodes, nparts, tpwgts, ubvec, options, &edgecut, part, &comm);
     
 //    if (world_rank == 0)
 //    {
