@@ -138,17 +138,23 @@ int* mergeSort(int height, int id, int* localArray, int size, MPI_Comm comm, int
             half1 = mergeResult;
             size = size_half1+size_half2;  // double size
             
-            free(half2);
+            delete[] half2;
             mergeResult = NULL;
 
             myHeight++;
 
-        } else { // right child
-              // send local array to parent
-              MPI_Send(&size,    1, MPI_INT, parent, 0, MPI_COMM_WORLD);
-              MPI_Send(half1, size, MPI_INT, parent, 0, MPI_COMM_WORLD);
-              if(myHeight != 0) free(half1);
-              myHeight = height;
+        }
+        else
+        {
+            // right child
+            // send local array to parent
+            MPI_Send(&size,    1, MPI_INT, parent, 0, MPI_COMM_WORLD);
+            MPI_Send(half1, size, MPI_INT, parent, 0, MPI_COMM_WORLD);
+            if(myHeight != 0)
+            {
+                delete[] half1;
+            }
+            myHeight = height;
         }
     }
 
@@ -168,7 +174,7 @@ std::vector<int> mergeSort_vec(int height, int id, std::vector<int> localArray, 
     sort(localArray.begin(),localArray.end());
     //qsort(localArray, size, sizeof(int), compare); // sort local array
     std::vector<int> half1 = localArray;  // assign half1 to localArray
-    
+    int size_half1, size_half2;
     while (myHeight < height) { // not yet at top
         parent = (id & (~(1 << myHeight)));
 
@@ -177,8 +183,10 @@ std::vector<int> mergeSort_vec(int height, int id, std::vector<int> localArray, 
 
               // allocate memory and receive array of right child
               //half2 = (int*) malloc (size * sizeof(int));
-            std::vector<int> half2(size);
-            MPI_Recv(&half2[0], size, MPI_INT, rightChild, 0,
+            MPI_Recv(&size_half2, 1, MPI_INT, rightChild, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+            std::vector<int> half2(size_half2);
+            MPI_Recv(&half2[0], size_half2, MPI_INT, rightChild, 0,
                 MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
             // allocate memory for result of merge
@@ -197,9 +205,14 @@ std::vector<int> mergeSort_vec(int height, int id, std::vector<int> localArray, 
 
         } else { // right child
               // send local array to parent
-              MPI_Send(&half1[0], size, MPI_INT, parent, 0, MPI_COMM_WORLD);
-            if(myHeight != 0) half1.erase(half1.begin(),half1.end());
-              myHeight = height;
+            MPI_Send(&size,    1, MPI_INT, parent, 0, MPI_COMM_WORLD);
+
+            MPI_Send(&half1[0], size, MPI_INT, parent, 0, MPI_COMM_WORLD);
+            if(myHeight != 0)
+            {
+                half1.erase(half1.begin(),half1.end());
+            }
+            myHeight = height;
         }
     }
 

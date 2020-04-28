@@ -2867,14 +2867,14 @@ void ParallelSortTest_Vec()
     
     std::vector<int> sorted = mergeSort_vec(levels, rank, ief_copy, lsize, comm, glob_arr);
     
-//    if(rank == 0)
-//    {
-//        std::cout << "hoi " << rank << " " << ief->nglob*6 << std::endl;
-//       for(int i=0;i<ief->nglob*6;i++)
-//        {
-//           //std::cout << rank << " " << i << " " << sorted[i] << std::endl;
-//        }
-//    }
+    if(rank == 0)
+    {
+        std::cout << "hoi " << rank << " " << ief->nglob*6 << std::endl;
+       for(int i=0;i<ief->nglob*6;i++)
+        {
+           std::cout << "vec " << rank << " " << i << " " << sorted[i] << std::endl;
+        }
+    }
     
     
 }
