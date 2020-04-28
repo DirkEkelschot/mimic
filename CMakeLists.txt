@@ -16,12 +16,12 @@ include(platforms/MacOSX_Dirk_home.cmake)
 
 #set(LIBRARY_OUTPUT_PATH lib/)
 
-set(SRC main.cpp)
+set(SRC us3d_partition.cpp us3d_ops.cpp main.cpp)
 
 #set(EXECUTABLE_OUTPUT_PATH bin/)
 set(COMPILE_FLAGS ${COMPILE_FLAGS} ${MPI_COMPILE_FLAGS})
 
-add_executable(adapt main.cpp)
+add_executable(adapt ${SRC})
 
 find_package(MPI REQUIRED)
 include_directories(SYSTEM ${MPI_INCLUDE_PATH})

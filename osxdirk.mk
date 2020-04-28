@@ -1,4 +1,4 @@
-OBJECTS = main.cpp
+OBJECTS = us3d_partitioning.cpp us3d_ops.cpp main.cpp
 
 PARMETIS_HOME = /Users/dekelsch/Software/parmetis-4.0.3/parmetis-install
 METIS_HOME = /Users/dekelsch/Software/parmetis-4.0.3/metis/metis-install
@@ -12,5 +12,5 @@ LDFLAGS += -L$(PARMETIS_HOME)/lib -L$(METIS_HOME)/lib -L$(MPICH_HOME)/lib -L$(HD
 LDLIBS += -lmetis -lparmetis -lhdf5 -lmpi -llapack -lblas
 
 all:
-	/Users/dekelsch/Software/mpich-3.3.2/mpich-install/bin/mpic++ $(CXXFLAGS) main.cpp -o adapt $(LDFLAGS) $(LDLIBS)
+	/Users/dekelsch/Software/mpich-3.3.2/mpich-install/bin/mpic++ $(CXXFLAGS) $(OBJECTS) -o adapt $(LDFLAGS) $(LDLIBS)
 #	rm -rf *.o *.mod
