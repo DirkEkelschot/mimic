@@ -1,6 +1,4 @@
-#include <hdf5.h>
-#include "us3d_datastruct.h"
-#include "us3d_print.h"
+#include "adapt.h"
 #include "us3d_partition.h"
 
 #include <ctime>

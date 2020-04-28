@@ -1,7 +1,5 @@
-#include "adapt.h"
-#include <iostream>
-#include <stdlib.h>
-#include <fstream>
+#include "us3d_ops.h"
+
 using namespace std;
 std::vector<int> FindDuplicates(std::vector<int> arr)
 {

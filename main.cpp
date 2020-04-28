@@ -1,32 +1,19 @@
-#include <algorithm>
 
-#include <string.h>
-
-#include <iostream>
-#include <stdlib.h>
-#include <fstream>
-#include <assert.h>
 //#include "petsc.h"
 #include <mpi.h>
 
-//#include <hdf5.h>
 #include <math.h>
 #include "us3d_io.h"
 #include "us3d_compute.h"
 #include "us3d_ops.h"
 
 #include "us3d_math.h"
-
 //#include "us3d_print.h"
 //#include "us3d_datastruct.h"
 #include <utility>
 #include <string>
-#include <vector>
-#include <math.h>
-#include <map>
-#include <unordered_set>
-#include <set>
-#include "parmetis.h"
+
+#include "adapt.h"
 
 int mpi_size, mpi_rank;
 
@@ -410,9 +397,6 @@ void PartitionBigMesh(Array<double>* xcn, Array<int>* ien, MPI_Comm comm)
             npo_locs[i] = 0;
         }
     }
-    
-    
-     
      
     for(int i=0;i<world_size+1;i++)
     {
@@ -426,13 +410,11 @@ void PartitionBigMesh(Array<double>* xcn, Array<int>* ien, MPI_Comm comm)
         }
     }
     
-    
-    
-    
     int* red_locs       = new int[world_size];
     int* red_npo_locs   = new int[world_size];
     int* red_elmdist    = new int[world_size+1];
-    std::cout << "world_size:: " << world_size << std::endl;
+    
+    
     for(int i=0;i<world_size;i++)
     {
         red_locs[i]    = 0;
@@ -585,262 +567,7 @@ void PartitionBigMesh(Array<double>* xcn, Array<int>* ien, MPI_Comm comm)
     delete[] eptr;
 }
 
-void Example3DPartitioning()
-{
-    MPI_Comm comm = MPI_COMM_WORLD;
-    int world_size;
-    MPI_Comm_size(comm, &world_size);
 
-    // Get the rank of the process
-    int world_rank;
-    MPI_Comm_rank(comm, &world_rank);
-    
-    
-    int nel = 8;
-    int * eltype = new int[nel];
-    
-    eltype[0] = 8;
-    eltype[1] = 8;
-    eltype[2] = 8;
-    eltype[3] = 8;
-    eltype[4] = 8;
-    eltype[5] = 8;
-    eltype[6] = 8;
-    eltype[7] = 8;
-    
-    int npo   = 0;
-    
-    for(int i = 0;i < nel; i++)
-    {
-        npo += eltype[i];
-    }
-    
-    int * test = new int[npo];
-    
-    test[0] = 0;test[1] = 1;test[2] = 6;test[3] = 5;        test[4]  = 14+0;test[5] = 14+1;test[6] = 14+6;test[7] = 14+5;
-    test[8] = 1;test[9] = 2;test[10] = 7;test[11] = 6;      test[12] = 14+1;test[13] = 14+2;test[14] = 14+7;test[15] = 14+6;
-    test[16] = 2;test[17] = 3;test[18] = 8;test[19] = 7;    test[20] = 14+2;test[21] = 14+3;test[22] = 14+8;test[23] = 14+7;
-    test[24] = 3;test[25] = 4;test[26] = 9;test[27] = 8;    test[28] = 14+3;test[29] = 14+4;test[30] = 14+9;test[31] = 14+8;
-    test[32] = 5;test[33] = 6;test[34] = 11;test[35] = 10;  test[36] = 14+5;test[37] = 14+6;test[38] = 14+11;test[39] = 14+10;
-    test[40] = 6;test[41] = 7;test[42] = 12;test[43] = 11;  test[44] = 14+6;test[45] = 14+7;test[46] = 14+12;test[47] = 14+11;
-    test[48] = 7;test[49] = 8;test[50] = 13;test[51] = 12;  test[52] = 14+7;test[53] = 14+8;test[54] = 14+13;test[55] = 14+12;
-    test[56] = 8;test[57] = 9;test[58] = 14;test[59] = 13;  test[60] = 14+8;test[61] = 14+9;test[62] = 14+14;test[63] = 14+13;
-
-    
-    int nloc     = int(nel/world_size) + ( world_rank < nel%world_size );
-    //  compute offset of rows for each proc;
-    int offset   = world_rank*int(nel/world_size) + MIN(world_rank, nel%world_size);
-    int* elmdist = new int[world_size];
-
-    int npo_loc=0;
-    for(int i=0;i<nloc;i++)
-    {
-        npo_loc += eltype[offset+i];
-    }
-    
-    int* locs        = new int[world_size];
-    int* npo_locs    = new int[world_size];
-    int* npo_offset  = new int[world_size+1];
-    npo_offset[0]=0;
-    
-    for(int i=0;i<world_size;i++)
-    {
-        if (i==world_rank)
-        {
-            locs[i]     = nloc;
-            npo_locs[i] = npo_loc;
-        }
-        else
-        {
-            locs[i]     = 0;
-            npo_locs[i] = 0;
-        }
-    }
-    
-    for(int i=0;i<world_size+1;i++)
-    {
-        if (i==world_rank)
-        {
-            elmdist[i]    = offset;
-        }
-        else
-        {
-            elmdist[i]    = 0;
-        }
-    }
-    
-    int* red_locs       = new int[world_size];
-    int* red_npo_locs   = new int[world_size];
-    int* red_elmdist    = new int[world_size+1];
-    
-    for(int i=0;i<world_size;i++)
-    {
-        red_locs[i]    = 0;
-        red_elmdist[i] = 0;
-    }
-    
-    MPI_Allreduce(locs,     red_locs,     world_size,   MPI_INT, MPI_SUM,  MPI_COMM_WORLD);
-    MPI_Allreduce(npo_locs, red_npo_locs, world_size,   MPI_INT, MPI_SUM,  MPI_COMM_WORLD);
-    MPI_Allreduce(elmdist,  red_elmdist,  world_size+1, MPI_INT, MPI_SUM,  MPI_COMM_WORLD);
-    
-    for(int i=0;i<world_size;i++)
-    {
-        npo_offset[i+1] = npo_offset[i]+red_npo_locs[i];
-    }
-    
-    red_elmdist[world_size] = nel;
-    
-    int* eptr = new int[nloc+1];
-    int* eind = new int[npo_loc];
-    std::cout << "nloc = " << nloc << std::endl;
-    eptr[0]  = 0;
-    
-    for(int i=0;i<nloc;i++)
-    {
-        eptr[i+1]  = eptr[i]+eltype[offset+i];
-        
-        for(int j=eptr[i];j<eptr[i+1];j++)
-        {
-            eind[j] = test[npo_offset[world_rank]+j];
-            //std::cout << eind[j] << " ";
-        }
-        //std::cout << std::endl;
-    }
-    
-    /*
-    //map< pair<int, int>, HalfEdge* > HE = GetHalfEdges(test,eptr,nloc,offset);
-    //map< pair<int, int>, HalfEdge* >::iterator it;
-    
-
-    if (world_rank == 0)
-    {
-        int cnt = 0;
-        std::cout << "+++++++++++++++++++++++++++++++++++++++++++++++" << std::endl;
-        for(it = HE.begin(); it != HE.end(); it++)
-        {
-            //std::cout << nloc << " " << cnt << std::endl;
-            std::cout << cnt << " " << it->first.first << " " << it->first.second << " (" << it->second->oppositeHalfEdge->vertex << " " << it->second->oppositeHalfEdge->opposite_vertex <<")" << std::endl;
-            cnt++;
-            
-        }
-        std::cout << "+++++++++++++++++++++++++++++++++++++++++++++++" << std::endl;
-    }
-    */
-    /*
-    if (world_rank == 2)
-    {
-        std::cout << "==========================================="<<std::endl;
-        for(int i=0;i<nloc;i++)
-        {
-            for(int j=eptr[i];j<eptr[i+1];j++)
-            {
-                int vid = eind[j];
-                std::cout << vid << " ";
-            }
-            std::cout << std::endl;
-        }
-        std::cout << "==========================================="<<std::endl;
-    }
-    */
-    /*
-    if (world_rank == 3)
-    {
-        for(int i=0;i<nloc;i++)
-        {
-            for(int j=eptr[i];j<eptr[i+1];j++)
-            {
-                std::cout << eind[j] << " ";
-            }
-            
-            std::cout << std::endl;
-        }
-    }
-    */
-    //===================================================================================================================================
-    
-    
-    idx_t numflag_[] = {0};
-    idx_t *numflag = numflag_;
-    idx_t ncommonnodes_[] = {4};
-    idx_t *ncommonnodes = ncommonnodes_;
-    int edgecut      = 0;
-    idx_t *xadj      = NULL;
-    idx_t *adjncy    = NULL;
-    idx_t *adjwgt    = NULL;
-    idx_t *vsize     = NULL;
-    idx_t options_[] = {0, 0, 0};
-    idx_t *options   = options_;
-    idx_t wgtflag_[] = {0};
-    idx_t *wgtflag   = wgtflag_;
-    real_t ubvec_[]  = {1.05};
-    real_t *ubvec    = ubvec_;
-
-    idx_t *elmwgt;
-    
-    real_t itr_[]    = {1.05};
-    real_t *itr      = itr_;
-    int np           = world_size;
-    idx_t ncon_[]    = {1};
-    idx_t *ncon      = ncon_;
-    real_t *tpwgts   = new real_t[np*ncon[0]];
-
-    for(int i=0; i<np*ncon[0]; i++)
-    {
-        tpwgts[i] = 1.0/np;
-    }
-    
-    idx_t nparts_[] = {np};
-    idx_t *nparts = nparts_;
-    
-    idx_t part_[]    = {nloc};
-    idx_t *part      = part_;
-    
-    
-    ParMETIS_V3_PartMeshKway(red_elmdist, eptr, eind, elmwgt, wgtflag, numflag, ncon, ncommonnodes, nparts, tpwgts, ubvec, options, &edgecut, part, &comm);
-    
-    if(world_rank == 1
-       )
-    {
-        for(int i = 0; i < nloc; i++)
-        {
-            std::cout << part[i] << std::endl;
-        }
-    }
-    
-    
-    ParMETIS_V3_Mesh2Dual(red_elmdist,eptr,eind,numflag,ncommonnodes,&xadj,&adjncy,&comm);
-    
-    idx_t *nparts2 = nparts_;
-    
-    ParMETIS_V3_AdaptiveRepart(red_elmdist, xadj, adjncy, elmwgt, adjwgt, vsize, wgtflag, numflag, ncon, nparts2, tpwgts, ubvec, itr, options, &edgecut, part, &comm);
-    
-    int rank = 0;
-    if(world_rank == 1)
-    {
-        std::cout << std::endl;
-        
-        for(int i = 0; i < nloc; i++)
-        {
-            std::cout << part[i] << std::endl;
-        }
-    }
-    //===================================================================================================================================
-    
-    if(world_rank == rank)
-    {
-    
-        //std::cout << "rank :: " << world_rank << std::endl;
-        for(int i=0;i<nloc+1;i++)
-        {
-            std::cout << xadj[i] << " --> ";
-        }
-        
-        for(int j=0;j<xadj[nloc];j++)
-        {
-            std::cout << adjncy[j] << " ";
-        }
-    }
-}
 
 
 
@@ -1903,7 +1630,7 @@ void GetAdjacencyForUS3D_V3()
     int rank;
     MPI_Comm_rank(comm, &rank);
     
-    const char* fn_conn="grids/piston/conn.h5";
+    const char* fn_conn="grids/adept/conn.h5";
 
     ParallelArray<int>* ief = ReadDataSetFromFileInParallel<int>(fn_conn,"ief",comm,info);
 //    Array<int>*type;
@@ -1934,7 +1661,7 @@ void GetAdjacencyForUS3D_V3()
     }
 
 //    //    +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    int exter_size = exter_loc.size();
+    int exter_size = inter_loc.size();
 
     int* exter_nlocs                 = new int[size];
     int* exter_offset                = new int[size];
@@ -1978,7 +1705,7 @@ void GetAdjacencyForUS3D_V3()
     std::vector<int> recv(nexter_tot);
     
     
-    MPI_Allgatherv(&exter_loc[0],
+    MPI_Allgatherv(&inter_loc[0],
                    exter_size,
                    MPI_INT,
                    &recv[0],
@@ -2006,11 +1733,11 @@ void GetAdjacencyForUS3D_V3()
     start = std::clock();
     
     sort(recv.begin(),recv.end());
-    //std::vector<int> recv2 = FindDuplicates(recv);
+    std::vector<int> recv2 = FindDuplicates(recv);
 
     
     duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
-    std::cout << rank << " duplicates = " << duration << " " << std::endl;
+    std::cout << rank << " recv2.size() = " << recv2.size() << " " << std::endl;
 //    for(int i=0;i<recv2.size();i++)
 //    {
 //        //std::cout << recv2[i] << std::endl;
@@ -2226,7 +1953,7 @@ void GetAdjacencyForUS3D_V4()
     int rank;
     MPI_Comm_rank(comm, &rank);
     
-    const char* fn_conn="grids/piston/conn.h5";
+    const char* fn_conn="grids/adept/conn.h5";
 
     ParallelArray<int>* ief = ReadDataSetFromFileInParallel<int>(fn_conn,"ief",comm,info);
 //    Array<int>*type;
@@ -2321,7 +2048,12 @@ void GetAdjacencyForUS3D_V4()
     std::vector<int> recv2 = FindDuplicates(recv);
     
     duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
-    std::cout << rank << " duplicates2 = " << duration << " " << std::endl;
+    std::cout << rank << " recv2.size() = " << recv2.size() << " " << std::endl;
+    
+    for(int i=0;i<recv2.size();i++)
+    {
+        std::cout << rank << " " << recv2[i] << std::endl;
+    }
     
 //std::cout << "ada " << recv2.size() << std::endl;
         
@@ -2681,10 +2413,6 @@ void BuildGraph(Array<double>* xcn, ParallelArray<int>* ien, MPI_Comm comm)
 
 
 
-
-
-
-
 void MergeTest()
 {
     std::vector<int> vec;
@@ -2923,19 +2651,20 @@ int main(int argc, char** argv) {
     start = std::clock();
     
 
-    ParallelSortTest();
+    GetAdjacencyForUS3D_V3();
+    //ParallelSortTest();
     
     duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
-    //std::cout << world_rank << " merge sort = " << duration << std::endl;
+    std::cout << world_rank << " GetAdjacencyForUS3D_V3() " << duration << std::endl;
     
     
     start = std::clock();
     
-
-    ParallelSortTest_Vec();
+    GetAdjacencyForUS3D_V4();
+    //ParallelSortTest_Vec();
     
     duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
-    //std::cout << world_rank << " merge sort vec = " << duration << std::endl;
+    std::cout << world_rank << " GetAdjacencyForUS3D_V4() " << duration << std::endl;
     
     //GetAdjacencyForUS3D_V4();
 

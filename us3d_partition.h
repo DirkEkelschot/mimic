@@ -1,6 +1,10 @@
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #define MAX(a,b) (((a)>(b))?(a):(b))
 
+#include "us3d_datastruct.h"
+
+void Example3DPartitioning(MPI_Comm comm);
+
 
 ParVar* CreateParallelData(int N, MPI_Comm comm);
 

@@ -1,7 +1,21 @@
+// c++ specific datatypes.
 #include <vector>
-#include <mpi.h>
 #include <math.h>
-#include <map>
 #include <unordered_set>
 #include <set>
-#include "parmetis.h"
+#include <map>
+
+// c++ specific tools.
+#include <algorithm>
+#include <string.h>
+#include <assert.h>
+#include <iostream>
+#include <stdlib.h>
+#include <fstream>
+
+// external libraries.
+#include <mpi.h>
+#include <parmetis.h>
+#include <hdf5.h>
+
+

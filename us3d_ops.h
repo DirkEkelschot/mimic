@@ -1,3 +1,4 @@
+#include "adapt.h"
 
 std::vector<int> FindDuplicates(std::vector<int> arr);
 
