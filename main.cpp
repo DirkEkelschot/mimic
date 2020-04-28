@@ -2957,8 +2957,8 @@ void ParallelSort()
     
     int levels = log2(size);
     
-    const char* fn_conn="grids/adept/conn.h5";
-    const char* fn_grid="grids/adept/grid.h5";
+    const char* fn_conn="grids/piston/conn.h5";
+    const char* fn_grid="grids/piston/grid.h5";
     
     ParallelArray<int>* ief = ReadDataSetFromFileInParallel<int>(fn_conn,"ief",comm,info);
     int *data = new int[ief->nloc*(ief->ncol-1)];
@@ -2986,13 +2986,9 @@ void ParallelSort()
         glob_arr = new int[ief->nglob*6];
     }
     
-    std::clock_t start;
-    double duration;
-    start = std::clock();
-    
+
     int* sorted = mergeSort(levels, rank, ief_arr, lsize, comm, glob_arr);
-    duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
-    std::cout << rank << " merge sort = " << duration << std::endl;
+    
 //    if(rank == 0)
 //    {
 //        std::cout << "hoi " << rank << " " << ief->nglob*6 << std::endl;
@@ -3025,6 +3021,113 @@ void ParallelSort()
 //   }
 //      //printf ("%d transmitting to %d\n", myRank, parent);
 //}
+
+std::vector<int> mergeSort_vec(int height, int id, std::vector<int> localArray, int size, MPI_Comm comm, std::vector<int> globalArray){
+    
+    int parent, rightChild, myHeight;
+
+    myHeight = 0;
+    sort(localArray.begin(),localArray.end());
+    //qsort(localArray, size, sizeof(int), compare); // sort local array
+    std::vector<int> half1 = localArray;  // assign half1 to localArray
+    
+    while (myHeight < height) { // not yet at top
+        parent = (id & (~(1 << myHeight)));
+
+        if (parent == id) { // left child
+            rightChild = (id | (1 << myHeight));
+
+              // allocate memory and receive array of right child
+              //half2 = (int*) malloc (size * sizeof(int));
+            std::vector<int> half2(size);
+            MPI_Recv(&half2[0], size, MPI_INT, rightChild, 0,
+                MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+            // allocate memory for result of merge
+            //mergeResult = (int*) malloc (size * 2 * sizeof(int));
+              
+            // merge half1 and half2 into mergeResult
+            std::vector<int> mergeResult = merge_vec(half1, half2);
+            // reassign half1 to merge result
+            half1 = mergeResult;
+            size = size * 2;  // double size
+            half2.erase(half2.begin(),half2.end());
+            //free(half2);
+            mergeResult.erase(mergeResult.begin(),mergeResult.end());
+
+            myHeight++;
+
+        } else { // right child
+              // send local array to parent
+              MPI_Send(&half1[0], size, MPI_INT, parent, 0, MPI_COMM_WORLD);
+            if(myHeight != 0) half1.erase(half1.begin(),half1.end());
+              myHeight = height;
+        }
+    }
+
+    if(id == 0){
+        globalArray = half1;   // reassign globalArray to half1
+    }
+    return globalArray;
+}
+
+
+void ParallelSort_Vec()
+{
+    MPI_Comm comm = MPI_COMM_WORLD;
+    MPI_Info info = MPI_INFO_NULL;
+    int size;
+    MPI_Comm_size(comm, &size);
+    // Get the rank of the process
+    int rank;
+    MPI_Comm_rank(comm, &rank);
+    
+    int levels = log2(size);
+    
+    const char* fn_conn="grids/piston/conn.h5";
+    const char* fn_grid="grids/piston/grid.h5";
+    
+    ParallelArray<int>* ief = ReadDataSetFromFileInParallel<int>(fn_conn,"ief",comm,info);
+    int *data = new int[ief->nloc*(ief->ncol-1)];
+    std::vector<int> ief_copy(ief->nloc*(ief->ncol-1));
+    int fid;
+    int cnt=0;
+    for(int i=0;i<ief->nloc;i++)
+    {
+        for(int j=0;j<ief->ncol-1;j++)
+        {
+            fid = fabs(ief->getVal(i,j+1))-1;
+            ief_copy[cnt] = fid;
+            cnt++;
+        }
+    }
+    int lsize = ief_copy.size();
+    int* ief_arr = new int[lsize];
+    for(int i=0;i<lsize;i++)
+    {
+        ief_arr[i] = ief_copy[i];
+    }
+    //int *glob_arr;
+//    if (rank == 0)
+//    {
+//        glob_arr = new int[ief->nglob*6];
+//
+//    }
+    std::vector<int> glob_arr(ief->nglob*6);
+    
+    std::vector<int> sorted = mergeSort_vec(levels, rank, ief_copy, lsize, comm, glob_arr);
+    
+    if(rank == 0)
+    {
+        std::cout << "hoi " << rank << " " << ief->nglob*6 << std::endl;
+       for(int i=0;i<ief->nglob*6;i++)
+        {
+           //std::cout << rank << " " << i << " " << sorted[i] << std::endl;
+        }
+    }
+    
+    
+}
 
 
 int main(int argc, char** argv) {
@@ -3064,7 +3167,25 @@ int main(int argc, char** argv) {
     //std::cout << "Building a height " << myHeight << " tree" << std::endl;
     //communicate(myHeight, myRank);
     //return 0;
+    
+    std::clock_t start;
+    double duration;
+    start = std::clock();
+    
+
     ParallelSort();
+    
+    duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
+    std::cout << world_rank << " merge sort = " << duration << std::endl;
+    
+    
+    start = std::clock();
+    
+
+    ParallelSort_Vec();
+    
+    duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
+    std::cout << world_rank << " merge sort vec = " << duration << std::endl;
     
     //GetAdjacencyForUS3D_V4();
 
@@ -3076,8 +3197,6 @@ int main(int argc, char** argv) {
     //{
     //	Example3DPartitioningWithParVarParMetis();
     //}
-    std::clock_t start;
-    double duration;
     start = std::clock();
     //ExampleUS3DPartitioningWithParVarParMetis();
     //GetAdjacencyForUS3D_V4();
