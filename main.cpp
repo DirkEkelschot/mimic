@@ -3084,8 +3084,8 @@ void ParallelSort_Vec()
     
     int levels = log2(size);
     
-    const char* fn_conn="grids/piston/conn.h5";
-    const char* fn_grid="grids/piston/grid.h5";
+    const char* fn_conn="grids/adept/conn.h5";
+    const char* fn_grid="grids/adept/grid.h5";
     
     ParallelArray<int>* ief = ReadDataSetFromFileInParallel<int>(fn_conn,"ief",comm,info);
     int *data = new int[ief->nloc*(ief->ncol-1)];
