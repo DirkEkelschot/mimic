@@ -1953,7 +1953,7 @@ void GetAdjacencyForUS3D_V4()
     int rank;
     MPI_Comm_rank(comm, &rank);
     
-    const char* fn_conn="grids/adept/conn.h5";
+    const char* fn_conn="grids/piston/conn.h5";
 
     ParallelArray<int>* ief = ReadDataSetFromFileInParallel<int>(fn_conn,"ief",comm,info);
 //    Array<int>*type;
@@ -2030,7 +2030,8 @@ void GetAdjacencyForUS3D_V4()
     //
     
     int nexter_tot = red_exter_offset[size-1]+red_exter_nlocs[size-1];
-        
+    
+    
     std::vector<int> recv(nexter_tot);
      
     MPI_Allgatherv(&u_faces[0],
@@ -2040,7 +2041,8 @@ void GetAdjacencyForUS3D_V4()
                    red_exter_nlocs,
                    red_exter_offset,
                    MPI_INT, comm);
-
+    
+    
     std::clock_t start;
     double duration;
     start = std::clock();
@@ -2051,6 +2053,11 @@ void GetAdjacencyForUS3D_V4()
     }
     
     std::vector<int> recv2 = FindDuplicatesInParallel(uf_arr, u_faces.size(), nexter_tot, comm);
+    //if(rank == 0)
+    //{
+        std::cout << rank << " size = " << recv2.size() << std::endl;
+
+    //}
     
     duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
     
@@ -2642,13 +2649,13 @@ int main(int argc, char** argv) {
     PlotBoundaryData(znames,zdefs,comm);
     //TestBrutePartioningUS3D();
     
-    if (world_rank == 0)
-    {
-        TestFindRank();
-        FindDuplicateTest();
-        MergeTest();
-        
-    }
+//    if (world_rank == 0)
+//    {
+//        TestFindRank();
+//        FindDuplicateTest();
+//        MergeTest();
+//        
+//    }
     int levels = log2(world_size);
     //int myHeight = 3, myRank = 0;
     //std::cout << "levels = " << levels << std::endl;
@@ -2684,7 +2691,7 @@ int main(int argc, char** argv) {
     
     duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
     std::cout << world_rank << " GetAdjacencyForUS3D_V4 = " << duration << std::endl;
-    GetAdjacencyForUS3D_V3();
+    //GetAdjacencyForUS3D_V3();
     //NodesOnPartition = GetRequestedNodes(ien);
     
     //ParMETIS_V3_PartMeshKway(pv_parmetis->elmdist, pv_parmetis->eptr, pv_parmetis->eind, elmwgt, wgtflag, numflag, ncon, ncommonnodes, nparts, tpwgts, ubvec, options, &edgecut, part, &comm);

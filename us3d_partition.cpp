@@ -306,7 +306,6 @@ ParVar* CreateParallelData(int N, MPI_Comm comm)
     pv->nlocs   = red_proc_nlocs;
     pv->offsets = red_proc_offset;
     
-    
     return pv;
 }
 

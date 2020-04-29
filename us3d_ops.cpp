@@ -1,5 +1,5 @@
 #include "us3d_ops.h"
-
+#include "us3d_partition.h"
 using namespace std;
 std::vector<int> FindDuplicates(std::vector<int> arr)
 {
@@ -36,32 +36,67 @@ std::vector<int> FindDuplicatesInParallel(int* arr, int arr_size, int glob_size,
     int N = arr_size;
 
     int* glob_arr;
-    if (rank == 0)
-    {
-        glob_arr = new int[glob_size];
-    }
+    //if (rank == 0)
+    //{
+    glob_arr = new int[glob_size];
+    //}
     
     int* sorted = mergeSort(levels, rank, arr, N, comm, glob_arr);
     
+    MPI_Bcast(sorted, glob_size, MPI_INT, 0, MPI_COMM_WORLD);
+
+    ParVar* pv = CreateParallelData(glob_size, comm);
+    
     std::vector<int> res;
-    if(rank == 0)
+    std::set<int> check;
+
+    for(int i=0;i<pv->nlocs[rank];i++)
     {
-        
-        std::set<int> check;
-        for(int i=0;i<glob_size;i++)
+        if(sorted[pv->offsets[rank]+i+1]==sorted[pv->offsets[rank]+i])
         {
-            if(sorted[i+1]==sorted[i])
-            {
-                if(check.find(sorted[i])==check.end())
-                {
-                    check.insert(sorted[i]);
-                    res.push_back(sorted[i]);
-                }
-            }
+            check.insert(sorted[i]);
+            res.push_back(sorted[i]);
         }
     }
+    
+    int* dupl_locs     = new int[size];
+    int* red_dupl_locs = new int[size];
 
-    return res;
+    
+    for(int i=0;i<size;i++)
+    {
+        red_dupl_locs[i]  = 0;
+        
+        if(i==rank)
+        {
+            dupl_locs[i]  = res.size();
+        }
+        else
+        {
+            dupl_locs[i]  = 0;
+        }
+    }
+    
+    MPI_Allreduce(dupl_locs,  red_dupl_locs,  size, MPI_INT, MPI_SUM, comm);
+    
+    int* red_dupl_offsets = new int[size];
+    red_dupl_offsets[0] = 0;
+    for(int i=0;i<size-1;i++)
+    {
+        red_dupl_offsets[i+1]=red_dupl_offsets[i]+red_dupl_locs[i];
+    }
+    
+    int tot_dupl = red_dupl_offsets[size-1]+red_dupl_locs[size-1];
+    std::vector<int> duplicates(tot_dupl);
+    MPI_Allgatherv(&res[0],
+                   res.size(),
+                   MPI_INT,
+                   &duplicates[0],
+                   red_dupl_locs,
+                   red_dupl_offsets,
+                   MPI_INT, comm);
+    
+    return duplicates;
 }
 
 
@@ -156,11 +191,11 @@ int* mergeSort(int height, int id, int* localArray, int size, MPI_Comm comm, int
 
               // allocate memory and receive array of right child
               
-              MPI_Recv(&size_half2, 1, MPI_INT, rightChild, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+              MPI_Recv(&size_half2, 1, MPI_INT, rightChild, 1234, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             
               half2 = new int[size_half2];
             
-              MPI_Recv(half2, size_half2, MPI_INT, rightChild, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+              MPI_Recv(half2, size_half2, MPI_INT, rightChild, 5678, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             
               // allocate memory for result of merge
               
@@ -188,8 +223,8 @@ int* mergeSort(int height, int id, int* localArray, int size, MPI_Comm comm, int
         {
             // right child
             // send local array to parent
-            MPI_Send(&size,    1, MPI_INT, parent, 0, MPI_COMM_WORLD);
-            MPI_Send(half1, size, MPI_INT, parent, 0, MPI_COMM_WORLD);
+            MPI_Send(&size,    1, MPI_INT, parent, 1234, MPI_COMM_WORLD);
+            MPI_Send(half1, size, MPI_INT, parent, 5678, MPI_COMM_WORLD);
             if(myHeight != 0)
             {
                 delete[] half1;
