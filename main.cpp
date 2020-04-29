@@ -1953,7 +1953,7 @@ void GetAdjacencyForUS3D_V4()
     int rank;
     MPI_Comm_rank(comm, &rank);
     
-    const char* fn_conn="grids/piston/conn.h5";
+    const char* fn_conn="grids/adept/conn.h5";
 
     ParallelArray<int>* ief = ReadDataSetFromFileInParallel<int>(fn_conn,"ief",comm,info);
 //    Array<int>*type;
@@ -2054,14 +2054,14 @@ void GetAdjacencyForUS3D_V4()
     
     duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
     
-    if(rank == 0)
-    {
-        std::cout << rank << " recv2.size() V4 = " << recv2.size() << " " << std::endl;
-        for(int i=0;i<recv2.size();i++)
-        {
-            std::cout << i << "  " << recv2[i] << " " << recv2.size() <<  std::endl;
-        }
-    }
+    //if(rank == 0)
+    //{
+    //    std::cout << rank << " recv2.size() V4 = " << recv2.size() << " " << std::endl;
+    //    for(int i=0;i<recv2.size();i++)
+    //    {
+    //        std::cout << i << "  " << recv2[i] << " " << recv2.size() <<  std::endl;
+    //    }
+    //}
     
     
     
@@ -2651,7 +2651,7 @@ int main(int argc, char** argv) {
     }
     int levels = log2(world_size);
     //int myHeight = 3, myRank = 0;
-    std::cout << "levels = " << levels << std::endl;
+    //std::cout << "levels = " << levels << std::endl;
     //std::cout << "Building a height " << myHeight << " tree" << std::endl;
     //communicate(myHeight, myRank);
     //return 0;
@@ -2661,11 +2661,11 @@ int main(int argc, char** argv) {
     start = std::clock();
     
 
-    GetAdjacencyForUS3D_V3();
+    //GetAdjacencyForUS3D_V3();
     //ParallelSortTest();
     
-    duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
-    std::cout << world_rank << " GetAdjacencyForUS3D_V3() " << duration << std::endl;
+    //duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
+    //std::cout << world_rank << " GetAdjacencyForUS3D_V3() " << duration << std::endl;
     
     
     start = std::clock();
@@ -2676,15 +2676,15 @@ int main(int argc, char** argv) {
 
     //ParallelSortTest_Vec();
     
-    duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
-    std::cout << world_rank << " GetAdjacencyForUS3D_V4() " << duration << std::endl;
+    //duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
+    //std::cout << world_rank << " GetAdjacencyForUS3D_V4() " << duration << std::endl;
     
     GetAdjacencyForUS3D_V4();
 
-    start = std::clock();
+    
     duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
-    //std::cout << world_rank << " reading_par = " << duration << std::endl;
-
+    std::cout << world_rank << " GetAdjacencyForUS3D_V4 = " << duration << std::endl;
+    GetAdjacencyForUS3D_V3();
     //NodesOnPartition = GetRequestedNodes(ien);
     
     //ParMETIS_V3_PartMeshKway(pv_parmetis->elmdist, pv_parmetis->eptr, pv_parmetis->eind, elmwgt, wgtflag, numflag, ncon, ncommonnodes, nparts, tpwgts, ubvec, options, &edgecut, part, &comm);

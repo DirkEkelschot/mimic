@@ -1,4 +1,4 @@
-OBJECTS = us3d_partitioning.cpp us3d_ops.cpp main.cpp
+OBJECTS = us3d_partition.cpp us3d_ops.cpp main.cpp
 
 HDF5_HOME = /u/smurman/share/eddy/hdf5-1.10.1
 PARMETIS_HOME = /u/smurman/share/eddy/parmetis-4.0.3
