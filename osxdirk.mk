@@ -1,4 +1,4 @@
-OBJECTS = us3d_partitioning.cpp us3d_ops.cpp main.cpp
+OBJECTS = us3d_partition.cpp us3d_ops.cpp main.cpp
 
 PARMETIS_HOME = /Users/dekelsch/Software/parmetis-4.0.3/parmetis-install
 METIS_HOME = /Users/dekelsch/Software/parmetis-4.0.3/metis/metis-install
