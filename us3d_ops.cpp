@@ -23,6 +23,48 @@ std::vector<int> FindDuplicates(std::vector<int> arr)
 }
 
 
+std::vector<int> FindDuplicatesInParallel(int* arr, int arr_size, int glob_size, MPI_Comm comm)
+{
+    int size;
+    MPI_Comm_size(comm, &size);
+    // Get the rank of the process
+    int rank;
+    MPI_Comm_rank(comm, &rank);
+    
+    int levels = log2(size);
+    
+    int N = arr_size;
+
+    int* glob_arr;
+    if (rank == 0)
+    {
+        glob_arr = new int[glob_size];
+    }
+    
+    int* sorted = mergeSort(levels, rank, arr, N, comm, glob_arr);
+    
+    std::vector<int> res;
+    if(rank == 0)
+    {
+        
+        std::set<int> check;
+        for(int i=0;i<glob_size;i++)
+        {
+            if(sorted[i+1]==sorted[i])
+            {
+                if(check.find(sorted[i])==check.end())
+                {
+                    check.insert(sorted[i]);
+                    res.push_back(sorted[i]);
+                }
+            }
+        }
+    }
+
+    return res;
+}
+
+
 int compare (const void * a, const void * b)
 {
   return ( *(int*)a - *(int*)b );

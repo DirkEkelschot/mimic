@@ -2,6 +2,8 @@
 
 std::vector<int> FindDuplicates(std::vector<int> arr);
 
+std::vector<int> FindDuplicatesInParallel(int* arr, int loc_size, int glob_size, MPI_Comm comm);
+
 int compare (const void * a, const void * b);
 
 int* merge(int* a, int* b, int* merged, int size);

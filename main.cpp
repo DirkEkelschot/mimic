@@ -1630,7 +1630,7 @@ void GetAdjacencyForUS3D_V3()
     int rank;
     MPI_Comm_rank(comm, &rank);
     
-    const char* fn_conn="grids/adept/conn.h5";
+    const char* fn_conn="grids/piston/conn.h5";
 
     ParallelArray<int>* ief = ReadDataSetFromFileInParallel<int>(fn_conn,"ief",comm,info);
 //    Array<int>*type;
@@ -1661,7 +1661,7 @@ void GetAdjacencyForUS3D_V3()
     }
 
 //    //    +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    int exter_size = inter_loc.size();
+    int exter_size = exter_loc.size();
 
     int* exter_nlocs                 = new int[size];
     int* exter_offset                = new int[size];
@@ -1705,7 +1705,7 @@ void GetAdjacencyForUS3D_V3()
     std::vector<int> recv(nexter_tot);
     
     
-    MPI_Allgatherv(&inter_loc[0],
+    MPI_Allgatherv(&exter_loc[0],
                    exter_size,
                    MPI_INT,
                    &recv[0],
@@ -1953,7 +1953,7 @@ void GetAdjacencyForUS3D_V4()
     int rank;
     MPI_Comm_rank(comm, &rank);
     
-    const char* fn_conn="grids/adept/conn.h5";
+    const char* fn_conn="grids/piston/conn.h5";
 
     ParallelArray<int>* ief = ReadDataSetFromFileInParallel<int>(fn_conn,"ief",comm,info);
 //    Array<int>*type;
@@ -2044,16 +2044,26 @@ void GetAdjacencyForUS3D_V4()
     std::clock_t start;
     double duration;
     start = std::clock();
+    int* uf_arr = new int[u_faces.size()];
+    for(int i=0;i<u_faces.size();i++)
+    {
+        uf_arr[i] = u_faces[i];
+    }
     
-    std::vector<int> recv2 = FindDuplicates(recv);
+    std::vector<int> recv2 = FindDuplicatesInParallel(uf_arr, u_faces.size(), nexter_tot, comm);
     
     duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
-    std::cout << rank << " recv2.size() = " << recv2.size() << " " << std::endl;
     
-    for(int i=0;i<recv2.size();i++)
+    if(rank == 0)
     {
-        std::cout << rank << " " << recv2[i] << std::endl;
+        std::cout << rank << " recv2.size() V4 = " << recv2.size() << " " << std::endl;
+        for(int i=0;i<recv2.size();i++)
+        {
+            std::cout << i << "  " << recv2[i] << " " << recv2.size() <<  std::endl;
+        }
     }
+    
+    
     
 //std::cout << "ada " << recv2.size() << std::endl;
         
@@ -2624,8 +2634,8 @@ int main(int argc, char** argv) {
     
 //============================================================
     
-    const char* fn_conn="grids/adept/conn.h5";
-    const char* fn_grid="grids/adept/grid.h5";
+    const char* fn_conn="grids/piston/conn.h5";
+    const char* fn_grid="grids/piston/grid.h5";
     
     Array<int>*    zdefs = ReadDataSetFromGroupFromFile<int>(fn_conn,"zones","zdefs");
     Array<char>*  znames = ReadDataSetFromGroupFromFile<char>(fn_conn,"zones","znames");
@@ -2660,13 +2670,16 @@ int main(int argc, char** argv) {
     
     start = std::clock();
     
-    GetAdjacencyForUS3D_V4();
+    //GetAdjacencyForUS3D_V4();
+    
+    //ParallelArray<int>* ief = ReadDataSetFromFileInParallel<int>(fn_conn,"ief",comm,info);
+
     //ParallelSortTest_Vec();
     
     duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
     std::cout << world_rank << " GetAdjacencyForUS3D_V4() " << duration << std::endl;
     
-    //GetAdjacencyForUS3D_V4();
+    GetAdjacencyForUS3D_V4();
 
     start = std::clock();
     duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
