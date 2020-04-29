@@ -1,0 +1,4 @@
+rm -rf /home1/dekelsch/adapt/grids/adept/grid.h5
+ln -s /nobackupp2/dekelsch/adept_real/grid.h5 /home1/dekelsch/adapt/grids/adept/grid.h5
+rm -rf /home1/dekelsch/adapt/grids/adept/conn.h5
+ln -s /nobackupp2/dekelsch/adept_real/conn.h5 /home1/dekelsch/adapt/grids/adept/conn.h5
