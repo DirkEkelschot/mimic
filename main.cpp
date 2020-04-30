@@ -1953,7 +1953,7 @@ void GetAdjacencyForUS3D_V4()
     int rank;
     MPI_Comm_rank(comm, &rank);
     
-    const char* fn_conn="grids/piston/conn.h5";
+    const char* fn_conn="grids/adept/conn.h5";
 
     ParallelArray<int>* ief = ReadDataSetFromFileInParallel<int>(fn_conn,"ief",comm,info);
 //    Array<int>*type;
@@ -2031,7 +2031,7 @@ void GetAdjacencyForUS3D_V4()
     
     int nexter_tot = red_exter_offset[size-1]+red_exter_nlocs[size-1];
     
-    
+    /*
     std::vector<int> recv(nexter_tot);
      
     MPI_Allgatherv(&u_faces[0],
@@ -2041,11 +2041,13 @@ void GetAdjacencyForUS3D_V4()
                    red_exter_nlocs,
                    red_exter_offset,
                    MPI_INT, comm);
-    
+    */
     
     std::clock_t start;
     double duration;
-    start = std::clock();
+    //start = std::clock();
+    
+    // copy the vector<int> into an int* for the FindDuplicatesInParallel routine.
     int* uf_arr = new int[u_faces.size()];
     for(int i=0;i<u_faces.size();i++)
     {
@@ -2053,13 +2055,72 @@ void GetAdjacencyForUS3D_V4()
     }
     
     std::vector<int> recv2 = FindDuplicatesInParallel(uf_arr, u_faces.size(), nexter_tot, comm);
-    //if(rank == 0)
-    //{
-        std::cout << rank << " size = " << recv2.size() << std::endl;
-
-    //}
     
-    duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
+    
+    int inter_size = d_faces.size();
+
+    int* inter_nlocs                 = new int[size];
+    int* inter_offset                = new int[size];
+    int* red_inter_nlocs             = new int[size];
+    int* red_inter_offset            = new int[size];
+
+    for(int i=0;i<size;i++)
+    {
+        red_inter_nlocs[i]  = 0;
+        red_inter_offset[i] = 0;
+        if(i==rank)
+        {
+            inter_nlocs[i] = inter_size;
+        }
+        else
+        {
+            inter_nlocs[i]  = 0;
+            inter_offset[i] = 0;
+        }
+    }
+    
+    MPI_Allreduce(inter_nlocs,
+                  red_inter_nlocs,
+                  size,
+                  MPI_INT,
+                  MPI_SUM,
+                  comm);
+    
+    
+    red_inter_offset[0]=0;
+        
+    //
+    for(int i=0;i<size-1;i++)
+    {
+        red_inter_offset[i+1]=red_inter_offset[i]+red_inter_nlocs[i];
+    }
+    //
+    
+    int ninter_tot      = red_inter_offset[size-1]+red_inter_nlocs[size-1];
+    
+    int* internal_faces = new int[ninter_tot];
+    
+    MPI_Allgatherv(&d_faces[0],
+                   d_faces.size(),
+                   MPI_INT,
+                   &internal_faces[0],
+                   red_inter_nlocs,
+                   red_inter_offset,
+                   MPI_INT, comm);
+    
+    std::cout << "internal and total faces " << ninter_tot+recv2.size() << " " << ief->nglob*6 << " " << ief->nglob*6-ninter_tot+recv2.size() << std::endl;
+    
+    //duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
+    //std::cout << rank << " Find array = " << duration << std::endl;
+    
+//
+//    start = std::clock();
+//
+//    std::vector<int> recv23 = FindDuplicatesInParallel_Vec(u_faces, u_faces.size(), nexter_tot, comm);
+//
+//    duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
+//    std::cout << rank << " Find vector = " << duration << std::endl;
+//
     
     //if(rank == 0)
     //{
@@ -2654,7 +2715,7 @@ int main(int argc, char** argv) {
 //        TestFindRank();
 //        FindDuplicateTest();
 //        MergeTest();
-//        
+//
 //    }
     int levels = log2(world_size);
     //int myHeight = 3, myRank = 0;

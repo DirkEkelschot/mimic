@@ -1,0 +1,4 @@
+rm -rf grids/adept/grid.h5
+ln -s /Users/dekelschot/grids/adept/grid.h5 grids/adept/grid.h5
+rm -rf grids/adept/conn.h5
+ln -s /Users/dekelschot/grids/adept/conn.h5 grids/adept/conn.h5
