@@ -1887,7 +1887,7 @@ std::vector<int> GetAdjacencyForUS3D_V4(ParallelArray<int>* ief, MPI_Comm comm)
     }
     
     std::vector<int> recv2 = FindDuplicatesInParallel(uf_arr, u_faces.size(), nexter_tot, comm);
-    
+    /* 
     if (rank == 0)
     {
         for(int i=0;i<recv2.size();i++)
@@ -1895,7 +1895,7 @@ std::vector<int> GetAdjacencyForUS3D_V4(ParallelArray<int>* ief, MPI_Comm comm)
             std::cout << rank << " :: " << recv2[i] << std::endl;
         }
     }
-    
+    */
     /*
     int inter_size = d_faces.size();
 
@@ -2012,21 +2012,11 @@ void OutputPartitionFaces()
     // Get the rank of the process
     int rank;
     MPI_Comm_rank(comm, &rank);
-    const char* fn_conn="grids/piston/conn.h5";
-    const char* fn_grid="grids/piston/grid.h5";
+    const char* fn_conn="grids/adept/conn.h5";
+    const char* fn_grid="grids/adept/grid.h5";
     ParallelArray<int>* ief = ReadDataSetFromFileInParallel<int>(fn_conn,"ief",comm,info);
-    Array<double>* xcn = ReadDataSetFromFile<double>(fn_grid,"xcn");
-    Array<int>* ifn = ReadDataSetFromFile<int>(fn_grid,"ifn");
 
     std::vector<int> partfaces = GetAdjacencyForUS3D_V4(ief, comm);
-    int n_bc_faces = partfaces.size();
-    Vert V;
-    int* Loc = new int[n_bc_faces*4];
-    map< int, int > Loc2GlobBound;
-    map< int, Vert> P_verts;
-    int cnt = 0;
-    int tel = 0;
-    int teller = 0;
     
 //    for(int i=0;i<xcn->nloc;i++)
 //    {
@@ -2038,10 +2028,22 @@ void OutputPartitionFaces()
 //        
 //        std::cout << std::endl;
 //    }
-    
+   if(rank == 0)
+{
+    Array<double>* xcn = ReadDataSetFromFile<double>(fn_grid,"xcn");
+    Array<int>* ifn = ReadDataSetFromFile<int>(fn_grid,"ifn"); 
+    int n_bc_faces = partfaces.size();
+    Vert V;
+    int* Loc = new int[n_bc_faces*4];
+    map< int, int > Loc2GlobBound;
+    map< int, Vert> P_verts;
+    int cnt = 0; 
+    int tel = 0; 
+    int teller = 0; 
+
     for(int j=0;j<partfaces.size();j++)
     {
-        int face = partfaces[j]-1;
+        int face = partfaces[j];
         for(int k=0;k<4;k++)
         {
             
@@ -2098,7 +2100,7 @@ void OutputPartitionFaces()
     delete[] Loc;
     
     
-    
+ }   
     
     
 }
@@ -2692,8 +2694,8 @@ int main(int argc, char** argv) {
     OutputPartitionFaces();
 
     
-    duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
-    std::cout << world_rank << " GetAdjacencyForUS3D_V4 = " << duration << std::endl;
+    //duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
+    //std::cout << world_rank << " GetAdjacencyForUS3D_V4 = " << duration << std::endl;
     //GetAdjacencyForUS3D_V3();
     //NodesOnPartition = GetRequestedNodes(ien);
     

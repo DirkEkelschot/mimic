@@ -61,8 +61,8 @@ std::vector<int> FindDuplicatesInParallel_Vec(std::vector<int> arr, int arr_size
     {
         if(sorted[pv->offsets[rank]+i+1]==sorted[pv->offsets[rank]+i])
         {
-            check.insert(sorted[i]);
-            res.push_back(sorted[i]);
+            check.insert(pv->offsets[rank]+sorted[i]);
+            res.push_back(pv->offsets[rank]+sorted[i]);
         }
     }
   

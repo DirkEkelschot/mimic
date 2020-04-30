@@ -1,16 +1,14 @@
 OBJECTS = us3d_partition.cpp us3d_ops.cpp main.cpp
 
-PARMETIS_HOME = /Users/dekelschot/Software/parmetis-4.0.3/installation
-METIS_HOME = /Users/dekelschot/Software/parmetis-4.0.3/metis/installation
-HDF5_HOME = /Users/dekelschot/Software/hdf5-1.10.6/hdf5
-MPICH_HOME = /usr/local/
+HDF5_HOME = /u/smurman/share/eddy/hdf5-1.10.1
+PARMETIS_HOME = /u/smurman/share/eddy/parmetis-4.0.3
+MPI_HOME = /nasa/hpe/mpt/2.17r13
+CXXFLAGS += -std=c++11 -DMPI_NO_CPPBIND -I$(MPI_HOME)/include
 
-CXXFLAGS += -std=c++11 -I$(PARMETIS_HOME)/include -I$(MPICH_HOME)/include -I$(HDF5_HOME)/include -I$(METIS_HOME)/include
+LDFLAGS += -L$(MPI_HOME)/lib
 
-LDFLAGS += -L$(PARMETIS_HOME)/lib -L$(METIS_HOME)/lib -L$(MPICH_HOME)/lib -L$(HDF5_HOME)/lib
-
-LDLIBS += -lmetis -lparmetis -lhdf5 -lmpi -llapack -lblas
+LDLIBS += -lmpi -lparmetis -lmetis -lhdf5 -mkl
 
 all:
-	mpic++ $(CXXFLAGS) $(OBJECTS) -o adapt $(LDFLAGS) $(LDLIBS)
+	icpc $(CXXFLAGS) $(OBJECTS) -o adapt $(LDFLAGS) $(LDLIBS)
 #	rm -rf *.o *.mod
