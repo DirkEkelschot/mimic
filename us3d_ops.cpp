@@ -1,5 +1,10 @@
 #include "us3d_ops.h"
 #include "us3d_partition.h"
+
+
+
+
+
 using namespace std;
 std::vector<int> FindDuplicates(std::vector<int> arr)
 {
@@ -21,6 +26,9 @@ std::vector<int> FindDuplicates(std::vector<int> arr)
     
     return res;
 }
+
+
+
 
 
 std::vector<int> FindDuplicatesInParallel_Vec(std::vector<int> arr, int arr_size, int glob_size, MPI_Comm comm)
@@ -57,6 +65,7 @@ std::vector<int> FindDuplicatesInParallel_Vec(std::vector<int> arr, int arr_size
             res.push_back(sorted[i]);
         }
     }
+  
     
     int* dupl_locs     = new int[size];
     int* red_dupl_locs = new int[size];
@@ -131,10 +140,11 @@ std::vector<int> FindDuplicatesInParallel(int* arr, int arr_size, int glob_size,
     {
         if(sorted[pv->offsets[rank]+i+1]==sorted[pv->offsets[rank]+i])
         {
-            check.insert(sorted[i]);
-            res.push_back(sorted[i]);
+            check.insert(sorted[pv->offsets[rank]+i]);
+            res.push_back(sorted[pv->offsets[rank]+i]);
         }
     }
+    
     
     int* dupl_locs     = new int[size];
     int* red_dupl_locs = new int[size];

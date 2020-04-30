@@ -4,7 +4,9 @@
 #include <unordered_set>
 #include <set>
 #include <map>
-
+#include <string>
+#include <utility>
+#include <math.h>
 // c++ specific tools.
 #include <algorithm>
 #include <string.h>

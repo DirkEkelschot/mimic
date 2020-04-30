@@ -1,8 +1,8 @@
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #define MAX(a,b) (((a)>(b))?(a):(b))
 
+#include "adapt.h"
 #include "us3d_datastruct.h"
-
 void Example3DPartitioning(MPI_Comm comm);
 
 
