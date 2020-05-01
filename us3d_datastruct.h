@@ -186,6 +186,16 @@ struct LocalPartitionData
     Array<int>* ien_loc;
 };
 
+struct PartitionVertices
+{
+    std::map<int, int> loc2glob;
+    std::map<int, int> glob2loc;
+    
+    Array<double>* Verts;
+};
+
+
+
 //template<typename T>
 struct US3dData
 {

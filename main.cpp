@@ -2067,30 +2067,33 @@ ParArrayOnRoot* GatherVecToRoot(std::vector<int> locvec, MPI_Comm comm)
 }
 
 
-void CollectVerticesPerRank(ParallelArray<int>* ien, Array<double>* xcn_r, MPI_Comm comm)
+PartitionVertices* CollectVerticesPerRank(ParallelArray<int>* ien, Array<double>* xcn_r, MPI_Comm comm)
 {
-    
     int size;
     MPI_Comm_size(comm, &size);
     // Get the rank of the process
     int rank;
     MPI_Comm_rank(comm, &rank);
-    
+    std::map<int,int> loc2glob;
+    std::map<int,int> glob2loc;
     std::vector<int> loc_verts;
     set<int> loc_verts_set;
-    int nid = 0;
+    int gid = 0;
     int nverts_req;
-        
+    int lid = 0;
     for(int i=0;i<ien->nloc;i++)
     {
         for(int j=0;j<ien->ncol-1;j++)
         {
-            nid = ien->getVal(i,j+1)-1;
+            gid = ien->getVal(i,j+1)-1;
             
-            if ( loc_verts_set.find( nid ) == loc_verts_set.end() )
+            if ( loc_verts_set.find( gid ) == loc_verts_set.end() )
             {
-                loc_verts.push_back(nid);
-                loc_verts_set.insert(nid);
+                loc_verts.push_back(gid);
+                loc_verts_set.insert(gid);
+                loc2glob[lid] = gid;
+                glob2loc[gid] = lid;
+                lid++;
             }
         }
     }
@@ -2098,9 +2101,8 @@ void CollectVerticesPerRank(ParallelArray<int>* ien, Array<double>* xcn_r, MPI_C
     // This vector is empty on all other procs except root;
     ParArrayOnRoot* gathered_on_root = GatherVecToRoot(loc_verts, comm);
     double* loc_verts2 = new double[loc_verts.size()*3];
-    
-    //std::cout << "loczide " << loc_verts.size() << " " << loc_verts.size()*3 << " " << gathered_on_root->nlocs[rank] << std::endl;
     double * verts;
+    
     int* nlocs = new int[size];
     int* offset = new int[size];
     for(int i=0;i<size;i++)
@@ -2109,6 +2111,13 @@ void CollectVerticesPerRank(ParallelArray<int>* ien, Array<double>* xcn_r, MPI_C
         offset[i] = gathered_on_root->offsets[i]*3;
         
     }
+    
+    PartitionVertices* pv = new PartitionVertices;
+    
+    pv->Verts = new Array<double>(loc_verts.size(),3);
+    pv->loc2glob = loc2glob;
+    pv->glob2loc = glob2loc;
+    
     if(rank == 0)
     {
         verts = new double[gathered_on_root->length*3];
@@ -2122,9 +2131,81 @@ void CollectVerticesPerRank(ParallelArray<int>* ien, Array<double>* xcn_r, MPI_C
         }
     }
 
-    MPI_Scatterv(&verts[0], nlocs, offset, MPI_DOUBLE, &loc_verts2[0], loc_verts.size()*3, MPI_DOUBLE, 0, comm);
+    MPI_Scatterv(&verts[0], nlocs, offset, MPI_DOUBLE, &pv->Verts->data[0], loc_verts.size()*3, MPI_DOUBLE, 0, comm);
+    
+    return pv;
 }
 
+
+void OutputPartionVolumes(ParallelArray<int>* ien, Array<double>* xcn_on_root, MPI_Comm comm)
+{
+    int size;
+    MPI_Comm_size(comm, &size);
+    // Get the rank of the process
+    int rank;
+    MPI_Comm_rank(comm, &rank);
+    PartitionVertices* pv = CollectVerticesPerRank(ien,xcn_on_root,comm);
+    
+    int gid;
+    int lid;
+    Vert V;
+    
+    //set<int> gid_set;
+    int nvert = 0;
+    std::map<int,Vert> vert_out;
+    int v=0;int u=0;int el=0;
+    int* l_vert_id = new int[ien->nloc*(ien->ncol-1)];
+    map< int, int > gid_set;
+    for(int i=0;i<ien->nloc;i++)
+    {
+        for(int j=0;j<ien->ncol-1;j++)
+        {
+            gid = ien->getVal(i,j+1)-1;
+            lid = pv->glob2loc[gid];
+            
+            if ( gid_set.find( gid ) != gid_set.end() )
+            {
+                l_vert_id[el*(ien->ncol-1)+j]=gid_set[gid];
+            }
+            else
+            {
+                l_vert_id[el*(ien->ncol-1)+j]=v;
+                
+                V.x = pv->Verts->getVal(lid,0);
+                V.y = pv->Verts->getVal(lid,1);
+                V.z = pv->Verts->getVal(lid,2);
+                
+                vert_out[u]=V;
+                
+                u++;
+            }
+            v++;
+        }
+        el++;
+    }
+    
+    
+    string filename = "volume_per_rank_" + std::to_string(rank) + ".dat";
+    ofstream myfile;
+    myfile.open(filename);
+    myfile << "TITLE=\"volume_part_"  + std::to_string(rank) +  ".tec\"" << std::endl;
+    myfile <<"VARIABLES = \"X\", \"Y\", \"Z\"" << std::endl;
+    myfile <<"ZONE N = " << vert_out.size() << ", E = " << ien->nloc << ", DATAPACKING = POINT, ZONETYPE = FEBRICK" << std::endl;
+    
+    std::cout << "number of nodes -> " << vert_out.size() << std::endl;
+    
+    for(int i=0;i<vert_out.size();i++)
+    {
+       myfile << vert_out[(i)].x << "   " << vert_out[(i)].y << "   " << vert_out[(i)].z << std::endl;
+    }
+
+    for(int i=0;i<ien->nloc;i++)
+    {
+       myfile << l_vert_id[i*8+0]+1 << "    " << l_vert_id[i*8+1]+1 << "   " << l_vert_id[i*8+2]+1 << "  " << l_vert_id[i*8+3]+1 << "  " << l_vert_id[i*8+4]+1 << "  " << l_vert_id[i*8+5]+1 << "  " << l_vert_id[i*8+6]+1 << "  " << l_vert_id[i*8+7]+1 << std::endl;
+    }
+    myfile.close();
+
+}
 
 
 void OutputPartitionFaces()
@@ -2223,11 +2304,7 @@ void OutputPartitionFaces()
     myfile.close();
     
     delete[] Loc;
-    
-    
- }   
-    
-    
+ }
 }
 
 
@@ -2771,8 +2848,8 @@ int main(int argc, char** argv) {
     
 //============================================================
     
-    const char* fn_conn="grids/piston/conn.h5";
-    const char* fn_grid="grids/piston/grid.h5";
+    const char* fn_conn="grids/adept/conn.h5";
+    const char* fn_grid="grids/adept/grid.h5";
     
     Array<int>*    zdefs = ReadDataSetFromGroupFromFile<int>(fn_conn,"zones","zdefs");
     Array<char>*  znames = ReadDataSetFromGroupFromFile<char>(fn_conn,"zones","znames");
@@ -2826,19 +2903,7 @@ int main(int argc, char** argv) {
 //
     ParallelArray<int>*      ien = ReadDataSetFromFileInParallel<int>(fn_conn,"ien",comm,info);
     
-//    if (world_rank == 0)
-//    {
-//        for(int i=0;i<xcn_on_root->nloc;i++)
-//        {
-//            std::cout << i << " :: ";
-//            for(int j=0;j<xcn_on_root->ncol;j++)
-//            {
-//                std::cout << xcn_on_root->getVal(i,j) << " ";
-//            }
-//            std::cout << std::endl;
-//        }
-//    }
-    CollectVerticesPerRank(ien,xcn_on_root,comm);
+    OutputPartionVolumes(ien,xcn_on_root,comm);
     //duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
     //std::cout << world_rank << " GetAdjacencyForUS3D_V4 = " << duration << std::endl;
     //GetAdjacencyForUS3D_V3();
