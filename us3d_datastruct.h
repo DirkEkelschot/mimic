@@ -12,6 +12,15 @@ struct ParVar
     int* offsets;
 };
 
+struct ParArrayOnRoot
+{
+    int size;
+    int* nlocs;
+    int* offsets;
+    int* data;
+    int length;
+};
+
 struct ParVar_ParMetis
 {
     int size;

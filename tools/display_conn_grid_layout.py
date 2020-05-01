@@ -164,8 +164,8 @@ for group in data.keys():
 
 #print(znames[:])
 #print(zdefs[:])
-print(ife)
-
+print(ief)
+print(ien)
 
 print("========================================================")
 print("==================== Print Grid data ===================")
@@ -192,7 +192,9 @@ for group in data.keys():
             ifn = ds
         if group=='zdefs':
             zdefs = ds
-        
+
+print("========= ifn ==========")
+print(ifn)
 '''
 
 print("========================================================")

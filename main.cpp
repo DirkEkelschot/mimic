@@ -999,17 +999,19 @@ void TestReadInParallelToRoot(MPI_Comm comm, MPI_Info info)
     double duration;
 
     start = std::clock();
-    Array<int>*   iee    = ReadDataSetFromFile<int>("grids/conn.h5","iee");
+    Array<int>*   iee    = ReadDataSetFromFile<int>("grids/piston/conn.h5","iee");
     duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
     std::cout << world_rank << " reading_serial = " << duration << std::endl;
     start = std::clock();
-    Array<int>*   iee_r  = ReadDataSetFromFileInParallelToRoot<int>("grids/conn.h5","iee",comm,info);
+    Array<int>*   iee_r  = ReadDataSetFromFileInParallelToRoot<int>("grids/piston/conn.h5","iee",comm,info);
     duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
     std::cout << world_rank << " reading_par= " << duration << std::endl;
     
     //little test testing the reading
+    
     if(world_rank == 0)
     {
+        int tel = 0;
         for(int i=0;i<iee_r->nloc;i++)
         {
             for(int j=0;j<iee_r->ncol;j++)
@@ -1017,8 +1019,13 @@ void TestReadInParallelToRoot(MPI_Comm comm, MPI_Info info)
                 if((iee->getVal(i,j)-iee_r->getVal(i,j))!=0)
                 {
                     std::cout << "not the same" << std::endl;
+                    tel = tel + 1;
                 }
             }
+        }
+        if (tel == 0)
+        {
+            std::cout << "Parallel reading test to root has passed!!!" << std::endl;
         }
     }
     
@@ -1140,6 +1147,7 @@ int* TestBrutePartioningUS3D()
         }
         else if (s_send[q].find( world_rank ) != s_send[q].end())
         {
+            
             MPI_Recv(&n_req_recv, 1, MPI_INT, q, world_rank, comm, MPI_STATUS_IGNORE);
 
             MPI_Recv(&recv_collector[offset_map[q]], n_req_recv, MPI_INT, q, 100+world_rank*2, comm, MPI_STATUS_IGNORE);
@@ -1887,6 +1895,7 @@ std::vector<int> GetAdjacencyForUS3D_V4(ParallelArray<int>* ief, MPI_Comm comm)
     }
     
     std::vector<int> recv2 = FindDuplicatesInParallel(uf_arr, u_faces.size(), nexter_tot, comm);
+    
     /* 
     if (rank == 0)
     {
@@ -2000,6 +2009,138 @@ std::vector<int> GetAdjacencyForUS3D_V4(ParallelArray<int>* ief, MPI_Comm comm)
      
      */
 }
+
+ParArrayOnRoot* GatherVecToRoot(std::vector<int> locvec, MPI_Comm comm)
+{
+    
+    int size;
+    MPI_Comm_size(comm, &size);
+    // Get the rank of the process
+    int rank;
+    MPI_Comm_rank(comm, &rank);
+    
+    int* locs     = new int[size];
+    int* red_locs = new int[size];
+
+    for(int i=0;i<size;i++)
+    {
+        red_locs[i]  = 0;
+        
+        if(i==rank)
+        {
+            locs[i]  = locvec.size();
+        }
+        else
+        {
+            locs[i]  = 0;
+        }
+    }
+    
+    MPI_Allreduce(locs, red_locs, size, MPI_INT, MPI_SUM, comm);
+    
+    int* red_offsets = new int[size];
+    red_offsets[0] = 0;
+    for(int i=0;i<size-1;i++)
+    {
+        red_offsets[i+1]=red_offsets[i]+red_locs[i];
+    }
+    
+    
+    for(int i=0;i<size;i++)
+    {
+        std::cout << rank << " :: " << red_offsets[i] << " " << red_locs[i] << std::endl;
+    }
+    std::cout << std::endl;
+    
+    
+    int tot = red_offsets[size-1]+red_locs[size-1];
+    std::cout << tot << " " << locvec.size() << std::endl;
+    
+    ParArrayOnRoot* parr_root = new ParArrayOnRoot;
+    parr_root->data = new int[tot];
+    parr_root->nlocs = red_locs;
+    parr_root->offsets = red_offsets;
+    parr_root->size    = size;
+    parr_root->length  = tot;
+    
+    MPI_Gatherv(&locvec[0],
+                locvec.size(),
+                MPI_INT,
+                &parr_root->data[0],
+                parr_root->nlocs,
+                parr_root->offsets,
+                MPI_INT,0, comm);
+    
+    return parr_root;
+}
+
+
+void CollectVerticesPerRank(ParallelArray<int>* ien, Array<double>* xcn_r, MPI_Comm comm)
+{
+    
+    int size;
+    MPI_Comm_size(comm, &size);
+    // Get the rank of the process
+    int rank;
+    MPI_Comm_rank(comm, &rank);
+    
+    std::vector<int> loc_verts;
+    set<int> loc_verts_set;
+    int nid = 0;
+    int nverts_req;
+        
+    for(int i=0;i<ien->nloc;i++)
+    {
+        for(int j=0;j<ien->ncol-1;j++)
+        {
+            nid = ien->getVal(i,j+1)-1;
+            
+            if ( loc_verts_set.find( nid ) == loc_verts_set.end() )
+            {
+                loc_verts.push_back(nid);
+                loc_verts_set.insert(nid);
+            }
+        }
+    }
+    
+    // This vector is empty on all other procs except root;
+    ParArrayOnRoot* gathered_on_root = GatherVecToRoot(loc_verts, comm);
+    std::vector<int> loc_verts2(loc_verts.size()*3);
+    
+    
+    if(rank == 0)
+    {
+        double * verts = new double[gathered_on_root->length*3];
+
+        for(int i=0;i<gathered_on_root->length;i++)
+        {
+            verts[i*3+0] = xcn_r->getVal(gathered_on_root->data[i],0);
+            verts[i*3+1] = xcn_r->getVal(gathered_on_root->data[i],1);
+            verts[i*3+2] = xcn_r->getVal(gathered_on_root->data[i],2);
+            
+            std::cout << xcn_r->nloc << " "  << gathered_on_root->data[i]  << " "<< verts[i*3+0] << " " << " " << verts[i*3+1] << " " << verts[i*3+2] << std::endl;
+        }
+        
+        
+        int* nlocs = new int[size];
+        int* offset = new int[size];
+        for(int i=0;i<size;i++)
+        {
+            nlocs[i] = gathered_on_root->nlocs[i]*3;
+            offset[i] = gathered_on_root->offsets[i]*3;
+        }
+        MPI_Scatterv(&verts[0], nlocs, offset, MPI_DOUBLE, &loc_verts2[0], loc_verts.size()*3, MPI_DOUBLE, 0, comm);
+        
+//        for(int i=0;i<loc_verts.size();i++)
+//        {
+//            std::cout << rank << " :: " << loc_verts2[i*3+0] << " " << loc_verts2[i*3+1] << " " << loc_verts2[i*3+2] << std::endl;
+//        }
+    }
+    
+    
+    
+}
+
 
 
 void OutputPartitionFaces()
@@ -2661,6 +2802,9 @@ int main(int argc, char** argv) {
 //        MergeTest();
 //
 //    }
+    
+    
+    
     int levels = log2(world_size);
     //int myHeight = 3, myRank = 0;
     //std::cout << "levels = " << levels << std::endl;
@@ -2691,9 +2835,26 @@ int main(int argc, char** argv) {
     //duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
     //std::cout << world_rank << " GetAdjacencyForUS3D_V4() " << duration << std::endl;
     
-    OutputPartitionFaces();
-
+    //OutputPartitionFaces();
     
+    TestReadInParallelToRoot(comm,info);
+    Array<double>*   xcn_on_root  = ReadDataSetFromFileInParallelToRoot<double>(fn_grid,"xcn",comm,info);
+
+    ParallelArray<int>*      ien = ReadDataSetFromFileInParallel<int>(fn_conn,"ien",comm,info);
+
+    if (world_rank == 0)
+    {
+        for(int i=0;i<xcn_on_root->nloc;i++)
+        {
+            std::cout << i << " :: ";
+            for(int j=0;j<xcn_on_root->ncol;j++)
+            {
+                std::cout << xcn_on_root->getVal(i,j) << " ";
+            }
+            std::cout << std::endl;
+        }
+    }
+    //CollectVerticesPerRank(ien,xcn_on_root,comm);
     //duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
     //std::cout << world_rank << " GetAdjacencyForUS3D_V4 = " << duration << std::endl;
     //GetAdjacencyForUS3D_V3();
