@@ -998,14 +998,14 @@ void TestReadInParallelToRoot(MPI_Comm comm, MPI_Info info)
     std::clock_t start;
     double duration;
 
-    start = std::clock();
+    //start = std::clock();
     Array<int>*   iee    = ReadDataSetFromFile<int>("grids/piston/conn.h5","iee");
-    duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
-    std::cout << world_rank << " reading_serial = " << duration << std::endl;
-    start = std::clock();
+    //duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
+    //std::cout << world_rank << " reading_serial = " << duration << std::endl;
+    //start = std::clock();
     Array<int>*   iee_r  = ReadDataSetFromFileInParallelToRoot<int>("grids/piston/conn.h5","iee",comm,info);
-    duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
-    std::cout << world_rank << " reading_par= " << duration << std::endl;
+    //duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
+    //std::cout << world_rank << " reading_par= " << duration << std::endl;
     
     //little test testing the reading
     
@@ -1018,6 +1018,7 @@ void TestReadInParallelToRoot(MPI_Comm comm, MPI_Info info)
             {
                 if((iee->getVal(i,j)-iee_r->getVal(i,j))!=0)
                 {
+                    
                     std::cout << "not the same" << std::endl;
                     tel = tel + 1;
                 }
@@ -2045,16 +2046,7 @@ ParArrayOnRoot* GatherVecToRoot(std::vector<int> locvec, MPI_Comm comm)
         red_offsets[i+1]=red_offsets[i]+red_locs[i];
     }
     
-    
-    for(int i=0;i<size;i++)
-    {
-        std::cout << rank << " :: " << red_offsets[i] << " " << red_locs[i] << std::endl;
-    }
-    std::cout << std::endl;
-    
-    
     int tot = red_offsets[size-1]+red_locs[size-1];
-    std::cout << tot << " " << locvec.size() << std::endl;
     
     ParArrayOnRoot* parr_root = new ParArrayOnRoot;
     parr_root->data = new int[tot];
@@ -2105,12 +2097,21 @@ void CollectVerticesPerRank(ParallelArray<int>* ien, Array<double>* xcn_r, MPI_C
     
     // This vector is empty on all other procs except root;
     ParArrayOnRoot* gathered_on_root = GatherVecToRoot(loc_verts, comm);
-    std::vector<int> loc_verts2(loc_verts.size()*3);
+    double* loc_verts2 = new double[loc_verts.size()*3];
     
-    
+    //std::cout << "loczide " << loc_verts.size() << " " << loc_verts.size()*3 << " " << gathered_on_root->nlocs[rank] << std::endl;
+    double * verts;
+    int* nlocs = new int[size];
+    int* offset = new int[size];
+    for(int i=0;i<size;i++)
+    {
+        nlocs[i] = gathered_on_root->nlocs[i]*3;
+        offset[i] = gathered_on_root->offsets[i]*3;
+        
+    }
     if(rank == 0)
     {
-        double * verts = new double[gathered_on_root->length*3];
+        verts = new double[gathered_on_root->length*3];
 
         for(int i=0;i<gathered_on_root->length;i++)
         {
@@ -2118,27 +2119,10 @@ void CollectVerticesPerRank(ParallelArray<int>* ien, Array<double>* xcn_r, MPI_C
             verts[i*3+1] = xcn_r->getVal(gathered_on_root->data[i],1);
             verts[i*3+2] = xcn_r->getVal(gathered_on_root->data[i],2);
             
-            std::cout << xcn_r->nloc << " "  << gathered_on_root->data[i]  << " "<< verts[i*3+0] << " " << " " << verts[i*3+1] << " " << verts[i*3+2] << std::endl;
         }
-        
-        
-        int* nlocs = new int[size];
-        int* offset = new int[size];
-        for(int i=0;i<size;i++)
-        {
-            nlocs[i] = gathered_on_root->nlocs[i]*3;
-            offset[i] = gathered_on_root->offsets[i]*3;
-        }
-        MPI_Scatterv(&verts[0], nlocs, offset, MPI_DOUBLE, &loc_verts2[0], loc_verts.size()*3, MPI_DOUBLE, 0, comm);
-        
-//        for(int i=0;i<loc_verts.size();i++)
-//        {
-//            std::cout << rank << " :: " << loc_verts2[i*3+0] << " " << loc_verts2[i*3+1] << " " << loc_verts2[i*3+2] << std::endl;
-//        }
     }
-    
-    
-    
+
+    MPI_Scatterv(&verts[0], nlocs, offset, MPI_DOUBLE, &loc_verts2[0], loc_verts.size()*3, MPI_DOUBLE, 0, comm);
 }
 
 
@@ -2839,22 +2823,22 @@ int main(int argc, char** argv) {
     
     TestReadInParallelToRoot(comm,info);
     Array<double>*   xcn_on_root  = ReadDataSetFromFileInParallelToRoot<double>(fn_grid,"xcn",comm,info);
-
+//
     ParallelArray<int>*      ien = ReadDataSetFromFileInParallel<int>(fn_conn,"ien",comm,info);
-
-    if (world_rank == 0)
-    {
-        for(int i=0;i<xcn_on_root->nloc;i++)
-        {
-            std::cout << i << " :: ";
-            for(int j=0;j<xcn_on_root->ncol;j++)
-            {
-                std::cout << xcn_on_root->getVal(i,j) << " ";
-            }
-            std::cout << std::endl;
-        }
-    }
-    //CollectVerticesPerRank(ien,xcn_on_root,comm);
+    
+//    if (world_rank == 0)
+//    {
+//        for(int i=0;i<xcn_on_root->nloc;i++)
+//        {
+//            std::cout << i << " :: ";
+//            for(int j=0;j<xcn_on_root->ncol;j++)
+//            {
+//                std::cout << xcn_on_root->getVal(i,j) << " ";
+//            }
+//            std::cout << std::endl;
+//        }
+//    }
+    CollectVerticesPerRank(ien,xcn_on_root,comm);
     //duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
     //std::cout << world_rank << " GetAdjacencyForUS3D_V4 = " << duration << std::endl;
     //GetAdjacencyForUS3D_V3();

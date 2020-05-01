@@ -461,7 +461,15 @@ Array<T>* ReadDataSetFromFileInParallelToRoot(const char* file_name, const char*
         offsets_tmp[i] = pv->offsets[i]*ncol;
     }
     
-    MPI_Gatherv(A_pt->data, pv->nlocs[rank]*ncol, MPI_INT, A_ptot->data, nlocs_tmp, offsets_tmp, MPI_INT, 0, comm);
+    if(hid_from_type<T>()==H5T_NATIVE_INT)
+    {
+        MPI_Gatherv(A_pt->data, pv->nlocs[rank]*ncol, MPI_INT, A_ptot->data, nlocs_tmp, offsets_tmp, MPI_INT, 0, comm);
+    }
+    if(hid_from_type<T>()==H5T_NATIVE_DOUBLE)
+    {
+        MPI_Gatherv(A_pt->data, pv->nlocs[rank]*ncol, MPI_DOUBLE, A_ptot->data, nlocs_tmp, offsets_tmp, MPI_DOUBLE, 0, comm);
+    }
+    
 
     H5Dclose(dset_id);
     H5Fclose(file_id);
