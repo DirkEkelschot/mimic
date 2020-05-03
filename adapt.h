@@ -1,3 +1,6 @@
+#ifndef ADAPT_H
+#define ADAPT_H
+
 // c++ specific datatypes.
 #include <vector>
 #include <math.h>
@@ -20,4 +23,4 @@
 #include <parmetis.h>
 #include <hdf5.h>
 
-
+#endif
