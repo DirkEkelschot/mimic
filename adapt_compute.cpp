@@ -3,6 +3,10 @@
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #define MAX(a,b) (((a)>(b))?(a):(b))
 
+
+
+
+
 double ComputeDetJac(double *P0,double *P1,double *P2,double *P3)
 {
     
@@ -358,6 +362,15 @@ double ComputeDeterminantJ(double*P, int np)
     
     return DetJ;
     
+}
+
+
+Array<double>* ComputeHessian(Partition* pa)
+{
+    int ndim = pa->ndim;
+    Array<double>* H = new Array<double>(pa->ien->nloc,ndim);
+    
+    return H;
 }
 
 

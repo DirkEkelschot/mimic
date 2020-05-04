@@ -195,12 +195,11 @@ for group in data.keys():
 
 print("========= ifn ==========")
 print(ifn)
-'''
 
 print("========================================================")
 print("==================== Print Data data ===================")
 print("========================================================")
-filename = '../data_files/data_msl.h5'
+filename = 'data.h5.old'
 data = h5.File(filename, 'r')
 for group in data.keys():
     if isinstance(data[group], h5.Group):
@@ -232,7 +231,7 @@ for group in data.keys():
 print("bnds=",len(bnds[0,:]),len(bnds[:,0]))
 print("bnds array",bnds[0,:])
 print("bvnames = ",bvnames)
-'''
+
 #print("interior=",len(interior[0,:]),len(interior[:,0]))
 #Points = np.zeros((8,3));
 #print("interior array",interior[:])

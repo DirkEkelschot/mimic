@@ -180,6 +180,8 @@ struct TmpStruct
 
 struct LocalPartitionData
 {
+  
+    
     std::map<int, int> loc2glob_el;
     std::map<int, int> glob2loc_el;
     
@@ -194,6 +196,9 @@ struct LocalPartitionData
 
 struct Partition
 {
+    
+    int ndim;
+    
     std::map<int, int> loc2glob_Vmap;
     std::map<int, int> glob2loc_Vmap;
     

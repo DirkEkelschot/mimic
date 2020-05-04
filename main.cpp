@@ -1968,14 +1968,11 @@ int main(int argc, char** argv) {
 
     ParallelArray<int>* ien = ReadDataSetFromFileInParallel<int>(fn_conn,"ien",comm,info);
     
+    
+    
     Partition* pv = CollectVerticesPerRank(ien,xcn_on_root,comm);
 
     Array<double>* dJ = ComputeDeterminantofJacobian(pv);
-    
-    for(int i=0;i<dJ->nloc;i++)
-    {
-        //std::cout << dJ->getVal(i,0) << std::endl;
-    }
     
     OutputQuantityPartition(pv,dJ,comm);
     
