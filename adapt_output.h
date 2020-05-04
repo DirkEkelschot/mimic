@@ -6,6 +6,8 @@
 
 using namespace std;
 
+void OutputQuantityPartition(Partition* pa, Array<double>* Quan, MPI_Comm comm);
+
 void OutputPartionVolumes(ParallelArray<int>* ien, Array<double>* xcn_on_root, MPI_Comm comm);
 
 void OutputPartitionFaces();

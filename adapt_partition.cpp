@@ -346,6 +346,8 @@ Partition* CollectVerticesPerRank(ParallelArray<int>* ien, Array<double>* xcn_r,
     part->loc2glob_Varr = loc2glob_vert;
     part->glob2loc_Varr = glob2loc_vert;
     
+    part->ien = ien;
+    
     if(rank == 0)
     {
         verts = new double[gathered_on_root->length*3];

@@ -4,6 +4,86 @@
 
 using namespace std;
 
+void OutputQuantityPartition(Partition* pa, Array<double>* Quan, MPI_Comm comm)
+{
+    int size;
+    MPI_Comm_size(comm, &size);
+    // Get the rank of the process
+    int rank;
+    MPI_Comm_rank(comm, &rank);
+    
+    
+    int gid;
+    int lid;
+    Vert V;
+    
+    //set<int> gid_set;
+    int nvert = 0;
+    std::map<int,Vert> vert_out;
+    std::map<int,double> quan_out;
+    int v=0;int u=0;int el=0;
+    int* l_vert_id = new int[pa->ien->nloc*(pa->ien->ncol-1)];
+    map< int, int > gid_set;
+
+    double Q;
+    for(int i=0;i<pa->ien->nloc;i++)
+    {
+        Q = Quan->getVal(i,0);
+        for(int j=0;j<pa->ien->ncol-1;j++)
+        {
+            gid = pa->ien->getVal(i,j+1)-1;
+            lid = pa->glob2loc_Vmap[gid];
+            
+            if ( gid_set.find( gid ) != gid_set.end() )
+            {
+                l_vert_id[el*(pa->ien->ncol-1)+j]=gid_set[gid];
+            }
+            else
+            {
+                l_vert_id[el*(pa->ien->ncol-1)+j]=v;
+                
+                V.x = pa->Verts->getVal(lid,0);
+                V.y = pa->Verts->getVal(lid,1);
+                V.z = pa->Verts->getVal(lid,2);
+                
+                vert_out[u] = V;
+                quan_out[u] = Q;
+                u++;
+            }
+            v++;
+        }
+        el++;
+    }
+    
+    string filename = "quantity_rank_" + std::to_string(rank) + ".dat";
+    ofstream myfile;
+    myfile.open(filename);
+    myfile << "TITLE=\"volume_part_"  + std::to_string(rank) +  ".tec\"" << std::endl;
+    myfile <<"VARIABLES = \"X\", \"Y\", \"Z\", \"dJ\"" << std::endl;
+    myfile <<"ZONE N = " << vert_out.size() << ", E = " << pa->ien->nloc << ", DATAPACKING = POINT, ZONETYPE = FEBRICK" << std::endl;
+    
+    std::cout << "number of nodes -> " << vert_out.size() << std::endl;
+    
+    for(int i=0;i<vert_out.size();i++)
+    {
+       myfile << vert_out[(i)].x << "   " << vert_out[(i)].y << "   " << vert_out[(i)].z << "   " << quan_out[(i)] << std::endl;
+    }
+
+    for(int i=0;i<pa->ien->nloc;i++)
+    {
+       myfile << l_vert_id[i*8+0]+1 << "  " <<
+                 l_vert_id[i*8+1]+1 << "  " <<
+                 l_vert_id[i*8+2]+1 << "  " <<
+                 l_vert_id[i*8+3]+1 << "  " <<
+                 l_vert_id[i*8+4]+1 << "  " <<
+                 l_vert_id[i*8+5]+1 << "  " <<
+                 l_vert_id[i*8+6]+1 << "  " <<
+                 l_vert_id[i*8+7]+1 << std::endl;
+    }
+    myfile.close();
+}
+
+
 void OutputPartionVolumes(ParallelArray<int>* ien, Array<double>* xcn_on_root, MPI_Comm comm)
 {
     int size;

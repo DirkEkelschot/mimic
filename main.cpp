@@ -1949,8 +1949,8 @@ int main(int argc, char** argv) {
     
 //============================================================
     
-    const char* fn_conn="grids/adept/conn.h5";
-    const char* fn_grid="grids/adept/grid.h5";
+    const char* fn_conn="grids/piston/conn.h5";
+    const char* fn_grid="grids/piston/grid.h5";
     
     Array<int>*    zdefs = ReadDataSetFromGroupFromFile<int>(fn_conn,"zones","zdefs");
     Array<char>*  znames = ReadDataSetFromGroupFromFile<char>(fn_conn,"zones","znames");
@@ -1970,11 +1970,14 @@ int main(int argc, char** argv) {
     
     Partition* pv = CollectVerticesPerRank(ien,xcn_on_root,comm);
 
-    
     Array<double>* dJ = ComputeDeterminantofJacobian(pv);
-    //double* Jaccie = ComputeDeterminantofJacobian(xcn,ien,nloc,offset,var_el);
     
-    //double* Vollie = ComputeVolumeCells(xcn,ien);
+    for(int i=0;i<dJ->nloc;i++)
+    {
+        //std::cout << dJ->getVal(i,0) << std::endl;
+    }
+    
+    OutputQuantityPartition(pv,dJ,comm);
     
     MPI_Finalize();
     return 0;
