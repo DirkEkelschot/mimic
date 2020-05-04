@@ -10,6 +10,7 @@
 #include <string>
 #include <utility>
 #include <math.h>
+#include <ctime>
 // c++ specific tools.
 #include <algorithm>
 #include <string.h>
