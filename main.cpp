@@ -1193,52 +1193,32 @@ void TestFindRank()
 
 
 
-
-
-
 void Example3DPartitioningWithParVarParMetis()
 {
     MPI_Comm comm = MPI_COMM_WORLD;
+    MPI_Info info = MPI_INFO_NULL;
     int world_size;
     MPI_Comm_size(comm, &world_size);
 
     // Get the rank of the process
     int world_rank;
     MPI_Comm_rank(comm, &world_rank);
+
+    ParallelArray<int>*   ien = ReadDataSetFromFileInParallel<int>("tools/test_grid.h5","ien",comm,info);
     
-    
-    int nel = 8;
+    int nel = ien->nglob;
     int * eltype = new int[nel];
-    
-    eltype[0] = 8;
-    eltype[1] = 8;
-    eltype[2] = 8;
-    eltype[3] = 8;
-    eltype[4] = 8;
-    eltype[5] = 8;
-    eltype[6] = 8;
-    eltype[7] = 8;
-    
+
     int npo   = 0;
-    
+
     for(int i = 0;i < nel; i++)
     {
+        eltype[i] = 8;
         npo += eltype[i];
     }
-    
-    Array<int>* e2n = new Array<int>(8,8);
-    
-    e2n->setVal(0,0,0);e2n->setVal(0,1,1);e2n->setVal(0,2,6);e2n->setVal(0,3,5);    e2n->setVal(0,4,14+0);e2n->setVal(0,5,14+1);e2n->setVal(0,6,14+6);e2n->setVal(0,7,14+5);
-    e2n->setVal(1,0,1);e2n->setVal(1,1,2);e2n->setVal(1,2,7);e2n->setVal(1,3,6);    e2n->setVal(1,4,14+1);e2n->setVal(1,5,14+2);e2n->setVal(1,6,14+7);e2n->setVal(1,7,14+6);
-    e2n->setVal(2,0,2);e2n->setVal(2,1,3);e2n->setVal(2,2,8);e2n->setVal(2,3,7);    e2n->setVal(2,4,14+2);e2n->setVal(2,5,14+3);e2n->setVal(2,6,14+8);e2n->setVal(2,7,14+7);
-    e2n->setVal(3,0,3);e2n->setVal(3,1,4);e2n->setVal(3,2,9);e2n->setVal(3,3,8);    e2n->setVal(3,4,14+3);e2n->setVal(3,5,14+4);e2n->setVal(3,6,14+9);e2n->setVal(3,7,14+8);
-    e2n->setVal(4,0,5);e2n->setVal(4,1,6);e2n->setVal(4,2,11);e2n->setVal(4,3,10);  e2n->setVal(4,4,14+5);e2n->setVal(4,5,14+6);e2n->setVal(4,6,14+11);e2n->setVal(4,7,14+10);
-    e2n->setVal(5,0,6);e2n->setVal(5,1,7);e2n->setVal(5,2,12);e2n->setVal(5,3,11);  e2n->setVal(5,4,14+6);e2n->setVal(5,5,14+7);e2n->setVal(5,6,14+12);e2n->setVal(5,7,14+11);
-    e2n->setVal(6,0,7);e2n->setVal(6,1,8);e2n->setVal(6,2,13);e2n->setVal(6,3,12);  e2n->setVal(6,4,14+7);e2n->setVal(6,5,14+8);e2n->setVal(6,6,14+13);e2n->setVal(6,7,14+12);
-    e2n->setVal(7,0,8);e2n->setVal(7,1,9);e2n->setVal(7,2,14);e2n->setVal(7,3,13);  e2n->setVal(7,4,14+8);e2n->setVal(7,5,14+9);e2n->setVal(7,6,14+14);e2n->setVal(7,7,14+14);
 
-    ParVar_ParMetis* pv_parmetis = CreateParallelDataParmetis(e2n,comm,8);
-    
+    ParVar_ParMetis* pv_parmetis = CreateParallelDataParmetis(ien,comm,8);
+
     idx_t numflag_[] = {0};
     idx_t *numflag = numflag_;
     idx_t ncommonnodes_[] = {4};
@@ -1256,7 +1236,7 @@ void Example3DPartitioningWithParVarParMetis()
     real_t *ubvec    = ubvec_;
 
     idx_t *elmwgt;
-    
+
     real_t itr_[]    = {1.05};
     real_t *itr      = itr_;
     int np           = world_size;
@@ -1268,31 +1248,23 @@ void Example3DPartitioningWithParVarParMetis()
     {
         tpwgts[i] = 1.0/np;
     }
-    
+
     idx_t nparts_[] = {np};
     idx_t *nparts = nparts_;
-    
+
     idx_t part_[]    = {pv_parmetis->nlocs[world_rank]};
     idx_t *part      = part_;
-    
-    
+
+
     ParMETIS_V3_PartMeshKway(pv_parmetis->elmdist, pv_parmetis->eptr, pv_parmetis->eind, elmwgt, wgtflag, numflag, ncon, ncommonnodes, nparts, tpwgts, ubvec, options, &edgecut, part, &comm);
-    
-//    if(world_rank == 1)
-//    {
-//        for(int i = 0; i < pv_parmetis->nlocs[world_rank]; i++)
-//        {
-//            std::cout << part[i] << std::endl;
-//        }
-//    }
-    
+
     ParMETIS_V3_Mesh2Dual(pv_parmetis->elmdist,pv_parmetis->eptr,pv_parmetis->eind,numflag,ncommonnodes,&xadj,&adjncy,&comm);
-    
+
     idx_t *nparts2 = nparts_;
-    
+
     ParMETIS_V3_AdaptiveRepart(pv_parmetis->elmdist, xadj, adjncy, elmwgt, adjwgt, vsize, wgtflag, numflag, ncon, nparts2, tpwgts, ubvec, itr, options, &edgecut, part, &comm);
-    
-    
+
+
 //    if(world_rank == 1)
 //    {
 //        for(int i = 0; i < pv_parmetis->nlocs[world_rank]; i++)
@@ -1300,39 +1272,44 @@ void Example3DPartitioningWithParVarParMetis()
 //            std::cout << part[i] << std::endl;
 //        }
 //    }
-    
+
     int rank = 0;
-    
+
     int* arr_res = new int[9];
     arr_res[0] = 1;arr_res[1] = 4;arr_res[2] = 0;arr_res[3] = 2;
     arr_res[4] = 5;arr_res[5] = 1;arr_res[6] = 3;arr_res[7] = 6;arr_res[8] = 2;
     int fail = 0;
-    
+
     if(world_rank == rank)
     {
-    
+
 //        for(int i=0;i<pv_parmetis->nlocs[world_rank]+1;i++)
 //        {
 //            std::cout << xadj[i] << " --> ";
 //        }
-        
+
         for(int j=0;j<xadj[pv_parmetis->nlocs[world_rank]];j++)
         {
-//            std::cout << adjncy[j] << " ";
-            
+            std::cout << adjncy[j] << " ";
+
             if(adjncy[j]-arr_res[j]!=0)
             {
                 fail = 1;
             }
         }
-        
+
         if (fail == 0)
         {
             std::cout << "The ParVar_ParMetis test has passed!" << std::endl;
         }
         else
         {
-            std::cout << "The ParVar_ParMetis test has failed!" << std::endl;
+            std::cout << "The ParVar_ParMetis test has failed" << std::endl;
+            std::cout << "=============Suggetions============" << std::endl;
+            std::cout << " 1) Make sure you run this test using 4 processors!!!" << std::endl;
+            std::cout << " 2) Make sure you run make_test_array.py in the tools folder which generates the test mesh." << std::endl;
+            std::cout << "===================================" << std::endl;
+
         }
     }
 }
@@ -1472,24 +1449,12 @@ void ExampleUS3DPartitioningWithParVarParMetis()
     int world_rank;
     MPI_Comm_rank(comm, &world_rank);
     
-    const char* fn_conn="grids/adept/conn.h5";
-    const char* fn_grid="grids/adept/grid.h5";
-    Array<double>*      xcn = ReadDataSetFromFile<double>(fn_grid,"xcn");
-    Array<int>*         ien = ReadDataSetFromFile<int>(fn_conn,"ien");
-    Array<int>* ife         = ReadDataSetFromFile<int>(fn_conn,"ife");
-    ParallelArray<int>* ief = ReadDataSetFromFileInParallel<int>(fn_conn,"ief",comm,info);
+    const char* fn_conn="grids/piston/conn.h5";
+    const char* fn_grid="grids/piston/grid.h5";
+    ParallelArray<int>*   ien = ReadDataSetFromFileInParallel<int>(fn_conn,"ien",comm,info);
 
-//    std::cout << ife->nloc << " " << ief->nloc << " " << xcn->nloc << std::endl;
-//    //Array<double>*   ifn = ReadDataSetFromFile<double>(fn_grid,"ifn");
-//    //Array<int>*      ief = ReadDataSetFromFile<int>(fn_conn,"ief");
-//    int nelem = ien->nloc;
-//    GetAdjacencyForUS3D_V2(ief,nelem,comm);
-//
-//    std::cout << "secodn time " << ife->nloc << " " << ief->nloc << " " << xcn->nloc << std::endl;
-//
-//    //GetAdjacencyForUS3D(ife,ief,nelem,comm);
-    Array<int>* ien_copy = new Array<int>(ien->nloc,ien->ncol-1);
-//
+    ParallelArray<int>* ien_copy = new ParallelArray<int>(ien->nloc,ien->ncol-1,ien->pv);
+    ien_copy->nglob = ien->nglob;
     int val = 0.0;
 //
     for(int i=0;i<ien->nloc;i++)
@@ -1552,132 +1517,19 @@ void ExampleUS3DPartitioningWithParVarParMetis()
     }
     
     int status = ParMETIS_V3_Mesh2Dual(pv_parmetis->elmdist, pv_parmetis->eptr, pv_parmetis->eind, numflag, ncommonnodes, &xadj, &adjncy, &comm);
-
-    status = ParMETIS_V3_AdaptiveRepart(pv_parmetis->elmdist, xadj, adjncy, elmwgt, adjwgt, vsize, wgtflag, numflag, ncon, nparts, tpwgts, ubvec, itr, options, &edgecut, part, &comm);
     
-    //std::cout << "status3 " << world_rank << " " << status << std::endl;
-
-    
-//    std::vector<int> xadj_vec;
-//    std::vector<int> adjcny_vec;
-//    set<int> b_id_unique;
-//    std::vector<int> b_id_unique_vec;
-//    int cnt = 0;
-//    std::clock_t start;
-//    double duration;
-////    start = std::clock();
 //    for(int i=0;i<nloc;i++)
 //    {
-//        if(xadj[i+1]-xadj[i]<6)
+//        std::cout << "rank = " << world_rank << "  el = " << i+pv_parmetis->elmdist[world_rank] << " ---> ";
+//        for(int j=xadj[i];j<xadj[i+1];j++)
 //        {
-//            xadj_vec.push_back(xadj[i]);
-//            xadj_vec.push_back(xadj[i+1]);
-//
-//            for(int j=xadj[i];j<xadj[i+1];j++)
-//            {
-//                adjcny_vec.push_back(adjncy[j]);
-//
-//                if(b_id_unique.find(adjncy[j]) == b_id_unique.end())
-//                {
-//                    b_id_unique.insert(adjncy[j]);
-//                    b_id_unique_vec.push_back(adjncy[j]);
-//                }
-//            }
-//            cnt++;
+//            std::cout << adjncy[j] << " ";
 //        }
-//    }//    std::clock_t start;
-//    double duration;
-////    duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
-////    std::cout << world_rank << " filtering boundaries = " << duration << " " << b_id_unique.size() << std::endl;
-////    std::vector<int>::iterator it;
-//    std::map<int, int> unique_vid;
-//    Vert p;
-//    int n_bc_element = b_id_unique.size();
-//    std::map<int, Vert> bel_map;
-//    cnt=0;
-//    int tel=0;
-//    int* LocVert = new int[n_bc_element*8];
-//    for(int i=0;i<b_id_unique_vec.size();i++)
-//    {
-//        int id = b_id_unique_vec[i];
+//        std::cout << std::endl;
 //
-//        for(int j=0;j<8;j++)
-//        {
-//            val = ien_copy->getVal(id,j);
-//            if(unique_vid.find(val) != unique_vid.end())
-//            {
-//                LocVert[tel*8+j]=unique_vid[val];
-//            }
-//            else
-//            {
-//                unique_vid[val]  = cnt;
-//                LocVert[tel*8+j] = cnt;
-//                p.x = xcn->getVal(val,0);
-//                p.y = xcn->getVal(val,1);
-//                p.z = xcn->getVal(val,2);
-//                bel_map[cnt] = p;
-//                cnt++;
-//            }
-//        }
-//        tel++;
 //    }
-//
-////    for(int j=b_start;j<b_end;j++)
-////    {
-////        for(int k=0;k<4;k++)
-////        {
-////            int val = ifn->getVal(j,k+1);
-////
-////            if ( Loc2GlobBound.find( val ) != Loc2GlobBound.end() )
-////            {
-////                Loc[tel*4+k]=Loc2GlobBound[val];
-////            }
-////            else
-////            {
-////                Loc2GlobBound[val] = cnt;
-////                Loc[tel*4+k]=cnt;
-////                V.x = xcn->getVal(val-1,0);
-////                V.y = xcn->getVal(val-1,1);
-////                V.z = xcn->getVal(val-1,2);
-////                BC_verts[cnt] = V;
-////                //std::cout << detJ_verts->getVal(val-1,0)*1.0e08 << std::endl;
-////
-////                J_verts[cnt]  = detJ_verts[val-1];
-////                V_verts[cnt]  = vol_verts[val-1];
-////                Jno_verts[cnt]  = Jnorm_verts[val-1];
-////                cnt++;
-////            }
-////        }
-////        tel++;
-////    }
-//
-//    string filename = "boundaryelements_per_rank_" + std::to_string(world_rank) + ".dat";
-//    ofstream myfile;
-//    myfile.open(filename);
-//    myfile << "TITLE=\"boundary.tec\"" << std::endl;
-//    myfile <<"VARIABLES = \"X\", \"Y\", \"Z\"" << std::endl;
-//    myfile <<"ZONE N = " << bel_map.size() << ", E = " << n_bc_element << ", DATAPACKING = POINT, ZONETYPE = FEBRICK" << std::endl;
-//
-//    std::cout << "number of boundary nodes -> " << bel_map.size() << std::endl;
-//
-//    for(int i=0;i<bel_map.size();i++)
-//    {
-//       myfile << bel_map[(i)].x << "   " << bel_map[(i)].y << "   " << bel_map[(i)].z << std::endl;
-//    }
-//
-//    for(int i=0;i<n_bc_element;i++)
-//    {
-//       myfile << LocVert[i*8+0]+1 << "    " << LocVert[i*8+1]+1 << "   " << LocVert[i*8+2]+1 << "  " << LocVert[i*8+3]+1 << "  " << LocVert[i*8+4]+1 << "  " << LocVert[i*8+5]+1 << "  " << LocVert[i*8+6]+1 << "  " << LocVert[i*8+7]+1 << std::endl;
-//    }
-//    myfile.close();
-    
-    //delete[] LocVert;
-//    delete xcn;
-//    delete ien;
-//    //delete ifn;
-//    //delete ief;
-//    delete ien_copy;
-//    delete pv_parmetis;
+    //status = ParMETIS_V3_AdaptiveRepart(pv_parmetis->elmdist, xadj, adjncy, elmwgt, adjwgt, vsize, wgtflag, numflag, ncon, nparts, tpwgts, ubvec, itr, options, &edgecut, part, &comm);
+
 }
 
 
@@ -1946,7 +1798,8 @@ int main(int argc, char** argv) {
     MPI_Comm_rank(comm, &world_rank);
     
     //GetXadjandAdjcyArrays(iee,ien,comm);
-    
+    Example3DPartitioningWithParVarParMetis();
+    ExampleUS3DPartitioningWithParVarParMetis();
 //============================================================
     
     const char* fn_conn="grids/adept/conn.h5";

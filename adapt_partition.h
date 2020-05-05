@@ -19,7 +19,7 @@ ParVar* CreateParallelData(int N, MPI_Comm comm);
 // an int* in order to allow for hybrid meshes.
 // e2n has the Nvert per element stored consecutively for each element. Hence this array is Nel*NvertPerElement long.
 
-ParVar_ParMetis* CreateParallelDataParmetis(Array<int>* e2n, MPI_Comm comm, int type);
+ParVar_ParMetis* CreateParallelDataParmetis(ParallelArray<int>* e2n, MPI_Comm comm, int type);
 
 
 Partition* CollectVerticesPerRank(ParallelArray<int>* ien, Array<double>* xcn_r, MPI_Comm comm);

@@ -681,7 +681,7 @@ ParVar* CreateParallelData(int N, MPI_Comm comm)
 // an int* in order to allow for hybrid meshes.
 // e2n has the Nvert per element stored consecutively for each element. Hence this array is Nel*NvertPerElement long.
 
-ParVar_ParMetis* CreateParallelDataParmetis(Array<int>* e2n, MPI_Comm comm, int type)
+ParVar_ParMetis* CreateParallelDataParmetis(ParallelArray<int>* e2n, MPI_Comm comm, int type)
 {
     int size;
     MPI_Comm_size(comm, &size);
@@ -689,7 +689,7 @@ ParVar_ParMetis* CreateParallelDataParmetis(Array<int>* e2n, MPI_Comm comm, int 
     // Get the rank of the process;
     int rank;
     MPI_Comm_rank(comm, &rank);
-    int Nel = e2n->nloc;
+    int Nel = e2n->nglob;
     //std::cout << "number of elements = " << Nel;
     int nloc             = int(Nel/size) + ( rank < Nel%size );
     //  compute offset of rows for each proc;
@@ -751,7 +751,7 @@ ParVar_ParMetis* CreateParallelDataParmetis(Array<int>* e2n, MPI_Comm comm, int 
     MPI_Allreduce(npo_offset,   red_npo_offset, size+1,   MPI_INT, MPI_SUM, comm);
 
     red_elm_dist[size] = Nel;
-    red_npo_offset[size] = Nel*8;
+    red_npo_offset[size] = Nel*type;
 
     
     int* eptr = new int[nloc+1];
@@ -763,7 +763,7 @@ ParVar_ParMetis* CreateParallelDataParmetis(Array<int>* e2n, MPI_Comm comm, int 
         
         for(int j=eptr[i];j<eptr[i+1];j++)
         {
-            eind[j] = e2n->data[npo_offset[rank]+j];
+            eind[j] = e2n->data[j];
         }
     }
     
