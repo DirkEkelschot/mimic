@@ -161,7 +161,7 @@ Array<T>* ReadDataSetFromRunInFile(const char* file_name, const char* run_name,c
 
 
 template<typename T>
-Array<T> ReadDataSetFromRunInFileInParallel(const char* file_name, const char* run_name,const char* dataset_name, MPI_Comm comm, MPI_Info info)
+ParallelArray<T>* ReadDataSetFromRunInFileInParallel(const char* file_name, const char* run_name,const char* dataset_name, MPI_Comm comm, MPI_Info info)
 {
     int size;
     MPI_Comm_size(comm, &size);
@@ -183,25 +183,21 @@ Array<T> ReadDataSetFromRunInFileInParallel(const char* file_name, const char* r
     int ncol             = dims[1];
     int N                = nrow;
 
-    //Partition the array;
-    // compute local number of rows per proc;
-    int nloc             = int(N/size) + ( rank < N%size );
-    //  compute offset of rows for each proc;
-    int offset           = rank*int(N/size) + MIN(rank, N%size);
+    ParVar* pv = CreateParallelData(N, comm);
     
-    Array<T> A_ptmp(nloc,ncol,offset);
-    
+    ParallelArray<T>* A_ptmp = new ParallelArray<T>(pv->nlocs[rank],ncol,pv);
+    A_ptmp->nglob = N;
     hsize_t              offsets[2];
     hsize_t              counts[2];
-    offsets[0]           = offset;
+    offsets[0]           = pv->offsets[rank];
     offsets[1]           = 0;
-    counts[0]            = nloc;
+    counts[0]            = pv->nlocs[rank];
     counts[1]            = ncol;
     
     ret=H5Sselect_hyperslab(dspace, H5S_SELECT_SET, offsets, NULL, counts, NULL);
     
     hsize_t     dimsm[2];
-    dimsm[0] = nloc;
+    dimsm[0] = pv->nlocs[rank];
     dimsm[1] = ncol;
     
     hid_t memspace = H5Screate_simple (2, dimsm, NULL);
@@ -210,7 +206,7 @@ Array<T> ReadDataSetFromRunInFileInParallel(const char* file_name, const char* r
     hsize_t     counts_out[2];
     offsets_out[0] = 0;
     offsets_out[1] = 0;
-    counts_out[0]  = nloc;
+    counts_out[0]  = pv->nlocs[rank];
     counts_out[1]  = ncol;
     
     ret = H5Sselect_hyperslab (memspace, H5S_SELECT_SET, offsets_out, NULL,counts_out, NULL);
@@ -218,7 +214,7 @@ Array<T> ReadDataSetFromRunInFileInParallel(const char* file_name, const char* r
     std::clock_t start;
     double duration;
     start = std::clock();
-    ret = H5Dread (dset_id, hid_from_type<T>(), memspace, dspace, H5P_DEFAULT, A_ptmp.data);
+    ret = H5Dread (dset_id, hid_from_type<T>(), memspace, dspace, H5P_DEFAULT, A_ptmp->data);
     duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
     std::cout << "timer_parallel = " << duration << std::endl;
     /*
@@ -300,7 +296,7 @@ ParallelArray<T>* ReadDataSetFromFileInParallel(const char* file_name, const cha
     
     ParVar* pv = CreateParallelData(N, comm);
     
-    Array<T>* A_pt             = new Array<T>(pv->nlocs[rank],ncol);
+    //Array<T>* A_pt             = new Array<T>(pv->nlocs[rank],ncol);
     ParallelArray<T>* A_pt_par = new ParallelArray<T>(pv->nlocs[rank],ncol,pv);
     A_pt_par->nglob = N;
     hsize_t              offsets[2];
