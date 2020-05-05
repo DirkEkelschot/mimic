@@ -1,14 +1,9 @@
 OBJECTS = adapt_output.cpp adapt_compute.cpp adapt_partition.cpp adapt_operations.cpp main.cpp
 
-HDF5_HOME = /u/smurman/share/eddy/hdf5-1.10.1
-PARMETIS_HOME = /u/smurman/share/eddy/parmetis-4.0.3
-MPI_HOME = /nasa/hpe/mpt/2.17r13
-CXXFLAGS += -std=c++11 -DMPI_NO_CPPBIND -I$(MPI_HOME)/include
-
-LDFLAGS += -L$(MPI_HOME)/lib
+CXXFLAGS += -std=c++11 -DMPI_NO_CPPBIND
 
 LDLIBS += -lmpi -lparmetis -lmetis -lhdf5 -mkl
 
 all:
-	icpc $(CXXFLAGS) $(OBJECTS) -o adapt $(LDFLAGS) $(LDLIBS)
+	icpc $(CXXFLAGS) $(OBJECTS) -o adapt $(LDLIBS)
 #	rm -rf *.o *.mod
