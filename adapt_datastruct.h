@@ -207,6 +207,9 @@ struct Partition
     
     Array<double>* Verts;
     Array<int>* ien;
+    
+    int* xadj;
+    int* adjncy;
 };
 
 

@@ -296,26 +296,92 @@ Partition* CollectVerticesPerRank(ParallelArray<int>* ien, Array<double>* xcn_r,
     // Get the rank of the process
     int rank;
     MPI_Comm_rank(comm, &rank);
+    
+    ParallelArray<int>* ien_copy = new ParallelArray<int>(ien->nloc,ien->ncol-1,ien->pv);
+    ien_copy->nglob = ien->nglob;
+    for(int i=0;i<ien->nloc;i++)
+    {
+        for(int j=0;j<ien->ncol-1;j++)
+        {
+            ien_copy->setVal(i,j,ien->getVal(i,j+1));
+        }
+    }
+
+    //=================================================================
+    //=================================================================
+    //=================================================================
+    
+    ParVar_ParMetis* pv_parmetis = CreateParallelDataParmetis(ien_copy,comm,8);
+    
+    idx_t numflag_[] = {0};
+    idx_t *numflag = numflag_;
+    idx_t ncommonnodes_[] = {4};
+    idx_t *ncommonnodes = ncommonnodes_;
+    int edgecut      = 0;
+    idx_t *xadj      = NULL;
+    idx_t *adjncy    = NULL;
+    idx_t *adjwgt    = NULL;
+    idx_t *vsize     = NULL;
+    idx_t options_[] = {0, 0, 0};
+    idx_t *options   = options_;
+    idx_t wgtflag_[] = {0};
+    idx_t *wgtflag   = wgtflag_;
+    real_t ubvec_[]  = {1.05};
+    real_t *ubvec    = ubvec_;
+
+    idx_t *elmwgt;
+
+    real_t itr_[]    = {1.05};
+    real_t *itr      = itr_;
+    int np           = size;
+    idx_t ncon_[]    = {1};
+    idx_t *ncon      = ncon_;
+    real_t *tpwgts   = new real_t[np*ncon[0]];
+
+    for(int i=0; i<np*ncon[0]; i++)
+    {
+        tpwgts[i] = 1.0/np;
+    }
+
+    idx_t nparts_[] = {np};
+    idx_t *nparts = nparts_;
+
+    idx_t part_[]    = {pv_parmetis->nlocs[rank]};
+    idx_t *part      = part_;
+    //=================================================================
+    //=================================================================
+    //=================================================================
+    
+    ParMETIS_V3_Mesh2Dual(pv_parmetis->elmdist,pv_parmetis->eptr,pv_parmetis->eind,numflag,ncommonnodes,&xadj,&adjncy,&comm);
+    
     std::map<int,int> loc2glob;
     std::map<int,int> glob2loc;
     Array<int>* loc2glob_vert = new Array<int>(ien->nloc,ien->ncol-1);
     Array<int>* glob2loc_vert = new Array<int>(ien->nloc,ien->ncol-1);
+
     std::vector<int> loc_verts;
     set<int> loc_verts_set;
     int gid = 0;
     int nverts_req;
     int lid = 0;
+    
     for(int i=0;i<ien->nloc;i++)
     {
-        for(int j=0;j<ien->ncol-1;j++)
+        int glob_id = i+pv_parmetis->elmdist[rank];
+        if ( loc_verts_set.find( glob_id ) == loc_verts_set.end() )
         {
-            gid = ien->getVal(i,j+1)-1;
-            loc2glob_vert->setVal(i,j,lid);
-            glob2loc_vert->setVal(i,j,gid);
-            if ( loc_verts_set.find( gid ) == loc_verts_set.end() )
+            loc_verts.push_back(glob_id);
+            loc_verts_set.insert(glob_id);
+            loc2glob[lid] = gid;
+            glob2loc[gid] = lid;
+            lid++;
+        }
+        for(int j=xadj[i];j<xadj[i+1];j++)
+        {
+            if ( loc_verts_set.find( adjncy[j] ) == loc_verts_set.end() )
             {
-                loc_verts.push_back(gid);
-                loc_verts_set.insert(gid);
+                loc_verts.push_back(adjncy[j]);
+                loc_verts_set.insert(adjncy[j]);
                 loc2glob[lid] = gid;
                 glob2loc[gid] = lid;
                 lid++;
@@ -334,20 +400,23 @@ Partition* CollectVerticesPerRank(ParallelArray<int>* ien, Array<double>* xcn_r,
     {
         nlocs[i] = gathered_on_root->nlocs[i]*3;
         offset[i] = gathered_on_root->offsets[i]*3;
-        
     }
     
-    Partition* part = new Partition;
+    Partition* parti = new Partition;
     
-    part->Verts = new Array<double>(loc_verts.size(),3);
-    part->loc2glob_Vmap = loc2glob;
-    part->glob2loc_Vmap = glob2loc;
+    parti->Verts = new Array<double>(loc_verts.size(),3);
     
-    part->loc2glob_Varr = loc2glob_vert;
-    part->glob2loc_Varr = glob2loc_vert;
+    parti->loc2glob_Vmap = loc2glob;
+    parti->glob2loc_Vmap = glob2loc;
     
-    part->ien = ien;
-    part->ndim = 3;
+    parti->loc2glob_Varr = loc2glob_vert;
+    parti->glob2loc_Varr = glob2loc_vert;
+    
+    parti->xadj = xadj;
+    parti->adjncy = adjncy;
+    parti->ien = ien;
+    parti->ndim = 3;
+    
     if(rank == 0)
     {
         verts = new double[gathered_on_root->length*3];
@@ -361,9 +430,9 @@ Partition* CollectVerticesPerRank(ParallelArray<int>* ien, Array<double>* xcn_r,
         }
     }
 
-    MPI_Scatterv(&verts[0], nlocs, offset, MPI_DOUBLE, &part->Verts->data[0], loc_verts.size()*3, MPI_DOUBLE, 0, comm);
+    MPI_Scatterv(&verts[0], nlocs, offset, MPI_DOUBLE, &parti->Verts->data[0], loc_verts.size()*3, MPI_DOUBLE, 0, comm);
     
-    return part;
+    return parti;
 }
 
 
