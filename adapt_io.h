@@ -1,6 +1,9 @@
 #include "adapt.h"
 #include "adapt_partition.h"
-///#include <ctime>
+#include "adapt_array.h"
+
+#ifndef ADAPT_IO_H
+#define ADAPT_IO_H
 
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #define MAX(a,b) (((a)>(b))?(a):(b))
@@ -148,6 +151,7 @@ Array<T>* ReadDataSetFromRunInFile(const char* file_name, const char* run_name,c
     status = H5Dclose(dset_id);
     status = H5Gclose(group_id);
     status = H5Fclose(file_id);
+    
     return A_t;
 }
 
@@ -161,7 +165,7 @@ Array<T>* ReadDataSetFromRunInFile(const char* file_name, const char* run_name,c
 
 
 template<typename T>
-ParallelArray<T>* ReadDataSetFromRunInFileInParallel(const char* file_name, const char* run_name,const char* dataset_name, MPI_Comm comm, MPI_Info info)
+ParArray<T>* ReadDataSetFromRunInFileInParallel(const char* file_name, const char* run_name,const char* dataset_name, MPI_Comm comm, MPI_Info info)
 {
     int size;
     MPI_Comm_size(comm, &size);
@@ -182,22 +186,20 @@ ParallelArray<T>* ReadDataSetFromRunInFileInParallel(const char* file_name, cons
     int nrow             = dims[0];
     int ncol             = dims[1];
     int N                = nrow;
-
-    ParVar* pv = CreateParallelData(N, comm);
     
-    ParallelArray<T>* A_ptmp = new ParallelArray<T>(pv->nlocs[rank],ncol,pv);
-    A_ptmp->nglob = N;
+    ParArray<T>* A_ptmp = new ParArray<T>(N,ncol,comm);
+    
     hsize_t              offsets[2];
     hsize_t              counts[2];
-    offsets[0]           = pv->offsets[rank];
+    offsets[0]           = A_ptmp->getParallelState()->getOffset(rank);
     offsets[1]           = 0;
-    counts[0]            = pv->nlocs[rank];
+    counts[0]            = A_ptmp->getParallelState()->getNloc(rank);
     counts[1]            = ncol;
     
     ret=H5Sselect_hyperslab(dspace, H5S_SELECT_SET, offsets, NULL, counts, NULL);
     
     hsize_t     dimsm[2];
-    dimsm[0] = pv->nlocs[rank];
+    dimsm[0] = A_ptmp->getParallelState()->getNloc(rank);
     dimsm[1] = ncol;
     
     hid_t memspace = H5Screate_simple (2, dimsm, NULL);
@@ -206,7 +208,7 @@ ParallelArray<T>* ReadDataSetFromRunInFileInParallel(const char* file_name, cons
     hsize_t     counts_out[2];
     offsets_out[0] = 0;
     offsets_out[1] = 0;
-    counts_out[0]  = pv->nlocs[rank];
+    counts_out[0]  = A_ptmp->getParallelState()->getNloc(rank);
     counts_out[1]  = ncol;
     
     ret = H5Sselect_hyperslab (memspace, H5S_SELECT_SET, offsets_out, NULL,counts_out, NULL);
@@ -264,7 +266,7 @@ ParallelArray<T>* ReadDataSetFromRunInFileInParallel(const char* file_name, cons
 
 
 template<typename T>
-ParallelArray<T>* ReadDataSetFromFileInParallel(const char* file_name, const char* dataset_name, MPI_Comm comm, MPI_Info info)
+ParArray<T>* ReadDataSetFromFileInParallel(const char* file_name, const char* dataset_name, MPI_Comm comm, MPI_Info info)
 {
     
     // Get the size of the process;
@@ -293,23 +295,21 @@ ParallelArray<T>* ReadDataSetFromFileInParallel(const char* file_name, const cha
     int nrow             = dims[0];
     int ncol             = dims[1];
     int N                = nrow;
+
+    ParArray<T>* parA     = new ParArray<T>(N,ncol,comm);
+    ParallelState* pstate = parA->getParallelState();
     
-    ParVar* pv = CreateParallelData(N, comm);
-    
-    //Array<T>* A_pt             = new Array<T>(pv->nlocs[rank],ncol);
-    ParallelArray<T>* A_pt_par = new ParallelArray<T>(pv->nlocs[rank],ncol,pv);
-    A_pt_par->nglob = N;
     hsize_t              offsets[2];
     hsize_t              counts[2];
-    offsets[0]           = pv->offsets[rank];
+    offsets[0]           = pstate->getOffset(rank);
     offsets[1]           = 0;
-    counts[0]            = pv->nlocs[rank];
+    counts[0]            = pstate->getNloc(rank);
     counts[1]            = ncol;
     
     ret=H5Sselect_hyperslab(dspace, H5S_SELECT_SET, offsets, NULL, counts, NULL);
     
     hsize_t     dimsm[2];
-    dimsm[0] = pv->nlocs[rank];
+    dimsm[0] = pstate->getNloc(rank);
     dimsm[1] = ncol;
     
     hid_t memspace = H5Screate_simple (2, dimsm, NULL);
@@ -318,12 +318,12 @@ ParallelArray<T>* ReadDataSetFromFileInParallel(const char* file_name, const cha
     hsize_t     counts_out[2];
     offsets_out[0] = 0;
     offsets_out[1] = 0;
-    counts_out[0]  = pv->nlocs[rank];
+    counts_out[0]  = pstate->getNloc(rank);
     counts_out[1]  = ncol;
     
     ret = H5Sselect_hyperslab (memspace, H5S_SELECT_SET, offsets_out, NULL,counts_out, NULL);
     
-    ret = H5Dread (dset_id, hid_from_type<T>(), memspace, dspace, H5P_DEFAULT, A_pt_par->data);
+    ret = H5Dread (dset_id, hid_from_type<T>(), memspace, dspace, H5P_DEFAULT, parA->data);
     
     //double *recv = new double[nrow*ncol];
     //double *data = new double[nloc*ncol];
@@ -339,7 +339,7 @@ ParallelArray<T>* ReadDataSetFromFileInParallel(const char* file_name, const cha
     
     H5Dclose(dset_id);
     H5Fclose(file_id);
-    return A_pt_par;
+    return parA;
 }
 
 
@@ -384,24 +384,26 @@ Array<T>* ReadDataSetFromFileInParallelToRoot(const char* file_name, const char*
     
     //Partition the array;
     // compute local number of rows per proc;
-    ParVar* pv = CreateParallelData(N, comm);
-
-    Array<T>* A_pt = new Array<T>(pv->nlocs[rank],ncol);
+//    ParVar* pv = CreateParallelData(N, comm);
+//
+//    Array<T>* A_pt = new Array<T>(pv->nlocs[rank],ncol);
+//
+//    A_pt->offset = pv->offsets[rank];
+//    A_pt->nglob  = nrow;
+    ParArray<T>* parA     = new ParArray<T>(N,ncol,comm);
     
-    A_pt->offset = pv->offsets[rank];
-    A_pt->nglob  = nrow;
     
     hsize_t              offsets[2];
     hsize_t              counts[2];
-    offsets[0]           = pv->offsets[rank];
+    offsets[0]           = parA->getParallelState()->getOffset(rank);
     offsets[1]           = 0;
-    counts[0]            = pv->nlocs[rank];
+    counts[0]            = parA->getParallelState()->getNloc(rank);
     counts[1]            = ncol;
     
     ret=H5Sselect_hyperslab(dspace, H5S_SELECT_SET, offsets, NULL, counts, NULL);
     
     hsize_t     dimsm[2];
-    dimsm[0] = pv->nlocs[rank];
+    dimsm[0] = parA->getParallelState()->getNloc(rank);
     dimsm[1] = ncol;
     
     hid_t memspace = H5Screate_simple (2, dimsm, NULL);
@@ -410,12 +412,12 @@ Array<T>* ReadDataSetFromFileInParallelToRoot(const char* file_name, const char*
     hsize_t     counts_out[2];
     offsets_out[0] = 0;
     offsets_out[1] = 0;
-    counts_out[0]  = pv->nlocs[rank];
+    counts_out[0]  = parA->getParallelState()->getNloc(rank);
     counts_out[1]  = ncol;
     
     ret = H5Sselect_hyperslab (memspace, H5S_SELECT_SET, offsets_out, NULL,counts_out, NULL);
     
-    ret = H5Dread (dset_id, hid_from_type<T>(), memspace, dspace, H5P_DEFAULT, A_pt->data);
+    ret = H5Dread (dset_id, hid_from_type<T>(), memspace, dspace, H5P_DEFAULT, parA->data);
     
     Array<T>* A_ptot = new Array<T>(N,ncol);
     
@@ -424,25 +426,24 @@ Array<T>* ReadDataSetFromFileInParallelToRoot(const char* file_name, const char*
     
     for(int i=0;i<size;i++)
     {
-        nlocs_tmp[i] = pv->nlocs[i]*ncol;
-        offsets_tmp[i] = pv->offsets[i]*ncol;
+        nlocs_tmp[i] = parA->getParallelState()->getNloc(i)*ncol;
+        offsets_tmp[i] = parA->getParallelState()->getOffset(i)*ncol;
     }
     
     if(hid_from_type<T>()==H5T_NATIVE_INT)
     {
-        MPI_Gatherv(A_pt->data, pv->nlocs[rank]*ncol, MPI_INT, A_ptot->data, nlocs_tmp, offsets_tmp, MPI_INT, 0, comm);
+        MPI_Gatherv(parA->data, parA->getParallelState()->getNloc(rank)*ncol, MPI_INT, A_ptot->data, nlocs_tmp, offsets_tmp, MPI_INT, 0, comm);
     }
     if(hid_from_type<T>()==H5T_NATIVE_DOUBLE)
     {
-        MPI_Gatherv(A_pt->data, pv->nlocs[rank]*ncol, MPI_DOUBLE, A_ptot->data, nlocs_tmp, offsets_tmp, MPI_DOUBLE, 0, comm);
+        MPI_Gatherv(parA->data, parA->getParallelState()->getNloc(rank)*ncol, MPI_DOUBLE, A_ptot->data, nlocs_tmp, offsets_tmp, MPI_DOUBLE, 0, comm);
     }
     
 
     H5Dclose(dset_id);
     H5Fclose(file_id);
     
-    delete A_pt;
-    delete pv;
+    delete parA;
     return A_ptot;
 }
 
@@ -795,3 +796,4 @@ Array<T>* ReadDataSetFromFileInParallelToRoot(const char* file_name, const char*
 //    return V;
 //}
 
+#endif

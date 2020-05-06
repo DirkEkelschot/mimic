@@ -368,7 +368,7 @@ double ComputeDeterminantJ(double*P, int np)
 Array<double>* ComputeHessian(Partition* pa)
 {
     int ndim = pa->ndim;
-    Array<double>* H = new Array<double>(pa->ien->nloc,ndim);
+    Array<double>* H = new Array<double>(pa->ien->getNrow(),ndim);
     
     return H;
 }
@@ -378,7 +378,8 @@ Array<double>* ComputeDeterminantofJacobian(Partition* pa)
 {
     
     int np = 8; // Assuming its all hexes.
-    int nel_loc = pa->ien->nloc;
+    int nel_loc = pa->ien->getNrow();
+    int ncol = pa->ien->getNcol();
     Array<double>* detJ = new Array<double>(nel_loc,1);
     double* P = new double[np*3];
     int Vid, Vlid;
@@ -386,7 +387,7 @@ Array<double>* ComputeDeterminantofJacobian(Partition* pa)
     {
         np = 8;
         
-        for(int j=0;j<pa->ien->ncol-1;j++)
+        for(int j=0;j<ncol-1;j++)
         {
             Vid = pa->ien->getVal(i,j+1)-1;
             
@@ -411,19 +412,19 @@ Array<double>* ComputeDeterminantofJacobian(Partition* pa)
 }
 
 
-double* ComputeVolumeCells(Array<double>* xcn, Array<int>* ien, MPI_Comm comm)
+double* ComputeVolumeCellsSerial(Array<double>* xcn, Array<int>* ien, MPI_Comm comm)
 {
     int world_size;
     MPI_Comm_size(comm, &world_size);
     // Get the rank of the process
     int world_rank;
     MPI_Comm_rank(comm, &world_rank);
-    
-    int nloc     = int(ien->nglob/world_size) + ( world_rank < ien->nglob%world_size );
+    int Nel = ien->getNrow();
+    int nloc     = int(Nel/world_size) + ( world_rank < Nel%world_size );
     //  compute offset of rows for each proc;
-    int offset   = world_rank*int(ien->nglob/world_size) + MIN(world_rank, ien->nglob%world_size);
+    int offset   = world_rank*int(Nel/world_size) + MIN(world_rank, Nel%world_size);
     
-    int Nelements = nloc;
+    int Nelements = Nel;
     double * vol_cells = new double[Nelements];
     int np = 8;
     double* P = new double[np*3];
@@ -463,8 +464,8 @@ double* ComputeVolumeCellsReducedToVerts(Array<double>* xcn, Array<int>* ien)
 {
     
     
-    int Nelements = ien->nglob;
-    int Nnodes = xcn->nglob;
+    int Nelements = ien->getNrow();
+    int Nnodes = xcn->getNrow();
     
     double * vol_cells = new double[Nelements];
     double * vert_cnt   = new double[Nnodes];

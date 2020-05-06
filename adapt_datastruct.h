@@ -1,7 +1,13 @@
 #include "adapt.h"
-
+#include "adapt_array.h"
+#define MIN(a,b) (((a)<(b))?(a):(b))
+#define MAX(a,b) (((a)>(b))?(a):(b))
 #ifndef ADAPT_DATASTRUCT_H
 #define ADAPT_DATASTRUCT_H
+
+
+
+
 
 struct ParVar
 {
@@ -58,97 +64,6 @@ public:
         data = new T[size];
     
     }
-};
-
-
-template <typename T> class Array {
-    private:
-    
-    public:
-    
-    int nglob;
-    int nloc;
-    int offset;
-    int ncol;
-    
-    T *data;
-    Array(){}
-    
-    Array(int r, int c)
-    {
-        
-        nloc = r;
-        ncol = c;
-        int size = nloc*ncol;
-        
-        data = new T[size];
-        
-        /*
-        for(int i=0;i<size;i++)
-        {
-            data[i] = 0;
-        }
-        */
-    }
-    
-    Array(int r, int c, int o)
-    {
-        nloc   = r;
-        ncol   = c;
-        offset = o;
-        int size = nloc*ncol;
-        
-        data = new T[size];
-        
-        /*
-        for(int i=0;i<size;i++)
-        {
-            data[i] = 0;
-        }
-        */
-        
-    }
-    
-    void setVal(int i, int j, T val)
-    {
-        data[i*ncol+j] = val;
-    }
-    T getVal(int i, int j)
-    {
-        return  data[i*ncol+j];
-    }
-    int getOffset()
-    {
-        return  offset;
-    }
-    int* getDim()
-    {
-        int* dim = new int[2];
-        dim[0] = nloc;
-        dim[1] = ncol;
-        return  dim;
-    }
-};
-    
-
-template <typename T> class ParallelArray : public Array<T>
-{
-    public:
-        ParVar* pv;
-    
-    ParallelArray(int r, int c, ParVar* pv_): Array<T>(r,c)
-    {
-        pv = pv_;
-    }
-};
-
-    
-template<typename T>
-struct Array2
-{
-    T* data;
-    int nrow;
-    int ncol;
 };
 
 

@@ -4,8 +4,11 @@
 #include "adapt.h"
 #include "adapt_datastruct.h"
 #include "adapt_operations.h"
+#include "adapt_parstate.h"
+#include "adapt_array.h"
 
-std::vector<int> GetAdjacencyForUS3D_V4(ParallelArray<int>* ief, MPI_Comm comm);
+
+std::vector<int> GetAdjacencyForUS3D_V4(ParArray<int>* ief, MPI_Comm comm);
 
 void Example3DPartitioning(MPI_Comm comm);
 
@@ -19,7 +22,7 @@ ParVar* CreateParallelData(int N, MPI_Comm comm);
 // an int* in order to allow for hybrid meshes.
 // e2n has the Nvert per element stored consecutively for each element. Hence this array is Nel*NvertPerElement long.
 
-ParVar_ParMetis* CreateParallelDataParmetis(ParallelArray<int>* e2n, MPI_Comm comm, int type);
+ParVar_ParMetis* CreateParallelDataParmetis(ParArray<int>* e2n, MPI_Comm comm, int type);
 
 
-Partition* CollectVerticesPerRank(ParallelArray<int>* ien, Array<double>* xcn_r, MPI_Comm comm);
+Partition* CollectVerticesPerRank(ParArray<int>* ien, Array<double>* xcn_r, MPI_Comm comm);

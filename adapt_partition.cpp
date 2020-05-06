@@ -7,7 +7,7 @@ using namespace std;
 
 
 
-std::vector<int> GetAdjacencyForUS3D_V4(ParallelArray<int>* ief, MPI_Comm comm)
+std::vector<int> GetAdjacencyForUS3D_V4(ParArray<int>* ief, MPI_Comm comm)
 {
     int size;
     MPI_Comm_size(comm, &size);
@@ -15,20 +15,23 @@ std::vector<int> GetAdjacencyForUS3D_V4(ParallelArray<int>* ief, MPI_Comm comm)
     int rank;
     MPI_Comm_rank(comm, &rank);
     
+    int nrow = ief->getNrow();
+    int ncol = ief->getNcol();
+    int nloc = nrow;
 
 //    Array<int>*type;
-    std::vector<int> ief_copy(ief->nloc*(ief->ncol-1));
+    std::vector<int> ief_copy(nrow*(ncol-1));
     set<int> unique_faces;
     set<int> double_faces;
     std::vector<int> d_faces;
     std::vector<int> u_faces;
     
-    
+   
     int fid;
     
-    for(int i=0;i<ief->nloc;i++)
+    for(int i=0;i<nrow;i++)
     {
-        for(int j=0;j<ief->ncol-1;j++)
+        for(int j=0;j<ncol-1;j++)
         {
             fid = fabs(ief->getVal(i,j+1))-1;
             
@@ -44,10 +47,7 @@ std::vector<int> GetAdjacencyForUS3D_V4(ParallelArray<int>* ief, MPI_Comm comm)
             }
         }
     }
-    
-    //std::cout << "sizes = = " << unique_faces.size() << " " << double_faces.size() << std::endl;
-    
-    //std::vector<int> double_faces2 = FindDuplicates(d_faces);
+
     
     int exter_size = u_faces.size();
 
@@ -289,7 +289,7 @@ ParArrayOnRoot* GatherVecToRoot(std::vector<int> locvec, MPI_Comm comm)
 
 
 
-Partition* CollectVerticesPerRank(ParallelArray<int>* ien, Array<double>* xcn_r, MPI_Comm comm)
+Partition* CollectVerticesPerRank(ParArray<int>* ien, Array<double>* xcn_r, MPI_Comm comm)
 {
     int size;
     MPI_Comm_size(comm, &size);
@@ -297,11 +297,16 @@ Partition* CollectVerticesPerRank(ParallelArray<int>* ien, Array<double>* xcn_r,
     int rank;
     MPI_Comm_rank(comm, &rank);
     
-    ParallelArray<int>* ien_copy = new ParallelArray<int>(ien->nloc,ien->ncol-1,ien->pv);
-    ien_copy->nglob = ien->nglob;
-    for(int i=0;i<ien->nloc;i++)
+    int nrow = ien->getNrow();
+    int ncol = ien->getNcol();
+    int nloc = nrow;
+    
+    int N = ien->getNglob();
+    ParArray<int>* ien_copy = new ParArray<int>(N, ncol, comm);
+
+    for(int i=0;i<nrow;i++)
     {
-        for(int j=0;j<ien->ncol-1;j++)
+        for(int j=0;j<ncol-1;j++)
         {
             ien_copy->setVal(i,j,ien->getVal(i,j+1));
         }
@@ -312,6 +317,10 @@ Partition* CollectVerticesPerRank(ParallelArray<int>* ien, Array<double>* xcn_r,
     //=================================================================
     
     ParVar_ParMetis* pv_parmetis = CreateParallelDataParmetis(ien_copy,comm,8);
+    
+    ParallelState* pstate = new ParallelState(N,comm);
+   
+    
     
     idx_t numflag_[] = {0};
     idx_t *numflag = numflag_;
@@ -348,16 +357,18 @@ Partition* CollectVerticesPerRank(ParallelArray<int>* ien, Array<double>* xcn_r,
 
     idx_t part_[]    = {pv_parmetis->nlocs[rank]};
     idx_t *part      = part_;
-    //=================================================================
-    //=================================================================
-    //=================================================================
+
     
     ParMETIS_V3_Mesh2Dual(pv_parmetis->elmdist,pv_parmetis->eptr,pv_parmetis->eind,numflag,ncommonnodes,&xadj,&adjncy,&comm);
     
+    //=================================================================
+    //=================================================================
+    //=================================================================
+    
     std::map<int,int> loc2glob;
     std::map<int,int> glob2loc;
-    Array<int>* loc2glob_vert = new Array<int>(ien->nloc,ien->ncol-1);
-    Array<int>* glob2loc_vert = new Array<int>(ien->nloc,ien->ncol-1);
+    Array<int>* loc2glob_vert = new Array<int>(nrow,ncol-1);
+    Array<int>* glob2loc_vert = new Array<int>(nrow,ncol-1);
 
     std::vector<int> loc_verts;
     set<int> loc_verts_set;
@@ -365,7 +376,7 @@ Partition* CollectVerticesPerRank(ParallelArray<int>* ien, Array<double>* xcn_r,
     int nverts_req;
     int lid = 0;
     
-    for(int i=0;i<ien->nloc;i++)
+    for(int i=0;i<nrow;i++)
     {
         int glob_id = i+pv_parmetis->elmdist[rank];
         if ( loc_verts_set.find( glob_id ) == loc_verts_set.end() )
@@ -412,10 +423,11 @@ Partition* CollectVerticesPerRank(ParallelArray<int>* ien, Array<double>* xcn_r,
     parti->loc2glob_Varr = loc2glob_vert;
     parti->glob2loc_Varr = glob2loc_vert;
     
-    parti->xadj = xadj;
+    parti->xadj   = xadj;
     parti->adjncy = adjncy;
-    parti->ien = ien;
-    parti->ndim = 3;
+    parti->ien    = ien;
+    parti->ndim   = 3;
+    
     
     if(rank == 0)
     {
@@ -426,7 +438,6 @@ Partition* CollectVerticesPerRank(ParallelArray<int>* ien, Array<double>* xcn_r,
             verts[i*3+0] = xcn_r->getVal(gathered_on_root->data[i],0);
             verts[i*3+1] = xcn_r->getVal(gathered_on_root->data[i],1);
             verts[i*3+2] = xcn_r->getVal(gathered_on_root->data[i],2);
-            
         }
     }
 
@@ -750,7 +761,7 @@ ParVar* CreateParallelData(int N, MPI_Comm comm)
 // an int* in order to allow for hybrid meshes.
 // e2n has the Nvert per element stored consecutively for each element. Hence this array is Nel*NvertPerElement long.
 
-ParVar_ParMetis* CreateParallelDataParmetis(ParallelArray<int>* e2n, MPI_Comm comm, int type)
+ParVar_ParMetis* CreateParallelDataParmetis(ParArray<int>* e2n, MPI_Comm comm, int type)
 {
     int size;
     MPI_Comm_size(comm, &size);
@@ -758,7 +769,7 @@ ParVar_ParMetis* CreateParallelDataParmetis(ParallelArray<int>* e2n, MPI_Comm co
     // Get the rank of the process;
     int rank;
     MPI_Comm_rank(comm, &rank);
-    int Nel = e2n->nglob;
+    int Nel = e2n->getNglob();
     //std::cout << "number of elements = " << Nel;
     int nloc             = int(Nel/size) + ( rank < Nel%size );
     //  compute offset of rows for each proc;

@@ -1,6 +1,4 @@
 #include "adapt_output.h"
-#include "adapt_partition.h"
-#include "adapt_io.h"
 
 using namespace std;
 
@@ -12,6 +10,9 @@ void OutputQuantityPartition(Partition* pa, Array<double>* Quan, MPI_Comm comm)
     int rank;
     MPI_Comm_rank(comm, &rank);
     
+    int nrow = pa->ien->getNrow();
+    int ncol = pa->ien->getNcol();
+    int nloc = nrow;
     
     int gid;
     int lid;
@@ -22,25 +23,25 @@ void OutputQuantityPartition(Partition* pa, Array<double>* Quan, MPI_Comm comm)
     std::map<int,Vert> vert_out;
     std::map<int,double> quan_out;
     int v=0;int u=0;int el=0;
-    int* l_vert_id = new int[pa->ien->nloc*(pa->ien->ncol-1)];
+    int* l_vert_id = new int[nrow*(ncol-1)];
     map< int, int > gid_set;
 
     double Q;
-    for(int i=0;i<pa->ien->nloc;i++)
+    for(int i=0;i<nloc;i++)
     {
         Q = Quan->getVal(i,0);
-        for(int j=0;j<pa->ien->ncol-1;j++)
+        for(int j=0;j<ncol-1;j++)
         {
             gid = pa->ien->getVal(i,j+1)-1;
             lid = pa->glob2loc_Vmap[gid];
             
             if ( gid_set.find( gid ) != gid_set.end() )
             {
-                l_vert_id[el*(pa->ien->ncol-1)+j]=gid_set[gid];
+                l_vert_id[el*(ncol-1)+j]=gid_set[gid];
             }
             else
             {
-                l_vert_id[el*(pa->ien->ncol-1)+j]=v;
+                l_vert_id[el*(ncol-1)+j]=v;
                 
                 V.x = pa->Verts->getVal(lid,0);
                 V.y = pa->Verts->getVal(lid,1);
@@ -60,7 +61,7 @@ void OutputQuantityPartition(Partition* pa, Array<double>* Quan, MPI_Comm comm)
     myfile.open(filename);
     myfile << "TITLE=\"volume_part_"  + std::to_string(rank) +  ".tec\"" << std::endl;
     myfile <<"VARIABLES = \"X\", \"Y\", \"Z\", \"dJ\"" << std::endl;
-    myfile <<"ZONE N = " << vert_out.size() << ", E = " << pa->ien->nloc << ", DATAPACKING = POINT, ZONETYPE = FEBRICK" << std::endl;
+    myfile <<"ZONE N = " << vert_out.size() << ", E = " << nrow << ", DATAPACKING = POINT, ZONETYPE = FEBRICK" << std::endl;
     
     std::cout << "number of nodes -> " << vert_out.size() << std::endl;
     
@@ -69,7 +70,7 @@ void OutputQuantityPartition(Partition* pa, Array<double>* Quan, MPI_Comm comm)
        myfile << vert_out[(i)].x << "   " << vert_out[(i)].y << "   " << vert_out[(i)].z << "   " << quan_out[(i)] << std::endl;
     }
 
-    for(int i=0;i<pa->ien->nloc;i++)
+    for(int i=0;i<nrow;i++)
     {
        myfile << l_vert_id[i*8+0]+1 << "  " <<
                  l_vert_id[i*8+1]+1 << "  " <<
@@ -84,7 +85,7 @@ void OutputQuantityPartition(Partition* pa, Array<double>* Quan, MPI_Comm comm)
 }
 
 
-void OutputPartionVolumes(ParallelArray<int>* ien, Array<double>* xcn_on_root, MPI_Comm comm)
+void OutputPartionVolumes(ParArray<int>* ien, Array<double>* xcn_on_root, MPI_Comm comm)
 {
     int size;
     MPI_Comm_size(comm, &size);
@@ -92,6 +93,10 @@ void OutputPartionVolumes(ParallelArray<int>* ien, Array<double>* xcn_on_root, M
     int rank;
     MPI_Comm_rank(comm, &rank);
     Partition* pv = CollectVerticesPerRank(ien,xcn_on_root,comm);
+    
+    int nrow = ien->getNrow();
+    int ncol = ien->getNcol();
+    int nloc = nrow;
     
     int gid;
     int lid;
@@ -101,22 +106,22 @@ void OutputPartionVolumes(ParallelArray<int>* ien, Array<double>* xcn_on_root, M
     int nvert = 0;
     std::map<int,Vert> vert_out;
     int v=0;int u=0;int el=0;
-    int* l_vert_id = new int[ien->nloc*(ien->ncol-1)];
+    int* l_vert_id = new int[nrow*(ncol-1)];
     map< int, int > gid_set;
-    for(int i=0;i<ien->nloc;i++)
+    for(int i=0;i<nrow;i++)
     {
-        for(int j=0;j<ien->ncol-1;j++)
+        for(int j=0;j<ncol-1;j++)
         {
             gid = ien->getVal(i,j+1)-1;
             lid = pv->glob2loc_Vmap[gid];
             
             if ( gid_set.find( gid ) != gid_set.end() )
             {
-                l_vert_id[el*(ien->ncol-1)+j]=gid_set[gid];
+                l_vert_id[el*(ncol-1)+j]=gid_set[gid];
             }
             else
             {
-                l_vert_id[el*(ien->ncol-1)+j]=v;
+                l_vert_id[el*(ncol-1)+j]=v;
                 
                 V.x = pv->Verts->getVal(lid,0);
                 V.y = pv->Verts->getVal(lid,1);
@@ -136,7 +141,7 @@ void OutputPartionVolumes(ParallelArray<int>* ien, Array<double>* xcn_on_root, M
     myfile.open(filename);
     myfile << "TITLE=\"volume_part_"  + std::to_string(rank) +  ".tec\"" << std::endl;
     myfile <<"VARIABLES = \"X\", \"Y\", \"Z\"" << std::endl;
-    myfile <<"ZONE N = " << vert_out.size() << ", E = " << ien->nloc << ", DATAPACKING = POINT, ZONETYPE = FEBRICK" << std::endl;
+    myfile <<"ZONE N = " << vert_out.size() << ", E = " << nrow << ", DATAPACKING = POINT, ZONETYPE = FEBRICK" << std::endl;
     
     std::cout << "number of nodes -> " << vert_out.size() << std::endl;
     
@@ -145,7 +150,7 @@ void OutputPartionVolumes(ParallelArray<int>* ien, Array<double>* xcn_on_root, M
        myfile << vert_out[(i)].x << "   " << vert_out[(i)].y << "   " << vert_out[(i)].z << std::endl;
     }
 
-    for(int i=0;i<ien->nloc;i++)
+    for(int i=0;i<nrow;i++)
     {
        myfile << l_vert_id[i*8+0]+1 << "  " <<
                  l_vert_id[i*8+1]+1 << "  " <<
@@ -173,7 +178,7 @@ void OutputPartitionFaces()
     MPI_Comm_rank(comm, &rank);
     const char* fn_conn="grids/adept/conn.h5";
     const char* fn_grid="grids/adept/grid.h5";
-    ParallelArray<int>* ief = ReadDataSetFromFileInParallel<int>(fn_conn,"ief",comm,info);
+    ParArray<int>* ief = ReadDataSetFromFileInParallel<int>(fn_conn,"ief",comm,info);
 
     std::vector<int> partfaces = GetAdjacencyForUS3D_V4(ief, comm);
     
@@ -268,7 +273,7 @@ void WriteBoundaryDataInSerial3(Array<double>* xcn)
 
 void WriteBoundaryDataInSerial(Array<double>* xcn, Array<int>* zdefs, Array<int>* ifn, double* detJ_verts, double* vol_verts, double* Jnorm_verts)
 {
-    for(int bc=3;bc<zdefs->nglob;bc++)
+    for(int bc=3;bc<zdefs->getNrow();bc++)
     {
         map< int, int > Loc2GlobBound;
         map< int, Vert> BC_verts;
@@ -340,7 +345,7 @@ void WriteBoundaryDataInSerial(Array<double>* xcn, Array<int>* zdefs, Array<int>
 
 void WriteBoundaryDataInSerial2(Array<double>* xcn, Array<int>* zdefs, Array<int>* ifn, double* vol_verts)
 {
-    for(int bc=3;bc<zdefs->nloc;bc++)
+    for(int bc=3;bc<zdefs->getNrow();bc++)
     {
         map< int, int > Loc2GlobBound;
         map< int, Vert> BC_verts;
