@@ -1823,8 +1823,8 @@ int main(int argc, char** argv) {
     //  ExampleUS3DPartitioningWithParVarParMetis();
 //============================================================
     
-    const char* fn_conn="grids/piston/conn.h5";
-    const char* fn_grid="grids/piston/grid.h5";
+    const char* fn_conn="grids/adept/conn.h5";
+    const char* fn_grid="grids/adept/grid.h5";
     const char* fn_data="grids/adept/data.h5";
     
     Array<int>*    zdefs = ReadDataSetFromGroupFromFile<int>(fn_conn,"zones","zdefs");
@@ -1847,7 +1847,7 @@ int main(int argc, char** argv) {
 //    ParArray<double>* interior = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_6","interior",comm,info);
     
     start = std::clock();
-    Partition* pv = CollectVerticesPerRank(ien,xcn_on_root,comm);
+    //Partition* pv = CollectVerticesPerRank(ien,xcn_on_root,comm);
     
     //std::cout << world_rank << " sizing = " << pv->xadj[pv->nlocs[world_rank]] << std::endl;
     
