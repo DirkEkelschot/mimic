@@ -42,7 +42,7 @@ inline ParallelState::ParallelState(int N, MPI_Comm c)
     int* proc_offset                = new int[size];
     nlocs                           = new int[size];
     offsets                         = new int[size];
-    std::cout << offset << std::endl;
+    //std::cout << offset << std::endl;
     for(int i=0;i<size;i++)
     {
         nlocs[i]   = 0;

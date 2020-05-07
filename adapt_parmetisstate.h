@@ -49,9 +49,9 @@ inline ParallelState_Parmetis::ParallelState_Parmetis(ParArray<int>* e2n, MPI_Co
     }
     
     int* nlocs_tmp         = new int[size];
-    int* nlocs             = new int[size];
+    nlocs             = new int[size];
     int* npo_locs_tmp      = new int[size];
-    int* npo_locs          = new int[size];
+    npo_locs          = new int[size];
 
     for(int i=0;i<size;i++)
     {

@@ -1821,42 +1821,80 @@ int main(int argc, char** argv) {
     //  GetXadjandAdjcyArrays(iee,ien,comm);
     //  Example3DPartitioningWithParVarParMetis();
     //  ExampleUS3DPartitioningWithParVarParMetis();
-    Example3DPartitioningWithParVarParMetis();
+    //Example3DPartitioningWithParVarParMetis();
 //============================================================
     
-    const char* fn_conn="grids/piston/conn.h5";
-    const char* fn_grid="grids/piston/grid.h5";
-    const char* fn_data="grids/piston/data.h5";
+    const char* fn_conn="grids/adept/conn.h5";
+    const char* fn_grid="grids/adept/grid.h5";
+    const char* fn_data="grids/adept/data.h5";
     
+    /*
     Array<int>*    zdefs = ReadDataSetFromGroupFromFile<int>(fn_conn,"zones","zdefs");
     Array<char>*  znames = ReadDataSetFromGroupFromFile<char>(fn_conn,"zones","znames");
     PlotBoundaryData(znames,zdefs,comm);
     
     int levels = log2(world_size);
-   
+    */
     std::clock_t start;
     double duration;
     start = std::clock();
-    
+    /*
     TestReadInParallelToRoot(comm,info);
+    */
     
     Array<double>*   xcn_on_root  = ReadDataSetFromFileInParallelToRoot<double>(fn_grid,"xcn",comm,info);
     
-    Array<double>*   ien_on_root  = ReadDataSetFromFileInParallelToRoot<double>(fn_conn,"ien",comm,info);
+    Array<double>*   ien_on_root_read  = ReadDataSetFromFileInParallelToRoot<double>(fn_conn,"ien",comm,info);
 
     ParArray<int>* ien = ReadDataSetFromFileInParallel<int>(fn_conn,"ien",comm,info);
+    int nglob = ien->getNglob();
+    int nrow  = ien->getNrow();
+    int ncol  = ien->getNcol()-1;
+    
+    ParArray<int>* ien_copy = new ParArray<int>(nglob,ncol,comm);
+
+    for(int i=0;i<nrow;i++)
+    {
+        for(int j=0;j<ncol;j++)
+        {
+            ien_copy->setVal(i,j,ien->getVal(i,j+1)-1);
+        }
+    }
+    
+    Array<int>* ien_on_root;
+    
+    if(world_rank == 0)
+    {
+        int nrow  = ien_on_root_read->getNrow();
+        int ncol  = ien_on_root_read->getNcol()-1;
+        
+        ien_on_root = new Array<int>(nrow,ncol);
+        
+        for(int i=0;i<nrow;i++)
+        {
+            for(int j=0;j<ncol;j++)
+            {
+                ien_on_root->setVal(i,j,ien_on_root_read->getVal(i,j+1)-1);
+            }
+        }
+    }
+    
+    
+    
     
 //    ParArray<double>* boundaries = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_6","boundaries",comm,info);
 //    ParArray<double>* interior = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_6","interior",comm,info);
     
-    // start = std::clock();
+    
+    
+    start = std::clock();
     
     //Partition* pv = CollectVerticesPerRank(ien,xcn_on_root,comm);
     
     //std::cout << world_rank << " sizing = " << pv->xadj[pv->nlocs[world_rank]] << std::endl;
     //idx_t * part =  GetPartitionInfo(ien, xcn_on_root, comm);
     
-    Partition* pv = CollectElementsPerRank(ien,ien_on_root,comm);
+    Partition* pv = CollectElementsPerRank(ien_copy,ien_on_root,comm);
     
     duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
     std::cout << world_rank << " collecting = " << duration << std::endl;
