@@ -24,5 +24,6 @@ ParVar* CreateParallelData(int N, MPI_Comm comm);
 
 ParVar_ParMetis* CreateParallelDataParmetis(ParArray<int>* e2n, MPI_Comm comm, int type);
 
+int* GetPartitionInfo(ParArray<int>* ien, Array<double>* xcn_r, MPI_Comm comm);
 
 Partition* CollectVerticesPerRank(ParArray<int>* ien, Array<double>* xcn_r, MPI_Comm comm);
