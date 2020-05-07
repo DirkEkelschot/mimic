@@ -680,13 +680,13 @@ Partition* CollectElementsPerRank(ParArray<int>* ien, Array<double>* ien_root, M
     int* offset = new int[size];
     for(int i=0;i<size;i++)
     {
-        nlocs[i]  = gathered_on_root->nlocs[i]*6;
-        offset[i] = gathered_on_root->offsets[i]*6;
+        nlocs[i]  = gathered_on_root->nlocs[i]*8;
+        offset[i] = gathered_on_root->offsets[i]*8;
     }
     
     Partition* parti = new Partition;
     
-    parti->Verts = new Array<double>(loc_elems.size(),6);
+    parti->Verts = new Array<double>(loc_elems.size(),8);
     
     parti->loc2glob_Vmap = loc2glob;
     parti->glob2loc_Vmap = glob2loc;
@@ -702,20 +702,22 @@ Partition* CollectElementsPerRank(ParArray<int>* ien, Array<double>* ien_root, M
     
     if(rank == 0)
     {
-        verts = new double[gathered_on_root->length*3];
+        verts = new double[gathered_on_root->length*8];
 
         for(int i=0;i<gathered_on_root->length;i++)
         {
-            verts[i*6+0] = ien_root->getVal(gathered_on_root->data[i],0);
-            verts[i*6+1] = ien_root->getVal(gathered_on_root->data[i],1);
-            verts[i*6+2] = ien_root->getVal(gathered_on_root->data[i],2);
-            verts[i*6+3] = ien_root->getVal(gathered_on_root->data[i],2);
-            verts[i*6+4] = ien_root->getVal(gathered_on_root->data[i],2);
-            verts[i*6+5] = ien_root->getVal(gathered_on_root->data[i],2);
+            verts[i*8+0] = ien_root->getVal(gathered_on_root->data[i],0);
+            verts[i*8+1] = ien_root->getVal(gathered_on_root->data[i],1);
+            verts[i*8+2] = ien_root->getVal(gathered_on_root->data[i],2);
+            verts[i*8+3] = ien_root->getVal(gathered_on_root->data[i],3);
+            verts[i*8+4] = ien_root->getVal(gathered_on_root->data[i],4);
+            verts[i*8+5] = ien_root->getVal(gathered_on_root->data[i],5);
+            verts[i*8+6] = ien_root->getVal(gathered_on_root->data[i],6);
+            verts[i*8+7] = ien_root->getVal(gathered_on_root->data[i],7);
         }
     }
  
-    MPI_Scatterv(&verts[0], nlocs, offset, MPI_DOUBLE, &parti->Verts->data[0], loc_elems.size()*3, MPI_DOUBLE, 0, comm);
+    MPI_Scatterv(&verts[0], nlocs, offset, MPI_DOUBLE, &parti->Verts->data[0], loc_elems.size()*8, MPI_DOUBLE, 0, comm);
     
     return parti;
 }
