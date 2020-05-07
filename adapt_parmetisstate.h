@@ -29,7 +29,7 @@ class ParallelState_Parmetis {
       int* eind;
 };
 
-inline ParallelState_Parmetis::ParallelState_Parmetis(ParArray<int>* e2n, MPI_Comm c, int type)
+inline ParallelState_Parmetis::ParallelState_Parmetis(ParArray<int>* e2n, MPI_Comm comm, int type)
 {
     int size;
     MPI_Comm_size(comm, &size);
@@ -72,12 +72,12 @@ inline ParallelState_Parmetis::ParallelState_Parmetis(ParArray<int>* e2n, MPI_Co
     
     int* elm_dist_tmp          = new int[size+1];
     int* npo_offset_tmp        = new int[size+1];
-    int* elm_dist              = new int[size+1];
+    elmdist               = new int[size+1];
     int* npo_offset            = new int[size+1];
     
     for(int i=0;i<size+1;i++)
     {
-        elm_dist[i]   = 0;
+        elmdist[i]   = 0;
         npo_offset[i] = 0;
         if(i==rank)
         {
@@ -94,10 +94,10 @@ inline ParallelState_Parmetis::ParallelState_Parmetis(ParArray<int>* e2n, MPI_Co
     
     MPI_Allreduce(nlocs_tmp,        nlocs,      size,     MPI_INT, MPI_SUM, comm);
     MPI_Allreduce(npo_locs_tmp,     npo_locs,   size,     MPI_INT, MPI_SUM, comm);
-    MPI_Allreduce(elm_dist_tmp,     elm_dist,   size+1,   MPI_INT, MPI_SUM, comm);
+    MPI_Allreduce(elm_dist_tmp,     elmdist,    size+1,   MPI_INT, MPI_SUM, comm);
     MPI_Allreduce(npo_offset_tmp,   npo_offset, size+1,   MPI_INT, MPI_SUM, comm);
 
-    elm_dist[size] = Nel;
+    elmdist[size] = Nel;
     npo_offset[size] = Nel*type;
 
     eptr = new int[nloc+1];

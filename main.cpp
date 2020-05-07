@@ -1854,7 +1854,7 @@ int main(int argc, char** argv) {
     //Partition* pv = CollectVerticesPerRank(ien,xcn_on_root,comm);
     
     //std::cout << world_rank << " sizing = " << pv->xadj[pv->nlocs[world_rank]] << std::endl;
-    idx_t * part =  GetPartitionInfo(ien, xcn_on_root, comm);
+    //idx_t * part =  GetPartitionInfo(ien, xcn_on_root, comm);
     
     Partition* pv = CollectElementsPerRank(ien,ien_on_root,comm);
     

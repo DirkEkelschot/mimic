@@ -475,9 +475,7 @@ Partition* CollectVerticesPerRank(ParArray<int>* ien, Array<double>* xcn_r, MPI_
 
     idx_t nparts_[] = {np};
     idx_t *nparts = nparts_;
-
-    idx_t part_[]    = {pstate_parmetis->getNloc(rank)};
-    idx_t *part      = part_;
+    int* part = new int[nloc];
 
     
     ParMETIS_V3_Mesh2Dual(pstate_parmetis->getElmdist(),
@@ -590,7 +588,7 @@ Partition* CollectElementsPerRank(ParArray<int>* ien, Array<double>* ien_root, M
     //=================================================================
     
     ParallelState_Parmetis* pstate_parmetis = new ParallelState_Parmetis(ien,comm,8);
-    
+//
     idx_t numflag_[] = {0};
     idx_t *numflag = numflag_;
     idx_t ncommonnodes_[] = {4};
@@ -623,20 +621,20 @@ Partition* CollectElementsPerRank(ParArray<int>* ien, Array<double>* ien_root, M
 
     idx_t nparts_[] = {np};
     idx_t *nparts = nparts_;
-
-    idx_t part_[]    = {pstate_parmetis->getNloc(rank)};
-    idx_t *part      = part_;
+    int* part = new int[nloc];
+    
+    int* elmdist = pstate_parmetis->getElmdist();
 
     ParMETIS_V3_Mesh2Dual(pstate_parmetis->getElmdist(),
                           pstate_parmetis->getEptr(),
                           pstate_parmetis->getEind(),
                           numflag,ncommonnodes,
                           &xadj,&adjncy,&comm);
-    
+
     //=================================================================
     //=================================================================
     //=================================================================
-    
+
     std::map<int,int> loc2glob;
     std::map<int,int> glob2loc;
     Array<int>* loc2glob_vert = new Array<int>(nrow,ncol-1);
@@ -647,7 +645,7 @@ Partition* CollectElementsPerRank(ParArray<int>* ien, Array<double>* ien_root, M
     int gid = 0;
     int nverts_req;
     int lid = 0;
-    
+
     for(int i=0;i<nrow;i++)
     {
         int glob_id = i+pstate_parmetis->getElmdistAtRank(rank);
@@ -671,7 +669,7 @@ Partition* CollectElementsPerRank(ParArray<int>* ien, Array<double>* ien_root, M
             }
         }
     }
-    
+
     // This vector is empty on all other procs except root;
     ParArrayOnRoot* gathered_on_root = GatherVecToRoot(loc_elems, comm);
     double* loc_el2v = new double[loc_elems.size()*6];
@@ -683,22 +681,21 @@ Partition* CollectElementsPerRank(ParArray<int>* ien, Array<double>* ien_root, M
         nlocs[i]  = gathered_on_root->nlocs[i]*8;
         offset[i] = gathered_on_root->offsets[i]*8;
     }
-    
+
     Partition* parti = new Partition;
-    
+
     parti->Verts = new Array<double>(loc_elems.size(),8);
-    
+
     parti->loc2glob_Vmap = loc2glob;
     parti->glob2loc_Vmap = glob2loc;
-    
+
     parti->loc2glob_Varr = loc2glob_vert;
     parti->glob2loc_Varr = glob2loc_vert;
-    
-    parti->xadj   = xadj;
-    parti->adjncy = adjncy;
-    parti->ien    = ien;
-    parti->ndim   = 3;
-    
+
+    parti->xadj          = xadj;
+    parti->adjncy        = adjncy;
+    parti->ien           = ien;
+    parti->ndim          = 3;
     
     if(rank == 0)
     {
@@ -716,9 +713,9 @@ Partition* CollectElementsPerRank(ParArray<int>* ien, Array<double>* ien_root, M
             verts[i*8+7] = ien_root->getVal(gathered_on_root->data[i],7);
         }
     }
- 
+
     MPI_Scatterv(&verts[0], nlocs, offset, MPI_DOUBLE, &parti->Verts->data[0], loc_elems.size()*8, MPI_DOUBLE, 0, comm);
-    
+
     return parti;
 }
 
