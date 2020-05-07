@@ -1841,6 +1841,8 @@ int main(int argc, char** argv) {
     TestReadInParallelToRoot(comm,info);
     
     Array<double>*   xcn_on_root  = ReadDataSetFromFileInParallelToRoot<double>(fn_grid,"xcn",comm,info);
+    
+    Array<double>*   ien_on_root  = ReadDataSetFromFileInParallelToRoot<double>(fn_conn,"ien",comm,info);
 
     ParArray<int>* ien = ReadDataSetFromFileInParallel<int>(fn_conn,"ien",comm,info);
     
@@ -1853,6 +1855,8 @@ int main(int argc, char** argv) {
     
     //std::cout << world_rank << " sizing = " << pv->xadj[pv->nlocs[world_rank]] << std::endl;
     idx_t * part =  GetPartitionInfo(ien, xcn_on_root, comm);
+    
+    Partition* pv = CollectElementsPerRank(ien,ien_on_root,comm);
     
     duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
     std::cout << world_rank << " collecting = " << duration << std::endl;

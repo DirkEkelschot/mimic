@@ -1,3 +1,6 @@
+#ifndef ADAPT_PARTITION_H
+#define ADAPT_PARTITION_H
+
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #define MAX(a,b) (((a)>(b))?(a):(b))
 
@@ -5,8 +8,17 @@
 #include "adapt_datastruct.h"
 #include "adapt_operations.h"
 #include "adapt_parstate.h"
+#include "adapt_parmetisstate.h"
 #include "adapt_array.h"
 
+struct GathervObject
+{
+    int size;
+    int* nlocs;
+    int* offsets;
+    int* data;
+    int length;
+};
 
 std::vector<int> GetAdjacencyForUS3D_V4(ParArray<int>* ief, MPI_Comm comm);
 
@@ -22,8 +34,16 @@ ParVar* CreateParallelData(int N, MPI_Comm comm);
 // an int* in order to allow for hybrid meshes.
 // e2n has the Nvert per element stored consecutively for each element. Hence this array is Nel*NvertPerElement long.
 
+
+GathervObject* GetGathervObject(int nloc, MPI_Comm comm);
+
 ParVar_ParMetis* CreateParallelDataParmetis(ParArray<int>* e2n, MPI_Comm comm, int type);
 
 int* GetPartitionInfo(ParArray<int>* ien, Array<double>* xcn_r, MPI_Comm comm);
 
 Partition* CollectVerticesPerRank(ParArray<int>* ien, Array<double>* xcn_r, MPI_Comm comm);
+
+Partition* CollectElementsPerRank(ParArray<int>* ien, Array<double>* ien_root, MPI_Comm comm);
+
+
+#endif

@@ -4,6 +4,8 @@
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #define MAX(a,b) (((a)>(b))?(a):(b))
 
+
+
 class ParallelState {
    public:
     ParallelState(int N, MPI_Comm c);
@@ -12,6 +14,7 @@ class ParallelState {
     int getNloc( int rank );
     int getOffset (int rank );
     int getNel( void );
+    
       
    private:
       int Nel;
