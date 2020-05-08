@@ -694,6 +694,10 @@ int* DeterminePartitionLayout(ParArray<int>* ien, Array<int>* ien_root, MPI_Comm
                          tpwgts, ubvec, options,
                          &edgecut, part, &comm);
     
+    ParArrayOnRoot* gRoot = GatherArrToRoot(part, nloc, comm);
+    
+    int * part_glob = gRoot->data;
+    /*
     int* part_glob = new int[N];
     int nlocr;
     int *part_local;
@@ -722,7 +726,7 @@ int* DeterminePartitionLayout(ParArray<int>* ien, Array<int>* ien_root, MPI_Comm
     }
     
     MPI_Bcast(&part_glob[0], N, MPI_INT, 0, comm);
-
+    */
     
     return part_glob;
     
