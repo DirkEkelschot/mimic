@@ -1824,8 +1824,9 @@ int main(int argc, char** argv) {
     //Example3DPartitioningWithParVarParMetis();
 //============================================================
     
+    //const char* fn_conn="grids/piston/conn.h5";
     const char* fn_conn="grids/adept/conn.h5";
-    const char* fn_grid="grids/adept/grid.h5";
+    const char* fn_grid="grids/piston/grid.h5";
     const char* fn_data="grids/adept/data.h5";
     
     /*
@@ -1865,8 +1866,8 @@ int main(int argc, char** argv) {
     
     if(world_rank == 0)
     {
-        int nrow  = ien_on_root_read->getNrow();
-        int ncol  = ien_on_root_read->getNcol()-1;
+        nrow  = ien_on_root_read->getNrow();
+        ncol  = ien_on_root_read->getNcol()-1;
         
         ien_on_root = new Array<int>(nrow,ncol);
         
@@ -1897,8 +1898,12 @@ int main(int argc, char** argv) {
     Partition* pv = CollectElementsPerRank(ien_copy,ien_on_root,comm);
     
     duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
-    std::cout << world_rank << " collecting = " << duration << std::endl;
+    if (world_rank < 20)
+    {
 
+    	std::cout << world_rank << " collecting = " << duration << std::endl;
+
+    }
     MPI_Finalize();
     return 0;
      
