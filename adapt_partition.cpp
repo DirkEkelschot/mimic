@@ -624,6 +624,110 @@ Partition* CollectVerticesPerRank(ParArray<int>* ien, Array<double>* xcn_r, MPI_
 }
 
 
+int* DeterminePartitionLayout(ParArray<int>* ien, Array<int>* ien_root, MPI_Comm comm)
+{
+    int size;
+    MPI_Comm_size(comm, &size);
+    // Get the rank of the process
+    int rank;
+    MPI_Comm_rank(comm, &rank);
+    
+    int nrow = ien->getNrow();
+    int ncol = ien->getNcol();
+    int nloc = nrow;
+    int N = ien->getNglob();
+
+    //=================================================================
+    //=================================================================
+    //=================================================================
+    
+    ParallelState_Parmetis* pstate_parmetis = new ParallelState_Parmetis(ien,comm,8);
+//
+    idx_t numflag_[] = {0};
+    idx_t *numflag = numflag_;
+    idx_t ncommonnodes_[] = {4};
+    idx_t *ncommonnodes = ncommonnodes_;
+    int edgecut      = 0;
+    idx_t *xadj      = NULL;
+    idx_t *adjncy    = NULL;
+    idx_t *adjwgt    = NULL;
+    idx_t *vsize     = NULL;
+    idx_t options_[] = {0, 0, 0};
+    idx_t *options   = options_;
+    idx_t wgtflag_[] = {0};
+    idx_t *wgtflag   = wgtflag_;
+    real_t ubvec_[]  = {1.1};
+    real_t *ubvec    = ubvec_;
+
+    idx_t *elmwgt;
+
+    real_t itr_[]    = {1.05};
+    real_t *itr      = itr_;
+    int np           = size;
+    idx_t ncon_[]    = {1};
+    idx_t *ncon      = ncon_;
+    real_t *tpwgts   = new real_t[np*ncon[0]];
+
+    for(int i=0; i<np*ncon[0]; i++)
+    {
+        tpwgts[i] = 1.0/np;
+    }
+
+    idx_t nparts_[] = {np};
+    idx_t *nparts = nparts_;
+    int* part = new int[nloc];
+    
+    int* eptr = pstate_parmetis->getEptr();
+    int* eind = pstate_parmetis->getEind();
+    
+    ParMETIS_V3_Mesh2Dual(pstate_parmetis->getElmdist(),
+                          pstate_parmetis->getEptr(),
+                          pstate_parmetis->getEind(),
+                          numflag,ncommonnodes,
+                          &xadj,&adjncy,&comm);
+    
+    ParMETIS_V3_PartKway(pstate_parmetis->getElmdist(),
+                         xadj,
+                         adjncy,
+                         elmwgt, NULL, wgtflag, numflag,
+                         ncon, nparts,
+                         tpwgts, ubvec, options,
+                         &edgecut, part, &comm);
+    
+    int* part_glob = new int[N];
+    int nlocr;
+    int *part_local;
+    if(rank != 0)
+    {
+        MPI_Send(&nloc,       1, MPI_INT, 0, 0, comm);
+        MPI_Send(&part[0], nloc, MPI_INT, 0, 0, comm);
+    }
+    else
+    {
+        for (int i = 0; i < nloc; ++i)
+        {
+            part_glob[i] = part[i];
+        }
+        for (int i = 1; i < size; ++i)
+        {
+            MPI_Recv(&nlocr,                 1, MPI_INT, i, 0, comm, MPI_STATUS_IGNORE);
+            part_local = new int[nlocr];
+            MPI_Recv(part_local,         nlocr, MPI_INT, i, 0, comm, MPI_STATUS_IGNORE);
+            
+            for (int j = pstate_parmetis->getElmdistAtRank(i); j < pstate_parmetis->getElmdistAtRank(i+1); j++)
+            {
+                part_glob[j] = part_local[j - pstate_parmetis->getElmdistAtRank(i)];
+            }
+        }
+    }
+    
+    MPI_Bcast(&part_glob[0], N, MPI_INT, 0, comm);
+
+    
+    return part_glob;
+    
+}
+
 
 Partition* CollectElementsPerRank(ParArray<int>* ien, Array<int>* ien_root, MPI_Comm comm)
 {
@@ -696,7 +800,19 @@ Partition* CollectElementsPerRank(ParArray<int>* ien, Array<int>* ien_root, MPI_
                           pstate_parmetis->getEptr(),
                           pstate_parmetis->getEind(),
                           numflag,ncommonnodes,
-                          &xadj,&adjncy,&comm); 
+                          &xadj,&adjncy,&comm);
+    
+    ParMETIS_V3_PartKway(pstate_parmetis->getElmdist(),
+                         xadj,
+                         adjncy,
+                         elmwgt, NULL, wgtflag, numflag,
+                         ncon, nparts,
+                         tpwgts, ubvec, options,
+                        &edgecut, part, &comm);
+    
+    
+    
+    
     /* 
     for(int i=0;i<nloc;i++)
     {
@@ -751,8 +867,8 @@ Partition* CollectElementsPerRank(ParArray<int>* ien, Array<int>* ien_root, MPI_
 		}
 	}
     //}
-    //std::cout << rank << " needs to send " << cnt << " elements " << std::endl;
-    if(rank == 10000000)
+    std::cout << rank << " needs to send " << cnt << " elements " << std::endl;
+    if(rank == 0)
     {
 	for(int i=0;i<nloc;i++)
         {
