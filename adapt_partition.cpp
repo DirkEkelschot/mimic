@@ -278,60 +278,6 @@ std::vector<int> GetAdjacencyForUS3D_V4(ParArray<int>* ief, MPI_Comm comm)
      */
 }
 
-ParArrayOnRoot* GatherArrToRoot(int* locarr, int nloc, MPI_Comm comm)
-{
-
-    int size;
-    MPI_Comm_size(comm, &size);
-    // Get the rank of the process
-    int rank;
-    MPI_Comm_rank(comm, &rank);
-    
-    int* locs     = new int[size];
-    int* red_locs = new int[size];
-
-    for(int i=0;i<size;i++)
-    {    
-        red_locs[i]  = 0; 
-     
-        if(i==rank)
-        {    
-            locs[i]  = nloc;
-        }    
-        else 
-        {    
-            locs[i]  = 0; 
-        }    
-    }    
-    
-    MPI_Allreduce(locs, red_locs, size, MPI_INT, MPI_SUM, comm);
-    
-    int* red_offsets = new int[size];
-    red_offsets[0] = 0; 
-    for(int i=0;i<size-1;i++)
-    {    
-        red_offsets[i+1]=red_offsets[i]+red_locs[i];
-    }    
-    
-    int tot = red_offsets[size-1]+red_locs[size-1];
-    
-    ParArrayOnRoot* parr_root = new ParArrayOnRoot;
-    parr_root->data = new int[tot];
-    parr_root->nlocs = red_locs;
-    parr_root->offsets = red_offsets;
-    parr_root->size    = size;
-    parr_root->length  = tot;
-
-    MPI_Allgatherv(&locarr[0],
-                nloc,
-                MPI_INT,
-                &parr_root->data[0],
-                parr_root->nlocs,
-                parr_root->offsets,
-                MPI_INT, comm);
-
-    return parr_root;
-}
 
 
 
@@ -694,9 +640,20 @@ int* DeterminePartitionLayout(ParArray<int>* ien, Array<int>* ien_root, MPI_Comm
                          tpwgts, ubvec, options,
                          &edgecut, part, &comm);
     
-    ParArrayOnRoot* gRoot = GatherArrToRoot(part, nloc, comm);
+    ParArray<int>*  part_arr = new ParArray<int>(ien->getNglob(),1,comm);
+    part_arr->data = part;
+    int tot = ien->getNglob();
     
-    int * part_glob = gRoot->data;
+    Array<int>* output = new Array<int>(tot,1);
+
+    MPI_Gatherv(&part_arr->data[0],
+                   nloc,
+                   MPI_INT,
+                   &output->data[0],
+                   part_arr->getParallelState()->getNlocs(),
+                   part_arr->getParallelState()->getOffsets(),
+                   MPI_INT, 0, comm);
+    
     /*
     int* part_glob = new int[N];
     int nlocr;
@@ -727,7 +684,7 @@ int* DeterminePartitionLayout(ParArray<int>* ien, Array<int>* ien_root, MPI_Comm
     
     MPI_Bcast(&part_glob[0], N, MPI_INT, 0, comm);
     */
-    
+    int *part_glob;
     return part_glob;
     
 }
@@ -866,20 +823,40 @@ Partition* CollectElementsPerRank(ParArray<int>* ien, Array<int>* ien_root, MPI_
 	{
 		if(part[i]!=rank)
 	        {
-		//	std::cout << "rank  " << rank << " should send " << i+pstate_parmetis->getElmdistAtRank(rank) << " to rank " << part[i]  << std::endl;
+		    //std::cout << "rank  " << rank << " should send " << i+pstate_parmetis->getElmdistAtRank(rank) << " to rank " << part[i]  << std::endl;
 			cnt++;
 		}
 	}
     //}
     std::cout << rank << " needs to send " << cnt << " elements " << std::endl;
-    if(rank == 0)
+    ParArray<int>*  part_arr = new ParArray<int>(ien->getNglob(),1,comm);
+    part_arr->data = part;
+    int tot = ien->getNglob();
+    
+    Array<int>* output;
+    
+    if (rank == 0)
     {
-	for(int i=0;i<nloc;i++)
-        {
-		std::cout << part[i] << std::endl;
-	}
+        output = new Array<int>(tot,1);
     }
-    ParArrayOnRoot* gRoot = GatherArrToRoot(part, nloc, comm);
+
+    MPI_Gatherv(&part_arr->data[0],
+                   nloc,
+                   MPI_INT,
+                   &output->data[0],
+                   part_arr->getParallelState()->getNlocs(),
+                   part_arr->getParallelState()->getOffsets(),
+                   MPI_INT, 0, comm);
+    /*
+    MPI_Allgatherv(&part_arr->data[0],
+                     nloc,
+                     MPI_INT,
+                     &output->data[0],
+                     part_arr->getParallelState()->getNlocs(),
+                     part_arr->getParallelState()->getOffsets(),
+                     MPI_INT, comm);
+    */
+    //ParArrayOnRoot* gRoot = GatherArrToRoot(part, nloc, comm);
     //=================================================================
     //=================================================================
     //=================================================================

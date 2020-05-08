@@ -33,7 +33,7 @@ ParVar* CreateParallelData(int N, MPI_Comm comm);
 // assuming that we use one type of element throughout the whole mesh. However this needs to become
 // an int* in order to allow for hybrid meshes.
 // e2n has the Nvert per element stored consecutively for each element. Hence this array is Nel*NvertPerElement long.
-ParArrayOnRoot* GatherArrToRoot(int* locarr, int nloc, MPI_Comm comm);
+Array<int> GatherArrayToAll(Array<int> locarr, MPI_Comm comm);
 
 GathervObject* GetGathervObject(int nloc, MPI_Comm comm);
 
