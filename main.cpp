@@ -1898,7 +1898,7 @@ int main(int argc, char** argv) {
     //Partition* pv = CollectElementsPerRank(ien_copy,ien_on_root,comm);
     
     start = std::clock();
-    int* part = DeterminePartitionLayout(ien, ien_on_root, comm);
+    int* part = DeterminePartitionLayout(ien_copy, ien_on_root, comm);
     duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
     std::cout << "rank = " << world_rank << " layout = " << duration << std::endl;
     

@@ -639,22 +639,22 @@ int* DeterminePartitionLayout(ParArray<int>* ien, Array<int>* ien_root, MPI_Comm
                          ncon, nparts,
                          tpwgts, ubvec, options,
                          &edgecut, part, &comm);
-    
+     
     ParArray<int>*  part_arr = new ParArray<int>(ien->getNglob(),1,comm);
     part_arr->data = part;
     int tot = ien->getNglob();
     
     Array<int>* output = new Array<int>(tot,1);
 
-    MPI_Gatherv(&part_arr->data[0],
+    MPI_Allgatherv(&part_arr->data[0],
                    nloc,
                    MPI_INT,
                    &output->data[0],
                    part_arr->getParallelState()->getNlocs(),
                    part_arr->getParallelState()->getOffsets(),
-                   MPI_INT, 0, comm);
+                   MPI_INT, comm);
     
-    /*
+    /*    
     int* part_glob = new int[N];
     int nlocr;
     int *part_local;
@@ -683,9 +683,9 @@ int* DeterminePartitionLayout(ParArray<int>* ien, Array<int>* ien_root, MPI_Comm
     }
     
     MPI_Bcast(&part_glob[0], N, MPI_INT, 0, comm);
+    
     */
-    int *part_glob;
-    return part_glob;
+    return output->data;
     
 }
 
@@ -762,7 +762,7 @@ Partition* CollectElementsPerRank(ParArray<int>* ien, Array<int>* ien_root, MPI_
                           pstate_parmetis->getEind(),
                           numflag,ncommonnodes,
                           &xadj,&adjncy,&comm);
-    
+    /*
     ParMETIS_V3_PartKway(pstate_parmetis->getElmdist(),
                          xadj,
                          adjncy,
@@ -771,7 +771,7 @@ Partition* CollectElementsPerRank(ParArray<int>* ien, Array<int>* ien_root, MPI_
                          tpwgts, ubvec, options,
                         &edgecut, part, &comm);
     
-    
+    */
     
     
     /* 
