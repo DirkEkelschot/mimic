@@ -1366,7 +1366,6 @@ ParVar_ParMetis* CreateParallelDataParmetis(ParArray<int>* e2n, MPI_Comm comm, i
 
 void DivideElements(Array<int>* part_on_root, Array<int>* ien_on_root, MPI_Comm comm)
 {
-    
     int size;
     MPI_Comm_size(comm, &size);
 
@@ -1381,6 +1380,9 @@ void DivideElements(Array<int>* part_on_root, Array<int>* ien_on_root, MPI_Comm 
     int* jag_offset  = new int[size];
     int* tmp_cntr    = new int[size];
     int* tmp_cntr2   = new int[size];
+    
+    JagArray<int>* jArr;
+    int Nel = part_on_root->getNrow();
     if( rank == 0)
     {
         for(int i=0;i<size;i++)
@@ -1390,7 +1392,7 @@ void DivideElements(Array<int>* part_on_root, Array<int>* ien_on_root, MPI_Comm 
             tmp_cntr[i]   =0;
             tmp_cntr2[i]  =0;
         }
-        for(int i=0;i<part_on_root->getNrow();i++)
+        for(int i=0;i<Nel;i++)
         {
             divider_cnt[part_on_root->getVal(i,0)]=divider_cnt[part_on_root->getVal(i,0)]+1;
         }
@@ -1400,14 +1402,16 @@ void DivideElements(Array<int>* part_on_root, Array<int>* ien_on_root, MPI_Comm 
             jag_offset[i+1]=jag_offset[i]+divider_cnt[i];
         }
         
+        jArr = new JagArray<int>(size,divider_cnt);
+        
         int part_id = 0;
         int el_id   = 0;
         int offset  = 0;
         int tel     = 0;
         int tel2    = 0;
-        int* jag_array   = new int[part_on_root->getNrow()];
-        int* jag_array_v = new int[part_on_root->getNrow()*8];
-        for(int i=0;i<part_on_root->getNrow();i++)
+        int* jag_array   = new int[Nel];
+        int* jag_array_v = new int[Nel*8];
+        for(int i=0;i<Nel;i++)
         {
             part_id = part_on_root->getVal(i,0);
             el_id   = i;
@@ -1466,7 +1470,7 @@ void DivideElements(Array<int>* part_on_root, Array<int>* ien_on_root, MPI_Comm 
             
             int n_size3 = divider_cnt[i]*8;
             MPI_Send(&n_size3, 1, MPI_INT, i, 5678+600, comm);
-            MPI_Send(&jag_array[jag_offset[i]*8], n_size3, MPI_INT, i, 5678+700, comm);
+            MPI_Send(&jag_array_v[jag_offset[i]*8], n_size3, MPI_INT, i, 5678+700, comm);
 
         }
     }
