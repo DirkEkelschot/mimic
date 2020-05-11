@@ -1377,8 +1377,55 @@ void DivideElements(Array<int>* part_on_root, Array<int>* ien_on_root, MPI_Comm 
     std::vector< std::vector<int> > divider(size);
     std::vector< std::vector<int> > divider_vert(size);
 
+    int* divider_cnt = new int[size];
+    int* jag_offset  = new int[size];
+    int* tmp_cntr    = new int[size];
+    int* tmp_cntr2   = new int[size];
     if( rank == 0)
     {
+        for(int i=0;i<size;i++)
+        {
+            divider_cnt[i]=0;
+            jag_offset[i] =0;
+            tmp_cntr[i]   =0;
+            tmp_cntr2[i]  =0;
+        }
+        for(int i=0;i<part_on_root->getNrow();i++)
+        {
+            divider_cnt[part_on_root->getVal(i,0)]=divider_cnt[part_on_root->getVal(i,0)]+1;
+        }
+        
+        for(int i=0;i<size-1;i++)
+        {
+            jag_offset[i+1]=jag_offset[i]+divider_cnt[i];
+        }
+        
+        int part_id = 0;
+        int el_id   = 0;
+        int offset  = 0;
+        int tel     = 0;
+        int tel2    = 0;
+        int* jag_array   = new int[part_on_root->getNrow()];
+        int* jag_array_v = new int[part_on_root->getNrow()*8];
+        for(int i=0;i<part_on_root->getNrow();i++)
+        {
+            part_id = part_on_root->getVal(i,0);
+            el_id   = i;
+            offset  = jag_offset[part_id];
+            tel     = tmp_cntr[part_id];
+            jag_array[offset+tel] = i;
+            
+            for(int j=0;j<8;j++)
+            {
+                tel2 = tmp_cntr2[part_id];
+                jag_array_v[offset*8+tel2] = ien_on_root->getVal(i,j);
+                tmp_cntr2[part_id] = tmp_cntr2[part_id] + 1;
+            }
+            
+            tmp_cntr[part_id]=tmp_cntr[part_id]+1;
+        }
+        
+        /*
         for(int i=0;i<part_on_root->getNrow();i++)
         {
             divider[part_on_root->getVal(i,0)].push_back(i);
@@ -1387,32 +1434,70 @@ void DivideElements(Array<int>* part_on_root, Array<int>* ien_on_root, MPI_Comm 
                 divider_vert[part_on_root->getVal(i,0)].push_back(ien_on_root->getVal(i,j));
             }
         }
+         */
+        
+//        int t = 0;
+//        for(int i=0;i<size;i++)
+//        {
+//            std::cout << "part_size " << divider[i].size() << std::endl;
+//            for(int j=0;j<divider[i].size();j++)
+//            {
+//                std::cout << divider[i][j]-jag_array[t] << " ";
+//                t=t+1;
+//            }
+//            std::cout << std::endl;
+//        }
+        
         
         for(int i=1;i<size;i++)
         {
+            /*
             int n_size = divider[i].size();
             MPI_Send(&n_size, 1, MPI_INT, i, 5678, comm);
             MPI_Send(&divider[i][0], n_size, MPI_INT, i, 5678+100, comm);
             
             int n_size_vert = divider_vert[i].size();
             MPI_Send(&n_size_vert, 1, MPI_INT, i, 5678+200, comm);
-           MPI_Send(&divider_vert[i][0], n_size_vert, MPI_INT, i, 5678+300, comm);
+            MPI_Send(&divider_vert[i][0], n_size_vert, MPI_INT, i, 5678+300, comm);
+            */
+            int n_size2 = divider_cnt[i];
+            MPI_Send(&n_size2, 1, MPI_INT, i, 5678+400, comm);
+            MPI_Send(&jag_array[jag_offset[i]], n_size2, MPI_INT, i, 5678+500, comm);
+            
+            int n_size3 = divider_cnt[i]*8;
+            MPI_Send(&n_size3, 1, MPI_INT, i, 5678+600, comm);
+            MPI_Send(&jag_array[jag_offset[i]*8], n_size3, MPI_INT, i, 5678+700, comm);
 
         }
     }
     else
     {
+        /*
         int n_recv;
         MPI_Recv(&n_recv, 1, MPI_INT, 0, 5678, comm, MPI_STATUS_IGNORE);
-        
         int* recv_el = new int[n_recv];
         MPI_Recv(&recv_el[0], n_recv, MPI_INT, 0, 5678+100, comm, MPI_STATUS_IGNORE);
         
         int n_recv_vert;
         MPI_Recv(&n_recv_vert, 1, MPI_INT, 0, 5678+200, comm, MPI_STATUS_IGNORE);
-        
         int* recv_vert = new int[n_recv_vert];
         MPI_Recv(&recv_vert[0], n_recv_vert, MPI_INT, 0, 5678+300, comm, MPI_STATUS_IGNORE);
+        */
+        int n_recv2;
+        MPI_Recv(&n_recv2, 1, MPI_INT, 0, 5678+400, comm, MPI_STATUS_IGNORE);
+        int* recv_el2 = new int[n_recv2];
+        MPI_Recv(&recv_el2[0], n_recv2, MPI_INT, 0, 5678+500, comm, MPI_STATUS_IGNORE);
+        
+        int n_recv3;
+        MPI_Recv(&n_recv3, 1, MPI_INT, 0, 5678+600, comm, MPI_STATUS_IGNORE);
+        int* recv_vert2 = new int[n_recv3];
+        MPI_Recv(&recv_vert2[0], n_recv3, MPI_INT, 0, 5678+700, comm, MPI_STATUS_IGNORE);
+        
+        for(int i=0;i<n_recv2;i++)
+        {
+            //std::cout << rank << " " << recv_el[i] - recv_el2[i] << std::endl;
+        }
+        
     }
     
     //delete divider;
