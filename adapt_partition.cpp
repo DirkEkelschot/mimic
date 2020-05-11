@@ -644,15 +644,20 @@ int* DeterminePartitionLayout(ParArray<int>* ien, Array<int>* ien_root, MPI_Comm
     part_arr->data = part;
     int tot = ien->getNglob();
     
-    Array<int>* output = new Array<int>(tot,1);
+    Array<int>* output = new Array<int>;
+    if (rank == 0)
+    {
+      output = new Array<int>(tot,1);
+    } 
+   
 
-    MPI_Allgatherv(&part_arr->data[0],
+    MPI_Gatherv(&part_arr->data[0],
                    nloc,
                    MPI_INT,
                    &output->data[0],
                    part_arr->getParallelState()->getNlocs(),
                    part_arr->getParallelState()->getOffsets(),
-                   MPI_INT, comm);
+                   MPI_INT, 0, comm);
     
     /*    
     int* part_glob = new int[N];

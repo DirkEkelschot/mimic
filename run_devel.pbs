@@ -1,7 +1,7 @@
 #PBS -S /bin/bash
 #PBS -N us3d_run 
 #PBS -q devel
-#PBS -l select=16:ncpus=28:model=bro
+#PBS -l select=20:ncpus=28:model=bro
 #PBS -l walltime=2:00:00
 #PBS -j oe
 #PBS -W group_list=e1305
@@ -26,5 +26,5 @@ export OMP_NUM_THREADS
 
 # Run eddy
 #env US3D_PLUGINS_PATH=/home1/dekelsch/plugins/multi-body_free-flight-master mpiexec -np 448 us3d --restart=data_restart2.h5 --data=data.h5 > us3d.out
-env US3D_PLUGINS_PATH=/home1/dekelsch/us3d_plugins mpiexec -np 448 us3d
+env US3D_PLUGINS_PATH=/home1/dekelsch/us3d_plugins mpiexec -np 896 us3d
 #mpiexec -np 224 us3d --restart=data_restart2.h5 --data=data.h5 > us3d_restart2.out
