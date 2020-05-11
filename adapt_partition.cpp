@@ -570,7 +570,7 @@ Partition* CollectVerticesPerRank(ParArray<int>* ien, Array<double>* xcn_r, MPI_
 }
 
 
-int* DeterminePartitionLayout(ParArray<int>* ien, Array<int>* ien_root, MPI_Comm comm)
+Array<int>* DeterminePartitionLayout(ParArray<int>* ien, Array<int>* ien_root, MPI_Comm comm)
 {
     int size;
     MPI_Comm_size(comm, &size);
@@ -690,7 +690,7 @@ int* DeterminePartitionLayout(ParArray<int>* ien, Array<int>* ien_root, MPI_Comm
     MPI_Bcast(&part_glob[0], N, MPI_INT, 0, comm);
     
     */
-    return output->data;
+    return output;
     
 }
 

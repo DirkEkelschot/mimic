@@ -1825,7 +1825,7 @@ int main(int argc, char** argv) {
 //============================================================
     
     //const char* fn_conn="grids/piston/conn.h5";
-    const char* fn_conn="grids/adept/conn.h5";
+    const char* fn_conn="grids/piston/conn.h5";
     const char* fn_grid="grids/piston/grid.h5";
     const char* fn_data="grids/adept/data.h5";
     
@@ -1898,7 +1898,7 @@ int main(int argc, char** argv) {
     //Partition* pv = CollectElementsPerRank(ien_copy,ien_on_root,comm);
     
     start = std::clock();
-    int* part = DeterminePartitionLayout(ien_copy, ien_on_root, comm);
+    Array<int>* part = DeterminePartitionLayout(ien_copy, ien_on_root, comm);
     duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
     std::cout << "rank = " << world_rank << " layout = " << duration << std::endl;
     
@@ -1909,7 +1909,40 @@ int main(int argc, char** argv) {
 //            std::cout << i << " " << part[i] << std::endl;
 //        }
 //    }
+    
+    std::vector< std::vector<int> > divide(world_size);
+    
+    if( world_rank == 0)
+    {
+        for(int i=0;i<part->getNrow();i++)
+        {
+            divide[part->getVal(i,0)].push_back(i);
+        }
+        
+        for(int i=1;i<world_size;i++)
+        {
+            int n_size = divide[i].size();
+            MPI_Send(&n_size, 1, MPI_INT, i, 5678, comm);
+            MPI_Send(&divide[i][0], n_size, MPI_INT, i, 5678+100, comm);
+
+        }
+    }
+    else
+    {
+        int n_recv;
+        MPI_Recv(&n_recv, 1, MPI_INT, 0, 5678, comm, MPI_STATUS_IGNORE);
+        std::cout << world_rank  << " " << n_recv << std::endl;
+        
+        int* recv_el = new int[n_recv];
+        MPI_Recv(&recv_el[0], n_recv, MPI_INT, 0, 5678+100, comm, MPI_STATUS_IGNORE);
+    }
+    
+    
+    
+    
     MPI_Finalize();
+    
+    
     
     return 0;
      
