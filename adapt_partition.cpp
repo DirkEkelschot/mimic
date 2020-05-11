@@ -1362,3 +1362,60 @@ ParVar_ParMetis* CreateParallelDataParmetis(ParArray<int>* e2n, MPI_Comm comm, i
     
     return pv_parmetis;
 }
+
+
+void DivideElements(Array<int>* part_on_root, Array<int>* ien_on_root, MPI_Comm comm)
+{
+    
+    int size;
+    MPI_Comm_size(comm, &size);
+
+    // Get the rank of the process;
+    int rank;
+    MPI_Comm_rank(comm, &rank);
+    
+    std::vector< std::vector<int> > divider(size);
+    std::vector< std::vector<int> > divider_vert(size);
+
+    if( rank == 0)
+    {
+        for(int i=0;i<part_on_root->getNrow();i++)
+        {
+            divider[part_on_root->getVal(i,0)].push_back(i);
+            for(int j=0;j<8;j++)
+            {
+                divider_vert[part_on_root->getVal(i,0)].push_back(ien_on_root->getVal(i,j));
+            }
+        }
+        
+        for(int i=1;i<size;i++)
+        {
+            int n_size = divider[i].size();
+            MPI_Send(&n_size, 1, MPI_INT, i, 5678, comm);
+            MPI_Send(&divider[i][0], n_size, MPI_INT, i, 5678+100, comm);
+            
+            int n_size_vert = divider_vert[i].size();
+            MPI_Send(&n_size_vert, 1, MPI_INT, i, 5678+200, comm);
+           MPI_Send(&divider_vert[i][0], n_size_vert, MPI_INT, i, 5678+300, comm);
+
+        }
+    }
+    else
+    {
+        int n_recv;
+        MPI_Recv(&n_recv, 1, MPI_INT, 0, 5678, comm, MPI_STATUS_IGNORE);
+        
+        int* recv_el = new int[n_recv];
+        MPI_Recv(&recv_el[0], n_recv, MPI_INT, 0, 5678+100, comm, MPI_STATUS_IGNORE);
+        
+        int n_recv_vert;
+        MPI_Recv(&n_recv_vert, 1, MPI_INT, 0, 5678+200, comm, MPI_STATUS_IGNORE);
+        
+        int* recv_vert = new int[n_recv_vert];
+        MPI_Recv(&recv_vert[0], n_recv_vert, MPI_INT, 0, 5678+300, comm, MPI_STATUS_IGNORE);
+    }
+    
+    //delete divider;
+    //duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
+    //std::cout << "rank = " << world_rank << " dividing = " << duration << std::endl;
+}

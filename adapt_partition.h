@@ -47,5 +47,6 @@ Partition* CollectVerticesPerRank(ParArray<int>* ien, Array<double>* xcn_r, MPI_
 
 Partition* CollectElementsPerRank(ParArray<int>* ien, Array<int>* ien_root, MPI_Comm comm);
 
+void DivideElements(Array<int>* part_on_root, Array<int>* ien_on_root, MPI_Comm comm);
 
 #endif
