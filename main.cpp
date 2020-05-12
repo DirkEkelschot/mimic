@@ -809,34 +809,62 @@ map< int, std::set<int> > GetRequestedVertices(ParArray<int>* ien, ParArray<doub
     ParVar* pv_xcn = ComputeParallelStateArray(xcn->getNglob(), comm);
     int val;
     
-    
-//    if(world_rank == 0)
-//    {
-//        for(int i=0;i<world_size+1;i++)
-//        {
-//            std::cout << "offsets ien " << pv_xcn->offsets[i] << std::endl;
-//        }
-//    }
-    
-    //std::cout << "size decreases right? " << world_rank << " " << ien->nloc << std::endl;
-    //ofstream myfile,myfile2;
-    //myfile.open("val_"+std::to_string(world_rank)+".dat");
-
-    //myfile2.open("rank_"+std::to_string(world_rank)+".dat");
-    
     for(int i=0;i<ien->getNrow();i++)
     {
-        //std::cout << pv_xcn->offsets[world_rank] << " " << pv_xcn->offsets[world_rank+1] << "   ::  ";
         for(int j=1;j<ien->getNcol();j++)
         {
             val = ien->getVal(i,j);
-            //rank_f = FindRank(pv_xcn->offsets,world_size+1,val);
-            //myfile <<val<< " ";
-
-            //myfile2 <<rank_f << " ";
+            
             if(val>pv_xcn->offsets[world_rank+1] || val < pv_xcn->offsets[world_rank])
             {
                 rank_f = FindRank(pv_xcn->offsets,world_size+1,val);
+                
+                if ( Request[rank_f].find( val ) == Request[rank_f].end() )
+                {
+                    Request[rank_f].insert(val);
+                }
+            }
+        }
+        //myfile << std::endl;
+        //myfile2 << std::endl;
+    }
+    
+    
+    //duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
+
+    //std::cout << world_rank << " loopie loop = " << duration << std::endl;
+    delete pv_xcn;
+    return Request;
+}
+
+
+
+map< int, std::set<int> > GetRequestedVerticesNew(Array<int>* part, ParArray<int>* ien, ParArray<double>* xcn, MPI_Comm comm)
+{
+    int size;
+    MPI_Comm_size(comm, &size);
+    // Get the rank of the process
+    int rank;
+    MPI_Comm_rank(comm, &rank);
+    
+    map< int, std::set<int> > Request;
+    int rank_f = 0;
+    std::vector<std::vector<int> > req;
+    
+    ParallelState* = pv_xcn->getParallelState();
+    //ParVar* pv_xcn = ComputeParallelStateArray(xcn->getNglob(), comm);
+    int val;
+    int p_id;
+    for(int i=0;i<ien->getNrow();i++)
+    {
+        for(int j=1;j<ien->getNcol();j++)
+        {
+            val  = ien->getVal(i,j);
+            p_id = part[val];
+            
+            if(p_id!=rank)
+            {
+                rank_f = FindRank(pv_xcn->getOffsets(),size+1,val);
                 
                 if ( Request[rank_f].find( val ) == Request[rank_f].end() )
                 {
@@ -1058,11 +1086,12 @@ int* TestBrutePartioningUS3D()
     map< int, std::set<int> > Request = GetRequestedVertices(ien,xcn,comm);
     map<int,  std::set<int> >::iterator it;
     
-    
     TmpStruct* schedule = GetSchedule(ien,xcn,comm);
 
     std::map< int, set<int> > s_send;
     std::map< int, set<int> > s_recv;
+    std::map< int, std::map< int, int> > s_recv_alloc;
+    //std::cout << "we are jagged " << std::endl;
     int nval_tot = 0;
     for(int i=0;i<world_size;i++)
     {
@@ -1073,9 +1102,14 @@ int* TestBrutePartioningUS3D()
        {
            s_send[i].insert(schedule->data[j]);
            s_recv[schedule->data[j]].insert(i);
+           
+           s_recv_alloc[schedule->data[j]][i] = schedule->sizing[j];
        }
     }
 
+    std::map< int, int> loc_alloc = s_recv_alloc[world_rank];
+
+    //std::cout << " loc_alloc.size()  = " << loc_alloc.size() << std::endl;
     int* recv_offset = new int[loc_alloc.size()+1];
     recv_offset[0]   = 0;
     int* recv_loc    = new int[loc_alloc.size()];;
@@ -1120,8 +1154,6 @@ int* TestBrutePartioningUS3D()
                 {
                     req_arr_send[i] = *it_set;
                 }
-                std::cout << "wr = " << q << " dest " << dest << " " << n_req << " ";
-
                 MPI_Send(&n_req, 1, MPI_INT, dest, dest, comm);
                 MPI_Send(&req_arr_send[0], n_req, MPI_INT, dest, 100+dest*2, comm);
                 tel = tel + 1;
@@ -1130,20 +1162,22 @@ int* TestBrutePartioningUS3D()
         }
         else if (s_send[q].find( world_rank ) != s_send[q].end())
         {
+            
             MPI_Recv(&n_req_recv, 1, MPI_INT, q, world_rank, comm, MPI_STATUS_IGNORE);
 
             MPI_Recv(&recv_collector[offset_map[q]], n_req_recv, MPI_INT, q, 100+world_rank*2, comm, MPI_STATUS_IGNORE);
+
         }
     }
     
     delete xcn;
     delete ien;
-    //delete ifn;
-    //delete[] req_arr_send;
     delete[] recv_loc;
     //delete ief;
     
     duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
+    
+        
     std::cout << "duration " << duration  << std::endl;
     return recv_collector;
     
