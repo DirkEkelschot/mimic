@@ -810,13 +810,13 @@ map< int, std::set<int> > GetRequestedVertices(ParArray<int>* ien, ParArray<doub
     int val;
     
     
-    if(world_rank == 0)
-    {
-        for(int i=0;i<world_size+1;i++)
-        {
-            std::cout << "offsets ien " << pv_xcn->offsets[i] << std::endl;
-        }
-    }
+//    if(world_rank == 0)
+//    {
+//        for(int i=0;i<world_size+1;i++)
+//        {
+//            std::cout << "offsets ien " << pv_xcn->offsets[i] << std::endl;
+//        }
+//    }
     
     //std::cout << "size decreases right? " << world_rank << " " << ien->nloc << std::endl;
     //ofstream myfile,myfile2;
@@ -864,10 +864,6 @@ TmpStruct* GetSchedule(ParArray<int>* ien, ParArray<double>* xcn, MPI_Comm comm)
     // Get the rank of the process
     int world_rank;
     MPI_Comm_rank(comm, &world_rank);
-    
-    
-
-    
     
     map< int, std::set<int> > Request = GetRequestedVertices(ien,xcn,comm);
     map<int,  std::set<int> >::iterator it;
@@ -954,16 +950,16 @@ TmpStruct* GetSchedule(ParArray<int>* ien, ParArray<double>* xcn, MPI_Comm comm)
     schedule->data = reduce_req_procs;
     //schedule->sizing = reduce_req_sizing;
     
-    if (world_rank == 0)
-    {
-        for(int i=0;i<tot_req_proc;i++)
-        {
-            std::cout<< reduce_req_sizing[i] << std::endl;
-        }
-        
-        std::cout << "++++++++++++++++++++++++" << std::endl;
-    }
-    
+//    if (world_rank == 0)
+//    {
+//        for(int i=0;i<tot_req_proc;i++)
+//        {
+//            std::cout<< reduce_req_sizing[i] << std::endl;
+//        }
+//
+//        std::cout << "++++++++++++++++++++++++" << std::endl;
+//    }
+//
     
     delete schedule;
     
@@ -977,7 +973,7 @@ TmpStruct* GetSchedule(ParArray<int>* ien, ParArray<double>* xcn, MPI_Comm comm)
     
     duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
 
-    std::cout << world_rank << " scheduling inside = " << duration << std::endl;
+    //std::cout << world_rank << " scheduling inside = " << duration << std::endl;
     
     return t_struct;
 }
@@ -1033,6 +1029,9 @@ void TestReadInParallelToRoot(MPI_Comm comm, MPI_Info info)
 
 int* TestBrutePartioningUS3D()
 {
+    std::clock_t start;
+    double duration;
+    start = std::clock();
     MPI_Comm comm = MPI_COMM_WORLD;
     MPI_Info info = MPI_INFO_NULL;
     int world_size;
@@ -1041,8 +1040,8 @@ int* TestBrutePartioningUS3D()
     int world_rank;
     MPI_Comm_rank(comm, &world_rank);
     
-    const char* fn_conn="grids/conn.h5";
-    const char* fn_grid="grids/grid.h5";
+    const char* fn_conn="grids/adept/conn.h5";
+    const char* fn_grid="grids/adept/grid.h5";
     
     ParArray<double>*   xcn = ReadDataSetFromFileInParallel<double>(fn_grid,"xcn",comm,info);
     ParArray<int>*      ien = ReadDataSetFromFileInParallel<int>(fn_conn,"ien",comm,info);
@@ -1134,7 +1133,7 @@ int* TestBrutePartioningUS3D()
                 {
                     req_arr_send[i] = *it_set;
                 }
-                std::cout << "wr = " << q << " dest " << dest << " " << n_req << " ";
+                //std::cout << "wr = " << q << " dest " << dest << " " << n_req << " ";
 
                 MPI_Send(&n_req, 1, MPI_INT, dest, dest, comm);
                 MPI_Send(&req_arr_send[0], n_req, MPI_INT, dest, 100+dest*2, comm);
@@ -1158,7 +1157,11 @@ int* TestBrutePartioningUS3D()
     //delete[] req_arr_send;
     delete[] recv_loc;
     //delete ief;
+    
+    duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
+    std::cout << "duration " << duration  << std::endl;
     return recv_collector;
+    
 
 }
 
@@ -1918,7 +1921,9 @@ int main(int argc, char** argv) {
     duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
     std::cout << "rank = " << world_rank << " dividing = " << duration << std::endl;
     
-    
+    start = std::clock();
+    int*output = TestBrutePartioningUS3D();
+    std::cout << "rank = " << world_rank << " TestBrutePartioningUS3D() = " << duration << std::endl;
     MPI_Finalize();
     
     
