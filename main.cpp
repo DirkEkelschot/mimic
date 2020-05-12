@@ -879,7 +879,7 @@ TmpStruct* GetSchedule(ParArray<int>* ien, ParArray<double>* xcn, MPI_Comm comm)
     double duration;
     start = std::clock();
     int* collect = new int[num_req_proc+1];
-    int* sizing  = new int[num_req_proc];
+    int* sizing  = new int[num_req_proc+1];
     int tot_req_proc = 0;
     
     
@@ -889,11 +889,12 @@ TmpStruct* GetSchedule(ParArray<int>* ien, ParArray<double>* xcn, MPI_Comm comm)
     int* red_num_req_sizing = new int[world_size];
     int* proc_offset = new int[world_size];
     int* proc_offset_sizing = new int[world_size];
+    
     for(int i=0;i<world_size;i++)
     {
         if(i==world_rank)
         {
-            num_req_procs[i] = num_req_proc+1;
+            num_req_procs[i]  = num_req_proc+1;
             num_req_sizing[i] = num_req_proc;
         }
         else
@@ -935,7 +936,7 @@ TmpStruct* GetSchedule(ParArray<int>* ien, ParArray<double>* xcn, MPI_Comm comm)
     for(it = Request.begin(); it != Request.end(); it++)
     {
         collect[t] = it->first;
-        sizing[t] = it->second.size();
+        sizing[t]  = it->second.size();
         t++;
     }
     
@@ -950,16 +951,21 @@ TmpStruct* GetSchedule(ParArray<int>* ien, ParArray<double>* xcn, MPI_Comm comm)
     schedule->data = reduce_req_procs;
     //schedule->sizing = reduce_req_sizing;
     
-//    if (world_rank == 0)
-//    {
-//        for(int i=0;i<tot_req_proc;i++)
-//        {
-//            std::cout<< reduce_req_sizing[i] << std::endl;
-//        }
-//
-//        std::cout << "++++++++++++++++++++++++" << std::endl;
-//    }
-//
+    if (world_rank == 0)
+    {
+        for(int i=0;i<tot_req_proc+world_size;i++)
+        {
+            std::cout << reduce_req_procs[i] << " " << reduce_req_sizing[i] << std::endl;
+        }
+
+        std::cout << "++++++++++++++++++++++++" << std::endl;
+        
+        for(int i=0;i<world_size;i++)
+        {
+            std::cout << red_num_req_procs[i] << " "  << proc_offset_sizing[i] << std::endl;
+        }
+    }
+
     
     delete schedule;
     
@@ -1040,8 +1046,8 @@ int* TestBrutePartioningUS3D()
     int world_rank;
     MPI_Comm_rank(comm, &world_rank);
     
-    const char* fn_conn="grids/adept/conn.h5";
-    const char* fn_grid="grids/adept/grid.h5";
+    const char* fn_conn="grids/piston/conn.h5";
+    const char* fn_grid="grids/piston/grid.h5";
     
     ParArray<double>*   xcn = ReadDataSetFromFileInParallel<double>(fn_grid,"xcn",comm,info);
     ParArray<int>*      ien = ReadDataSetFromFileInParallel<int>(fn_conn,"ien",comm,info);
@@ -1057,16 +1063,9 @@ int* TestBrutePartioningUS3D()
 
     std::map< int, set<int> > s_send;
     std::map< int, set<int> > s_recv;
-    std::map< int, std::vector<int> > s_send_size;
-    std::map< int, std::vector<int> > s_recv_size;
-
-    std::map< int, std::map< int, int> > s_alloc;
-    std::map< int, std::map< int, int> > s_recv_alloc;
-    //std::cout << "we are jagged " << std::endl;
     int nval_tot = 0;
     for(int i=0;i<world_size;i++)
     {
-
        int nloc   = schedule->nlocs[i];
        int offset = schedule->offsets[i];
         
@@ -1074,21 +1073,9 @@ int* TestBrutePartioningUS3D()
        {
            s_send[i].insert(schedule->data[j]);
            s_recv[schedule->data[j]].insert(i);
-
-           s_send_size[i].push_back(schedule->sizing[j]);
-           s_recv_size[schedule->data[j]].push_back(schedule->sizing[j]);
-
-           s_alloc[i][schedule->data[j]] = schedule->sizing[j];
-           s_recv_alloc[schedule->data[j]][i] = schedule->sizing[j];
        }
     }
 
-
-
-    std::map< int, int> loc_alloc = s_recv_alloc[world_rank];
-
-
-    //std::cout << " loc_alloc.size()  = " << loc_alloc.size() << std::endl;
     int* recv_offset = new int[loc_alloc.size()+1];
     recv_offset[0]   = 0;
     int* recv_loc    = new int[loc_alloc.size()];;
@@ -1133,7 +1120,7 @@ int* TestBrutePartioningUS3D()
                 {
                     req_arr_send[i] = *it_set;
                 }
-                //std::cout << "wr = " << q << " dest " << dest << " " << n_req << " ";
+                std::cout << "wr = " << q << " dest " << dest << " " << n_req << " ";
 
                 MPI_Send(&n_req, 1, MPI_INT, dest, dest, comm);
                 MPI_Send(&req_arr_send[0], n_req, MPI_INT, dest, 100+dest*2, comm);
@@ -1143,11 +1130,9 @@ int* TestBrutePartioningUS3D()
         }
         else if (s_send[q].find( world_rank ) != s_send[q].end())
         {
-            
             MPI_Recv(&n_req_recv, 1, MPI_INT, q, world_rank, comm, MPI_STATUS_IGNORE);
 
             MPI_Recv(&recv_collector[offset_map[q]], n_req_recv, MPI_INT, q, 100+world_rank*2, comm, MPI_STATUS_IGNORE);
-
         }
     }
     
