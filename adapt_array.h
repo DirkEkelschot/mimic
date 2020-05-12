@@ -90,17 +90,15 @@ template <typename T> class JagArray {
     
         JagArray(int r, int* c)
         {
-            spanJagArray(r,c);
+            this->spanJagArray(r,c);
         }
-    
-    
         void setVal(int i, int j, T val)
         {
-            data[offset[i]+j] = val;
+            data[oset[i]+j] = val;
         }
         T getVal(int i, int j)
         {
-            return  data[offset[i]+j];
+            return  data[oset[i]+j];
         }
         int getNrow( void )
         {
@@ -110,27 +108,38 @@ template <typename T> class JagArray {
         {
             return ncol[i];
         }
+        int getRowOffset( int i )
+        {
+            return oset[i];
+        }
+        int* getOffsets( void )
+        {
+            return oset;
+        }
+        int getLength()
+        {
+            return length;
+        }
         void spanJagArray( int r, int* c)
         {
-            nrow = r;
-            ncol = c;
-            int length=0;
-            int* offset = new int[r];
-            offset[0] = 0;
             
+            nrow        =   r;
+            ncol        =   c;
+            length      =   0;
+            oset        = new int[nrow];
+            oset[0]     = 0;
+
             for(int i=0;i<r;i++)
             {
                 length = length+c[i];
-                if(i>0)
+                if(i<r-1)
                 {
-                    offset[i] = offset[i-1]+c[i];
+                    oset[i+1]=oset[i]+c[i];
                 }
+
             }
-        std::cout << length << std::endl;
             data = new T[length];
-            /*
-            data = new T[length];
-             */
+            
         }
         int* getDim()
         {
@@ -143,7 +152,9 @@ template <typename T> class JagArray {
     private:
         int nrow;
         int* ncol;
-    int* offset;
+        int* oset;
+        int length;
+        
 };
 
 #endif

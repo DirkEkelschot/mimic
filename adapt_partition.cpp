@@ -1364,7 +1364,7 @@ ParVar_ParMetis* CreateParallelDataParmetis(ParArray<int>* e2n, MPI_Comm comm, i
 }
 
 
-void DivideElements(Array<int>* part_on_root, Array<int>* ien_on_root, MPI_Comm comm)
+void DivideElements(Array<int>* part_on_root, Array<int>* ien_on_root, Array<double>* xcn_on_root, MPI_Comm comm)
 {
     int size;
     MPI_Comm_size(comm, &size);
@@ -1376,25 +1376,40 @@ void DivideElements(Array<int>* part_on_root, Array<int>* ien_on_root, MPI_Comm 
     std::vector< std::vector<int> > divider(size);
     std::vector< std::vector<int> > divider_vert(size);
 
-    int* divider_cnt = new int[size];
+    int* divider_cnt   = new int[size];
+    int* divider_cnt_v = new int[size];
+    int* divider_cnt_c = new int[size];
+
     int* jag_offset  = new int[size];
     int* tmp_cntr    = new int[size];
     int* tmp_cntr2   = new int[size];
-    
-    JagArray<int>* jArr;
+    int* tmp_cntr3   = new int[size];
+
+    JagArray<int>* jArrElm;
+    JagArray<int>* jArrVrt;
+    JagArray<double>* jArrCrd;
     int Nel = part_on_root->getNrow();
     if( rank == 0)
     {
         for(int i=0;i<size;i++)
         {
-            divider_cnt[i]=0;
-            jag_offset[i] =0;
-            tmp_cntr[i]   =0;
-            tmp_cntr2[i]  =0;
+            divider_cnt[i]  =0;
+            divider_cnt_v[i]=0;
+            divider_cnt_c[i]=0;
+            jag_offset[i]   =0;
+            tmp_cntr[i]     =0;
+            tmp_cntr2[i]    =0;
+            tmp_cntr3[i]    =0;
         }
         for(int i=0;i<Nel;i++)
         {
             divider_cnt[part_on_root->getVal(i,0)]=divider_cnt[part_on_root->getVal(i,0)]+1;
+        }
+        
+        for(int i=0;i<size;i++)
+        {
+            divider_cnt_v[i] = divider_cnt[i]*8;
+            divider_cnt_c[i] = divider_cnt[i]*8*3;
         }
         
         for(int i=0;i<size-1;i++)
@@ -1402,13 +1417,16 @@ void DivideElements(Array<int>* part_on_root, Array<int>* ien_on_root, MPI_Comm 
             jag_offset[i+1]=jag_offset[i]+divider_cnt[i];
         }
         
-        jArr = new JagArray<int>(size,divider_cnt);
+        jArrElm = new JagArray<int>(size,divider_cnt);
+        jArrVrt = new JagArray<int>(size,divider_cnt_v);
+        jArrCrd = new JagArray<double>(size,divider_cnt_c);
         
         int part_id = 0;
         int el_id   = 0;
         int offset  = 0;
         int tel     = 0;
         int tel2    = 0;
+        int tel3    = 0;
         int* jag_array   = new int[Nel];
         int* jag_array_v = new int[Nel*8];
         for(int i=0;i<Nel;i++)
@@ -1418,40 +1436,27 @@ void DivideElements(Array<int>* part_on_root, Array<int>* ien_on_root, MPI_Comm 
             offset  = jag_offset[part_id];
             tel     = tmp_cntr[part_id];
             jag_array[offset+tel] = i;
-            
+            int o = jArrElm->getNcol(part_id);
+            int s = jArrElm->getRowOffset(part_id);
+            int* os = jArrElm->getOffsets();
+            jArrElm->setVal(part_id,tel,i);
             for(int j=0;j<8;j++)
             {
                 tel2 = tmp_cntr2[part_id];
                 jag_array_v[offset*8+tel2] = ien_on_root->getVal(i,j);
+                jArrVrt->setVal(part_id,tel2,ien_on_root->getVal(i,j));
                 tmp_cntr2[part_id] = tmp_cntr2[part_id] + 1;
+                
+                for(int k=0;k<3;k++)
+                {
+                    tel3 = tmp_cntr3[part_id];
+                    jArrCrd->setVal(part_id,tel3,xcn_on_root->getVal(ien_on_root->getVal(i,j),k));
+                    tmp_cntr3[part_id] = tmp_cntr3[part_id] + 1;
+                }
             }
             
             tmp_cntr[part_id]=tmp_cntr[part_id]+1;
         }
-        
-        /*
-        for(int i=0;i<part_on_root->getNrow();i++)
-        {
-            divider[part_on_root->getVal(i,0)].push_back(i);
-            for(int j=0;j<8;j++)
-            {
-                divider_vert[part_on_root->getVal(i,0)].push_back(ien_on_root->getVal(i,j));
-            }
-        }
-         */
-        
-//        int t = 0;
-//        for(int i=0;i<size;i++)
-//        {
-//            std::cout << "part_size " << divider[i].size() << std::endl;
-//            for(int j=0;j<divider[i].size();j++)
-//            {
-//                std::cout << divider[i][j]-jag_array[t] << " ";
-//                t=t+1;
-//            }
-//            std::cout << std::endl;
-//        }
-        
         
         for(int i=1;i<size;i++)
         {
@@ -1471,6 +1476,10 @@ void DivideElements(Array<int>* part_on_root, Array<int>* ien_on_root, MPI_Comm 
             int n_size3 = divider_cnt[i]*8;
             MPI_Send(&n_size3, 1, MPI_INT, i, 5678+600, comm);
             MPI_Send(&jag_array_v[jag_offset[i]*8], n_size3, MPI_INT, i, 5678+700, comm);
+
+            int n_size4 = divider_cnt_c[i];
+            MPI_Send(&n_size4, 1, MPI_INT, i, 5678+800, comm);
+            MPI_Send(&jArrCrd->data[jArrCrd->getRowOffset(i)], n_size4, MPI_INT, i, 5678+900, comm);
 
         }
     }
@@ -1496,6 +1505,11 @@ void DivideElements(Array<int>* part_on_root, Array<int>* ien_on_root, MPI_Comm 
         MPI_Recv(&n_recv3, 1, MPI_INT, 0, 5678+600, comm, MPI_STATUS_IGNORE);
         int* recv_vert2 = new int[n_recv3];
         MPI_Recv(&recv_vert2[0], n_recv3, MPI_INT, 0, 5678+700, comm, MPI_STATUS_IGNORE);
+        
+        int n_recv4;
+        MPI_Recv(&n_recv4, 1, MPI_INT, 0, 5678+800, comm, MPI_STATUS_IGNORE);
+        int* recv_vert4 = new int[n_recv4];
+        MPI_Recv(&recv_vert4[0], n_recv4, MPI_INT, 0, 5678+900, comm, MPI_STATUS_IGNORE);
         
         for(int i=0;i<n_recv2;i++)
         {

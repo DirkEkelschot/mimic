@@ -1913,7 +1913,7 @@ int main(int argc, char** argv) {
     
     start = std::clock();
     
-    DivideElements(part_on_root,ien_on_root, comm);
+    DivideElements(part_on_root,ien_on_root,xcn_on_root, comm);
     
     duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
     std::cout << "rank = " << world_rank << " dividing = " << duration << std::endl;
