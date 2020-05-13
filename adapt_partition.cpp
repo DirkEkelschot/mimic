@@ -708,44 +708,82 @@ int DetermineElement2ProcMap(ParArray<int>* part, MPI_Comm comm)
         offset = offset+red_to_send_size[i];
     }
     int send_map_size = 0;
-    int loc_size = to_send_size+1;
+    int loc_size = to_send_size+1; // This size is added by one since we add the rank number to the array.
     MPI_Allreduce(&loc_size, &send_map_size, 1, MPI_INT, MPI_SUM, comm);
-
-    
-    int* gaatie = new int[send_map_size];
+    int* send_map_part_id            = new int[send_map_size];
+    int* send_map_Nel_per_part_id    = new int[send_map_size];
     for(int i=0;i<send_map_size;i++)
     {
-        gaatie[i] = 0;
+        send_map_part_id[i]         = 0;
+        send_map_Nel_per_part_id[i] = 0;
     }
-    int* from_to_rank = new int[to_send_size+1];
-    from_to_rank[0] = rank;
+    int* from_to_rank       = new int[to_send_size+1];
+    int* num_elms_to_rank   = new int[to_send_size+1];
+    from_to_rank[0]         = rank;
+    num_elms_to_rank[0]     = -1;
     int t = 1;
     
     std::map<int,std::vector<int> >::iterator it;
     for(it=elms_to_send_to_ranks.begin();it!=elms_to_send_to_ranks.end();it++)
     {
-        from_to_rank[t] = it->first;
-        std::cout << rank << " " << from_to_rank[t] << std::endl;
+        from_to_rank[t]     = it->first;
+        num_elms_to_rank[t] = it->second.size();
         t++;
     }
-//    std::cout << "===============================" << std::endl;
-//    for(int i=0;i<to_send_size+1;i++)
-//    {
-//        std::cout << "for rank = " << rank << " " << from_to_rank[i] << " " << red_to_send_size[rank] << " " << red_to_send_size_offset[rank] << std::endl;
-//    }
-//    std::cout << "===============================" << std::endl;
-    MPI_Allgatherv(&from_to_rank[0], loc_size, MPI_INT, gaatie,
-                red_to_send_size, red_to_send_size_offset, MPI_INT,comm);
 
-    //MPI_Bcast(gaatie, send_map_size, MPI_INT, 0, comm);
-
-    if(rank == 0)
+    MPI_Allgatherv(&from_to_rank[0], loc_size, MPI_INT,
+                   &send_map_part_id[0],
+                   red_to_send_size, red_to_send_size_offset, MPI_INT,comm);
+    
+    MPI_Allgatherv(&num_elms_to_rank[0], loc_size, MPI_INT,
+                   &send_map_Nel_per_part_id[0],
+                   red_to_send_size, red_to_send_size_offset, MPI_INT,comm);
+    
+    std::map<int, set<int>> s_map;
+    std::map<int, set<int>> r_map;
+    
+    std::map<int, set<int>> s_size_map;
+    std::map<int, set<int>> r_size_map;
+    
+    for(int i=0;i<size;i++)
     {
-        for(int i=0;i<send_map_size;i++)
+        for(int j=1;j<red_to_send_size[i];j++)
         {
-            //std::cout << rank << " " << i << " " << gaatie[i] << std::endl;
+            s_map[send_map_part_id[red_to_send_size_offset[i]+0]].insert(send_map_part_id[red_to_send_size_offset[i]+j]);
+            r_map[send_map_part_id[red_to_send_size_offset[i]+j]].insert(send_map_part_id[red_to_send_size_offset[i]+0]);
+            
+            s_size_map[send_map_part_id[red_to_send_size_offset[i]+0]].insert(send_map_Nel_per_part_id[red_to_send_size_offset[i]+j]);
+            r_size_map[send_map_part_id[red_to_send_size_offset[i]+j]].insert(send_map_part_id[red_to_send_size_offset[i]+0]);
         }
     }
+    
+    if(rank == 0)
+    {
+        std::map<int, set<int>>::iterator it;
+        for(it=r_size_map.begin();it!=r_size_map.end();it++)
+        {
+            std::cout << "rank " << it->first << " receives from ";
+            set<int>::iterator it2;
+            for(it2=it->second.begin();it2!=it->second.end();it2++)
+            {
+                std::cout << *it2 << " ";
+            }
+            std::cout << std::endl;
+        }
+
+        for(it=s_size_map.begin();it!=s_size_map.end();it++)
+        {
+            std::cout << "rank " << it->first << " sends to ";
+            set<int>::iterator it2;
+            for(it2=it->second.begin();it2!=it->second.end();it2++)
+            {
+                std::cout << *it2 << " ";
+            }
+            std::cout << std::endl;
+        }
+    }
+    
+
     return 0;
 }
 
