@@ -752,113 +752,92 @@ int DetermineElement2ProcMap(ParArray<int>* part, MPI_Comm comm)
     std::map<int, std::vector<int>> r_ivec_size_map;
     
     std::map<int,int> recv_tot_size;
+    
+    std::map<int, std::map<int, int> > map_map;
     //=========================================
     for(int i=0;i<size;i++)
     {
-        for(int j=1;j<red_to_send_size[i];j++)
+        int of = red_to_send_size_offset[i];
+        int nl = red_to_send_size[i];
+        //for(int j=1;j<red_to_send_size[i];j++)
+        for(int j=of+1;j<of+nl;j++)
         {
-            s_iset_map[send_map_part_id[red_to_send_size_offset[i]+0]].insert(send_map_part_id[red_to_send_size_offset[i]+j]);
-            r_iset_map[send_map_part_id[red_to_send_size_offset[i]+j]].insert(send_map_part_id[red_to_send_size_offset[i]+0]);
+            s_iset_map[send_map_part_id[of]].insert(send_map_part_id[j]);
+            r_iset_map[send_map_part_id[j]].insert(send_map_part_id[of]);
             
-            s_ivec_map[send_map_part_id[red_to_send_size_offset[i]+0]].push_back(send_map_part_id[red_to_send_size_offset[i]+j]);
-            r_ivec_map[send_map_part_id[red_to_send_size_offset[i]+j]].push_back(send_map_part_id[red_to_send_size_offset[i]+0]);
+            s_ivec_map[send_map_part_id[of]].push_back(send_map_part_id[j]);
+            r_ivec_map[send_map_part_id[j]].push_back(send_map_part_id[of]);
             
             //===================================================================================
+            s_iset_size_map[send_map_part_id[of]].insert(send_map_Nel_per_part_id[j]);
+            r_iset_size_map[send_map_part_id[j]].insert(send_map_Nel_per_part_id[j]);
             
-            s_iset_size_map[send_map_part_id[red_to_send_size_offset[i]+0]].insert(send_map_Nel_per_part_id[red_to_send_size_offset[i]+j]);
-            r_iset_size_map[send_map_part_id[red_to_send_size_offset[i]+j]].insert(send_map_Nel_per_part_id[red_to_send_size_offset[i]+j]);
-            
-            s_ivec_size_map[send_map_part_id[red_to_send_size_offset[i]+0]].push_back(send_map_Nel_per_part_id[red_to_send_size_offset[i]+j]);
-            r_ivec_size_map[send_map_part_id[red_to_send_size_offset[i]+j]].push_back(send_map_Nel_per_part_id[red_to_send_size_offset[i]+j]);
+            s_ivec_size_map[send_map_part_id[of]].push_back(send_map_Nel_per_part_id[j]);
+            r_ivec_size_map[send_map_part_id[j]].push_back(send_map_Nel_per_part_id[j]);
         }
     }
 
-    std::map<int, int> recv_tot_sizes;
-    std::map<int, int> recv_offsets_tot_sizes;
-    std::map<int, vector<int> > offset_map;
-    std::map<int, int > ntot_recv_map;
-    int ntot_recv = 0;
+    std::map<int,std::map<int,int>> loc_alloc;
+    
     for(it=r_ivec_map.begin();it!=r_ivec_map.end();it++)
     {
-        int offset = 0;
-        int ntot = 0;
+        //std::cout << "rank " << it->first << " receives an array of size ";
+        int p = 0;
         for(int k=0;k<it->second.size();k++)
         {
-            offset_map[it->first].push_back(offset);
-            offset = offset+r_ivec_size_map[it->first][k];
-            ntot = ntot+r_ivec_size_map[it->first][k];
+            loc_alloc[it->first][r_ivec_map[it->first][k]] = r_ivec_size_map[it->first][k];
+            //std::cout << r_ivec_map[it->first][k] << " -> " << r_ivec_size_map[it->first][k] << " ";
         }
-        //std::cout << ntot << std::endl;
-        ntot_recv_map[it->first] = ntot;
+        //std::cout << std::endl;
     }
     
-    ntot_recv = ntot_recv_map[rank];
-    
-    std::cout << rank << " " << ntot_recv_map[rank] << std::endl;
-    
-
-    
-    
-//    for(it=r_ivec_map.begin();it!=r_ivec_map.end();it++)
+//    if(rank == 1)
 //    {
-//
-//        std::cout << "rank " << it->first << " receives an array of size ";
-//        int p = 0;
-//        recv_tot_size[it->first]=0;
-//        for(int k=0;k<it->second.size();k++)
+//        for(int i=0;i<part->getNrow();i++)
 //        {
-//            recv_tot_size[it->first] = recv_tot_size[it->first]+r_ivec_size_map[it->first][k]
+//            std::cout << i+part->getParallelState()->getOffset(rank) << " " << part->getVal(i,0) << std::endl;
 //        }
-//        std::cout << std::endl;
-//        q++;
-//    }
-    
-    std::map< int, std::map< int, int> > s_recv_alloc;
-    int nval_tot = 0;
-    
-//    if (rank == 0)
-//    {
-//    for(int i=0;i<size;i++)
-//    {
-//       int nloc   = red_to_send_size[i];
-//       int offset = red_to_send_size_offset[i];
-//
-//       for(int j=offset;j<(offset+nloc);j++)
-//       {
-//           std::cout << send_map_part_id[j] << " " << offset << " " << nloc << std::endl;
-//
-//           /*
-//
-//           s_send[i].insert(schedule->data[j]);
-//           s_recv[schedule->data[j]].insert(i);
-//
-//           s_recv_alloc[schedule->data[j]][i] = schedule->sizing[j];
-//
-//             */
-//       }
-//    }
 //    }
 //    if(rank == 0)
 //    {
-//
-////        for(int i=0;i<part->getNrow();i++)
-////        {
-////            //std::cout << i << " " << part->getVal(i,0) << std::endl;
-////        }
-//
-//        std::map<int, std::vector<int>>::iterator it;
-//        for(it=s_ivec_map.begin();it!=s_ivec_map.end();it++)
+//        for(it=r_ivec_map.begin();it!=r_ivec_map.end();it++)
 //        {
-//            std::cout << "rank " << it->first << " sends to ";
+//            std::cout << "rank " << it->first << " receives an array of size ";
 //            for(int k=0;k<it->second.size();k++)
 //            {
-//                std::cout << it->second[k] << " ";
+//                std::cout << r_ivec_size_map[it->first][k] << " from " << r_ivec_map[it->first][k] << " ";
 //            }
 //            std::cout << std::endl;
 //        }
-//
-
 //    }
+    
+    std::map<int,int> alloc = loc_alloc[rank];
+    
+    int* recv_offset = new int[loc_alloc.size()+1];
+    recv_offset[0]   = 0;
+    int* recv_loc    = new int[loc_alloc.size()];;
+    int recv_size    = 0;
+    int i = 0;
+
+    std::map< int, int> offset_map;
+    std::map< int, int> loc_map;
+    std::map< int, int>::iterator it_loc;
+    
+    for(it_loc=alloc.begin();it_loc!=alloc.end();it_loc++)
+    {
+        recv_loc[i]      = it_loc->second;
+        recv_offset[i+1] = recv_offset[i]+recv_loc[i];
+        recv_size = recv_size+it_loc->second;
+
+        loc_map[it_loc->first]=recv_loc[i];
+        offset_map[it_loc->first]=recv_offset[i];
+
+        i++;
+    }
+    int* recv_collector = new int[recv_size];
+
+    
+    std::map< int, std::map< int, int> > s_recv_alloc;
     
     int n_req_recv;
     for(int q=0;q<size;q++)
@@ -874,7 +853,7 @@ int DetermineElement2ProcMap(ParArray<int>* part, MPI_Comm comm)
                 std::set<int>::iterator it_set;
                 
                 MPI_Send(&n_req, 1, MPI_INT, dest, dest, comm);
-                //MPI_Send(&it->second[0], n_req, MPI_INT, dest, 100+dest*2, comm);
+                MPI_Send(&it->second[0], n_req, MPI_INT, dest, 100+dest*2, comm);
                 i++;
 
             }
@@ -882,10 +861,17 @@ int DetermineElement2ProcMap(ParArray<int>* part, MPI_Comm comm)
         else if (s_iset_map[q].find( rank ) != s_iset_map[q].end())
         {
             MPI_Recv(&n_req_recv, 1, MPI_INT, q, rank, comm, MPI_STATUS_IGNORE);
-            //MPI_Recv(&tot_recv[offset_map[q]], n_req_recv, MPI_INT, q, 100+rank*2, comm, MPI_STATUS_IGNORE);
-            //std::cout << "rank = " << rank << " received an array of length  " << n_req_recv << " from "  << q << " " << std::endl;
+            MPI_Recv(&recv_collector[offset_map[q]], n_req_recv, MPI_INT, q, 100+rank*2, comm, MPI_STATUS_IGNORE);
         }
     }
+    
+//    if (rank == 1)
+//    {
+//        for(int i=0;i<recv_size;i++)
+//        {
+//            std::cout << i << " " << recv_collector[i] << std::endl;
+//        }
+//    }
 
     return 0;
 }
