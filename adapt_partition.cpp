@@ -834,12 +834,15 @@ int DetermineElement2ProcMap(ParArray<int>* part, MPI_Comm comm)
 
         i++;
     }
-    int* recv_collector = new int[recv_size];
+    int* recv_collector   = new int[recv_size];
+    int* recv_collector_v = new int[recv_size*8];
 
     
     std::map< int, std::map< int, int> > s_recv_alloc;
     
     int n_req_recv;
+    
+    int n_req_recv_v;
     for(int q=0;q<size;q++)
     {
         if(rank==q)
@@ -848,12 +851,19 @@ int DetermineElement2ProcMap(ParArray<int>* part, MPI_Comm comm)
             for (it = elms_to_send_to_ranks.begin(); it != elms_to_send_to_ranks.end(); it++)
             {
                 int n_req           = it->second.size();
+                int n_req_v         = n_req*8;
                 int* req_arr_send   = new int[n_req];
+                int* req_v_arr_send = new int[n_req_v];
+
                 int dest            = it->first;
                 std::set<int>::iterator it_set;
                 
                 MPI_Send(&n_req, 1, MPI_INT, dest, dest, comm);
                 MPI_Send(&it->second[0], n_req, MPI_INT, dest, 100+dest*2, comm);
+                
+                MPI_Send(&n_req_v, 1, MPI_INT, dest, 9000+dest, comm);
+                MPI_Send(&req_v_arr_send[0], n_req, MPI_INT, dest, 9000+100+dest*2, comm);
+
                 i++;
 
             }
@@ -862,6 +872,9 @@ int DetermineElement2ProcMap(ParArray<int>* part, MPI_Comm comm)
         {
             MPI_Recv(&n_req_recv, 1, MPI_INT, q, rank, comm, MPI_STATUS_IGNORE);
             MPI_Recv(&recv_collector[offset_map[q]], n_req_recv, MPI_INT, q, 100+rank*2, comm, MPI_STATUS_IGNORE);
+            
+            MPI_Recv(&n_req_recv_v, 1, MPI_INT, q, 9000+rank, comm, MPI_STATUS_IGNORE);
+            MPI_Recv(&recv_collector_v[offset_map[q]*8], n_req_recv_v, MPI_INT, q, 9000+100+rank*2, comm, MPI_STATUS_IGNORE);
         }
     }
     
