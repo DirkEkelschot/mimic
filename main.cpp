@@ -1086,8 +1086,8 @@ int* TestBrutePartioningUS3D()
     
     for(it_loc=loc_alloc.begin();it_loc!=loc_alloc.end();it_loc++)
     {
-        recv_loc[i]           = it_loc->second;
-        recv_offset[i+1]      = recv_offset[i]+recv_loc[i];
+        recv_loc[i]      = it_loc->second;
+        recv_offset[i+1] = recv_offset[i]+recv_loc[i];
         recv_size = recv_size+it_loc->second;
 
         loc_map[it_loc->first]=recv_loc[i];
