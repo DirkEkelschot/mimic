@@ -570,7 +570,7 @@ Partition* CollectVerticesPerRank(ParArray<int>* ien, Array<double>* xcn_r, MPI_
 }
 
 
-Array<int>* DeterminePartitionLayout(ParArray<int>* ien, Array<int>* ien_root, MPI_Comm comm)
+ParArray<int>* DeterminePartitionLayout(ParArray<int>* ien, MPI_Comm comm)
 {
     int size;
     MPI_Comm_size(comm, &size);
@@ -643,55 +643,110 @@ Array<int>* DeterminePartitionLayout(ParArray<int>* ien, Array<int>* ien_root, M
     ParArray<int>*  part_arr = new ParArray<int>(ien->getNglob(),1,comm);
     part_arr->data = part;
     int tot = ien->getNglob();
-    
-//    Array<int>* output = new Array<int>;
-//    if (rank == 0)
+//    if(rank == 3)
 //    {
-//      output = new Array<int>(tot,1);
+//        for(int i=0;i<part_arr->getNrow();i++)
+//        {
+//            std::cout << i << " " << part_arr->getVal(i,0) << std::endl;
+//        }
 //    }
-    Array<int>* output = new Array<int>(tot,1);
+    return part_arr;
+}
 
-    MPI_Allgatherv(&part_arr->data[0],
-                   nloc,
-                   MPI_INT,
-                   &output->data[0],
-                   part_arr->getParallelState()->getNlocs(),
-                   part_arr->getParallelState()->getOffsets(),
-                   MPI_INT, comm);
+
+// This function determines a map that gets the unique list of elements for that need to be requested from a given rank other than current rank.
+int DetermineElement2ProcMap(ParArray<int>* part, MPI_Comm comm)
+{
+    int size;
+    MPI_Comm_size(comm, &size);
+    // Get the rank of the process
+    int rank;
+    MPI_Comm_rank(comm, &rank);
+        
+    int el_id;
+    int p_id;
     
-    /*    
-    int* part_glob = new int[N];
-    int nlocr;
-    int *part_local;
-    if(rank != 0)
+    std::map<int,std::vector<int> > elms_to_send_to_ranks;
+    
+    for(int i=0;i<part->getNrow();i++)
     {
-        MPI_Send(&nloc,       1, MPI_INT, 0, 0, comm);
-        MPI_Send(&part[0], nloc, MPI_INT, 0, 0, comm);
-    }
-    else
-    {
-        for (int i = 0; i < nloc; ++i)
+        p_id  = part->getVal(i,0);
+        if(p_id!=rank)
         {
-            part_glob[i] = part[i];
-        }
-        for (int i = 1; i < size; ++i)
-        {
-            MPI_Recv(&nlocr,                 1, MPI_INT, i, 0, comm, MPI_STATUS_IGNORE);
-            part_local = new int[nlocr];
-            MPI_Recv(part_local,         nlocr, MPI_INT, i, 0, comm, MPI_STATUS_IGNORE);
+            el_id = part->getParallelState()->getOffset(rank)+i;
             
-            for (int j = pstate_parmetis->getElmdistAtRank(i); j < pstate_parmetis->getElmdistAtRank(i+1); j++)
-            {
-                part_glob[j] = part_local[j - pstate_parmetis->getElmdistAtRank(i)];
-            }
+            elms_to_send_to_ranks[p_id].push_back(el_id);
         }
     }
     
-    MPI_Bcast(&part_glob[0], N, MPI_INT, 0, comm);
+    int to_send_size = elms_to_send_to_ranks.size();
     
-    */
-    return output;
     
+    int* red_to_send_size = new int[size];
+    int* arr_to_send_size = new int[size];
+    for(int i=0;i<size;i++)
+    {
+        red_to_send_size[i] = 0;
+        
+        if(i==rank)
+        {
+            arr_to_send_size[i] = to_send_size+1;
+        }
+        else
+        {
+            arr_to_send_size[i] = 0;
+        }
+    }
+
+    MPI_Allreduce(arr_to_send_size, red_to_send_size, size, MPI_INT, MPI_SUM, comm);
+    
+    int* red_to_send_size_offset = new int[size];
+    int offset = 0;
+    for(int i=0;i<size;i++)
+    {
+        red_to_send_size_offset[i] = offset;
+        offset = offset+red_to_send_size[i];
+    }
+    int send_map_size = 0;
+    int loc_size = to_send_size+1;
+    MPI_Allreduce(&loc_size, &send_map_size, 1, MPI_INT, MPI_SUM, comm);
+
+    
+    int* gaatie = new int[send_map_size];
+    for(int i=0;i<send_map_size;i++)
+    {
+        gaatie[i] = 0;
+    }
+    int* from_to_rank = new int[to_send_size+1];
+    from_to_rank[0] = rank;
+    int t = 1;
+    
+    std::map<int,std::vector<int> >::iterator it;
+    for(it=elms_to_send_to_ranks.begin();it!=elms_to_send_to_ranks.end();it++)
+    {
+        from_to_rank[t] = it->first;
+        std::cout << rank << " " << from_to_rank[t] << std::endl;
+        t++;
+    }
+//    std::cout << "===============================" << std::endl;
+//    for(int i=0;i<to_send_size+1;i++)
+//    {
+//        std::cout << "for rank = " << rank << " " << from_to_rank[i] << " " << red_to_send_size[rank] << " " << red_to_send_size_offset[rank] << std::endl;
+//    }
+//    std::cout << "===============================" << std::endl;
+    MPI_Allgatherv(&from_to_rank[0], loc_size, MPI_INT, gaatie,
+                red_to_send_size, red_to_send_size_offset, MPI_INT,comm);
+
+    //MPI_Bcast(gaatie, send_map_size, MPI_INT, 0, comm);
+
+    if(rank == 0)
+    {
+        for(int i=0;i<send_map_size;i++)
+        {
+            //std::cout << rank << " " << i << " " << gaatie[i] << std::endl;
+        }
+    }
+    return 0;
 }
 
 

@@ -839,50 +839,6 @@ map< int, std::set<int> > GetRequestedVertices(ParArray<int>* ien, ParArray<doub
 
 
 
-map< int, std::set<int> > GetRequestedVerticesNew(Array<int>* part, ParArray<int>* ien, ParArray<double>* xcn, MPI_Comm comm)
-{
-    int size;
-    MPI_Comm_size(comm, &size);
-    // Get the rank of the process
-    int rank;
-    MPI_Comm_rank(comm, &rank);
-    
-    map< int, std::set<int> > Request;
-    int rank_f = 0;
-    std::vector<std::vector<int> > req;
-    
-    ParallelState* = pv_xcn->getParallelState();
-    //ParVar* pv_xcn = ComputeParallelStateArray(xcn->getNglob(), comm);
-    int val;
-    int p_id;
-    for(int i=0;i<ien->getNrow();i++)
-    {
-        for(int j=1;j<ien->getNcol();j++)
-        {
-            val  = ien->getVal(i,j);
-            p_id = part[val];
-            
-            if(p_id!=rank)
-            {
-                rank_f = FindRank(pv_xcn->getOffsets(),size+1,val);
-                
-                if ( Request[rank_f].find( val ) == Request[rank_f].end() )
-                {
-                    Request[rank_f].insert(val);
-                }
-            }
-        }
-        //myfile << std::endl;
-        //myfile2 << std::endl;
-    }
-    
-    
-    //duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
-
-    //std::cout << world_rank << " loopie loop = " << duration << std::endl;
-    delete pv_xcn;
-    return Request;
-}
 
 
 TmpStruct* GetSchedule(ParArray<int>* ien, ParArray<double>* xcn, MPI_Comm comm)
@@ -973,6 +929,14 @@ TmpStruct* GetSchedule(ParArray<int>* ien, ParArray<double>* xcn, MPI_Comm comm)
     MPI_Gatherv(&sizing[0], (num_req_proc+1), MPI_INT, &reduce_req_sizing[0], red_num_req_procs, proc_offset, MPI_INT, 0, comm);
     MPI_Bcast(reduce_req_procs, world_size+tot_req_proc, MPI_INT, 0, comm);
     MPI_Bcast(reduce_req_sizing, world_size+tot_req_proc, MPI_INT, 0, comm);
+    
+    if(world_rank == 1)
+    {
+        for(int i=0;i<(num_req_proc+1);i++)
+        {
+            std::cout << "reduce_req_procs[ " << collect[i] << std::endl;
+        }
+    }
     
     Array<int>* schedule = new Array<int>(world_size+tot_req_proc,1);
     //JaggedArray<int> schedule_jag = new JaggedArray<int>(nrow);
@@ -1919,10 +1883,10 @@ int main(int argc, char** argv) {
     
     //Partition* pv = CollectElementsPerRank(ien_copy,ien_on_root,comm);
     
-    start = std::clock();
-    Array<int>* part_on_root = DeterminePartitionLayout(ien_copy, ien_on_root, comm);
-    duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
-    std::cout << "rank = " << world_rank << " layout = " << duration << std::endl;
+//    start = std::clock();
+//    Array<int>* part_on_root = DeterminePartitionLayout(ien_copy, comm);
+//    duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
+//    std::cout << "rank = " << world_rank << " layout = " << duration << std::endl;
     
 //    if (world_rank == 0)
 //    {
@@ -1935,14 +1899,17 @@ int main(int argc, char** argv) {
     
     start = std::clock();
     
-    DivideElements(part_on_root,ien_on_root,xcn_on_root, comm);
-    
+    //DivideElements(part_on_root,ien_on_root,xcn_on_root, comm);
+    ParArray<int>* part_par = DeterminePartitionLayout(ien_copy,comm);
+    int req_map = DetermineElement2ProcMap(part_par, comm);
+//
+//
     duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
-    std::cout << "rank = " << world_rank << " dividing = " << duration << std::endl;
+    //std::cout << "rank = " << world_rank << " dividing = " << duration << std::endl;
     
     start = std::clock();
-    int*output = TestBrutePartioningUS3D();
-    std::cout << "rank = " << world_rank << " TestBrutePartioningUS3D() = " << duration << std::endl;
+    //int*output = TestBrutePartioningUS3D();
+    //std::cout << "rank = " << world_rank << " TestBrutePartioningUS3D() = " << duration << std::endl;
     MPI_Finalize();
     
     

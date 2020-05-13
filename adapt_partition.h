@@ -41,12 +41,14 @@ ParVar_ParMetis* CreateParallelDataParmetis(ParArray<int>* e2n, MPI_Comm comm, i
 
 int* GetPartitionInfo(ParArray<int>* ien, Array<double>* xcn_r, MPI_Comm comm);
 
-Array<int>* DeterminePartitionLayout(ParArray<int>* ien, Array<int>* ien_root, MPI_Comm comm);
+ParArray<int>* DeterminePartitionLayout(ParArray<int>* ien, MPI_Comm comm);
 
 Partition* CollectVerticesPerRank(ParArray<int>* ien, Array<double>* xcn_r, MPI_Comm comm);
 
 Partition* CollectElementsPerRank(ParArray<int>* ien, Array<int>* ien_root, MPI_Comm comm);
 
 void DivideElements(Array<int>* part_on_root, Array<int>* ien_on_root, Array<double>* xcn_on_root, MPI_Comm comm);
+
+int DetermineElement2ProcMap(ParArray<int>* part, MPI_Comm comm);
 
 #endif
