@@ -720,18 +720,18 @@ int DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, MPI_Comm c
     //std::cout << rank << " cnter " << cnt_other_ranks.size() << std::endl;
     //if(rank == 2)
     //{
-    std::map<int,std::vector<int>>::iterator itn;
-        
-    for(itn=u_verts_other_ranks.begin();itn!=u_verts_other_ranks.end();itn++)
-    {
-        std::cout << "rank " << rank  << " determines that " << itn->second.size()  << "unique vertices need to be send to "<< itn->first << " instead of " << verts_to_send_to_ranks[itn->first].size() << std::endl;
-//      std::map<int,int>::iterator itn2;
-//      for(itn2=itn->second.begin();itn2!=itn->second.end();itn2++)
-//      {
-//         std::cout << itn2->first << " " << itn2->second << std::endl;
-//      }
-    }
-    std::cout << " " << std::endl;
+//    std::map<int,std::vector<int>>::iterator itn;
+//
+//    for(itn=u_verts_other_ranks.begin();itn!=u_verts_other_ranks.end();itn++)
+//    {
+//        std::cout << "rank " << rank  << " determines that " << itn->second.size()  << " unique vertices need to be send to "<< itn->first << " instead of " << verts_to_send_to_ranks[itn->first].size() << std::endl;
+////      std::map<int,int>::iterator itn2;
+////      for(itn2=itn->second.begin();itn2!=itn->second.end();itn2++)
+////      {
+////         std::cout << itn2->first << " " << itn2->second << std::endl;
+////      }
+//    }
+//    std::cout << " " << std::endl;
         
     //}
     
@@ -893,6 +893,10 @@ int DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, MPI_Comm c
     int* recv_collector   = new int[recv_size];
     int* recv_collector_v = new int[recv_size*8];
 
+    for(int i =0;i<recv_size;i++)
+    {
+        recv_collector[i] = 10;
+    }
     
     std::map< int, std::map< int, int> > s_recv_alloc;
     
@@ -912,16 +916,14 @@ int DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, MPI_Comm c
                 int* req_v_arr_send = new int[n_req_v];
 
                 int dest            = it->first;
-                std::set<int>::iterator it_set;
                 
                 MPI_Send(&n_req, 1, MPI_INT, dest, dest, comm);
                 MPI_Send(&it->second[0], n_req, MPI_INT, dest, 100+dest*2, comm);
                 
                 MPI_Send(&n_req_v, 1, MPI_INT, dest, 9000+dest, comm);
-                MPI_Send(&req_v_arr_send[0], n_req, MPI_INT, dest, 9000+100+dest*2, comm);
-
+                MPI_Send(&verts_to_send_to_ranks[it->first][0], n_req_v, MPI_INT, dest, 9000+100+dest*2, comm);
+                
                 i++;
-
             }
         }
         else if (s_iset_map[q].find( rank ) != s_iset_map[q].end())
@@ -929,11 +931,37 @@ int DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, MPI_Comm c
             MPI_Recv(&n_req_recv, 1, MPI_INT, q, rank, comm, MPI_STATUS_IGNORE);
             MPI_Recv(&recv_collector[offset_map[q]], n_req_recv, MPI_INT, q, 100+rank*2, comm, MPI_STATUS_IGNORE);
             
+            
+            
             MPI_Recv(&n_req_recv_v, 1, MPI_INT, q, 9000+rank, comm, MPI_STATUS_IGNORE);
             MPI_Recv(&recv_collector_v[offset_map[q]*8], n_req_recv_v, MPI_INT, q, 9000+100+rank*2, comm, MPI_STATUS_IGNORE);
+            
         }
     }
+    
+    std::cout << rank << " -> unique verts before " << u_verts_vec.size() << " " << recv_size*8 << std::endl;
+    
+//  set<int> u_new_verts_set;
+    std::vector<int> u_new_verts_vec;
+    int v = 0;
+    for(int i=0;i<recv_size*8;i++)
+    {
+        int v_id_n = recv_collector_v[i];
+        if(u_verts_set.find( v_id_n ) == u_verts_set.end())
+        {
+            u_verts_set.insert(v_id_n);
+            u_verts_vec.push_back(v_id_n);
+            v++;
+        }
+    }
+    
+    
+    ParArrayOnRoot* gathered_on_root = GatherVecToRoot(u_verts_vec, comm);
+    
 
+    
+    
+    
     return 0;
 }
 

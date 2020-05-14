@@ -1811,7 +1811,7 @@ int main(int argc, char** argv) {
 //============================================================
     
     //const char* fn_conn="grids/piston/conn.h5";
-    const char* fn_conn="grids/adept/conn.h5";
+    const char* fn_conn="grids/piston/conn.h5";
     const char* fn_grid="grids/piston/grid.h5";
     const char* fn_data="grids/adept/data.h5";
     
