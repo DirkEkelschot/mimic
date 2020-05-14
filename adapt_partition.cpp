@@ -669,22 +669,70 @@ int DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, MPI_Comm c
     std::map<int,std::vector<int> > elms_to_send_to_ranks;
     std::map<int,std::vector<int> > verts_to_send_to_ranks;   
     std::map<int,set<int> > unique_verts_per_rank;
-
+    set<int> u_verts_set;
+    std::vector<int> u_verts_vec;
+    std::map<int,set<int> > u_verts_other_ranks_set;
+    std::map<int,std::vector<int>> u_verts_other_ranks;
+    std::map<int,int> cnt_other_ranks;
+    int* vert_buff = new int[part->getNrow()*8];
+    
+    int u = 0;
+    int l_id=0;
     for(int i=0;i<part->getNrow();i++)
     {
         p_id  = part->getVal(i,0);
+        el_id = part->getParallelState()->getOffset(rank)+i;
+
         if(p_id!=rank)
         {
-            el_id = part->getParallelState()->getOffset(rank)+i;
-	                
             elms_to_send_to_ranks[p_id].push_back(el_id);
+            
             for(int k=0;k<8;k++)
             {
                 v_id = ien->getVal(i,k);
-                verts_to_send_to_ranks[p_id].push_back(v_id);
-	    }
+                if(u_verts_other_ranks_set[p_id].find( v_id ) == u_verts_other_ranks_set[p_id].end())
+                {
+                    u_verts_other_ranks_set[p_id].insert(v_id);
+                    u_verts_other_ranks[p_id].push_back(v_id);
+                    cnt_other_ranks[p_id]++;
+                }
+            }
+        }
+        else
+        {
+            for(int k=0;k<8;k++)
+            {
+                v_id = ien->getVal(i,k);
+                
+                if(u_verts_set.find( v_id ) == u_verts_set.end())
+                {
+                    u_verts_set.insert(v_id);
+                    u_verts_vec.push_back(v_id);
+                    l_id++;
+                }
+                
+            }
         }
     }
+    
+    //std::cout << rank << " cnter " << cnt_other_ranks.size() << std::endl;
+    //if(rank == 2)
+    //{
+    std::map<int,std::vector<int>>::iterator itn;
+        
+    for(itn=u_verts_other_ranks.begin();itn!=u_verts_other_ranks.end();itn++)
+    {
+        std::cout << "rank " << rank  << " determines that " << itn->second.size()  << " vertices need to be send to "<< itn->first << std::endl;
+//      std::map<int,int>::iterator itn2;
+//      for(itn2=itn->second.begin();itn2!=itn->second.end();itn2++)
+//      {
+//         std::cout << itn2->first << " " << itn2->second << std::endl;
+//      }
+    }
+    std::cout << " " << std::endl;
+        
+    //}
+    
     
     int to_send_size = elms_to_send_to_ranks.size();
     
@@ -788,23 +836,18 @@ int DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, MPI_Comm c
     
     for(it=r_ivec_map.begin();it!=r_ivec_map.end();it++)
     {
-        //std::cout << "rank " << it->first << " receives an array of size ";
         int p = 0;
         for(int k=0;k<it->second.size();k++)
         {
             loc_alloc[it->first][r_ivec_map[it->first][k]] = r_ivec_size_map[it->first][k];
-            //std::cout << r_ivec_map[it->first][k] << " -> " << r_ivec_size_map[it->first][k] << " ";
         }
-        //std::cout << std::endl;
     }
     
-//    if(rank == 1)
-//    {
-//        for(int i=0;i<part->getNrow();i++)
-//        {
-//            std::cout << i+part->getParallelState()->getOffset(rank) << " " << part->getVal(i,0) << std::endl;
-//        }
-//    }
+    
+    
+    //============================================================================
+    //================ Print the receiving schedule for now;======================
+    //============================================================================
 //    if(rank == 0)
 //    {
 //        for(it=r_ivec_map.begin();it!=r_ivec_map.end();it++)
@@ -817,6 +860,10 @@ int DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, MPI_Comm c
 //            std::cout << std::endl;
 //        }
 //    }
+    //============================================================================
+    //================ Print the receiving schedule for now;======================
+    //============================================================================
+    
     
     std::map<int,int> alloc = loc_alloc[rank];
     
@@ -884,14 +931,6 @@ int DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, MPI_Comm c
             MPI_Recv(&recv_collector_v[offset_map[q]*8], n_req_recv_v, MPI_INT, q, 9000+100+rank*2, comm, MPI_STATUS_IGNORE);
         }
     }
-    
-//    if (rank == 1)
-//    {
-//        for(int i=0;i<recv_size;i++)
-//        {
-//            std::cout << i << " " << recv_collector[i] << std::endl;
-//        }
-//    }
 
     return 0;
 }
