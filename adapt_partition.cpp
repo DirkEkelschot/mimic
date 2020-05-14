@@ -689,7 +689,9 @@ int DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, MPI_Comm c
             
             for(int k=0;k<8;k++)
             {
+          
                 v_id = ien->getVal(i,k);
+                verts_to_send_to_ranks[p_id].push_back(v_id);
                 if(u_verts_other_ranks_set[p_id].find( v_id ) == u_verts_other_ranks_set[p_id].end())
                 {
                     u_verts_other_ranks_set[p_id].insert(v_id);
@@ -722,7 +724,7 @@ int DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, MPI_Comm c
         
     for(itn=u_verts_other_ranks.begin();itn!=u_verts_other_ranks.end();itn++)
     {
-        std::cout << "rank " << rank  << " determines that " << itn->second.size()  << " vertices need to be send to "<< itn->first << std::endl;
+        std::cout << "rank " << rank  << " determines that " << itn->second.size()  << "unique vertices need to be send to "<< itn->first << " instead of " << verts_to_send_to_ranks[itn->first].size() << std::endl;
 //      std::map<int,int>::iterator itn2;
 //      for(itn2=itn->second.begin();itn2!=itn->second.end();itn2++)
 //      {
