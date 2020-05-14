@@ -655,7 +655,7 @@ ParArray<int>* DeterminePartitionLayout(ParArray<int>* ien, MPI_Comm comm)
 
 
 // This function determines a map that gets the unique list of elements for that need to be requested from a given rank other than current rank.
-int DetermineElement2ProcMap(ParArray<int>* part, MPI_Comm comm)
+int DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, MPI_Comm comm)
 {
     int size;
     MPI_Comm_size(comm, &size);
@@ -665,17 +665,24 @@ int DetermineElement2ProcMap(ParArray<int>* part, MPI_Comm comm)
         
     int el_id;
     int p_id;
-    
+    int v_id; 
     std::map<int,std::vector<int> > elms_to_send_to_ranks;
-    
+    std::map<int,std::vector<int> > verts_to_send_to_ranks;   
+    std::map<int,set<int> > unique_verts_per_rank;
+
     for(int i=0;i<part->getNrow();i++)
     {
         p_id  = part->getVal(i,0);
         if(p_id!=rank)
         {
             el_id = part->getParallelState()->getOffset(rank)+i;
-            
+	                
             elms_to_send_to_ranks[p_id].push_back(el_id);
+            for(int k=0;k<8;k++)
+            {
+                v_id = ien->getVal(i,k);
+                verts_to_send_to_ranks[p_id].push_back(v_id);
+	    }
         }
     }
     

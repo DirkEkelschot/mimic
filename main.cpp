@@ -1811,7 +1811,7 @@ int main(int argc, char** argv) {
 //============================================================
     
     //const char* fn_conn="grids/piston/conn.h5";
-    const char* fn_conn="grids/piston/conn.h5";
+    const char* fn_conn="grids/adept/conn.h5";
     const char* fn_grid="grids/piston/grid.h5";
     const char* fn_data="grids/adept/data.h5";
     
@@ -1828,7 +1828,7 @@ int main(int argc, char** argv) {
     /*
     TestReadInParallelToRoot(comm,info);
     */
-    
+    Array<double>*   xcn_on_all   = ReadDataSetFromFile<double>(fn_grid,"xcn"); 
     Array<double>*   xcn_on_root  = ReadDataSetFromFileInParallelToRoot<double>(fn_grid,"xcn",comm,info);
     
     Array<double>*   ien_on_root_read  = ReadDataSetFromFileInParallelToRoot<double>(fn_conn,"ien",comm,info);
@@ -1901,11 +1901,11 @@ int main(int argc, char** argv) {
     
     //DivideElements(part_on_root,ien_on_root,xcn_on_root, comm);
     ParArray<int>* part_par = DeterminePartitionLayout(ien_copy,comm);
-    int req_map = DetermineElement2ProcMap(part_par, comm);
+    int req_map = DetermineElement2ProcMap(ien_copy, part_par, comm);
 //
 //
     duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
-    //std::cout << "rank = " << world_rank << " dividing = " << duration << std::endl;
+    std::cout << "rank = " << world_rank << " dividing = " << duration << std::endl;
     
     start = std::clock();
     //int*output = TestBrutePartioningUS3D();
