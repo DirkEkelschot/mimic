@@ -450,6 +450,105 @@ Array<T>* ReadDataSetFromFileInParallelToRoot(const char* file_name, const char*
 
 
 
+template<typename T>
+Array<T>* ReadDataSetFromFileInParallelToAll(const char* file_name, const char* dataset_name, MPI_Comm comm, MPI_Info info)
+{
+    
+    // Get the size of the process;
+    int size;
+    MPI_Comm_size(comm, &size);
+
+    // Get the rank of the process;
+    int rank;
+    MPI_Comm_rank(comm, &rank);
+    
+    //std::cout << rank << " " << size << std::endl;
+    
+    hid_t acc_tpl1       = H5Pcreate (H5P_FILE_ACCESS);
+    herr_t ret;
+    //herr_t ret           = H5Pset_fapl_mpio(acc_tpl1, comm, info);
+    
+    acc_tpl1             = H5P_DEFAULT;
+    // Open file and data set to get dimensions of array;
+    hid_t file_id        = H5Fopen(file_name, H5F_ACC_RDONLY,H5P_DEFAULT);
+    hid_t dset_id        = H5Dopen(file_id,dataset_name,H5P_DEFAULT);
+    hid_t dspace         = H5Dget_space(dset_id);
+    int ndims            = H5Sget_simple_extent_ndims(dspace);
+    
+    hsize_t dims[ndims];
+    H5Sget_simple_extent_dims(dspace, dims, NULL);
+    int nrow             = dims[0];
+    int ncol             = dims[1];
+    int N                = nrow;
+    
+    //Partition the array;
+    // compute local number of rows per proc;
+//    ParVar* pv = CreateParallelData(N, comm);
+//
+//    Array<T>* A_pt = new Array<T>(pv->nlocs[rank],ncol);
+//
+//    A_pt->offset = pv->offsets[rank];
+//    A_pt->nglob  = nrow;
+    ParArray<T>* parA     = new ParArray<T>(N,ncol,comm);
+    
+    
+    hsize_t              offsets[2];
+    hsize_t              counts[2];
+    offsets[0]           = parA->getParallelState()->getOffset(rank);
+    offsets[1]           = 0;
+    counts[0]            = parA->getParallelState()->getNloc(rank);
+    counts[1]            = ncol;
+    
+    ret=H5Sselect_hyperslab(dspace, H5S_SELECT_SET, offsets, NULL, counts, NULL);
+    
+    hsize_t     dimsm[2];
+    dimsm[0] = parA->getParallelState()->getNloc(rank);
+    dimsm[1] = ncol;
+    
+    hid_t memspace = H5Screate_simple (2, dimsm, NULL);
+    
+    hsize_t     offsets_out[2];
+    hsize_t     counts_out[2];
+    offsets_out[0] = 0;
+    offsets_out[1] = 0;
+    counts_out[0]  = parA->getParallelState()->getNloc(rank);
+    counts_out[1]  = ncol;
+    
+    ret = H5Sselect_hyperslab (memspace, H5S_SELECT_SET, offsets_out, NULL,counts_out, NULL);
+    
+    ret = H5Dread (dset_id, hid_from_type<T>(), memspace, dspace, H5P_DEFAULT, parA->data);
+    
+    Array<T>* A_ptot = new Array<T>(N,ncol);
+    
+    int* nlocs_tmp   = new int[size];
+    int* offsets_tmp = new int[size];
+    
+    for(int i=0;i<size;i++)
+    {
+        nlocs_tmp[i] = parA->getParallelState()->getNloc(i)*ncol;
+        offsets_tmp[i] = parA->getParallelState()->getOffset(i)*ncol;
+    }
+    
+    if(hid_from_type<T>()==H5T_NATIVE_INT)
+    {
+        MPI_Allgatherv(parA->data, parA->getParallelState()->getNloc(rank)*ncol, MPI_INT, A_ptot->data, nlocs_tmp, offsets_tmp, MPI_INT, comm);
+    }
+    if(hid_from_type<T>()==H5T_NATIVE_DOUBLE)
+    {
+        MPI_Allgather(parA->data, parA->getParallelState()->getNloc(rank)*ncol, MPI_DOUBLE, A_ptot->data, nlocs_tmp, offsets_tmp, MPI_DOUBLE, comm);
+    }
+    
+
+    H5Dclose(dset_id);
+    H5Fclose(file_id);
+    
+    delete parA;
+    return A_ptot;
+}
+
+
+
+
 
 
 

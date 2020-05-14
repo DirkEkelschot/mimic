@@ -319,11 +319,11 @@ ParArrayOnRoot* GatherVecToRoot(std::vector<int> locvec, MPI_Comm comm)
     int tot = red_offsets[size-1]+red_locs[size-1];
     
     ParArrayOnRoot* parr_root = new ParArrayOnRoot;
-    parr_root->data = new int[tot];
-    parr_root->nlocs = red_locs;
-    parr_root->offsets = red_offsets;
-    parr_root->size    = size;
-    parr_root->length  = tot;
+    parr_root->data           = new int[tot];
+    parr_root->nlocs          = red_locs;
+    parr_root->offsets        = red_offsets;
+    parr_root->size           = size;
+    parr_root->length         = tot;
     
     MPI_Gatherv(&locvec[0],
                 locvec.size(),
@@ -655,7 +655,7 @@ ParArray<int>* DeterminePartitionLayout(ParArray<int>* ien, MPI_Comm comm)
 
 
 // This function determines a map that gets the unique list of elements for that need to be requested from a given rank other than current rank.
-int DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, MPI_Comm comm)
+int DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, Array<double>* xcn_on_root, MPI_Comm comm)
 {
     int size;
     MPI_Comm_size(comm, &size);
@@ -958,9 +958,31 @@ int DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, MPI_Comm c
     
     ParArrayOnRoot* gathered_on_root = GatherVecToRoot(u_verts_vec, comm);
     
-
+    int* nlocs_scat = new int[size];
+    int* offset_scat = new int[size];
+    for(int i=0;i<size;i++)
+    {
+        nlocs_scat[i] = gathered_on_root->nlocs[i]*3;
+        offset_scat[i] = gathered_on_root->offsets[i]*3;
+    }
+       
+    double* verts;
+    Array<double>* Verts_loc = new Array<double>(u_verts_vec.size(),3);
+    if(rank == 0)
+    {
+        
+        verts = new double[gathered_on_root->length*3];
+        for(int i=0;i<gathered_on_root->length;i++)
+        {
+            verts[i*3+0] = xcn_on_root->getVal(gathered_on_root->data[i],0);
+            verts[i*3+1] = xcn_on_root->getVal(gathered_on_root->data[i],1);
+            verts[i*3+2] = xcn_on_root->getVal(gathered_on_root->data[i],2);
+        }
+        
+    }
     
-    
+    MPI_Scatterv(&verts[0], nlocs_scat, offset_scat, MPI_DOUBLE, &Verts_loc->data[0], u_verts_vec.size()*3, MPI_DOUBLE, 0, comm);
+ 
     
     return 0;
 }

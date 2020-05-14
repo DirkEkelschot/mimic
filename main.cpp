@@ -1901,7 +1901,7 @@ int main(int argc, char** argv) {
     
     //DivideElements(part_on_root,ien_on_root,xcn_on_root, comm);
     ParArray<int>* part_par = DeterminePartitionLayout(ien_copy,comm);
-    int req_map = DetermineElement2ProcMap(ien_copy, part_par, comm);
+    int req_map = DetermineElement2ProcMap(ien_copy, part_par, xcn_on_root, comm);
 //
 //
     duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
