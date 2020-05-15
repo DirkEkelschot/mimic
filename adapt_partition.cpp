@@ -663,6 +663,9 @@ int DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, Array<doub
     int rank;
     MPI_Comm_rank(comm, &rank);
         
+    std::clock_t start;
+    double duration;
+
     int el_id;
     int p_id;
     int v_id; 
@@ -717,25 +720,6 @@ int DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, Array<doub
         }
     }
     
-    //std::cout << rank << " cnter " << cnt_other_ranks.size() << std::endl;
-    //if(rank == 2)
-    //{
-//    std::map<int,std::vector<int>>::iterator itn;
-//
-//    for(itn=u_verts_other_ranks.begin();itn!=u_verts_other_ranks.end();itn++)
-//    {
-//        std::cout << "rank " << rank  << " determines that " << itn->second.size()  << " unique vertices need to be send to "<< itn->first << " instead of " << verts_to_send_to_ranks[itn->first].size() << std::endl;
-////      std::map<int,int>::iterator itn2;
-////      for(itn2=itn->second.begin();itn2!=itn->second.end();itn2++)
-////      {
-////         std::cout << itn2->first << " " << itn2->second << std::endl;
-////      }
-//    }
-//    std::cout << " " << std::endl;
-        
-    //}
-    
-    
     int to_send_size = elms_to_send_to_ranks.size();
     
     
@@ -766,7 +750,9 @@ int DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, Array<doub
     }
     int send_map_size = 0;
     int loc_size = to_send_size+1; // This size is added by one since we add the rank number to the array.
+    
     MPI_Allreduce(&loc_size, &send_map_size, 1, MPI_INT, MPI_SUM, comm);
+    
     int* send_map_part_id            = new int[send_map_size];
     int* send_map_Nel_per_part_id    = new int[send_map_size];
     for(int i=0;i<send_map_size;i++)
@@ -797,39 +783,18 @@ int DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, Array<doub
                    red_to_send_size, red_to_send_size_offset, MPI_INT,comm);
     
     std::map<int, set<int>> s_iset_map;
-    std::map<int, set<int>> r_iset_map;
-    
-    std::map<int, std::vector<int>> s_ivec_map;
     std::map<int, std::vector<int>> r_ivec_map;
-    
-    std::map<int, set<int>> s_iset_size_map;
-    std::map<int, set<int>> r_iset_size_map;
-    
-    std::map<int, std::vector<int>> s_ivec_size_map;
     std::map<int, std::vector<int>> r_ivec_size_map;
     
-    std::map<int,int> recv_tot_size;
-    
-    std::map<int, std::map<int, int> > map_map;
     //=========================================
     for(int i=0;i<size;i++)
     {
         int of = red_to_send_size_offset[i];
         int nl = red_to_send_size[i];
-        //for(int j=1;j<red_to_send_size[i];j++)
         for(int j=of+1;j<of+nl;j++)
         {
             s_iset_map[send_map_part_id[of]].insert(send_map_part_id[j]);
-            r_iset_map[send_map_part_id[j]].insert(send_map_part_id[of]);
-            
-            s_ivec_map[send_map_part_id[of]].push_back(send_map_part_id[j]);
             r_ivec_map[send_map_part_id[j]].push_back(send_map_part_id[of]);
-            
-            //===================================================================================
-            s_iset_size_map[send_map_part_id[of]].insert(send_map_Nel_per_part_id[j]);
-            r_iset_size_map[send_map_part_id[j]].insert(send_map_Nel_per_part_id[j]);
-            
-            s_ivec_size_map[send_map_part_id[of]].push_back(send_map_Nel_per_part_id[j]);
             r_ivec_size_map[send_map_part_id[j]].push_back(send_map_Nel_per_part_id[j]);
         }
     }
@@ -844,8 +809,6 @@ int DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, Array<doub
             loc_alloc[it->first][r_ivec_map[it->first][k]] = r_ivec_size_map[it->first][k];
         }
     }
-    
-    
     
     //============================================================================
     //================ Print the receiving schedule for now;======================
@@ -939,9 +902,6 @@ int DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, Array<doub
         }
     }
     
-    std::cout << rank << " -> unique verts before " << u_verts_vec.size() << " " << recv_size*8 << std::endl;
-    
-//  set<int> u_new_verts_set;
     std::vector<int> u_new_verts_vec;
     int v = 0;
     for(int i=0;i<recv_size*8;i++)
@@ -955,14 +915,13 @@ int DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, Array<doub
         }
     }
     
-    
     ParArrayOnRoot* gathered_on_root = GatherVecToRoot(u_verts_vec, comm);
     
     int* nlocs_scat = new int[size];
     int* offset_scat = new int[size];
     for(int i=0;i<size;i++)
     {
-        nlocs_scat[i] = gathered_on_root->nlocs[i]*3;
+        nlocs_scat[i]  = gathered_on_root->nlocs[i]*3;
         offset_scat[i] = gathered_on_root->offsets[i]*3;
     }
        
@@ -983,7 +942,6 @@ int DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, Array<doub
     
     MPI_Scatterv(&verts[0], nlocs_scat, offset_scat, MPI_DOUBLE, &Verts_loc->data[0], u_verts_vec.size()*3, MPI_DOUBLE, 0, comm);
  
-    
     return 0;
 }
 
