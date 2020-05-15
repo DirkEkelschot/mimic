@@ -237,6 +237,7 @@ ParArrayOnRoot* GatherVecToRoot(std::vector<int> locvec, MPI_Comm comm)
 
 int* GetPartitionInfo(ParArray<int>* ien, Array<double>* xcn_r, MPI_Comm comm)
 {
+    int i=0;
     int size;
     MPI_Comm_size(comm, &size);
     // Get the rank of the process
@@ -249,7 +250,7 @@ int* GetPartitionInfo(ParArray<int>* ien, Array<double>* xcn_r, MPI_Comm comm)
     int N = ien->getNglob();
     ParArray<int>* ien_copy = new ParArray<int>(N, ncol-1, comm);
 
-    for(int i=0;i<nrow;i++)
+    for(i=0;i<nrow;i++)
     {
         for(int j=0;j<ncol-1;j++)
         {
@@ -278,13 +279,13 @@ int* GetPartitionInfo(ParArray<int>* ien, Array<double>* xcn_r, MPI_Comm comm)
     real_t ubvec_[]  = {1.05};
     real_t *ubvec    = ubvec_;
 
-    idx_t *elmwgt;
+    idx_t *elmwgt  = NULL;
     int np           = size;
     idx_t ncon_[]    = {1};
     idx_t *ncon      = ncon_;
     real_t *tpwgts   = new real_t[np*ncon[0]];
 
-    for(int i=0; i<np*ncon[0]; i++)
+    for(i=0; i<np*ncon[0]; i++)
     {
         tpwgts[i] = 1.0/np;
     }
@@ -303,7 +304,7 @@ int* GetPartitionInfo(ParArray<int>* ien, Array<double>* xcn_r, MPI_Comm comm)
     
     
     int L = pv_parmetis->elmdist[size];
-    int* part_collect_on_root;
+    int* part_collect_on_root = NULL;
     
     if(rank == 0)
     {
@@ -319,8 +320,9 @@ int* GetPartitionInfo(ParArray<int>* ien, Array<double>* xcn_r, MPI_Comm comm)
                 MPI_INT,0, comm);
 
     
+    delete ien_copy;
     delete pv_parmetis;
-    
+    delete[] part;
     return part_collect_on_root;
 }
 
@@ -346,16 +348,6 @@ Partition* CollectVerticesPerRank(ParArray<int>* ien, Array<double>* xcn_r, MPI_
     idx_t *ncommonnodes = ncommonnodes_;
     idx_t *xadj      = NULL;
     idx_t *adjncy    = NULL;
-    int np           = size;
-    idx_t ncon_[]    = {1};
-    idx_t *ncon      = ncon_;
-    real_t *tpwgts   = new real_t[np*ncon[0]];
-
-    for(int i=0; i<np*ncon[0]; i++)
-    {
-        tpwgts[i] = 1.0/np;
-    }
-
 
     ParMETIS_V3_Mesh2Dual(pstate_parmetis->getElmdist(),
                           pstate_parmetis->getEptr(),
@@ -428,7 +420,7 @@ Partition* CollectVerticesPerRank(ParArray<int>* ien, Array<double>* xcn_r, MPI_
     parti->ien    = ien;
     parti->ndim   = 3;
     
-    double * verts;
+    double * verts = NULL;
     if(rank == 0)
     {
         verts = new double[gathered_on_root->length*3];
@@ -441,9 +433,12 @@ Partition* CollectVerticesPerRank(ParArray<int>* ien, Array<double>* xcn_r, MPI_
         }
     }
  
-    MPI_Scatterv(&verts[0], nlocs, offset, MPI_DOUBLE, &parti->Verts->data[0], loc_elems.size()*3, MPI_DOUBLE, 0, comm);
+    MPI_Scatterv(&verts[0], nlocs, offset,
+                 MPI_DOUBLE, &parti->Verts->data[0],
+                 loc_elems.size()*3, MPI_DOUBLE, 0, comm);
     
-    
+    delete[] xadj;
+    delete[] adjncy;
     delete pstate_parmetis;
     return parti;
 }
@@ -480,7 +475,7 @@ ParArray<int>* DeterminePartitionLayout(ParArray<int>* ien, MPI_Comm comm)
     real_t ubvec_[]  = {1.1};
     real_t *ubvec    = ubvec_;
 
-    idx_t *elmwgt;
+    idx_t *elmwgt = NULL;
 
     int np           = size;
     idx_t ncon_[]    = {1};
@@ -512,6 +507,8 @@ ParArray<int>* DeterminePartitionLayout(ParArray<int>* ien, MPI_Comm comm)
      
     ParArray<int>*  part_arr = new ParArray<int>(ien->getNglob(),1,comm);
     part_arr->data = part;
+    
+    delete pstate_parmetis;
     
     return part_arr;
     
@@ -774,7 +771,7 @@ Array<double>* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part,
         offset_scat[i] = gathered_on_root->offsets[i]*3;
     }
        
-    double* verts;
+    double* verts = NULL;
     Array<double>* Verts_loc = new Array<double>(u_verts_vec.size(),3);
     if(rank == 0)
     {
@@ -808,6 +805,7 @@ Array<double>* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part,
 
 Partition* CollectElementsPerRank(ParArray<int>* ien, Array<int>* ien_root, MPI_Comm comm)
 {
+    int i;
     int size;
     MPI_Comm_size(comm, &size);
     // Get the rank of the process
@@ -830,17 +828,17 @@ Partition* CollectElementsPerRank(ParArray<int>* ien, Array<int>* ien_root, MPI_
     idx_t *xadj      = NULL;
     idx_t *adjncy    = NULL;
     
-    idx_t *elmwgt;
+    //idx_t *elmwgt;
 
-    int np           = size;
-    idx_t ncon_[]    = {1};
-    idx_t *ncon      = ncon_;
-    real_t *tpwgts   = new real_t[np*ncon[0]];
-
-    for(int i=0; i<np*ncon[0]; i++)
-    {
-        tpwgts[i] = 1.0/np;
-    }
+//    int np           = size;
+//    idx_t ncon_[]    = {1};
+//    idx_t *ncon      = ncon_;
+//    real_t *tpwgts   = new real_t[np*ncon[0]];
+//
+//    for(i=0; i<np*ncon[0]; i++)
+//    {
+//        tpwgts[i] = 1.0/np;
+//    }
     int* part = new int[nloc];
     
     ParMETIS_V3_Mesh2Dual(pstate_parmetis->getElmdist(),
@@ -905,7 +903,7 @@ Partition* CollectElementsPerRank(ParArray<int>* ien, Array<int>* ien_root, MPI_
     //if(rank == 1)
     //{
     int cnt = 0;
-	for(int i=0;i<nloc;i++)
+	for(i=0;i<nloc;i++)
 	{
 		if(part[i]!=rank)
 	        {
@@ -919,7 +917,7 @@ Partition* CollectElementsPerRank(ParArray<int>* ien, Array<int>* ien_root, MPI_
     part_arr->data = part;
     int tot = ien->getNglob();
     
-    Array<int>* output;
+    Array<int>* output = NULL;
     
     if (rank == 0)
     {
@@ -983,7 +981,7 @@ Partition* CollectElementsPerRank(ParArray<int>* ien, Array<int>* ien_root, MPI_
     //Partition* parti = new Partition;
     
     ParArrayOnRoot* gathered_on_root = GatherVecToRoot(loc_elems, comm);
-    double * verts;
+    
     int* nlocs  = new int[size];
     int* offset = new int[size];
     for(int i=0;i<size;i++)
@@ -1007,6 +1005,8 @@ Partition* CollectElementsPerRank(ParArray<int>* ien, Array<int>* ien_root, MPI_
     parti->ien           = ien;
     parti->ndim          = 3;
     
+    double * verts = NULL;
+    
     if(rank == 0)
     {
         verts = new double[gathered_on_root->length*8];
@@ -1026,8 +1026,14 @@ Partition* CollectElementsPerRank(ParArray<int>* ien, Array<int>* ien_root, MPI_
    
     MPI_Scatterv(&verts[0], nlocs, offset, MPI_DOUBLE, &parti->Verts->data[0], loc_elems.size()*8, MPI_DOUBLE, 0, comm);
     
+    delete part_arr;
+    //delete[] elmwgt;
+    delete[] xadj;
+    delete[] adjncy;
+    delete[] verts;
     delete pstate_parmetis;
     delete gathered_on_root;
+    
     return parti;
 }
 
@@ -1221,7 +1227,7 @@ void Example3DPartitioning(MPI_Comm comm)
     real_t ubvec_[]  = {1.05};
     real_t *ubvec    = ubvec_;
 
-    idx_t *elmwgt;
+    idx_t *elmwgt = NULL;
     
     real_t itr_[]    = {1.05};
     real_t *itr      = itr_;
@@ -1348,6 +1354,7 @@ ParVar* CreateParallelData(int N, MPI_Comm comm)
 
 ParVar_ParMetis* CreateParallelDataParmetis(ParArray<int>* e2n, MPI_Comm comm, int type)
 {
+    int i,j;
     int size;
     MPI_Comm_size(comm, &size);
 
@@ -1361,7 +1368,7 @@ ParVar_ParMetis* CreateParallelDataParmetis(ParArray<int>* e2n, MPI_Comm comm, i
     int offset           = rank*int(Nel/size) + MIN(rank, Nel%size);
     
     int npo_loc = 0;
-    for(int i=0;i<nloc;i++)
+    for(i=0;i<nloc;i++)
     {
         npo_loc += type;
     }
@@ -1371,7 +1378,7 @@ ParVar_ParMetis* CreateParallelDataParmetis(ParArray<int>* e2n, MPI_Comm comm, i
     int* npo_locs              = new int[size];
     int* red_npo_locs          = new int[size];
 
-    for(int i=0;i<size;i++)
+    for(i=0;i<size;i++)
     {
         red_nlocs[i]        = 0;
         red_npo_locs[i]     = 0;
@@ -1393,7 +1400,7 @@ ParVar_ParMetis* CreateParallelDataParmetis(ParArray<int>* e2n, MPI_Comm comm, i
     int* red_elm_dist          = new int[size+1];
     int* red_npo_offset        = new int[size+1];
     
-    for(int i=0;i<size+1;i++)
+    for(i=0;i<size+1;i++)
     {
         red_elm_dist[i]   = 0;
         red_npo_offset[i] = 0;
@@ -1422,11 +1429,11 @@ ParVar_ParMetis* CreateParallelDataParmetis(ParArray<int>* e2n, MPI_Comm comm, i
     int* eptr = new int[nloc+1];
     int* eind = new int[npo_loc];
     eptr[0]  = 0;
-    for(int i=0;i<nloc;i++)
+    for(i=0;i<nloc;i++)
     {
         eptr[i+1]  = eptr[i]+type;
         
-        for(int j=eptr[i];j<eptr[i+1];j++)
+        for(j=eptr[i];j<eptr[i+1];j++)
         {
             eind[j] = e2n->data[j];
         }
@@ -1441,6 +1448,14 @@ ParVar_ParMetis* CreateParallelDataParmetis(ParArray<int>* e2n, MPI_Comm comm, i
     pv_parmetis->npo_offset  =  red_npo_offset;
     pv_parmetis->eptr        =  eptr;
     pv_parmetis->eind        =  eind;
+    
+//    delete[] elm_dist;
+//    delete[] npo_offset;
+//    delete[] red_elm_dist;
+//    delete[] red_npo_offset;
+    
+    //delete[] eptr;
+    //delete[] eind;
     
     return pv_parmetis;
 }
@@ -1470,15 +1485,15 @@ void DivideElements(Array<int>* part_on_root, Array<int>* ien_on_root, Array<dou
     int* tmp_cntr2   = new int[size];
     int* tmp_cntr3   = new int[size];
     
-    JagArray<int>* jArrElm;
-    JagArray<int>* jArrVrt;
-    JagArray<double>* jArrCrd;
+    JagArray<int>* jArrElm = NULL;
+    JagArray<int>* jArrVrt = NULL;
+    JagArray<double>* jArrCrd = NULL;
     
     
     
     int Nel = part_on_root->getNrow();
-    int* jag_array;
-    int* jag_array_v;
+    int* jag_array = NULL;
+    int* jag_array_v = NULL;
     if( rank == 0)
     {
         for(i=0;i<size;i++)
@@ -1601,8 +1616,8 @@ void DivideElements(Array<int>* part_on_root, Array<int>* ien_on_root, Array<dou
         
     }
     
-    delete jag_array;
-    delete jag_array_v;
+    delete[] jag_array;
+    delete[] jag_array_v;
     
     delete jArrVrt;
     delete jArrCrd;

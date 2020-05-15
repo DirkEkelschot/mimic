@@ -334,225 +334,6 @@ void UnitTestJacobian()
 
 
 
-void PartitionBigMesh(Array<double>* xcn, Array<int>* ien, MPI_Comm comm)
-{
-    int world_size;
-    MPI_Comm_size(comm, &world_size);
-
-    // Get the rank of the process
-    int world_rank;
-    MPI_Comm_rank(comm, &world_rank);
-    
-    int nel    = ien->getNrow();
-    int npo    = 0;
-    
-    for(int i = 0;i<nel;i++)
-    {
-        npo += 8;
-    }
-    
-    int nloc     = int(nel/world_size) + ( world_rank < nel%world_size );
-    //  compute offset of rows for each proc;
-    int offset   = world_rank*int(nel/world_size) + MIN(world_rank, nel%world_size);
-    int* elmdist = new int[world_size+1];
-
-    int npo_loc=0;
-    for(int i=0;i<nloc;i++)
-    {
-        npo_loc += 8;
-    }
-    
-    int* locs        = new int[world_size];
-    int* npo_locs    = new int[world_size];
-    int* npo_offset  = new int[world_size+1];
-    npo_offset[0]=0;
-    
-    
-    
-    for(int i=0;i<world_size;i++)
-    {
-        if (i==world_rank)
-        {
-            locs[i]     = nloc;
-            npo_locs[i] = npo_loc;
-        }
-        else
-        {
-            locs[i]     = 0;
-            npo_locs[i] = 0;
-        }
-    }
-     
-    for(int i=0;i<world_size+1;i++)
-    {
-        if (i==world_rank)
-        {
-            elmdist[i]    = offset;
-        }
-        else
-        {
-            elmdist[i]    = 0;
-        }
-    }
-    
-    int* red_locs       = new int[world_size];
-    int* red_npo_locs   = new int[world_size];
-    int* red_elmdist    = new int[world_size+1];
-    
-    
-    for(int i=0;i<world_size;i++)
-    {
-        red_locs[i]    = 0;
-        red_elmdist[i] = 0;
-    }
-    
-    MPI_Allreduce(locs,     red_locs,     world_size,   MPI_INT, MPI_SUM,  MPI_COMM_WORLD);
-    MPI_Allreduce(npo_locs, red_npo_locs, world_size,   MPI_INT, MPI_SUM,  MPI_COMM_WORLD);
-    MPI_Allreduce(elmdist,  red_elmdist,  world_size+1, MPI_INT, MPI_SUM,  MPI_COMM_WORLD);
-    
-    for(int i=0;i<world_size;i++)
-    {
-        npo_offset[i+1] = npo_offset[i]+red_npo_locs[i];
-    }
-    
-    red_elmdist[world_size] = nel;
-    
-    int* eptr = new int[nloc+1];
-    int* eind = new int[npo_loc];
-    
-    eptr[0]  = 0;
-    for(int k=0;k<nloc;k++)
-    {
-        eptr[k+1] = eptr[k]+8;
-        
-        for(int j=0;j<8;j++)
-        {
-            int val = ien->getVal(offset+k,j+1)-1;
-            eind[k*8+j] = val;
-        }
-    }
-    
-    //std::cout << "extra check " << eptr[nloc] << " " << npo_loc << std::endl;
-    //std::cout << "ntot " <<  nloc*8 << " " << npo_loc << std::endl;
-    
-    /*
-    idx_t numflag_[] = {0};
-    idx_t *numflag = numflag_;
-    idx_t ncommonnodes_[] = {4};
-    idx_t *ncommonnodes = ncommonnodes_;
-    int edgecut      = 0;
-    idx_t *xadj      = NULL;
-    idx_t *adjncy    = NULL;
-    idx_t *adjwgt    = NULL;
-    idx_t *vsize     = NULL;
-    idx_t options_[] = {0, 0, 0};
-    idx_t *options   = options_;
-    idx_t wgtflag_[] = {0};
-    idx_t *wgtflag   = wgtflag_;
-    real_t ubvec_[]  = {1.05};
-    real_t *ubvec    = ubvec_;
-
-    idx_t *elmwgt;
-    
-    real_t itr_[]    = {1.05};
-    real_t *itr      = itr_;
-    int np           = world_size;
-    idx_t ncon_[]    = {1};
-    idx_t *ncon      = ncon_;
-    real_t *tpwgts   = new real_t[np*ncon[0]];
-
-    for(int i=0;i<np*ncon[0];i++)
-    {
-        tpwgts[i]    = 1.0/np;
-    }
-    
-    idx_t nparts_[]  = {np};
-    idx_t *nparts    = nparts_;
-    
-    idx_t part_[]    = {nloc};
-    idx_t *part      = part_;
-    */
-    /*
-    if(world_rank == 0)
-    {
-        for(int i=0;i<world_size+1;i++)
-        {
-            std::cout << "efwf " << world_rank << " " << red_elmdist[i] << std::endl;
-        }
-    }
-    if(world_rank == 1)
-    {
-        for(int i=0;i<nloc;i++)
-        {
-            //std::cout << eptr[i] << std::endl;
-            //std::cout << "element - " << i << " :: ";
-            for(int j=0;j<8;j++)
-            {
-                std::cout << eind[i*8+j] << " ";
-            }
-            
-            std::cout << std::endl;
-            
-        }
-    }
-    */
-    //ParMETIS_V3_PartMeshKway(red_elmdist, eptr, eind, elmwgt, wgtflag, numflag, ncon, ncommonnodes, nparts, tpwgts, ubvec, options, &edgecut, part, &comm);
-    
-    //ParMETIS_V3_Mesh2Dual(red_elmdist,eptr,eind,numflag,ncommonnodes,&xadj,&adjncy,&comm);
-    
-    //idx_t *nparts2 = nparts_;
-    
-    //ParMETIS_V3_AdaptiveRepart(red_elmdist, xadj, adjncy, elmwgt, adjwgt, vsize, wgtflag, numflag, ncon, nparts2, tpwgts, ubvec, itr, options, &edgecut, part, &comm);
-    
-    
-    //std::cout << "part = " << part[0] << std::endl;
-    /*
-    if(world_rank == 1)
-    {
-        std::cout << std::endl;
-        
-        for(int i = 0; i < nloc; i++)
-        {
-            std::cout << part[i] << std::endl;
-        }
-    }
-   */ //===================================================================================================================================
-    /*
-    int rank = 0;
-    if(world_rank == rank)
-    {
-
-        int cnt = 0;
-        
-        int nshow = 20;
-        
-        for(int i=0;i<nloc;i++)
-        {
-            if(cnt < nshow)
-            {
-                //std::cout << "element " << i+offset << " :: -> ";
-            }
-            for(int j=xadj[i];j<xadj[i+1];j++)
-            {
-                if(cnt < nshow)
-                {
-                    std::cout << adjncy[j] << ", ";
-                }
-            }
-            if(cnt < nshow)
-            {
-                std::cout << " " << std::endl;
-            }
-            cnt++;
-        }
-    }
-    */
-    delete[] npo_offset;
-    delete[] eind;
-    delete[] eptr;
-}
-
-
 
 
 
@@ -1124,6 +905,7 @@ int* TestBrutePartioningUS3D()
         }
     }
     
+    delete schedule;
     delete xcn;
     delete ien;
     delete[] recv_loc;
@@ -1215,7 +997,7 @@ void Example3DPartitioningWithParVarParMetis()
     real_t ubvec_[]  = {1.05};
     real_t *ubvec    = ubvec_;
 
-    idx_t *elmwgt;
+    idx_t *elmwgt = NULL;
 
     real_t itr_[]    = {1.05};
     real_t *itr      = itr_;
@@ -1292,6 +1074,19 @@ void Example3DPartitioningWithParVarParMetis()
 
         }
     }
+    
+    delete[] eltype;
+    delete[] arr_res;
+    //delete nparts2;
+    //delete nparts;
+    delete[] tpwgts;
+    //delete wgtflag;
+    
+    //delete ncon;
+    //delete itr;
+    delete[] xadj;
+    delete[] adjncy;
+    
 }
 
 //
@@ -1467,15 +1262,6 @@ int ExampleUS3DPartitioningWithParVarParMetis()
         adjwgt[i] = 1;
     }
     
-    int np           = world_size;
-    idx_t ncon_[]    = {1};
-    idx_t *ncon      = ncon_;
-    real_t *tpwgts   = new real_t[np*ncon[0]];
-
-    for(int i=0; i<np*ncon[0]; i++)
-    {
-        tpwgts[i] = 1.0/np;
-    }
     
     
 
@@ -1499,9 +1285,12 @@ int ExampleUS3DPartitioningWithParVarParMetis()
 //
 //    }
     //status = ParMETIS_V3_AdaptiveRepart(pv_parmetis->elmdist, xadj, adjncy, elmwgt, adjwgt, vsize, wgtflag, numflag, ncon, nparts, tpwgts, ubvec, itr, options, &edgecut, part, &comm);
+    delete[] elmwgt;
+    delete[] adjwgt;
     delete ien;
     delete pv_parmetis;
-    
+    delete[] adjncy;
+    delete[] xadj;
     return status;
     
 }
@@ -1688,7 +1477,7 @@ void ParallelSortTest()
         ief_arr[i] = ief_copy[i];
     }
     
-    int *glob_arr;
+    int *glob_arr = NULL;
     int nglob = ief->getNglob();
 
     if (rank == 0)
@@ -1727,7 +1516,7 @@ void ParallelSortTest_v2()
     int levels = log2(size);
     
     const char* fn_conn="grids/piston/conn.h5";
-    const char* fn_grid="grids/piston/grid.h5";
+    //const char* fn_grid="grids/piston/grid.h5";
     
     ParArray<int>* ief = ReadDataSetFromFileInParallel<int>(fn_conn,"ief",comm,info);
     
@@ -1803,7 +1592,7 @@ int main(int argc, char** argv) {
     //const char* fn_conn="grids/piston/conn.h5";
     const char* fn_conn="grids/adept/conn.h5";
     const char* fn_grid="grids/adept/grid.h5";
-    const char* fn_data="grids/adept/data.h5";
+    //const char* fn_data="grids/adept/data.h5";
     
     /*
     Array<int>*    zdefs = ReadDataSetFromGroupFromFile<int>(fn_conn,"zones","zdefs");

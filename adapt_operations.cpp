@@ -286,7 +286,7 @@ int* mergeSort(int height, int id, int* localArray, int size, MPI_Comm comm, int
               // allocate memory for result of merge
               
               // merge half1 and half2 into mergeResult
-              int size_half1 = size;
+              size_half1 = size;
 //              if (size_half1!=size_half2)
 //              {
 //                  std::cout << size_half2<< " " << size_half1 << std::endl;
