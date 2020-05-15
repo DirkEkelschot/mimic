@@ -20,8 +20,7 @@ class ParallelState_Parmetis {
     int* getEind( void );
       
    private:
-      int Nel;
-      MPI_Comm comm;
+      int  Nel;
       int* elmdist;
       int* nlocs;
       int* npo_locs;

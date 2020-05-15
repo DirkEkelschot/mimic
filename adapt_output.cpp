@@ -19,7 +19,6 @@ void OutputQuantityPartition(Partition* pa, Array<double>* Quan, MPI_Comm comm)
     Vert V;
     
     //set<int> gid_set;
-    int nvert = 0;
     std::map<int,Vert> vert_out;
     std::map<int,double> quan_out;
     int v=0;int u=0;int el=0;
@@ -81,7 +80,11 @@ void OutputQuantityPartition(Partition* pa, Array<double>* Quan, MPI_Comm comm)
                  l_vert_id[i*8+6]+1 << "  " <<
                  l_vert_id[i*8+7]+1 << std::endl;
     }
+    
+    
     myfile.close();
+    delete[] l_vert_id;
+
 }
 
 
@@ -96,14 +99,12 @@ void OutputPartionVolumes(ParArray<int>* ien, Array<double>* xcn_on_root, MPI_Co
     
     int nrow = ien->getNrow();
     int ncol = ien->getNcol();
-    int nloc = nrow;
     
     int gid;
     int lid;
     Vert V;
     
     //set<int> gid_set;
-    int nvert = 0;
     std::map<int,Vert> vert_out;
     int v=0;int u=0;int el=0;
     int* l_vert_id = new int[nrow*(ncol-1)];
@@ -162,6 +163,7 @@ void OutputPartionVolumes(ParArray<int>* ien, Array<double>* xcn_on_root, MPI_Co
                  l_vert_id[i*8+7]+1 << std::endl;
     }
     myfile.close();
+    delete[] l_vert_id;
 }
 
 
@@ -251,6 +253,8 @@ void OutputPartitionFaces()
         myfile.close();
         
         delete[] Loc;
+        delete ifn;
+        delete xcn;
      }
 }
 

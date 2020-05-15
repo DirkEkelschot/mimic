@@ -19,6 +19,8 @@ double ComputeDetJac(double *P0,double *P1,double *P2,double *P3)
     double DetJ = JP1[0]*(JP1[4]*JP1[8]-JP1[7]*JP1[5])
                  -JP1[1]*(JP1[3]*JP1[8]-JP1[6]*JP1[5])
                  +JP1[2]*(JP1[3]*JP1[7]-JP1[6]*JP1[4]);
+    
+    delete[] JP1;
     return DetJ;
 }
 
@@ -89,6 +91,10 @@ double ComputeJ(double*P, int ElType){
        P3[0]=P[3*3+0];P3[1]=P[3*3+1];P3[2]=P[3*3+2];
        double DJP7 = ComputeDetJac(P0,P1,P2,P3);
         
+       delete[] P0;
+       delete[] P1;
+       delete[] P2;
+       delete[] P3;
        J = (DJP0+DJP1+DJP2+DJP3+DJP4+DJP5+DJP6+DJP7)/8;
 
     }
@@ -134,6 +140,11 @@ double ComputeJ(double*P, int ElType){
         P2[0]  = P[3*3+0]; P2[1]  = P[3*3+1]; P2[2] = P[3*3+2];
         P3[0]  = P[2*3+0]; P3[1]  = P[2*3+1]; P3[2] = P[2*3+2];
         double DJP5 = ComputeDetJac(P0,P1,P2,P3);
+        
+        delete[] P0;
+        delete[] P1;
+        delete[] P2;
+        delete[] P3;
         
         J = (DJP0+DJP1+DJP2+DJP3+DJP4+DJP5)/6;
     }
@@ -385,8 +396,6 @@ Array<double>* ComputeDeterminantofJacobian(Partition* pa)
     int Vid, Vlid;
     for(int i=0;i<nel_loc;i++)
     {
-        np = 8;
-        
         for(int j=0;j<ncol-1;j++)
         {
             Vid = pa->ien->getVal(i,j+1)-1;
@@ -408,6 +417,8 @@ Array<double>* ComputeDeterminantofJacobian(Partition* pa)
         //std::cout << J[6] << " " << J[7] << " " << J[8] << std::endl;
         //std::cout << "================================" << std::endl;
     }
+    delete[] P;
+    
     return detJ;
 }
 
@@ -420,7 +431,6 @@ double* ComputeVolumeCellsSerial(Array<double>* xcn, Array<int>* ien, MPI_Comm c
     int world_rank;
     MPI_Comm_rank(comm, &world_rank);
     int Nel = ien->getNrow();
-    int nloc     = int(Nel/world_size) + ( world_rank < Nel%world_size );
     //  compute offset of rows for each proc;
     int offset   = world_rank*int(Nel/world_size) + MIN(world_rank, Nel%world_size);
     
@@ -450,6 +460,8 @@ double* ComputeVolumeCellsSerial(Array<double>* xcn, Array<int>* ien, MPI_Comm c
         
     }
     
+    delete[] P;
+    
     return vol_cells;
     
 }
@@ -467,10 +479,10 @@ double* ComputeVolumeCellsReducedToVerts(Array<double>* xcn, Array<int>* ien)
     int Nelements = ien->getNrow();
     int Nnodes = xcn->getNrow();
     
-    double * vol_cells = new double[Nelements];
     double * vert_cnt   = new double[Nnodes];
     double * sum_vol    = new double[Nnodes];
     double * vol_verts  = new double[Nnodes];
+    
     
     int np = 8;
     double* P = new double[np*3];
@@ -504,6 +516,11 @@ double* ComputeVolumeCellsReducedToVerts(Array<double>* xcn, Array<int>* ien)
     {
         vol_verts[i] = sum_vol[i]/vert_cnt[i];
     }
+    
+    
+    delete[] vert_cnt;
+    delete[] sum_vol;
+    delete[] P;
     
     return vol_verts;
 }

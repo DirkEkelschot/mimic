@@ -393,6 +393,7 @@ Array<T>* ReadDataSetFromFileInParallelToRoot(const char* file_name, const char*
     ParArray<T>* parA     = new ParArray<T>(N,ncol,comm);
     
     
+    
     hsize_t              offsets[2];
     hsize_t              counts[2];
     offsets[0]           = parA->getParallelState()->getOffset(rank);
@@ -444,6 +445,9 @@ Array<T>* ReadDataSetFromFileInParallelToRoot(const char* file_name, const char*
     H5Fclose(file_id);
     
     delete parA;
+    delete[] nlocs_tmp;
+    delete[] offsets_tmp;
+    
     return A_ptot;
 }
 

@@ -75,8 +75,6 @@ void EigenDecomp(int n, double * A,  double * WR, double * WI, double * V, doubl
 map< pair<int,int>, HalfEdge* > GetHalfEdges(int* element_verts, int* M, int nloc, int offset)
 {
     map< pair<int, int>, HalfEdge* > Edges;
-    int cnt=0;
-    int dupl=0;
     int u,v,un,vn,up,vp;
     for(int i=0;i<nloc;i++)
     {
@@ -345,7 +343,6 @@ void PartitionBigMesh(Array<double>* xcn, Array<int>* ien, MPI_Comm comm)
     int world_rank;
     MPI_Comm_rank(comm, &world_rank);
     
-    int eltype = 8;
     int nel    = ien->getNrow();
     int npo    = 0;
     
@@ -776,7 +773,6 @@ int FindRank(int* arr, int size, int val)
     
     int mid = (start+last)/2;
     
-    int found = 1;
     while (start<=last)
     {
         if (arr[mid]<=val)
@@ -859,9 +855,7 @@ TmpStruct* GetSchedule(ParArray<int>* ien, ParArray<double>* xcn, MPI_Comm comm)
         std::cout << "sizing :: " << " " << world_rank << " " << it->second.size() << std::endl;
     }
     */
-    std::clock_t start;
-    double duration;
-    start = std::clock();
+
     int* collect = new int[num_req_proc+1];
     int* sizing  = new int[num_req_proc+1];
     int tot_req_proc = 0;
@@ -969,9 +963,6 @@ TmpStruct* GetSchedule(ParArray<int>* ien, ParArray<double>* xcn, MPI_Comm comm)
     t_struct->offsets_sizing = proc_offset_sizing;
     t_struct->nlocs_sizing = red_num_req_sizing;
     
-    duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
-
-    //std::cout << world_rank << " scheduling inside = " << duration << std::endl;
     
     return t_struct;
 }
@@ -985,8 +976,7 @@ void TestReadInParallelToRoot(MPI_Comm comm, MPI_Info info)
     int world_rank;
     MPI_Comm_rank(comm, &world_rank);
     
-    std::clock_t start;
-    double duration;
+    
 
     //start = std::clock();
     Array<int>*   iee    = ReadDataSetFromFile<int>("grids/piston/conn.h5","iee");
@@ -1056,7 +1046,6 @@ int* TestBrutePartioningUS3D()
     std::map< int, set<int> > s_recv;
     std::map< int, std::map< int, int> > s_recv_alloc;
     //std::cout << "we are jagged " << std::endl;
-    int nval_tot = 0;
     for(int i=0;i<world_size;i++)
     {
        int nloc   = schedule->nlocs[i];
@@ -1122,6 +1111,7 @@ int* TestBrutePartioningUS3D()
                 MPI_Send(&req_arr_send[0], n_req, MPI_INT, dest, 100+dest*2, comm);
                 tel = tel + 1;
                 i++;
+                delete[] req_arr_send;
             }
         }
         else if (s_send[q].find( world_rank ) != s_send[q].end())
@@ -1137,6 +1127,7 @@ int* TestBrutePartioningUS3D()
     delete xcn;
     delete ien;
     delete[] recv_loc;
+    delete[] recv_offset;
     //delete ief;
     
     duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
@@ -1314,7 +1305,6 @@ void GetAdjacencyForUS3D(Array<int>* ife, ParArray<int>* ief, int nelem, MPI_Com
 {
     
 
-    MPI_Info info = MPI_INFO_NULL;
     int world_size;
     MPI_Comm_size(comm, &world_size);
     // Get the rank of the process
@@ -1366,7 +1356,6 @@ void GetAdjacencyForUS3D(Array<int>* ife, ParArray<int>* ief, int nelem, MPI_Com
 
 void GetAdjacencyForUS3D_V2(ParArray<int>* ief, int nelem, MPI_Comm comm)
 {
-    MPI_Info info = MPI_INFO_NULL;
     int world_size;
     MPI_Comm_size(comm, &world_size);
     // Get the rank of the process
@@ -1374,7 +1363,6 @@ void GetAdjacencyForUS3D_V2(ParArray<int>* ief, int nelem, MPI_Comm comm)
     MPI_Comm_rank(comm, &world_rank);
     
     int fid = 0;
-    int eid = 0;
     
     std::map<int, set<int> > f2e;
     std::map<int, std::vector<int> > f2e_vec;
@@ -1432,7 +1420,7 @@ void GetAdjacencyForUS3D_V2(ParArray<int>* ief, int nelem, MPI_Comm comm)
 
 
 
-void ExampleUS3DPartitioningWithParVarParMetis()
+int ExampleUS3DPartitioningWithParVarParMetis()
 {
     MPI_Comm comm = MPI_COMM_WORLD;
     MPI_Info info = MPI_INFO_NULL;
@@ -1443,7 +1431,6 @@ void ExampleUS3DPartitioningWithParVarParMetis()
     MPI_Comm_rank(comm, &world_rank);
     
     const char* fn_conn="grids/piston/conn.h5";
-    const char* fn_grid="grids/piston/grid.h5";
     ParArray<int>*   ien = ReadDataSetFromFileInParallel<int>(fn_conn,"ien",comm,info);
     
     int nrow = ien->getNrow();
@@ -1468,16 +1455,8 @@ void ExampleUS3DPartitioningWithParVarParMetis()
     idx_t *numflag = numflag_;
     idx_t ncommonnodes_[] = {4};
     idx_t *ncommonnodes = ncommonnodes_;
-    idx_t edgecut;
     idx_t *xadj      = NULL;
     idx_t *adjncy    = NULL;
-    idx_t *vsize     = NULL;
-    idx_t options_[] = {0, 0, 0};
-    idx_t *options   = options_;
-    idx_t wgtflag_[] = {0};
-    idx_t *wgtflag   = wgtflag_;
-    real_t ubvec_[]  = {1.05};
-    real_t *ubvec    = ubvec_;
 
     idx_t *elmwgt = new idx_t[pv_parmetis->nlocs[world_rank]];
     idx_t *adjwgt = new idx_t[pv_parmetis->nlocs[world_rank]];
@@ -1488,8 +1467,6 @@ void ExampleUS3DPartitioningWithParVarParMetis()
         adjwgt[i] = 1;
     }
     
-    real_t itr_[]    = {1.05};
-    real_t *itr      = itr_;
     int np           = world_size;
     idx_t ncon_[]    = {1};
     idx_t *ncon      = ncon_;
@@ -1500,17 +1477,14 @@ void ExampleUS3DPartitioningWithParVarParMetis()
         tpwgts[i] = 1.0/np;
     }
     
-    idx_t nparts_[] = {np};
-    idx_t *nparts = nparts_;
     
-    int nloc = pv_parmetis->nlocs[world_rank];
 
-    int* part = new int[nloc];
-    
-    for(int i=0;i<nloc;i++)
-    {
-        part[i] = 0.0;
-    }
+//    int* part = new int[nloc];
+//    
+//    for(int i=0;i<nloc;i++)
+//    {
+//        part[i] = 0.0;
+//    }
     
     int status = ParMETIS_V3_Mesh2Dual(pv_parmetis->elmdist, pv_parmetis->eptr, pv_parmetis->eind, numflag, ncommonnodes, &xadj, &adjncy, &comm);
     
@@ -1525,7 +1499,11 @@ void ExampleUS3DPartitioningWithParVarParMetis()
 //
 //    }
     //status = ParMETIS_V3_AdaptiveRepart(pv_parmetis->elmdist, xadj, adjncy, elmwgt, adjwgt, vsize, wgtflag, numflag, ncon, nparts, tpwgts, ubvec, itr, options, &edgecut, part, &comm);
-
+    delete ien;
+    delete pv_parmetis;
+    
+    return status;
+    
 }
 
 
@@ -1556,7 +1534,7 @@ LocalPartitionData* GetPartitionData(Array<double>* xcn, ParArray<int>* ien, MPI
         Loc2GlobElement[i] = ien->getParallelState()->getOffset(rank)+i;
         Glob2LocElement[ien->getParallelState()->getOffset(rank)+i] = i;
         
-        for(int j=0;j<ncol-1;i++)
+        for(int j=0;j<(ncol-1);j++)
         {
             val = ien->getVal(i,j+1)-1;
 
@@ -1670,6 +1648,7 @@ void FindDuplicateTest()
 
 void ParallelSortTest()
 {
+    int i=0;
     MPI_Comm comm = MPI_COMM_WORLD;
     MPI_Info info = MPI_INFO_NULL;
     int size;
@@ -1681,7 +1660,6 @@ void ParallelSortTest()
     int levels = log2(size);
     
     const char* fn_conn="grids/piston/conn.h5";
-    const char* fn_grid="grids/piston/grid.h5";
     
     ParArray<int>* ief = ReadDataSetFromFileInParallel<int>(fn_conn,"ief",comm,info);
     
@@ -1691,7 +1669,7 @@ void ParallelSortTest()
     std::vector<int> ief_copy(nrow*(ncol-1));
     int fid;
     int cnt=0;
-    for(int i=0;i<nrow;i++)
+    for(i=0;i<nrow;i++)
     {
         for(int j=0;j<ncol-1;j++)
         {
@@ -1701,14 +1679,18 @@ void ParallelSortTest()
             cnt++;
         }
     }
+    
     int lsize = ief_copy.size();
     int* ief_arr = new int[lsize];
-    for(int i=0;i<lsize;i++)
+    
+    for(i=0;i<lsize;i++)
     {
         ief_arr[i] = ief_copy[i];
     }
+    
     int *glob_arr;
     int nglob = ief->getNglob();
+
     if (rank == 0)
     {
         glob_arr = new int[nglob*6];
@@ -1726,10 +1708,13 @@ void ParallelSortTest()
     }
     
     
+    delete ief;
+    ief_copy.erase(ief_copy.begin(),ief_copy.end());
+    
 }
 
 
-void ParallelSortTest_Vec()
+void ParallelSortTest_v2()
 {
     MPI_Comm comm = MPI_COMM_WORLD;
     MPI_Info info = MPI_INFO_NULL;
@@ -1788,6 +1773,11 @@ void ParallelSortTest_Vec()
         }
     }
     
+    delete[] ief_arr;
+    delete[] data;
+    delete ief;
+    
+    ief_copy.erase(ief_copy.begin(),ief_copy.end());
     
 }
 
@@ -1819,21 +1809,12 @@ int main(int argc, char** argv) {
     Array<int>*    zdefs = ReadDataSetFromGroupFromFile<int>(fn_conn,"zones","zdefs");
     Array<char>*  znames = ReadDataSetFromGroupFromFile<char>(fn_conn,"zones","znames");
     PlotBoundaryData(znames,zdefs,comm);
-    
-    int levels = log2(world_size);
     */
-    std::clock_t start;
-    double duration;
-    start = std::clock();
-    /*
-    TestReadInParallelToRoot(comm,info);
-    */
-//    Array<double>*   xcn_on_all   = ReadDataSetFromFile<double>(fn_grid,"xcn"); 
+
     Array<double>*   xcn_on_root  = ReadDataSetFromFileInParallelToRoot<double>(fn_grid,"xcn",comm,info);
     
-    Array<double>*   ien_on_root_read  = ReadDataSetFromFileInParallelToRoot<double>(fn_conn,"ien",comm,info);
-
     ParArray<int>* ien = ReadDataSetFromFileInParallel<int>(fn_conn,"ien",comm,info);
+    
     int nglob = ien->getNglob();
     int nrow  = ien->getNrow();
     int ncol  = ien->getNcol()-1;
@@ -1848,67 +1829,21 @@ int main(int argc, char** argv) {
         }
     }
     
-    Array<int>* ien_on_root;
-    
-    if(world_rank == 0)
-    {
-        nrow  = ien_on_root_read->getNrow();
-        ncol  = ien_on_root_read->getNcol()-1;
-        
-        ien_on_root = new Array<int>(nrow,ncol);
-        
-        for(int i=0;i<nrow;i++)
-        {
-            for(int j=0;j<ncol;j++)
-            {
-                ien_on_root->setVal(i,j,ien_on_root_read->getVal(i,j+1)-1);
-            }
-        }
-    }
-    
-    
     
     
 //    ParArray<double>* boundaries = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_6","boundaries",comm,info);
 //    ParArray<double>* interior = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_6","interior",comm,info);
+        
+    ParArray<int>* part_par  = DeterminePartitionLayout(ien_copy,comm);
+    Array<double>* vert_crds = DetermineElement2ProcMap(ien_copy, part_par, xcn_on_root, comm);
     
+    std::cout << "#verts of part " << world_rank << " := " << vert_crds->getNrow() << " " << std::endl;
     
-    
-    
-    
-    //Partition* pv = CollectVerticesPerRank(ien,xcn_on_root,comm);
-    
-    //std::cout << world_rank << " sizing = " << pv->xadj[pv->nlocs[world_rank]] << std::endl;
-    //idx_t * part =  GetPartitionInfo(ien, xcn_on_root, comm);
-    
-    //Partition* pv = CollectElementsPerRank(ien_copy,ien_on_root,comm);
-    
-//    start = std::clock();
-//    Array<int>* part_on_root = DeterminePartitionLayout(ien_copy, comm);
-//    duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
-//    std::cout << "rank = " << world_rank << " layout = " << duration << std::endl;
-    
-//    if (world_rank == 0)
-//    {
-//        for(int i=0;i<ien->getNglob();i++)
-//        {
-//            std::cout << i << " " << part[i] << std::endl;
-//        }
-//    }
-    
-    
-    
-    //DivideElements(part_on_root,ien_on_root,xcn_on_root, comm);
-    ParArray<int>* part_par = DeterminePartitionLayout(ien_copy,comm);
-    int req_map = DetermineElement2ProcMap(ien_copy, part_par, xcn_on_root, comm);
-//
-//
-    
-    //int*output = TestBrutePartioningUS3D();
-    //std::cout << "rank = " << world_rank << " TestBrutePartioningUS3D() = " << duration << std::endl;
     MPI_Finalize();
     
-    
+    delete ien;
+    delete ien_copy;
+    delete xcn_on_root;
     
     return 0;
      
