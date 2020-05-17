@@ -7,6 +7,32 @@ using namespace std;
 
 
 
+
+int FindRank(int* arr, int size, int val)
+{
+    int start = 0;
+    int last  = size-1;
+    
+    int mid   = (start+last)/2;
+    
+    while (start<=last)
+    {
+        if (arr[mid]<val)
+        {
+            start = mid + 1;
+        }
+        else
+        {
+            last  = mid - 1;
+        }
+        mid = (start+last)/2;
+    }
+        
+    return mid;
+}
+
+
+
 GathervObject* GetGathervObject(int nloc, MPI_Comm comm)
 {
     int size;
@@ -516,7 +542,7 @@ ParArray<int>* DeterminePartitionLayout(ParArray<int>* ien, MPI_Comm comm)
 
 
 // This function determines a map that gets the unique list of elements for that need to be requested from a given rank other than current rank.
-Array<double>* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, Array<double>* xcn_on_root, MPI_Comm comm)
+Array<double>* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, Array<double>* xcn_on_root, ParArray<double>* xcn, MPI_Comm comm)
 {
     int i=0;
     int size;
@@ -538,6 +564,8 @@ Array<double>* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part,
     std::map<int,std::vector<int> > u_verts_other_ranks_vec;
     std::map<int,int> cnt_other_ranks;
     
+    std::vector<int> part_v;
+    int r = 0;
     int l_id=0;
     for(i=0;i<part->getNrow();i++)
     {
@@ -564,6 +592,10 @@ Array<double>* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part,
                 {
                     u_verts_set.insert(v_id);
                     u_verts_vec.push_back(v_id);
+                    
+                    r = FindRank(xcn->getParallelState()->getOffsets(),size+1,v_id);
+                    part_v.push_back(r);
+                    
                     l_id++;
                 }
             }
@@ -748,7 +780,14 @@ Array<double>* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part,
         }
     }
     
+    
+    
+    
+    
+    
     std::vector<int> u_new_verts_vec;
+    std::map<int,std::vector<int> > crds_to_send_to_ranks;
+
     int v = 0;
     for(int i=0;i<recv_size*8;i++)
     {
@@ -757,9 +796,127 @@ Array<double>* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part,
         {
             u_verts_set.insert(v_id_n);
             u_verts_vec.push_back(v_id_n);
+            
+            r = FindRank(xcn->getParallelState()->getOffsets(),size,v_id_n);
+            part_v.push_back(r);
+            
+            if (r!=rank)
+            {
+                crds_to_send_to_ranks[r].push_back(v_id_n);
+                //std::cout << v_id_n << " " << r << std::endl;
+                
+            }
             v++;
         }
     }
+    
+    std::map<int,std::vector<int> >::iterator it4;
+    for(it4=crds_to_send_to_ranks.begin();it4!=crds_to_send_to_ranks.end();it4++)
+    {
+        std::cout << rank<< " send " << it4->second.size() << " array with values: ";
+        std::vector<int>::iterator it5;
+        for(it5=it4->second.begin();it5!=it4->second.end();it5++)
+        {
+            std::cout << *it5 << " ";
+        }
+        
+        std::cout << "to rank " << it4->first << std::endl;
+    }
+    
+    int crds_to_send_size = crds_to_send_to_ranks.size();
+    
+    int* red_crds_to_send_size = new int[size];
+    int* arr_crds_to_send_size = new int[size];
+    
+    for(i=0;i<size;i++)
+    {
+        red_crds_to_send_size[i] = 0;
+        
+        if(i==rank)
+        {
+            arr_crds_to_send_size[i] = crds_to_send_size+1;
+        }
+        else
+        {
+            arr_crds_to_send_size[i] = 0;
+        }
+    }
+
+    MPI_Allreduce(arr_crds_to_send_size, red_crds_to_send_size, size, MPI_INT, MPI_SUM, comm);
+    
+    int* red_crds_to_send_size_offset = new int[size];
+    offset = 0;
+    for(i=0;i<size;i++)
+    {
+        red_crds_to_send_size_offset[i] = offset;
+        offset = offset+red_crds_to_send_size[i];
+    }
+    int crds_send_map_size = 0;
+    int crds_loc_size = crds_to_send_size+1; // This size is added by one since we add the rank number to the array.
+    
+    MPI_Allreduce(&crds_loc_size, &crds_send_map_size, 1, MPI_INT, MPI_SUM, comm);
+    //std::cout << "crds_send_map_size " << crds_send_map_size << std::endl;
+    int* crds_send_map_part_id            = new int[crds_send_map_size];
+    int* send_map_Nverts_per_part_id      = new int[crds_send_map_size];
+    for(i=0;i<crds_send_map_size;i++)
+    {
+        crds_send_map_part_id[i]         = 0;
+        send_map_Nverts_per_part_id[i]   = 0;
+    }
+    int* crds_from_to_rank       = new int[crds_to_send_size+1];
+    int* num_crds_to_rank        = new int[crds_to_send_size+1];
+    crds_from_to_rank[0]         = rank;
+    num_crds_to_rank[0]          = -1;
+    t = 1;
+    
+    std::map<int,std::vector<int> >::iterator it2;
+    for(it2=crds_to_send_to_ranks.begin();it2!=crds_to_send_to_ranks.end();it2++)
+    {
+        crds_from_to_rank[t]     = it2->first;
+        num_crds_to_rank[t]      = it2->second.size();
+        t++;
+    }
+
+    MPI_Allgatherv(&crds_from_to_rank[0], crds_loc_size, MPI_INT,
+                   &crds_send_map_part_id[0],
+                   red_crds_to_send_size, red_crds_to_send_size_offset, MPI_INT,comm);
+    
+    MPI_Allgatherv(&num_crds_to_rank[0], crds_loc_size, MPI_INT,
+                   &send_map_Nverts_per_part_id[0],
+                   red_crds_to_send_size, red_crds_to_send_size_offset, MPI_INT,comm);
+    
+//    if(rank == 1)
+//    {
+//        for(i=0;i<crds_send_map_size;i++)
+//        {
+//            std::cout << i << " " << crds_send_map_part_id[i] << " " << send_map_Nverts_per_part_id[i] << std::endl;
+//        }
+//        //std::cout << std::endl;
+//    }
+    
+//    std::map<int, set<int> > s_iset_map;
+//    std::map<int, std::vector<int> > r_ivec_map;
+//    std::map<int, std::vector<int> > r_ivec_size_map;
+    
+    
+    
+    
+    
+    
+    
+    
+    
+
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    // ---> First attempt <--- //
     
     ParArrayOnRoot* gathered_on_root = GatherVecToRoot(u_verts_vec, comm);
     
@@ -796,6 +953,7 @@ Array<double>* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part,
     delete[] recv_offset;
     delete[] recv_collector;
     delete[] recv_collector_v;
+    
     
     
     

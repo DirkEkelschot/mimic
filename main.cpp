@@ -38,6 +38,19 @@ struct HalfEdge
 
 
 
+int binarySearch(int* arr, int low, int high, int key)
+{
+    if (high < low)
+        return -1;
+    int mid = (low + high) / 2; /*low + (high - low)/2;*/
+    if (key == arr[mid])
+        return mid;
+    if (key > arr[mid])
+        return binarySearch(arr, (mid + 1), high, key);
+    
+    return binarySearch(arr, low, (mid - 1), key);
+}
+
 void EigenDecomp(int n, double * A,  double * WR, double * WI, double * V, double * iV )
 {
   char JOBVL = 'V';
@@ -547,27 +560,6 @@ ParVar* ComputeParallelStateArray(int nel,MPI_Comm comm)
 }
 
 
-int FindRank(int* arr, int size, int val)
-{
-    int start = 0;
-    int last  = size;
-    
-    int mid = (start+last)/2;
-    
-    while (start<=last)
-    {
-        if (arr[mid]<=val)
-        {
-            start = mid + 1;
-        }
-        else
-        {
-            last = mid - 1;
-        }
-        mid = (start+last)/2;
-    }
-    return mid;
-}
 
 
 
@@ -921,10 +913,16 @@ int* TestBrutePartioningUS3D()
 
 }
 
-void TestFindRank()
+void TestFindRank(MPI_Comm comm)
 {
-    int* arr = new int[10];
     
+    int size;
+    MPI_Comm_size(comm, &size);
+
+    // Get the rank of the process
+    int rank;
+    MPI_Comm_rank(comm, &rank);
+    int* arr = new int[10];
     
     arr[0] = 0;
     arr[1] = 10;
@@ -937,18 +935,19 @@ void TestFindRank()
     arr[8] = 78;
     arr[9] = 81;
     
-    
-    int value = 25;
+    int value = 82;
     
     int res = FindRank(arr,10,value);
+    
     if(res == 3)
     {
-        std::cout << "TestFindRank() has passed!" << std::endl;
+        std::cout << "TestFindRank() has passed! " << res << std::endl;
     }
     else
     {
-        std::cout << "TestFindRank() has failed!" << std::endl;
-
+        
+        std::cout << rank << "  TestFindRank() has failed! " << res << std::endl;
+        std::cout << std::endl;
     }
     
 }
@@ -1590,8 +1589,8 @@ int main(int argc, char** argv) {
 //============================================================
     
     //const char* fn_conn="grids/piston/conn.h5";
-    const char* fn_conn="grids/adept/conn.h5";
-    const char* fn_grid="grids/adept/grid.h5";
+    const char* fn_conn="grids/piston/conn.h5";
+    const char* fn_grid="grids/piston/grid.h5";
     //const char* fn_data="grids/adept/data.h5";
     
     /*
@@ -1603,7 +1602,8 @@ int main(int argc, char** argv) {
     Array<double>*   xcn_on_root  = ReadDataSetFromFileInParallelToRoot<double>(fn_grid,"xcn",comm,info);
     
     ParArray<int>* ien = ReadDataSetFromFileInParallel<int>(fn_conn,"ien",comm,info);
-    
+    ParArray<double>* xcn = ReadDataSetFromFileInParallel<double>(fn_grid,"xcn",comm,info);
+
     int nglob = ien->getNglob();
     int nrow  = ien->getNrow();
     int ncol  = ien->getNcol()-1;
@@ -1622,11 +1622,11 @@ int main(int argc, char** argv) {
     
 //    ParArray<double>* boundaries = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_6","boundaries",comm,info);
 //    ParArray<double>* interior = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_6","interior",comm,info);
-        
+    //TestFindRank(comm);
     ParArray<int>* part_par  = DeterminePartitionLayout(ien_copy,comm);
-    Array<double>* vert_crds = DetermineElement2ProcMap(ien_copy, part_par, xcn_on_root, comm);
+    Array<double>* vert_crds = DetermineElement2ProcMap(ien_copy, part_par, xcn_on_root, xcn, comm);
     
-    std::cout << "#verts of part " << world_rank << " := " << vert_crds->getNrow() << " " << std::endl;
+    //std::cout << "#verts of part " << world_rank << " := " << vert_crds->getNrow() << " " << std::endl;
     
     MPI_Finalize();
     
