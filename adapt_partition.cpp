@@ -565,14 +565,14 @@ Array<double>* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part,
     std::map<int,int> cnt_other_ranks;
     
     std::vector<int> part_v;
-    int r = 0;
-    int l_id=0;
+    int r    = 0;
+    int l_id = 0;
     for(i=0;i<part->getNrow();i++)
     {
         p_id  = part->getVal(i,0);
         el_id = part->getParallelState()->getOffset(rank)+i;
 
-        if(p_id!=rank)
+        if(p_id!=rank) // If element is not on this rank add it to rank to element map.
         {
             elms_to_send_to_ranks[p_id].push_back(el_id);
             
@@ -739,10 +739,9 @@ Array<double>* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part,
     
     for(int i =0;i<recv_size;i++)
     {
-        recv_collector[i] = 10;
+        recv_collector[i] = 0;
     }
     
-    std::map< int, std::map< int, int> > s_recv_alloc;
     
     int n_req_recv;
     
@@ -772,13 +771,12 @@ Array<double>* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part,
             MPI_Recv(&n_req_recv, 1, MPI_INT, q, rank, comm, MPI_STATUS_IGNORE);
             MPI_Recv(&recv_collector[offset_map[q]], n_req_recv, MPI_INT, q, 100+rank*2, comm, MPI_STATUS_IGNORE);
             
-            
-            
             MPI_Recv(&n_req_recv_v, 1, MPI_INT, q, 9000+rank, comm, MPI_STATUS_IGNORE);
             MPI_Recv(&recv_collector_v[offset_map[q]*8], n_req_recv_v, MPI_INT, q, 9000+100+rank*2, comm, MPI_STATUS_IGNORE);
             
         }
     }
+    
     
     
     
@@ -800,28 +798,30 @@ Array<double>* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part,
             r = FindRank(xcn->getParallelState()->getOffsets(),size,v_id_n);
             part_v.push_back(r);
             
-            if (r!=rank)
+            if (r!=rank) // This means that rank requires the following verts from rank r.
             {
                 crds_to_send_to_ranks[r].push_back(v_id_n);
-                //std::cout << v_id_n << " " << r << std::endl;
-                
             }
             v++;
         }
     }
     
-    std::map<int,std::vector<int> >::iterator it4;
-    for(it4=crds_to_send_to_ranks.begin();it4!=crds_to_send_to_ranks.end();it4++)
+    if(rank == 0)
     {
-        std::cout << rank<< " send " << it4->second.size() << " array with values: ";
-        std::vector<int>::iterator it5;
-        for(it5=it4->second.begin();it5!=it4->second.end();it5++)
+        std::map<int,std::vector<int> >::iterator it4;
+        for(it4=crds_to_send_to_ranks.begin();it4!=crds_to_send_to_ranks.end();it4++)
         {
-            std::cout << *it5 << " ";
+            std::cout << rank<< " sends an array of size " << it4->second.size() << " array with values: ";
+            std::vector<int>::iterator it5;
+            for(it5=it4->second.begin();it5!=it4->second.end();it5++)
+            {
+                std::cout << *it5 << " ";
+            }
+
+            std::cout << " -> to rank " << it4->first << std::endl;
         }
-        
-        std::cout << "to rank " << it4->first << std::endl;
     }
+    
     
     int crds_to_send_size = crds_to_send_to_ranks.size();
     
@@ -863,6 +863,7 @@ Array<double>* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part,
         crds_send_map_part_id[i]         = 0;
         send_map_Nverts_per_part_id[i]   = 0;
     }
+    
     int* crds_from_to_rank       = new int[crds_to_send_size+1];
     int* num_crds_to_rank        = new int[crds_to_send_size+1];
     crds_from_to_rank[0]         = rank;
@@ -884,6 +885,140 @@ Array<double>* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part,
     MPI_Allgatherv(&num_crds_to_rank[0], crds_loc_size, MPI_INT,
                    &send_map_Nverts_per_part_id[0],
                    red_crds_to_send_size, red_crds_to_send_size_offset, MPI_INT,comm);
+    
+    std::map<int, set<int> > s_crds_iset_map;
+    std::map<int, std::vector<int> > r_crds_ivec_map;
+    std::map<int, std::vector<int> > r_crds_ivec_size_map;
+    
+    //=========================================
+    for(i=0;i<size;i++)
+    {
+        int of = red_crds_to_send_size_offset[i];
+        int nl = red_crds_to_send_size[i];
+        for(int j=of+1;j<of+nl;j++)
+        {
+            s_crds_iset_map[crds_send_map_part_id[of]].insert(crds_send_map_part_id[j]);
+            r_crds_ivec_map[crds_send_map_part_id[j]].push_back(crds_send_map_part_id[of]);
+            r_crds_ivec_size_map[crds_send_map_part_id[j]].push_back(send_map_Nverts_per_part_id[j]);
+        }
+    }
+
+    std::map<int,std::map<int,int> > loc_crds_alloc;
+    
+    for(it=r_crds_ivec_map.begin();it!=r_crds_ivec_map.end();it++)
+    {
+        for(int k=0;k<it->second.size();k++)
+        {
+            loc_crds_alloc[it->first][r_crds_ivec_map[it->first][k]] = r_crds_ivec_size_map[it->first][k];
+        }
+    }
+    
+    std::map<int,int> alloc_crds = loc_crds_alloc[rank];
+    
+    int* recv_crds_offset = new int[loc_crds_alloc.size()+1];
+    recv_crds_offset[0]   = 0;
+    int* recv_crds_loc    = new int[loc_crds_alloc.size()];;
+    int recv_crds_size    = 0;
+    
+    std::map< int, int> offset_crds_map;
+    std::map< int, int> loc_crds_map;
+    std::map< int, int>::iterator it_crds_loc;
+    i = 0;
+    for(it_crds_loc=alloc_crds.begin();it_crds_loc!=alloc_crds.end();it_crds_loc++)
+    {
+        recv_crds_loc[i]      = it_crds_loc->second;
+        recv_crds_offset[i+1] = recv_crds_offset[i]+recv_crds_loc[i];
+        recv_crds_size        = recv_crds_size+it_crds_loc->second;
+
+        loc_crds_map[it_crds_loc->first]        =   recv_crds_loc[i];
+        offset_crds_map[it_crds_loc->first]     =   recv_crds_offset[i];
+        //std::cout << " it_crds_loc->first " << it_crds_loc->first << " " << recv_crds_offset[i] << std::endl;
+        
+        i++;
+    }
+    
+    int* recv_crds_collector   = new int[recv_crds_size];
+    int* recv_crds_collector_c = new int[recv_crds_size*3];
+    
+    for(int i =0;i<recv_crds_size;i++)
+    {
+        recv_crds_collector[i] = 0;
+    }
+    for(int i =0;i<recv_crds_size*3;i++)
+    {
+        recv_crds_collector_c[i] = 0;
+    }
+    
+    
+    int n_crds_req_recv;
+    int n_crds_req_recv_v;
+    
+    for(int q=0;q<size;q++)
+    {
+        if(rank==q)
+        {
+            int i=0;
+            for (it = crds_to_send_to_ranks.begin(); it != crds_to_send_to_ranks.end(); it++)
+            {
+                int n_crds_req           = it->second.size();
+                int n_crds_req_v         = n_crds_req*3;
+                int dest                 = it->first;
+                 
+                //std::cout << " rank " << rank << " sends " << n_crds_req << " to rank " << dest << " "<< std::endl;
+                
+                int* v_crds = new int[it->second.size()*3];
+                
+                for(int u=0;u<it->second.size();u++)
+                {
+//                    v_crds[u*3+0] = xcn->getVal(it->second[u],0);
+//                    v_crds[u*3+1] = xcn->getVal(it->second[u],1);
+//                    v_crds[u*3+2] = xcn->getVal(it->second[u],2);
+//                    std::cout << q << " " << it->second[u] << " " << xcn->getVal(it->second[u],0) << " "
+//                    << xcn->getVal(it->second[u],1) << " "
+//                    << xcn->getVal(it->second[u],2) << std::endl;
+                }
+                
+                
+                //MPI_Send(&n_crds_req, 1, MPI_INT, dest, 6000+dest*2, comm);
+                //MPI_Send(&it->second[0], n_crds_req, MPI_INT, dest, 7000+dest*2, comm);
+                
+                //delete[] v_crds;
+                i++;
+            }
+        }
+        else if (s_crds_iset_map[q].find( rank ) != s_crds_iset_map[q].end())
+        {
+            //MPI_Recv(&n_crds_req_recv, 1, MPI_INT, q, 6000+rank*2, comm, MPI_STATUS_IGNORE);
+            
+            //MPI_Recv(&recv_crds_collector_c[offset_crds_map[q]*3], n_crds_req_recv*3, MPI_INT, q, 7000+rank*2, comm, MPI_STATUS_IGNORE);
+            
+        }
+    }
+    
+    
+    
+    
+    
+    //============================================================================
+        //================ Print the receiving schedule for now;======================
+        //============================================================================
+//        if(rank == 0)
+//        {
+//            for(it=r_crds_ivec_map.begin();it!=r_crds_ivec_map.end();it++)
+//            {
+//                std::cout << "rank " << it->first << " receives an array of size ";
+//                for(int k=0;k<it->second.size();k++)
+//                {
+//                    std::cout << r_crds_ivec_size_map[it->first][k] << " from " << r_crds_ivec_map[it->first][k] << " ";
+//                }
+//                std::cout << std::endl;
+//            }
+//        }
+        //============================================================================
+        //================ Print the receiving schedule for now;======================
+        //============================================================================
+    
+    
     
 //    if(rank == 1)
 //    {
