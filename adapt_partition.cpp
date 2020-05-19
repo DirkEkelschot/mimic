@@ -544,26 +544,37 @@ ParArray<int>* DeterminePartitionLayout(ParArray<int>* ien, MPI_Comm comm)
 // This function determines a map that gets the unique list of elements for that need to be requested from a given rank other than current rank.
 Array<double>* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, Array<double>* xcn_on_root, ParArray<double>* xcn, MPI_Comm comm)
 {
+    
+    
     int i=0;
     int size;
     MPI_Comm_size(comm, &size);
     // Get the rank of the process
     int rank;
     MPI_Comm_rank(comm, &rank);
-        
+    for(i=0;i<size;i++)
+    {
+        std::cout << i<< " offsets verts = " << xcn->getParallelState()->getOffset(i) << std::endl;
+    }
     int el_id;
     int p_id;
     int v_id; 
     std::map<int,std::vector<int> > elms_to_send_to_ranks;
     std::map<int,std::vector<int> > verts_to_send_to_ranks;   
 
-    set<int> u_verts_set;
-    std::vector<int> u_verts_vec;
+    set<int> u_verts_send_set;
+    std::vector<int> u_verts_send_vec;
+    
+    set<int> u_verts_part_set;
+    std::vector<int> u_verts_part_vec;
+    std::map<int,std::vector<int> > rank2vertex;
 
+    
     std::map<int,set<int> > u_verts_other_ranks_set;
     std::map<int,std::vector<int> > u_verts_other_ranks_vec;
     std::map<int,int> cnt_other_ranks;
     
+    std::vector<int> vertices_on_rank;
     std::vector<int> part_v;
     int r    = 0;
     int l_id = 0;
@@ -572,33 +583,67 @@ Array<double>* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part,
         p_id  = part->getVal(i,0);
         el_id = part->getParallelState()->getOffset(rank)+i;
 
-        if(p_id!=rank) // If element is not on this rank add it to rank to element map.
+        if(p_id!=rank) // If element is not on this rank and needs to be send to other rank (p_id), add it to rank to element map.
         {
-            elms_to_send_to_ranks[p_id].push_back(el_id);
+            elms_to_send_to_ranks[p_id].push_back(el_id); // rank to element map.
             
             for(int k=0;k<8;k++)
             {
                 v_id = ien->getVal(i,k);
                 verts_to_send_to_ranks[p_id].push_back(v_id);
-            }
+                
+                if(u_verts_send_set.find( v_id ) == u_verts_send_set.end())// find the unique vertices that need to be send to other partitions.
+                {
+                    u_verts_send_set.insert(v_id);
+                    u_verts_send_vec.push_back(v_id);
+                }
+            }// We do not care about the vertices for these elements since they are needed on other ranks anyways.
         }
-        else
+        else // Here we are storing the actual vertices/elements that are required by the current rank.
         {
-            for(int k=0;k<8;k++)
+//            if (rank == 0)
+//            {
+//                std::cout<< " ### rankert = " << rank << " -> " << " : : ";
+//            }
+            for(int k=0;k<8;k++)// looping over the vertices for element "i".
             {
                 v_id = ien->getVal(i,k);
-                
-                if(u_verts_set.find( v_id ) == u_verts_set.end())
+//                if (rank == 0)
+//                {
+//                    std::cout << v_id << " ";
+//                }
+                if(u_verts_part_set.find( v_id ) == u_verts_part_set.end()) // add the required unique vertex for current rank.
                 {
-                    u_verts_set.insert(v_id);
-                    u_verts_vec.push_back(v_id);
+                    u_verts_part_set.insert(v_id);
+                    u_verts_part_vec.push_back(v_id);
                     
-                    r = FindRank(xcn->getParallelState()->getOffsets(),size+1,v_id);
+                    r = FindRank(xcn->getParallelState()->getOffsets(),size,v_id);
                     part_v.push_back(r);
+                    
+                    if (r!=rank)// if vertex is present on other rank, add it to vertices_on_rank map..
+                    {
+                        rank2vertex[r].push_back(v_id); // add the vertex to list that is already available on rank.
+                    }
+                    else
+                    {
+                        vertices_on_rank.push_back(v_id); //
+                    }
+                    
+                }
+                
+                if(u_verts_send_set.find( v_id ) == u_verts_send_set.end())
+                {
+                    u_verts_send_set.insert(v_id);
+                    u_verts_send_vec.push_back(v_id);
+                
                     
                     l_id++;
                 }
             }
+//            if (rank == 0)
+//            {
+//                std::cout << std::endl;
+//            }
         }
     }
     
@@ -691,6 +736,7 @@ Array<double>* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part,
         }
     }
     
+    
     //============================================================================
     //================ Print the receiving schedule for now;======================
     //============================================================================
@@ -712,7 +758,6 @@ Array<double>* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part,
     
     
     std::map<int,int> alloc = loc_alloc[rank];
-    
     int* recv_offset = new int[loc_alloc.size()+1];
     recv_offset[0]   = 0;
     int* recv_loc    = new int[loc_alloc.size()];;
@@ -779,10 +824,140 @@ Array<double>* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part,
     
     
     
+    std::vector<int> u_new_verts_vec;
+    std::map<int,std::vector<int> > crds_to_send_to_ranks;
+
+    for(int i=0;i<recv_size*8;i++)
+    {
+        int v_id_n = recv_collector_v[i];
+        r = FindRank(xcn->getParallelState()->getOffsets(),size,v_id_n);
+        
+        if(u_verts_part_set.find( v_id ) == u_verts_part_set.end()) // add the required unique vertex for current rank.
+        {
+            u_verts_part_set.insert(v_id);
+            u_verts_part_vec.push_back(v_id);
+            part_v.push_back(r);
+            
+            if (r!=rank)// check whether this vertex is already present on current rank. if vertex is present on other rank, add it to vertices_on_rank map.
+            {
+                rank2vertex[r].push_back(v_id);// add vertex to rank2vertex map.
+            }
+            else
+            {
+                vertices_on_rank.push_back(v_id);// add the vertex to list that is already available on rank.
+            }
+        }
+    }
+    
+    std::cout << "vertices on rank  = " << vertices_on_rank.size() << " " << std::endl;
+    //if(rank == 0)
+    //{
+//        std::map<int,std::vector<int> >::iterator it4;
+//        for(it4=rank2vertex.begin();it4!=rank2vertex.end();it4++)
+//        {
+//            std::cout << rank << " needs an array of size " << it4->second.size() << " array with values: ";
+////            std::vector<int>::iterator it5;
+////            for(it5=it4->second.begin();it5!=it4->second.end();it5++)
+////            {
+////                std::cout << *it5 << " ";
+////            }
+//
+//            std::cout << " that is available on rank " << it4->first << std::endl;
+//        }
+//    //}
+    
+    int crds_to_recv_size = rank2vertex.size();
+    int* red_crds_to_recv_size = new int[size];
+    int* arr_crds_to_recv_size = new int[size];
+    
+    for(i=0;i<size;i++)
+    {
+        red_crds_to_recv_size[i] = 0;
+        
+        if(i==rank)
+        {
+            arr_crds_to_recv_size[i] = crds_to_recv_size+1;
+        }
+        else
+        {
+            arr_crds_to_recv_size[i] = 0;
+        }
+    }
+    
+    MPI_Allreduce(arr_crds_to_recv_size,
+                  red_crds_to_recv_size,
+                  size, MPI_INT, MPI_SUM, comm);
+    
+    
+    int* red_crds_to_recv_size_offset = new int[size];
+    offset = 0;
+    for(i=0;i<size;i++)
+    {
+        red_crds_to_recv_size_offset[i] = offset;
+        offset = offset+red_crds_to_recv_size[i];
+    }
+    int crds_recv_map_size = 0;
+    int crds_loc_size = crds_to_recv_size+1; // This size is added by one since we add the rank number to the array.
+    
+    MPI_Allreduce(&crds_loc_size, &crds_recv_map_size, 1, MPI_INT, MPI_SUM, comm);
     
     
     
     
+    int* crds_recv_map_part_id            = new int[crds_recv_map_size];
+    int* recv_map_Nverts_per_part_id      = new int[crds_recv_map_size];
+    for(i=0;i<crds_recv_map_size;i++)
+    {
+        crds_recv_map_part_id[i]         = 0;
+        recv_map_Nverts_per_part_id[i]   = 0;
+    }
+    
+    int* recv_crds_from_rank       = new int[crds_to_recv_size+1];
+    int* recv_num_crds_from_rank   = new int[crds_to_recv_size+1];
+    recv_crds_from_rank[0]         = rank;
+    recv_num_crds_from_rank[0]     = -1;
+    t = 1;
+    std::map<int,std::vector<int> >::iterator it2;
+    for(it2=rank2vertex.begin();it2!=rank2vertex.end();it2++)
+    {
+        recv_crds_from_rank[t]       = it2->first;
+        recv_num_crds_from_rank[t]   = it2->second.size();
+        t++;
+    }
+
+    MPI_Allgatherv(&recv_crds_from_rank[0], crds_loc_size, MPI_INT,
+                   &crds_recv_map_part_id[0],
+                   red_crds_to_recv_size, red_crds_to_recv_size_offset, MPI_INT,comm);
+    
+    MPI_Allgatherv(&recv_num_crds_from_rank[0], crds_loc_size, MPI_INT,
+                   &recv_map_Nverts_per_part_id[0],
+                   red_crds_to_recv_size, red_crds_to_recv_size_offset, MPI_INT,comm);
+    
+    if(rank == 0)
+    {
+        std::cout << "crds_recv_map_size " << crds_recv_map_size << std::endl;
+        for(int i=0;i<crds_recv_map_size;i++)
+        {
+            std::cout << crds_recv_map_part_id[i] << " " << recv_map_Nverts_per_part_id[i] << std::endl;
+        }
+    }
+    
+    
+    std::map<int, set<int> > s_crds_iset_map;
+    
+    //=========================================
+    for(i=0;i<size;i++)
+    {
+        int of = red_crds_to_recv_size_offset[i];
+        int nl = red_crds_to_recv_size[i];
+        for(int j=of+1;j<of+nl;j++)
+        {
+            s_crds_iset_map[crds_recv_map_part_id[of]].insert(crds_recv_map_part_id[j]);
+        }
+    }
+    
+    
+    /*
     std::vector<int> u_new_verts_vec;
     std::map<int,std::vector<int> > crds_to_send_to_ranks;
 
@@ -790,10 +965,10 @@ Array<double>* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part,
     for(int i=0;i<recv_size*8;i++)
     {
         int v_id_n = recv_collector_v[i];
-        if(u_verts_set.find( v_id_n ) == u_verts_set.end())
+        if(u_verts_send_set.find( v_id_n ) == u_verts_send_set.end())
         {
-            u_verts_set.insert(v_id_n);
-            u_verts_vec.push_back(v_id_n);
+            u_verts_send_set.insert(v_id_n);
+            u_verts_send_vec.push_back(v_id_n);
             
             r = FindRank(xcn->getParallelState()->getOffsets(),size,v_id_n);
             part_v.push_back(r);
@@ -995,6 +1170,7 @@ Array<double>* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part,
         }
     }
     
+    */
     
     
     
@@ -1053,7 +1229,7 @@ Array<double>* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part,
     
     // ---> First attempt <--- //
     
-    ParArrayOnRoot* gathered_on_root = GatherVecToRoot(u_verts_vec, comm);
+    ParArrayOnRoot* gathered_on_root = GatherVecToRoot(u_verts_send_vec, comm);
     
     int* nlocs_scat = new int[size];
     int* offset_scat = new int[size];
@@ -1064,7 +1240,7 @@ Array<double>* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part,
     }
        
     double* verts = NULL;
-    Array<double>* Verts_loc = new Array<double>(u_verts_vec.size(),3);
+    Array<double>* Verts_loc = new Array<double>(u_verts_send_vec.size(),3);
     if(rank == 0)
     {
         
@@ -1078,7 +1254,7 @@ Array<double>* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part,
         
     }
     
-    MPI_Scatterv(&verts[0], nlocs_scat, offset_scat, MPI_DOUBLE, &Verts_loc->data[0], u_verts_vec.size()*3, MPI_DOUBLE, 0, comm);
+    MPI_Scatterv(&verts[0], nlocs_scat, offset_scat, MPI_DOUBLE, &Verts_loc->data[0], u_verts_send_vec.size()*3, MPI_DOUBLE, 0, comm);
     
     
     delete[] verts;
