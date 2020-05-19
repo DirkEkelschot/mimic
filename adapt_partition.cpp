@@ -552,10 +552,10 @@ Array<double>* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part,
     // Get the rank of the process
     int rank;
     MPI_Comm_rank(comm, &rank);
-    for(i=0;i<size;i++)
-    {
-        std::cout << i<< " offsets verts = " << xcn->getParallelState()->getOffset(i) << std::endl;
-    }
+//    for(i=0;i<size;i++)
+//    {
+//        std::cout << i<< " offsets verts = " << xcn->getParallelState()->getOffset(i) << std::endl;
+//    }
     int el_id;
     int p_id;
     int v_id; 
@@ -758,13 +758,13 @@ Array<double>* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part,
     
     
     std::map<int,int> alloc = loc_alloc[rank];
+    
     int* recv_offset = new int[loc_alloc.size()+1];
     recv_offset[0]   = 0;
     int* recv_loc    = new int[loc_alloc.size()];;
     int recv_size    = 0;
     
     std::map< int, int> offset_map;
-    std::map< int, int> loc_map;
     std::map< int, int>::iterator it_loc;
     i = 0;
     for(it_loc=alloc.begin();it_loc!=alloc.end();it_loc++)
@@ -773,7 +773,6 @@ Array<double>* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part,
         recv_offset[i+1] = recv_offset[i]+recv_loc[i];
         recv_size = recv_size+it_loc->second;
 
-        loc_map[it_loc->first]=recv_loc[i];
         offset_map[it_loc->first]=recv_offset[i];
 
         i++;
@@ -849,7 +848,7 @@ Array<double>* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part,
         }
     }
     
-    std::cout << "vertices on rank  = " << vertices_on_rank.size() << " " << std::endl;
+    //std::cout << "vertices on rank  = " << vertices_on_rank.size() << " " << std::endl;
     //if(rank == 0)
     //{
 //        std::map<int,std::vector<int> >::iterator it4;
@@ -933,28 +932,199 @@ Array<double>* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part,
                    &recv_map_Nverts_per_part_id[0],
                    red_crds_to_recv_size, red_crds_to_recv_size_offset, MPI_INT,comm);
     
-    if(rank == 0)
-    {
-        std::cout << "crds_recv_map_size " << crds_recv_map_size << std::endl;
-        for(int i=0;i<crds_recv_map_size;i++)
-        {
-            std::cout << crds_recv_map_part_id[i] << " " << recv_map_Nverts_per_part_id[i] << std::endl;
-        }
-    }
-    
     
     std::map<int, set<int> > s_crds_iset_map;
+    std::map<int, std::vector<int> > s_crds_ivec_map;
+    std::map<int, std::vector<int> > r_crds_ivec_map;
+    std::map<int, std::vector<int> > r_crds_ivec_size_map;
+    std::map<int, std::vector<int> > s_crds_ivec_size_map;
     
+    std::map<int, set<int> > s_back_crds_iset_map;
+    std::map<int, std::vector<int> > s_back_size_crds_ivec_map;
     //=========================================
     for(i=0;i<size;i++)
     {
         int of = red_crds_to_recv_size_offset[i];
         int nl = red_crds_to_recv_size[i];
+        
         for(int j=of+1;j<of+nl;j++)
         {
+            
+//            if(rank == 0)
+//            {
+//                std::cout << crds_recv_map_part_id[of] << " map " << crds_recv_map_part_id[j] << " " << recv_map_Nverts_per_part_id[j] << std::endl;
+//            }
+            s_back_crds_iset_map[crds_recv_map_part_id[j]].insert(crds_recv_map_part_id[of]);
+            s_back_size_crds_ivec_map[crds_recv_map_part_id[j]].push_back(recv_map_Nverts_per_part_id[j]);
+
             s_crds_iset_map[crds_recv_map_part_id[of]].insert(crds_recv_map_part_id[j]);
+            s_crds_ivec_map[crds_recv_map_part_id[of]].push_back(crds_recv_map_part_id[j]);
+            s_crds_ivec_size_map[crds_recv_map_part_id[j]].push_back(recv_map_Nverts_per_part_id[j]);
+            r_crds_ivec_map[crds_recv_map_part_id[j]].push_back(crds_recv_map_part_id[of]);
+            r_crds_ivec_size_map[crds_recv_map_part_id[j]].push_back(recv_map_Nverts_per_part_id[j]);
         }
     }
+    
+//    std::map<int, set<int> >::iterator it90;
+//    for(it90=s_back_crds_iset_map.begin();it90!=s_back_crds_iset_map.end();it90++)
+//    {
+//        std::cout << " r=== " << it90->first << " -> ";
+//        set<int>::iterator it91;
+//        for(it91=it90->second.begin();it91!=it90->second.end();it91++)
+//        {
+//            std::cout << *it91 << " ";
+//        }
+//    }
+////
+//    std::map<int, std::vector<int> >::iterator it91;
+//
+//    for(it91=s_back_size_crds_ivec_map.begin();it91!=s_back_size_crds_ivec_map.end();it91++)
+//    {
+//        std::cout << " sizes=== " << it91->first << " -> ";
+//        std::vector<int>::iterator it92;
+//        for(it92=it91->second.begin();it92!=it91->second.end();it92++)
+//        {
+//            std::cout << *it92 << " ";
+//        }
+//    }
+//
+    
+    std::map<int,std::map<int,int> > loc_alloc2;
+    
+    for(it=r_crds_ivec_map.begin();it!=r_crds_ivec_map.end();it++)
+    {
+        for(int k=0;k<it->second.size();k++)
+        {
+            loc_alloc2[it->first][r_crds_ivec_map[it->first][k]] = r_crds_ivec_size_map[it->first][k];
+        }
+    }
+    
+    std::map<int,int> alloc2 = loc_alloc2[rank];
+    
+    std::map<int, std::vector<int> >::iterator it8;
+
+    
+    int* recv_offset2 = new int[alloc2.size()+1];
+    recv_offset2[0]   = 0;
+    int* recv_loc2    = new int[alloc2.size()];
+    int recv_size2    = 0;
+    
+    std::map< int, int> offset_map2;
+    std::map< int, int> loc_map2;
+    std::map< int, int>::iterator it_loc2;
+    i = 0;
+    int offs = 0;
+    
+    for(it_loc2=alloc2.begin();it_loc2!=alloc2.end();it_loc2++)
+    {
+        recv_loc2[i]      = it_loc2->second;
+        recv_offset2[i+1] = recv_offset2[i]+recv_loc2[i];
+
+        loc_map2[it_loc2->first]=recv_loc2[i];
+        offset_map2[it_loc2->first]=recv_offset2[i];
+        offs = offs+it_loc2->second;
+        recv_size2 = recv_size2+it_loc2->second;
+        //std::cout << rank << " PPP " <<  it_loc2->first << " " << it_loc2->second << std::endl;
+
+        i++;
+    }
+    int* recv_collector2   = new int[recv_size2];
+    
+    for(int i =0;i<recv_size2;i++)
+    {
+        recv_collector2[i] = 0;
+    }
+    
+    
+    
+    int n_req_recv2;
+    int n_req_recv_v2;
+    
+    // This thing needs to revised because for the verts it doesnt work.
+    // The current rank does not have the verts_to_send_rank. Instead it has an request list.
+    
+    std::map<int,std::vector<int> >  recv_send;
+    
+    for(int q=0;q<size;q++)
+    {
+        if(rank==q)
+        {
+            int i=0;
+            for (it = rank2vertex.begin(); it != rank2vertex.end(); it++)
+            {
+                int n_req           = it->second.size();
+                int dest            = it->first;
+                
+            
+                MPI_Send(&n_req, 1, MPI_INT, dest, 9876+10*dest, comm);
+                MPI_Send(&it->second[0], n_req, MPI_INT, dest, 9876+dest*2, comm);
+                MPI_Send(&it->second[0], n_req, MPI_INT, dest, 9876*2+dest*2, comm);
+
+                i++;
+            }
+        }
+        else if (s_crds_iset_map[q].find( rank ) != s_crds_iset_map[q].end())
+        {
+            MPI_Recv(&n_req_recv2, 1, MPI_INT, q, 9876+10*rank, comm, MPI_STATUS_IGNORE);
+            MPI_Recv(&recv_collector2[offset_map2[q]], n_req_recv2, MPI_INT, q, 9876+rank*2, comm, MPI_STATUS_IGNORE);
+            
+            std::vector<int> recv_vec(n_req_recv2);
+            
+            MPI_Recv(&recv_vec[0], n_req_recv2, MPI_INT, q, 9876*2+rank*2, comm, MPI_STATUS_IGNORE);
+            
+            recv_send[q] = recv_vec;
+        }
+    }
+
+    int offset_xcn = 0;
+
+    std::map<int,std::vector<double> > recv_back_verts;
+    int n_recv_back;
+    for(int q=0;q<size;q++)
+    {
+        if(rank == q)
+        {
+            for (it = recv_send.begin(); it != recv_send.end(); it++)
+            {
+                //std::cout << rank << " " << it->first << " " << it->second.size() << std::endl;
+                int nv_send = it->second.size()*3;
+                double* vert_send = new double[nv_send];
+                offset_xcn = xcn->getParallelState()->getOffset(q);
+                for(int u=0;u<it->second.size();u++)
+                {
+                    vert_send[u*3+0]=xcn->getVal(it->second[u]-offset_xcn,0);
+                    vert_send[u*3+1]=xcn->getVal(it->second[u]-offset_xcn,1);
+                    vert_send[u*3+2]=xcn->getVal(it->second[u]-offset_xcn,2);
+                }
+                
+                int dest = it->first;
+                MPI_Send(&nv_send, 1, MPI_INT, dest, 9876+1000*dest, comm);
+                MPI_Send(&vert_send[0], nv_send, MPI_DOUBLE, dest, 9876+dest*888, comm);
+
+                //MPI_Send(&it->second[0], n_req, MPI_INT, dest, 9876+dest*2, comm);
+            }
+        }
+        if(s_back_crds_iset_map[q].find( rank ) != s_back_crds_iset_map[q].end())
+        {
+            MPI_Recv(&n_recv_back, 1, MPI_INT, q, 9876+1000*rank, comm, MPI_STATUS_IGNORE);
+            
+            std::vector<double> recv_back_vec(n_recv_back);
+
+            MPI_Recv(&recv_back_vec[0], n_recv_back, MPI_DOUBLE, q, 9876+rank*888, comm, MPI_STATUS_IGNORE);
+            
+            recv_back_verts[q] = recv_back_vec;
+        }
+    }
+    
+
+    
+    
+    
+    
+    
+    
+    
+
     
     
     /*
@@ -1225,7 +1395,7 @@ Array<double>* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part,
     
     
     
-    
+    /*
     
     // ---> First attempt <--- //
     
@@ -1255,17 +1425,17 @@ Array<double>* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part,
     }
     
     MPI_Scatterv(&verts[0], nlocs_scat, offset_scat, MPI_DOUBLE, &Verts_loc->data[0], u_verts_send_vec.size()*3, MPI_DOUBLE, 0, comm);
+    */
     
+    //delete[] verts;
+    //delete[] nlocs_scat;
+    //delete[] offset_scat;
+    //delete[] recv_loc;
+    //delete[] recv_offset;
+    //delete[] recv_collector;
+    //delete[] recv_collector_v;
     
-    delete[] verts;
-    delete[] nlocs_scat;
-    delete[] offset_scat;
-    delete[] recv_loc;
-    delete[] recv_offset;
-    delete[] recv_collector;
-    delete[] recv_collector_v;
-    
-    
+    Array<double>* Verts_loc;
     
     
     return Verts_loc;
