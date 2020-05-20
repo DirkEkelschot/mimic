@@ -1077,7 +1077,7 @@ Array<double>* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part,
     }
 
     int offset_xcn = 0;
-
+    int nloc_xcn = 0;
     std::map<int,std::vector<double> > recv_back_verts;
     int n_recv_back;
     for(int q=0;q<size;q++)
@@ -1090,17 +1090,30 @@ Array<double>* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part,
                 int nv_send = it->second.size()*3;
                 double* vert_send = new double[nv_send];
                 offset_xcn = xcn->getParallelState()->getOffset(q);
+                nloc_xcn = xcn->getParallelState()->getNloc(q);
                 for(int u=0;u<it->second.size();u++)
                 {
-                    vert_send[u*3+0]=xcn->getVal(it->second[u]-offset_xcn,0);
-                    vert_send[u*3+1]=xcn->getVal(it->second[u]-offset_xcn,1);
-                    vert_send[u*3+2]=xcn->getVal(it->second[u]-offset_xcn,2);
+ 		    //vert_send[u*3+0]=0.0;
+		    //vert_send[u*3+1]=0.0;
+		    //vert_send[u*3+2]=0.0;
+		    if(it->second[u]<offset_xcn)
+		    {
+			std::cout << " --- " << q << " " << u << " " << offset_xcn << " <  " << it->second[u] << std::endl;
+		    }
+                    if(it->second[u]>(offset_xcn+nloc_xcn))
+	            {
+			std::cout << " +++ " << q << " " << u << " " << offset_xcn+nloc_xcn << " < " << it->second[u] << std::endl;
+		    }
+ 		    //std::cout << u << " global ID in range >   " << offset_xcn << " < " << it->second[u] << " < " << offset_xcn+nloc_xcn << " *** " << " local ID -> " << it->second[u]-offset_xcn << " " << nloc_xcn << " " << std::endl;
+                    vert_send[u*3+0]=xcn->getVal(0,0);
+                    vert_send[u*3+1]=xcn->getVal(0,1);
+                    vert_send[u*3+2]=xcn->getVal(0,2);
                 }
                 
                 int dest = it->first;
                 MPI_Send(&nv_send, 1, MPI_INT, dest, 9876+1000*dest, comm);
                 MPI_Send(&vert_send[0], nv_send, MPI_DOUBLE, dest, 9876+dest*888, comm);
-
+		delete[] vert_send;
                 //MPI_Send(&it->second[0], n_req, MPI_INT, dest, 9876+dest*2, comm);
             }
         }
@@ -1115,7 +1128,7 @@ Array<double>* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part,
             recv_back_verts[q] = recv_back_vec;
         }
     }
-    
+      
 
     
     

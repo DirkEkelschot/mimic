@@ -1589,8 +1589,8 @@ int main(int argc, char** argv) {
 //============================================================
     
     //const char* fn_conn="grids/piston/conn.h5";
-    const char* fn_conn="grids/piston/conn.h5";
-    const char* fn_grid="grids/piston/grid.h5";
+    const char* fn_conn="grids/adept/conn.h5";
+    const char* fn_grid="grids/adept/grid.h5";
     //const char* fn_data="grids/adept/data.h5";
     
     /*
@@ -1623,9 +1623,14 @@ int main(int argc, char** argv) {
 //    ParArray<double>* boundaries = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_6","boundaries",comm,info);
 //    ParArray<double>* interior = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_6","interior",comm,info);
     //TestFindRank(comm);
+    std::clock_t start;
+    double duration;
+    start = std::clock();
     ParArray<int>* part_par  = DeterminePartitionLayout(ien_copy,comm);
     Array<double>* vert_crds = DetermineElement2ProcMap(ien_copy, part_par, xcn_on_root, xcn, comm);
-    
+        duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
+     
+    std::cout << "duration " << duration  << std::endl;
     //std::cout << "#verts of part " << world_rank << " := " << vert_crds->getNrow() << " " << std::endl;
     
     MPI_Finalize();
