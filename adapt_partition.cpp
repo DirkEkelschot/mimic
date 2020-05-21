@@ -42,11 +42,11 @@ GathervObject* GetGathervObject(int nloc, MPI_Comm comm)
     MPI_Comm_rank(comm, &rank);
     
     int* locs     = new int[size];
-    int* red_locs = new int[size];
+    int* reduced_locs = new int[size];
 
     for(int i=0;i<size;i++)
     {
-        red_locs[i]  = 0;
+        reduced_locs[i]  = 0;
         
         if(i==rank)
         {
@@ -58,21 +58,21 @@ GathervObject* GetGathervObject(int nloc, MPI_Comm comm)
         }
     }
     
-    MPI_Allreduce(locs, red_locs, size, MPI_INT, MPI_SUM, comm);
+    MPI_Allreduce(locs, reduced_locs, size, MPI_INT, MPI_SUM, comm);
     
-    int* red_offsets = new int[size];
-    red_offsets[0] = 0;
+    int* reduced_offsets = new int[size];
+    reduced_offsets[0] = 0;
     for(int i=0;i<size-1;i++)
     {
-        red_offsets[i+1]=red_offsets[i]+red_locs[i];
+        reduced_offsets[i+1]=reduced_offsets[i]+reduced_locs[i];
     }
     
-    int length = red_offsets[size-1]+red_locs[size-1];
+    int length = reduced_offsets[size-1]+reduced_locs[size-1];
     
     GathervObject* gObj = new GathervObject;
     gObj->data = new int[length];
-    gObj->nlocs = red_locs;
-    gObj->offsets = red_offsets;
+    gObj->nlocs = reduced_locs;
+    gObj->offsets = reduced_offsets;
     gObj->size    = size;
     gObj->length  = length;
     
@@ -126,15 +126,15 @@ std::vector<int> GetAdjacencyForUS3D_V4(ParArray<int>* ief, MPI_Comm comm)
 
     int* exter_nlocs                 = new int[size];
     int* exter_offset                = new int[size];
-    int* red_exter_nlocs             = new int[size];
-    int* red_exter_offset            = new int[size];
+    int* reduced_exter_nlocs             = new int[size];
+    int* reduced_exter_offset            = new int[size];
     
 
     
     for(int i=0;i<size;i++)
     {
-        red_exter_nlocs[i]  = 0;
-        red_exter_offset[i] = 0;
+        reduced_exter_nlocs[i]  = 0;
+        reduced_exter_offset[i] = 0;
         if(i==rank)
         {
             exter_nlocs[i] = exter_size;
@@ -147,24 +147,24 @@ std::vector<int> GetAdjacencyForUS3D_V4(ParArray<int>* ief, MPI_Comm comm)
     }
     
     MPI_Allreduce(exter_nlocs,
-                  red_exter_nlocs,
+                  reduced_exter_nlocs,
                   size,
                   MPI_INT,
                   MPI_SUM,
                   comm);
     
     
-    red_exter_offset[0]=0;
+    reduced_exter_offset[0]=0;
         
     
     //
     for(int i=0;i<size-1;i++)
     {
-        red_exter_offset[i+1]=red_exter_offset[i]+red_exter_nlocs[i];
+        reduced_exter_offset[i+1]=reduced_exter_offset[i]+reduced_exter_nlocs[i];
     }
     //
     
-    int nexter_tot = red_exter_offset[size-1]+red_exter_nlocs[size-1];
+    int nexter_tot = reduced_exter_offset[size-1]+reduced_exter_nlocs[size-1];
     
     /*
     std::vector<int> recv(nexter_tot);
@@ -173,8 +173,8 @@ std::vector<int> GetAdjacencyForUS3D_V4(ParArray<int>* ief, MPI_Comm comm)
                    exter_size,
                    MPI_INT,
                    &recv[0],
-                   red_exter_nlocs,
-                   red_exter_offset,
+                   reduced_exter_nlocs,
+                   reduced_exter_offset,
                    MPI_INT, comm);
     */
     
@@ -194,8 +194,8 @@ std::vector<int> GetAdjacencyForUS3D_V4(ParArray<int>* ief, MPI_Comm comm)
     delete[] uf_arr;
     delete[] exter_nlocs;
     delete[] exter_offset;
-    delete[] red_exter_nlocs;
-    delete[] red_exter_offset;
+    delete[] reduced_exter_nlocs;
+    delete[] reduced_exter_offset;
     
     
     return recv2;
@@ -216,11 +216,11 @@ ParArrayOnRoot* GatherVecToRoot(std::vector<int> locvec, MPI_Comm comm)
     MPI_Comm_rank(comm, &rank);
     
     int* locs     = new int[size];
-    int* red_locs = new int[size];
+    int* reduced_locs = new int[size];
 
     for(int i=0;i<size;i++)
     {
-        red_locs[i]  = 0;
+        reduced_locs[i]  = 0;
         
         if(i==rank)
         {
@@ -232,21 +232,21 @@ ParArrayOnRoot* GatherVecToRoot(std::vector<int> locvec, MPI_Comm comm)
         }
     }
     
-    MPI_Allreduce(locs, red_locs, size, MPI_INT, MPI_SUM, comm);
+    MPI_Allreduce(locs, reduced_locs, size, MPI_INT, MPI_SUM, comm);
     
-    int* red_offsets = new int[size];
-    red_offsets[0] = 0;
+    int* reduced_offsets = new int[size];
+    reduced_offsets[0] = 0;
     for(int i=0;i<size-1;i++)
     {
-        red_offsets[i+1]=red_offsets[i]+red_locs[i];
+        reduced_offsets[i+1]=reduced_offsets[i]+reduced_locs[i];
     }
     
-    int tot = red_offsets[size-1]+red_locs[size-1];
+    int tot = reduced_offsets[size-1]+reduced_locs[size-1];
     
     ParArrayOnRoot* parr_root = new ParArrayOnRoot;
     parr_root->data           = new int[tot];
-    parr_root->nlocs          = red_locs;
-    parr_root->offsets        = red_offsets;
+    parr_root->nlocs          = reduced_locs;
+    parr_root->offsets        = reduced_offsets;
     parr_root->size           = size;
     parr_root->length         = tot;
     
@@ -420,15 +420,15 @@ Partition* CollectVerticesPerRank(ParArray<int>* ien, Array<double>* xcn_r, MPI_
     }
     
     // This vector is empty on all other procs except root;
-    ParArrayOnRoot* gathered_on_root = GatherVecToRoot(loc_elems, comm);
+    ParArrayOnRoot* gathereduced_on_root = GatherVecToRoot(loc_elems, comm);
     
     
     int* nlocs = new int[size];
     int* offset = new int[size];
     for(int i=0;i<size;i++)
     {
-        nlocs[i] = gathered_on_root->nlocs[i]*3;
-        offset[i] = gathered_on_root->offsets[i]*3;
+        nlocs[i] = gathereduced_on_root->nlocs[i]*3;
+        offset[i] = gathereduced_on_root->offsets[i]*3;
     }
     
     Partition* parti = new Partition;
@@ -449,13 +449,13 @@ Partition* CollectVerticesPerRank(ParArray<int>* ien, Array<double>* xcn_r, MPI_
     double * verts = NULL;
     if(rank == 0)
     {
-        verts = new double[gathered_on_root->length*3];
+        verts = new double[gathereduced_on_root->length*3];
 
-        for(int i=0;i<gathered_on_root->length;i++)
+        for(int i=0;i<gathereduced_on_root->length;i++)
         {
-            verts[i*3+0] = xcn_r->getVal(gathered_on_root->data[i],0);
-            verts[i*3+1] = xcn_r->getVal(gathered_on_root->data[i],1);
-            verts[i*3+2] = xcn_r->getVal(gathered_on_root->data[i],2);
+            verts[i*3+0] = xcn_r->getVal(gathereduced_on_root->data[i],0);
+            verts[i*3+1] = xcn_r->getVal(gathereduced_on_root->data[i],1);
+            verts[i*3+2] = xcn_r->getVal(gathereduced_on_root->data[i],2);
         }
     }
  
@@ -542,42 +542,34 @@ ParArray<int>* DeterminePartitionLayout(ParArray<int>* ien, MPI_Comm comm)
 
 
 // This function determines a map that gets the unique list of elements for that need to be requested from a given rank other than current rank.
-Array<double>* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, Array<double>* xcn_on_root, ParArray<double>* xcn, MPI_Comm comm)
+std::map<int,std::vector<double> > DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, Array<double>* xcn_on_root, ParArray<double>* xcn, MPI_Comm comm)
 {
     
-    
+    int q=0;
     int i=0;
     int size;
     MPI_Comm_size(comm, &size);
     // Get the rank of the process
     int rank;
     MPI_Comm_rank(comm, &rank);
-//    for(i=0;i<size;i++)
-//    {
-//        std::cout << i<< " offsets verts = " << xcn->getParallelState()->getOffset(i) << std::endl;
-//    }
+
     int el_id;
     int p_id;
-    int v_id; 
+    int v_id;
+    
     std::map<int,std::vector<int> > elms_to_send_to_ranks;
     std::map<int,std::vector<int> > verts_to_send_to_ranks;   
 
-    set<int> u_verts_send_set;
-    std::vector<int> u_verts_send_vec;
+    set<int> unique_verts_on_rank_set;
+    std::vector<int> unique_verts_on_rank_vec;
     
     set<int> u_verts_part_set;
     std::vector<int> u_verts_part_vec;
-    std::map<int,std::vector<int> > rank2vertex;
+    std::map<int,std::vector<int> > rank2req_vert;
 
-    
-    std::map<int,set<int> > u_verts_other_ranks_set;
-    std::map<int,std::vector<int> > u_verts_other_ranks_vec;
-    std::map<int,int> cnt_other_ranks;
-    
-    std::vector<int> vertices_on_rank;
+    std::vector<int> vert_on_rank;
     std::vector<int> part_v;
     int r    = 0;
-    int l_id = 0;
     for(i=0;i<part->getNrow();i++)
     {
         p_id  = part->getVal(i,0);
@@ -591,148 +583,148 @@ Array<double>* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part,
             {
                 v_id = ien->getVal(i,k);
                 verts_to_send_to_ranks[p_id].push_back(v_id);
-                
-                if(u_verts_send_set.find( v_id ) == u_verts_send_set.end())// find the unique vertices that need to be send to other partitions.
+                if(unique_verts_on_rank_set.find( v_id ) == unique_verts_on_rank_set.end())// find the unique vertices that need to be send to other partitions.
                 {
-                    u_verts_send_set.insert(v_id);
-                    u_verts_send_vec.push_back(v_id);
+                    unique_verts_on_rank_set.insert(v_id);
+                    unique_verts_on_rank_vec.push_back(v_id);
+                    
+
+                    r = FindRank(xcn->getParallelState()->getOffsets(),size,v_id);
+                    part_v.push_back(r);
+                    
+                    if (r!=rank)// if vertex is present on other rank, add it to vert_on_rank map..
+                    {
+                        rank2req_vert[r].push_back(v_id); // add the vertex id that needs to be requested from rank r.
+                    }
+                    else
+                    {
+                        vert_on_rank.push_back(v_id);  // add the vertex to list that is already available on rank.
+                    }
                 }
             }// We do not care about the vertices for these elements since they are needed on other ranks anyways.
         }
         else // Here we are storing the actual vertices/elements that are required by the current rank.
         {
-//            if (rank == 0)
-//            {
-//                std::cout<< " ### rankert = " << rank << " -> " << " : : ";
-//            }
             for(int k=0;k<8;k++)// looping over the vertices for element "i".
             {
                 v_id = ien->getVal(i,k);
-//                if (rank == 0)
-//                {
-//                    std::cout << v_id << " ";
-//                }
-                if(u_verts_part_set.find( v_id ) == u_verts_part_set.end()) // add the required unique vertex for current rank.
+                if(unique_verts_on_rank_set.find( v_id ) == unique_verts_on_rank_set.end())// find the unique vertices that need to be send to other partitions.
                 {
-                    u_verts_part_set.insert(v_id);
-                    u_verts_part_vec.push_back(v_id);
-                    
+                    unique_verts_on_rank_set.insert(v_id);
+                    unique_verts_on_rank_vec.push_back(v_id);
                     r = FindRank(xcn->getParallelState()->getOffsets(),size,v_id);
                     part_v.push_back(r);
                     
-                    if (r!=rank)// if vertex is present on other rank, add it to vertices_on_rank map..
+                    if (r!=rank)// if vertex is present on other rank, add it to vert_on_rank map..
                     {
-                        rank2vertex[r].push_back(v_id); // add the vertex to list that is already available on rank.
+                        rank2req_vert[r].push_back(v_id); // add the vertex id that needs to be requested from rank r.
                     }
                     else
                     {
-                        vertices_on_rank.push_back(v_id); //
+                        vert_on_rank.push_back(v_id);  // add the vertex to list that is already available on rank.
                     }
-                    
-                }
-                
-                if(u_verts_send_set.find( v_id ) == u_verts_send_set.end())
-                {
-                    u_verts_send_set.insert(v_id);
-                    u_verts_send_vec.push_back(v_id);
-                
-                    
-                    l_id++;
                 }
             }
-//            if (rank == 0)
-//            {
-//                std::cout << std::endl;
-//            }
         }
     }
     
-    int to_send_size = elms_to_send_to_ranks.size();
+    int nRank_reqElems = elms_to_send_to_ranks.size();
     
-    int* red_to_send_size = new int[size];
-    int* arr_to_send_size = new int[size];
+    int* reduced_nRank_reqElems = new int[size];
+    int* arr_nRank_reqElems = new int[size];
     
     for(i=0;i<size;i++)
     {
-        red_to_send_size[i] = 0;
+        reduced_nRank_reqElems[i] = 0;
         
         if(i==rank)
         {
-            arr_to_send_size[i] = to_send_size+1;
+            arr_nRank_reqElems[i] = nRank_reqElems+1;
         }
         else
         {
-            arr_to_send_size[i] = 0;
+            arr_nRank_reqElems[i] = 0;
         }
     }
 
-    MPI_Allreduce(arr_to_send_size, red_to_send_size, size, MPI_INT, MPI_SUM, comm);
+    MPI_Allreduce(arr_nRank_reqElems, reduced_nRank_reqElems, size, MPI_INT, MPI_SUM, comm);
     
-    int* red_to_send_size_offset = new int[size];
+    int* reduced_nRank_reqElems_offset = new int[size];
     int offset = 0;
     for(i=0;i<size;i++)
     {
-        red_to_send_size_offset[i] = offset;
-        offset = offset+red_to_send_size[i];
+        reduced_nRank_reqElems_offset[i] = offset;
+        offset = offset+reduced_nRank_reqElems[i];
     }
-    int send_map_size = 0;
-    int loc_size = to_send_size+1; // This size is added by one since we add the rank number to the array.
+    int nTot_reqElements = 0;
+    int nRank_reqElems_p_one = nRank_reqElems+1; // This size is added by one since we add the rank number to the array.
     
-    MPI_Allreduce(&loc_size, &send_map_size, 1, MPI_INT, MPI_SUM, comm);
+    MPI_Allreduce(&nRank_reqElems_p_one, &nTot_reqElements, 1, MPI_INT, MPI_SUM, comm);
+
+    int* sendFromRank2Rank_elem_Global    = new int[nTot_reqElements];
+    int* sendNelemFromRank2Rank_Global    = new int[nTot_reqElements];
     
-    int* send_map_part_id            = new int[send_map_size];
-    int* send_map_Nel_per_part_id    = new int[send_map_size];
-    for(i=0;i<send_map_size;i++)
+    for(i=0;i<nTot_reqElements;i++)
     {
-        send_map_part_id[i]         = 0;
-        send_map_Nel_per_part_id[i] = 0;
+        sendFromRank2Rank_elem_Global[i]  = 0;
+        sendNelemFromRank2Rank_Global[i] = 0;
     }
-    int* from_to_rank       = new int[to_send_size+1];
-    int* num_elms_to_rank   = new int[to_send_size+1];
-    from_to_rank[0]         = rank;
-    num_elms_to_rank[0]     = -1;
+    
+    
+    int* send2Rank_fromRank_e       = new int[nRank_reqElems+1];
+    int* sendNelem2Rank_from_rank   = new int[nRank_reqElems+1];
+    
+    send2Rank_fromRank_e[0]         = rank;
+    sendNelem2Rank_from_rank[0]     = -1;
     int t = 1;
     
     std::map<int,std::vector<int> >::iterator it;
     for(it=elms_to_send_to_ranks.begin();it!=elms_to_send_to_ranks.end();it++)
     {
-        from_to_rank[t]     = it->first;
-        num_elms_to_rank[t] = it->second.size();
+        send2Rank_fromRank_e[t]          = it->first;
+        sendNelem2Rank_from_rank[t]      = it->second.size();
         t++;
     }
 
-    MPI_Allgatherv(&from_to_rank[0], loc_size, MPI_INT,
-                   &send_map_part_id[0],
-                   red_to_send_size, red_to_send_size_offset, MPI_INT,comm);
+    MPI_Allgatherv(&send2Rank_fromRank_e[0],
+                   nRank_reqElems_p_one, MPI_INT,
+                   &sendFromRank2Rank_elem_Global[0],
+                   reduced_nRank_reqElems,
+                   reduced_nRank_reqElems_offset,
+                   MPI_INT,comm);
     
-    MPI_Allgatherv(&num_elms_to_rank[0], loc_size, MPI_INT,
-                   &send_map_Nel_per_part_id[0],
-                   red_to_send_size, red_to_send_size_offset, MPI_INT,comm);
+    MPI_Allgatherv(&sendNelem2Rank_from_rank[0],
+                   nRank_reqElems_p_one, MPI_INT,
+                   &sendNelemFromRank2Rank_Global[0],
+                   reduced_nRank_reqElems,
+                   reduced_nRank_reqElems_offset,
+                   MPI_INT,comm);
     
-    std::map<int, set<int> > s_iset_map;
-    std::map<int, std::vector<int> > r_ivec_map;
-    std::map<int, std::vector<int> > r_ivec_size_map;
+    
+    std::map<int, set<int> > sendFromRank2Rank_e;
+    std::map<int, std::vector<int> > recvRankFromRank_map_e;
+    std::map<int, std::vector<int> > recvRankFromRank_map_Nelem_e;
     
     //=========================================
     for(i=0;i<size;i++)
     {
-        int of = red_to_send_size_offset[i];
-        int nl = red_to_send_size[i];
+        int of = reduced_nRank_reqElems_offset[i];
+        int nl = reduced_nRank_reqElems[i];
         for(int j=of+1;j<of+nl;j++)
         {
-            s_iset_map[send_map_part_id[of]].insert(send_map_part_id[j]);
-            r_ivec_map[send_map_part_id[j]].push_back(send_map_part_id[of]);
-            r_ivec_size_map[send_map_part_id[j]].push_back(send_map_Nel_per_part_id[j]);
+            sendFromRank2Rank_e[sendFromRank2Rank_elem_Global[of]].insert(sendFromRank2Rank_elem_Global[j]);
+            recvRankFromRank_map_e[sendFromRank2Rank_elem_Global[j]].push_back(sendFromRank2Rank_elem_Global[of]);
+            recvRankFromRank_map_Nelem_e[sendFromRank2Rank_elem_Global[j]].push_back(sendNelemFromRank2Rank_Global[j]);
         }
     }
 
-    std::map<int,std::map<int,int> > loc_alloc;
     
-    for(it=r_ivec_map.begin();it!=r_ivec_map.end();it++)
+    std::map<int,std::map<int,int> > RecvAlloc_map_e;
+    for(it=recvRankFromRank_map_e.begin();it!=recvRankFromRank_map_e.end();it++)
     {
         for(int k=0;k<it->second.size();k++)
         {
-            loc_alloc[it->first][r_ivec_map[it->first][k]] = r_ivec_size_map[it->first][k];
+            RecvAlloc_map_e[it->first][recvRankFromRank_map_e[it->first][k]] = recvRankFromRank_map_Nelem_e[it->first][k];
         }
     }
     
@@ -742,12 +734,12 @@ Array<double>* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part,
     //============================================================================
 //    if(rank == 0)
 //    {
-//        for(it=r_ivec_map.begin();it!=r_ivec_map.end();it++)
+//        for(it=recvRankFromRank_map_e.begin();it!=recvRankFromRank_map_e.end();it++)
 //        {
 //            std::cout << "rank " << it->first << " receives an array of size ";
 //            for(int k=0;k<it->second.size();k++)
 //            {
-//                std::cout << r_ivec_size_map[it->first][k] << " from " << r_ivec_map[it->first][k] << " ";
+//                std::cout << recvRankFromRank_map_Nelem_e[it->first][k] << " from " << recvRankFromRank_map_e[it->first][k] << " ";
 //            }
 //            std::cout << std::endl;
 //        }
@@ -757,40 +749,38 @@ Array<double>* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part,
     //============================================================================
     
     
-    std::map<int,int> alloc = loc_alloc[rank];
+    std::map<int,int> alloc = RecvAlloc_map_e[rank];
     
-    int* recv_offset = new int[loc_alloc.size()+1];
+    int* recv_offset = new int[RecvAlloc_map_e.size()+1];
     recv_offset[0]   = 0;
-    int* recv_loc    = new int[loc_alloc.size()];;
-    int recv_size    = 0;
+    int* recv_loc    = new int[RecvAlloc_map_e.size()];;
+    int TotNelem_recv    = 0;
     
-    std::map< int, int> offset_map;
+    std::map< int, int> RecvAlloc_offset_map_e;
     std::map< int, int>::iterator it_loc;
     i = 0;
     for(it_loc=alloc.begin();it_loc!=alloc.end();it_loc++)
     {
         recv_loc[i]      = it_loc->second;
         recv_offset[i+1] = recv_offset[i]+recv_loc[i];
-        recv_size = recv_size+it_loc->second;
-
-        offset_map[it_loc->first]=recv_offset[i];
+        TotNelem_recv    = TotNelem_recv+it_loc->second;
+        RecvAlloc_offset_map_e[it_loc->first]=recv_offset[i];
 
         i++;
     }
-    int* recv_collector   = new int[recv_size];
-    int* recv_collector_v = new int[recv_size*8];
     
+    int* TotRecvElement_IDs   = new int[TotNelem_recv];
+    int* TotRecvElement_IDs_v = new int[TotNelem_recv*8];
     
-    for(int i =0;i<recv_size;i++)
+    for(int i =0;i<TotNelem_recv;i++)
     {
-        recv_collector[i] = 0;
+        TotRecvElement_IDs[i] = 0;
     }
-    
     
     int n_req_recv;
     
     int n_req_recv_v;
-    for(int q=0;q<size;q++)
+    for(q=0;q<size;q++)
     {
         if(rank==q)
         {
@@ -810,661 +800,342 @@ Array<double>* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part,
                 i++;
             }
         }
-        else if (s_iset_map[q].find( rank ) != s_iset_map[q].end())
+        else if (sendFromRank2Rank_e[q].find( rank ) != sendFromRank2Rank_e[q].end())
         {
             MPI_Recv(&n_req_recv, 1, MPI_INT, q, rank, comm, MPI_STATUS_IGNORE);
-            MPI_Recv(&recv_collector[offset_map[q]], n_req_recv, MPI_INT, q, 100+rank*2, comm, MPI_STATUS_IGNORE);
+            MPI_Recv(&TotRecvElement_IDs[RecvAlloc_offset_map_e[q]], n_req_recv, MPI_INT, q, 100+rank*2, comm, MPI_STATUS_IGNORE);
             
             MPI_Recv(&n_req_recv_v, 1, MPI_INT, q, 9000+rank, comm, MPI_STATUS_IGNORE);
-            MPI_Recv(&recv_collector_v[offset_map[q]*8], n_req_recv_v, MPI_INT, q, 9000+100+rank*2, comm, MPI_STATUS_IGNORE);
+            MPI_Recv(&TotRecvElement_IDs_v[RecvAlloc_offset_map_e[q]*8], n_req_recv_v, MPI_INT, q, 9000+100+rank*2, comm, MPI_STATUS_IGNORE);
             
         }
     }
-    
-    
-    
-    std::vector<int> u_new_verts_vec;
-    std::map<int,std::vector<int> > crds_to_send_to_ranks;
 
-    for(int i=0;i<recv_size*8;i++)
+    // Loop over all received vertex IDs in order to determine the remaining required unique vertices on the current rank.
+    for(int i=0;i<TotNelem_recv*8;i++)
     {
-        int v_id_n = recv_collector_v[i];
+        int v_id_n = TotRecvElement_IDs_v[i];
         r = FindRank(xcn->getParallelState()->getOffsets(),size,v_id_n);
         
-        if(u_verts_part_set.find( v_id ) == u_verts_part_set.end()) // add the required unique vertex for current rank.
+        if(unique_verts_on_rank_set.find( v_id_n ) == unique_verts_on_rank_set.end()) // add the required unique vertex for current rank.
         {
-            u_verts_part_set.insert(v_id_n);
-            u_verts_part_vec.push_back(v_id_n);
+            unique_verts_on_rank_set.insert(v_id_n);
+            unique_verts_on_rank_vec.push_back(v_id_n);
             part_v.push_back(r);
             
-            if (r!=rank)// check whether this vertex is already present on current rank. if vertex is present on other rank, add it to vertices_on_rank map.
+            if (r!=rank)// check whether this vertex is already present on current rank. if vertex is present on other rank, add it to vert_on_rank map.
             {
-                rank2vertex[r].push_back(v_id_n);// add vertex to rank2vertex map.
-//                if(r==0)
-//                {
-//                    std::cout << " r = " << r << " " << v_id << std::endl;
-//                }
+                rank2req_vert[r].push_back(v_id_n);// add vertex to rank2req_vert map.
             }
             else
             {
-                vertices_on_rank.push_back(v_id_n);// add the vertex to list that is already available on rank.
+                vert_on_rank.push_back(v_id_n);// add the vertex to list that is already available on rank.
             }
         }
     }
     
-    //std::cout << "vertices on rank  = " << vertices_on_rank.size() << " " << std::endl;
-    //if(rank == 0)
-    //{
-//        std::map<int,std::vector<int> >::iterator it4;
-//        for(it4=rank2vertex.begin();it4!=rank2vertex.end();it4++)
-//        {
-//            std::cout << rank << " needs an array of size " << it4->second.size() << " array with values: ";
-////            std::vector<int>::iterator it5;
-////            for(it5=it4->second.begin();it5!=it4->second.end();it5++)
-////            {
-////                std::cout << *it5 << " ";
-////            }
-//
-//            std::cout << " that is available on rank " << it4->first << std::endl;
-//        }
-//    //}
+    // ==========================================================================================================
+    // ==========================================================================================================
+    // ==========================================================================================================
     
-    int crds_to_recv_size = rank2vertex.size();
-    int* red_crds_to_recv_size = new int[size];
-    int* arr_crds_to_recv_size = new int[size];
+    // At this point we have all the elements that are required on current rank and the vertex ids as well
+    // However we are still missing the vertex coordinate data which is spread out equally over the available procs.
+    // This rank2req_vert map essentially holds this information by mapping the rank_id from which we need to request a list/vector of vertex ids (hence the name "rank2req_vert" name.
+    
+    // At this point the perspective changes. When we were figuring out the layout of the elements, we knew the partition ID for each element on the current rank. This means that from the current rank, we needed to send a certain element to another rank since it is more logical to reside there. For the vertices this changes since we just figured out which vertices are required on the current rank. The logic here is first to send for each the current rank a list/vector<int> of vertex IDs that is requested from another rank. The other rank assembles the a list of the required coordinates and sends it back.
+    
+    // ==========================================================================================================
+    // ==========================================================================================================
+    // ==========================================================================================================
+    
+    
+    int nRank_reqVerts          = rank2req_vert.size(); // The number of ranks from which current rank requests vertices.
+    int* reduced_nRank_reqVerts = new int[size]; // Defined memory for a reduced array so that all ranks are going to be aware of which information is required from each other.
+    int* arr_nRank_reqVerts     = new int[size]; // Defining memory to store local requesting information.
     
     for(i=0;i<size;i++)
     {
-        red_crds_to_recv_size[i] = 0;
+        reduced_nRank_reqVerts[i] = 0;
         
         if(i==rank)
         {
-            arr_crds_to_recv_size[i] = crds_to_recv_size+1;
+            arr_nRank_reqVerts[i] = nRank_reqVerts+1;
         }
         else
         {
-            arr_crds_to_recv_size[i] = 0;
+            arr_nRank_reqVerts[i] = 0;
         }
     }
     
-    MPI_Allreduce(arr_crds_to_recv_size,
-                  red_crds_to_recv_size,
+    
+    // Reduce the requesting schedule for the vertices to all processors.
+    MPI_Allreduce(arr_nRank_reqVerts,
+                  reduced_nRank_reqVerts,
                   size, MPI_INT, MPI_SUM, comm);
     
     
-    int* red_crds_to_recv_size_offset = new int[size];
+    int* reduced_nRank_reqVerts_offset = new int[size];// Define an offset array for the schedule in order to be able to gather the local schedules for each rank to a global schedule array.
+    
     offset = 0;
     for(i=0;i<size;i++)
     {
-        red_crds_to_recv_size_offset[i] = offset;
-        offset = offset+red_crds_to_recv_size[i];
+        reduced_nRank_reqVerts_offset[i] = offset;
+        offset = offset+reduced_nRank_reqVerts[i];
     }
-    int crds_recv_map_size = 0;
-    int crds_loc_size = crds_to_recv_size+1; // This size is added by one since we add the rank number to the array.
+    int nTot_reqVerts = 0;
+    int nRank_reqVerts_p_one = nRank_reqVerts+1; // This size is added by one since we add the rank number to the array.
     
-    MPI_Allreduce(&crds_loc_size, &crds_recv_map_size, 1, MPI_INT, MPI_SUM, comm);
+    MPI_Allreduce(&nRank_reqVerts_p_one, &nTot_reqVerts, 1, MPI_INT, MPI_SUM, comm);// Determine the total length of the "schedule" array.
+    int* sendFromRank2Rank_vert_Global = new int[nTot_reqVerts]; // This array is laid out as follows:
+    // first the fromRank is noted which is followed by the IDs for the several ranks FromRank is sending to.
+    int* sendNvertFromRank2Rank_Global = new int[nTot_reqVerts]; // This array is layout as follows:
+    // first the fromRank is noted which is followed by the Nverts is listed for the several ranks FromRank is sending to.
     
-    
-    
-    
-    int* crds_recv_map_part_id            = new int[crds_recv_map_size];
-    int* recv_map_Nverts_per_part_id      = new int[crds_recv_map_size];
-    for(i=0;i<crds_recv_map_size;i++)
+    for(i=0;i<nTot_reqVerts;i++)
     {
-        crds_recv_map_part_id[i]         = 0;
-        recv_map_Nverts_per_part_id[i]   = 0;
+        sendFromRank2Rank_vert_Global[i] = 0;
+        sendNvertFromRank2Rank_Global[i] = 0;
     }
     
-    int* recv_crds_from_rank       = new int[crds_to_recv_size+1];
-    int* recv_num_crds_from_rank   = new int[crds_to_recv_size+1];
-    recv_crds_from_rank[0]         = rank;
-    recv_num_crds_from_rank[0]     = -1;
+    int* reqRank_fromRank_Vert   = new int[nRank_reqVerts+1];
+    int* reqNverts_from_rank     = new int[nRank_reqVerts+1];
+    reqRank_fromRank_Vert[0]     = rank;
+    reqNverts_from_rank[0]       = -1;
     t = 1;
     std::map<int,std::vector<int> >::iterator it2;
-    for(it2=rank2vertex.begin();it2!=rank2vertex.end();it2++)
+    for(it2=rank2req_vert.begin();it2!=rank2req_vert.end();it2++)
     {
-        recv_crds_from_rank[t]       = it2->first;
-        recv_num_crds_from_rank[t]   = it2->second.size();
-        
-//        if(it2->first==0)
-//        {
-//            for(int h=0;h<it2->second.size();h++)
-//            {
-//                std::cout << " h = " << it2->second[h] << std::endl;
-//            }
-//        }
-        
+        reqRank_fromRank_Vert[t]     = it2->first;
+        reqNverts_from_rank[t]       = it2->second.size();
         t++;
     }
 
-    MPI_Allgatherv(&recv_crds_from_rank[0], crds_loc_size, MPI_INT,
-                   &crds_recv_map_part_id[0],
-                   red_crds_to_recv_size, red_crds_to_recv_size_offset, MPI_INT,comm);
+    MPI_Allgatherv(&reqRank_fromRank_Vert[0], nRank_reqVerts_p_one, MPI_INT,
+                   &sendFromRank2Rank_vert_Global[0],
+                   reduced_nRank_reqVerts, reduced_nRank_reqVerts_offset, MPI_INT,comm);
     
-    MPI_Allgatherv(&recv_num_crds_from_rank[0], crds_loc_size, MPI_INT,
-                   &recv_map_Nverts_per_part_id[0],
-                   red_crds_to_recv_size, red_crds_to_recv_size_offset, MPI_INT,comm);
+    MPI_Allgatherv(&reqNverts_from_rank[0], nRank_reqVerts_p_one, MPI_INT,
+                   &sendNvertFromRank2Rank_Global[0],
+                   reduced_nRank_reqVerts, reduced_nRank_reqVerts_offset, MPI_INT,comm);
     
     
-    std::map<int, set<int> > s_crds_iset_map;
-    std::map<int, std::vector<int> > s_crds_ivec_map;
-    std::map<int, std::vector<int> > r_crds_ivec_map;
-    std::map<int, std::vector<int> > r_crds_ivec_size_map;
-    std::map<int, std::vector<int> > s_crds_ivec_size_map;
     
-    std::map<int, set<int> > s_back_crds_iset_map;
-    std::map<int, std::vector<int> > s_back_size_crds_ivec_map;
+//
+//    std::map<int, set<int> > sendFromRank2Rank_e;
+//    std::map<int, std::vector<int> > recvRankFromRank_map_e;
+//    std::map<int, std::vector<int> > recvRankFromRank_map_Nelem_e;
+//
+//    //=========================================
+//    for(i=0;i<size;i++)
+//    {
+//        int of = reduced_nRank_reqElems_offset[i];
+//        int nl = reduced_nRank_reqElems[i];
+//        for(int j=of+1;j<of+nl;j++)
+//        {
+//            sendFromRank2Rank_e[sendFromRank2Rank_elem_Global[of]].insert(sendFromRank2Rank_elem_Global[j]);
+//            recvRankFromRank_map_e[sendFromRank2Rank_elem_Global[j]].push_back(sendFromRank2Rank_elem_Global[of]);
+//            recvRankFromRank_map_Nelem_e[sendFromRank2Rank_elem_Global[j]].push_back(sendNelemFromRank2Rank_Global[j]);
+//        }
+//    }
+//
+//    std::map<int,std::map<int,int> > RecvAlloc_map_e;
+//    for(it=recvRankFromRank_map_e.begin();it!=recvRankFromRank_map_e.end();it++)
+//    {
+//        for(int k=0;k<it->second.size();k++)
+//        {
+//            RecvAlloc_map_e[it->first][recvRankFromRank_map_e[it->first][k]] = recvRankFromRank_map_Nelem_e[it->first][k];
+//        }
+//    }
+//
+//
+
+    std::map<int, set<int> > sendFromRank2Rank_v_set;
+    std::map<int, std::vector<int> > recvRankFromRank_map_v_vec;
+    std::map<int, std::vector<int> > recvRankFromRank_map_Nvert_v_vec;
+    std::map<int, set<int> > recvRankFromRank_map_v_set;
     //=========================================
     for(i=0;i<size;i++)
     {
-        int of = red_crds_to_recv_size_offset[i];
-        int nl = red_crds_to_recv_size[i];
+        int of = reduced_nRank_reqVerts_offset[i];
+        int nl = reduced_nRank_reqVerts[i];
         
         for(int j=of+1;j<of+nl;j++)
         {
+            sendFromRank2Rank_v_set[sendFromRank2Rank_vert_Global[of]].insert(sendFromRank2Rank_vert_Global[j]);
             
-//            if(rank == 0)
-//            {
-//                std::cout << crds_recv_map_part_id[of] << " map " << crds_recv_map_part_id[j] << " " << recv_map_Nverts_per_part_id[j] << std::endl;
-//            }
-            s_back_crds_iset_map[crds_recv_map_part_id[j]].insert(crds_recv_map_part_id[of]);
-            s_back_size_crds_ivec_map[crds_recv_map_part_id[j]].push_back(recv_map_Nverts_per_part_id[j]);
-
-            s_crds_iset_map[crds_recv_map_part_id[of]].insert(crds_recv_map_part_id[j]);
-            s_crds_ivec_map[crds_recv_map_part_id[of]].push_back(crds_recv_map_part_id[j]);
-            s_crds_ivec_size_map[crds_recv_map_part_id[j]].push_back(recv_map_Nverts_per_part_id[j]);
-            r_crds_ivec_map[crds_recv_map_part_id[j]].push_back(crds_recv_map_part_id[of]);
-            r_crds_ivec_size_map[crds_recv_map_part_id[j]].push_back(recv_map_Nverts_per_part_id[j]);
+            recvRankFromRank_map_v_set[sendFromRank2Rank_vert_Global[j]].insert(sendFromRank2Rank_vert_Global[of]);
+            recvRankFromRank_map_v_vec[sendFromRank2Rank_vert_Global[j]].push_back(sendFromRank2Rank_vert_Global[of]);
+            recvRankFromRank_map_Nvert_v_vec[sendFromRank2Rank_vert_Global[j]].push_back(sendNvertFromRank2Rank_Global[j]);
         }
     }
     
-//    std::map<int, set<int> >::iterator it90;
-//    for(it90=s_back_crds_iset_map.begin();it90!=s_back_crds_iset_map.end();it90++)
-//    {
-//        std::cout << " r=== " << it90->first << " -> ";
-//        set<int>::iterator it91;
-//        for(it91=it90->second.begin();it91!=it90->second.end();it91++)
-//        {
-//            std::cout << *it91 << " ";
-//        }
-//    }
-////
-//    std::map<int, std::vector<int> >::iterator it91;
-//
-//    for(it91=s_back_size_crds_ivec_map.begin();it91!=s_back_size_crds_ivec_map.end();it91++)
-//    {
-//        std::cout << " sizes=== " << it91->first << " -> ";
-//        std::vector<int>::iterator it92;
-//        for(it92=it91->second.begin();it92!=it91->second.end();it92++)
-//        {
-//            std::cout << *it92 << " ";
-//        }
-//    }
-//
+    std::map<int,std::map<int,int> > glob_rank_rank2req_vert; // This map links current rank to rank2vert map.
     
-    std::map<int,std::map<int,int> > loc_alloc2;
-    
-    for(it=r_crds_ivec_map.begin();it!=r_crds_ivec_map.end();it++)
+    for(it=recvRankFromRank_map_v_vec.begin();it!=recvRankFromRank_map_v_vec.end();it++)
     {
+        //it->first is the value of the receiving rank
+        //it->second are the ids of the ranks that send data to the receiving rank.
         for(int k=0;k<it->second.size();k++)
         {
-            loc_alloc2[it->first][r_crds_ivec_map[it->first][k]] = r_crds_ivec_size_map[it->first][k];
+            glob_rank_rank2req_vert[it->first][recvRankFromRank_map_v_vec[it->first][k]] = recvRankFromRank_map_Nvert_v_vec[it->first][k];
         }
     }
     
-    std::map<int,int> alloc2 = loc_alloc2[rank];
+    std::map<int,int> local_rank_rank2req_vert = glob_rank_rank2req_vert[rank];
     
     std::map<int, std::vector<int> >::iterator it8;
 
     
-    int* recv_offset2 = new int[alloc2.size()+1];
+    int* recv_offset2 = new int[local_rank_rank2req_vert.size()+1];
     recv_offset2[0]   = 0;
-    int* recv_loc2    = new int[alloc2.size()];
-    int recv_size2    = 0;
+    int* recv_loc2    = new int[local_rank_rank2req_vert.size()];
+    int TotNvert_recv    = 0;
     
-    std::map< int, int> offset_map2;
+    std::map< int, int> RecvAlloc_offset_map_v;
     std::map< int, int> loc_map2;
     std::map< int, int>::iterator it_loc2;
     i = 0;
     int offs = 0;
     
-    for(it_loc2=alloc2.begin();it_loc2!=alloc2.end();it_loc2++)
+    for(it_loc2=local_rank_rank2req_vert.begin();it_loc2!=local_rank_rank2req_vert.end();it_loc2++)
     {
-        recv_loc2[i]      = it_loc2->second;
-        recv_offset2[i+1] = recv_offset2[i]+recv_loc2[i];
-
-        loc_map2[it_loc2->first]=recv_loc2[i];
-        offset_map2[it_loc2->first]=recv_offset2[i];
-        offs = offs+it_loc2->second;
-        recv_size2 = recv_size2+it_loc2->second;
-        //std::cout << rank << " PPP " <<  it_loc2->first << " " << it_loc2->second << std::endl;
-
+        recv_loc2[i]                = it_loc2->second;
+        recv_offset2[i+1]           = recv_offset2[i]+recv_loc2[i];
+        loc_map2[it_loc2->first]    = recv_loc2[i];
+        RecvAlloc_offset_map_v[it_loc2->first] = recv_offset2[i];
+        offs                        = offs+it_loc2->second;
+        TotNvert_recv               = TotNvert_recv+it_loc2->second;
         i++;
     }
-    int* recv_collector2   = new int[recv_size2];
     
-    for(int i =0;i<recv_size2;i++)
-    {
-        recv_collector2[i] = 0;
-    }
-    
-    
-    
-    int n_req_recv2;
+    int n_reqstd_ids;
     int n_req_recv_v2;
     
+    int* TotRecvVert_IDs = new int[TotNvert_recv];
     // This thing needs to revised because for the verts it doesnt work.
     // The current rank does not have the verts_to_send_rank. Instead it has an request list.
     
-    std::map<int,std::vector<int> >  recv_send;
+    std::map<int,std::vector<int> >  reqstd_ids_per_rank;
     
-    for(int q=0;q<size;q++)
+    for(q=0;q<size;q++)
     {
         if(rank==q)
         {
             int i=0;
-            for (it = rank2vertex.begin(); it != rank2vertex.end(); it++)
+            for (it = rank2req_vert.begin(); it != rank2req_vert.end(); it++)
             {
                 int n_req           = it->second.size();
                 int dest            = it->first;
                 
                 int destination = dest;
-                MPI_Send(&dest, 1, MPI_INT, dest, 9876+10*dest, comm);
-
+                //MPI_Send(&dest, 1, MPI_INT, dest, 9876+10*dest, comm);
                 MPI_Send(&n_req, 1, MPI_INT, dest, 9876+10*dest, comm);
-                MPI_Send(&it->second[0], n_req, MPI_INT, dest, 9876+dest*2, comm);
+                //MPI_Send(&it->second[0], n_req, MPI_INT, dest, 9876+dest*2, comm);
                 MPI_Send(&it->second[0], n_req, MPI_INT, dest, 9876*2+dest*2, comm);
-                int uset = xcn->getParallelState()->getOffset(rank);
-                int nl = xcn->getParallelState()->getNloc(rank);
-                int uset_c = xcn->getParallelState()->getOffset(dest);
-                int nl_c = xcn->getParallelState()->getNloc(dest);
                 
                 i++;
             }
         }
-        else if (s_crds_iset_map[q].find( rank ) != s_crds_iset_map[q].end())
+        else if (sendFromRank2Rank_v_set[q].find( rank ) != sendFromRank2Rank_v_set[q].end())
         {
-            int destionation_recv;
-            MPI_Recv(&destionation_recv, 1, MPI_INT, q, 9876+10*rank, comm, MPI_STATUS_IGNORE);
-
+            MPI_Recv(&n_reqstd_ids, 1, MPI_INT, q, 9876+10*rank, comm, MPI_STATUS_IGNORE);
+            //MPI_Recv(&TotRecvVert_IDs[RecvAlloc_offset_map_v[q]], n_reqstd_ids, MPI_INT, q, 9876+rank*2, comm, MPI_STATUS_IGNORE);
             
-            MPI_Recv(&n_req_recv2, 1, MPI_INT, q, 9876+10*rank, comm, MPI_STATUS_IGNORE);
-            MPI_Recv(&recv_collector2[offset_map2[q]], n_req_recv2, MPI_INT, q, 9876+rank*2, comm, MPI_STATUS_IGNORE);
+            std::vector<int> recv_reqstd_ids(n_reqstd_ids);
+            MPI_Recv(&recv_reqstd_ids[0], n_reqstd_ids, MPI_INT, q, 9876*2+rank*2, comm, MPI_STATUS_IGNORE);
             
-            std::vector<int> recv_vec(n_req_recv2);
-            
-            MPI_Recv(&recv_vec[0], n_req_recv2, MPI_INT, q, 9876*2+rank*2, comm, MPI_STATUS_IGNORE);
-            int uset = xcn->getParallelState()->getOffset(rank);
-            int nl = xcn->getParallelState()->getNloc(rank);
-            int uset_c = xcn->getParallelState()->getOffset(q);
-            int nl_c = xcn->getParallelState()->getNloc(q);
-            //std::cout << uset << " " << nl+uset << std::endl;
-            for(int s=0;s<n_req_recv2;s++)
-            {
-                if( recv_vec[s]< uset )
-                {
-                    std::cout << destionation_recv << " " << rank << " " <<  q << " min " << uset << " " << recv_vec[s] << " " << nl+uset << " " << uset_c << " " << uset_c+nl_c << std::endl;
-                }
-                if( recv_vec[s] > (nl+uset) )
-                {
-                    std::cout << destionation_recv << " " << rank << " " << q << " max " << uset << " " << recv_vec[s] << " " << nl+uset << " " << uset_c << " " << uset_c+nl_c << std::endl;
-                }
-            }
-            
-            recv_send[q] = recv_vec;
+            reqstd_ids_per_rank[q] = recv_reqstd_ids;
         }
     }
-
+    
     int offset_xcn = 0;
     int nloc_xcn = 0;
     std::map<int,std::vector<double> > recv_back_verts;
     int n_recv_back;
-    for(int q=0;q<size;q++)
+    //double* recv_back_arr = new double[10];
+    
+    
+    for(q=0;q<size;q++)
     {
         if(rank == q)
         {
-            for (it = recv_send.begin(); it != recv_send.end(); it++)
+            for (it = reqstd_ids_per_rank.begin(); it != reqstd_ids_per_rank.end(); it++)
             {
-                //std::cout << rank << " " << it->first << " " << it->second.size() << std::endl;
                 int nv_send = it->second.size()*3;
                 double* vert_send = new double[nv_send];
-                offset_xcn = xcn->getParallelState()->getOffset(q);
-                nloc_xcn = xcn->getParallelState()->getNloc(q);
+                offset_xcn = xcn->getParallelState()->getOffset(rank);
+                nloc_xcn = xcn->getParallelState()->getNloc(rank);
                 for(int u=0;u<it->second.size();u++)
                 {
-                    vert_send[u*3+0]=xcn->getVal(0,0);
-                    vert_send[u*3+1]=xcn->getVal(0,1);
-                    vert_send[u*3+2]=xcn->getVal(0,2);
+                    vert_send[u*3+0]=0.0;
+                    vert_send[u*3+1]=0.0;
+                    vert_send[u*3+2]=0.0;
+                    //std::cout << rank << " :: " << u << " " << offset_xcn << " < " << it->second[u] << " < " << offset_xcn+nloc_xcn << " another check " << it->second[u]-offset_xcn << " " << nloc_xcn << std::endl;
+                    vert_send[u*3+0]=xcn->getVal(it->second[u]-offset_xcn,0);
+                    vert_send[u*3+1]=xcn->getVal(it->second[u]-offset_xcn,1);
+                    vert_send[u*3+2]=xcn->getVal(it->second[u]-offset_xcn,2);
+                    
+                    
+                    
                 }
                 
                 int dest = it->first;
-                MPI_Send(&nv_send, 1, MPI_INT, dest, 9876+1000*dest, comm);
-                MPI_Send(&vert_send[0], nv_send, MPI_DOUBLE, dest, 9876+dest*888, comm);
+                //MPI_Send(&nv_send, 1, MPI_INT, dest, 9876+1000*dest, comm);
+                //MPI_Send(&vert_send[0], nv_send, MPI_DOUBLE, dest, 9876+dest*888, comm);
+                
+                //MPI_Send(&it->second[0], n_req, MPI_INT, dest, 9876+dest*8888, comm);
                 delete[] vert_send;
-                //MPI_Send(&it->second[0], n_req, MPI_INT, dest, 9876+dest*2, comm);
             }
         }
-        if(s_back_crds_iset_map[q].find( rank ) != s_back_crds_iset_map[q].end())
+        if(recvRankFromRank_map_v_set[q].find( rank ) != recvRankFromRank_map_v_set[q].end())
         {
-            MPI_Recv(&n_recv_back, 1, MPI_INT, q, 9876+1000*rank, comm, MPI_STATUS_IGNORE);
+            //MPI_Recv(&n_recv_back, 1, MPI_INT, q, 9876+1000*rank, comm, MPI_STATUS_IGNORE);
             
             std::vector<double> recv_back_vec(n_recv_back);
+            //MPI_Recv(&recv_back_vec[0], n_recv_back, MPI_DOUBLE, q, 9876+rank*888, comm, MPI_STATUS_IGNORE);
+            //MPI_Recv(&recv_back_arr[0], n_recv_back, MPI_DOUBLE, q, 9876+rank*8888, comm, MPI_STATUS_IGNORE);
 
-            MPI_Recv(&recv_back_vec[0], n_recv_back, MPI_DOUBLE, q, 9876+rank*888, comm, MPI_STATUS_IGNORE);
-            
             recv_back_verts[q] = recv_back_vec;
         }
     }
-      
-
     
     
-    
-    
-    
-    
-    
-
-    
-    
-    /*
-    std::vector<int> u_new_verts_vec;
-    std::map<int,std::vector<int> > crds_to_send_to_ranks;
-
-    int v = 0;
-    for(int i=0;i<recv_size*8;i++)
-    {
-        int v_id_n = recv_collector_v[i];
-        if(u_verts_send_set.find( v_id_n ) == u_verts_send_set.end())
-        {
-            u_verts_send_set.insert(v_id_n);
-            u_verts_send_vec.push_back(v_id_n);
-            
-            r = FindRank(xcn->getParallelState()->getOffsets(),size,v_id_n);
-            part_v.push_back(r);
-            
-            if (r!=rank) // This means that rank requires the following verts from rank r.
-            {
-                crds_to_send_to_ranks[r].push_back(v_id_n);
-            }
-            v++;
-        }
-    }
-    
-    if(rank == 0)
-    {
-        std::map<int,std::vector<int> >::iterator it4;
-        for(it4=crds_to_send_to_ranks.begin();it4!=crds_to_send_to_ranks.end();it4++)
-        {
-            std::cout << rank<< " sends an array of size " << it4->second.size() << " array with values: ";
-            std::vector<int>::iterator it5;
-            for(it5=it4->second.begin();it5!=it4->second.end();it5++)
-            {
-                std::cout << *it5 << " ";
-            }
-
-            std::cout << " -> to rank " << it4->first << std::endl;
-        }
-    }
-    
-    
-    int crds_to_send_size = crds_to_send_to_ranks.size();
-    
-    int* red_crds_to_send_size = new int[size];
-    int* arr_crds_to_send_size = new int[size];
-    
-    for(i=0;i<size;i++)
-    {
-        red_crds_to_send_size[i] = 0;
-        
-        if(i==rank)
-        {
-            arr_crds_to_send_size[i] = crds_to_send_size+1;
-        }
-        else
-        {
-            arr_crds_to_send_size[i] = 0;
-        }
-    }
-
-    MPI_Allreduce(arr_crds_to_send_size, red_crds_to_send_size, size, MPI_INT, MPI_SUM, comm);
-    
-    int* red_crds_to_send_size_offset = new int[size];
-    offset = 0;
-    for(i=0;i<size;i++)
-    {
-        red_crds_to_send_size_offset[i] = offset;
-        offset = offset+red_crds_to_send_size[i];
-    }
-    int crds_send_map_size = 0;
-    int crds_loc_size = crds_to_send_size+1; // This size is added by one since we add the rank number to the array.
-    
-    MPI_Allreduce(&crds_loc_size, &crds_send_map_size, 1, MPI_INT, MPI_SUM, comm);
-    //std::cout << "crds_send_map_size " << crds_send_map_size << std::endl;
-    int* crds_send_map_part_id            = new int[crds_send_map_size];
-    int* send_map_Nverts_per_part_id      = new int[crds_send_map_size];
-    for(i=0;i<crds_send_map_size;i++)
-    {
-        crds_send_map_part_id[i]         = 0;
-        send_map_Nverts_per_part_id[i]   = 0;
-    }
-    
-    int* crds_from_to_rank       = new int[crds_to_send_size+1];
-    int* num_crds_to_rank        = new int[crds_to_send_size+1];
-    crds_from_to_rank[0]         = rank;
-    num_crds_to_rank[0]          = -1;
-    t = 1;
-    
-    std::map<int,std::vector<int> >::iterator it2;
-    for(it2=crds_to_send_to_ranks.begin();it2!=crds_to_send_to_ranks.end();it2++)
-    {
-        crds_from_to_rank[t]     = it2->first;
-        num_crds_to_rank[t]      = it2->second.size();
-        t++;
-    }
-
-    MPI_Allgatherv(&crds_from_to_rank[0], crds_loc_size, MPI_INT,
-                   &crds_send_map_part_id[0],
-                   red_crds_to_send_size, red_crds_to_send_size_offset, MPI_INT,comm);
-    
-    MPI_Allgatherv(&num_crds_to_rank[0], crds_loc_size, MPI_INT,
-                   &send_map_Nverts_per_part_id[0],
-                   red_crds_to_send_size, red_crds_to_send_size_offset, MPI_INT,comm);
-    
-    std::map<int, set<int> > s_crds_iset_map;
-    std::map<int, std::vector<int> > r_crds_ivec_map;
-    std::map<int, std::vector<int> > r_crds_ivec_size_map;
-    
-    //=========================================
-    for(i=0;i<size;i++)
-    {
-        int of = red_crds_to_send_size_offset[i];
-        int nl = red_crds_to_send_size[i];
-        for(int j=of+1;j<of+nl;j++)
-        {
-            s_crds_iset_map[crds_send_map_part_id[of]].insert(crds_send_map_part_id[j]);
-            r_crds_ivec_map[crds_send_map_part_id[j]].push_back(crds_send_map_part_id[of]);
-            r_crds_ivec_size_map[crds_send_map_part_id[j]].push_back(send_map_Nverts_per_part_id[j]);
-        }
-    }
-
-    std::map<int,std::map<int,int> > loc_crds_alloc;
-    
-    for(it=r_crds_ivec_map.begin();it!=r_crds_ivec_map.end();it++)
-    {
-        for(int k=0;k<it->second.size();k++)
-        {
-            loc_crds_alloc[it->first][r_crds_ivec_map[it->first][k]] = r_crds_ivec_size_map[it->first][k];
-        }
-    }
-    
-    std::map<int,int> alloc_crds = loc_crds_alloc[rank];
-    
-    int* recv_crds_offset = new int[loc_crds_alloc.size()+1];
-    recv_crds_offset[0]   = 0;
-    int* recv_crds_loc    = new int[loc_crds_alloc.size()];;
-    int recv_crds_size    = 0;
-    
-    std::map< int, int> offset_crds_map;
-    std::map< int, int> loc_crds_map;
-    std::map< int, int>::iterator it_crds_loc;
-    i = 0;
-    for(it_crds_loc=alloc_crds.begin();it_crds_loc!=alloc_crds.end();it_crds_loc++)
-    {
-        recv_crds_loc[i]      = it_crds_loc->second;
-        recv_crds_offset[i+1] = recv_crds_offset[i]+recv_crds_loc[i];
-        recv_crds_size        = recv_crds_size+it_crds_loc->second;
-
-        loc_crds_map[it_crds_loc->first]        =   recv_crds_loc[i];
-        offset_crds_map[it_crds_loc->first]     =   recv_crds_offset[i];
-        //std::cout << " it_crds_loc->first " << it_crds_loc->first << " " << recv_crds_offset[i] << std::endl;
-        
-        i++;
-    }
-    
-    int* recv_crds_collector   = new int[recv_crds_size];
-    int* recv_crds_collector_c = new int[recv_crds_size*3];
-    
-    for(int i =0;i<recv_crds_size;i++)
-    {
-        recv_crds_collector[i] = 0;
-    }
-    for(int i =0;i<recv_crds_size*3;i++)
-    {
-        recv_crds_collector_c[i] = 0;
-    }
-    
-    
-    int n_crds_req_recv;
-    int n_crds_req_recv_v;
-    
-    for(int q=0;q<size;q++)
-    {
-        if(rank==q)
-        {
-            int i=0;
-            for (it = crds_to_send_to_ranks.begin(); it != crds_to_send_to_ranks.end(); it++)
-            {
-                int n_crds_req           = it->second.size();
-                int n_crds_req_v         = n_crds_req*3;
-                int dest                 = it->first;
-                 
-                //std::cout << " rank " << rank << " sends " << n_crds_req << " to rank " << dest << " "<< std::endl;
-                
-                int* v_crds = new int[it->second.size()*3];
-                
-                for(int u=0;u<it->second.size();u++)
-                {
-//                    v_crds[u*3+0] = xcn->getVal(it->second[u],0);
-//                    v_crds[u*3+1] = xcn->getVal(it->second[u],1);
-//                    v_crds[u*3+2] = xcn->getVal(it->second[u],2);
-//                    std::cout << q << " " << it->second[u] << " " << xcn->getVal(it->second[u],0) << " "
-//                    << xcn->getVal(it->second[u],1) << " "
-//                    << xcn->getVal(it->second[u],2) << std::endl;
-                }
-                
-                
-                //MPI_Send(&n_crds_req, 1, MPI_INT, dest, 6000+dest*2, comm);
-                //MPI_Send(&it->second[0], n_crds_req, MPI_INT, dest, 7000+dest*2, comm);
-                
-                //delete[] v_crds;
-                i++;
-            }
-        }
-        else if (s_crds_iset_map[q].find( rank ) != s_crds_iset_map[q].end())
-        {
-            //MPI_Recv(&n_crds_req_recv, 1, MPI_INT, q, 6000+rank*2, comm, MPI_STATUS_IGNORE);
-            
-            //MPI_Recv(&recv_crds_collector_c[offset_crds_map[q]*3], n_crds_req_recv*3, MPI_INT, q, 7000+rank*2, comm, MPI_STATUS_IGNORE);
-            
-        }
-    }
-    
-    */
-    
-    
-    
-    
-    //============================================================================
-        //================ Print the receiving schedule for now;======================
-        //============================================================================
-//        if(rank == 0)
-//        {
-//            for(it=r_crds_ivec_map.begin();it!=r_crds_ivec_map.end();it++)
-//            {
-//                std::cout << "rank " << it->first << " receives an array of size ";
-//                for(int k=0;k<it->second.size();k++)
-//                {
-//                    std::cout << r_crds_ivec_size_map[it->first][k] << " from " << r_crds_ivec_map[it->first][k] << " ";
-//                }
-//                std::cout << std::endl;
-//            }
-//        }
-        //============================================================================
-        //================ Print the receiving schedule for now;======================
-        //============================================================================
-    
-    
-    
-//    if(rank == 1)
-//    {
-//        for(i=0;i<crds_send_map_size;i++)
-//        {
-//            std::cout << i << " " << crds_send_map_part_id[i] << " " << send_map_Nverts_per_part_id[i] << std::endl;
-//        }
-//        //std::cout << std::endl;
-//    }
-    
-//    std::map<int, set<int> > s_iset_map;
-//    std::map<int, std::vector<int> > r_ivec_map;
-//    std::map<int, std::vector<int> > r_ivec_size_map;
-    
-    
-    
-    
-    
-    
-    
-    
-    
-
-    
-    
-    
-    
+    // ==========================================================================================================
+    // ==========================================================================================================
+    // ==========================================================================================================
     
     
     
     /*
     
-    // ---> First attempt <--- //
+    // ---> First attempt by gathering the schedule on root and divide by root which requires long loop on root causing a serial bottleneck. <--- //
     
-    ParArrayOnRoot* gathered_on_root = GatherVecToRoot(u_verts_send_vec, comm);
+    ParArrayOnRoot* gathereduced_on_root = GatherVecToRoot(unique_verts_on_rank_vec, comm);
     
     int* nlocs_scat = new int[size];
     int* offset_scat = new int[size];
     for(int i=0;i<size;i++)
     {
-        nlocs_scat[i]  = gathered_on_root->nlocs[i]*3;
-        offset_scat[i] = gathered_on_root->offsets[i]*3;
+        nlocs_scat[i]  = gathereduced_on_root->nlocs[i]*3;
+        offset_scat[i] = gathereduced_on_root->offsets[i]*3;
     }
        
     double* verts = NULL;
-    Array<double>* Verts_loc = new Array<double>(u_verts_send_vec.size(),3);
+    Array<double>* Verts_loc = new Array<double>(unique_verts_on_rank_vec.size(),3);
     if(rank == 0)
     {
         
-        verts = new double[gathered_on_root->length*3];
-        for(int i=0;i<gathered_on_root->length;i++)
+        verts = new double[gathereduced_on_root->length*3];
+        for(int i=0;i<gathereduced_on_root->length;i++)
         {
-            verts[i*3+0] = xcn_on_root->getVal(gathered_on_root->data[i],0);
-            verts[i*3+1] = xcn_on_root->getVal(gathered_on_root->data[i],1);
-            verts[i*3+2] = xcn_on_root->getVal(gathered_on_root->data[i],2);
+            verts[i*3+0] = xcn_on_root->getVal(gathereduced_on_root->data[i],0);
+            verts[i*3+1] = xcn_on_root->getVal(gathereduced_on_root->data[i],1);
+            verts[i*3+2] = xcn_on_root->getVal(gathereduced_on_root->data[i],2);
         }
         
     }
     
-    MPI_Scatterv(&verts[0], nlocs_scat, offset_scat, MPI_DOUBLE, &Verts_loc->data[0], u_verts_send_vec.size()*3, MPI_DOUBLE, 0, comm);
+    MPI_Scatterv(&verts[0], nlocs_scat, offset_scat, MPI_DOUBLE, &Verts_loc->data[0], unique_verts_on_rank_vec.size()*3, MPI_DOUBLE, 0, comm);
     */
     
     //delete[] verts;
@@ -1472,13 +1143,13 @@ Array<double>* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part,
     //delete[] offset_scat;
     //delete[] recv_loc;
     //delete[] recv_offset;
-    //delete[] recv_collector;
-    //delete[] recv_collector_v;
+    //delete[] TotRecvElement_IDs;
+    //delete[] TotRecvElement_IDs_v;
     
-    Array<double>* Verts_loc;
+    //Array<double>* Verts_loc;
     
-    
-    return Verts_loc;
+    //std::map<int,std::vector<double> > recv_back_verts;
+    return recv_back_verts;
 }
 
 
@@ -1659,14 +1330,14 @@ Partition* CollectElementsPerRank(ParArray<int>* ien, Array<int>* ien_root, MPI_
     // This vector is empty on all other procs except root;
     //Partition* parti = new Partition;
     
-    ParArrayOnRoot* gathered_on_root = GatherVecToRoot(loc_elems, comm);
+    ParArrayOnRoot* gathereduced_on_root = GatherVecToRoot(loc_elems, comm);
     
     int* nlocs  = new int[size];
     int* offset = new int[size];
     for(int i=0;i<size;i++)
     {
-        nlocs[i]  = gathered_on_root->nlocs[i]*8;
-        offset[i] = gathered_on_root->offsets[i]*8;
+        nlocs[i]  = gathereduced_on_root->nlocs[i]*8;
+        offset[i] = gathereduced_on_root->offsets[i]*8;
     }
 
     Partition* parti = new Partition;
@@ -1688,18 +1359,18 @@ Partition* CollectElementsPerRank(ParArray<int>* ien, Array<int>* ien_root, MPI_
     
     if(rank == 0)
     {
-        verts = new double[gathered_on_root->length*8];
+        verts = new double[gathereduced_on_root->length*8];
 
-        for(int i=0;i<gathered_on_root->length;i++)
+        for(int i=0;i<gathereduced_on_root->length;i++)
         {
-            verts[i*8+0] = ien_root->getVal(gathered_on_root->data[i],0);
-            verts[i*8+1] = ien_root->getVal(gathered_on_root->data[i],1);
-            verts[i*8+2] = ien_root->getVal(gathered_on_root->data[i],2);
-            verts[i*8+3] = ien_root->getVal(gathered_on_root->data[i],3);
-            verts[i*8+4] = ien_root->getVal(gathered_on_root->data[i],4);
-            verts[i*8+5] = ien_root->getVal(gathered_on_root->data[i],5);
-            verts[i*8+6] = ien_root->getVal(gathered_on_root->data[i],6);
-            verts[i*8+7] = ien_root->getVal(gathered_on_root->data[i],7);
+            verts[i*8+0] = ien_root->getVal(gathereduced_on_root->data[i],0);
+            verts[i*8+1] = ien_root->getVal(gathereduced_on_root->data[i],1);
+            verts[i*8+2] = ien_root->getVal(gathereduced_on_root->data[i],2);
+            verts[i*8+3] = ien_root->getVal(gathereduced_on_root->data[i],3);
+            verts[i*8+4] = ien_root->getVal(gathereduced_on_root->data[i],4);
+            verts[i*8+5] = ien_root->getVal(gathereduced_on_root->data[i],5);
+            verts[i*8+6] = ien_root->getVal(gathereduced_on_root->data[i],6);
+            verts[i*8+7] = ien_root->getVal(gathereduced_on_root->data[i],7);
         }
     }
    
@@ -1711,7 +1382,7 @@ Partition* CollectElementsPerRank(ParArray<int>* ien, Array<int>* ien_root, MPI_
     delete[] adjncy;
     delete[] verts;
     delete pstate_parmetis;
-    delete gathered_on_root;
+    delete gathereduced_on_root;
     
     return parti;
 }
@@ -1800,26 +1471,26 @@ void Example3DPartitioning(MPI_Comm comm)
         }
     }
     
-    int* red_locs       = new int[world_size];
-    int* red_npo_locs   = new int[world_size];
-    int* red_elmdist    = new int[world_size+1];
+    int* reduced_locs       = new int[world_size];
+    int* reduced_npo_locs   = new int[world_size];
+    int* reduced_elmdist    = new int[world_size+1];
     
     for(int i=0;i<world_size;i++)
     {
-        red_locs[i]    = 0;
-        red_elmdist[i] = 0;
+        reduced_locs[i]    = 0;
+        reduced_elmdist[i] = 0;
     }
     
-    MPI_Allreduce(locs,     red_locs,     world_size,   MPI_INT, MPI_SUM,  MPI_COMM_WORLD);
-    MPI_Allreduce(npo_locs, red_npo_locs, world_size,   MPI_INT, MPI_SUM,  MPI_COMM_WORLD);
-    MPI_Allreduce(elmdist,  red_elmdist,  world_size+1, MPI_INT, MPI_SUM,  MPI_COMM_WORLD);
+    MPI_Allreduce(locs,     reduced_locs,     world_size,   MPI_INT, MPI_SUM,  MPI_COMM_WORLD);
+    MPI_Allreduce(npo_locs, reduced_npo_locs, world_size,   MPI_INT, MPI_SUM,  MPI_COMM_WORLD);
+    MPI_Allreduce(elmdist,  reduced_elmdist,  world_size+1, MPI_INT, MPI_SUM,  MPI_COMM_WORLD);
     
     for(int i=0;i<world_size;i++)
     {
-        npo_offset[i+1] = npo_offset[i]+red_npo_locs[i];
+        npo_offset[i+1] = npo_offset[i]+reduced_npo_locs[i];
     }
     
-    red_elmdist[world_size] = nel;
+    reduced_elmdist[world_size] = nel;
     
     int* eptr = new int[nloc+1];
     int* eind = new int[npo_loc];
@@ -1927,7 +1598,7 @@ void Example3DPartitioning(MPI_Comm comm)
     idx_t *part      = part_;
     
     
-    ParMETIS_V3_PartMeshKway(red_elmdist, eptr, eind, elmwgt, wgtflag, numflag, ncon, ncommonnodes, nparts, tpwgts, ubvec, options, &edgecut, part, &comm);
+    ParMETIS_V3_PartMeshKway(reduced_elmdist, eptr, eind, elmwgt, wgtflag, numflag, ncon, ncommonnodes, nparts, tpwgts, ubvec, options, &edgecut, part, &comm);
     
 //    if(world_rank == 1
 //       )
@@ -1939,11 +1610,11 @@ void Example3DPartitioning(MPI_Comm comm)
 //    }
     
     
-    ParMETIS_V3_Mesh2Dual(red_elmdist,eptr,eind,numflag,ncommonnodes,&xadj,&adjncy,&comm);
+    ParMETIS_V3_Mesh2Dual(reduced_elmdist,eptr,eind,numflag,ncommonnodes,&xadj,&adjncy,&comm);
     
     idx_t *nparts2 = nparts_;
     
-    ParMETIS_V3_AdaptiveRepart(red_elmdist, xadj, adjncy, elmwgt, adjwgt, vsize, wgtflag, numflag, ncon, nparts2, tpwgts, ubvec, itr, options, &edgecut, part, &comm);
+    ParMETIS_V3_AdaptiveRepart(reduced_elmdist, xadj, adjncy, elmwgt, adjwgt, vsize, wgtflag, numflag, ncon, nparts2, tpwgts, ubvec, itr, options, &edgecut, part, &comm);
     
     int rank = 0;
     if(world_rank == 1)
@@ -1990,13 +1661,13 @@ ParVar* CreateParallelData(int N, MPI_Comm comm)
     
     int* proc_nlocs                 = new int[size];
     int* proc_offset                = new int[size];
-    int* red_proc_nlocs             = new int[size];
-    int* red_proc_offset            = new int[size];
+    int* reduced_proc_nlocs             = new int[size];
+    int* reduced_proc_offset            = new int[size];
     
     for(int i=0;i<size;i++)
     {
-        red_proc_nlocs[i] = 0;
-        red_proc_offset[i] = 0;
+        reduced_proc_nlocs[i] = 0;
+        reduced_proc_offset[i] = 0;
         
         if(i==rank)
         {
@@ -2010,14 +1681,14 @@ ParVar* CreateParallelData(int N, MPI_Comm comm)
         }
     }
     
-    MPI_Allreduce(proc_nlocs,  red_proc_nlocs,  size, MPI_INT, MPI_SUM, comm);
-    MPI_Allreduce(proc_offset, red_proc_offset, size, MPI_INT, MPI_SUM, comm);
+    MPI_Allreduce(proc_nlocs,  reduced_proc_nlocs,  size, MPI_INT, MPI_SUM, comm);
+    MPI_Allreduce(proc_offset, reduced_proc_offset, size, MPI_INT, MPI_SUM, comm);
     
     ParVar* pv = new ParVar;
     
     pv->size    = size;
-    pv->nlocs   = red_proc_nlocs;
-    pv->offsets = red_proc_offset;
+    pv->nlocs   = reduced_proc_nlocs;
+    pv->offsets = reduced_proc_offset;
     
     return pv;
 }
@@ -2053,14 +1724,14 @@ ParVar_ParMetis* CreateParallelDataParmetis(ParArray<int>* e2n, MPI_Comm comm, i
     }
     
     int* nlocs                 = new int[size];
-    int* red_nlocs             = new int[size];
+    int* reduced_nlocs             = new int[size];
     int* npo_locs              = new int[size];
-    int* red_npo_locs          = new int[size];
+    int* reduced_npo_locs          = new int[size];
 
     for(i=0;i<size;i++)
     {
-        red_nlocs[i]        = 0;
-        red_npo_locs[i]     = 0;
+        reduced_nlocs[i]        = 0;
+        reduced_npo_locs[i]     = 0;
         
         if(i==rank)
         {
@@ -2076,13 +1747,13 @@ ParVar_ParMetis* CreateParallelDataParmetis(ParArray<int>* e2n, MPI_Comm comm, i
     
     int* elm_dist              = new int[size+1];
     int* npo_offset            = new int[size+1];
-    int* red_elm_dist          = new int[size+1];
-    int* red_npo_offset        = new int[size+1];
+    int* reduced_elm_dist          = new int[size+1];
+    int* reduced_npo_offset        = new int[size+1];
     
     for(i=0;i<size+1;i++)
     {
-        red_elm_dist[i]   = 0;
-        red_npo_offset[i] = 0;
+        reduced_elm_dist[i]   = 0;
+        reduced_npo_offset[i] = 0;
         if(i==rank)
         {
             elm_dist[i]   = offset;
@@ -2096,13 +1767,13 @@ ParVar_ParMetis* CreateParallelDataParmetis(ParArray<int>* e2n, MPI_Comm comm, i
     }
     
     
-    MPI_Allreduce(nlocs,        red_nlocs,      size,     MPI_INT, MPI_SUM, comm);
-    MPI_Allreduce(npo_locs,     red_npo_locs,   size,     MPI_INT, MPI_SUM, comm);
-    MPI_Allreduce(elm_dist,     red_elm_dist,   size+1,   MPI_INT, MPI_SUM, comm);
-    MPI_Allreduce(npo_offset,   red_npo_offset, size+1,   MPI_INT, MPI_SUM, comm);
+    MPI_Allreduce(nlocs,        reduced_nlocs,      size,     MPI_INT, MPI_SUM, comm);
+    MPI_Allreduce(npo_locs,     reduced_npo_locs,   size,     MPI_INT, MPI_SUM, comm);
+    MPI_Allreduce(elm_dist,     reduced_elm_dist,   size+1,   MPI_INT, MPI_SUM, comm);
+    MPI_Allreduce(npo_offset,   reduced_npo_offset, size+1,   MPI_INT, MPI_SUM, comm);
 
-    red_elm_dist[size] = Nel;
-    red_npo_offset[size] = Nel*type;
+    reduced_elm_dist[size] = Nel;
+    reduced_npo_offset[size] = Nel*type;
 
     
     int* eptr = new int[nloc+1];
@@ -2121,17 +1792,17 @@ ParVar_ParMetis* CreateParallelDataParmetis(ParArray<int>* e2n, MPI_Comm comm, i
     ParVar_ParMetis* pv_parmetis = new ParVar_ParMetis;
     
     pv_parmetis->size        =  size;
-    pv_parmetis->nlocs       =  red_nlocs;
-    pv_parmetis->elmdist     =  red_elm_dist;
-    pv_parmetis->npo_locs    =  red_npo_locs;
-    pv_parmetis->npo_offset  =  red_npo_offset;
+    pv_parmetis->nlocs       =  reduced_nlocs;
+    pv_parmetis->elmdist     =  reduced_elm_dist;
+    pv_parmetis->npo_locs    =  reduced_npo_locs;
+    pv_parmetis->npo_offset  =  reduced_npo_offset;
     pv_parmetis->eptr        =  eptr;
     pv_parmetis->eind        =  eind;
     
 //    delete[] elm_dist;
 //    delete[] npo_offset;
-//    delete[] red_elm_dist;
-//    delete[] red_npo_offset;
+//    delete[] reduced_elm_dist;
+//    delete[] reduced_npo_offset;
     
     //delete[] eptr;
     //delete[] eind;
