@@ -1630,12 +1630,12 @@ int main(int argc, char** argv) {
     double duration;
     start = std::clock();
     ParArray<int>* part_par  = DeterminePartitionLayout(ien_copy,comm);
-    std::map<int,std::vector<double> > vert_crds = DetermineElement2ProcMap(ien_copy, part_par, xcn_on_root, xcn, comm);
+    Partition* part = DetermineElement2ProcMap(ien_copy, part_par, xcn_on_root, xcn, comm);
         duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
      
-    std::cout << "duration " << duration  << std::endl;
+    std::cout << " --- time = " << duration << " [s] ---" << std::endl;
     //std::cout << "#verts of part " << world_rank << " := " << vert_crds->getNrow() << " " << std::endl;
-    
+    //std::cout << " +++ --- " << world_rank << " " << part->glob2loc_Vmap.size() << " " << part->loc2glob_Vmap.size() << " ()()() " << std::endl;
     MPI_Finalize();
     
     delete ien;
