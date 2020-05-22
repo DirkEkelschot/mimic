@@ -129,6 +129,18 @@ struct Partition
 
 
 
+struct Partition2
+{
+    int ndim;
+    std::vector<Vert> Verts;
+    std::vector<std::vector<int> > loc_elem2verts;
+    std::map<int,int> v_loc2glob;
+    std::map<int,int> v_glob2loc;
+    int* xadj;
+    int* adjncy;
+};
+
+
 
 
 

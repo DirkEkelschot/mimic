@@ -1630,7 +1630,7 @@ int main(int argc, char** argv) {
     double duration;
     start = std::clock();
     ParArray<int>* part_par  = DeterminePartitionLayout(ien_copy,comm);
-    Partition* part = DetermineElement2ProcMap(ien_copy, part_par, xcn_on_root, xcn, comm);
+    Partition2* part = DetermineElement2ProcMap(ien_copy, part_par, xcn_on_root, xcn, comm);
         duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
      
     std::cout << " --- time = " << duration << " [s] ---" << std::endl;

@@ -542,7 +542,7 @@ ParArray<int>* DeterminePartitionLayout(ParArray<int>* ien, MPI_Comm comm)
 
 
 // This function determines a map that gets the unique list of elements for that need to be requested from a given rank other than current rank.
-Partition* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, Array<double>* xcn_on_root, ParArray<double>* xcn, MPI_Comm comm)
+Partition2* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, Array<double>* xcn_on_root, ParArray<double>* xcn, MPI_Comm comm)
 {
     
     int q=0;
@@ -558,7 +558,8 @@ Partition* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, Arr
     int v_id;
     Vert V;
     std::vector<Vert> part_verts;
-    
+    std::vector<std::vector<int> > part_elem2verts;
+
     std::map<int,std::vector<int> > elms_to_send_to_ranks;
     std::map<int,std::vector<int> > verts_to_send_to_ranks;   
 
@@ -571,9 +572,9 @@ Partition* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, Arr
 
     std::vector<int> vert_on_rank;
     std::vector<int> part_v;
-    int r    = 0;
+    int r     = 0;
     int lv_id = 0;
-    int f_id=0;
+    int f_id  = 0;
     std::map<int,int> part_uvert_loc2glob;
     std::map<int,int> part_uvert_glob2loc;
     
@@ -581,8 +582,8 @@ Partition* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, Arr
     std::map<int, int> part_fuvert_glob2loc;
     int xcn_o = xcn->getParallelState()->getOffset(rank);
     int xcn_n = xcn->getParallelState()->getNloc(rank);
-    std::map<int,int>v_loc2glob;
-    std::map<int,int>v_glob2loc;
+    std::map<int,int> v_loc2glob;
+    std::map<int,int> v_glob2loc;
     int vloc = 0;
     for(i=0;i<part->getNrow();i++)
     {
@@ -615,7 +616,7 @@ Partition* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, Arr
                     }
                     else
                     {
-                        vert_on_rank.push_back(v_id);  // add the vertex to list that is already available on rank.
+                        vert_on_rank.push_back(v_id); // add the vertex to list that is already available on rank.
                         V.x = xcn->getVal(v_id-xcn_o,0);
                         V.y = xcn->getVal(v_id-xcn_o,1);
                         V.z = xcn->getVal(v_id-xcn_o,2);
@@ -623,7 +624,6 @@ Partition* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, Arr
                         v_loc2glob[vloc]=v_id;
                         v_glob2loc[v_id]=vloc;
                         vloc++;
-                        
                     }
                     lv_id++;
                 }
@@ -631,9 +631,11 @@ Partition* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, Arr
         }
         else // Here we are storing the actual vertices/elements that are required by the current rank.
         {
+            std::vector<int> elem;
             for(int k=0;k<8;k++)// looping over the vertices for element "i".
             {
                 v_id = ien->getVal(i,k);
+                elem.push_back(v_id);
                 if(unique_verts_on_rank_set.find( v_id ) == unique_verts_on_rank_set.end())// find the unique vertices that need to be send to other partitions.
                 {
                     unique_verts_on_rank_set.insert(v_id);
@@ -665,6 +667,7 @@ Partition* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, Arr
                     lv_id++;
                 }
             }
+            part_elem2verts.push_back(elem);
         }
     }
     
@@ -852,44 +855,42 @@ Partition* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, Arr
     }
 
     // Loop over all received vertex IDs in order to determine the remaining required unique vertices on the current rank.
-    
-    
-    for(int i=0;i<TotNelem_recv*8;i++)
+    int Nel_extra = TotNelem_recv;
+    int cnt = 0;
+    for(int i=0;i<TotNelem_recv;i++)
     {
-        int v_id_n = TotRecvElement_IDs_v[i];
-        r = FindRank(xcn->getParallelState()->getOffsets(),size,v_id_n);
-        
-        if(unique_verts_on_rank_set.find( v_id_n ) == unique_verts_on_rank_set.end()) // add the required unique vertex for current rank.
+        std::vector<int> elem;
+        for(int k=0;k<8;k++)
         {
-            unique_verts_on_rank_set.insert(v_id_n);
-            unique_verts_on_rank_vec.push_back(v_id_n);
-            part_uvert_loc2glob[lv_id] = v_id;
-            part_uvert_glob2loc[v_id]  = lv_id;
-            part_v.push_back(r);
+            int v_id_n = TotRecvElement_IDs_v[cnt];
+            elem.push_back(v_id_n);
+            r = FindRank(xcn->getParallelState()->getOffsets(),size,v_id_n);
             
-            if (r!=rank)// check whether this vertex is already present on current rank. if vertex is present on other rank, add it to vert_on_rank map.
+            if(unique_verts_on_rank_set.find( v_id_n ) == unique_verts_on_rank_set.end()) // add the required unique vertex for current rank.
             {
-                rank2req_vert[r].push_back(v_id_n);// add vertex to rank2req_vert map.
-                part_fuvert_loc2glob[f_id]  =v_id_n;
-                part_fuvert_loc2glob[v_id_n]=f_id;
-                f_id++;
+                unique_verts_on_rank_set.insert(v_id_n);
+                unique_verts_on_rank_vec.push_back(v_id_n);
+                part_v.push_back(r);
                 
+                if (r!=rank)// check whether this vertex is already present on current rank. if vertex is present on other rank, add it to vert_on_rank map.
+                {
+                    rank2req_vert[r].push_back(v_id_n); // add vertex to rank2req_vert map.
+                }
+                else
+                {
+                    vert_on_rank.push_back(v_id_n); // add the vertex to list that is already available on rank.
+                    V.x = xcn->getVal(v_id_n-xcn_o,0);
+                    V.y = xcn->getVal(v_id_n-xcn_o,1);
+                    V.z = xcn->getVal(v_id_n-xcn_o,2);
+                    part_verts.push_back(V);
+                    v_loc2glob[vloc]=v_id_n;
+                    v_glob2loc[v_id_n]=vloc;
+                    vloc++;
+                }
             }
-            else
-            {
-                vert_on_rank.push_back(v_id_n);// add the vertex to list that is already available on rank.
-                V.x = xcn->getVal(v_id_n-xcn_o,0);
-                V.y = xcn->getVal(v_id_n-xcn_o,1);
-                V.z = xcn->getVal(v_id_n-xcn_o,2);
-                part_verts.push_back(V);
-                v_loc2glob[vloc]=v_id_n;
-                v_glob2loc[v_id_n]=vloc;
-                vloc++;
-            }
-            
-            
-            lv_id++;
+            cnt++;
         }
+        part_elem2verts.push_back(elem);
     }
     
     std::cout << "unique verts " << lv_id << " " << f_id << " " << vloc << std::endl;
@@ -1117,6 +1118,7 @@ Partition* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, Arr
             
             double* recv_back_arr = new double[n_recv_back*3];
             int* recv_back_arr_ids = new int[n_recv_back];
+            //MPI_Recv(&recv_back_vec[0], n_recv_back, MPI_DOUBLE, q, 9876+rank*888, comm, MPI_STATUS_IGNORE);
             MPI_Recv(&recv_back_arr[0], n_recv_back*3, MPI_DOUBLE, q, 9876+rank*8888, comm, MPI_STATUS_IGNORE);
             MPI_Recv(&recv_back_arr_ids[0], n_recv_back, MPI_INT, q, 8888*9876+rank*8888, comm, MPI_STATUS_IGNORE);
 
@@ -1125,9 +1127,8 @@ Partition* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, Arr
             recv_back_verts_ids[q]  = recv_back_arr_ids;
         }
     }
-//
-    std::map<int,double* >::iterator it_f;
 
+    std::map<int,double* >::iterator it_f;
     for(it_f=recv_back_verts.begin();it_f!=recv_back_verts.end();it_f++)
     {
         int c = 0;
@@ -1136,9 +1137,11 @@ Partition* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, Arr
         {
             v_id = recv_back_verts_ids[it_f->first][u];
             vert_on_rank.push_back(v_id);
+            
             V.x = it_f->second[u*3+0];
             V.y = it_f->second[u*3+1];
             V.z = it_f->second[u*3+2];
+            
             part_verts.push_back(V);
             v_loc2glob[vloc]=v_id;
             v_glob2loc[v_id]=vloc;
@@ -1146,9 +1149,19 @@ Partition* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, Arr
         }
     }
     
-    
-    
+    Partition2* P2 = new Partition2;
+    P2->Verts            = part_verts;
+    P2->loc_elem2verts   = part_elem2verts;
+    P2->v_loc2glob       = v_loc2glob;
+    P2->v_glob2loc       = v_glob2loc;
+    Partition* P = new Partition;
+//    for(int k=0;k<part_verts.size();k++)
+//    {
+//        std::cout << k << " :: " << part_verts[k].x << " " << part_verts[k].y << " " << part_verts[k].z << std::endl;
+//    }
+
     std::cout << "number of unique verts = " << part_verts.size() << " " << vloc << " " << v_loc2glob.size() << " " << v_glob2loc.size() << " " << vert_on_rank.size() << std::endl;
+    std::cout << rank << " has " << part_elem2verts.size() << " elements " <<  std::endl;
 //
     
     
@@ -1202,8 +1215,8 @@ Partition* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, Arr
     
     //std::map<int,std::vector<double> > recv_back_verts;
     
-    Partition* P = new Partition;
-    return P;
+    
+    return P2;
 }
 
 
