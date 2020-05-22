@@ -1633,7 +1633,11 @@ int main(int argc, char** argv) {
     Partition2* part = DetermineElement2ProcMap(ien_copy, part_par, xcn_on_root, xcn, comm);
         duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
      
-    std::cout << " --- time = " << duration << " [s] ---" << std::endl;
+    if(world_rank == 0)
+    {
+        std::cout << " --- time partitioning = " << duration << " [s] ---" << std::endl;
+    }
+    
     //std::cout << "#verts of part " << world_rank << " := " << vert_crds->getNrow() << " " << std::endl;
     //std::cout << " +++ --- " << world_rank << " " << part->glob2loc_Vmap.size() << " " << part->loc2glob_Vmap.size() << " ()()() " << std::endl;
     MPI_Finalize();

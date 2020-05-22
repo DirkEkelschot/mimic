@@ -893,7 +893,7 @@ Partition2* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, Ar
         part_elem2verts.push_back(elem);
     }
     
-    std::cout << "unique verts " << lv_id << " " << f_id << " " << vloc << std::endl;
+    // std::cout << "unique verts " << lv_id << " " << f_id << " " << vloc << std::endl;
     // ==========================================================================================================
     // ==========================================================================================================
     // ==========================================================================================================
@@ -1160,8 +1160,18 @@ Partition2* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, Ar
 //        std::cout << k << " :: " << part_verts[k].x << " " << part_verts[k].y << " " << part_verts[k].z << std::endl;
 //    }
 
-    std::cout << "number of unique verts = " << part_verts.size() << " " << vloc << " " << v_loc2glob.size() << " " << v_glob2loc.size() << " " << vert_on_rank.size() << std::endl;
-    std::cout << rank << " has " << part_elem2verts.size() << " elements " <<  std::endl;
+    //std::cout << "number of unique verts = " << part_verts.size() << " " << vloc << " " << v_loc2glob.size() << " " << v_glob2loc.size() << " " << vert_on_rank.size() << std::endl;
+    //std::cout << rank << " has " << part_elem2verts.size() << " elements " <<  std::endl;
+    
+    int num_elem = part_elem2verts.size();
+    int tot_num_elem = 0;
+    MPI_Allreduce(&num_elem, &tot_num_elem, 1, MPI_INT, MPI_SUM, comm);
+    
+    if (rank == 0)
+    {
+        std::cout << "the total number of elements := " << tot_num_elem << std::endl;
+    }
+
 //
     
     
