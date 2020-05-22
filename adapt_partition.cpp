@@ -893,7 +893,6 @@ Partition2* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, Ar
         part_elem2verts.push_back(elem);
     }
     
-    // std::cout << "unique verts " << lv_id << " " << f_id << " " << vloc << std::endl;
     // ==========================================================================================================
     // ==========================================================================================================
     // ==========================================================================================================
@@ -1135,7 +1134,8 @@ Partition2* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, Ar
         int Nv = recv_back_Nverts[it_f->first];
         for(int u=0;u<Nv;u++)
         {
-            v_id = recv_back_verts_ids[it_f->first][u];
+            v_id = rank2req_vert[it_f->first][u];
+        
             vert_on_rank.push_back(v_id);
             
             V.x = it_f->second[u*3+0];
@@ -1154,7 +1154,7 @@ Partition2* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, Ar
     P2->loc_elem2verts   = part_elem2verts;
     P2->v_loc2glob       = v_loc2glob;
     P2->v_glob2loc       = v_glob2loc;
-    Partition* P = new Partition;
+        
 //    for(int k=0;k<part_verts.size();k++)
 //    {
 //        std::cout << k << " :: " << part_verts[k].x << " " << part_verts[k].y << " " << part_verts[k].z << std::endl;
@@ -1169,7 +1169,7 @@ Partition2* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, Ar
     
     if (rank == 0)
     {
-        std::cout << "the total number of elements := " << tot_num_elem << std::endl;
+        std::cout << "the total number of elements := " << tot_num_elem << " = " << ien->getNglob() << std::endl;
     }
 
 //
