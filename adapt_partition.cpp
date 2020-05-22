@@ -878,12 +878,12 @@ Partition* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, Arr
             else
             {
                 vert_on_rank.push_back(v_id_n);// add the vertex to list that is already available on rank.
-                V.x = xcn->getVal(v_id-xcn_o,0);
-                V.y = xcn->getVal(v_id-xcn_o,1);
-                V.z = xcn->getVal(v_id-xcn_o,2);
+                V.x = xcn->getVal(v_id_n-xcn_o,0);
+                V.y = xcn->getVal(v_id_n-xcn_o,1);
+                V.z = xcn->getVal(v_id_n-xcn_o,2);
                 part_verts.push_back(V);
-                v_loc2glob[vloc]=v_id;
-                v_glob2loc[v_id]=vloc;
+                v_loc2glob[vloc]=v_id_n;
+                v_glob2loc[v_id_n]=vloc;
                 vloc++;
             }
             
@@ -892,7 +892,7 @@ Partition* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, Arr
         }
     }
     
-    std::cout << "unique verts " << lv_id << " " << f_id << std::endl;
+    std::cout << "unique verts " << lv_id << " " << f_id << " " << vloc << std::endl;
     // ==========================================================================================================
     // ==========================================================================================================
     // ==========================================================================================================
@@ -901,7 +901,7 @@ Partition* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, Arr
     // However we are still missing the vertex coordinate data which is spread out equally over the available procs.
     // This rank2req_vert map essentially holds this information by mapping the rank_id from which we need to request a list/vector of vertex ids (hence the name "rank2req_vert" name.
     
-    // At this point the perspective changes. When we were figuring out the layout of the elements, we knew the partition ID for each element on the current rank. This means that from the current rank, we needed to send a certain element to another rank since it is more logical to reside there. For the vertices this changes since we just figured out which vertices are required on the current rank. The logic here is first to send for each the current rank a list/vector<int> of vertex IDs that is requested from another rank. The other rank assembles the a list of the required coordinates and sends it back.
+    // At this point the perspective changes. When we were figuring out the layout of the elements, we knew the partition ID for each element on the current rank. This means that from the current rank, we needed to send a certain element to another rank since it is more logical to reside there. For the vertices this changes since we just figured out which vertices are required on the current rank. The logic here is first to send for each the current rank a list/vector<int> of vertex IDs that is requested from another rank. The other rank assembles the list of the required coordinates and sends it back.
     
     // ==========================================================================================================
     // ==========================================================================================================
@@ -977,36 +977,6 @@ Partition* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, Arr
                    &sendNvertFromRank2Rank_Global[0],
                    reduced_nRank_reqVerts, reduced_nRank_reqVerts_offset, MPI_INT,comm);
     
-    
-    
-//
-//    std::map<int, set<int> > sendFromRank2Rank_e;
-//    std::map<int, std::vector<int> > recvRankFromRank_map_e;
-//    std::map<int, std::vector<int> > recvRankFromRank_map_Nelem_e;
-//
-//    //=========================================
-//    for(i=0;i<size;i++)
-//    {
-//        int of = reduced_nRank_reqElems_offset[i];
-//        int nl = reduced_nRank_reqElems[i];
-//        for(int j=of+1;j<of+nl;j++)
-//        {
-//            sendFromRank2Rank_e[sendFromRank2Rank_elem_Global[of]].insert(sendFromRank2Rank_elem_Global[j]);
-//            recvRankFromRank_map_e[sendFromRank2Rank_elem_Global[j]].push_back(sendFromRank2Rank_elem_Global[of]);
-//            recvRankFromRank_map_Nelem_e[sendFromRank2Rank_elem_Global[j]].push_back(sendNelemFromRank2Rank_Global[j]);
-//        }
-//    }
-//
-//    std::map<int,std::map<int,int> > RecvAlloc_map_e;
-//    for(it=recvRankFromRank_map_e.begin();it!=recvRankFromRank_map_e.end();it++)
-//    {
-//        for(int k=0;k<it->second.size();k++)
-//        {
-//            RecvAlloc_map_e[it->first][recvRankFromRank_map_e[it->first][k]] = recvRankFromRank_map_Nelem_e[it->first][k];
-//        }
-//    }
-//
-//
 
     std::map<int, set<int> > sendFromRank2Rank_v_set;
     std::map<int, std::vector<int> > recvRankFromRank_map_v_vec;
@@ -1110,6 +1080,7 @@ Partition* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, Arr
     int nloc_xcn = 0;
     std::map<int,int  > recv_back_Nverts;
     std::map<int,double* > recv_back_verts;
+    std::map<int,int* > recv_back_verts_ids;
     int n_recv_back;
     //double* recv_back_arr = new double[10];
     
@@ -1120,24 +1091,23 @@ Partition* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, Arr
         {
             for (it = reqstd_ids_per_rank.begin(); it != reqstd_ids_per_rank.end(); it++)
             {
-                int nv_send = it->second.size()*3;
-                double* vert_send = new double[nv_send];
-                offset_xcn = xcn->getParallelState()->getOffset(rank);
-                nloc_xcn = xcn->getParallelState()->getNloc(rank);
+                int nv_send = it->second.size();
+                double* vert_send = new double[nv_send*3];
+                offset_xcn        = xcn->getParallelState()->getOffset(rank);
+                nloc_xcn          = xcn->getParallelState()->getNloc(rank);
                 for(int u=0;u<it->second.size();u++)
                 {
                     vert_send[u*3+0]=xcn->getVal(it->second[u]-offset_xcn,0);
                     vert_send[u*3+1]=xcn->getVal(it->second[u]-offset_xcn,1);
                     vert_send[u*3+2]=xcn->getVal(it->second[u]-offset_xcn,2);
-                    //std::cout << vert_send[u*3+0] << " " << vert_send[u*3+1] << " " << vert_send[u*3+2] << std::endl;
                 }
                 
                 int dest = it->first;
                 MPI_Send(&nv_send, 1, MPI_INT, dest, 9876+1000*dest, comm);
-                //MPI_Send(&vert_send[0], nv_send, MPI_DOUBLE, dest, 9876+dest*888, comm);
+                // MPI_Send(&vert_send[0], nv_send, MPI_DOUBLE, dest, 9876+dest*888, comm);
             
-                
-                MPI_Send(&vert_send[0], nv_send, MPI_DOUBLE, dest, 9876+dest*8888, comm);
+                MPI_Send(&vert_send[0], nv_send*3, MPI_DOUBLE, dest, 9876+dest*8888, comm);
+                MPI_Send(&it->second[0], it->second.size(), MPI_INT, dest, 8888*9876+dest*8888,comm);
                 delete[] vert_send;
             }
         }
@@ -1145,22 +1115,27 @@ Partition* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, Arr
         {
             MPI_Recv(&n_recv_back, 1, MPI_INT, q, 9876+1000*rank, comm, MPI_STATUS_IGNORE);
             
-            double* recv_back_arr = new double[n_recv_back];
-            //MPI_Recv(&recv_back_vec[0], n_recv_back, MPI_DOUBLE, q, 9876+rank*888, comm, MPI_STATUS_IGNORE);
-            MPI_Recv(&recv_back_arr[0], n_recv_back, MPI_DOUBLE, q, 9876+rank*8888, comm, MPI_STATUS_IGNORE);
+            double* recv_back_arr = new double[n_recv_back*3];
+            int* recv_back_arr_ids = new int[n_recv_back];
+            MPI_Recv(&recv_back_arr[0], n_recv_back*3, MPI_DOUBLE, q, 9876+rank*8888, comm, MPI_STATUS_IGNORE);
+            MPI_Recv(&recv_back_arr_ids[0], n_recv_back, MPI_INT, q, 8888*9876+rank*8888, comm, MPI_STATUS_IGNORE);
+
             recv_back_Nverts[q] = n_recv_back;
             recv_back_verts[q]  = recv_back_arr;
+            recv_back_verts_ids[q]  = recv_back_arr_ids;
         }
     }
+//
     std::map<int,double* >::iterator it_f;
-    
+
     for(it_f=recv_back_verts.begin();it_f!=recv_back_verts.end();it_f++)
-    {int c = 0;
-        int Nv = recv_back_Nverts[it_f->first]/3;
+    {
+        int c = 0;
+        int Nv = recv_back_Nverts[it_f->first];
         for(int u=0;u<Nv;u++)
         {
-            v_id = reqstd_ids_per_rank[it_f->first][u];
-            
+            v_id = recv_back_verts_ids[it_f->first][u];
+            vert_on_rank.push_back(v_id);
             V.x = it_f->second[u*3+0];
             V.y = it_f->second[u*3+1];
             V.z = it_f->second[u*3+2];
@@ -1171,6 +1146,10 @@ Partition* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, Arr
         }
     }
     
+    
+    
+    std::cout << "number of unique verts = " << part_verts.size() << " " << vloc << " " << v_loc2glob.size() << " " << v_glob2loc.size() << " " << vert_on_rank.size() << std::endl;
+//
     
     
     // ==========================================================================================================
