@@ -376,7 +376,7 @@ double ComputeDeterminantJ(double*P, int np)
 }
 
 
-Array<double>* ComputeHessian(Partition* pa)
+Array<double>* ComputeHessian(Partition_old* pa)
 {
     int ndim = pa->ndim;
     Array<double>* H = new Array<double>(pa->ien->getNrow(),ndim);
@@ -385,7 +385,7 @@ Array<double>* ComputeHessian(Partition* pa)
 }
 
 
-Array<double>* ComputeDeterminantofJacobian(Partition* pa)
+Array<double>* ComputeDeterminantofJacobian(Partition_old* pa)
 {
     
     int np = 8; // Assuming its all hexes.

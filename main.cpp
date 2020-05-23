@@ -1630,13 +1630,22 @@ int main(int argc, char** argv) {
     double duration;
     start = std::clock();
     ParArray<int>* part_par  = DeterminePartitionLayout(ien_copy,comm);
-    Partition2* part = DetermineElement2ProcMap(ien_copy, part_par, xcn_on_root, xcn, comm);
+    Partition* part = DetermineElement2ProcMap(ien_copy, part_par, xcn_on_root, xcn, comm);
         duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
      
     if(world_rank == 0)
     {
         std::cout << " --- time partitioning = " << duration << " [s] ---" << std::endl;
     }
+    
+    OutputZone(part,comm);
+    
+    
+    
+    
+    
+    
+    
     
     //std::cout << "#verts of part " << world_rank << " := " << vert_crds->getNrow() << " " << std::endl;
     //std::cout << " +++ --- " << world_rank << " " << part->glob2loc_Vmap.size() << " " << part->loc2glob_Vmap.size() << " ()()() " << std::endl;

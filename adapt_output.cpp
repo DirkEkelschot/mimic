@@ -2,7 +2,49 @@
 
 using namespace std;
 
-void OutputQuantityPartition(Partition* pa, Array<double>* Quan, MPI_Comm comm)
+void OutputZone(Partition* part, MPI_Comm comm)
+{
+    
+    int size;
+    MPI_Comm_size(comm, &size);
+    // Get the rank of the process
+    int rank;
+    MPI_Comm_rank(comm, &rank);
+    int nloc = part->loc_elem2verts_loc->getNrow();
+    int ncol = part->loc_elem2verts_loc->getNcol();
+    string filename = "quantity_rank_" + std::to_string(rank) + ".dat";
+    ofstream myfile;
+    myfile.open(filename);
+    myfile << "TITLE=\"volume_part_"  + std::to_string(rank) +  ".tec\"" << std::endl;
+    myfile <<"VARIABLES = \"X\", \"Y\", \"Z\"" << std::endl;
+    int nvert =  part->Verts.size();
+
+    myfile <<"ZONE N = " << nvert << ", E = " << nloc << ", DATAPACKING = POINT, ZONETYPE = FEBRICK" << std::endl;
+    std::cout << rank << " number of nodes -> " << nvert << std::endl;
+    for(int i=0;i<nvert;i++)
+    {
+       myfile << part->Verts[i].x << "   " << part->Verts[i].y << "   " << part->Verts[i].z << "   " << std::endl;
+    }
+    
+
+    
+    for(int i=0;i<nloc;i++)
+    {
+       myfile << part->loc_elem2verts_loc->getVal(i,0) << "  " <<
+                 part->loc_elem2verts_loc->getVal(i,1) << "  " <<
+                 part->loc_elem2verts_loc->getVal(i,2) << "  " <<
+                 part->loc_elem2verts_loc->getVal(i,3) << "  " <<
+                 part->loc_elem2verts_loc->getVal(i,4) << "  " <<
+                 part->loc_elem2verts_loc->getVal(i,5) << "  " <<
+                 part->loc_elem2verts_loc->getVal(i,6) << "  " <<
+                 part->loc_elem2verts_loc->getVal(i,7) << std::endl;
+    }
+    
+    
+    myfile.close();
+}
+
+void OutputQuantityPartition(Partition_old* pa, Array<double>* Quan, MPI_Comm comm)
 {
     int size;
     MPI_Comm_size(comm, &size);
@@ -95,7 +137,7 @@ void OutputPartionVolumes(ParArray<int>* ien, Array<double>* xcn_on_root, MPI_Co
     // Get the rank of the process
     int rank;
     MPI_Comm_rank(comm, &rank);
-    Partition* pv = CollectVerticesPerRank(ien,xcn_on_root,comm);
+    Partition_old* pv = CollectVerticesPerRank(ien,xcn_on_root,comm);
     
     int nrow = ien->getNrow();
     int ncol = ien->getNcol();

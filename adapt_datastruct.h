@@ -109,7 +109,7 @@ struct LocalPartitionData
 
 
 
-struct Partition
+struct Partition_old
 {
     
     int ndim;
@@ -129,11 +129,12 @@ struct Partition
 
 
 
-struct Partition2
+struct Partition
 {
     int ndim;
     std::vector<Vert> Verts;
-    std::vector<std::vector<int> > loc_elem2verts;
+    Array<int>* loc_elem2verts_glob;
+    Array<int>* loc_elem2verts_loc;
     std::map<int,int> v_loc2glob;
     std::map<int,int> v_glob2loc;
     int* xadj;
