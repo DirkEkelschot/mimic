@@ -38,6 +38,8 @@ inline ParallelState::ParallelState(int N, MPI_Comm c)
     //  compute offset of rows for each proc;
     int offset           = rank*int(N/size) + MIN(rank, N%size);
      
+    
+    // Version 1 //
     int* proc_nlocs                 = new int[size];
     int* proc_offset                = new int[size];
     nlocs                           = new int[size];
@@ -59,9 +61,15 @@ inline ParallelState::ParallelState(int N, MPI_Comm c)
             proc_offset[i] = 0;
         }
     }
-     
     MPI_Allreduce(proc_nlocs,  nlocs,   size, MPI_INT, MPI_SUM, comm);
     MPI_Allreduce(proc_offset, offsets, size, MPI_INT, MPI_SUM, comm);
+    
+    // Version 2 //
+    /*
+    MPI_Allgather(&nloc,1,MPI_INT,nlocs,1,MPI_INT,comm);
+    MPI_Allgather(&offset,1,MPI_INT,offsets,1,MPI_INT,comm);
+    */
+    
      
 }// This is the constructor
 

@@ -1602,18 +1602,25 @@ int main(int argc, char** argv) {
 
   //  Array<double>*   xcn_on_root  = ReadDataSetFromFileInParallelToRoot<double>(fn_grid,"xcn",comm,info);
     
-    Array<int>* ien = ReadDataSetFromFileInParallel<int>(fn_conn,"ien",comm,info);
+    ParArray<int>* ien = ReadDataSetFromFileInParallel<int>(fn_conn,"ien",comm,info);
+    
+    
+    std::clock_t startr2;
+    ParallelState* pstate = new ParallelState(ien->getNglob(),comm);
+    
     //MPI_Barrier(comm);
     //ParArray<double>* xcn = ReadDataSetFromFileInParallel<double>(fn_grid,"xcn",comm,info);
     //MPI_Barrier(comm);
     double durationr = ( std::clock() - startr ) / (double) CLOCKS_PER_SEC;
+    double durationr2 = ( std::clock() - startr ) / (double) CLOCKS_PER_SEC;
+
     double tmax = 0;
     MPI_Allreduce(&durationr, &tmax, 1, MPI_DOUBLE, MPI_MAX, comm);
-
-    
+    double tmax2 = 0;
+    MPI_Allreduce(&durationr2, &tmax2, 1, MPI_DOUBLE, MPI_MAX, comm);
     if(world_rank == 0)
     {
-	std::cout << tmax << std::endl;
+	std::cout << tmax << " " << tmax2 << std::endl;
     }
     /*
     int nglob = ien->getNglob();

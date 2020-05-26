@@ -261,6 +261,8 @@ ParArrayOnRoot* GatherVecToRoot(std::vector<int> locvec, MPI_Comm comm)
     return parr_root;
 }
 
+
+/*
 int* GetPartitionInfo(ParArray<int>* ien, Array<double>* xcn_r, MPI_Comm comm)
 {
     int i=0;
@@ -351,6 +353,8 @@ int* GetPartitionInfo(ParArray<int>* ien, Array<double>* xcn_r, MPI_Comm comm)
     delete[] part;
     return part_collect_on_root;
 }
+ 
+*/
 
 Partition_old* CollectVerticesPerRank(ParArray<int>* ien, Array<double>* xcn_r, MPI_Comm comm)
 {

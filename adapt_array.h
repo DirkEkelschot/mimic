@@ -57,7 +57,7 @@ template <typename T> class ParArray : public Array<T>
     public:
         ParArray(int N, int c, MPI_Comm comm): Array<T>()
         {
-            //pstate = new ParallelState(N,comm);
+            pstate = new ParallelState(N,comm);
             int size;
             MPI_Comm_size(comm, &size);
             int rank;
@@ -70,6 +70,10 @@ template <typename T> class ParArray : public Array<T>
             this->spanArray(nloc,c);
             
             nglob = N;
+        }
+        ParallelState* getParallelState()
+        {
+            return pstate;
         }
         int getNglob( void )
         {
@@ -84,6 +88,7 @@ template <typename T> class ParArray : public Array<T>
  	    return nloc;
         }
     private:
+        ParallelState* pstate;
         int nloc;
         int offset;
         int nglob;
