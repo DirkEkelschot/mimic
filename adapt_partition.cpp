@@ -260,8 +260,6 @@ ParArrayOnRoot* GatherVecToRoot(std::vector<int> locvec, MPI_Comm comm)
     
     return parr_root;
 }
-
-
 /*
 int* GetPartitionInfo(ParArray<int>* ien, Array<double>* xcn_r, MPI_Comm comm)
 {
@@ -353,9 +351,7 @@ int* GetPartitionInfo(ParArray<int>* ien, Array<double>* xcn_r, MPI_Comm comm)
     delete[] part;
     return part_collect_on_root;
 }
- 
 */
-
 Partition_old* CollectVerticesPerRank(ParArray<int>* ien, Array<double>* xcn_r, MPI_Comm comm)
 {
     int size;
@@ -544,7 +540,7 @@ ParArray<int>* DeterminePartitionLayout(ParArray<int>* ien, MPI_Comm comm)
     
 }
 
-
+/*================================================================================
 // This function determines a map that gets the unique list of elements for that need to be requested from a given rank other than current rank.
 Partition* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, ParArray<double>* xcn, MPI_Comm comm)
 {
@@ -1256,7 +1252,7 @@ Partition* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, Par
         std::cout << "the total number of elements := " << tot_num_elem << " " << ien->getNglob() << std::endl;
     }
     
-    
+    */
     
     /*
 
@@ -1300,7 +1296,7 @@ Partition* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, Par
     Partition2* P2 = new Partition2;
     MPI_Scatterv(&verts[0], nlocs_scat, offset_scat, MPI_DOUBLE, &Verts_loc->data[0], unique_verts_on_rank_vec.size()*3, MPI_DOUBLE, 0, comm);
     */ 
-    
+    /*
     //delete[] verts;
     //delete[] nlocs_scat;
     //delete[] offset_scat;
@@ -1315,9 +1311,9 @@ Partition* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, Par
     
     
     return P;
-}
+}*/
 
-
+/*
 Partition_old* CollectElementsPerRank(ParArray<int>* ien, Array<int>* ien_root, MPI_Comm comm)
 {
     int i;
@@ -1361,7 +1357,7 @@ Partition_old* CollectElementsPerRank(ParArray<int>* ien, Array<int>* ien_root, 
                           pstate_parmetis->getEind(),
                           numflag,ncommonnodes,
                           &xadj,&adjncy,&comm);
-    /*
+  */  /*
     ParMETIS_V3_PartKway(pstate_parmetis->getElmdist(),
                          xadj,
                          adjncy,
@@ -1413,7 +1409,7 @@ Partition_old* CollectElementsPerRank(ParArray<int>* ien, Array<int>* ien_root, 
 		std::cout << std::endl;
 	}
     }
-    */
+    *//*
     //std::cout << rank << " nloc " << nloc << std::endl; 
     //if(rank == 1)
     //{
@@ -1446,7 +1442,7 @@ Partition_old* CollectElementsPerRank(ParArray<int>* ien, Array<int>* ien_root, 
                    part_arr->getParallelState()->getNlocs(),
                    part_arr->getParallelState()->getOffsets(),
                    MPI_INT, 0, comm);
-    /*
+    *//*
     MPI_Allgatherv(&part_arr->data[0],
                      nloc,
                      MPI_INT,
@@ -1454,7 +1450,7 @@ Partition_old* CollectElementsPerRank(ParArray<int>* ien, Array<int>* ien_root, 
                      part_arr->getParallelState()->getNlocs(),
                      part_arr->getParallelState()->getOffsets(),
                      MPI_INT, comm);
-    */
+    *//*
     //ParArrayOnRoot* gRoot = GatherArrToRoot(part, nloc, comm);
     //=================================================================
     //=================================================================
@@ -1551,7 +1547,7 @@ Partition_old* CollectElementsPerRank(ParArray<int>* ien, Array<int>* ien_root, 
     
     return parti;
 }
-
+*/
 
 
 void Example3DPartitioning(MPI_Comm comm)
