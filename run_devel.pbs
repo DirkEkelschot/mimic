@@ -1,7 +1,7 @@
 #PBS -S /bin/bash
 #PBS -N us3d_run 
 #PBS -q devel
-#PBS -l select=20:ncpus=28:model=bro
+#PBS -l select=160:ncpus=28:model=bro
 #PBS -l walltime=2:00:00
 #PBS -j oe
 #PBS -W group_list=e1305

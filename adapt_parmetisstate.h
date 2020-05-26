@@ -106,11 +106,12 @@ inline ParallelState_Parmetis::ParallelState_Parmetis(ParArray<int>* e2n, MPI_Co
     {
         eptr[i+1]  = eptr[i]+type;
         
-        for(int j=eptr[i];j<eptr[i+1];j++)
-        {
-            eind[j] = e2n->data[j];
-        }
+//        for(int j=eptr[i];j<eptr[i+1];j++)
+//        {
+//            eind[j] = e2n->data[j];
+//        }
     }
+    eind = e2n->data;
     
     // The constructor builds the following arrays:
     // elmdist

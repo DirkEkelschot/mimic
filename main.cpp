@@ -1165,7 +1165,7 @@ void GetAdjacencyForUS3D_V2(ParArray<int>* ief, int nelem, MPI_Comm comm)
 
     int nrow = ief->getNrow();
     int ncol = ief->getNcol();
-    int offset = ief->getParallelState()->getOffset(world_rank);
+    int offset = ief->getOffset(world_rank);
     for(int i=0;i<nrow;i++)
     {
         for(int j=0;j<ncol-1;j++)
@@ -1319,8 +1319,8 @@ LocalPartitionData* GetPartitionData(Array<double>* xcn, ParArray<int>* ien, MPI
     int val = 0;
     for(int i=0;i<nrow;i++)
     {
-        Loc2GlobElement[i] = ien->getParallelState()->getOffset(rank)+i;
-        Glob2LocElement[ien->getParallelState()->getOffset(rank)+i] = i;
+        Loc2GlobElement[i] = ien->getOffset(rank)+i;
+        Glob2LocElement[ien->getOffset(rank)+i] = i;
         
         for(int j=0;j<(ncol-1);j++)
         {
@@ -1581,7 +1581,8 @@ int main(int argc, char** argv) {
     // Get the rank of the process
     int world_rank;
     MPI_Comm_rank(comm, &world_rank);
-    
+    std::clock_t startr;
+    startr = std::clock(); 
     //  GetXadjandAdjcyArrays(iee,ien,comm);
     //  Example3DPartitioningWithParVarParMetis();
     //  ExampleUS3DPartitioningWithParVarParMetis();
@@ -1589,8 +1590,8 @@ int main(int argc, char** argv) {
 //============================================================
     
     //const char* fn_conn="grids/piston/conn.h5";
-    const char* fn_conn="grids/piston/conn.h5";
-    const char* fn_grid="grids/piston/grid.h5";
+    const char* fn_conn="grids/adept/conn.h5";
+    const char* fn_grid="grids/adept/grid.h5";
     //const char* fn_data="grids/adept/data.h5";
     
     /*
@@ -1599,11 +1600,22 @@ int main(int argc, char** argv) {
     PlotBoundaryData(znames,zdefs,comm);
     */
 
-    Array<double>*   xcn_on_root  = ReadDataSetFromFileInParallelToRoot<double>(fn_grid,"xcn",comm,info);
+  //  Array<double>*   xcn_on_root  = ReadDataSetFromFileInParallelToRoot<double>(fn_grid,"xcn",comm,info);
     
-    ParArray<int>* ien = ReadDataSetFromFileInParallel<int>(fn_conn,"ien",comm,info);
-    ParArray<double>* xcn = ReadDataSetFromFileInParallel<double>(fn_grid,"xcn",comm,info);
+    Array<int>* ien = ReadDataSetFromFileInParallel<int>(fn_conn,"ien",comm,info);
+    //MPI_Barrier(comm);
+    //ParArray<double>* xcn = ReadDataSetFromFileInParallel<double>(fn_grid,"xcn",comm,info);
+    //MPI_Barrier(comm);
+    double durationr = ( std::clock() - startr ) / (double) CLOCKS_PER_SEC;
+    double tmax = 0;
+    MPI_Allreduce(&durationr, &tmax, 1, MPI_DOUBLE, MPI_MAX, comm);
 
+    
+    if(world_rank == 0)
+    {
+	std::cout << tmax << std::endl;
+    }
+    /*
     int nglob = ien->getNglob();
     int nrow  = ien->getNrow();
     int ncol  = ien->getNcol()-1;
@@ -1617,7 +1629,7 @@ int main(int argc, char** argv) {
             ien_copy->setVal(i,j,ien->getVal(i,j+1)-1);
         }
     }
-    
+    delete ien; 
     
     
 //    ParArray<double>* boundaries = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_6","boundaries",comm,info);
@@ -1625,21 +1637,27 @@ int main(int argc, char** argv) {
     //TestFindRank(comm);
     
     
+    std::clock_t start,start2;
+    double duration, duration2;
+    for(int i =0;i<10;i++)
+    {
     
-    std::clock_t start;
-    double duration;
     start = std::clock();
     ParArray<int>* part_par  = DeterminePartitionLayout(ien_copy,comm);
-    Partition* part = DetermineElement2ProcMap(ien_copy, part_par, xcn_on_root, xcn, comm);
-        duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
-     
-    if(world_rank == 0)
+    MPI_Barrier(comm);
+    start2 = std::clock();
+    Partition* part = DetermineElement2ProcMap(ien_copy, part_par, xcn, comm);
+    MPI_Barrier(comm);  
+    duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
+      duration2 = ( std::clock() - start2 ) / (double) CLOCKS_PER_SEC;
+    if(world_rank < 10)
     {
-        std::cout << " --- time partitioning = " << duration << " [s] ---" << std::endl;
+	std::cout << " times = " << duration << " " << duration2 << std::endl;
+        //std::cout << " --- times = " << durationr << " "  << duration << " " <<  duration2 << std::endl;
     }
-    
-    OutputZone(part,comm);
-    
+    }
+    //OutputZone(part,comm);
+    */ 
     
     
     
@@ -1651,9 +1669,9 @@ int main(int argc, char** argv) {
     //std::cout << " +++ --- " << world_rank << " " << part->glob2loc_Vmap.size() << " " << part->loc2glob_Vmap.size() << " ()()() " << std::endl;
     MPI_Finalize();
     
-    delete ien;
-    delete ien_copy;
-    delete xcn_on_root;
+    //delete ien;
+    //delete ien_copy;
+    //delete xcn_on_root;
     
     return 0;
      

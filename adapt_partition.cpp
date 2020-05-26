@@ -542,7 +542,7 @@ ParArray<int>* DeterminePartitionLayout(ParArray<int>* ien, MPI_Comm comm)
 
 
 // This function determines a map that gets the unique list of elements for that need to be requested from a given rank other than current rank.
-Partition* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, Array<double>* xcn_on_root, ParArray<double>* xcn, MPI_Comm comm)
+Partition* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, ParArray<double>* xcn, MPI_Comm comm)
 {
     
     int q=0;
@@ -580,17 +580,18 @@ Partition* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, Arr
     
     std::map<int, int> part_fuvert_loc2glob;
     std::map<int, int> part_fuvert_glob2loc;
-    int xcn_o = xcn->getParallelState()->getOffset(rank);
-    int xcn_n = xcn->getParallelState()->getNloc(rank);
+    int xcn_o = xcn->getOffset(rank);
+    int xcn_n = xcn->getNloc(rank);
     std::map<int,int> v_loc2glob;
     std::map<int,int> v_glob2loc;
     int vloc = 0;
     std::vector<int> loc_elem;
-    int ien_o = part->getParallelState()->getOffset(rank);
+    int ien_o = part->getOffset(rank);
+
     for(i=0;i<part->getNrow();i++)
     {
         p_id  = part->getVal(i,0);
-        el_id = part->getParallelState()->getOffset(rank)+i;
+        el_id = part->getOffset(rank)+i;
 
         if(p_id!=rank) // If element is not on this rank and needs to be send to other rank (p_id), add it to rank to element map.
         {
@@ -1084,8 +1085,8 @@ Partition* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, Arr
             {
                 int nv_send = it->second.size();
                 double* vert_send = new double[nv_send*3];
-                offset_xcn        = xcn->getParallelState()->getOffset(rank);
-                nloc_xcn          = xcn->getParallelState()->getNloc(rank);
+                offset_xcn        = xcn->getOffset(rank);
+                nloc_xcn          = xcn->getNloc(rank);
                 for(int u=0;u<it->second.size();u++)
                 {
                     vert_send[u*3+0]=xcn->getVal(it->second[u]-offset_xcn,0);

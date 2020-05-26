@@ -57,28 +57,35 @@ template <typename T> class ParArray : public Array<T>
     public:
         ParArray(int N, int c, MPI_Comm comm): Array<T>()
         {
-            pstate = new ParallelState(N,comm);
+            //pstate = new ParallelState(N,comm);
             int size;
             MPI_Comm_size(comm, &size);
             int rank;
             MPI_Comm_rank(comm, &rank);
             
-            int r = pstate->getNloc(rank);
+            nloc             = int(N/size) + ( rank < N%size );
+            //  compute offset of rows for each proc;
+            offset           = rank*int(N/size) + MIN(rank, N%size); 
             
-            this->spanArray(r,c);
+            this->spanArray(nloc,c);
             
             nglob = N;
-        }
-        ParallelState* getParallelState( void )
-        {
-            return pstate;
         }
         int getNglob( void )
         {
             return nglob;
         }
+        int getOffset(int rank)
+	{
+	    return offset;
+	}
+        int getNloc(int rank)
+        {
+ 	    return nloc;
+        }
     private:
-        ParallelState* pstate;
+        int nloc;
+        int offset;
         int nglob;
 };
 
