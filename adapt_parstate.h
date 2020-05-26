@@ -38,13 +38,10 @@ inline ParallelState::ParallelState(int N, MPI_Comm c)
     //  compute offset of rows for each proc;
     int offset           = rank*int(N/size) + MIN(rank, N%size);
      
-    //int* proc_nlocs                 = new int[size];
-    //int* proc_offset                = new int[size];
+    int* proc_nlocs                 = new int[size];
+    int* proc_offset                = new int[size];
     nlocs                           = new int[size];
     offsets                         = new int[size];
-    
-int* proc_offset                = new int[size];
-int* proc_nlocs                 = new int[size];
     //std::cout << offset << std::endl;
     for(int i=0;i<size;i++)
     {
@@ -65,9 +62,7 @@ int* proc_nlocs                 = new int[size];
      
     MPI_Allreduce(proc_nlocs,  nlocs,   size, MPI_INT, MPI_SUM, comm);
     MPI_Allreduce(proc_offset, offsets, size, MPI_INT, MPI_SUM, comm);
-    
-    //MPI_Allgather(&nloc, 1, MPI_INT, nlocs, 1, MPI_INT, comm);
-    //MPI_Allgather(&offset, 1, MPI_INT, offsets, 1, MPI_INT, comm);
+     
 }// This is the constructor
 
 inline int* ParallelState::getOffsets( void )

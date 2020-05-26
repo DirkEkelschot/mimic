@@ -1093,8 +1093,8 @@ void Example3DPartitioningWithParVarParMetis()
 //For now this map is read in from us3d grid data files but could potentially be used in general.
 //
 
-
 /*
+
 void GetAdjacencyForUS3D(Array<int>* ife, ParArray<int>* ief, int nelem, MPI_Comm comm)
 {
     
@@ -1581,7 +1581,6 @@ int main(int argc, char** argv) {
     // Get the rank of the process
     int world_rank;
     MPI_Comm_rank(comm, &world_rank);
-    //MPI_Barrier(comm);
     std::clock_t startr;
     startr = std::clock(); 
     //  GetXadjandAdjcyArrays(iee,ien,comm);
@@ -1603,25 +1602,18 @@ int main(int argc, char** argv) {
 
   //  Array<double>*   xcn_on_root  = ReadDataSetFromFileInParallelToRoot<double>(fn_grid,"xcn",comm,info);
     
-    ParArray<int>* ien = ReadDataSetFromFileInParallel<int>(fn_conn,"ien",comm,info);
+    Array<int>* ien = ReadDataSetFromFileInParallel<int>(fn_conn,"ien",comm,info);
+    //MPI_Barrier(comm);
+    //ParArray<double>* xcn = ReadDataSetFromFileInParallel<double>(fn_grid,"xcn",comm,info);
     //MPI_Barrier(comm);
     double durationr = ( std::clock() - startr ) / (double) CLOCKS_PER_SEC;
-    std::clock_t startr2 = std::clock();
-    ParArray<double>* xcn = ReadDataSetFromFileInParallel<double>(fn_grid,"xcn",comm,info);
-    //MPI_Barrier(comm);
-    double durationr2 = ( std::clock() - startr2 ) / (double) CLOCKS_PER_SEC;
-    double tmax = 0.0;
+    double tmax = 0;
     MPI_Allreduce(&durationr, &tmax, 1, MPI_DOUBLE, MPI_MAX, comm);
-    double tmax2 = 0.0;
-    MPI_Allreduce(&durationr2, &tmax2, 1, MPI_DOUBLE, MPI_MAX, comm);
-    std::clock_t startr3 = std::clock();
-    ParallelState* pstate = new ParallelState(ien->getNglob(),comm);
-    double durationr3 = ( std::clock() - startr3 ) / (double) CLOCKS_PER_SEC;
-    double tmax3 = 0.0;
-    MPI_Allreduce(&durationr3, &tmax3, 1, MPI_DOUBLE, MPI_MAX, comm);
+
+    
     if(world_rank == 0)
     {
-	std::cout << tmax << " " << tmax2 << " " << tmax3 << " " << ien->getNglob() << std::endl;
+	std::cout << tmax << std::endl;
     }
     /*
     int nglob = ien->getNglob();

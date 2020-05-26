@@ -66,7 +66,7 @@ template <typename T> class ParArray : public Array<T>
             nloc             = int(N/size) + ( rank < N%size );
             //  compute offset of rows for each proc;
             offset           = rank*int(N/size) + MIN(rank, N%size); 
-            //pstate = new ParallelState(N,comm); 
+            
             this->spanArray(nloc,c);
             
             nglob = N;
@@ -84,7 +84,6 @@ template <typename T> class ParArray : public Array<T>
  	    return nloc;
         }
     private:
-        ParallelState* pstate;
         int nloc;
         int offset;
         int nglob;
