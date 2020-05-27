@@ -30,14 +30,14 @@ void OutputZone(Partition* part, MPI_Comm comm)
     
     for(int i=0;i<nloc;i++)
     {
-       myfile << part->loc_elem2verts_loc->getVal(i,0) << "  " <<
-                 part->loc_elem2verts_loc->getVal(i,1) << "  " <<
-                 part->loc_elem2verts_loc->getVal(i,2) << "  " <<
-                 part->loc_elem2verts_loc->getVal(i,3) << "  " <<
-                 part->loc_elem2verts_loc->getVal(i,4) << "  " <<
-                 part->loc_elem2verts_loc->getVal(i,5) << "  " <<
-                 part->loc_elem2verts_loc->getVal(i,6) << "  " <<
-                 part->loc_elem2verts_loc->getVal(i,7) << std::endl;
+       myfile << part->loc_elem2verts_loc->getVal(i,0)+1 << "  " <<
+                 part->loc_elem2verts_loc->getVal(i,1)+1 << "  " <<
+                 part->loc_elem2verts_loc->getVal(i,2)+1 << "  " <<
+                 part->loc_elem2verts_loc->getVal(i,3)+1 << "  " <<
+                 part->loc_elem2verts_loc->getVal(i,4)+1 << "  " <<
+                 part->loc_elem2verts_loc->getVal(i,5)+1 << "  " <<
+                 part->loc_elem2verts_loc->getVal(i,6)+1 << "  " <<
+                 part->loc_elem2verts_loc->getVal(i,7)+1 << std::endl;
     }
     
     

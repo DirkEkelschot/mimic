@@ -470,8 +470,9 @@ Partition_old* CollectVerticesPerRank(ParArray<int>* ien, Array<double>* xcn_r, 
 }
 
 
-ParArray<int>* DeterminePartitionLayout(ParArray<int>* ien, MPI_Comm comm)
+ParArray<int>* DeterminePartitionLayout(ParArray<int>* ien, ParallelState_Parmetis* pstate_parmetis, MPI_Comm comm)
 {
+    ParArray<int>*  part_arr;
     int size;
     MPI_Comm_size(comm, &size);
     // Get the rank of the process
@@ -485,7 +486,7 @@ ParArray<int>* DeterminePartitionLayout(ParArray<int>* ien, MPI_Comm comm)
     //=================================================================
     //=================================================================
     
-    ParallelState_Parmetis* pstate_parmetis = new ParallelState_Parmetis(ien,comm,8);
+    //ParallelState_Parmetis* pstate_parmetis2 = new ParallelState_Parmetis(ien,comm,8);
 //
     idx_t numflag_[] = {0};
     idx_t *numflag = numflag_;
@@ -516,33 +517,49 @@ ParArray<int>* DeterminePartitionLayout(ParArray<int>* ien, MPI_Comm comm)
     idx_t nparts_[] = {np};
     idx_t *nparts = nparts_;
     int* part = new int[nloc];
-        
+    real_t itr_[]    = {1.05};
+    real_t *itr      = itr_;
+    idx_t *vsize = NULL;
+    idx_t *adjwgt = NULL; 
     ParMETIS_V3_Mesh2Dual(pstate_parmetis->getElmdist(),
                           pstate_parmetis->getEptr(),
                           pstate_parmetis->getEind(),
                           numflag,ncommonnodes,
                           &xadj,&adjncy,&comm);
     
-    ParMETIS_V3_PartKway(pstate_parmetis->getElmdist(),
+    /*
+    for(int u=0;u<nloc;u++)
+    {
+    	part[u] = rank;
+    }*/ 
+    ParMETIS_V3_AdaptiveRepart(pstate_parmetis->getElmdist(), 
+	                       xadj, adjncy, 
+			       elmwgt, adjwgt, 
+		               vsize, wgtflag, 
+			       numflag, ncon, nparts,
+			       tpwgts, ubvec, itr, options, 
+			       &edgecut, part, &comm);
+ 
+    /*ParMETIS_V3_PartKway(pstate_parmetis->getElmdist(),
                          xadj,
                          adjncy,
                          elmwgt, NULL, wgtflag, numflag,
                          ncon, nparts,
                          tpwgts, ubvec, options,
                          &edgecut, part, &comm);
-     
-    ParArray<int>*  part_arr = new ParArray<int>(ien->getNglob(),1,comm);
+     */
+    part_arr = new ParArray<int>(ien->getNglob(),1,comm);
     part_arr->data = part;
-    
-    delete pstate_parmetis;
+     
+    //delete pstate_parmetis;
     
     return part_arr;
     
 }
 
-/*================================================================================
+//================================================================================
 // This function determines a map that gets the unique list of elements for that need to be requested from a given rank other than current rank.
-Partition* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, ParArray<double>* xcn, MPI_Comm comm)
+Partition* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, ParArray<double>* xcn, ParallelState* xcn_parstate, MPI_Comm comm)
 {
     
     int q=0;
@@ -637,7 +654,7 @@ Partition* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, Par
                     unique_verts_on_rank_set.insert(v_id);
                     //unique_verts_on_rank_vec.push_back(v_id);
                     
-                    r = FindRank(xcn->getParallelState()->getOffsets(),size,v_id);
+                    r = FindRank(xcn_parstate->getOffsets(),size,v_id);
 
                     if (r!=rank)// if vertex is present on other rank, add it to vert_on_rank map..
                     {
@@ -855,7 +872,7 @@ Partition* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, Par
         {
             int v_id_n = TotRecvElement_IDs_v[cnt];
             elem.push_back(v_id_n);
-            r = FindRank(xcn->getParallelState()->getOffsets(),size,v_id_n);
+            r = FindRank(xcn_parstate->getOffsets(),size,v_id_n);
             
             if(unique_verts_on_rank_set.find( v_id_n ) == unique_verts_on_rank_set.end()) // add the required unique vertex for current rank.
             {
@@ -1252,7 +1269,7 @@ Partition* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, Par
         std::cout << "the total number of elements := " << tot_num_elem << " " << ien->getNglob() << std::endl;
     }
     
-    */
+    
     
     /*
 
@@ -1296,7 +1313,7 @@ Partition* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, Par
     Partition2* P2 = new Partition2;
     MPI_Scatterv(&verts[0], nlocs_scat, offset_scat, MPI_DOUBLE, &Verts_loc->data[0], unique_verts_on_rank_vec.size()*3, MPI_DOUBLE, 0, comm);
     */ 
-    /*
+    
     //delete[] verts;
     //delete[] nlocs_scat;
     //delete[] offset_scat;
@@ -1311,7 +1328,7 @@ Partition* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, Par
     
     
     return P;
-}*/
+}
 
 /*
 Partition_old* CollectElementsPerRank(ParArray<int>* ien, Array<int>* ien_root, MPI_Comm comm)

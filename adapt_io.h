@@ -299,7 +299,7 @@ ParArray<T>* ReadDataSetFromFileInParallel(const char* file_name, const char* da
     int nloc             = int(N/size) + ( rank < N%size );
     //  compute offset of rows for each proc;
     int offset           = rank*int(N/size) + MIN(rank, N%size);
-    Array<T>* PA         = new Array<T>(nloc,ncol);
+    ParArray<T>* PA         = new ParArray<T>(N,ncol,comm);
     //ParArray<T>* parA     = new ParArray<T>(N,ncol,comm);
     //ParallelState* pstate = parA->getParallelState();
     
@@ -335,8 +335,8 @@ ParArray<T>* ReadDataSetFromFileInParallel(const char* file_name, const char* da
     H5Dclose(dset_id);
     H5Fclose(file_id);
 
-    ParArray<T>* parA;
-    return parA;
+    
+    return PA;
 }
 
 

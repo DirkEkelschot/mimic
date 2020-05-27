@@ -1602,20 +1602,32 @@ int main(int argc, char** argv) {
 
   //  Array<double>*   xcn_on_root  = ReadDataSetFromFileInParallelToRoot<double>(fn_grid,"xcn",comm,info);
     
-    Array<int>* ien = ReadDataSetFromFileInParallel<int>(fn_conn,"ien",comm,info);
+    ParArray<int>* ien = ReadDataSetFromFileInParallel<int>(fn_conn,"ien",comm,info);
     //MPI_Barrier(comm);
-    //ParArray<double>* xcn = ReadDataSetFromFileInParallel<double>(fn_grid,"xcn",comm,info);
+    ParArray<double>* xcn = ReadDataSetFromFileInParallel<double>(fn_grid,"xcn",comm,info);
     //MPI_Barrier(comm);
     double durationr = ( std::clock() - startr ) / (double) CLOCKS_PER_SEC;
     double tmax = 0;
     MPI_Allreduce(&durationr, &tmax, 1, MPI_DOUBLE, MPI_MAX, comm);
+    std::clock_t startr2 = std::clock();
+    ParallelState* pstate = new ParallelState(ien->getNglob(),comm);
+    double durationr2 = ( std::clock() - startr2 ) / (double) CLOCKS_PER_SEC;
+    double tmax2 = 0;
+    MPI_Allreduce(&durationr2, &tmax2, 1, MPI_DOUBLE, MPI_MAX, comm);
+    /*
+    std::clock_t startr3 = std::clock();
+    ParallelState_Parmetis* parm_pstate = new ParallelState_Parmetis(ien,comm,8);
+    double durationr3 = ( std::clock() - startr3 ) / (double) CLOCKS_PER_SEC;
+    double tmax3 = 0;
+    MPI_Allreduce(&durationr3, &tmax3, 1, MPI_DOUBLE, MPI_MAX, comm);
 
     
+
     if(world_rank == 0)
     {
-	std::cout << tmax << std::endl;
+	std::cout << tmax << " " << tmax2 << " " << tmax3 << std::endl;
     }
-    /*
+    */
     int nglob = ien->getNglob();
     int nrow  = ien->getNrow();
     int ncol  = ien->getNcol()-1;
@@ -1629,35 +1641,57 @@ int main(int argc, char** argv) {
             ien_copy->setVal(i,j,ien->getVal(i,j+1)-1);
         }
     }
-    delete ien; 
-    
-    
+    std::clock_t startr3 = std::clock();
+    ParallelState_Parmetis* parm_pstate = new ParallelState_Parmetis(ien_copy,comm,8);
+    double durationr3 = ( std::clock() - startr3 ) / (double) CLOCKS_PER_SEC;
+    double tmax3 = 0;
+    MPI_Allreduce(&durationr3, &tmax3, 1, MPI_DOUBLE, MPI_MAX, comm);
+    if(world_rank == 0)
+    {
+	std::cout << tmax << " " << tmax2 << " " << tmax3 << std::endl;
+
+    }
+    MPI_Barrier(comm);
 //    ParArray<double>* boundaries = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_6","boundaries",comm,info);
 //    ParArray<double>* interior = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_6","interior",comm,info);
     //TestFindRank(comm);
     
-    
+    //for(int q = 0;q<2;q++)
+    //{     
     std::clock_t start,start2;
     double duration, duration2;
-    for(int i =0;i<10;i++)
+    double start10 = MPI_Wtime();
+
+    ParArray<int>* part_par  = DeterminePartitionLayout(ien_copy,parm_pstate,comm);
+    double end10 = MPI_Wtime();
+    duration = ( end10 - start10 );
+    double tmax4 = 0.0;
+    MPI_Allreduce(&duration, &tmax4, 1, MPI_DOUBLE, MPI_MAX, comm);
+    if(world_rank == 0)
     {
+	std::cout << "layout = " << tmax4 << std::endl;
+    }
     
-    start = std::clock();
-    ParArray<int>* part_par  = DeterminePartitionLayout(ien_copy,comm);
-    MPI_Barrier(comm);
-    start2 = std::clock();
-    Partition* part = DetermineElement2ProcMap(ien_copy, part_par, xcn, comm);
-    MPI_Barrier(comm);  
-    duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
-      duration2 = ( std::clock() - start2 ) / (double) CLOCKS_PER_SEC;
-    if(world_rank < 10)
+   
+
+
+    
+    double start11 = MPI_Wtime();
+    ParallelState* xcn_parstate = new ParallelState(xcn->getNglob(),comm);
+    Partition* part = DetermineElement2ProcMap(ien_copy, part_par, xcn, xcn_parstate, comm);
+    double end11 = MPI_Wtime();
+    
+    double dur = end11-start11;
+    double tmax5 = 0.0;
+    MPI_Allreduce(&dur, &tmax5, 1, MPI_DOUBLE, MPI_MAX, comm);
+    if(world_rank == 0)
     {
-	std::cout << " times = " << duration << " " << duration2 << std::endl;
+	std::cout << " spread = " << tmax5  << std::endl;
         //std::cout << " --- times = " << durationr << " "  << duration << " " <<  duration2 << std::endl;
     }
-    }
-    //OutputZone(part,comm);
-    */ 
+    //}
+    OutputZone(part,comm);
+    
     
     
     
