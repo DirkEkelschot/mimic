@@ -1,11 +1,29 @@
+#ifndef ADAPT_PARTITION_H
+#define ADAPT_PARTITION_H
+
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #define MAX(a,b) (((a)>(b))?(a):(b))
 
 #include "adapt.h"
 #include "adapt_datastruct.h"
 #include "adapt_operations.h"
+#include "adapt_parstate.h"
+#include "adapt_parmetisstate.h"
+#include "adapt_array.h"
 
-std::vector<int> GetAdjacencyForUS3D_V4(ParallelArray<int>* ief, MPI_Comm comm);
+struct GathervObject
+{
+    int size;
+    int* nlocs;
+    int* offsets;
+    int* data;
+    int length;
+};
+
+
+int FindRank(int* arr, int size, int val);
+
+std::vector<int> GetAdjacencyForUS3D_V4(ParArray<int>* ief, MPI_Comm comm);
 
 void Example3DPartitioning(MPI_Comm comm);
 
@@ -18,8 +36,23 @@ ParVar* CreateParallelData(int N, MPI_Comm comm);
 // assuming that we use one type of element throughout the whole mesh. However this needs to become
 // an int* in order to allow for hybrid meshes.
 // e2n has the Nvert per element stored consecutively for each element. Hence this array is Nel*NvertPerElement long.
+Array<int> GatherArrayToAll(Array<int> locarr, MPI_Comm comm);
 
-ParVar_ParMetis* CreateParallelDataParmetis(Array<int>* e2n, MPI_Comm comm, int type);
+GathervObject* GetGathervObject(int nloc, MPI_Comm comm);
+
+ParVar_ParMetis* CreateParallelDataParmetis(ParArray<int>* e2n, MPI_Comm comm, int type);
+
+int* GetPartitionInfo(ParArray<int>* ien, Array<double>* xcn_r, MPI_Comm comm);
+
+ParArray<int>* DeterminePartitionLayout(ParArray<int>* ien, ParallelState_Parmetis* pstate_parmetis, MPI_Comm comm);
+
+Partition_old* CollectVerticesPerRank(ParArray<int>* ien, Array<double>* xcn_r, MPI_Comm comm);
+
+Partition_old* CollectElementsPerRank(ParArray<int>* ien, Array<int>* ien_root, MPI_Comm comm);
+
+void DivideElements(Array<int>* part_on_root, Array<int>* ien_on_root, Array<double>* xcn_on_root, MPI_Comm comm);
+
+Partition* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, ParArray<double>* xcn, ParallelState* xcn_parstate, MPI_Comm comm);
 
 
-Partition* CollectVerticesPerRank(ParallelArray<int>* ien, Array<double>* xcn_r, MPI_Comm comm);
+#endif

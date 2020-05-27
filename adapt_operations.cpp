@@ -119,11 +119,7 @@ std::vector<int> FindDuplicatesInParallel(int* arr, int arr_size, int glob_size,
     
     int N = arr_size;
 
-    int* glob_arr;
-    //if (rank == 0)
-    //{
-    glob_arr = new int[glob_size];
-    //}
+    int* glob_arr = new int[glob_size];
     
     int* sorted = mergeSort(levels, rank, arr, N, comm, glob_arr);
     
@@ -172,6 +168,7 @@ std::vector<int> FindDuplicatesInParallel(int* arr, int arr_size, int glob_size,
     }
     
     int tot_dupl = red_dupl_offsets[size-1]+red_dupl_locs[size-1];
+    
     std::vector<int> duplicates(tot_dupl);
     MPI_Allgatherv(&res[0],
                    res.size(),
@@ -180,6 +177,12 @@ std::vector<int> FindDuplicatesInParallel(int* arr, int arr_size, int glob_size,
                    red_dupl_locs,
                    red_dupl_offsets,
                    MPI_INT, comm);
+    
+    
+    delete[] glob_arr;
+    delete[] dupl_locs;
+    delete[] red_dupl_locs;
+    delete[] red_dupl_offsets;
     
     return duplicates;
 }
@@ -192,8 +195,6 @@ int compare (const void * a, const void * b)
 
 int* merge(int* a, int* b, int size_a, int size_b, int* merged, int size)
 {
-
-    int size_res = size_a+size_b;
     
     int i=0;
     int j=0;
@@ -285,7 +286,7 @@ int* mergeSort(int height, int id, int* localArray, int size, MPI_Comm comm, int
               // allocate memory for result of merge
               
               // merge half1 and half2 into mergeResult
-              int size_half1 = size;
+              size_half1 = size;
 //              if (size_half1!=size_half2)
 //              {
 //                  std::cout << size_half2<< " " << size_half1 << std::endl;
@@ -348,7 +349,7 @@ std::vector<int> mergeSort_vec(int height, int rank, std::vector<int> localArray
             std::vector<int> half2(size_half2);
             MPI_Recv(&half2[0], size_half2, MPI_INT, rightChild, 0,
                 MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-
+            size_half1 = size;
             // allocate memory for result of merge
             //mergeResult = (int*) malloc (size * 2 * sizeof(int));
               
@@ -356,6 +357,8 @@ std::vector<int> mergeSort_vec(int height, int rank, std::vector<int> localArray
             std::vector<int> mergeResult = merge_vec(half1, half2);
             // reassign half1 to merge result
             half1 = mergeResult;
+            
+            
             size = size_half1+size_half2;  // the size of mergeResult is the size of half1 and half2 added togehter.
             half2.erase(half2.begin(),half2.end());
             //free(half2);
