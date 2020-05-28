@@ -4,7 +4,7 @@
 #include "adapt_math.h"
 #include "adapt_output.h"
 //#include "adapt.h"
-
+#include <iomanip>
 int mpi_size, mpi_rank;
 
 #define MIN(a,b) (((a)<(b))?(a):(b))
@@ -363,7 +363,7 @@ void PlotBoundaryData(Array<char>* znames, Array<int>* zdefs,MPI_Comm comm)
     std::cout << ncol << std::endl;
     if (world_rank == 0)
     {
-        std::cout << "printing boundary data..." << std::endl;
+        std::cout << "printing boundary data..." << nrow << " " << zdefs->getNcol() << std::endl;
         for(int i=0;i<nrow;i++)
         {
             for(int j=0;j<ncol;j++)
@@ -371,7 +371,7 @@ void PlotBoundaryData(Array<char>* znames, Array<int>* zdefs,MPI_Comm comm)
                 std::cout << znames->getVal(i,j) << "";
             }
             std::cout << " :: ";
-            for(int j=0;j<zdefs->getNrow();j++)
+            for(int j=0;j<zdefs->getNcol();j++)
             {
                 std::cout << zdefs->getVal(i,j) << " ";
             }
@@ -1592,107 +1592,108 @@ int main(int argc, char** argv) {
     //const char* fn_conn="grids/piston/conn.h5";
     const char* fn_conn="grids/adept/conn.h5";
     const char* fn_grid="grids/adept/grid.h5";
-    //const char* fn_data="grids/adept/data.h5";
+    const char* fn_data="grids/adept/data.h5";
+    const char* fn_adept="grids/adept/conn.h5";
     
-    /*
-    Array<int>*    zdefs = ReadDataSetFromGroupFromFile<int>(fn_conn,"zones","zdefs");
-    Array<char>*  znames = ReadDataSetFromGroupFromFile<char>(fn_conn,"zones","znames");
+    
+    Array<int>*    zdefs = ReadDataSetFromGroupFromFile<int>(fn_adept,"zones","zdefs");
+    Array<char>*  znames = ReadDataSetFromGroupFromFile<char>(fn_adept,"zones","znames");
     PlotBoundaryData(znames,zdefs,comm);
-    */
-
-  //  Array<double>*   xcn_on_root  = ReadDataSetFromFileInParallelToRoot<double>(fn_grid,"xcn",comm,info);
     
-    ParArray<int>* ien = ReadDataSetFromFileInParallel<int>(fn_conn,"ien",comm,info);
-    //MPI_Barrier(comm);
-    ParArray<double>* xcn = ReadDataSetFromFileInParallel<double>(fn_grid,"xcn",comm,info);
-    //MPI_Barrier(comm);
-    double durationr = ( std::clock() - startr ) / (double) CLOCKS_PER_SEC;
-    double tmax = 0;
-    MPI_Allreduce(&durationr, &tmax, 1, MPI_DOUBLE, MPI_MAX, comm);
-    std::clock_t startr2 = std::clock();
-    ParallelState* pstate = new ParallelState(ien->getNglob(),comm);
-    double durationr2 = ( std::clock() - startr2 ) / (double) CLOCKS_PER_SEC;
-    double tmax2 = 0;
-    MPI_Allreduce(&durationr2, &tmax2, 1, MPI_DOUBLE, MPI_MAX, comm);
-    /*
-    std::clock_t startr3 = std::clock();
-    ParallelState_Parmetis* parm_pstate = new ParallelState_Parmetis(ien,comm,8);
-    double durationr3 = ( std::clock() - startr3 ) / (double) CLOCKS_PER_SEC;
-    double tmax3 = 0;
-    MPI_Allreduce(&durationr3, &tmax3, 1, MPI_DOUBLE, MPI_MAX, comm);
-
-    
-
-    if(world_rank == 0)
-    {
-	std::cout << tmax << " " << tmax2 << " " << tmax3 << std::endl;
-    }
-    */
-    int nglob = ien->getNglob();
-    int nrow  = ien->getNrow();
-    int ncol  = ien->getNcol()-1;
-    
-    ParArray<int>* ien_copy = new ParArray<int>(nglob,ncol,comm);
-
-    for(int i=0;i<nrow;i++)
-    {
-        for(int j=0;j<ncol;j++)
-        {
-            ien_copy->setVal(i,j,ien->getVal(i,j+1)-1);
-        }
-    }
-    std::clock_t startr3 = std::clock();
-    ParallelState_Parmetis* parm_pstate = new ParallelState_Parmetis(ien_copy,comm,8);
-    double durationr3 = ( std::clock() - startr3 ) / (double) CLOCKS_PER_SEC;
-    double tmax3 = 0;
-    MPI_Allreduce(&durationr3, &tmax3, 1, MPI_DOUBLE, MPI_MAX, comm);
-    if(world_rank == 0)
-    {
-	std::cout << tmax << " " << tmax2 << " " << tmax3 << std::endl;
-
-    }
-    MPI_Barrier(comm);
+    ParArray<int>* ien    = ReadDataSetFromFileInParallel<int>(fn_conn,"ien",comm,info);
+//    ParArray<double>* xcn = ReadDataSetFromFileInParallel<double>(fn_grid,"xcn",comm,info);
+//    ParArray<double>* ifn = ReadDataSetFromFileInParallel<double>(fn_grid,"ifn",comm,info);
 //    ParArray<double>* boundaries = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_6","boundaries",comm,info);
-//    ParArray<double>* interior = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_6","interior",comm,info);
-    //TestFindRank(comm);
     
-    //for(int q = 0;q<2;q++)
-    //{     
-    std::clock_t start,start2;
-    double duration, duration2;
-    double start10 = MPI_Wtime();
-
-    ParArray<int>* part_par  = DeterminePartitionLayout(ien_copy,parm_pstate,comm);
-    double end10 = MPI_Wtime();
-    duration = ( end10 - start10 );
-    double tmax4 = 0.0;
-    MPI_Allreduce(&duration, &tmax4, 1, MPI_DOUBLE, MPI_MAX, comm);
-    if(world_rank == 0)
+    int Nel = ien->getNglob();
+    int Nel_part = ien->getNrow();
+    ParArray<double>* interior   = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_6","interior",Nel,comm,info);
+//
+//    int fbface = zdefs->getVal(3,3);
+//
+//    if (world_rank == 0)
+//    {
+//        std::map<int,set<int> > bmap;
+//        Array<double>* ief = ReadDataSetFromFile<double>(fn_conn,"ief");
+//
+//        for(int i=(0);i<boundaries->getNglob();i++)
+//        {
+//            for(int j=0;j<ief->getNcol();j++)
+//            {
+//                if(ief->getVal(i,j) < -fbface)
+//                {
+//                    if ( bmap[ief->getVal(i,j)].find(i) == bmap[ief->getVal(i,j)].end() )
+//                    {
+//                        bmap[ief->getVal(i,j)].insert(i);
+//                    }
+//                }
+//            }
+//        }
+//
+////        std::map<int,set<int> >::iterator itb;
+////
+////        for(itb=bmap.begin();itb!=bmap.end();itb++)
+////        {
+////            std::cout << itb->first << " -> ";
+////            set<int>::iterator it;
+////            for(it=itb->second.begin();it!=itb->second.end();it++)
+////            {
+////                std::cout << *it << " ";
+////            }
+////            std::cout << std::endl;
+////        }
+//    }
+    
+    
+    
+    PlotBoundaryData(znames,zdefs,comm);
+    
+//    if(world_rank == 0)
+//    {
+//        //std::cout << "number of interior cells = " << interior->getNglob() << std::endl;
+//        //std::cout << "number of boundary cells = " << boundaries->getNglob() << std::endl;
+//        //std::cout << "number of physical cells = " << interior->getNglob()-boundaries->getNglob() << std::endl;
+//        //std::cout << "number of nodes = " << xcn->getNglob() << std::endl;
+//        //std::cout << "number of faces cells = " << ifn->getNglob() << std::endl;
+//    }
+    /*
+    */
+    
+//    const char* fn_conn_piston="grids/piston/conn.h5";
+//    const char* fn_grid_piston="grids/piston/grid.h5";
+//    ParArray<int>* ien    = ReadDataSetFromFileInParallel<int>(fn_conn_piston,"ien",comm,info);
+//    ParArray<int>* xcn    = ReadDataSetFromFileInParallel<int>(fn_conn_piston,"xcn",comm,info);
+//
+//
+//    ParallelState* pstate = new ParallelState(ien->getNglob(),comm);
+//
+//    int nglob = ien->getNglob();
+//    int nrow  = ien->getNrow();
+//    int ncol  = ien->getNcol()-1;
+//
+//    ParArray<int>* ien_copy = new ParArray<int>(nglob,ncol,comm);
+//
+//    for(int i=0;i<nrow;i++)
+//    {
+//        for(int j=0;j<ncol;j++)
+//        {
+//            ien_copy->setVal(i,j,ien->getVal(i,j+1)-1);
+//        }
+//    }
+//    ParallelState_Parmetis* parm_pstate = new ParallelState_Parmetis(ien_copy,comm,8);
+//
+//    ParArray<int>* part_par  = DeterminePartitionLayout(ien_copy,parm_pstate,comm);
+//    ParallelState* xcn_parstate = new ParallelState(xcn->getNglob(),comm);
+//    //Partition* part = DetermineElement2ProcMap(ien_copy, part_par, xcn, xcn_parstate, comm);
+//
+//    int Nel_part = ien_copy->getNrow();
+    ParArray<double>* var = new ParArray<double>(Nel,1,comm);
+    for(int i=0;i<Nel_part;i++)
     {
-	std::cout << "layout = " << tmax4 << std::endl;
+        var->setVal(i,0,interior->getVal(i,0));
     }
     
-   
-
-
-    
-    double start11 = MPI_Wtime();
-    ParallelState* xcn_parstate = new ParallelState(xcn->getNglob(),comm);
-    Partition* part = DetermineElement2ProcMap(ien_copy, part_par, xcn, xcn_parstate, comm);
-    double end11 = MPI_Wtime();
-    
-    double dur = end11-start11;
-    double tmax5 = 0.0;
-    MPI_Allreduce(&dur, &tmax5, 1, MPI_DOUBLE, MPI_MAX, comm);
-    if(world_rank == 0)
-    {
-	std::cout << " spread = " << tmax5  << std::endl;
-        //std::cout << " --- times = " << durationr << " "  << duration << " " <<  duration2 << std::endl;
-    }
-    //}
-    OutputZone(part,comm);
-    
-    
+//
     
     
     

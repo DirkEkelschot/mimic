@@ -165,7 +165,7 @@ Array<T>* ReadDataSetFromRunInFile(const char* file_name, const char* run_name,c
 
 
 template<typename T>
-ParArray<T>* ReadDataSetFromRunInFileInParallel(const char* file_name, const char* run_name,const char* dataset_name, MPI_Comm comm, MPI_Info info)
+ParArray<T>* ReadDataSetFromRunInFileInParallel(const char* file_name, const char* run_name,const char* dataset_name, int Nel, MPI_Comm comm, MPI_Info info)
 {
     int size;
     MPI_Comm_size(comm, &size);
@@ -185,8 +185,14 @@ ParArray<T>* ReadDataSetFromRunInFileInParallel(const char* file_name, const cha
     H5Sget_simple_extent_dims(dspace, dims, NULL);
     int nrow             = dims[0];
     int ncol             = dims[1];
-    int N                = nrow;
+    int N = nrow;
     
+    if (strcmp(dataset_name, "interior") == 0)
+    {
+        std::cout << "reading interior" << std::endl;
+        N = Nel;
+    }
+    std::cout << "Nel = " << N << std::endl;
     ParArray<T>* A_ptmp = new ParArray<T>(N,ncol,comm);
     
     hsize_t              offsets[2];
@@ -213,12 +219,7 @@ ParArray<T>* ReadDataSetFromRunInFileInParallel(const char* file_name, const cha
     
     ret = H5Sselect_hyperslab (memspace, H5S_SELECT_SET, offsets_out, NULL,counts_out, NULL);
         
-    std::clock_t start;
-    double duration;
-    start = std::clock();
     ret = H5Dread (dset_id, hid_from_type<T>(), memspace, dspace, H5P_DEFAULT, A_ptmp->data);
-    duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
-    std::cout << "timer_parallel = " << duration << std::endl;
     /*
     std::cout << "============filled?===" << rank << "=======" << std::endl;
     for(int i=offset;i<offset+1;i++)
