@@ -16,14 +16,14 @@ void OutputZone(Partition* part, MPI_Comm comm)
     ofstream myfile;
     myfile.open(filename);
     myfile << "TITLE=\"volume_part_"  + std::to_string(rank) +  ".tec\"" << std::endl;
-    myfile <<"VARIABLES = \"X\", \"Y\", \"Z\"" << std::endl;
+    myfile <<"VARIABLES = \"X\", \"Y\", \"Z\", \"rho\"" << std::endl;
     int nvert =  part->Verts.size();
 
     myfile <<"ZONE N = " << nvert << ", E = " << nloc << ", DATAPACKING = POINT, ZONETYPE = FEBRICK" << std::endl;
     std::cout << rank << " number of nodes -> " << nvert << std::endl;
     for(int i=0;i<nvert;i++)
     {
-       myfile << part->Verts[i].x << "   " << part->Verts[i].y << "   " << part->Verts[i].z << "   " << std::endl;
+       myfile << part->Verts[i].x << "   " << part->Verts[i].y << "   " << part->Verts[i].z << "   " << part->variable[i] << std::endl;
     }
     
 

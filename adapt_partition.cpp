@@ -604,6 +604,7 @@ Partition* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, Par
     std::map<int,int> v_glob2loc;
     int vloc = 0;
     std::vector<int> loc_elem;
+    std::vector<double> loc_rho;
     int ien_o = part->getOffset(rank);
     double rho = 0.0;
     for(i=0;i<part->getNrow();i++)
@@ -649,6 +650,7 @@ Partition* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, Par
                 }
             }
             loc_elem.push_back(el_id);
+            loc_rho.push_back(rho);
         }
     }
     
@@ -1188,19 +1190,27 @@ Partition* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, Par
     int Nloc_elem = loc_elem.size()+Nel_extra;
     Array<int>* part_El2Vert_glob = new Array<int>(Nloc_elem,8);
     Array<int>* part_El2Vert_loc  = new Array<int>(Nloc_elem,8);
+    Array<double>* part_rho       = new Array<double>(Nloc_elem,1);
+    Array<double>* part_rho_v     = new Array<double>(Nloc_elem,8);
 
     int glob = 0;
     int loc = 0;
-    
+    double rho_v = 0;
+    std::map<int,std::vector<double> > collect_var;
     for(int m=0;m<loc_elem.size();m++)
     {
         el_id = loc_elem[m];
+        rho_v = loc_rho[m];
+        part_rho->setVal(m,0,rho_v);
+        
         for(int p=0;p<8;p++)
         {
             glob = ien->getVal(el_id-ien_o,p);
             loc = v_glob2loc[glob];
             part_El2Vert_glob->setVal(m,p,glob);
             part_El2Vert_loc->setVal(m,p,loc);
+            collect_var[loc].push_back(rho_v);
+            
         }
     }
     
@@ -1209,24 +1219,43 @@ Partition* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, Par
     for(int m=0;m<Nel_extra;m++)
     {	
         el_id = TotRecvElement_IDs[m];
+        rho_v = TotRecvElement_IDs[m];
+        part_rho->setVal(m+o,0,rho_v);
+        
         for(int p=0;p<8;p++)
         {    
             glob = TotRecvElement_IDs_v[cn];
             loc = v_glob2loc[glob];
             part_El2Vert_glob->setVal(m+o,p,glob);
             part_El2Vert_loc->setVal(m+o,p,loc);
+            collect_var[loc].push_back(rho_v);
             cn++;
-        } 
-	
-    } 
+        }
+    }
+    
+    std::map<int,std::vector<double> >::iterator it_rhos;
+    double sum = 0;
+    double* rho_v_arr = new double[Verts.size()];
+    int c = 0;
+    for(it_rhos=collect_var.begin();it_rhos!=collect_var.end();it_rhos++)
+    {
+        sum = 0;
+        for(int q = 0;q<it_rhos->second.size();q++)
+        {
+            sum = sum + it_rhos->second[q];
+        }
+        
+        rho_v_arr[c] = sum/it_rhos->second.size();
+        c++;
+    }
 
-    Partition* P              = new Partition;
+    Partition* P               = new Partition;
     P->Verts                   = Verts;//part_verts;
     P->loc_elem2verts_glob     = part_El2Vert_glob;
     P->loc_elem2verts_loc      = part_El2Vert_loc;
     P->v_loc2glob              = v_loc2glob;
     P->v_glob2loc              = v_glob2loc;
-    P->variable		       = TotRecvElement_rhos;
+    P->variable		           = rho_v_arr;
     int tot_num_elem = 0;
     MPI_Allreduce(&Nloc_elem, &tot_num_elem, 1, MPI_INT, MPI_SUM, comm);
     
