@@ -189,10 +189,10 @@ ParArray<T>* ReadDataSetFromRunInFileInParallel(const char* file_name, const cha
     
     if (strcmp(dataset_name, "interior") == 0)
     {
-        std::cout << "reading interior" << std::endl;
+    //   std::cout << "reading interior" << std::endl;
         N = Nel;
     }
-    std::cout << "Nel = " << N << std::endl;
+    //std::cout << "Nel = " << N << std::endl;
     ParArray<T>* A_ptmp = new ParArray<T>(N,ncol,comm);
     
     hsize_t              offsets[2];

@@ -360,7 +360,7 @@ void PlotBoundaryData(Array<char>* znames, Array<int>* zdefs,MPI_Comm comm)
     
     int nrow = zdefs->getNrow();
     int ncol = znames->getNcol();
-    std::cout << ncol << std::endl;
+    //std::cout << ncol << std::endl;
     if (world_rank == 0)
     {
         std::cout << "printing boundary data..." << nrow << " " << zdefs->getNcol() << std::endl;
@@ -1601,13 +1601,13 @@ int main(int argc, char** argv) {
     PlotBoundaryData(znames,zdefs,comm);
     
     ParArray<int>* ien    = ReadDataSetFromFileInParallel<int>(fn_conn,"ien",comm,info);
-//    ParArray<double>* xcn = ReadDataSetFromFileInParallel<double>(fn_grid,"xcn",comm,info);
+    ParArray<double>* xcn = ReadDataSetFromFileInParallel<double>(fn_grid,"xcn",comm,info);
 //    ParArray<double>* ifn = ReadDataSetFromFileInParallel<double>(fn_grid,"ifn",comm,info);
 //    ParArray<double>* boundaries = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_6","boundaries",comm,info);
     
     int Nel = ien->getNglob();
     int Nel_part = ien->getNrow();
-    ParArray<double>* interior   = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_6","interior",Nel,comm,info);
+    ParArray<double>* interior   = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_1","interior",Nel,comm,info);
 //
 //    int fbface = zdefs->getVal(3,3);
 //
@@ -1646,7 +1646,7 @@ int main(int argc, char** argv) {
     
     
     
-    PlotBoundaryData(znames,zdefs,comm);
+    //PlotBoundaryData(znames,zdefs,comm);
     
 //    if(world_rank == 0)
 //    {
@@ -1665,33 +1665,38 @@ int main(int argc, char** argv) {
 //    ParArray<int>* xcn    = ReadDataSetFromFileInParallel<int>(fn_conn_piston,"xcn",comm,info);
 //
 //
-//    ParallelState* pstate = new ParallelState(ien->getNglob(),comm);
+//===============================================================================================
+
+      ParallelState* pstate = new ParallelState(ien->getNglob(),comm);
 //
-//    int nglob = ien->getNglob();
-//    int nrow  = ien->getNrow();
-//    int ncol  = ien->getNcol()-1;
+      int nglob = ien->getNglob();
+      int nrow  = ien->getNrow();
+      int ncol  = ien->getNcol()-1;
 //
-//    ParArray<int>* ien_copy = new ParArray<int>(nglob,ncol,comm);
+      ParArray<int>* ien_copy = new ParArray<int>(nglob,ncol,comm);
 //
-//    for(int i=0;i<nrow;i++)
-//    {
-//        for(int j=0;j<ncol;j++)
-//        {
-//            ien_copy->setVal(i,j,ien->getVal(i,j+1)-1);
-//        }
-//    }
-//    ParallelState_Parmetis* parm_pstate = new ParallelState_Parmetis(ien_copy,comm,8);
-//
-//    ParArray<int>* part_par  = DeterminePartitionLayout(ien_copy,parm_pstate,comm);
-//    ParallelState* xcn_parstate = new ParallelState(xcn->getNglob(),comm);
-//    //Partition* part = DetermineElement2ProcMap(ien_copy, part_par, xcn, xcn_parstate, comm);
+      for(int i=0;i<nrow;i++)
+      {
+          for(int j=0;j<ncol;j++)
+          {
+              ien_copy->setVal(i,j,ien->getVal(i,j+1)-1);
+          }
+      }
+      ParallelState_Parmetis* parm_pstate = new ParallelState_Parmetis(ien_copy,comm,8);
+
+      ParArray<int>* part_par  = DeterminePartitionLayout(ien_copy,parm_pstate,comm);
+      ParallelState* xcn_parstate = new ParallelState(xcn->getNglob(),comm);
+      ParArray<double>* var = new ParArray<double>(Nel,1,comm);
+      for(int i=0;i<Nel_part;i++)
+      {
+        var->setVal(i,0,interior->getVal(i,0));
+      }
+
+      Partition* part = DetermineElement2ProcMap(ien_copy, part_par, xcn, var, xcn_parstate, comm);
+
+//===============================================================================================
 //
 //    int Nel_part = ien_copy->getNrow();
-    ParArray<double>* var = new ParArray<double>(Nel,1,comm);
-    for(int i=0;i<Nel_part;i++)
-    {
-        var->setVal(i,0,interior->getVal(i,0));
-    }
     
 //
     

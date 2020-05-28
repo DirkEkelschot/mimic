@@ -52,7 +52,7 @@ Partition_old* CollectElementsPerRank(ParArray<int>* ien, Array<int>* ien_root, 
 
 void DivideElements(Array<int>* part_on_root, Array<int>* ien_on_root, Array<double>* xcn_on_root, MPI_Comm comm);
 
-Partition* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, ParArray<double>* xcn, ParallelState* xcn_parstate, MPI_Comm comm);
+Partition* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, ParArray<double>* xcn, ParArray<double>* variables, ParallelState* xcn_parstate, MPI_Comm comm);
 
 
 #endif

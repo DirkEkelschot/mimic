@@ -1226,7 +1226,7 @@ Partition* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, Par
     P->loc_elem2verts_loc      = part_El2Vert_loc;
     P->v_loc2glob              = v_loc2glob;
     P->v_glob2loc              = v_glob2loc;
-
+    P->variable		       = TotRecvElement_rhos;
     int tot_num_elem = 0;
     MPI_Allreduce(&Nloc_elem, &tot_num_elem, 1, MPI_INT, MPI_SUM, comm);
     
