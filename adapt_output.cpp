@@ -23,7 +23,7 @@ void OutputZone(Partition* part, MPI_Comm comm)
     std::cout << rank << " number of nodes -> " << nvert << std::endl;
     for(int i=0;i<nvert;i++)
     {
-       myfile << part->Verts[i].x << "   " << part->Verts[i].y << "   " << part->Verts[i].z << "   " << part->variable[i] << std::endl;
+       myfile << part->Verts[i].x << "   " << part->Verts[i].y << "   " << part->Verts[i].z << "   " << part->rho_vert->getVal(i,0) << std::endl;
     }
     
 

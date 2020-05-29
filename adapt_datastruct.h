@@ -139,7 +139,8 @@ struct Partition
     std::map<int,int> v_glob2loc;
     int* xadj;
     int* adjncy;
-    double* variable;
+    Array<double>* rho_elem;
+    Array<double>* rho_vert;
 };
 
 
