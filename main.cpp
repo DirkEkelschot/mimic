@@ -1682,7 +1682,7 @@ int main(int argc, char** argv) {
               ien_copy->setVal(i,j,ien->getVal(i,j+1)-1);
           }
       }
-      ParallelState_Parmetis* parm_pstate = new ParallelState_Parmetis(ien_copy,comm,8);
+      ParallelState_Parmetis* parmetis_pstate = new ParallelState_Parmetis(ien_copy,comm,8);
 
       //ParArray<int>* part_par  = DeterminePartitionLayout(ien_copy,parm_pstate,comm);
       ParallelState* xcn_parstate = new ParallelState(xcn->getNglob(),comm);
@@ -1703,7 +1703,7 @@ int main(int argc, char** argv) {
 //
     
     
-    Partition* P = new Partition(ien,xcn,xcn_parstate, var,parm_pstate,comm);
+    Partition* P = new Partition(ien_copy,parmetis_pstate,xcn,xcn_parstate,var,comm);
     
     
     ParArray<int>* pid = P->getPart();

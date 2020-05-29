@@ -6,9 +6,9 @@
 
 class Partition {
    public:
-    Partition(ParArray<int>* ien, ParArray<double>* xcn, ParallelState* xcn_parstate, ParArray<double>* U, ParallelState_Parmetis* pstate_parmetis, MPI_Comm comm);
+    Partition(ParArray<int>* ien, ParallelState_Parmetis* pstate_parmetis, ParArray<double>* xcn, ParallelState* xcn_parstate, ParArray<double>* U, MPI_Comm comm);
     void DeterminePartitionLayout(ParArray<int>* ien, ParallelState_Parmetis* pstate_parmetis, MPI_Comm comm);
-    void DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, ParArray<double>* xcn, ParArray<double>* U, ParallelState* xcn_parstate, MPI_Comm comm);
+    void DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, ParArray<double>* xcn, ParallelState* xcn_parstate, ParArray<double>* U, MPI_Comm comm);
     int* getXadj();
     int* getAdjcny();
     ParArray<int>* getPart();
@@ -42,11 +42,15 @@ class Partition {
 };
 
 
-inline Partition::Partition(ParArray<int>* ien, ParArray<double>* xcn, ParallelState* xcn_parstate, ParArray<double>* U, ParallelState_Parmetis* pstate_parmetis, MPI_Comm comm)
+inline Partition::Partition(ParArray<int>* ien, ParallelState_Parmetis* pstate_parmetis, ParArray<double>* xcn, ParallelState* xcn_parstate, ParArray<double>* U, MPI_Comm comm)
 {
+    
+    // This function computes the xadj and adjcny array and the part array which determines which element at current rank should be sent to other ranks.
     DeterminePartitionLayout(ien, pstate_parmetis, comm);
     
-    DetermineElement2ProcMap(ien, part, xcn, U, xcn_parstate, comm);
+    // This function takes care of the send and receive operations in order to send the appropriate elements and corresponding vertices to the appropriate rank.
+    // These operations are based on the fact that part holds the desired partitioning of the elements. the spread of the vertices is based on the fact that all the vertices stored in xcn are distributed "uniformly";
+    DetermineElement2ProcMap(ien, part, xcn, xcn_parstate, U, comm);
 }
 
 inline void Partition::DeterminePartitionLayout(ParArray<int>* ien, ParallelState_Parmetis* pstate_parmetis, MPI_Comm comm)
@@ -136,7 +140,7 @@ inline void Partition::DeterminePartitionLayout(ParArray<int>* ien, ParallelStat
 }
 
 
-inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, ParArray<double>* xcn, ParArray<double>* U, ParallelState* xcn_parstate, MPI_Comm comm)
+inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, ParArray<double>* xcn, ParallelState* xcn_parstate, ParArray<double>* U, MPI_Comm comm)
 {
     
     int q=0;
