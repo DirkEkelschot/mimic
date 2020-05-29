@@ -1,35 +1,12 @@
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #define MAX(a,b) (((a)>(b))?(a):(b))
 #include <iostream>
-#include "adapt_partition.h"
+#include "adapt_part_func.h"
 
 using namespace std;
 
 
 
-
-int FindRank(int* arr, int size, int val)
-{
-    int start = 0;
-    int last  = size-1;
-    
-    int mid   = (start+last)/2;
-    
-    while (start<=last)
-    {
-        if (arr[mid]<val)
-        {
-            start = mid + 1;
-        }
-        else
-        {
-            last  = mid - 1;
-        }
-        mid = (start+last)/2;
-    }
-        
-    return mid;
-}
 
 
 
@@ -559,7 +536,7 @@ ParArray<int>* DeterminePartitionLayout(ParArray<int>* ien, ParallelState_Parmet
 
 //================================================================================
 // This function determines a map that gets the unique list of elements for that need to be requested from a given rank other than current rank.
-Partition* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, ParArray<double>* xcn, ParArray<double>* variables, ParallelState* xcn_parstate, MPI_Comm comm)
+PartitionStruct* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, ParArray<double>* xcn, ParArray<double>* variables, ParallelState* xcn_parstate, MPI_Comm comm)
 {
     
     int q=0;
@@ -1248,7 +1225,7 @@ Partition* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, Par
         c++;
     }
 
-    Partition* P               = new Partition;
+    PartitionStruct* P               = new PartitionStruct;
     P->Verts                   = Verts;//part_verts;
     P->loc_elem2verts_glob     = part_El2Vert_glob;
     P->loc_elem2verts_loc      = part_El2Vert_loc;

@@ -1,5 +1,5 @@
 #include "adapt.h"
-#include "adapt_partition.h"
+#include "adapt_part_func.h"
 #include "adapt_array.h"
 
 #ifndef ADAPT_IO_H

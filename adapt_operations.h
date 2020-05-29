@@ -3,6 +3,8 @@
 #ifndef ADAPT_OPERATIONS_H
 #define ADAPT_OPERATIONS_H
 
+int FindRank(int* arr, int size, int val);
+
 std::vector<int> FindDuplicates(std::vector<int> arr);
 
 std::vector<int> FindDuplicatesInParallel(int* arr, int loc_size, int glob_size, MPI_Comm comm);

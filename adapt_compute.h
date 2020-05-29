@@ -1,5 +1,5 @@
 #include "adapt_datastruct.h"
-#include "adapt_partition.h"
+#include "adapt_part_func.h"
 #ifndef ADAPT_COMPUTE_H
 #define ADAPT_COMPUTE_H
 
@@ -24,7 +24,7 @@ double* ComputeJAtCenter(double*P, int np);
 
 double ComputeDeterminantJ(double*P, int np);
 
-Array<double>* ComputeDeterminantofJacobian(Partition* pa);
+Array<double>* ComputeDeterminantofJacobian(PartitionStruct* pa);
 
 double* ComputeVolumeCells(Array<double>* xcn, Array<int>* ien, MPI_Comm comm);
 

@@ -3,6 +3,7 @@
 #include "adapt_operations.h"
 #include "adapt_math.h"
 #include "adapt_output.h"
+#include "adapt_partition.h"
 //#include "adapt.h"
 #include <iomanip>
 int mpi_size, mpi_rank;
@@ -1589,9 +1590,9 @@ int main(int argc, char** argv) {
 //============================================================
     
     //const char* fn_conn="grids/piston/conn.h5";
-    const char* fn_conn="grids/adept/conn.h5";
-    const char* fn_grid="grids/adept/grid.h5";
-    const char* fn_data="grids/adept/data.h5";
+    const char* fn_conn="grids/piston/conn.h5";
+    const char* fn_grid="grids/piston/grid.h5";
+    //const char* fn_data="grids/adept/data.h5";
     const char* fn_adept="grids/adept/conn.h5";
     
     
@@ -1606,7 +1607,7 @@ int main(int argc, char** argv) {
     
     int Nel = ien->getNglob();
     int Nel_part = ien->getNrow();
-    ParArray<double>* interior   = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_1","interior",Nel,comm,info);
+    //ParArray<double>* interior   = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_1","interior",Nel,comm,info);
 //
 //    int fbface = zdefs->getVal(3,3);
 //
@@ -1683,16 +1684,18 @@ int main(int argc, char** argv) {
       }
       ParallelState_Parmetis* parm_pstate = new ParallelState_Parmetis(ien_copy,comm,8);
 
-      ParArray<int>* part_par  = DeterminePartitionLayout(ien_copy,parm_pstate,comm);
+      //ParArray<int>* part_par  = DeterminePartitionLayout(ien_copy,parm_pstate,comm);
       ParallelState* xcn_parstate = new ParallelState(xcn->getNglob(),comm);
       ParArray<double>* var = new ParArray<double>(Nel,1,comm);
       for(int i=0;i<Nel_part;i++)
       {
-        var->setVal(i,0,interior->getVal(i,0));
+          var->setVal(i,0,1.0);
       }
 
-      Partition* part = DetermineElement2ProcMap(ien_copy, part_par, xcn, var, xcn_parstate, comm);
+      //PartitionStruct* part = DetermineElement2ProcMap(ien_copy, part_par, xcn, var, xcn_parstate, comm);
 
+    
+     
 //===============================================================================================
 //
 //    int Nel_part = ien_copy->getNrow();
@@ -1700,10 +1703,34 @@ int main(int argc, char** argv) {
 //
     
     
+    Partition* P = new Partition(ien,xcn,xcn_parstate, var,parm_pstate,comm);
     
     
+    ParArray<int>* pid = P->getPart();
+    Array<int>* locE2globV = P->getLocalElem2GlobalVert();
+    std::vector<Vert> Vs = P->getLocalVerts();
+//    std::cout << "Vs.size() " << Vs.size() << std::endl;
+//    if (world_rank == 0)
+//    {
+//        for(int i=0;i<Vs.size();i++)
+//        {
+//            std::cout << i << " " << Vs[i].x << " " << Vs[i].y << " " << Vs[i].z << std::endl;
+//        }
+//    }
     
-    
+//    Array<int>* locE2locV = Partition->getLocalElem2LocalVert();
+//    std::cout << locE2locV->getNrow() << " " << locE2locV->getNcol() << std::endl;
+//    if (world_rank == 0)
+//    {
+//        for(int i=0;i<locE2locV->getNrow();i++)
+//        {
+//            for(int j=0;j<locE2locV->getNcol();j++)
+//            {
+//                std::cout << locE2locV->getVal(i,j) << " ";
+//            }
+//            std::cout << std::endl;
+//        }
+//    }
     //std::cout << "#verts of part " << world_rank << " := " << vert_crds->getNrow() << " " << std::endl;
     //std::cout << " +++ --- " << world_rank << " " << part->glob2loc_Vmap.size() << " " << part->loc2glob_Vmap.size() << " ()()() " << std::endl;
     MPI_Finalize();

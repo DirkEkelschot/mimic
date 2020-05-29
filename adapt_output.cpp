@@ -2,7 +2,7 @@
 
 using namespace std;
 
-void OutputZone(Partition* part, MPI_Comm comm)
+void OutputZone(PartitionStruct* part, MPI_Comm comm)
 {
     
     int size;

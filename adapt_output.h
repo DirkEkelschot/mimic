@@ -1,5 +1,5 @@
 #include "adapt_datastruct.h"
-#include "adapt_partition.h"
+#include "adapt_part_func.h"
 #include "adapt_io.h"
 #include "adapt.h"
 #include "adapt_array.h"
@@ -9,7 +9,7 @@
 
 using namespace std;
 
-void OutputZone(Partition* part, MPI_Comm comm);
+void OutputZone(PartitionStruct* part, MPI_Comm comm);
 
 void OutputQuantityPartition(Partition_old* pa, Array<double>* Quan, MPI_Comm comm);
 

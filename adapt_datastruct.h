@@ -129,7 +129,7 @@ struct Partition_old
 
 
 
-struct Partition
+struct PartitionStruct
 {
     int ndim;
     std::vector<Vert> Verts;
