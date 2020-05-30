@@ -1601,6 +1601,14 @@ int main(int argc, char** argv) {
     PlotBoundaryData(znames,zdefs,comm);
     
     ParArray<int>* ien    = ReadDataSetFromFileInParallel<int>(fn_conn,"ien",comm,info);
+    
+    ParArray<int>* ief    = ReadDataSetFromFileInParallel<int>(fn_conn,"ief",comm,info);
+    
+    
+    ParArray<int>* ife    = ReadDataSetFromFileInParallel<int>(fn_conn,"ife",comm,info);
+
+    
+    
     ParArray<double>* xcn = ReadDataSetFromFileInParallel<double>(fn_grid,"xcn",comm,info);
 //    ParArray<double>* ifn = ReadDataSetFromFileInParallel<double>(fn_grid,"ifn",comm,info);
 //    ParArray<double>* boundaries = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_6","boundaries",comm,info);
@@ -1667,72 +1675,73 @@ int main(int argc, char** argv) {
 //
 //===============================================================================================
 
-      ParallelState* pstate = new ParallelState(ien->getNglob(),comm);
-//
-      int nglob = ien->getNglob();
-      int nrow  = ien->getNrow();
-      int ncol  = ien->getNcol()-1;
-//
-      ParArray<int>* ien_copy = new ParArray<int>(nglob,ncol,comm);
-//
-      for(int i=0;i<nrow;i++)
-      {
-          for(int j=0;j<ncol;j++)
-          {
-              ien_copy->setVal(i,j,ien->getVal(i,j+1)-1);
-          }
-      }
-      ParallelState_Parmetis* parmetis_pstate = new ParallelState_Parmetis(ien_copy,comm,8);
+    ParallelState* pstate = new ParallelState(ien->getNglob(),comm);
+    //
+    int nglob = ien->getNglob();
+    int nrow  = ien->getNrow();
+    int ncol  = ien->getNcol()-1;
+    //
+    ParArray<int>* ien_copy = new ParArray<int>(nglob,ncol,comm);
+    //
+    for(int i=0;i<nrow;i++)
+    {
+        for(int j=0;j<ncol;j++)
+        {
+            ien_copy->setVal(i,j,ien->getVal(i,j+1)-1);
+        }
+    }
 
-      //ParArray<int>* part_par  = DeterminePartitionLayout(ien_copy,parm_pstate,comm);
-      ParallelState* xcn_parstate = new ParallelState(xcn->getNglob(),comm);
-      ParArray<double>* var = new ParArray<double>(Nel,1,comm);
-      for(int i=0;i<Nel_part;i++)
-      {
-          var->setVal(i,0,1.0);
-      }
+        
+    //
+    int ncol_ief = ief->getNcol()-1;
+    ParArray<int>* ief_copy = new ParArray<int>(nglob,ncol_ief,comm);
 
-      //PartitionStruct* part = DetermineElement2ProcMap(ien_copy, part_par, xcn, var, xcn_parstate, comm);
+    for(int i=0;i<nrow;i++)
+    {
+        for(int j=0;j<ncol_ief;j++)
+        {
+            ief_copy->setVal(i,j,fabs(ief->getVal(i,j+1))-1);
+        }
+    }
 
+    ParallelState_Parmetis* parmetis_pstate = new ParallelState_Parmetis(ien_copy,comm,8);
+
+    //ParArray<int>* part_par  = DeterminePartitionLayout(ien_copy,parm_pstate,comm);
+    ParallelState* xcn_parstate = new ParallelState(xcn->getNglob(),comm);
+    ParArray<double>* var = new ParArray<double>(Nel,1,comm);
+    for(int i=0;i<Nel_part;i++)
+    {
+        var->setVal(i,0,1.0);
+    }
     
-     
-//===============================================================================================
-//
-//    int Nel_part = ien_copy->getNrow();
-    
-//
-    
-    
-    Partition* P = new Partition(ien_copy,parmetis_pstate,xcn,xcn_parstate,var,comm);
+    Partition* P = new Partition(ien_copy, ief_copy, parmetis_pstate,xcn,xcn_parstate,var,comm);
     
     
     ParArray<int>* pid = P->getPart();
     Array<int>* locE2globV = P->getLocalElem2GlobalVert();
     std::vector<Vert> Vs = P->getLocalVerts();
-//    std::cout << "Vs.size() " << Vs.size() << std::endl;
-//    if (world_rank == 0)
+    int* xadj = P->getXadj();
+    int* adjcny = P->getAdjcny();
+    int nElemLoc = P->getNlocElem();
+//    if (world_rank==0)
 //    {
-//        for(int i=0;i<Vs.size();i++)
+//        for(int i = 0;i<nElemLoc;i++)
 //        {
-//            std::cout << i << " " << Vs[i].x << " " << Vs[i].y << " " << Vs[i].z << std::endl;
-//        }
-//    }
-    
-//    Array<int>* locE2locV = Partition->getLocalElem2LocalVert();
-//    std::cout << locE2locV->getNrow() << " " << locE2locV->getNcol() << std::endl;
-//    if (world_rank == 0)
-//    {
-//        for(int i=0;i<locE2locV->getNrow();i++)
-//        {
-//            for(int j=0;j<locE2locV->getNcol();j++)
+//            int start = xadj[i];
+//            int end = xadj[i+1];
+//            std::cout << i << " -> ";
+//            for(int j=start;j<end;j++)
 //            {
-//                std::cout << locE2locV->getVal(i,j) << " ";
+//                std::cout << adjcny[j] << " ";
 //            }
 //            std::cout << std::endl;
 //        }
 //    }
-    //std::cout << "#verts of part " << world_rank << " := " << vert_crds->getNrow() << " " << std::endl;
-    //std::cout << " +++ --- " << world_rank << " " << part->glob2loc_Vmap.size() << " " << part->loc2glob_Vmap.size() << " ()()() " << std::endl;
+    
+    
+    std::cout << ief->getNglob() << " " << ife->getNglob() << std::endl;
+    
+    
     MPI_Finalize();
     
     //delete ien;

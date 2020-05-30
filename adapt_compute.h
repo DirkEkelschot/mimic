@@ -24,7 +24,7 @@ double* ComputeJAtCenter(double*P, int np);
 
 double ComputeDeterminantJ(double*P, int np);
 
-Array<double>* ComputeDeterminantofJacobian(PartitionStruct* pa);
+Array<double>* ComputeDeterminantofJacobian(PartitionStruct*   pa);
 
 double* ComputeVolumeCells(Array<double>* xcn, Array<int>* ien, MPI_Comm comm);
 

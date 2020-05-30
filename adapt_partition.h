@@ -6,43 +6,62 @@
 
 class Partition {
    public:
-    Partition(ParArray<int>* ien, ParallelState_Parmetis* pstate_parmetis, ParArray<double>* xcn, ParallelState* xcn_parstate, ParArray<double>* U, MPI_Comm comm);
+    Partition(ParArray<int>* ien, ParArray<int>* ief, ParallelState_Parmetis* pstate_parmetis, ParArray<double>* xcn, ParallelState* xcn_parstate, ParArray<double>* U, MPI_Comm comm);
     void DeterminePartitionLayout(ParArray<int>* ien, ParallelState_Parmetis* pstate_parmetis, MPI_Comm comm);
-    void DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, ParArray<double>* xcn, ParallelState* xcn_parstate, ParArray<double>* U, MPI_Comm comm);
+    void DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief, ParArray<int>* part, ParArray<double>* xcn, ParallelState* xcn_parstate, ParArray<double>* U, MPI_Comm comm);
+    int getNlocElem();
     int* getXadj();
     int* getAdjcny();
     ParArray<int>* getPart();
     std::vector<Vert> getLocalVerts();
+    
     Array<int>* getLocalElem2GlobalVert();
     Array<int>* getLocalElem2LocalVert();
     std::map<int,int> getLocalVert2GlobalVert();
-    std::map<int,int> getGlovalVert2LocalVert();
+    std::map<int,int> getGlobalVert2LocalVert();
+    
+    Array<int>* getLocalElem2GlobalFace();
+    Array<int>* getLocalElem2LocalFace();
+    std::map<int,int> getLocalFace2GlobalFace();
+    std::map<int,int> getGlobalFace2LocalFace();
+    
     Array<double>* getUelem();
     Array<double>* getUvert();
+    
     ParallelState* getXcnParallelState();
     ParallelState* getIenParallelState();
+    
     ParallelState_Parmetis* getParallelStateParmetis();
     
    private:
-      int NlocElem;
+      
       int* xadj;
       int* adjcny;
+    
+      int NlocElem;
       Array<int>* ElemPart;
       ParArray<int>* part;
       std::vector<Vert> LocalVerts;
+    
       Array<int>* LocalElem2GlobalVert;
       Array<int>* LocalElem2LocalVert;
       std::map<int,int> LocalVert2GlobalVert;
-      std::map<int,int> GlovalVert2LocalVert;
+      std::map<int,int> GlobalVert2LocalVert;
+    
+      Array<int>* LocalElem2GlobalFace;
+      Array<int>* LocalElem2LocalFace;
+      std::map<int,int> LocalFace2GlobalFace;
+      std::map<int,int> GlobalFace2LocalFace;
+    
       Array<double>* U0Elem; // This is the value of U0 for each cell.
       Array<double>* U0Vert; // This is the reduced average for each vert based on
+    
       ParallelState* xcn_pstate;
-      ParallelState* ien_pstate;
       ParallelState_Parmetis* pstate_parmetis;
 };
 
 
-inline Partition::Partition(ParArray<int>* ien, ParallelState_Parmetis* pstate_parmetis, ParArray<double>* xcn, ParallelState* xcn_parstate, ParArray<double>* U, MPI_Comm comm)
+inline Partition::Partition(ParArray<int>* ien, ParArray<int>* ief, ParallelState_Parmetis* pstate_parmetis, ParArray<double>* xcn, ParallelState* xcn_parstate, ParArray<double>* U, MPI_Comm comm)
 {
     
     // This function computes the xadj and adjcny array and the part array which determines which element at current rank should be sent to other ranks.
@@ -50,7 +69,7 @@ inline Partition::Partition(ParArray<int>* ien, ParallelState_Parmetis* pstate_p
     
     // This function takes care of the send and receive operations in order to send the appropriate elements and corresponding vertices to the appropriate rank.
     // These operations are based on the fact that part holds the desired partitioning of the elements. the spread of the vertices is based on the fact that all the vertices stored in xcn are distributed "uniformly";
-    DetermineElement2ProcMap(ien, part, xcn, xcn_parstate, U, comm);
+    DetermineElement2ProcMap(ien, ief, part, xcn, xcn_parstate, U, comm);
 }
 
 inline void Partition::DeterminePartitionLayout(ParArray<int>* ien, ParallelState_Parmetis* pstate_parmetis, MPI_Comm comm)
@@ -140,7 +159,7 @@ inline void Partition::DeterminePartitionLayout(ParArray<int>* ien, ParallelStat
 }
 
 
-inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* part, ParArray<double>* xcn, ParallelState* xcn_parstate, ParArray<double>* U, MPI_Comm comm)
+inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief, ParArray<int>* part, ParArray<double>* xcn, ParallelState* xcn_parstate, ParArray<double>* U, MPI_Comm comm)
 {
     
     int q=0;
@@ -159,7 +178,8 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
     std::vector<std::vector<int> > part_elem2verts;
 
     std::map<int,std::vector<int> > elms_to_send_to_ranks;
-    std::map<int,std::vector<int> > verts_to_send_to_ranks;
+    std::map<int,std::vector<int> > vertIDs_to_send_to_ranks;
+    std::map<int,std::vector<int> > faceIDs_to_send_to_ranks;
     std::map<int,std::vector<double> > rho_to_send_to_ranks;
 
     std::set<int> unique_verts_on_rank_set;
@@ -169,7 +189,9 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
     std::vector<int> u_verts_part_vec;
     std::map<int,std::vector<int> > rank2req_vert;
 
-    std::vector<int> vert_on_rank;
+    std::vector<int> faceIDs_on_rank;
+        
+    std::vector<int> vertIDs_on_rank;
     std::vector<int> part_v;
     int r     = 0;
     int lv_id = 0;
@@ -182,8 +204,9 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
     int xcn_o = xcn->getOffset(rank);
     int xcn_n = xcn->getNloc(rank);
     std::map<int,int> LocalVert2GlobalVert;
-    std::map<int,int> GlovalVert2LocalVert;
+    std::map<int,int> GlobalVert2LocalVert;
     int vloc = 0;
+    int floc = 0;
     std::vector<int> loc_elem;
     std::vector<double> loc_rho;
     int ien_o = part->getOffset(rank);
@@ -192,17 +215,26 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
     {
         p_id  = part->getVal(i,0);
         el_id = part->getOffset(rank)+i;
-        rho = U->getVal(i,0);
+        rho   = U->getVal(i,0);
         if(p_id!=rank) // If element is not on this rank and needs to be send to other rank (p_id), add it to rank to element map.
         {
             elms_to_send_to_ranks[p_id].push_back(el_id); // rank to element map.
             rho_to_send_to_ranks[p_id].push_back(rho);
             
-            for(int k=0;k<8;k++)
+            //====================Hexes=======================
+            for(int k=0;k<8;k++)//This works for hexes.
             {
                 v_id = ien->getVal(i,k);
-                verts_to_send_to_ranks[p_id].push_back(v_id);
+                vertIDs_to_send_to_ranks[p_id].push_back(v_id);
+                
+                if (k<6)// faces
+                {
+                    f_id = ien->getVal(i,k);
+                    faceIDs_to_send_to_ranks[p_id].push_back(f_id);
+                }
+                
             }// We do not care about the vertices for these elements since they are needed on other ranks anyways.
+            //====================Hexes=======================
         }
         else // Here we are storing the actual vertices/elements that are required by the current rank.
         {
@@ -218,16 +250,23 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
                     
                     r = FindRank(xcn_parstate->getOffsets(),size,v_id);
 
-                    if (r!=rank)// if vertex is present on other rank, add it to vert_on_rank map..
+                    if (r!=rank)// if vertex is present on other rank, add it to vertIDs_on_rank map..
                     {
                         rank2req_vert[r].push_back(v_id); // add the vertex id that needs to be requested from rank r.
                     }
                     else
                     {
-                        vert_on_rank.push_back(v_id);  // add the vertex to list that is already available on rank.
+                        vertIDs_on_rank.push_back(v_id);  // add the vertex to list that is already available on rank.
                         vloc++;
                     }
                     lv_id++;
+                }
+                
+                if(k<6) // just store all faceID since they map to the local elemID.
+                {
+                    f_id = ief->getVal(i,k);
+                    faceIDs_on_rank.push_back(f_id);
+                    floc++;
                 }
             }
             loc_elem.push_back(el_id);
@@ -274,7 +313,7 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
     for(i=0;i<nTot_reqElements;i++)
     {
         sendFromRank2Rank_elem_Global[i]  = 0;
-        sendNelemFromRank2Rank_Global[i] = 0;
+        sendNelemFromRank2Rank_Global[i]  = 0;
     }
     
     
@@ -293,14 +332,12 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
         t++;
     }
 
-    
     MPI_Allgatherv(&send2Rank_fromRank_e[0],
                    nRank_reqElems_p_one, MPI_INT,
                    &sendFromRank2Rank_elem_Global[0],
                    reduced_nRank_reqElems,
                    reduced_nRank_reqElems_offset,
                    MPI_INT,comm);
-    
     
     MPI_Allgatherv(&sendNelem2Rank_from_rank[0],
                    nRank_reqElems_p_one, MPI_INT,
@@ -377,10 +414,11 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
         i++;
     }
     
-    int* TotRecvElement_IDs   = new int[TotNelem_recv];
+    int* TotRecvElement_IDs       = new int[TotNelem_recv];
     double* TotRecvElement_rhos   = new double[TotNelem_recv];
 
-    int* TotRecvElement_IDs_v = new int[TotNelem_recv*8];
+    int* TotRecvElement_IDs_v     = new int[TotNelem_recv*8];
+    int* TotRecvElement_IDs_f     = new int[TotNelem_recv*6];
     
     for(int i =0;i<TotNelem_recv;i++)
     {
@@ -399,15 +437,16 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
             {
                 int n_req           = it->second.size();
                 int n_req_v         = n_req*8;
+                int n_req_f         = n_req*6;
                 int dest            = it->first;
                                 
                 MPI_Send(&n_req, 1, MPI_INT, dest, dest, comm);
                 MPI_Send(&it->second[0], n_req, MPI_INT, dest, 100+dest*2, comm);
                 MPI_Send(&rho_to_send_to_ranks[it->first][0], n_req, MPI_DOUBLE, dest, 20000+100+dest*2, comm);
                 
-                MPI_Send(&n_req_v, 1, MPI_INT, dest, 9000+dest, comm);
-                MPI_Send(&verts_to_send_to_ranks[it->first][0], n_req_v, MPI_INT, dest, 9000+100+dest*2, comm);
-                
+                //MPI_Send(&n_req_v, 1, MPI_INT, dest, 9000+dest, comm);
+                MPI_Send(&vertIDs_to_send_to_ranks[it->first][0], n_req_v, MPI_INT, dest, 9000+100+dest*2, comm);
+                MPI_Send(&faceIDs_to_send_to_ranks[it->first][0], n_req_f, MPI_INT, dest, 229000+100+dest*2, comm);
                 i++;
             }
         }
@@ -417,22 +456,25 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
             MPI_Recv(&TotRecvElement_IDs[RecvAlloc_offset_map_e[q]], n_req_recv, MPI_INT, q, 100+rank*2, comm, MPI_STATUS_IGNORE);
             MPI_Recv(&TotRecvElement_rhos[RecvAlloc_offset_map_e[q]], n_req_recv, MPI_DOUBLE, q, 20000+100+rank*2, comm, MPI_STATUS_IGNORE);
             
-            MPI_Recv(&n_req_recv_v, 1, MPI_INT, q, 9000+rank, comm, MPI_STATUS_IGNORE);
-            MPI_Recv(&TotRecvElement_IDs_v[RecvAlloc_offset_map_e[q]*8], n_req_recv_v, MPI_INT, q, 9000+100+rank*2, comm, MPI_STATUS_IGNORE);
+            //MPI_Recv(&n_req_recv_v, 1, MPI_INT, q, 9000+rank, comm, MPI_STATUS_IGNORE);
+            MPI_Recv(&TotRecvElement_IDs_v[RecvAlloc_offset_map_e[q]*8], n_req_recv*8, MPI_INT, q, 9000+100+rank*2, comm, MPI_STATUS_IGNORE);
+            MPI_Recv(&TotRecvElement_IDs_f[RecvAlloc_offset_map_e[q]*6], n_req_recv*6, MPI_INT, q, 229000+100+rank*2, comm, MPI_STATUS_IGNORE);
             
         }
     }
 
     // Loop over all received vertex IDs in order to determine the remaining required unique vertices on the current rank.
     int Nel_extra = TotNelem_recv;
-    int cnt = 0;
+    int cnt_v = 0;
+    int cnt_f = 0;
     for(int i=0;i<TotNelem_recv;i++)
     {
         std::vector<int> elem;
+        
         for(int k=0;k<8;k++)
         {
-            int v_id_n = TotRecvElement_IDs_v[cnt];
-            elem.push_back(v_id_n);
+            int v_id_n = TotRecvElement_IDs_v[cnt_v];
+            //elem.push_back(v_id_n);
             r = FindRank(xcn_parstate->getOffsets(),size,v_id_n);
             
             if(unique_verts_on_rank_set.find( v_id_n ) == unique_verts_on_rank_set.end()) // add the required unique vertex for current rank.
@@ -441,17 +483,27 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
                 //unique_verts_on_rank_vec.push_back(v_id_n);
                 //part_v.push_back(r);
                 
-                if (r!=rank)// check whether this vertex is already present on current rank. if vertex is present on other rank, add it to vert_on_rank map.
+                if (r!=rank)// check whether this vertex is already present on current rank. if vertex is present on other rank, add it to vertIDs_on_rank map.
                 {
                     rank2req_vert[r].push_back(v_id_n); // add vertex to rank2req_vert map.
                 }
                 else
                 {
-                    vert_on_rank.push_back(v_id_n); // add the vertex to list that is already available on rank.
+                    vertIDs_on_rank.push_back(v_id_n); // add the vertex to list that is already available on rank.
                     vloc++;
                 }
             }
-            cnt++;
+            cnt_v++;
+            
+            if(k<6)
+            {
+                int f_id_n = TotRecvElement_IDs_v[cnt_f];
+                
+                faceIDs_on_rank.push_back(f_id_n); // add the vertex to list that is already available on rank.
+                cnt_f++;
+                floc++;
+            }
+            
         }
         //part_elem2verts.push_back(elem);
         //loc_elem.push_back(TotRecvElement_IDs[i]);
@@ -697,45 +749,41 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
     {
         int c  = 0;
         vfor=vfor+recv_back_Nverts[it_f->first];
-        //for(int u=0;u<Nv;u++)
-        //{
-            //v_id = rank2req_vert[it_f->first][u];
-            //vert_on_rank.push_back(v_id);
-            
-            //V.x = it_f->second[u*3+0];
-            //V.y = it_f->second[u*3+1];
-            //V.z = it_f->second[u*3+2];
-            
-            //part_verts.push_back(V);
-            //LocalVert2GlobalVert[vloc]=v_id;
-            //GlovalVert2LocalVert[v_id]=vloc;
-         //vfor++;
-            //vloc++;
-        //}
+
     }
     double* part_verts_arr = new double[3*(vloc+vfor)];
     //int* LocalVert2GlobalVert = new int[vloc+vfor];
-    //int* GlovalVert2LocalVert = new int[vloc+vfor];
-    int vid=0;
-    int lid=0;
-
+    //int* GlobalVert2LocalVert = new int[vloc+vfor];
+    int gvid=0;
+    int lvid=0;
     for(int m=0;m<vloc;m++)
     {
-        vid = vert_on_rank[m];
+        gvid = vertIDs_on_rank[m];
        
-        part_verts_arr[m*3+0] = xcn->getVal(vid-xcn_o,0);
-        part_verts_arr[m*3+1] = xcn->getVal(vid-xcn_o,1);
-        part_verts_arr[m*3+2] = xcn->getVal(vid-xcn_o,2);
+        part_verts_arr[m*3+0] = xcn->getVal(gvid-xcn_o,0);
+        part_verts_arr[m*3+1] = xcn->getVal(gvid-xcn_o,1);
+        part_verts_arr[m*3+2] = xcn->getVal(gvid-xcn_o,2);
         Vert V;
         
-        V.x = xcn->getVal(vid-xcn_o,0);
-        V.y = xcn->getVal(vid-xcn_o,1);
-        V.z = xcn->getVal(vid-xcn_o,2);
+        V.x = xcn->getVal(gvid-xcn_o,0);
+        V.y = xcn->getVal(gvid-xcn_o,1);
+        V.z = xcn->getVal(gvid-xcn_o,2);
         
         LocalVerts.push_back(V);
-        LocalVert2GlobalVert[lid] = vid;
-        GlovalVert2LocalVert[vid] = lid;
-        lid++;
+        LocalVert2GlobalVert[lvid] = gvid;
+        GlobalVert2LocalVert[gvid] = lvid;
+        lvid++;
+    }
+    
+    int lfid = 0;
+    int gfid = 0;
+    for(int m=0;m<floc;m++)
+    {
+        gfid = faceIDs_on_rank[m];
+    
+        LocalFace2GlobalFace[lfid] = gfid;
+        GlobalFace2LocalFace[gfid] = lfid;
+        lfid++;
     }
     
 
@@ -746,7 +794,7 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
         int Nv = recv_back_Nverts[it_f->first];
         for(int u=0;u<Nv;u++)
         {
-            vid = rank2req_vert[it_f->first][u];
+            gvid = rank2req_vert[it_f->first][u];
      
             part_verts_arr[o+m*3+0] = it_f->second[u*3+0];
             part_verts_arr[o+m*3+1] = it_f->second[u*3+1];
@@ -759,26 +807,30 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
             
             LocalVerts.push_back(V);
             
-            LocalVert2GlobalVert[lid]=vid;
-            GlovalVert2LocalVert[vid]=lid;
+            LocalVert2GlobalVert[lvid]=gvid;
+            GlobalVert2LocalVert[gvid]=lvid;
             
             m++;
-            lid++;
-            //vfor++;
-            //vloc++;
+            lvid++;
         }
         
     }
     
-    int NlocElem         = loc_elem.size()+Nel_extra;
+    NlocElem             = loc_elem.size()+Nel_extra;
     LocalElem2GlobalVert = new Array<int>(NlocElem,8);
     LocalElem2LocalVert  = new Array<int>(NlocElem,8);
+    
+    LocalElem2GlobalFace = new Array<int>(NlocElem,6);
+    LocalElem2LocalFace  = new Array<int>(NlocElem,6);
+    
     U0Elem               = new Array<double>(NlocElem,1);
     U0Vert               = new Array<double>(LocalVerts.size(),1);
     ElemPart             = new Array<int>(NlocElem,1);
-    std::cout << LocalElem2GlobalVert->getNrow() << " " << LocalElem2GlobalVert->getNcol() << std::endl;
-    int glob = 0;
-    int loc = 0;
+
+    int glob_v = 0;
+    int loc_v  = 0;
+    int glob_f = 0;
+    int loc_f  = 0;
     double rho_v = 0;
     std::map<int,std::vector<double> > collect_var;
     for(int m=0;m<loc_elem.size();m++)
@@ -789,16 +841,25 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
         ElemPart->setVal(m,0,el_id);
         for(int p=0;p<8;p++)
         {
-            glob = ien->getVal(el_id-ien_o,p);
-            loc = GlovalVert2LocalVert[glob];
-            LocalElem2GlobalVert->setVal(m,p,glob);
-            LocalElem2LocalVert->setVal(m,p,loc);
-            collect_var[loc].push_back(rho_v);
+            glob_v = ien->getVal(el_id-ien_o,p);
+            loc_v = GlobalVert2LocalVert[glob_v];
+            LocalElem2GlobalVert->setVal(m,p,glob_v);
+            LocalElem2LocalVert->setVal(m,p,loc_v);
+            collect_var[loc_v].push_back(rho_v);
+            
+            if(p<6)
+            {
+                glob_f = ief->getVal(el_id-ien_o,p);
+                loc_f  = GlobalFace2LocalFace[glob_f];
+                LocalElem2GlobalFace->setVal(m,p,glob_f);
+                LocalElem2LocalFace->setVal(m,p,loc_f);
+            }
             
         }
     }
     o = loc_elem.size();
-    int cn = 0;
+    int cnv = 0;
+    int cnf = 0;
     for(int m=0;m<Nel_extra;m++)
     {
         el_id = TotRecvElement_IDs[m];
@@ -808,12 +869,22 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
         
         for(int p=0;p<8;p++)
         {
-            glob = TotRecvElement_IDs_v[cn];
-            loc = GlovalVert2LocalVert[glob];
-            LocalElem2GlobalVert->setVal(m+o,p,glob);
-            LocalElem2LocalVert->setVal(m+o,p,loc);
-            collect_var[loc].push_back(rho_v);
-            cn++;
+            glob_v = TotRecvElement_IDs_v[cnv];
+            loc_v = GlobalVert2LocalVert[glob_v];
+            LocalElem2GlobalVert->setVal(m+o,p,glob_v);
+            LocalElem2LocalVert->setVal(m+o,p,loc_v);
+            collect_var[loc_v].push_back(rho_v);
+            cnv++;
+            
+            if(p<6)
+            {
+                glob_f = TotRecvElement_IDs_v[cnf];
+                loc_f  = GlobalFace2LocalFace[glob_f];
+                LocalElem2GlobalFace->setVal(m+o,p,glob_f);
+                LocalElem2LocalFace->setVal(m+o,p,loc_f);
+                cnf++;
+            }
+            
         }
     }
     
@@ -830,6 +901,11 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
         U0Vert->setVal(c,0,sum/it_rhos->second.size());
         c++;
     }
+}
+
+int Partition::getNlocElem()
+{
+    return NlocElem;
 }
 
 inline int* Partition::getXadj()
@@ -860,10 +936,30 @@ inline std::map<int,int> Partition::getLocalVert2GlobalVert()
 {
     return LocalVert2GlobalVert;
 }
-inline std::map<int,int> Partition::getGlovalVert2LocalVert()
+inline std::map<int,int> Partition::getGlobalVert2LocalVert()
 {
-    return GlovalVert2LocalVert;
+    return GlobalVert2LocalVert;
 }
+
+
+inline Array<int>* Partition::getLocalElem2GlobalFace()
+{
+    return LocalElem2GlobalFace;
+}
+inline Array<int>* Partition::getLocalElem2LocalFace()
+{
+    return LocalElem2LocalFace;
+}
+inline std::map<int,int> Partition::getLocalFace2GlobalFace()
+{
+    return LocalFace2GlobalFace;
+}
+inline std::map<int,int> Partition::getGlobalFace2LocalFace()
+{
+    return GlobalFace2LocalFace;
+}
+
+
 inline Array<double>* Partition::getUelem()
 {
     return U0Elem;

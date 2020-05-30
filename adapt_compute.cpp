@@ -198,7 +198,6 @@ double ComputeVolumeHexCell(double *P)
     H12 = ComputeEdgeLength(&v0,&v1);
     b0 = 0.5*L01*L15;
     double vol0 = 1.0/3.0*b0*H12;
-    
     //==================================================
 
     v0.x = P[0*3+0]; v1.x = P[4*3+0];
