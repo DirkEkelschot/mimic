@@ -24,7 +24,9 @@ class Partition {
     Array<int>* getLocalElem2LocalFace();
     std::map<int,int> getLocalFace2GlobalFace();
     std::map<int,int> getGlobalFace2LocalFace();
-    
+    std::map<int,std::vector<int> > getElem2GlobalFace();
+    std::map<int,std::vector<int> > getGlobalFace2Elem();
+    std::set<int> getElemSet();
     Array<double>* getUelem();
     Array<double>* getUvert();
     
@@ -39,6 +41,7 @@ class Partition {
       int* adjcny;
     
       int NlocElem;
+      set<int> elem_set;
       Array<int>* ElemPart;
       ParArray<int>* part;
       std::vector<Vert> LocalVerts;
@@ -52,6 +55,8 @@ class Partition {
       Array<int>* LocalElem2LocalFace;
       std::map<int,int> LocalFace2GlobalFace;
       std::map<int,int> GlobalFace2LocalFace;
+      std::map<int,std::vector<int> > Elem2GlobalFace;
+      std::map<int,std::vector<int> > GlobalFace2Elem;
     
       Array<double>* U0Elem; // This is the value of U0 for each cell.
       Array<double>* U0Vert; // This is the reduced average for each vert based on
@@ -182,8 +187,9 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
     std::map<int,std::vector<int> > faceIDs_to_send_to_ranks;
     std::map<int,std::vector<double> > rho_to_send_to_ranks;
 
-    std::set<int> unique_verts_on_rank_set;
+    std::set<int> unique_vertIDs_on_rank_set;
     std::vector<int> unique_verts_on_rank_vec;
+    std::set<int> unique_faceIDs_on_rank_set;
     
     std::set<int> u_verts_part_set;
     std::vector<int> u_verts_part_vec;
@@ -243,9 +249,9 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
             {
                 v_id = ien->getVal(i,k);
                 //elem.push_back(v_id);
-                if(unique_verts_on_rank_set.find( v_id ) == unique_verts_on_rank_set.end())// find the unique vertices that need to be send to other partitions.
+                if(unique_vertIDs_on_rank_set.find( v_id ) == unique_vertIDs_on_rank_set.end())// find the unique vertices that need to be send to other partitions.
                 {
-                    unique_verts_on_rank_set.insert(v_id);
+                    unique_vertIDs_on_rank_set.insert(v_id);
                     //unique_verts_on_rank_vec.push_back(v_id);
                     
                     r = FindRank(xcn_parstate->getOffsets(),size,v_id);
@@ -265,10 +271,15 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
                 if(k<6) // just store all faceID since they map to the local elemID.
                 {
                     f_id = ief->getVal(i,k);
-                    faceIDs_on_rank.push_back(f_id);
-                    floc++;
+                    if(unique_faceIDs_on_rank_set.find( f_id ) == unique_faceIDs_on_rank_set.end()) // add the required unique vertex for current rank.
+                    {
+                        unique_faceIDs_on_rank_set.insert(f_id);
+                        faceIDs_on_rank.push_back(f_id);
+                        floc++;
+                    }
                 }
             }
+            elem_set.insert(el_id);
             loc_elem.push_back(el_id);
             loc_rho.push_back(rho);
         }
@@ -464,6 +475,7 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
     }
 
     // Loop over all received vertex IDs in order to determine the remaining required unique vertices on the current rank.
+    
     int Nel_extra = TotNelem_recv;
     int cnt_v = 0;
     int cnt_f = 0;
@@ -477,9 +489,9 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
             //elem.push_back(v_id_n);
             r = FindRank(xcn_parstate->getOffsets(),size,v_id_n);
             
-            if(unique_verts_on_rank_set.find( v_id_n ) == unique_verts_on_rank_set.end()) // add the required unique vertex for current rank.
+            if(unique_vertIDs_on_rank_set.find( v_id_n ) == unique_vertIDs_on_rank_set.end()) // add the required unique vertex for current rank.
             {
-                unique_verts_on_rank_set.insert(v_id_n);
+                unique_vertIDs_on_rank_set.insert(v_id_n);
                 //unique_verts_on_rank_vec.push_back(v_id_n);
                 //part_v.push_back(r);
                 
@@ -498,15 +510,20 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
             if(k<6)
             {
                 int f_id_n = TotRecvElement_IDs_v[cnt_f];
-                
-                faceIDs_on_rank.push_back(f_id_n); // add the vertex to list that is already available on rank.
+                if(unique_faceIDs_on_rank_set.find( f_id ) == unique_faceIDs_on_rank_set.end()) // add the required unique vertex for current rank.
+                {
+                    unique_faceIDs_on_rank_set.insert(f_id);
+                    faceIDs_on_rank.push_back(f_id_n); // add the vertex to list that is already available on rank.
+                    floc++;
+                }
                 cnt_f++;
-                floc++;
+
             }
             
         }
         //part_elem2verts.push_back(elem);
         //loc_elem.push_back(TotRecvElement_IDs[i]);
+        elem_set.insert(TotRecvElement_IDs[i]);
     }
     
     // ==========================================================================================================
@@ -853,6 +870,8 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
                 loc_f  = GlobalFace2LocalFace[glob_f];
                 LocalElem2GlobalFace->setVal(m,p,glob_f);
                 LocalElem2LocalFace->setVal(m,p,loc_f);
+                Elem2GlobalFace[el_id].push_back(glob_f);
+                GlobalFace2Elem[glob_f].push_back(el_id);
             }
             
         }
@@ -878,7 +897,7 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
             
             if(p<6)
             {
-                glob_f = TotRecvElement_IDs_v[cnf];
+                glob_f = TotRecvElement_IDs_f[cnf];
                 loc_f  = GlobalFace2LocalFace[glob_f];
                 LocalElem2GlobalFace->setVal(m+o,p,glob_f);
                 LocalElem2LocalFace->setVal(m+o,p,loc_f);
@@ -958,8 +977,18 @@ inline std::map<int,int> Partition::getGlobalFace2LocalFace()
 {
     return GlobalFace2LocalFace;
 }
-
-
+inline std::map<int, std::vector<int> > Partition::getElem2GlobalFace()
+{
+    return Elem2GlobalFace;
+}
+inline std::map<int, std::vector<int> > Partition::getGlobalFace2Elem()
+{
+    return GlobalFace2Elem;
+}
+inline std::set<int> Partition::getElemSet()
+{
+    return elem_set;
+}
 inline Array<double>* Partition::getUelem()
 {
     return U0Elem;

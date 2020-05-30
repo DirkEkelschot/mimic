@@ -1723,23 +1723,85 @@ int main(int argc, char** argv) {
     int* xadj = P->getXadj();
     int* adjcny = P->getAdjcny();
     int nElemLoc = P->getNlocElem();
-//    if (world_rank==0)
+    //Array<int>* Elem2GlobFace = P->getLocalElem2GlobalFace();
+    std::map<int,std::vector<int> > elem2globface = P->getElem2GlobalFace();
+    std::set<int> elem_set = P->getElemSet();
+
+    std::cout << " rank " << world_rank << " " << elem2globface.size() << std::endl;
+    
+    std::map<int,std::vector<int> >::iterator itef;
+//    for(itef=elem2globface.begin();itef!=elem2globface.end();itef++)
 //    {
-//        for(int i = 0;i<nElemLoc;i++)
+//        std::cout << " on rank " << world_rank << " " << itef->first << " -> ";
+//        for(int u=0;u<itef->second.size();u++)
 //        {
-//            int start = xadj[i];
-//            int end = xadj[i+1];
-//            std::cout << i << " -> ";
-//            for(int j=start;j<end;j++)
-//            {
-//                std::cout << adjcny[j] << " ";
-//            }
-//            std::cout << std::endl;
+//            std::cout << itef->second[u] << " ";
 //        }
+//        std::cout << std::endl;
+//    }
+//    if(world_rank == 2)
+//    {
+//        std::map<int,int>::iterator itm;
+//        for(itm=locface2globface.begin();itm!=locface2globface.end();itm++)
+//        {
+//            std::cout << world_rank << " " << itm->first << " " << itm->second << std::endl;
+//        }
+//    }
+    //std::cout << world_rank << " " << nElemLoc << std::endl;
+    
+    std::map<int,std::map<int,int> > loc_adj;
+    if (world_rank==2)
+    {
+        std::map<int,std::vector<int> >::iterator itm;
+        
+        for(int i = 0;i<nElemLoc;i++)
+        {
+            int of = ien_copy->getOffset(world_rank);
+            std::set<int> owned_faces;
+            for(int n=0;n<6;n++)
+            {
+                owned_faces.insert(elem2globface[i+of][n]);
+            }
+            int start = xadj[i];
+            int end   = xadj[i+1];
+            for(int j=start;j<end;j++)
+            {
+                int adjEl_id = adjcny[j];
+
+                if(elem_set.find(adjEl_id) != elem_set.end())
+                {
+                    for(int n=0;n<6;n++)
+                    {
+                        int f_id_ex = elem2globface[adjEl_id][n];
+                        if(owned_faces.find(f_id_ex)!=owned_faces.end())
+                        {
+                            loc_adj[i+of][n]=adjEl_id;
+                        }
+                    }
+                }
+            }
+            //std::cout << std::endl;
+            owned_faces.clear();
+        }
+    }
+    
+    
+//    std::map<int,std::map<int,int> >::iterator itadj;
+//    
+//    for(itadj=loc_adj.begin();itadj!=loc_adj.end();itadj++)
+//    {
+//        std::cout << itadj->first << " -> " << std::endl;
+//        std::map<int,int>::iterator itmap;
+//        for(itmap=itadj->second.begin();itmap!=itadj->second.end();itmap++)
+//        {
+//            std::cout << itmap->first << " " << itmap->second << std::endl;
+//        }
+//        std::cout << std::endl;
 //    }
     
     
-    std::cout << ief->getNglob() << " " << ife->getNglob() << std::endl;
+    
+    //std::cout << ief->getNglob() << " " << ife->getNglob() << std::endl;
     
     
     MPI_Finalize();
