@@ -1,4 +1,4 @@
-OBJECTS = adapt_output.cpp adapt_compute.cpp adapt_partition.cpp adapt_operations.cpp main.cpp
+OBJECTS = adapt_output.cpp adapt_compute.cpp adapt_part_func.cpp adapt_operations.cpp main.cpp
 
 CXXFLAGS += -std=c++11 -DMPI_NO_CPPBIND
 

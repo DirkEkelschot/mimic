@@ -1590,8 +1590,8 @@ int main(int argc, char** argv) {
 //============================================================
     
     //const char* fn_conn="grids/piston/conn.h5";
-    const char* fn_conn="grids/piston/conn.h5";
-    const char* fn_grid="grids/piston/grid.h5";
+    const char* fn_conn="grids/adept/conn.h5";
+    const char* fn_grid="grids/adept/grid.h5";
     //const char* fn_data="grids/adept/data.h5";
     const char* fn_adept="grids/adept/conn.h5";
     
@@ -1713,9 +1713,10 @@ int main(int argc, char** argv) {
     {
         var->setVal(i,0,1.0);
     }
-    
+    double t0 = MPI_Wtime(); 
     Partition* P = new Partition(ien_copy, ief_copy, parmetis_pstate,xcn,xcn_parstate,var,comm);
-    
+    double t00 = MPI_Wtime();
+    std::cout << "partitioning " << t00-t0 << std::endl;
     
     ParArray<int>* pid = P->getPart();
     Array<int>* locE2globV = P->getLocalElem2GlobalVert();
@@ -1727,65 +1728,60 @@ int main(int argc, char** argv) {
     std::map<int,std::vector<int> > elem2globface = P->getElem2GlobalFace();
     std::set<int> elem_set = P->getElemSet();
 
-    std::cout << " rank " << world_rank << " " << elem2globface.size() << std::endl;
-    
-    std::map<int,std::vector<int> >::iterator itef;
-//    for(itef=elem2globface.begin();itef!=elem2globface.end();itef++)
-//    {
-//        std::cout << " on rank " << world_rank << " " << itef->first << " -> ";
-//        for(int u=0;u<itef->second.size();u++)
-//        {
-//            std::cout << itef->second[u] << " ";
-//        }
-//        std::cout << std::endl;
-//    }
-//    if(world_rank == 2)
-//    {
-//        std::map<int,int>::iterator itm;
-//        for(itm=locface2globface.begin();itm!=locface2globface.end();itm++)
-//        {
-//            std::cout << world_rank << " " << itm->first << " " << itm->second << std::endl;
-//        }
-//    }
-    //std::cout << world_rank << " " << nElemLoc << std::endl;
-    
-    std::map<int,std::map<int,int> > loc_adj;
-    if (world_rank==2)
+    double  t1 = MPI_Wtime();
+    std::map<int,std::vector<int> > loc_adj;
+    std::map<int,std::vector<int> >::iterator itm;
+    int not_on_rank = 0;
+    int on_rank = 0;    
+    for(int i = 0;i<ien_copy->getNloc(world_rank);i++)
     {
-        std::map<int,std::vector<int> >::iterator itm;
-        
-        for(int i = 0;i<nElemLoc;i++)
-        {
-            int of = ien_copy->getOffset(world_rank);
-            std::set<int> owned_faces;
-            for(int n=0;n<6;n++)
-            {
-                owned_faces.insert(elem2globface[i+of][n]);
-            }
-            int start = xadj[i];
-            int end   = xadj[i+1];
-            for(int j=start;j<end;j++)
-            {
-                int adjEl_id = adjcny[j];
+       
+       int of = ien_copy->getOffset(world_rank);
+       std::set<int> owned_faces;
+       if(elem_set.find(i+of) != elem_set.end())
+       { 
+      	 for(int n=0;n<6;n++)
+         { 
+           owned_faces.insert(elem2globface[i+of][n]);
+         }
+	   on_rank++;
+       }
+       else
+       {
+           not_on_rank++;
+       }
 
-                if(elem_set.find(adjEl_id) != elem_set.end())
+       int start = xadj[i];
+       int end   = xadj[i+1];
+       for(int j=start;j<end;j++)
+       {
+          int adjEl_id = adjcny[j];
+          
+          if(elem_set.find(adjEl_id) != elem_set.end())
+          {
+             for(int n=0;n<6;n++)
+             {
+                int f_id_ex = elem2globface[adjEl_id][n];
+                if(owned_faces.find(f_id_ex)!=owned_faces.end())
                 {
-                    for(int n=0;n<6;n++)
-                    {
-                        int f_id_ex = elem2globface[adjEl_id][n];
-                        if(owned_faces.find(f_id_ex)!=owned_faces.end())
-                        {
-                            loc_adj[i+of][n]=adjEl_id;
-                        }
-                    }
+                   //std::cout << n <<  " " << adjEl_id << std::endl;
+		   //if(elem_set.find(i+of) != elem_set.end())
+                   //{
+ 		     //if(loc_adj.find(i)==loc_adj.end())
+	             //{
+		     //	loc_adj[i].push_back(0);
+	             //}
+                   //}
+                   //loc_adj[i+of][n]=adjEl_id;
                 }
-            }
-            //std::cout << std::endl;
-            owned_faces.clear();
-        }
-    }
-    
-    
+             }
+          }
+        } 
+        owned_faces.clear();
+     }
+ 
+      double t2 = MPI_Wtime();
+      std::cout << "time spent scheming " << t2-t1 << std::endl;
 //    std::map<int,std::map<int,int> >::iterator itadj;
 //    
 //    for(itadj=loc_adj.begin();itadj!=loc_adj.end();itadj++)
@@ -1802,7 +1798,7 @@ int main(int argc, char** argv) {
     
     
     //std::cout << ief->getNglob() << " " << ife->getNglob() << std::endl;
-    
+    std::cout << world_rank << " not on rankk =  " << (double) not_on_rank/on_rank << std::endl;
     
     MPI_Finalize();
     

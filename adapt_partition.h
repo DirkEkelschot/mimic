@@ -217,6 +217,8 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
     std::vector<double> loc_rho;
     int ien_o = part->getOffset(rank);
     double rho = 0.0;
+    int not_on_rank=0;
+    int on_rank = 0;
     for(i=0;i<part->getNrow();i++)
     {
         p_id  = part->getVal(i,0);
@@ -241,6 +243,7 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
                 
             }// We do not care about the vertices for these elements since they are needed on other ranks anyways.
             //====================Hexes=======================
+            not_on_rank++;
         }
         else // Here we are storing the actual vertices/elements that are required by the current rank.
         {
@@ -279,6 +282,7 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
                     }
                 }
             }
+            on_rank++;
             elem_set.insert(el_id);
             loc_elem.push_back(el_id);
             loc_rho.push_back(rho);
@@ -920,6 +924,7 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
         U0Vert->setVal(c,0,sum/it_rhos->second.size());
         c++;
     }
+    std::cout << rank << " Partitioning on Rank = " << (double) not_on_rank/on_rank << std::endl;
 }
 
 int Partition::getNlocElem()
