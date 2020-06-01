@@ -138,7 +138,7 @@ inline void Partition::DeterminePartitionLayout(ParArray<int>* ien, ParallelStat
     {
         part[u] = rank;
     }*/
-    
+    /*
     ParMETIS_V3_AdaptiveRepart(pstate_parmetis->getElmdist(),
                            xadj_par, adjncy_par,
                                elmwgt, adjwgt,
@@ -146,15 +146,15 @@ inline void Partition::DeterminePartitionLayout(ParArray<int>* ien, ParallelStat
                    numflag, ncon, nparts,
                    tpwgts, ubvec, itr, options,
                    &edgecut, part_arr, &comm);
- 
-    /*ParMETIS_V3_PartKway(pstate_parmetis->getElmdist(),
-                         xadj,
-                         adjncy,
+     */
+    ParMETIS_V3_PartKway(pstate_parmetis->getElmdist(),
+                         xadj_par,
+                         adjncy_par,
                          elmwgt, NULL, wgtflag, numflag,
                          ncon, nparts,
                          tpwgts, ubvec, options,
-                         &edgecut, part, &comm);
-     */
+                         &edgecut, part_arr, &comm);
+    
     
     part = new ParArray<int>(ien->getNglob(),1,comm);
     part->data = part_arr;
@@ -283,10 +283,10 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
                 }
             }
             on_rank++;
-            elem_set.insert(el_id);
-            loc_elem.push_back(el_id);
-            loc_rho.push_back(rho);
         }
+        loc_elem.push_back(el_id);
+        loc_rho.push_back(rho);
+        elem_set.insert(el_id);
     }
     
     int nRank_reqElems = elms_to_send_to_ranks.size();
@@ -526,7 +526,6 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
             
         }
         //part_elem2verts.push_back(elem);
-        //loc_elem.push_back(TotRecvElement_IDs[i]);
         elem_set.insert(TotRecvElement_IDs[i]);
     }
     
@@ -872,8 +871,7 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
             {
                 glob_f = ief->getVal(el_id-ien_o,p);
                 loc_f  = GlobalFace2LocalFace[glob_f];
-                LocalElem2GlobalFace->setVal(m,p,glob_f);
-                LocalElem2LocalFace->setVal(m,p,loc_f);
+                
                 Elem2GlobalFace[el_id].push_back(glob_f);
                 GlobalFace2Elem[glob_f].push_back(el_id);
             }
@@ -903,8 +901,9 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
             {
                 glob_f = TotRecvElement_IDs_f[cnf];
                 loc_f  = GlobalFace2LocalFace[glob_f];
-                LocalElem2GlobalFace->setVal(m+o,p,glob_f);
-                LocalElem2LocalFace->setVal(m+o,p,loc_f);
+
+                Elem2GlobalFace[el_id].push_back(glob_f);
+                GlobalFace2Elem[glob_f].push_back(el_id);
                 cnf++;
             }
             
