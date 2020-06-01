@@ -1590,8 +1590,8 @@ int main(int argc, char** argv) {
 //============================================================
     
     //const char* fn_conn="grids/piston/conn.h5";
-    const char* fn_conn="grids/piston/conn.h5";
-    const char* fn_grid="grids/piston/grid.h5";
+    const char* fn_conn="grids/adept/conn.h5";
+    const char* fn_grid="grids/adept/grid.h5";
     //const char* fn_data="grids/adept/data.h5";
     const char* fn_adept="grids/adept/conn.h5";
     
@@ -1716,7 +1716,14 @@ int main(int argc, char** argv) {
     double t0 = MPI_Wtime(); 
     Partition* P = new Partition(ien_copy, ief_copy, parmetis_pstate,xcn,xcn_parstate,var,comm);
     double t00 = MPI_Wtime();
-    std::cout << "partitioning " << t00-t0 << std::endl;
+    double timing = t00-t0;
+    double max_time = 0.0;
+    MPI_Allreduce(&timing, &max_time, 1, MPI_DOUBLE, MPI_MAX, comm);
+    
+    if (world_rank == 0)
+    {
+        std::cout << "t_max := " << max_time  << std::endl;
+    }
     
     ParArray<int>* pid = P->getPart();
     Array<int>* locE2globV = P->getLocalElem2GlobalVert();
@@ -1782,21 +1789,31 @@ int main(int argc, char** argv) {
 
  
       double t2 = MPI_Wtime();
+     double timing2 = t2-t1;
       //std::cout << "time spent scheming " << t2-t1 << std::endl;
-//    std::map<int,std::map<int,int> >::iterator itadj;
+    double max_time2 = 0.0;
+     MPI_Allreduce(&timing2, &max_time2, 1, MPI_DOUBLE, MPI_MAX, comm);
+     if (world_rank == 0)
+     {
+         std::cout << "t_max2 := " << max_time2  << std::endl;
+     }
+    /*
+    if(world_rank == 0)
+    {
+    std::map<int,std::map<int,int> >::iterator itadj;
 //    
-//    for(itadj=loc_adj.begin();itadj!=loc_adj.end();itadj++)
-//    {
-//        std::cout << itadj->first << " -> " << std::endl;
-//        std::map<int,int>::iterator itmap;
-//        for(itmap=itadj->second.begin();itmap!=itadj->second.end();itmap++)
-//        {
-//            std::cout << itmap->first << " " << itmap->second << std::endl;
-//        }
-//        std::cout << std::endl;
-//    }
-    
-    
+    for(itadj=loc_adj.begin();itadj!=loc_adj.end();itadj++)
+    {
+        std::cout << itadj->first << " -> " << std::endl;
+        std::map<int,int>::iterator itmap;
+        for(itmap=itadj->second.begin();itmap!=itadj->second.end();itmap++)
+        {
+            std::cout << itmap->first << " " << itmap->second << std::endl;
+        }
+        std::cout << std::endl;
+    }
+    }
+    */
     
     //std::cout << ief->getNglob() << " " << ife->getNglob() << std::endl;
     //std::cout << world_rank << " not on rankk =  " << (double) not_on_rank/on_rank << std::endl;

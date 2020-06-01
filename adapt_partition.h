@@ -923,7 +923,8 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
         U0Vert->setVal(c,0,sum/it_rhos->second.size());
         c++;
     }
-    std::cout << rank << " Partitioning on Rank = " << (double) not_on_rank/on_rank << std::endl;
+    
+    //std::cout << rank << " Partitioning on Rank = " << (double) not_on_rank/on_rank << std::endl;
 }
 
 int Partition::getNlocElem()
