@@ -1570,6 +1570,239 @@ void ParallelSortTest_v2()
 }
 
 
+std::map<int, std::map<int, int> > getElement2ElementTopology(Partition* P, MPI_Comm comm)
+{
+    int world_size;
+    MPI_Comm_size(comm, &world_size);
+    // Get the rank of the process
+    int world_rank;
+    MPI_Comm_rank(comm, &world_rank);
+    
+    ParArray<int>* pid                              = P->getPart();
+    Array<int>* locE2globV                          = P->getLocalElem2GlobalVert();
+    int* xadj                                       = P->getXadj();
+    int* adjcny                                     = P->getAdjcny();
+    int nElemLoc                                    = P->getNlocElem();
+    std::map<int,std::vector<int> > elem2globface   = P->getElem2GlobalFace();
+    
+    std::set<int> elem_set = P->getElemSet();
+
+    double  t1 = MPI_Wtime();
+    std::map<int,std::map<int,int> > Element2ElementTopology;
+
+    for(int i = 0;i<pid->getNloc(world_rank);i++)
+    {
+       int of = pid->getOffset(world_rank);
+       int nloc = pid->getNloc(world_rank);
+       std::set<int> owned_faces;
+       for(int n=0;n<6;n++)
+       {
+           owned_faces.insert(elem2globface[i+of][n]);
+       }
+       int start = xadj[i];
+       int end   = xadj[i+1];
+       for(int j=start;j<end;j++)
+       {
+          int adjEl_id = adjcny[j];
+
+          if(elem_set.find(adjEl_id) != elem_set.end())
+          {
+             for(int n=0;n<6;n++)
+             {
+                int f_id_ex = elem2globface[adjEl_id][n];
+                if(owned_faces.find(f_id_ex)!=owned_faces.end())
+                {
+                    Element2ElementTopology[i+of][n]=adjEl_id;
+                }
+             }
+          }
+        }
+        owned_faces.clear();
+     }
+    
+    delete[] xadj;
+    delete[] adjcny;
+    return Element2ElementTopology;
+}
+
+ParArray<double>* ComputeHessian(Partition* P, int Nel, std::map<int,std::map<int,int> > E2Etopo, MPI_Comm comm)
+{
+    
+    // d^2u/dx^2 = (u_(i+1,j,k)-2u_(i,j,k)+u_(i-1,j,k))/(dx)^2 // faces 0-1
+    // d^2u/dy^2 = (u_(i,j+1,k)-2u_(i,j,k)+u_(i,j-1,k))/(dy)^2 // faces 2-3
+    // d^2u/dz^2 = (u_(i,j,k+1)-2u_(i,j,k)+u_(i,j,k-1))/(dz)^2 // faces 4-5
+    int size;
+    MPI_Comm_size(comm, &size);
+    // Get the rank of the process
+    int rank;
+    MPI_Comm_rank(comm, &rank);
+    
+    
+    ParArray<double>* hessian = new ParArray<double>(Nel,1,comm);
+    
+    std::map<int,std::vector<int> > gE2lV       = P->getGlobElem2LocVerts();
+    
+    std::map<int, int> locV2globV               = P->getLocalVert2GlobalVert();
+    std::map<int, int> globV2locV               = P->getGlobalVert2LocalVert();
+
+    std::vector<Vert> locVerts                  = P->getLocalVerts();
+    std::cout << gE2lV.size() << std::endl;
+    std::map<int,std::map<int,int> >::iterator itadj;
+    //
+    double d2udx2 = 0.0;
+    double d2udy2 = 0.0;
+    double d2udz2 = 0.0;
+    int loc_vid = 0;
+    int np = 8;
+//    std::cout << "==================================" << std::endl;
+////
+//    std::cout << "size l2g = " << locV2globV.size() << std::endl;
+//    std::map<int,std::vector<int> >::iterator q;
+//    for(q=gE2lV.begin();q!=gE2lV.end();q++)
+//    {
+//        std::cout << " world rank = " << rank << " :: " << q->first << " -> ";
+//
+//        for(int o=0;o<q->second.size();o++)
+//        {
+//            std::cout << q->second[o] << " ";
+//        }
+//        std::cout << std::endl;
+//
+//    }
+//    std::cout << "==================================" << std::endl;
+//
+    std::map<int, int>::iterator itmap;
+//    for(itmap=locV2globV.begin();itmap!=locV2globV.end();itmap++)
+//    {
+//        std::cout << itmap->first << " " << itmap->second << std::endl;
+//    }
+//    for(int i=0;i<locVerts.size();i++)
+//    {
+//        std::cout << rank << " _> " << i << " " << locVerts[i].x<<" "<< locVerts[i].y<<" "<< locVerts[i].z <<" "<< std::endl;
+//    }
+    for(itadj=E2Etopo.begin();itadj!=E2Etopo.end();itadj++)
+    {
+        std::map<int,int>::iterator itmap;
+        
+        d2udx2 = 0.0;
+        d2udy2 = 0.0;
+        d2udz2 = 0.0;
+        
+        
+        double u_ijk = P->getU0atElem(itadj->first);
+        
+        std::vector<int> vijkIDs = gE2lV[itadj->first];
+        double* Pijk = new double[np*3];
+        //std::cout << "========================" << std::endl;
+        for(int i=0;i<vijkIDs.size();i++)
+        {
+            loc_vid     = vijkIDs[i];
+            Pijk[i*3+0] = locVerts[loc_vid].x;
+            Pijk[i*3+1] = locVerts[loc_vid].y;
+            Pijk[i*3+2] = locVerts[loc_vid].z;
+            //std::cout << itadj->first << " " << loc_vid << " vertices = " << " " << Pijk[i*3+0] << " " << Pijk[i*3+1] << " " << Pijk[i*3+2] << " " << locVerts.size() << std::endl;
+        }
+        //locVerts.size()std::cout << std::endl;
+        Vert Vijk = ComputeCenterCoord(Pijk,8);
+
+        
+        //std::cout << itadj->first << " " << Vijk.x << " " << Vijk.y << " " << Vijk.z << std::endl;
+        
+        /*
+        if(itadj->second.find(0) != itadj->second.end())
+        {
+            double u_ip1jk = P->getU0atElem(itadj->second[0]);
+            double u_im1jk = P->getU0atElem(itadj->second[1]);
+            d2udx2 = (u_ip1jk-2*u_ijk+u_im1jk);
+        }
+        
+        
+        
+        
+        
+        if(itadj->second.find(2) != itadj->second.end())
+        {
+            std::vector<int> vijp1kIDs = gE2lV[itadj->second[2]];
+            double* Pijp1k = new double[np*3];
+            for(int i=0;i<vijp1kIDs.size();i++)
+            {
+                loc_vid  = globV2locV[vijp1kIDs[i]];
+                Pijp1k[i*3+0] = locVerts[loc_vid].x;
+                Pijp1k[i*3+1] = locVerts[loc_vid].y;
+                Pijp1k[i*3+2] = locVerts[loc_vid].z;
+            }
+            Vert Vijp1k = ComputeCenterCoord(Pijp1k,8);
+            
+            std::vector<int> vijm1kIDs = gE2lV[itadj->second[3]];
+            double* Pijm1k = new double[np*3];
+            for(int i=0;i<vijm1kIDs.size();i++)
+            {
+                loc_vid  = globV2locV[vijm1kIDs[i]];
+                Pijm1k[i*3+0] = locVerts[loc_vid].x;
+                Pijm1k[i*3+1] = locVerts[loc_vid].y;
+                Pijm1k[i*3+2] = locVerts[loc_vid].z;
+                
+                //std::cout << vijm1kIDs[i] << " " << loc_vid  << " " << locVerts[loc_vid].x << " " << locVerts[loc_vid].y << " " << locVerts[loc_vid].z << std::endl;
+            }
+            //std::cout << std::endl;
+            Vert Vijm1k = ComputeCenterCoord(Pijm1k,8);
+            double dijm1j = sqrt((Vijm1k.x-Vijk.x)*(Vijm1k.x-Vijk.x)+
+                                 (Vijm1k.y-Vijk.y)*(Vijm1k.y-Vijk.y)+
+                                 (Vijm1k.z-Vijk.z)*(Vijm1k.y-Vijk.z));
+            
+            double dijp1j = sqrt((Vijp1k.x-Vijk.x)*(Vijp1k.x-Vijk.x)+
+                                 (Vijp1k.y-Vijk.y)*(Vijp1k.y-Vijk.y)+
+                                 (Vijp1k.z-Vijk.z)*(Vijp1k.y-Vijk.z));
+            
+            double u_ijp1k = P->getU0atElem(itadj->second[2]);
+            double u_ijm1k = P->getU0atElem(itadj->second[3]);
+            
+//            for(int u=0;u<np;u++)
+//            {
+//                std::cout << itadj->second[2] << " " << itadj->second[3] << " " << vijp1kIDs[u]  << " " << vijm1kIDs[u]  << std::endl;
+//            }
+//            std::cout << std::endl;
+////
+//            std::cout << " ======================================== " << std::endl;
+//            std::cout << Vijm1k.x << " " << Vijm1k.y << " " << Vijm1k.z << std::endl;
+//            std::cout << Vijk.x << " " << Vijk.y << " " << Vijk.z << std::endl;
+//            std::cout << Vijp1k.x << " " << Vijp1k.y << " " << Vijp1k.z << std::endl;
+//            std::cout << " ======================================== " << std::endl;
+            
+            d2udy2 = (u_ijp1k-2*u_ijk+u_ijm1k)/(dijm1j+dijp1j);
+            //std::cout << d2udy2 << " " << dijm1j << " " << dijp1j << std::endl;
+        }
+        
+        
+        
+        
+        
+        
+        
+        
+        if(itadj->second.find(4) != itadj->second.end())
+        {
+            double u_ijkp1 = P->getU0atElem(itadj->second[4]);
+            double u_ijkm1 = P->getU0atElem(itadj->second[5]);
+            d2udz2 = (u_ijkp1-2*u_ijk+u_ijkm1);
+            //std::cout << " d2udz2 " << d2udy2 << std::endl;
+        }
+        */
+        
+        
+        
+
+        
+//        for(itmap=itadj->second.begin();itmap!=itadj->second.end();itmap++)
+//        {
+//            std::cout << itmap->first << " " << itmap->second << std::endl;
+//        }
+//        std::cout << std::endl;
+    }
+    
+    return hessian;
+}
+
 int main(int argc, char** argv) {
     
     MPI_Init(NULL, NULL);
@@ -1590,8 +1823,8 @@ int main(int argc, char** argv) {
 //============================================================
     
     //const char* fn_conn="grids/piston/conn.h5";
-    const char* fn_conn="grids/adept/conn.h5";
-    const char* fn_grid="grids/adept/grid.h5";
+    const char* fn_conn="grids/piston/conn.h5";
+    const char* fn_grid="grids/piston/grid.h5";
     //const char* fn_data="grids/adept/data.h5";
     const char* fn_adept="grids/adept/conn.h5";
     
@@ -1607,8 +1840,6 @@ int main(int argc, char** argv) {
     
     ParArray<int>* ife    = ReadDataSetFromFileInParallel<int>(fn_conn,"ife",comm,info);
 
-    
-    
     ParArray<double>* xcn = ReadDataSetFromFileInParallel<double>(fn_grid,"xcn",comm,info);
 //    ParArray<double>* ifn = ReadDataSetFromFileInParallel<double>(fn_grid,"ifn",comm,info);
 //    ParArray<double>* boundaries = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_6","boundaries",comm,info);
@@ -1706,14 +1937,15 @@ int main(int argc, char** argv) {
 
     ParallelState_Parmetis* parmetis_pstate = new ParallelState_Parmetis(ien_copy,comm,8);
 
-    //ParArray<int>* part_par  = DeterminePartitionLayout(ien_copy,parm_pstate,comm);
     ParallelState* xcn_parstate = new ParallelState(xcn->getNglob(),comm);
     ParArray<double>* var = new ParArray<double>(Nel,1,comm);
+    
     for(int i=0;i<Nel_part;i++)
     {
         var->setVal(i,0,1.0);
     }
-    double t0 = MPI_Wtime(); 
+    
+    double t0 = MPI_Wtime();
     Partition* P = new Partition(ien_copy, ief_copy, parmetis_pstate,xcn,xcn_parstate,var,comm);
     double t00 = MPI_Wtime();
     double timing = t00-t0;
@@ -1725,70 +1957,26 @@ int main(int argc, char** argv) {
         std::cout << "t_max := " << max_time  << std::endl;
     }
     
-    ParArray<int>* pid = P->getPart();
-    Array<int>* locE2globV = P->getLocalElem2GlobalVert();
-    std::vector<Vert> Vs = P->getLocalVerts();
-    int* xadj = P->getXadj();
-    int* adjcny = P->getAdjcny();
-    int nElemLoc = P->getNlocElem();
-    //Array<int>* Elem2GlobFace = P->getLocalElem2GlobalFace();
-    std::map<int,std::vector<int> > elem2globface = P->getElem2GlobalFace();
+    //std::map<int,map<int,int> > E2Etopo = GetElement2ElementTopology(Partition* P, MPI_Comm comm);
     
-    std::map<int,std::vector<int> >::iterator itm1;
-    for(itm1=elem2globface.begin();itm1!=elem2globface.end();itm1++)
-    {
-        //std::cout << "world rank  ==" << world_rank << " -- " << itm1->first << " -> ";
-        std::vector<int>::iterator itv;
-        for(int q=0;q<itm1->second.size();q++)
-        {
-            //std::cout << itm1->second[q] << " ";
-        }
-        //std::cout << std::endl;
-    }
-    
-    std::set<int> elem_set = P->getElemSet();
+//    ParArray<int>* pid                              = P->getPart();
+//    Array<int>* locE2globV                          = P->getLocalElem2GlobalVert();
+//    std::vector<Vert> Vs                            = P->getLocalVerts();
+//    int* xadj                                       = P->getXadj();
+//    int* adjcny                                     = P->getAdjcny();
+//    int nElemLoc                                    = P->getNlocElem();
+//    std::map<int,std::vector<int> > elem2globface   = P->getElem2GlobalFace();
+//
+//    std::set<int> elem_set = P->getElemSet();
 
     double  t1 = MPI_Wtime();
-    std::map<int,std::map<int,int> > loc_adj;
-    std::map<int,std::vector<int> >::iterator itm;
-    int not_on_rank = 0;
-    int on_rank = 0;
-//
-    for(int i = 0;i<ien_copy->getNloc(world_rank);i++)
-    {
 
-       int of = ien_copy->getOffset(world_rank);
-       int nloc = ien_copy->getNloc(world_rank);
-       std::set<int> owned_faces;
-       for(int n=0;n<6;n++)
-       {
-           owned_faces.insert(elem2globface[i+of][n]);
-       }
-	   
-       int start = xadj[i];
-       int end   = xadj[i+1];
-       for(int j=start;j<end;j++)
-       {
-          int adjEl_id = adjcny[j];
-
-          if(elem_set.find(adjEl_id) != elem_set.end())
-          {
-             for(int n=0;n<6;n++)
-             {
-                int f_id_ex = elem2globface[adjEl_id][n];
-                if(owned_faces.find(f_id_ex)!=owned_faces.end())
-                {
-                    loc_adj[i+of][n]=adjEl_id;
-                }
-             }
-          }
-        }
-        
-        owned_faces.clear();
-     }
 
  
-      double t2 = MPI_Wtime();
+    
+    
+    std::map<int,map<int,int> > E2Etopo = getElement2ElementTopology(P, comm);
+    double t2 = MPI_Wtime();
      double timing2 = t2-t1;
       //std::cout << "time spent scheming " << t2-t1 << std::endl;
     double max_time2 = 0.0;
@@ -1797,23 +1985,20 @@ int main(int argc, char** argv) {
      {
          std::cout << "t_max2 := " << max_time2  << std::endl;
      }
-    /*
+    
     if(world_rank == 0)
     {
-    std::map<int,std::map<int,int> >::iterator itadj;
-//    
-    for(itadj=loc_adj.begin();itadj!=loc_adj.end();itadj++)
-    {
-        std::cout << itadj->first << " -> " << std::endl;
-        std::map<int,int>::iterator itmap;
-        for(itmap=itadj->second.begin();itmap!=itadj->second.end();itmap++)
-        {
-            std::cout << itmap->first << " " << itmap->second << std::endl;
-        }
-        std::cout << std::endl;
+//        for(int j=0;j<ien_copy->getNrow();j++)
+//        {
+//            for(int k=0;k<ien_copy->getNcol();k++)
+//            {
+//                std::cout << ien_copy->getVal(j,k) << " ";
+//            }
+//            std::cout << std::endl;
+//        }
+        ParArray<double>* hessian = ComputeHessian(P,ien_copy->getNglob(),E2Etopo,comm);
     }
-    }
-    */
+    
     
     //std::cout << ief->getNglob() << " " << ife->getNglob() << std::endl;
     //std::cout << world_rank << " not on rankk =  " << (double) not_on_rank/on_rank << std::endl;

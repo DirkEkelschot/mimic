@@ -275,6 +275,62 @@ double ComputeVolumeHexCell(double *P)
         J[6], J[7], J[8]]
 */
 // J is computed using the 8-point isoparametric mapping for a hex. The 8-point rule should be sufficient since everything is linear anyways.
+Vert ComputeCenterCoord(double*P, int np)
+{
+    Vert V;
+    
+    int * ref = new int[np*3];
+        
+    // Allocate the arrays for the mapping function and its derivatives.
+    double * N      = new double[np];
+    double * dNdeta = new double[np];
+    double * dNdmu  = new double[np];
+    double * dNdksi = new double[np];
+    
+    for(int i=0;i<np;i++)
+    {
+        N[i]      = 0.0;
+        dNdeta[i] = 0.0;
+        dNdmu[i]  = 0.0;
+        dNdksi[i] = 0.0;
+    }
+    
+    // Define the reference element as [-1,1]^3
+    ref[0*3+0] = -1;    ref[0*3+1] = -1;    ref[0*3+2] = -1;
+    ref[1*3+0] =  1;    ref[1*3+1] = -1;    ref[1*3+2] = -1;
+    ref[2*3+0] =  1;    ref[2*3+1] =  1;    ref[2*3+2] = -1;
+    ref[3*3+0] = -1;    ref[3*3+1] =  1;    ref[3*3+2] = -1;
+            
+    ref[4*3+0] = -1;    ref[4*3+1] = -1;    ref[4*3+2] = 1;
+    ref[5*3+0] =  1;    ref[5*3+1] = -1;    ref[5*3+2] = 1;
+    ref[6*3+0] =  1;    ref[6*3+1] =  1;    ref[6*3+2] = 1;
+    ref[7*3+0] = -1;    ref[7*3+1] =  1;    ref[7*3+2] = 1;
+     
+    // We want to compute the Jacobian at the center of the cell
+    // So we set eta, mu and ksi equal to 0 which is the center
+    // of the reference cell.
+    double eta = 0;
+    double mu  = 0;
+    double ksi = 0;
+    V.x = 0.0;
+    V.y = 0.0;
+    V.z = 0.0;
+
+    for(int i = 0; i < np; i++)
+    {
+        N[i] = 1.0/8.0*(1+ref[i*3+0]*eta)*(1+ref[i*3+1]*mu)*(1+ref[i*3+2]*ksi);
+        
+        dNdeta[i] = (1.0/8.0 * (1+ref[i*3+1]*mu)  * (1+ref[i*3+2]*ksi))*ref[i*3+0];
+        dNdmu[i]  = (1.0/8.0 * (1+ref[i*3+0]*eta) * (1+ref[i*3+2]*ksi))*ref[i*3+1];
+        dNdksi[i] = (1.0/8.0 * (1+ref[i*3+0]*eta) * (1+ref[i*3+1]*mu))*ref[i*3+2];
+                        
+        V.x = V.x+N[i]*P[i*3+0];
+        V.y = V.y+N[i]*P[i*3+1];
+        V.z = V.z+N[i]*P[i*3+2];
+    }
+    return V;
+}
+
 
 double* ComputeJAtCenter(double*P, int np)
 {
@@ -294,7 +350,7 @@ double* ComputeJAtCenter(double*P, int np)
     
     for(int i=0;i<np;i++)
     {
-        N[i] = 0.0;
+        N[i]      = 0.0;
         dNdeta[i] = 0.0;
         dNdmu[i]  = 0.0;
         dNdksi[i] = 0.0;
