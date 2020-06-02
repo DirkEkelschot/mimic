@@ -1699,15 +1699,13 @@ ParArray<double>* ComputeHessian(Partition* P, int Nel, std::map<int,std::map<in
             Pijk[i*3+0] = locVerts[loc_vid].x;
             Pijk[i*3+1] = locVerts[loc_vid].y;
             Pijk[i*3+2] = locVerts[loc_vid].z;
-            //std::cout << itadj->first << " " << loc_vid << " vertices = " << " " << Pijk[i*3+0] << " " << Pijk[i*3+1] << " " << Pijk[i*3+2] << " " << locVerts.size() << std::endl;
         }
-        //locVerts.size()std::cout << std::endl;
+        
         Vert Vijk = ComputeCenterCoord(Pijk,8);
 
-        
         //std::cout << itadj->first << " " << Vijk.x << " " << Vijk.y << " " << Vijk.z << std::endl;
         
-        /*
+        
         if(itadj->second.find(0) != itadj->second.end())
         {
             double u_ip1jk = P->getU0atElem(itadj->second[0]);
@@ -1716,16 +1714,13 @@ ParArray<double>* ComputeHessian(Partition* P, int Nel, std::map<int,std::map<in
         }
         
         
-        
-        
-        
         if(itadj->second.find(2) != itadj->second.end())
         {
             std::vector<int> vijp1kIDs = gE2lV[itadj->second[2]];
             double* Pijp1k = new double[np*3];
             for(int i=0;i<vijp1kIDs.size();i++)
             {
-                loc_vid  = globV2locV[vijp1kIDs[i]];
+                loc_vid  = vijp1kIDs[i];
                 Pijp1k[i*3+0] = locVerts[loc_vid].x;
                 Pijp1k[i*3+1] = locVerts[loc_vid].y;
                 Pijp1k[i*3+2] = locVerts[loc_vid].z;
@@ -1736,7 +1731,7 @@ ParArray<double>* ComputeHessian(Partition* P, int Nel, std::map<int,std::map<in
             double* Pijm1k = new double[np*3];
             for(int i=0;i<vijm1kIDs.size();i++)
             {
-                loc_vid  = globV2locV[vijm1kIDs[i]];
+                loc_vid  = vijm1kIDs[i];
                 Pijm1k[i*3+0] = locVerts[loc_vid].x;
                 Pijm1k[i*3+1] = locVerts[loc_vid].y;
                 Pijm1k[i*3+2] = locVerts[loc_vid].z;
@@ -1756,17 +1751,17 @@ ParArray<double>* ComputeHessian(Partition* P, int Nel, std::map<int,std::map<in
             double u_ijp1k = P->getU0atElem(itadj->second[2]);
             double u_ijm1k = P->getU0atElem(itadj->second[3]);
             
-//            for(int u=0;u<np;u++)
-//            {
-//                std::cout << itadj->second[2] << " " << itadj->second[3] << " " << vijp1kIDs[u]  << " " << vijm1kIDs[u]  << std::endl;
-//            }
+            for(int u=0;u<np;u++)
+            {
+                std::cout << itadj->second[2] << " " << itadj->second[3] << " " << vijp1kIDs[u]  << " " << vijm1kIDs[u]  << std::endl;
+            }
 //            std::cout << std::endl;
 ////
-//            std::cout << " ======================================== " << std::endl;
-//            std::cout << Vijm1k.x << " " << Vijm1k.y << " " << Vijm1k.z << std::endl;
-//            std::cout << Vijk.x << " " << Vijk.y << " " << Vijk.z << std::endl;
-//            std::cout << Vijp1k.x << " " << Vijp1k.y << " " << Vijp1k.z << std::endl;
-//            std::cout << " ======================================== " << std::endl;
+            std::cout << " ======================================== " << std::endl;
+            std::cout << Vijm1k.x << " " << Vijm1k.y << " " << Vijm1k.z << std::endl;
+            std::cout << Vijk.x << " " << Vijk.y << " " << Vijk.z << std::endl;
+            std::cout << Vijp1k.x << " " << Vijp1k.y << " " << Vijp1k.z << std::endl;
+            std::cout << " ======================================== " << std::endl;
             
             d2udy2 = (u_ijp1k-2*u_ijk+u_ijm1k)/(dijm1j+dijp1j);
             //std::cout << d2udy2 << " " << dijm1j << " " << dijp1j << std::endl;
@@ -1786,7 +1781,7 @@ ParArray<double>* ComputeHessian(Partition* P, int Nel, std::map<int,std::map<in
             d2udz2 = (u_ijkp1-2*u_ijk+u_ijkm1);
             //std::cout << " d2udz2 " << d2udy2 << std::endl;
         }
-        */
+        
         
         
         
@@ -1842,15 +1837,7 @@ int main(int argc, char** argv) {
     ParArray<double>* xcn = ReadDataSetFromFileInParallel<double>(fn_grid,"xcn",comm,info);
 //    ParArray<double>* ifn = ReadDataSetFromFileInParallel<double>(fn_grid,"ifn",comm,info);
 //    ParArray<double>* boundaries = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_6","boundaries",comm,info);
-    if(world_rank == 0)
-    {
-        std::cout << xcn->getNrow() << std::endl;
-        for(int i=0;i<xcn->getNrow();i++)
-        {
-            
-            //std::cout << rank << " _> " << i << " " << locVerts[i].x<<" "<< locVerts[i].y<<" "<< locVerts[i].z <<" "<< std::endl;
-        }
-    }
+    
     int Nel = ien->getNglob();
     int Nel_part = ien->getNrow();
     //ParArray<double>* interior   = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_1","interior",Nel,comm,info);

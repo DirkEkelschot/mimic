@@ -224,14 +224,11 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
     int on_rank = 0;
     
     int* new_offsets = new int[size];
-    //int* real_offsets = xcn_parstate->getOffsets();
     for(int i=0;i<size;i++)
     {
         new_offsets[i] = xcn_parstate->getOffsets()[i]-1;
     }
-    
-    int rtest = FindRank(new_offsets,size,2001);
-        
+            
     for(i=0;i<part->getNrow();i++)
     {
         p_id  = part->getVal(i,0);
