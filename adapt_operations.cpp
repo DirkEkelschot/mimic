@@ -25,7 +25,7 @@ int FindRank(int* arr, int size, int val)
         }
         mid = (start+last)/2;
     }
-        
+
     return mid;
 }
 

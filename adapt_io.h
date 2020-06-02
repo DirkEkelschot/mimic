@@ -280,29 +280,30 @@ ParArray<T>* ReadDataSetFromFileInParallel(const char* file_name, const char* da
     
     //std::cout << rank << " " << size << std::endl;
     
-    hid_t acc_tpl1       = H5Pcreate (H5P_FILE_ACCESS);
+    hid_t acc_tpl1          = H5Pcreate (H5P_FILE_ACCESS);
     herr_t ret;
-    //herr_t ret           = H5Pset_fapl_mpio(acc_tpl1, comm, info);
-    //herr_t ret           = H5Pset_dxpl_mpio(,comm,info);
-    acc_tpl1             = H5P_DEFAULT;
+    //herr_t ret            = H5Pset_fapl_mpio(acc_tpl1, comm, info);
+    //herr_t ret            = H5Pset_dxpl_mpio(,comm,info);
+    acc_tpl1                = H5P_DEFAULT;
     // Open file and data set to get dimensions of array;
     
-    hid_t file_id        = H5Fopen(file_name, H5F_ACC_RDONLY,H5P_DEFAULT);
-    hid_t dset_id        = H5Dopen(file_id,dataset_name,H5P_DEFAULT);
-    hid_t dspace         = H5Dget_space(dset_id);
-    int ndims            = H5Sget_simple_extent_ndims(dspace);
+    hid_t file_id           = H5Fopen(file_name, H5F_ACC_RDONLY,H5P_DEFAULT);
+    hid_t dset_id           = H5Dopen(file_id,dataset_name,H5P_DEFAULT);
+    hid_t dspace            = H5Dget_space(dset_id);
+    int ndims               = H5Sget_simple_extent_ndims(dspace);
     
     hsize_t dims[ndims];
     H5Sget_simple_extent_dims(dspace, dims, NULL);
-    int nrow             = dims[0];
-    int ncol             = dims[1];
-    int N                = nrow;
-    int nloc             = int(N/size) + ( rank < N%size );
+    int nrow                = dims[0];
+    int ncol                = dims[1];
+    int N                   = nrow;
+    int nloc                = int(N/size) + ( rank < N%size );
     //  compute offset of rows for each proc;
-    int offset           = rank*int(N/size) + MIN(rank, N%size);
+    int offset              = rank*int(N/size) + MIN(rank, N%size);
     ParArray<T>* PA         = new ParArray<T>(N,ncol,comm);
     //ParArray<T>* parA     = new ParArray<T>(N,ncol,comm);
     //ParallelState* pstate = parA->getParallelState();
+    
     
     hsize_t              offsets[2];
     hsize_t              counts[2];

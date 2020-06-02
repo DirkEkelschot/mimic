@@ -222,6 +222,16 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
     double rho = 0.0;
     int not_on_rank=0;
     int on_rank = 0;
+    
+    int* new_offsets = new int[size];
+    //int* real_offsets = xcn_parstate->getOffsets();
+    for(int i=0;i<size;i++)
+    {
+        new_offsets[i] = xcn_parstate->getOffsets()[i]-1;
+    }
+    
+    int rtest = FindRank(new_offsets,size,2001);
+        
     for(i=0;i<part->getNrow();i++)
     {
         p_id  = part->getVal(i,0);
@@ -243,7 +253,7 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
                     unique_vertIDs_on_rank_set.insert(v_id);
                     //unique_verts_on_rank_vec.push_back(v_id);
                     
-                    r = FindRank(xcn_parstate->getOffsets(),size,v_id);
+                    r = FindRank(new_offsets,size,v_id);
 
                     if (r!=rank)// if vertex is present on other rank, add it to vertIDs_on_rank map..
                     {
@@ -281,7 +291,7 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
                     unique_vertIDs_on_rank_set.insert(v_id);
                     //unique_verts_on_rank_vec.push_back(v_id);
                     
-                    r = FindRank(xcn_parstate->getOffsets(),size,v_id);
+                    r = FindRank(new_offsets,size,v_id);
 
                     if (r!=rank)// if vertex is present on other rank, add it to vertIDs_on_rank map..
                     {
@@ -516,7 +526,7 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
         {
             int v_id_n = TotRecvElement_IDs_v[cnt_v];
             //elem.push_back(v_id_n);
-            r = FindRank(xcn_parstate->getOffsets(),size,v_id_n);
+            r = FindRank(new_offsets,size,v_id_n);
             
             if(unique_vertIDs_on_rank_set.find( v_id_n ) == unique_vertIDs_on_rank_set.end()) // add the required unique vertex for current rank.
             {
@@ -806,8 +816,6 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
     {
         gvid = vertIDs_on_rank[m];
        
-        
-        
         part_verts_arr[m*3+0] = xcn->getVal(gvid-xcn_o,0);
         part_verts_arr[m*3+1] = xcn->getVal(gvid-xcn_o,1);
         part_verts_arr[m*3+2] = xcn->getVal(gvid-xcn_o,2);
@@ -816,13 +824,6 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
         V.x = xcn->getVal(gvid-xcn_o,0);
         V.y = xcn->getVal(gvid-xcn_o,1);
         V.z = xcn->getVal(gvid-xcn_o,2);
-        if(rank == 0)
-        {
-            //if(gvid==492)
-            //{
-                std::cout << m << " " << gvid << " found it "<< " " << xcn->getVal(gvid-xcn_o,0) << " " << xcn->getVal(gvid-xcn_o,1) << " " << xcn->getVal(gvid-xcn_o,2) << " " << xcn->getNglob() << std::endl;
-            //}
-        }
         
         LocalVerts.push_back(V);
         LocalVert2GlobalVert[lvid] = gvid;
@@ -830,23 +831,6 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
         lvid++;
     }
     
-    
-    
-//    if(rank == 0)
-//    {
-//        std::map<int,int* >::iterator it_f2;
-//
-//        for(it_f2=recv_back_verts_ids.begin();it_f2!=recv_back_verts_ids.end();it_f2++)
-//        {
-//            std::cout << it_f2->first << " -> " ;
-//            for(int q=0;q<recv_back_Nverts[it_f2->first]*3;q++)
-//            {
-//                std::cout << it_f2->second[q] << " ";
-//            }
-//            std::cout << std::endl;
-//        }
-//    }
-//
     
     
     int o = 3*vloc;
@@ -858,7 +842,7 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
         for(int u=0;u<Nv;u++)
         {
             gvid = rank2req_vert[it_f->first][u];
-     
+            
             
             part_verts_arr[o+m*3+0] = it_f->second[u*3+0];
             part_verts_arr[o+m*3+1] = it_f->second[u*3+1];

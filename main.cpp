@@ -1676,10 +1676,9 @@ ParArray<double>* ComputeHessian(Partition* P, int Nel, std::map<int,std::map<in
 //    {
 //        std::cout << itmap->first << " " << itmap->second << std::endl;
 //    }
-//    for(int i=0;i<locVerts.size();i++)
-//    {
-//        std::cout << rank << " _> " << i << " " << locVerts[i].x<<" "<< locVerts[i].y<<" "<< locVerts[i].z <<" "<< std::endl;
-//    }
+    
+    
+    
     for(itadj=E2Etopo.begin();itadj!=E2Etopo.end();itadj++)
     {
         std::map<int,int>::iterator itmap;
@@ -1843,7 +1842,15 @@ int main(int argc, char** argv) {
     ParArray<double>* xcn = ReadDataSetFromFileInParallel<double>(fn_grid,"xcn",comm,info);
 //    ParArray<double>* ifn = ReadDataSetFromFileInParallel<double>(fn_grid,"ifn",comm,info);
 //    ParArray<double>* boundaries = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_6","boundaries",comm,info);
-    
+    if(world_rank == 0)
+    {
+        std::cout << xcn->getNrow() << std::endl;
+        for(int i=0;i<xcn->getNrow();i++)
+        {
+            
+            //std::cout << rank << " _> " << i << " " << locVerts[i].x<<" "<< locVerts[i].y<<" "<< locVerts[i].z <<" "<< std::endl;
+        }
+    }
     int Nel = ien->getNglob();
     int Nel_part = ien->getNrow();
     //ParArray<double>* interior   = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_1","interior",Nel,comm,info);
