@@ -6,6 +6,34 @@
 
 
 
+Array<double>* MatMul(Array<double>* A, Array<double>* B)
+{
+    
+    int n = A->getNrow();
+    int o = A->getNcol();
+    int m = B->getNcol();
+    int k = B->getNrow();
+    if(k!=o)
+    {
+        throw std::runtime_error("error :: Dimensions of A and B do not correspond.");
+    }
+    Array<double>* R = new Array<double>(n,m);
+    double res = 0.0;
+    for(int i=0;i<n;i++)
+    {
+        for(int j=0;j<m;j++)
+        {
+            res = 0.0;
+            for(int k=0;k<o;k++)
+            {
+                res = res + A->getVal(i,k)*B->getVal(k,j);
+            }
+            R->setVal(i,j,res);
+        }
+    }
+    
+    return R;
+}
 
 double ComputeDetJac(double *P0,double *P1,double *P2,double *P3)
 {
@@ -319,10 +347,6 @@ Vert ComputeCenterCoord(double*P, int np)
     for(int i = 0; i < np; i++)
     {
         N[i] = 1.0/8.0*(1+ref[i*3+0]*eta)*(1+ref[i*3+1]*mu)*(1+ref[i*3+2]*ksi);
-        
-        dNdeta[i] = (1.0/8.0 * (1+ref[i*3+1]*mu)  * (1+ref[i*3+2]*ksi))*ref[i*3+0];
-        dNdmu[i]  = (1.0/8.0 * (1+ref[i*3+0]*eta) * (1+ref[i*3+2]*ksi))*ref[i*3+1];
-        dNdksi[i] = (1.0/8.0 * (1+ref[i*3+0]*eta) * (1+ref[i*3+1]*mu))*ref[i*3+2];
                         
         V.x = V.x+N[i]*P[i*3+0];
         V.y = V.y+N[i]*P[i*3+1];

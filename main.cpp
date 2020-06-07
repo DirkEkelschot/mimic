@@ -11,20 +11,95 @@ int mpi_size, mpi_rank;
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #define MAX(a,b) (((a)>(b))?(a):(b))
 
-extern "C" {
-  void dgeev_(char const * __restrict JOBVL, char const * __restrict JOBVR, int const * __restrict n, double * __restrict A, int const * lda, double * __restrict WR, double * __restrict WI, double * __restrict VL, int const * __restrict ldvl, double * __restrict VR, int const * __restrict ldvr, double * __restrict Work, int const * __restrict lwork, int       * __restrict info );
-  // LU decomoposition of a general matrix
-  void dgetrf_(int* M, int *N, double* A, int* lda, int* IPIV, int* INFO);
+namespace lapack {
+    extern "C" {
+      void dgeev_(char const * __restrict JOBVL, char const * __restrict JOBVR, int const * __restrict n, double * __restrict A, int const * lda, double * __restrict WR, double * __restrict WI, double * __restrict VL, int const * __restrict ldvl, double * __restrict VR, int const * __restrict ldvr, double * __restrict Work, int const * __restrict lwork, int       * __restrict info );
+      // LU decomoposition of a general matrix
+      void dgetrf_(int* M, int *N, double* A, int* lda, int* IPIV, int* INFO);
 
-  void dgemm_(char * transA,  char * transB, int * m, int * n, int * k, double * alpha, double * A, int * lda, double * B, int * ldb, double * beta, double * C, int * ldc );
-  // generate inverse of a matrix given its LU decomposition
-  void dgetri_(int* N, double* A, int* lda, int* IPIV, double* WORK, int* lwork, int* INFO);
+      void dgemm_(char * transA,  char * transB, int * m, int * n, int * k, double * alpha, double * A, int * lda, double * B, int * ldb, double * beta, double * C, int * ldc );
+      // generate inverse of a matrix given its LU decomposition
+      void dgetri_(int* N, double* A, int* lda, int* IPIV, double* WORK, int* lwork, int* INFO);
 
+
+        void dgeqrf_(int* M, int* N,
+                     double* A, int* LDA, double* TAU,
+                     double* WORK, int* LWORK, int* INFO );
+
+        void dormqr_(char *side, char *trans, int* m, int *n,
+                     int *k, double* A, int* lda, double* tau, double* C,
+                     int* ldc, double *WORK, int* lwork, int* info);
+
+        void dtrtrs_(char *UPLO, char *TRANS, char *DIAG, int* N, int *NRHS, double* A, int* lda, double* B, int* ldb, int* info);
+    }
+
+    int geqrf(int m, int n,
+              double* A, int lda, double *tau)
+    {
+        int info=0;
+        int lwork=-1;
+        double iwork;
+        dgeqrf_(&m, &n, A, &lda, tau,
+                        &iwork, &lwork, &info);
+        lwork = (int)iwork;
+        double* work = new double[lwork];
+        dgeqrf_(&m, &n, A, &lda, tau,
+                        work, &lwork, &info);
+        delete[] work;
+        return info;
+    }
+
+    int ormqr(char side, char trans, int m, int n, int k,
+              double *A, int lda, double *tau, double* C, int ldc)
+    {
+        int info=0;
+        int lwork=-1;
+        double iwork;
+        dormqr_(&side, &trans, &m, &n, &k,
+                A, &lda, tau, C, &ldc, &iwork, &lwork, &info);
+        lwork = (int)iwork;
+        double* work = new double[lwork];
+        dormqr_(&side, &trans, &m, &n, &k,
+                A, &lda, tau, C, &ldc, work, &lwork, &info);
+        delete[] work;
+        return info;
+    }
+
+    int trtrs(char uplo, char trans, char diag,
+              int n, int nrhs,
+              double* A, int lda, double* B, int ldb)
+    {
+        int info = 0;
+        dtrtrs_(&uplo, &trans, &diag, &n, &nrhs,
+                A, &lda, B, &ldb, &info);
+        return info;
+    }
 }
 
 
 using namespace std;
 
+Array<double>* MatInv(Array<double>* A)
+{
+    int n = A->getNrow();
+    int size = n*n;
+    double WORK [size];
+    int info;
+    int Pivot[n];
+    Array<double>* R = new Array<double>(n,n);
+    for(int i=0;i<n;i++)
+    {
+        for(int j=0;j<n;j++)
+        {
+            R->setVal(i,j,A->getVal(i,j));
+        }
+    }
+    
+    lapack::dgetrf_(&n, &n, R->data, &n, Pivot, &info);
+    lapack::dgetri_(&n, R->data, &n, Pivot, WORK, &size, &info);
+    
+    return R;
+}
 
 struct HalfEdge
 {
@@ -66,7 +141,7 @@ void EigenDecomp(int n, double * A,  double * WR, double * WI, double * V, doubl
   memcpy( V, A, n*n*sizeof(double) );
   
   // Factor A, right eigenvectors are in iV though column major
-  dgeev_( &JOBVL, &JOBVR, &n, V, &n, WR, WI, iV, &n, NULL, &n, WORK, &size, &info );
+  lapack::dgeev_( &JOBVL, &JOBVR, &n, V, &n, WR, WI, iV, &n, NULL, &n, WORK, &size, &info );
   
   // Copy right eigenvectors into V (with transpose)
   for ( i = 0; i < n; i++)
@@ -75,8 +150,8 @@ void EigenDecomp(int n, double * A,  double * WR, double * WI, double * V, doubl
   
   // Compute inverse of V1 
   memcpy( iV, V, n*n*sizeof(double) );
-  dgetrf_(&n, &n, iV, &n, Pivot, &info);
-  dgetri_(&n, iV, &n, Pivot, WORK, &size, &info);
+  lapack::dgetrf_(&n, &n, iV, &n, Pivot, &info);
+  lapack::dgetri_(&n, iV, &n, Pivot, WORK, &size, &info);
 }
 
 
@@ -1683,6 +1758,8 @@ ParArray<double>* ComputeHessian(Partition* P, int Nel, std::map<int,std::map<in
     {
         std::map<int,int>::iterator itmap;
         
+       
+        
         d2udx2 = 0.0;
         d2udy2 = 0.0;
         d2udz2 = 0.0;
@@ -1714,8 +1791,17 @@ ParArray<double>* ComputeHessian(Partition* P, int Nel, std::map<int,std::map<in
         }
         
         
-        if(itadj->second.find(2) != itadj->second.end())
+        if(itadj->second.find(2) != itadj->second.end() && itadj->second.find(3) != itadj->second.end())
         {
+            
+//            if(rank == 0)
+//            {
+//                std::cout << itadj->first << " -> " << std::endl;
+//                for(itmap=itadj->second.begin();itmap!=itadj->second.end();itmap++)
+//                {
+//                    std::cout << itmap->first << " " << itmap->second << std::endl;
+//                }
+//            }
             std::vector<int> vijp1kIDs = gE2lV[itadj->second[2]];
             double* Pijp1k = new double[np*3];
             for(int i=0;i<vijp1kIDs.size();i++)
@@ -1751,27 +1837,9 @@ ParArray<double>* ComputeHessian(Partition* P, int Nel, std::map<int,std::map<in
             double u_ijp1k = P->getU0atElem(itadj->second[2]);
             double u_ijm1k = P->getU0atElem(itadj->second[3]);
             
-            for(int u=0;u<np;u++)
-            {
-                std::cout << itadj->second[2] << " " << itadj->second[3] << " " << vijp1kIDs[u]  << " " << vijm1kIDs[u]  << std::endl;
-            }
-//            std::cout << std::endl;
-////
-            std::cout << " ======================================== " << std::endl;
-            std::cout << Vijm1k.x << " " << Vijm1k.y << " " << Vijm1k.z << std::endl;
-            std::cout << Vijk.x << " " << Vijk.y << " " << Vijk.z << std::endl;
-            std::cout << Vijp1k.x << " " << Vijp1k.y << " " << Vijp1k.z << std::endl;
-            std::cout << " ======================================== " << std::endl;
-            
             d2udy2 = (u_ijp1k-2*u_ijk+u_ijm1k)/(dijm1j+dijp1j);
-            //std::cout << d2udy2 << " " << dijm1j << " " << dijp1j << std::endl;
+            //std::cout << " d2udy2 " << d2udy2 << " " << dijm1j << " " << dijp1j << " " << itadj->first << " " << itadj->second[2] << " " << itadj->second[3] << std::endl;
         }
-        
-        
-        
-        
-        
-        
         
         
         if(itadj->second.find(4) != itadj->second.end())
@@ -1796,6 +1864,247 @@ ParArray<double>* ComputeHessian(Partition* P, int Nel, std::map<int,std::map<in
     
     return hessian;
 }
+
+Array<double>* SolveQR(double* A, int m, int n, Array<double>* b)
+{
+    
+    int nrow = m;
+    int ncol = n;
+    
+    
+    int info = 0;
+    
+    double tau[ncol];
+    int lda = nrow;
+    int lwork=-1;
+    double iwork;
+    // DGEQRF for Q*R=A, i.e., A and tau hold R and Householder reflectors
+
+    lapack::geqrf(nrow, ncol, A, nrow, tau);
+   
+    lapack::ormqr('L', 'T', nrow, 1, ncol, A, nrow, tau, b->data, nrow);
+    
+    lapack::trtrs('U', 'N', 'N', ncol, 1, A, nrow, b->data, nrow);
+    
+    Array<double>* out = new Array<double>(ncol,1);
+    for(int i = 0;i<ncol;i++)
+    {
+        out->setVal(i,0,b->getVal(i,0));
+    }
+    return out;
+}
+
+void QRdecomTest()
+{
+    Array<double>* Vrt = new Array<double>(4,3);
+    int m = Vrt->getNrow();
+    int n = Vrt->getNcol();
+    Vrt->setVal(0,0,1.0);Vrt->setVal(0,1,1.0);Vrt->setVal(0,2,1.0);
+    Vrt->setVal(1,0,1.0);Vrt->setVal(1,1,1.0);Vrt->setVal(1,2,0.0);
+    Vrt->setVal(2,0,-1.0);Vrt->setVal(2,1,0.0);Vrt->setVal(2,2,1.0);
+    Vrt->setVal(3,0,0.0);Vrt->setVal(3,1,0.0);Vrt->setVal(3,2,1.0);
+    Array<double>* A_T = new Array<double>(3,4);
+
+    Array<double>* A = new Array<double>(4,3);
+
+    for(int i=0;i<m;i++)
+    {
+        for(int j=0;j<n;j++)
+        {
+            A_T->setVal(j,i,Vrt->getVal(i,j));
+            A->setVal(i,j,Vrt->getVal(i,j));
+        }
+    }
+
+    Array<double>* b = new Array<double>(4,1);
+    b->setVal(0,0,1.0);
+    b->setVal(1,0,2.0);
+    b->setVal(2,0,3.0);
+    b->setVal(3,0,4.0);
+
+    Array<double>* b_copy = new Array<double>(4,1);
+    b_copy->setVal(0,0,1.0);
+    b_copy->setVal(1,0,2.0);
+    b_copy->setVal(2,0,3.0);
+    b_copy->setVal(3,0,4.0);
+
+    double* A_cm = new double[n*m];
+    double* A_rm = new double[n*m];
+
+    for(int i=0;i<m;i++)
+    {
+        for(int j=0;j<n;j++)
+        {
+            A_rm[i*n+j] = A->getVal(i,j);
+
+            A_cm[j*m+i] = A->getVal(i,j);
+            std::cout << A->getVal(i,j) << " ";
+        }
+        std::cout << std::endl;
+    }
+    
+    std::cout << "========================================" << std::endl;
+    std::cout << m << " " << n << std::endl;
+    for(int i=0;i<m*n;i++)
+    {
+        std::cout << A_cm[i] << " " << A->data[i] << " " << A_rm[i] << std::endl;
+    }
+    std::cout << "========================================" << std::endl;
+    
+    Array<double>* x = SolveQR(A_cm,m,n,b);
+    double* ref = new double[3];
+    ref[0] = -0.666667;
+    ref[1] = 1.0;
+    ref[2] = 7.0/3.0;
+    
+    for(int i=0;i<3;i++)
+    {
+        std::cout << "should be zero " << x->getVal(i,0)-ref[i] << std::endl;
+    }
+    
+    Array<double>* approx = new Array<double>(4,1);
+    double res;
+    for(int i=0;i<4;i++)
+    {
+        res = 0.0;
+        for(int j=0;j<3;j++)
+        {
+            res = res + A->getVal(i,j)*x->getVal(j,0);
+        }
+        approx->setVal(i,0,res);
+    }
+    double LQ = 0.0;
+    for(int i=0;i<m;i++)
+    {
+        LQ = LQ+
+        (approx->getVal(i,0)-b_copy->getVal(i,0))*(approx->getVal(i,0)-b_copy->getVal(i,0));
+        
+    }
+    
+    std::cout << "LQ = " << LQ << " sqrt(LQ) " << sqrt(LQ) << std::endl;
+}
+
+
+
+void QRdecomGradRecTest()
+{
+    Array<double>* Vrt = new Array<double>(4 ,3);
+    int m = Vrt->getNrow();
+    int n = Vrt->getNcol();
+    
+    Vrt->setVal(0,0,-1.0);  Vrt->setVal(0,1,0.0);    Vrt->setVal(0,2,0.000001);
+    Vrt->setVal(1,0,0.0);   Vrt->setVal(1,1,-1.0);   Vrt->setVal(1,2,0.000001);
+    Vrt->setVal(2,0,1.0);   Vrt->setVal(2,1,0.0);    Vrt->setVal(2,2,0.000001);
+    Vrt->setVal(3,0,0.0);   Vrt->setVal(3,1,1.0);    Vrt->setVal(3,2,0.000001);
+    
+    Array<double>* b = new Array<double>(4,1);
+    b->setVal(0,0,100-200.0);
+    b->setVal(1,0,100-200.0);
+    b->setVal(2,0,300-200.0);
+    b->setVal(3,0,300-200.0);
+    
+    Array<double>* biff = new Array<double>(4,1);
+    biff->setVal(0,0,100.0-200.0);
+    biff->setVal(1,0,100.0-200.0);
+    biff->setVal(2,0,300.0-200.0);
+    biff->setVal(3,0,300.0-200.0);
+
+    Array<double>* b_copy = new Array<double>(4,1);
+    b_copy->setVal(0,0,100.0-200.0);
+    b_copy->setVal(1,0,100.0-200.0);
+    b_copy->setVal(2,0,300.0-200.0);
+    b_copy->setVal(3,0,300.0-200.0);
+
+    double* A_cm = new double[m*n];
+    for(int i=0;i<m;i++)
+    {
+        for(int j=0;j<n;j++)
+        {
+            A_cm[j*m+i] = Vrt->getVal(i,j);
+        }
+        
+    }
+    Array<double>* x = SolveQR(A_cm,m,n,b);
+    Array<double>* r = MatMul(Vrt,x);
+    double error;
+     for(int i=0;i<m;i++)
+       {
+           error = r->getVal(i,0)-b_copy->getVal(i,0);
+           std::cout << r->getVal(i,0) << " " << b_copy->getVal(i,0) << " " << r->getVal(i,0)-b_copy->getVal(i,0) << std::endl;
+           if(error>0.001)
+           {
+               throw std::runtime_error("error :: /GradRecTest() has failed/");
+           }
+           
+       }
+}
+
+
+
+
+
+
+void GradRecTest()
+{
+    Array<double>* Vrt = new Array<double>(4 ,3);
+
+    int m = Vrt->getNrow();
+    int n = Vrt->getNcol();
+    
+    Vrt->setVal(0,0,-1.0);  Vrt->setVal(0,1,0.0);    Vrt->setVal(0,2,1.0e-12);
+    Vrt->setVal(1,0,0.0);   Vrt->setVal(1,1,-1.0);   Vrt->setVal(1,2,1.0e-12);
+    Vrt->setVal(2,0,1.0);   Vrt->setVal(2,1,0.0);    Vrt->setVal(2,2,1.0e-12);
+    Vrt->setVal(3,0,0.0);   Vrt->setVal(3,1,1.0);    Vrt->setVal(3,2,1.0e-12);
+
+//    Vrt->setVal(0,0,-1.0);  Vrt->setVal(0,1,0.0);    Vrt->setVal(0,2,0.0);
+//    Vrt->setVal(1,0,0.0);   Vrt->setVal(1,1,-1.0);   Vrt->setVal(1,2,0.0);
+//    Vrt->setVal(2,0,1.0);   Vrt->setVal(2,1,0.0);    Vrt->setVal(2,2,0.0);
+//    Vrt->setVal(3,0,0.0);   Vrt->setVal(3,1,1.0);    Vrt->setVal(3,2,0.0);
+//    
+    Array<double>* Vrt_T = new Array<double>(3,4);
+
+    for(int i=0;i<m;i++)
+    {
+        for(int j=0;j<n;j++)
+        {
+            Vrt_T->setVal(j,i,Vrt->getVal(i,j));
+        }
+    }
+//
+    Array<double>* b = new Array<double>(4,1);
+    b->setVal(0,0,100-200.0);
+    b->setVal(1,0,100-200.0);
+    b->setVal(2,0,300-200.0);
+    b->setVal(3,0,300-200.0);
+    
+    Array<double>* R = MatMul(Vrt_T,Vrt);
+    Array<double>*Rinv = MatInv(R);
+    Array<double>* Rn = MatMul(Rinv,Vrt_T);
+//
+    Array<double>* x = MatMul(Rn,b);
+
+    for(int i=0;i<x->getNrow();i++)
+    {
+        std::cout << x->getVal(i,0) << std::endl;
+    }
+    Array<double>* r = MatMul(Vrt,x);
+    int pass = 0;
+    double error;
+    for(int i=0;i<m;i++)
+    {
+        error = r->getVal(i,0)-b->getVal(i,0);
+        std::cout << r->getVal(i,0) << " " << b->getVal(i,0) << " " << r->getVal(i,0)-b->getVal(i,0) << std::endl;
+        if(error>0.001)
+        {
+            throw std::runtime_error("error :: /GradRecTest() has failed/");
+        }
+        
+    }
+    
+}
+
+
+
 
 int main(int argc, char** argv) {
     
@@ -1898,7 +2207,7 @@ int main(int argc, char** argv) {
 //    ParArray<int>* xcn    = ReadDataSetFromFileInParallel<int>(fn_conn_piston,"xcn",comm,info);
 //
 //
-//===============================================================================================
+//=============================================================================================
 
     ParallelState* pstate = new ParallelState(ien->getNglob(),comm);
     //
@@ -1950,25 +2259,9 @@ int main(int argc, char** argv) {
     {
         std::cout << "t_max := " << max_time  << std::endl;
     }
-    
-    //std::map<int,map<int,int> > E2Etopo = GetElement2ElementTopology(Partition* P, MPI_Comm comm);
-    
-//    ParArray<int>* pid                              = P->getPart();
-//    Array<int>* locE2globV                          = P->getLocalElem2GlobalVert();
-//    std::vector<Vert> Vs                            = P->getLocalVerts();
-//    int* xadj                                       = P->getXadj();
-//    int* adjcny                                     = P->getAdjcny();
-//    int nElemLoc                                    = P->getNlocElem();
-//    std::map<int,std::vector<int> > elem2globface   = P->getElem2GlobalFace();
-//
-//    std::set<int> elem_set = P->getElemSet();
+
 
     double  t1 = MPI_Wtime();
-
-
- 
-    
-    
     std::map<int,map<int,int> > E2Etopo = getElement2ElementTopology(P, comm);
     double t2 = MPI_Wtime();
      double timing2 = t2-t1;
@@ -1982,21 +2275,122 @@ int main(int argc, char** argv) {
     
     if(world_rank == 0)
     {
-//        for(int j=0;j<ien_copy->getNrow();j++)
-//        {
-//            for(int k=0;k<ien_copy->getNcol();k++)
-//            {
-//                std::cout << ien_copy->getVal(j,k) << " ";
-//            }
-//            std::cout << std::endl;
-//        }
+        QRdecomTest();
+        QRdecomGradRecTest();
+        GradRecTest();
         ParArray<double>* hessian = ComputeHessian(P,ien_copy->getNglob(),E2Etopo,comm);
     }
     
     
-    //std::cout << ief->getNglob() << " " << ife->getNglob() << std::endl;
-    //std::cout << world_rank << " not on rankk =  " << (double) not_on_rank/on_rank << std::endl;
     
+//
+//    double* point = new double[3];
+//    point[0] = 0.0;point[1] = 0.0;point[2] = 0.0;
+//    double* vrts = new double[6*3];
+//
+//
+////    Array<double>* Vrt = new Array<double>(6,3);
+////    Vrt->setVal(0,0,1.0);Vrt->setVal(0,1,0.01);Vrt->setVal(0,2,-0.1);
+////    Vrt->setVal(1,0,0.01);Vrt->setVal(1,1,0.1);Vrt->setVal(1,2,1.1);
+////    Vrt->setVal(2,0,0.01);Vrt->setVal(2,1,0.01);Vrt->setVal(2,2,1.1);
+////    Vrt->setVal(3,0,-1.01);Vrt->setVal(3,1,0.01);Vrt->setVal(3,2,0.1);
+////    Vrt->setVal(4,0,0.01);Vrt->setVal(4,1,-1.01);Vrt->setVal(4,2,0.1);
+////    Vrt->setVal(5,0,0.01);Vrt->setVal(5,1,0.01);Vrt->setVal(5,2,-1.1);
+//
+//    Array<double>* Vrt = new Array<double>(4,3);
+//    Vrt->setVal(0,0,1.0);Vrt->setVal(0,1,1.0);Vrt->setVal(0,2,1.0);
+//    Vrt->setVal(1,0,1.0);Vrt->setVal(1,1,1.0);Vrt->setVal(1,2,0.0);
+//    Vrt->setVal(2,0,-1.0);Vrt->setVal(2,1,0.0);Vrt->setVal(2,2,1.0);
+//    Vrt->setVal(3,0,0.0);Vrt->setVal(3,1,0.0);Vrt->setVal(3,2,1.0);
+//
+//    double * Po = new double[3];
+//    Po[0]=0.0;
+//    Po[1]=0.0;
+//    Po[2]=0.0;
+////    Vrt->setVal(0,0,0.0);Vrt->setVal(0,1,2.0);
+////    Vrt->setVal(1,0,2.0);Vrt->setVal(1,1,-1.0);
+////    Vrt->setVal(2,0,2.0);Vrt->setVal(2,1,-1.0);
+////    Vrt->setVal(3,0,0.0);Vrt->setVal(3,1,1.5);
+////    Vrt->setVal(4,0,2.0);Vrt->setVal(4,1,-1.0);
+////    Vrt->setVal(5,0,2.0);Vrt->setVal(5,1,-1.0);
+////
+//    int m = Vrt->getNrow();
+//    int n = Vrt->getNcol();
+//
+//    Array<double>* input_T = new Array<double>(n,m);
+//    Array<double>* input   = new Array<double>(m,n);
+//
+//
+//    Array<double>* Vrt = new Array<double>(4,3);
+//    Vrt->setVal(0,0,1.0);Vrt->setVal(0,1,1.0);Vrt->setVal(0,2,1.0);
+//    Vrt->setVal(1,0,1.0);Vrt->setVal(1,1,1.0);Vrt->setVal(1,2,0.0);
+//    Vrt->setVal(2,0,-1.0);Vrt->setVal(2,1,0.0);Vrt->setVal(2,2,1.0);
+//    Vrt->setVal(3,0,0.0);Vrt->setVal(3,1,0.0);Vrt->setVal(3,2,1.0);
+//
+//    for(int i=0;i<m;i++)
+//    {
+//        //Min->setVal(i,0,M->getVal(i,0) - M0);
+//
+//        for(int j=0;j<n;j++)
+//        {
+//            //input_T->setVal(j,i,Vrt->getVal(i,j)-Po[j]);
+//            //input->setVal(i,j,Vrt->getVal(i,j)-Po[j]);
+//
+//            input_T->setVal(j,i,Vrt->getVal(i,j));
+//            input->setVal(i,j,Vrt->getVal(i,j));
+//        }
+//    }
+//
+//    Array<double>* Mn = new Array<double>(4,1);
+//    Mn->setVal(0,0,1.0);
+//    Mn->setVal(1,0,2.0);
+//    Mn->setVal(2,0,3.0);
+//    Mn->setVal(3,0,4.0);
+//
+//    Array<double>* Mn2 = new Array<double>(4,1);
+//    Mn2->setVal(0,0,1.0);
+//    Mn2->setVal(1,0,2.0);
+//    Mn2->setVal(2,0,3.0);
+//    Mn2->setVal(3,0,4.0);
+//
+//    Array<double>* X = SolveQR(input_T,Mn);
+//
+//    for(int i=0;i<n;i++)
+//    {
+//        std::cout << "res = " << X->getVal(i,0) << std::endl;
+//    }
+//
+//    for(int i=0;i<m;i++)
+//    {
+//        //Min->setVal(i,0,M->getVal(i,0) - M0);
+//
+//        for(int j=0;j<n;j++)
+//        {
+//            //input_T->setVal(j,i,Vrt->getVal(i,j)-Po[j]);
+//            //input->setVal(i,j,Vrt->getVal(i,j)-Po[j]);
+//
+//            input_T->setVal(j,i,Vrt->getVal(i,j));
+//            input->setVal(i,j,Vrt->getVal(i,j));
+//        }
+//    }
+//
+//    if(world_rank == 0)
+//    {
+//        Array<double>* X = SolveQR(input_T,Mn);
+//
+//        for(int i=0;i<n;i++)
+//        {
+//            std::cout << "res = " << X->getVal(i,0) << std::endl;
+//        }
+//    }
+//
+    
+    
+    
+    
+
+
+
     MPI_Finalize();
     
     //delete ien;

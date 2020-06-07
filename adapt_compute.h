@@ -3,6 +3,10 @@
 #ifndef ADAPT_COMPUTE_H
 #define ADAPT_COMPUTE_H
 
+Array<double>* MatInv(Array<double>* A);
+
+Array<double>* MatMul(Array<double>* A, Array<double>* B);
+
 double ComputeDetJac(double *P0,double *P1,double *P2,double *P3);
 
 double ComputeJ(double*P, int ElType);
