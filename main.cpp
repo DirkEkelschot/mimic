@@ -1729,6 +1729,10 @@ ParArray<double>* ComputeHessian(Partition* P, int Nel, std::map<int,std::map<in
     double d2udz2 = 0.0;
     int loc_vid = 0;
     int np = 8;
+    
+    Array<double>* Vrt0 = new Array<double>(6,3);
+
+    
 //    std::cout << "==================================" << std::endl;
 ////
 //    std::cout << "size l2g = " << locV2globV.size() << std::endl;
@@ -1752,22 +1756,38 @@ ParArray<double>* ComputeHessian(Partition* P, int Nel, std::map<int,std::map<in
 //        std::cout << itmap->first << " " << itmap->second << std::endl;
 //    }
     
+    for(int i=0;i<6;i++)
+    {
+        for(int j=0;j<3;j++)
+        {
+            Vrt0->setVal(i,j,0.0);
+        }
+    }
     
-    
+    Array<double>* Vrt;
+    Array<double>* b = new Array<double>(6,1);
+
     for(itadj=E2Etopo.begin();itadj!=E2Etopo.end();itadj++)
     {
-        std::map<int,int>::iterator itmap;
+        Vrt = Vrt0;
         
-       
+        b->setVal(0,0,0.0);
+        b->setVal(1,0,0.0);
+        b->setVal(2,0,0.0);
+        b->setVal(3,0,0.0);
+        b->setVal(4,0,0.0);
+        b->setVal(5,0,0.0);
+        
+        std::map<int,int>::iterator itmap;
         
         d2udx2 = 0.0;
         d2udy2 = 0.0;
         d2udz2 = 0.0;
-        
+        int cvid;
         
         double u_ijk = P->getU0atElem(itadj->first);
-        
         std::vector<int> vijkIDs = gE2lV[itadj->first];
+        
         double* Pijk = new double[np*3];
         //std::cout << "========================" << std::endl;
         for(int i=0;i<vijkIDs.size();i++)
@@ -1779,29 +1799,69 @@ ParArray<double>* ComputeHessian(Partition* P, int Nel, std::map<int,std::map<in
         }
         
         Vert Vijk = ComputeCenterCoord(Pijk,8);
-
-        //std::cout << itadj->first << " " << Vijk.x << " " << Vijk.y << " " << Vijk.z << std::endl;
         
-        
-        if(itadj->second.find(0) != itadj->second.end())
+        if(itadj->second.find(0) != itadj->second.end() && itadj->second.find(1) != itadj->second.end())
         {
-            double u_ip1jk = P->getU0atElem(itadj->second[0]);
-            double u_im1jk = P->getU0atElem(itadj->second[1]);
-            d2udx2 = (u_ip1jk-2*u_ijk+u_im1jk);
+            
+            std::vector<int> vip1jkIDs = gE2lV[itadj->second[0]];
+            double* Pip1jk = new double[np*3];
+            for(int i=0;i<vip1jkIDs.size();i++)
+            {
+                loc_vid  = vip1jkIDs[i];
+                Pip1jk[i*3+0] = locVerts[loc_vid].x;
+                Pip1jk[i*3+1] = locVerts[loc_vid].y;
+                Pip1jk[i*3+2] = locVerts[loc_vid].z;
+            }
+            
+             Vert Vip1jk = ComputeCenterCoord(Pip1jk,8);
+            
+            //cvid = itadj->second[0];
+            Vrt->setVal(0,0,Vip1jk.x-Vijk.x);
+            Vrt->setVal(0,1,Vip1jk.y-Vijk.y);
+            Vrt->setVal(0,2,Vip1jk.z-Vijk.z);
+            
+            //-------------------------------------------------------------------
+            
+            std::vector<int> vim1jkIDs = gE2lV[itadj->second[1]];
+            double* Pim1jk = new double[np*3];
+            for(int i=0;i<vim1jkIDs.size();i++)
+            {
+                loc_vid  = vim1jkIDs[i];
+                Pim1jk[i*3+0] = locVerts[loc_vid].x;
+                Pim1jk[i*3+1] = locVerts[loc_vid].y;
+                Pim1jk[i*3+2] = locVerts[loc_vid].z;
+            }
+            //std::cout << std::endl;
+            Vert Vim1jk = ComputeCenterCoord(Pim1jk,8);
+            
+            cvid = itadj->second[1];
+            Vrt->setVal(1,0,Vim1jk.x-Vijk.x);
+            Vrt->setVal(1,1,Vim1jk.y-Vijk.y);
+            Vrt->setVal(1,2,Vim1jk.z-Vijk.z);
+            
+            
+            double dim1jk = sqrt((Vim1jk.x-Vijk.x)*(Vim1jk.x-Vijk.x)+
+                                 (Vim1jk.y-Vijk.y)*(Vim1jk.y-Vijk.y)+
+                                 (Vim1jk.z-Vijk.z)*(Vim1jk.y-Vijk.z));
+            
+            double dip1jk = sqrt((Vip1jk.x-Vijk.x)*(Vip1jk.x-Vijk.x)+
+                                 (Vip1jk.y-Vijk.y)*(Vip1jk.y-Vijk.y)+
+                                 (Vip1jk.z-Vijk.z)*(Vip1jk.y-Vijk.z));
+            
+            double u_ip1jk = P->getU0atElem(itadj->second[2]);
+            double u_im1jk = P->getU0atElem(itadj->second[3]);
+            
+            b->setVal(0,0,u_ip1jk-u_ijk);
+            b->setVal(1,0,u_im1jk-u_ijk);
+            
+            //d2udx2 = (u_ip1jk-2*u_ijk+u_im1jk)/(dim1jk+dip1jk);
+            
+            
         }
         
         
         if(itadj->second.find(2) != itadj->second.end() && itadj->second.find(3) != itadj->second.end())
         {
-            
-//            if(rank == 0)
-//            {
-//                std::cout << itadj->first << " -> " << std::endl;
-//                for(itmap=itadj->second.begin();itmap!=itadj->second.end();itmap++)
-//                {
-//                    std::cout << itmap->first << " " << itmap->second << std::endl;
-//                }
-//            }
             std::vector<int> vijp1kIDs = gE2lV[itadj->second[2]];
             double* Pijp1k = new double[np*3];
             for(int i=0;i<vijp1kIDs.size();i++)
@@ -1813,6 +1873,13 @@ ParArray<double>* ComputeHessian(Partition* P, int Nel, std::map<int,std::map<in
             }
             Vert Vijp1k = ComputeCenterCoord(Pijp1k,8);
             
+            cvid = itadj->second[2];
+            Vrt->setVal(2,0,Vijp1k.x-Vijk.x);
+            Vrt->setVal(2,1,Vijp1k.y-Vijk.y);
+            Vrt->setVal(2,2,Vijp1k.z-Vijk.z);
+            
+            //-------------------------------------------------------------------
+            
             std::vector<int> vijm1kIDs = gE2lV[itadj->second[3]];
             double* Pijm1k = new double[np*3];
             for(int i=0;i<vijm1kIDs.size();i++)
@@ -1821,45 +1888,122 @@ ParArray<double>* ComputeHessian(Partition* P, int Nel, std::map<int,std::map<in
                 Pijm1k[i*3+0] = locVerts[loc_vid].x;
                 Pijm1k[i*3+1] = locVerts[loc_vid].y;
                 Pijm1k[i*3+2] = locVerts[loc_vid].z;
-                
-                //std::cout << vijm1kIDs[i] << " " << loc_vid  << " " << locVerts[loc_vid].x << " " << locVerts[loc_vid].y << " " << locVerts[loc_vid].z << std::endl;
             }
             //std::cout << std::endl;
             Vert Vijm1k = ComputeCenterCoord(Pijm1k,8);
-            double dijm1j = sqrt((Vijm1k.x-Vijk.x)*(Vijm1k.x-Vijk.x)+
+            
+            cvid = itadj->second[3];
+            Vrt->setVal(3,0,Vijm1k.x-Vijk.x);
+            Vrt->setVal(3,1,Vijm1k.y-Vijk.y);
+            Vrt->setVal(3,2,Vijm1k.z-Vijk.z);
+        
+            double dijm1k = sqrt((Vijm1k.x-Vijk.x)*(Vijm1k.x-Vijk.x)+
                                  (Vijm1k.y-Vijk.y)*(Vijm1k.y-Vijk.y)+
                                  (Vijm1k.z-Vijk.z)*(Vijm1k.y-Vijk.z));
             
-            double dijp1j = sqrt((Vijp1k.x-Vijk.x)*(Vijp1k.x-Vijk.x)+
+            double dijp1k = sqrt((Vijp1k.x-Vijk.x)*(Vijp1k.x-Vijk.x)+
                                  (Vijp1k.y-Vijk.y)*(Vijp1k.y-Vijk.y)+
                                  (Vijp1k.z-Vijk.z)*(Vijp1k.y-Vijk.z));
             
             double u_ijp1k = P->getU0atElem(itadj->second[2]);
             double u_ijm1k = P->getU0atElem(itadj->second[3]);
             
-            d2udy2 = (u_ijp1k-2*u_ijk+u_ijm1k)/(dijm1j+dijp1j);
-            //std::cout << " d2udy2 " << d2udy2 << " " << dijm1j << " " << dijp1j << " " << itadj->first << " " << itadj->second[2] << " " << itadj->second[3] << std::endl;
+            b->setVal(2,0,u_ijp1k-u_ijk);
+            b->setVal(3,0,u_ijm1k-u_ijk);
+
+//
+//            d2udy2 = (u_ijp1k-2*u_ijk+u_ijm1k)/(dijm1k+dijp1k);
+//
+            
         }
         
         
-        if(itadj->second.find(4) != itadj->second.end())
+        if(itadj->second.find(4) != itadj->second.end() && itadj->second.find(5) != itadj->second.end())
         {
+            
+            //d2udz2 = (u_ijkp1-2*u_ijk+u_ijkm1);
+            
+            std::vector<int> vijkp1IDs = gE2lV[itadj->second[4]];
+            double* Pijkp1 = new double[np*3];
+            for(int i=0;i<vijkp1IDs.size();i++)
+            {
+                loc_vid  = vijkp1IDs[i];
+                Pijkp1[i*3+0] = locVerts[loc_vid].x;
+                Pijkp1[i*3+1] = locVerts[loc_vid].y;
+                Pijkp1[i*3+2] = locVerts[loc_vid].z;
+            }
+            Vert Vijkp1 = ComputeCenterCoord(Pijkp1,8);
+            
+            cvid = itadj->second[4];
+            Vrt->setVal(4,0,Vijkp1.x-Vijk.x);
+            Vrt->setVal(4,1,Vijkp1.y-Vijk.y);
+            Vrt->setVal(4,2,Vijkp1.z-Vijk.z);
+            
+            
+            //-------------------------------------------------------------------
+            
+            
+            std::vector<int> vijkm1IDs = gE2lV[itadj->second[5]];
+            double* Pijkm1 = new double[np*3];
+            for(int i=0;i<vijkm1IDs.size();i++)
+            {
+                loc_vid  = vijkm1IDs[i];
+                Pijkm1[i*3+0] = locVerts[loc_vid].x;
+                Pijkm1[i*3+1] = locVerts[loc_vid].y;
+                Pijkm1[i*3+2] = locVerts[loc_vid].z;
+            }
+            Vert Vijkm1 = ComputeCenterCoord(Pijkm1,8);
+            
+            cvid = itadj->second[5];
+            Vrt->setVal(5,0,Vijkm1.x-Vijk.x);
+            Vrt->setVal(5,1,Vijkm1.y-Vijk.y);
+            Vrt->setVal(5,2,Vijkm1.z-Vijk.z);
+            
+            double dijkm1 = sqrt((Vijkm1.x-Vijk.x)*(Vijkm1.x-Vijk.x)+
+                                 (Vijkm1.y-Vijk.y)*(Vijkm1.y-Vijk.y)+
+                                 (Vijkm1.z-Vijk.z)*(Vijkm1.y-Vijk.z));
+            
+            double dijkp1 = sqrt((Vijkp1.x-Vijk.x)*(Vijkp1.x-Vijk.x)+
+                                 (Vijkp1.y-Vijk.y)*(Vijkp1.y-Vijk.y)+
+                                 (Vijkp1.z-Vijk.z)*(Vijkp1.y-Vijk.z));
+            
             double u_ijkp1 = P->getU0atElem(itadj->second[4]);
             double u_ijkm1 = P->getU0atElem(itadj->second[5]);
-            d2udz2 = (u_ijkp1-2*u_ijk+u_ijkm1);
-            //std::cout << " d2udz2 " << d2udy2 << std::endl;
+            
+            b->setVal(4,0,u_ijkp1-u_ijk);
+            b->setVal(5,0,u_ijkm1-u_ijk);
+            
+            //d2udy2 = (u_ijkp1-2*u_ijk+u_ijkm1)/(dijkm1+dijkp1);
+            
         }
         
-        
-        
-        
+        Array<double>* Vrt_T = new Array<double>(3,6);
 
+
+        for(int i=0;i<3;i++)
+        {
+            for(int j=0;j<6;j++)
+            {
+                Vrt_T->setVal(i,j,Vrt->getVal(j,i));
+            }
+        }
+
+        Array<double>* R = MatMul(Vrt_T,Vrt);
+        Array<double>*Rinv = MatInv(R);
+        Array<double>* Rn = MatMul(Rinv,Vrt_T);
+        Array<double>* x = MatMul(Rn,b);
         
-//        for(itmap=itadj->second.begin();itmap!=itadj->second.end();itmap++)
+//        std::cout << "========================" << std::endl;
+//        for(int i=0;i<x->getNrow();i++)
 //        {
-//            std::cout << itmap->first << " " << itmap->second << std::endl;
+//            std::cout << i << " :: ";
+//            
+//                std::cout << x->getVal(i,0) << " ";
+//            
+//            std::cout << std::endl;
 //        }
-//        std::cout << std::endl;
+//        std::cout << "========================" << std::endl;
+        
     }
     
     return hessian;
@@ -2046,7 +2190,7 @@ void QRdecomGradRecTest()
 
 void GradRecTest()
 {
-    Array<double>* Vrt = new Array<double>(4 ,3);
+    Array<double>* Vrt = new Array<double>(4,3);
 
     int m = Vrt->getNrow();
     int n = Vrt->getNcol();

@@ -16,7 +16,7 @@ include(platforms/MacOSX_Dirk_home.cmake)
 
 #set(LIBRARY_OUTPUT_PATH lib/)
 
-set(SRC adapt_output.cpp adapt_compute.cpp adapt_partition.cpp adapt_operations.cpp main.cpp)
+set(SRC adapt_output.cpp adapt_compute.cpp adapt_part_func.cpp adapt_operations.cpp main.cpp)
 
 #set(EXECUTABLE_OUTPUT_PATH bin/)
 set(COMPILE_FLAGS ${COMPILE_FLAGS} ${MPI_COMPILE_FLAGS})
