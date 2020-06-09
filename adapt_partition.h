@@ -14,6 +14,7 @@ class Partition {
     int* getAdjcny();
     ParArray<int>* getPart();
     std::vector<Vert> getLocalVerts();
+    Vert getLocalVert(int v_loc_id);
     
     Array<int>* getLocalElem2GlobalVert();
     Array<int>* getLocalElem2LocalVert();
@@ -1026,6 +1027,10 @@ inline ParArray<int>* Partition::getPart()
 inline std::vector<Vert> Partition::getLocalVerts()
 {
     return LocalVerts;
+}
+inline Vert Partition::getLocalVert(int v_loc_id)
+{
+    return LocalVerts[v_loc_id];
 }
 inline Array<int>* Partition::getLocalElem2GlobalVert()
 {
