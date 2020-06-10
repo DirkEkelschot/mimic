@@ -1656,20 +1656,20 @@ std::map<int, std::map<int, int> > getElement2ElementTopology(Partition* P, MPI_
     int* xadj                                       = P->getXadj();
     int* adjcny                                     = P->getAdjcny();
     int nElemLoc                                    = P->getNlocElem();
-    //std::map<int,std::vector<int> > elem2globface   = P->getElem2GlobalFace();
+    std::map<int,std::vector<int> > elem2globface   = P->getElem2GlobalFace();
     
     std::set<int> elem_set = P->getElemSet();
 
-    double  t1 = MPI_Wtime();
     std::map<int,std::map<int,int> > Element2ElementTopology;
+    int nloc = P->getPart()->getNloc(world_rank);
+    int of = P->getPart()->getOffset(world_rank);
 
-    for(int i = 0;i<P->getPart()->getNloc(world_rank);i++)
+    for(int i = 0;i<nloc;i++)
     {
-       int of   = P->getPart()->getOffset(world_rank);
        std::set<int> owned_faces;
        for(int n=0;n<6;n++)
        {
-           owned_faces.insert(P->getElem2GlobalFace()[i+of][n]);
+           owned_faces.insert(elem2globface[i+of][n]);
        }
        int start = xadj[i];
        int end   = xadj[i+1];
@@ -1681,7 +1681,7 @@ std::map<int, std::map<int, int> > getElement2ElementTopology(Partition* P, MPI_
           {
              for(int n=0;n<6;n++)
              {
-                int f_id_ex = P->getElem2GlobalFace()[adjEl_id][n];
+                int f_id_ex = elem2globface[adjEl_id][n];
                 if(owned_faces.find(f_id_ex)!=owned_faces.end())
                 {
                     Element2ElementTopology[i+of][n]=adjEl_id;
@@ -1691,8 +1691,6 @@ std::map<int, std::map<int, int> > getElement2ElementTopology(Partition* P, MPI_
         }
         owned_faces.clear();
      }
-    elem_set.erase(elem_set.begin(),elem_set.end());
-    //elem2globface.erase(elem2globface.begin(),elem2globface.end());    
     delete[] xadj;
     delete[] adjcny;
     return Element2ElementTopology;
@@ -1704,7 +1702,6 @@ ParArray<double>* ComputeHessian(Partition* P, int Nel, std::map<int,std::map<in
     // d^2u/dx^2 = (u_(i+1,j,k)-2u_(i,j,k)+u_(i-1,j,k))/(dx)^2 // faces 0-1
     // d^2u/dy^2 = (u_(i,j+1,k)-2u_(i,j,k)+u_(i,j-1,k))/(dy)^2 // faces 2-3
     // d^2u/dz^2 = (u_(i,j,k+1)-2u_(i,j,k)+u_(i,j,k-1))/(dz)^2 // faces 4-5
-    
     int size;
     MPI_Comm_size(comm, &size);
     // Get the rank of the process
@@ -1712,11 +1709,14 @@ ParArray<double>* ComputeHessian(Partition* P, int Nel, std::map<int,std::map<in
     MPI_Comm_rank(comm, &rank);
     
     
-    ParArray<double>* hessian = new ParArray<double>(Nel,3,comm);
+    ParArray<double>* hessian = new ParArray<double>(Nel,1,comm);
     
+    std::map<int,std::vector<int> > gE2lV       = P->getGlobElem2LocVerts();
     
-    //std::vector<Vert> locVerts                  = P->getLocalVerts();
-    //std::cout << P->getGlobElem2LocVerts().size() << std::endl;
+    std::map<int, int> locV2globV               = P->getLocalVert2GlobalVert();
+    std::map<int, int> globV2locV               = P->getGlobalVert2LocalVert();
+
+    std::vector<Vert> locVerts                  = P->getLocalVerts();
     std::map<int,std::map<int,int> >::iterator itadj;
     //
     double d2udx2 = 0.0;
@@ -1727,29 +1727,7 @@ ParArray<double>* ComputeHessian(Partition* P, int Nel, std::map<int,std::map<in
     
     Array<double>* Vrt0 = new Array<double>(6,3);
 
-    
-//    std::cout << "==================================" << std::endl;
-////
-//    std::cout << "size l2g = " << locV2globV.size() << std::endl;
-//    std::map<int,std::vector<int> >::iterator q;
-//    for(q=P->getGlobElem2LocVerts().begin();q!=P->getGlobElem2LocVerts().end();q++)
-//    {
-//        std::cout << " world rank = " << rank << " :: " << q->first << " -> ";
-//
-//        for(int o=0;o<q->second.size();o++)
-//        {
-//            std::cout << q->second[o] << " ";
-//        }
-//        std::cout << std::endl;
-//
-//    }
-//    std::cout << "==================================" << std::endl;
-//
     std::map<int, int>::iterator itmap;
-//    for(itmap=locV2globV.begin();itmap!=locV2globV.end();itmap++)
-//    {
-//        std::cout << itmap->first << " " << itmap->second << std::endl;
-//    }
     
     for(int i=0;i<6;i++)
     {
@@ -1761,7 +1739,12 @@ ParArray<double>* ComputeHessian(Partition* P, int Nel, std::map<int,std::map<in
     
     Array<double>* Vrt;
     Array<double>* b = new Array<double>(6,1);
-    int e = 0;
+    double b0=0.0;
+    double b1=0.0;
+    double b2=0.0;
+    double b3=0.0;
+    double b4=0.0;
+    double b5=0.0;
     for(itadj=E2Etopo.begin();itadj!=E2Etopo.end();itadj++)
     {
         Vrt = Vrt0;
@@ -1781,31 +1764,31 @@ ParArray<double>* ComputeHessian(Partition* P, int Nel, std::map<int,std::map<in
         int cvid;
         
         double u_ijk = P->getU0atElem(itadj->first);
-        std::vector<int> vijkIDs = P->getGlobElem2LocVerts()[itadj->first];
+        std::vector<int> vijkIDs = gE2lV[itadj->first];
         
         double* Pijk = new double[np*3];
         //std::cout << "========================" << std::endl;
         for(int i=0;i<vijkIDs.size();i++)
         {
             loc_vid     = vijkIDs[i];
-            Pijk[i*3+0] = P->getLocalVert(loc_vid).x;
-            Pijk[i*3+1] = P->getLocalVert(loc_vid).y;
-            Pijk[i*3+2] = P->getLocalVert(loc_vid).z;
+            Pijk[i*3+0] = locVerts[loc_vid].x;
+            Pijk[i*3+1] = locVerts[loc_vid].y;
+            Pijk[i*3+2] = locVerts[loc_vid].z;
         }
         
         Vert Vijk = ComputeCenterCoord(Pijk,8);
         
         if(itadj->second.find(0) != itadj->second.end() && itadj->second.find(1) != itadj->second.end())
         {
-            
-            std::vector<int> vip1jkIDs = P->getGlobElem2LocVerts()[itadj->second[0]];
+               
+            std::vector<int> vip1jkIDs = gE2lV[itadj->second[0]];
             double* Pip1jk = new double[np*3];
             for(int i=0;i<vip1jkIDs.size();i++)
             {
                 loc_vid  = vip1jkIDs[i];
-                Pip1jk[i*3+0] = P->getLocalVert(loc_vid).x;
-                Pip1jk[i*3+1] = P->getLocalVert(loc_vid).y;
-                Pip1jk[i*3+2] = P->getLocalVert(loc_vid).z;
+                Pip1jk[i*3+0] = locVerts[loc_vid].x;
+                Pip1jk[i*3+1] = locVerts[loc_vid].y;
+                Pip1jk[i*3+2] = locVerts[loc_vid].z;
             }
             
              Vert Vip1jk = ComputeCenterCoord(Pip1jk,8);
@@ -1817,14 +1800,14 @@ ParArray<double>* ComputeHessian(Partition* P, int Nel, std::map<int,std::map<in
             
             //-------------------------------------------------------------------
             
-            std::vector<int> vim1jkIDs = P->getGlobElem2LocVerts()[itadj->second[1]];
+            std::vector<int> vim1jkIDs = gE2lV[itadj->second[1]];
             double* Pim1jk = new double[np*3];
             for(int i=0;i<vim1jkIDs.size();i++)
             {
                 loc_vid  = vim1jkIDs[i];
-                Pim1jk[i*3+0] = P->getLocalVert(loc_vid).x;
-                Pim1jk[i*3+1] = P->getLocalVert(loc_vid).y;
-                Pim1jk[i*3+2] = P->getLocalVert(loc_vid).z;
+                Pim1jk[i*3+0] = locVerts[loc_vid].x;
+                Pim1jk[i*3+1] = locVerts[loc_vid].y;
+                Pim1jk[i*3+2] = locVerts[loc_vid].z;
             }
             //std::cout << std::endl;
             Vert Vim1jk = ComputeCenterCoord(Pim1jk,8);
@@ -1845,9 +1828,11 @@ ParArray<double>* ComputeHessian(Partition* P, int Nel, std::map<int,std::map<in
             
             double u_ip1jk = P->getU0atElem(itadj->second[2]);
             double u_im1jk = P->getU0atElem(itadj->second[3]);
-            
-            b->setVal(0,0,u_ip1jk-u_ijk);
-            b->setVal(1,0,u_im1jk-u_ijk);
+            std::cout << u_ip1jk << " " << u_im1jk << " " << u_ijk << std::endl; 
+            b0 = u_ip1jk-u_ijk;
+	    b1 = u_im1jk-u_ijk;
+            //b->setVal(0,0,u_ip1jk-u_ijk);
+            //b->setVal(1,0,u_im1jk-u_ijk);
             
             //d2udx2 = (u_ip1jk-2*u_ijk+u_im1jk)/(dim1jk+dip1jk);
             
@@ -1857,14 +1842,15 @@ ParArray<double>* ComputeHessian(Partition* P, int Nel, std::map<int,std::map<in
         
         if(itadj->second.find(2) != itadj->second.end() && itadj->second.find(3) != itadj->second.end())
         {
-            std::vector<int> vijp1kIDs = P->getGlobElem2LocVerts()[itadj->second[2]];
+	   
+            std::vector<int> vijp1kIDs = gE2lV[itadj->second[2]];
             double* Pijp1k = new double[np*3];
             for(int i=0;i<vijp1kIDs.size();i++)
             {
                 loc_vid  = vijp1kIDs[i];
-                Pijp1k[i*3+0] = P->getLocalVert(loc_vid).x;
-                Pijp1k[i*3+1] = P->getLocalVert(loc_vid).y;
-                Pijp1k[i*3+2] = P->getLocalVert(loc_vid).z;
+                Pijp1k[i*3+0] = locVerts[loc_vid].x;
+                Pijp1k[i*3+1] = locVerts[loc_vid].y;
+                Pijp1k[i*3+2] = locVerts[loc_vid].z;
             }
             Vert Vijp1k = ComputeCenterCoord(Pijp1k,8);
             
@@ -1872,17 +1858,17 @@ ParArray<double>* ComputeHessian(Partition* P, int Nel, std::map<int,std::map<in
             Vrt->setVal(2,0,Vijp1k.x-Vijk.x);
             Vrt->setVal(2,1,Vijp1k.y-Vijk.y);
             Vrt->setVal(2,2,Vijp1k.z-Vijk.z);
-            
+             
             //-------------------------------------------------------------------
             
-            std::vector<int> vijm1kIDs = P->getGlobElem2LocVerts()[itadj->second[3]];
+            std::vector<int> vijm1kIDs = gE2lV[itadj->second[3]];
             double* Pijm1k = new double[np*3];
             for(int i=0;i<vijm1kIDs.size();i++)
             {
                 loc_vid  = vijm1kIDs[i];
-                Pijm1k[i*3+0] = P->getLocalVert(loc_vid).x;
-                Pijm1k[i*3+1] = P->getLocalVert(loc_vid).y;
-                Pijm1k[i*3+2] = P->getLocalVert(loc_vid).z;
+                Pijm1k[i*3+0] = locVerts[loc_vid].x;
+                Pijm1k[i*3+1] = locVerts[loc_vid].y;
+                Pijm1k[i*3+2] = locVerts[loc_vid].z;
             }
             //std::cout << std::endl;
             Vert Vijm1k = ComputeCenterCoord(Pijm1k,8);
@@ -1891,7 +1877,7 @@ ParArray<double>* ComputeHessian(Partition* P, int Nel, std::map<int,std::map<in
             Vrt->setVal(3,0,Vijm1k.x-Vijk.x);
             Vrt->setVal(3,1,Vijm1k.y-Vijk.y);
             Vrt->setVal(3,2,Vijm1k.z-Vijk.z);
-        
+            
             double dijm1k = sqrt((Vijm1k.x-Vijk.x)*(Vijm1k.x-Vijk.x)+
                                  (Vijm1k.y-Vijk.y)*(Vijm1k.y-Vijk.y)+
                                  (Vijm1k.z-Vijk.z)*(Vijm1k.y-Vijk.z));
@@ -1902,14 +1888,16 @@ ParArray<double>* ComputeHessian(Partition* P, int Nel, std::map<int,std::map<in
             
             double u_ijp1k = P->getU0atElem(itadj->second[2]);
             double u_ijm1k = P->getU0atElem(itadj->second[3]);
-            
+            b2 = u_ijp1k-u_ijk;
+            b3 = u_ijm1k-u_ijk;
+            /*
             b->setVal(2,0,u_ijp1k-u_ijk);
             b->setVal(3,0,u_ijm1k-u_ijk);
 
 //
 //            d2udy2 = (u_ijp1k-2*u_ijk+u_ijm1k)/(dijm1k+dijp1k);
 //
-            
+            */
         }
         
         
@@ -1918,14 +1906,14 @@ ParArray<double>* ComputeHessian(Partition* P, int Nel, std::map<int,std::map<in
             
             //d2udz2 = (u_ijkp1-2*u_ijk+u_ijkm1);
             
-            std::vector<int> vijkp1IDs = P->getGlobElem2LocVerts()[itadj->second[4]];
+            std::vector<int> vijkp1IDs = gE2lV[itadj->second[4]];
             double* Pijkp1 = new double[np*3];
             for(int i=0;i<vijkp1IDs.size();i++)
             {
                 loc_vid  = vijkp1IDs[i];
-                Pijkp1[i*3+0] = P->getLocalVert(loc_vid).x;
-                Pijkp1[i*3+1] = P->getLocalVert(loc_vid).y;
-                Pijkp1[i*3+2] = P->getLocalVert(loc_vid).z;
+                Pijkp1[i*3+0] = locVerts[loc_vid].x;
+                Pijkp1[i*3+1] = locVerts[loc_vid].y;
+                Pijkp1[i*3+2] = locVerts[loc_vid].z;
             }
             Vert Vijkp1 = ComputeCenterCoord(Pijkp1,8);
             
@@ -1938,14 +1926,14 @@ ParArray<double>* ComputeHessian(Partition* P, int Nel, std::map<int,std::map<in
             //-------------------------------------------------------------------
             
             
-            std::vector<int> vijkm1IDs = P->getGlobElem2LocVerts()[itadj->second[5]];
+            std::vector<int> vijkm1IDs = gE2lV[itadj->second[5]];
             double* Pijkm1 = new double[np*3];
             for(int i=0;i<vijkm1IDs.size();i++)
             {
                 loc_vid  = vijkm1IDs[i];
-                Pijkm1[i*3+0] = P->getLocalVert(loc_vid).x;
-                Pijkm1[i*3+1] = P->getLocalVert(loc_vid).y;
-                Pijkm1[i*3+2] = P->getLocalVert(loc_vid).z;
+                Pijkm1[i*3+0] = locVerts[loc_vid].x;
+                Pijkm1[i*3+1] = locVerts[loc_vid].y;
+                Pijkm1[i*3+2] = locVerts[loc_vid].z;
             }
             Vert Vijkm1 = ComputeCenterCoord(Pijkm1,8);
             
@@ -1964,16 +1952,29 @@ ParArray<double>* ComputeHessian(Partition* P, int Nel, std::map<int,std::map<in
             
             double u_ijkp1 = P->getU0atElem(itadj->second[4]);
             double u_ijkm1 = P->getU0atElem(itadj->second[5]);
-            
+            b4 = u_ijkp1-u_ijk;
+            b5 = u_ijkm1-u_ijk;
+            /*
             b->setVal(4,0,u_ijkp1-u_ijk);
             b->setVal(5,0,u_ijkm1-u_ijk);
             
             //d2udy2 = (u_ijkp1-2*u_ijk+u_ijkm1)/(dijkm1+dijkp1);
-            
+            */
         }
         
+        
         Array<double>* Vrt_T = new Array<double>(3,6);
-
+        Array<double>* bn = new Array<double>(6,1);
+        //std::cout << b0 << " " << b1 << " " << b2 << " " << b3 << " " << b4 << " " << b5 << std::endl;     
+        double* bnn = new double[6]; 
+        //bn->setVal(0,0,b0);
+        //bnn[1] = b1;
+        //bn->setVal(2,0,b2);
+        //bn->setVal(3,0,b3);
+        //bn->setVal(4,0,b4);
+	//bn->setVal(5,0,b5);
+	
+        
 
         for(int i=0;i<3;i++)
         {
@@ -1986,10 +1987,9 @@ ParArray<double>* ComputeHessian(Partition* P, int Nel, std::map<int,std::map<in
         Array<double>* R = MatMul(Vrt_T,Vrt);
         Array<double>*Rinv = MatInv(R);
         Array<double>* Rn = MatMul(Rinv,Vrt_T);
-        Array<double>* x = MatMul(Rn,b);
-        hessian->setVal(e,0,x->getVal(0,0));
-        hessian->setVal(e,1,x->getVal(1,0));
-        hessian->setVal(e,2,x->getVal(2,0));
+        //Array<double>* x = MatMul(Rn,bn);
+        delete[] bn;
+        
 //        std::cout << "========================" << std::endl;
 //        for(int i=0;i<x->getNrow();i++)
 //        {
@@ -2000,11 +2000,7 @@ ParArray<double>* ComputeHessian(Partition* P, int Nel, std::map<int,std::map<in
 //            std::cout << std::endl;
 //        }
 //        std::cout << "========================" << std::endl;
-        delete[] R;
-        delete[] Rinv;
-        delete[] Rn;
-        delete[] x;
-        e++;
+        
     }
     
     return hessian;
@@ -2290,11 +2286,11 @@ int main(int argc, char** argv) {
 
     ParArray<double>* xcn = ReadDataSetFromFileInParallel<double>(fn_grid,"xcn",comm,info);
 //    ParArray<double>* ifn = ReadDataSetFromFileInParallel<double>(fn_grid,"ifn",comm,info);
-    //ParArray<double>* boundaries = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_6","boundaries",Nel,comm,info);
+//    ParArray<double>* boundaries = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_6","boundaries",comm,info);
     
     int Nel = ien->getNglob();
     int Nel_part = ien->getNrow();
-    ParArray<double>* interior   = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_1","interior",Nel,comm,info);
+    //ParArray<double>* interior   = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_1","interior",Nel,comm,info);
 //
 //    int fbface = zdefs->getVal(3,3);
 //
@@ -2390,7 +2386,7 @@ int main(int argc, char** argv) {
     
     for(int i=0;i<Nel_part;i++)
     {
-        var->setVal(i,0,interior->getVal(i,0));
+        var->setVal(i,0,1.0);
     }
     
     double t0 = MPI_Wtime();
@@ -2417,27 +2413,27 @@ int main(int argc, char** argv) {
      {
          std::cout << "t_max2 := " << max_time2  << std::endl;
      }
-    /*
-    if(world_rank == 0)
-    {
-        QRdecomTest();
-        QRdecomGradRecTest();
-        GradRecTest();
-        ParArray<double>* hessian = ComputeHessian(P,ien_copy->getNglob(),E2Etopo,comm);
-    }
-    */
-    double t3 = MPI_Wtime();
-
-    ParArray<double>* hessian = ComputeHessian(P,ien_copy->getNglob(),E2Etopo,comm); 
-    
-    double t4 = MPI_Wtime();
-    double timing3 = t4-t3;
-    double max_time3;
-    MPI_Allreduce(&timing3, &max_time3, 1, MPI_DOUBLE, MPI_MAX, comm);
-    if(world_rank==0)
-    {
+     double  t3 = MPI_Wtime();
+     ParArray<double>* hessian = ComputeHessian(P,ien_copy->getNglob(),E2Etopo,comm);
+     double t4 = MPI_Wtime();
+     double max_time3 = 0.0;
+     double timing3 = t4-t3;
+     MPI_Allreduce(&timing3, &max_time3, 1, MPI_DOUBLE, MPI_MAX, comm);
+     if (world_rank == 0)
+     {
 	std::cout << "t_max3 := " << max_time3  << std::endl;
-    }
+     }
+//    if(world_rank == 0)
+//    {
+//        QRdecomTest();
+//        QRdecomGradRecTest();
+//        GradRecTest();
+//        ParArray<double>* hessian = ComputeHessian(P,ien_copy->getNglob(),E2Etopo,comm);
+//    }
+//
+    
+    
+//
 //    double* point = new double[3];
 //    point[0] = 0.0;point[1] = 0.0;point[2] = 0.0;
 //    double* vrts = new double[6*3];
