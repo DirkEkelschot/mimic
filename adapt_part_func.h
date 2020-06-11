@@ -1,5 +1,5 @@
-#ifndef ADAPT_PARTITION_H
-#define ADAPT_PARTITION_H
+#ifndef ADAPT_PART_FUNC_H
+#define ADAPT_PART_FUNC_H
 
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #define MAX(a,b) (((a)>(b))?(a):(b))

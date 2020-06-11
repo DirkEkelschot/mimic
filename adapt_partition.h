@@ -4,12 +4,16 @@
 #include "adapt_parmetisstate.h"
 #include "adapt_operations.h"
 
+#ifndef ADAPT_PARTITION_H
+#define ADAPT_PARTITION_H
+
 class Partition {
    public:
     Partition(ParArray<int>* ien, ParArray<int>* ief, ParallelState_Parmetis* pstate_parmetis, ParArray<double>* xcn, ParallelState* xcn_parstate, ParArray<double>* U, MPI_Comm comm);
     void DeterminePartitionLayout(ParArray<int>* ien, ParallelState_Parmetis* pstate_parmetis, MPI_Comm comm);
     void DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief, ParArray<int>* part, ParArray<double>* xcn, ParallelState* xcn_parstate, ParArray<double>* U, MPI_Comm comm);
     int getNlocElem();
+    int getNlocVerts();
     int* getXadj();
     int* getAdjcny();
     ParArray<int>* getPart();
@@ -19,6 +23,7 @@ class Partition {
     
     Array<int>* getLocalElem2GlobalVert();
     Array<int>* getLocalElem2LocalVert();
+    
     std::map<int,int> getLocalVert2GlobalVert();
     std::map<int,int> getGlobalVert2LocalVert();
     
@@ -50,7 +55,8 @@ class Partition {
       int* adjcny;
     
       int NlocElem;
-      set<int> elem_set;
+      int NlocVerts;
+      std::set<int> elem_set;
       Array<int>* ElemPart;
       ParArray<int>* part;
       std::vector<Vert> LocalVerts;
@@ -870,6 +876,8 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
             lvid++;
         }
     }
+    
+    NlocVerts = LocalVerts.size();
 //    if(rank == 0)
 //    {
 //        for(int i=0;i<LocalVerts.size();i++)
@@ -965,7 +973,7 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
         LocalElement2GlobalElement[loc_el] = el_id;
         GlobalElement2LocalElement[el_id] = loc_el;
         loc_el++;
-        rho_v = TotRecvElement_IDs[m];
+        rho_v = TotRecvElement_rhos[m];
         U0Elem->setVal(m+o,0,rho_v);
         ElemPart->setVal(m+o,0,el_id);
 //        if(rank == 0)
@@ -1020,9 +1028,14 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
     //std::cout << rank << " Partitioning on Rank = " << (double) not_on_rank/on_rank << std::endl;
 }
 
-int Partition::getNlocElem()
+inline int Partition::getNlocElem()
 {
     return NlocElem;
+}
+
+inline int Partition::getNlocVerts()
+{
+    return NlocVerts;
 }
 
 inline int* Partition::getXadj()
@@ -1115,3 +1128,4 @@ inline std::map<int,std::vector<int> > Partition::getGlobElem2GlobVerts()
 //ParallelState* getXcnParallelState();
 //ParallelState* getIenParallelState();
 //ParallelState_Parmetis* getParallelStateParmetis();
+#endif

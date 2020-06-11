@@ -2,7 +2,7 @@
 
 using namespace std;
 
-void OutputZone(PartitionStruct* part, MPI_Comm comm)
+void OutputZone(Partition* part, Array<double>* H, MPI_Comm comm)
 {
     
     int size;
@@ -10,34 +10,35 @@ void OutputZone(PartitionStruct* part, MPI_Comm comm)
     // Get the rank of the process
     int rank;
     MPI_Comm_rank(comm, &rank);
-    int nloc = part->loc_elem2verts_loc->getNrow();
-    int ncol = part->loc_elem2verts_loc->getNcol();
+    Array<int>* loc_elem2verts_loc = part->getLocalElem2LocalVert();
+    int nloc = loc_elem2verts_loc->getNrow();
+    int ncol = loc_elem2verts_loc->getNcol();
     string filename = "quantity_rank_" + std::to_string(rank) + ".dat";
     ofstream myfile;
     myfile.open(filename);
     myfile << "TITLE=\"volume_part_"  + std::to_string(rank) +  ".tec\"" << std::endl;
-    myfile <<"VARIABLES = \"X\", \"Y\", \"Z\", \"rho\"" << std::endl;
-    int nvert =  part->Verts.size();
-
+    myfile <<"VARIABLES = \"X\", \"Y\", \"Z\", \"rho\", \"drhox\", \"drhoy\", \"drhoz\"" << std::endl;
+    std::vector<Vert> LVerts =  part->getLocalVerts();
+    int nvert = LVerts.size();
     myfile <<"ZONE N = " << nvert << ", E = " << nloc << ", DATAPACKING = POINT, ZONETYPE = FEBRICK" << std::endl;
-    std::cout << rank << " number of nodes -> " << nvert << std::endl;
+    Array<double>* U0 = part->getUvert();
+    std::cout << rank << " number of nodes -> " << nvert << " " << H->getNrow() << std::endl;
     for(int i=0;i<nvert;i++)
     {
-       myfile << part->Verts[i].x << "   " << part->Verts[i].y << "   " << part->Verts[i].z << "   " << part->rho_vert->getVal(i,0) << std::endl;
+       myfile << LVerts[i].x << "   " << LVerts[i].y << "   " << LVerts[i].z << "   " << U0->getVal(i,0) << " " << H->getVal(i,0) << " " << H->getVal(i,1) << " " << H->getVal(i,2) << std::endl;
     }
     
-
     
     for(int i=0;i<nloc;i++)
     {
-       myfile << part->loc_elem2verts_loc->getVal(i,0)+1 << "  " <<
-                 part->loc_elem2verts_loc->getVal(i,1)+1 << "  " <<
-                 part->loc_elem2verts_loc->getVal(i,2)+1 << "  " <<
-                 part->loc_elem2verts_loc->getVal(i,3)+1 << "  " <<
-                 part->loc_elem2verts_loc->getVal(i,4)+1 << "  " <<
-                 part->loc_elem2verts_loc->getVal(i,5)+1 << "  " <<
-                 part->loc_elem2verts_loc->getVal(i,6)+1 << "  " <<
-                 part->loc_elem2verts_loc->getVal(i,7)+1 << std::endl;
+       myfile << loc_elem2verts_loc->getVal(i,0)+1 << "  " <<
+                 loc_elem2verts_loc->getVal(i,1)+1 << "  " <<
+                 loc_elem2verts_loc->getVal(i,2)+1 << "  " <<
+                 loc_elem2verts_loc->getVal(i,3)+1 << "  " <<
+                 loc_elem2verts_loc->getVal(i,4)+1 << "  " <<
+                 loc_elem2verts_loc->getVal(i,5)+1 << "  " <<
+                 loc_elem2verts_loc->getVal(i,6)+1 << "  " <<
+                 loc_elem2verts_loc->getVal(i,7)+1 << std::endl;
     }
     
     
