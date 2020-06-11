@@ -16,6 +16,7 @@ class Partition {
     std::vector<Vert> getLocalVerts();
     Vert getLocalVert(int v_loc_id);
     
+    
     Array<int>* getLocalElem2GlobalVert();
     Array<int>* getLocalElem2LocalVert();
     std::map<int,int> getLocalVert2GlobalVert();
@@ -23,6 +24,10 @@ class Partition {
     
     Array<int>* getLocalElem2GlobalFace();
     Array<int>* getLocalElem2LocalFace();
+    
+    std::map<int,int> getLocalElement2GlobalElement();
+    std::map<int,int> getGlobalElement2LocalElement();
+
     std::map<int,int> getLocalFace2GlobalFace();
     std::map<int,int> getGlobalFace2LocalFace();
     std::map<int,std::vector<int> > getElem2GlobalFace();
@@ -31,7 +36,7 @@ class Partition {
     std::map<int,std::vector<int> > getGlobElem2LocVerts();
     std::set<int> getElemSet();
     Array<double>* getUelem();
-    double getU0atElem(int elem);
+    double getU0atGlobalElem(int elem);
     Array<double>* getUvert();
     
     ParallelState* getXcnParallelState();
@@ -50,6 +55,7 @@ class Partition {
       ParArray<int>* part;
       std::vector<Vert> LocalVerts;
     
+        
       std::map<int, std::vector<int> > globElem2globVerts;
       std::map<int, std::vector<int> > globElem2locVerts;
       Array<int>* LocalElem2GlobalVert;
@@ -63,6 +69,9 @@ class Partition {
       std::map<int,int> GlobalFace2LocalFace;
       std::map<int,std::vector<int> > Elem2GlobalFace;
       std::map<int,std::vector<int> > GlobalFace2Elem;
+
+      std::map<int,int> LocalElement2GlobalElement;
+      std::map<int,int> GlobalElement2LocalElement;
     
       Array<double>* U0Elem; // This is the value of U0 for each cell.
       Array<double>* U0Vert; // This is the reduced average for each vert based on
@@ -235,6 +244,7 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
         p_id  = part->getVal(i,0);
         el_id = part->getOffset(rank)+i;
         rho   = U->getVal(i,0);
+        //std::cout << "rho = " << rho << std::endl;
         if(p_id!=rank) // If element is not on this rank and needs to be send to other rank (p_id), add it to rank to element map.
         {
             elms_to_send_to_ranks[p_id].push_back(el_id); // rank to element map.
@@ -903,6 +913,7 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
     int glob_f = 0;
     int loc_f  = 0;
     double rho_v = 0;
+    int loc_el = 0;
     std::map<int,std::vector<double> > collect_var;
     for(int m=0;m<loc_elem.size();m++)
     {
@@ -910,12 +921,10 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
         rho_v = loc_rho[m];
         U0Elem->setVal(m,0,rho_v);
         ElemPart->setVal(m,0,el_id);
-//        if(rank == 0)
-//        {
-//          std::cout << " loc_elem rank = " << rank << " :: " << el_id << " -> ";
-//        }
-        
+        LocalElement2GlobalElement[loc_el] = el_id;
+        GlobalElement2LocalElement[el_id] = loc_el;
 
+        loc_el++;
         for(int p=0;p<8;p++)
         {
             //GlobalFace2LocalFace
@@ -927,6 +936,7 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
             collect_var[loc_v].push_back(rho_v);
             globElem2globVerts[el_id].push_back(glob_v);
             globElem2locVerts[el_id].push_back(loc_v);
+            
 //            if(rank == 0)
 //            {
 //            std::cout << glob_v << " ";
@@ -952,6 +962,9 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
     for(int m=0;m<Nel_extra;m++)
     {
         el_id = TotRecvElement_IDs[m];
+        LocalElement2GlobalElement[loc_el] = el_id;
+        GlobalElement2LocalElement[el_id] = loc_el;
+        loc_el++;
         rho_v = TotRecvElement_IDs[m];
         U0Elem->setVal(m+o,0,rho_v);
         ElemPart->setVal(m+o,0,el_id);
@@ -1082,8 +1095,9 @@ inline Array<double>* Partition::getUelem()
 {
     return U0Elem;
 }
-inline double Partition::getU0atElem(int elem)
+inline double Partition::getU0atGlobalElem(int gelem)
 {
+    int elem = GlobalElement2LocalElement[gelem];
     return U0Elem->getVal(elem,0);
 }
 inline Array<double>* Partition::getUvert()
