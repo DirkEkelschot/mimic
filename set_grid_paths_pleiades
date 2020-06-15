@@ -1,6 +1,6 @@
 rm -rf grids/adept/data.h5
-ln -s /nobackupp2/dekelsch/adept_8h/data_run21.h5 /nobackupp2/dekelsch/adapt_run/grids/adept/data.h5
+ln -s /nobackupp2/dekelsch/adept_adapt/data.h5 /nobackupp2/dekelsch/adapt_run/grids/adept/data.h5
 rm -rf /nobackupp2/dekelsch/adapt_run/grids/adept/grid.h5
-ln -s /nobackupp2/dekelsch/adept_real/grid.h5 /nobackupp2/dekelsch/adapt_run/grids/adept/grid.h5
+ln -s /nobackupp2/dekelsch/adept_adapt/grid.h5 /nobackupp2/dekelsch/adapt_run/grids/adept/grid.h5
 rm -rf /nobackupp2/dekelsch/adapt_run/grids/adept/conn.h5
-ln -s /nobackupp2/dekelsch/adept_real/conn.h5 /nobackupp2/dekelsch/adapt_run/grids/adept/conn.h5
+ln -s /nobackupp2/dekelsch/adept_adapt/conn.h5 /nobackupp2/dekelsch/adapt_run/grids/adept/conn.h5

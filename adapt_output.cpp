@@ -22,7 +22,7 @@ void OutputZone(Partition* part, Array<double>* H, MPI_Comm comm)
     int nvert = LVerts.size();
     myfile <<"ZONE N = " << nvert << ", E = " << nloc << ", DATAPACKING = POINT, ZONETYPE = FEBRICK" << std::endl;
     Array<double>* U0 = part->getUvert();
-    std::cout << rank << " number of nodes -> " << nvert << " " << H->getNrow() << std::endl;
+    //std::cout << rank << " number of nodes -> " << nvert << " " << H->getNrow() << std::endl;
     for(int i=0;i<nvert;i++)
     {
        myfile << LVerts[i].x << "   " << LVerts[i].y << "   " << LVerts[i].z << "   " << U0->getVal(i,0) << " " << H->getVal(i,0) << " " << H->getVal(i,1) << " " << H->getVal(i,2) << std::endl;

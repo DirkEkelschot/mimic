@@ -2,6 +2,7 @@
 #include "adapt_compute.h"
 #include "adapt_operations.h"
 #include "adapt_math.h"
+#include <math.h>
 #include "adapt_output.h"
 #include "adapt_partition.h"
 //#include "adapt.h"
@@ -1724,6 +1725,45 @@ std::map<int, std::map<int, int> > getElement2ElementTopology(Partition* P, MPI_
     return Element2ElementTopology;
 }
 
+Array<double>* SolveQR(double* A, int m, int n, Array<double>* b)
+{
+    
+    int nrow = m; 
+    int ncol = n; 
+    
+    
+    int info = 0; 
+    
+    double tau[ncol];
+    int lda = nrow;
+    int lwork=-1;
+    double iwork;
+    Array<double>* b_copy = new Array<double>(6,1);
+    b_copy->setVal(0,0,b->getVal(0,0));
+    b_copy->setVal(1,0,b->getVal(1,0));
+    b_copy->setVal(2,0,b->getVal(2,0));
+    b_copy->setVal(3,0,b->getVal(3,0));
+    b_copy->setVal(4,0,b->getVal(4,0));
+    b_copy->setVal(5,0,b->getVal(5,0));
+    // DGEQRF for Q*R=A, i.e., A and tau hold R and Householder reflectors
+
+    lapack::geqrf(nrow, ncol, A, nrow, tau);
+   
+    lapack::ormqr('L', 'T', nrow, 1, ncol, A, nrow, tau, b_copy->data, nrow);
+    
+    lapack::trtrs('U', 'N', 'N', ncol, 1, A, nrow, b_copy->data, nrow);
+    
+    Array<double>* out = new Array<double>(ncol,1);
+    for(int i = 0;i<ncol;i++)
+    {    
+        out->setVal(i,0,b_copy->getVal(i,0));
+    }  
+    delete[] b_copy; 
+    return out; 
+}
+
+
+
 Array<double>* ComputeHessian(Partition* P, int Nel, std::map<int,std::map<int,int> > E2Etopo, MPI_Comm comm)
 {
     
@@ -1757,6 +1797,12 @@ Array<double>* ComputeHessian(Partition* P, int Nel, std::map<int,std::map<int,i
     
     std::map<int,std::map<int,int> >::iterator itadj;
     std::vector<double> Hi;
+	        double u_ip1jk = 0.0; 
+        double u_im1jk = 0.0; 
+        double u_ijp1k = 0.0; 
+        double u_ijm1k = 0.0; 
+        double u_ijkp1 = 0.0; 
+        double u_ijkm1 = 0.0; 
     for(itadj=E2Etopo.begin();itadj!=E2Etopo.end();itadj++)
     {
         for(int i=0;i<6;i++)
@@ -1789,14 +1835,27 @@ Array<double>* ComputeHessian(Partition* P, int Nel, std::map<int,std::map<int,i
             Pijk[i*3+1] = locVerts[loc_vid].y;
             Pijk[i*3+2] = locVerts[loc_vid].z;
         }
-        
+        Vert Vip1jk;
+	Vip1jk.x = 0.0;Vip1jk.y=0.0;Vip1jk.z=0.0;
+	Vert Vim1jk;
+ 	Vim1jk.x = 0.0;Vim1jk.y=0.0;Vim1jk.z=0.0;
+	Vert Vijp1k;
+	Vijp1k.x = 0.0;Vijp1k.y=0.0;Vijp1k.z=0.0;
+	Vert Vijm1k;
+	Vijm1k.x = 0.0;Vijm1k.y=0.0;Vijm1k.z=0.0;
+	Vert Vijkp1;
+	Vijkp1.x = 0.0;Vijkp1.y=0.0;Vijkp1.z=0.0;
+	Vert Vijkm1;
+	Vijkm1.x = 0.0;Vijkm1.y=0.0;Vijkm1.z=0.0;
         Vert Vijk = ComputeCenterCoord(Pijk,8);
 
+
+	//std::cout << "Verts " << std::endl;
+	//std::cout << " ijk " << Vijk.x << " " << Vijk.y << " " << Vijk.z << std::endl;
         delete[] Pijk;
-        
         if(itadj->second.find(0) != itadj->second.end() && itadj->second.find(1) != itadj->second.end())
         {
-            
+            //std::cout << " it " << std::endl; 
             std::vector<int> vip1jkIDs = gE2lV[itadj->second[0]];
             double* Pip1jk = new double[np*3];
             for(int i=0;i<vip1jkIDs.size();i++)
@@ -1807,7 +1866,7 @@ Array<double>* ComputeHessian(Partition* P, int Nel, std::map<int,std::map<int,i
                 Pip1jk[i*3+2] = locVerts[loc_vid].z;
             }
             
-             Vert Vip1jk = ComputeCenterCoord(Pip1jk,8);
+            Vip1jk = ComputeCenterCoord(Pip1jk,8);
             
             Vrt->setVal(0,0,Vip1jk.x-Vijk.x);
             Vrt->setVal(0,1,Vip1jk.y-Vijk.y);
@@ -1825,11 +1884,12 @@ Array<double>* ComputeHessian(Partition* P, int Nel, std::map<int,std::map<int,i
                 Pim1jk[i*3+2] = locVerts[loc_vid].z;
             }
             //std::cout << std::endl;
-            Vert Vim1jk = ComputeCenterCoord(Pim1jk,8);
+            Vim1jk = ComputeCenterCoord(Pim1jk,8);
             
             Vrt->setVal(1,0,Vim1jk.x-Vijk.x);
             Vrt->setVal(1,1,Vim1jk.y-Vijk.y);
             Vrt->setVal(1,2,Vim1jk.z-Vijk.z);
+
             
             /*
             double dim1jk = sqrt((Vim1jk.x-Vijk.x)*(Vim1jk.x-Vijk.x)+
@@ -1842,8 +1902,11 @@ Array<double>* ComputeHessian(Partition* P, int Nel, std::map<int,std::map<int,i
             */
             
             
-            double u_ip1jk = P->getU0atGlobalElem(itadj->second[0]);
-            double u_im1jk = P->getU0atGlobalElem(itadj->second[1]);
+            u_ip1jk = P->getU0atGlobalElem(itadj->second[0]);
+            u_im1jk = P->getU0atGlobalElem(itadj->second[1]);
+
+	    //std::cout << " 0 " << Vip1jk.x << " " << Vip1jk.y << " " << Vip1jk.z << std::endl;
+	    //std::cout << " 1 " << Vim1jk.x << " " << Vim1jk.y << " " << Vim1jk.z << std::endl;
             b->setVal(0,0,u_ip1jk-u_ijk);
             b->setVal(1,0,u_im1jk-u_ijk);
             
@@ -1868,7 +1931,7 @@ Array<double>* ComputeHessian(Partition* P, int Nel, std::map<int,std::map<int,i
                 Pijp1k[i*3+1] = locVerts[loc_vid].y;
                 Pijp1k[i*3+2] = locVerts[loc_vid].z;
             }
-            Vert Vijp1k = ComputeCenterCoord(Pijp1k,8);
+            Vijp1k = ComputeCenterCoord(Pijp1k,8);
             
             Vrt->setVal(2,0,Vijp1k.x-Vijk.x);
             Vrt->setVal(2,1,Vijp1k.y-Vijk.y);
@@ -1886,7 +1949,7 @@ Array<double>* ComputeHessian(Partition* P, int Nel, std::map<int,std::map<int,i
                 Pijm1k[i*3+2] = locVerts[loc_vid].z;
             }
             //std::cout << std::endl;
-            Vert Vijm1k = ComputeCenterCoord(Pijm1k,8);
+            Vijm1k = ComputeCenterCoord(Pijm1k,8);
             
             Vrt->setVal(3,0,Vijm1k.x-Vijk.x);
             Vrt->setVal(3,1,Vijm1k.y-Vijk.y);
@@ -1903,12 +1966,13 @@ Array<double>* ComputeHessian(Partition* P, int Nel, std::map<int,std::map<int,i
                                  (Vijp1k.z-Vijk.z)*(Vijp1k.z-Vijk.z));
             */
             
-            double u_ijp1k = P->getU0atGlobalElem(itadj->second[2]);
-            double u_ijm1k = P->getU0atGlobalElem(itadj->second[3]);
+            u_ijp1k = P->getU0atGlobalElem(itadj->second[2]);
+            u_ijm1k = P->getU0atGlobalElem(itadj->second[3]);
             //std::cout << u_ijp1k << " " << u_ijm1k << "=========> " << " " << Vijm1k.x << " " << Vijk.x << " " << Vijp1k.x << " :: " << " " << Vijm1k.y << " " << Vijk.y << " " << Vijp1k.y << " ::  " << Vijm1k.z << " " << Vijk.z << " " << Vijp1k.z << std::endl;        
             b->setVal(2,0,u_ijp1k-u_ijk);
             b->setVal(3,0,u_ijm1k-u_ijk);
-            
+	    //std::cout << " 2 " << Vijp1k.x << " " << Vijp1k.y << " " << Vijp1k.z << std::endl;
+            //std::cout << " 3 " << Vijm1k.x << " " << Vijm1k.y << " " << Vijm1k.z<< std::endl;
             delete[] Pijp1k;
             delete[] Pijm1k;
             //std::cout << "b2 = " << u_ijp1k-u_ijk << " " << u_ijp1k<< " " << u_ijk << std::endl;
@@ -1934,7 +1998,7 @@ Array<double>* ComputeHessian(Partition* P, int Nel, std::map<int,std::map<int,i
                 Pijkp1[i*3+1] = locVerts[loc_vid].y;
                 Pijkp1[i*3+2] = locVerts[loc_vid].z;
             }
-            Vert Vijkp1 = ComputeCenterCoord(Pijkp1,8);
+            Vijkp1 = ComputeCenterCoord(Pijkp1,8);
             
             Vrt->setVal(4,0,Vijkp1.x-Vijk.x);
             Vrt->setVal(4,1,Vijkp1.y-Vijk.y);
@@ -1953,7 +2017,7 @@ Array<double>* ComputeHessian(Partition* P, int Nel, std::map<int,std::map<int,i
                 Pijkm1[i*3+1] = locVerts[loc_vid].y;
                 Pijkm1[i*3+2] = locVerts[loc_vid].z;
             }
-            Vert Vijkm1 = ComputeCenterCoord(Pijkm1,8);
+            Vijkm1 = ComputeCenterCoord(Pijkm1,8);
             
             Vrt->setVal(5,0,Vijkm1.x-Vijk.x);
             Vrt->setVal(5,1,Vijkm1.y-Vijk.y);
@@ -1969,12 +2033,13 @@ Array<double>* ComputeHessian(Partition* P, int Nel, std::map<int,std::map<int,i
                                  (Vijkp1.z-Vijk.z)*(Vijkp1.z-Vijk.z));
             */
             
-            double u_ijkp1 = P->getU0atGlobalElem(itadj->second[4]);
-            double u_ijkm1 = P->getU0atGlobalElem(itadj->second[5]);
+            u_ijkp1 = P->getU0atGlobalElem(itadj->second[4]);
+            u_ijkm1 = P->getU0atGlobalElem(itadj->second[5]);
             
             b->setVal(4,0,u_ijkp1-u_ijk);
             b->setVal(5,0,u_ijkm1-u_ijk);
-            
+            //std::cout << " 4 " << Vijkp1.x << " " << Vijkp1.y << " " << Vijkp1.z  << std::endl;
+            //std::cout << " 5 " << Vijkm1.x << " " << Vijkm1.y << " " << Vijkm1.z  << std::endl;
             //std::cout << "b4 = " << u_ijkp1-u_ijk << std::endl;
             //std::cout << "b5 = " << u_ijkm1-u_ijk << std::endl;
 
@@ -1991,8 +2056,18 @@ Array<double>* ComputeHessian(Partition* P, int Nel, std::map<int,std::map<int,i
 //            std::cout << b->getVal(i,0) << " ";
 //        }
 //        std::cout << std::endl;
-
-        for(int i=0;i<3;i++)
+	/*
+	std::cout << "=====" << std::endl;
+	 for(int i=0;i<6;i++)
+        {    
+            for(int j=0;j<3;j++)
+            {    
+                std::cout << Vrt->getVal(i,j) << " ";
+            }    
+	    std::cout << std::endl;
+        }    
+        std::cout << "=====" << std::endl;
+	for(int i=0;i<3;i++)
         {
             for(int j=0;j<6;j++)
             {
@@ -2043,23 +2118,152 @@ Array<double>* ComputeHessian(Partition* P, int Nel, std::map<int,std::map<int,i
             hessian->setVal(e,0,x->getVal(0,0));
             hessian->setVal(e,1,x->getVal(1,0));
             hessian->setVal(e,2,x->getVal(2,0));
-            delete Rinv;
+
+            if(std::isnan(x->getVal(0,0)) || fabs(x->getVal(0,0))>1.0e7)
+	    {
+		x->setVal(0,0,0.0);
+		x->setVal(1,0,0.0);
+		x->setVal(2,0,0.0);
+		std::cout << rank << " diag -> " << " NaN" << std::endl;
+		for(int u=0;u<Rinv->getNrow();u++)
+		{
+			for(int w=0;w<Rinv->getNcol();w++)
+			{
+				std::cout << R->getVal(u,w) << " ";
+			}
+			std::cout << std::endl;
+		}
+            }
+
+	    delete Rinv;
             delete[] R;
             delete[] Rn;
         }
         else
         {
+	    
             Array<double>*Rinv  = MatInv(R);
             Array<double>* Rn   = MatMul(Rinv,Vrt_T);
             Array<double>* x    = MatMul(Rn,b);
-            hessian->setVal(e,0,x->getVal(0,0));
+            if(std::isnan(x->getVal(0,0)) || x->getVal(0,0)>1.0e16)
+	    {
+		std::cout << rank << " non diag -> " << " NaN" << std::endl;
+		for(int u=0;u<Vrt->getNrow();u++)
+		{
+			for(int w=0;w<Vrt->getNcol();w++)
+			{
+				std::cout << Vrt->getVal(u,w) << " ";
+			}
+			std::cout << std::endl;
+		}
+	    }
+	    
+	    double* A_cm = new double[6*3];
+	    for(int i=0;i<6;i++)
+    	    {
+        	for(int j=0;j<3;j++)
+        	{
+           		A_cm[j*6+i] = Vrt->getVal(i,j);
+        	}
+    	    }
+	    Array<double>* x = SolveQR(A_cm,6,3,b);
+            if(std::isnan(x->getVal(0,0)) || x->getVal(0,0)>1.0e02)
+	    {
+		std::cout << rank << " non diag -> " << " NaN" << std::endl;
+                for(int u=0;u<Vrt->getNrow();u++)
+                {
+                        for(int w=0;w<Vrt->getNcol();w++)
+                        {
+                                std::cout << Vrt->getVal(u,w) << " ";
+                        }
+                        std::cout << std::endl;
+                }
+		for(int u=0;u<x->getNrow();u++)
+                {    
+                        for(int w=0;w<x->getNcol();w++)
+                        {    
+                                std::cout << x->getVal(u,w) << " "; 
+                        }    
+                        std::cout << std::endl;
+                } 
+		x->setVal(0,0,0.0);
+		x->setVal(1,0,0.0);
+		x->setVal(2,0,0.0); 
+
+	    }
+	*/
+
+	if(itadj->second.find(0) != itadj->second.end() && itadj->second.find(1) != itadj->second.end()
+		&& itadj->second.find(2) != itadj->second.end() && itadj->second.find(3) != itadj->second.end() && itadj->second.find(4) != itadj->second.end()  && itadj->second.find(5) != itadj->second.end())
+        {  
+	    double* A_cm = new double[6*3];
+            for(int i=0;i<6;i++)
+            {
+                for(int j=0;j<3;j++)
+                {
+
+                        A_cm[j*6+i] = Vrt->getVal(i,j);
+                }
+            }
+	    b->setVal(0,0,u_ip1jk-u_ijk);
+ 	   b->setVal(1,0,u_im1jk-u_ijk);
+ 	b->setVal(2,0,u_ijp1k-u_ijk);
+	 b->setVal(3,0,u_ijm1k-u_ijk);
+	 b->setVal(4,0,u_ijkp1-u_ijk);
+	 b->setVal(5,0,u_ijkm1-u_ijk);
+
+            Array<double>* x = SolveQR(A_cm,6,3,b);
+	   //std::cout << x->getVal(0,0) << " " << x->getVal(1,0) << " " << x->getVal(2,0) << std::endl;
+	    if(x->getVal(0,0)>100000)
+	    {
+		
+		std::cout << "=====Vrt start =====" << std::endl;
+		for(int i=0;i<6;i++)
+            	{    
+                	for(int j=0;j<3;j++)
+                	{    
+                        	std::cout << Vrt->getVal(i,j) << " ";
+                	}    
+			std::cout << std::endl;
+            	} 
+		for(int i=0;i<6;i++)
+            	{    
+                	std::cout << e << " b["<<i<<"]=" << b->getVal(i,0) << std::endl;
+            	}
+		std::cout <<e << " "<< u_ip1jk << " " << u_im1jk << " " << u_ijp1k << " " << u_ijm1k << " " << u_ijkp1 << " " << u_ijkm1 << " " << u_ijk << std::endl;
+		std::cout << "vert = " << Vijk.x << " " << Vijk.y << " " << Vijk.z << std::endl;
+		std::cout << "vert_ip1 = " << Vip1jk.x << " " << Vip1jk.y << " " << Vip1jk.z << std::endl;
+		std::cout << "vert_im1 = " << Vim1jk.x << " " << Vim1jk.y << " " << Vim1jk.z << std::endl;
+		std::cout << "vert_jp1 = " << Vijp1k.x << " " << Vijp1k.y << " " << Vijp1k.z << std::endl;
+		std::cout << "vert_jm1 = " << Vijm1k.x << " " << Vijm1k.y << " " << Vijm1k.z << std::endl;
+		std::cout << "vert_kp1 = " << Vijkp1.x << " " << Vijkp1.y << " " << Vijkp1.z << std::endl;
+		std::cout << "vert_km1 = " << Vijkm1.x << " " << Vijkm1.y << " " << Vijkm1.z << std::endl;
+		std::cout << rank <<  " rank << " <<  e << " ellie " << x->getVal(0,0) << " " << x->getVal(1,0) << " " << x->getVal(2,0) << std::endl;
+		std::cout << "=====Vrt end =====" << std::endl; 
+	    	
+	    }
+
+	
+		
+
+
+
+	    hessian->setVal(e,0,x->getVal(0,0));
             hessian->setVal(e,1,x->getVal(1,0));
             hessian->setVal(e,2,x->getVal(2,0));
             
-            delete[] Rinv;
-            delete[] R;
-            delete[] Rn;
-        }
+            delete A_cm; 
+	    }
+	    else
+	    {
+		hessian->setVal(e,0,0.0);
+            	hessian->setVal(e,1,0.0);
+            	hessian->setVal(e,2,0.0);
+            }
+            //delete[] Rinv;
+            //delete[] R;
+            //delete[] Rn;
+        
 
 
         e++;
@@ -2068,34 +2272,6 @@ Array<double>* ComputeHessian(Partition* P, int Nel, std::map<int,std::map<int,i
     return hessian;
 }
 
-Array<double>* SolveQR(double* A, int m, int n, Array<double>* b)
-{
-    
-    int nrow = m;
-    int ncol = n;
-    
-    
-    int info = 0;
-    
-    double tau[ncol];
-    int lda = nrow;
-    int lwork=-1;
-    double iwork;
-    // DGEQRF for Q*R=A, i.e., A and tau hold R and Householder reflectors
-
-    lapack::geqrf(nrow, ncol, A, nrow, tau);
-   
-    lapack::ormqr('L', 'T', nrow, 1, ncol, A, nrow, tau, b->data, nrow);
-    
-    lapack::trtrs('U', 'N', 'N', ncol, 1, A, nrow, b->data, nrow);
-    
-    Array<double>* out = new Array<double>(ncol,1);
-    for(int i = 0;i<ncol;i++)
-    {
-        out->setVal(i,0,b->getVal(i,0));
-    }
-    return out;
-}
 
 void QRdecomTest()
 {
@@ -2479,17 +2655,17 @@ int main(int argc, char** argv) {
         dudy = hessian->getVal(e,1);
         dudz = hessian->getVal(e,2);
         
-//        if(world_rank == 0)
-//        {
-//            std::cout << world_rank << " " << dudx << " " << dudy << " " << dudz << std::endl;
-//        }
+        if(world_rank == 0)
+        {
+            std::cout << world_rank << " " << dudx << " " << dudy << " " << dudz << std::endl;
+        }
         
         for(int j=0;j<Elvert.size();j++)
         {
             loc_v_id = Elvert[j];
-            Hvert->setVal(loc_v_id,0,Hvert->getVal(loc_v_id,0)+dudx);
-            Hvert->setVal(loc_v_id,1,Hvert->getVal(loc_v_id,1)+dudy);
-            Hvert->setVal(loc_v_id,2,Hvert->getVal(loc_v_id,2)+dudz);
+            Hvert->setVal(loc_v_id,0,dudx);
+            Hvert->setVal(loc_v_id,1,dudy);
+            Hvert->setVal(loc_v_id,2,dudz);
 
             Hvert_c->setVal(loc_v_id,0,Hvert_c->getVal(loc_v_id,0)+1);
             Hvert_c->setVal(loc_v_id,1,Hvert_c->getVal(loc_v_id,1)+1);
@@ -2502,9 +2678,15 @@ int main(int argc, char** argv) {
 
     for(int u =0;u<P->getNlocVerts();u++)
     {
-        Hvert_real->setVal(u,0,Hvert->getVal(u,0)/Hvert_c->getVal(u,0));
-        Hvert_real->setVal(u,1,Hvert->getVal(u,1)/Hvert_c->getVal(u,1));
-        Hvert_real->setVal(u,2,Hvert->getVal(u,2)/Hvert_c->getVal(u,2));
+        //Hvert_real->setVal(u,0,Hvert->getVal(u,0)/Hvert_c->getVal(u,0));
+        //Hvert_real->setVal(u,1,Hvert->getVal(u,1)/Hvert_c->getVal(u,1));
+        //Hvert_real->setVal(u,2,Hvert->getVal(u,2)/Hvert_c->getVal(u,2));
+
+	Hvert_real->setVal(u,0,Hvert->getVal(u,0));
+        Hvert_real->setVal(u,1,Hvert->getVal(u,1));
+        Hvert_real->setVal(u,2,Hvert->getVal(u,2));
+
+	//std::cout << Hvert_c->getVal(u,0) << " " << Hvert_c->getVal(u,1) << " " << Hvert_c->getVal(u,2) << std::endl;
     }
     
     OutputZone(P,Hvert_real,comm);

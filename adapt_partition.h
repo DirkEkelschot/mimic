@@ -159,7 +159,7 @@ inline void Partition::DeterminePartitionLayout(ParArray<int>* ien, ParallelStat
     {
         part[u] = rank;
     }*/
-    /*
+    
     ParMETIS_V3_AdaptiveRepart(pstate_parmetis->getElmdist(),
                            xadj_par, adjncy_par,
                                elmwgt, adjwgt,
@@ -167,7 +167,7 @@ inline void Partition::DeterminePartitionLayout(ParArray<int>* ien, ParallelStat
                    numflag, ncon, nparts,
                    tpwgts, ubvec, itr, options,
                    &edgecut, part_arr, &comm);
-     */
+    /*
     ParMETIS_V3_PartKway(pstate_parmetis->getElmdist(),
                          xadj_par,
                          adjncy_par,
@@ -176,7 +176,7 @@ inline void Partition::DeterminePartitionLayout(ParArray<int>* ien, ParallelStat
                          tpwgts, ubvec, options,
                          &edgecut, part_arr, &comm);
     
-    
+    */
     part = new ParArray<int>(ien->getNglob(),1,comm);
     part->data = part_arr;
     xadj = xadj_par;
