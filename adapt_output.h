@@ -10,6 +10,8 @@
 
 using namespace std;
 
+void OutputPartition(Partition* part, MPI_Comm comm);
+
 void OutputZone(Partition* part, Array<double>* H, MPI_Comm comm);
 
 void OutputQuantityPartition(Partition_old* pa, Array<double>* Quan, MPI_Comm comm);

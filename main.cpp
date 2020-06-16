@@ -1681,26 +1681,18 @@ std::map<int, std::map<int, int> > getElement2ElementTopology(Partition* P, MPI_
     for(int i = 0;i<nloc;i++)
     {
        std::set<int> owned_faces;
-//        if(world_rank == 0)
-//        {
-//           std::cout << " element " << i << " ";
-//        }
         
        for(int n=0;n<6;n++)
        {
-//           if(world_rank == 0)
-//           {
-//               std::cout << elem2globface[i+of][n] << " ";
-//           }
            owned_faces.insert(elem2globface[i+of][n]);
        }
-        //std::cout << std::endl;
+       //std::cout << i+of << " ==> adj ";
        int start = xadj[i];
        int end   = xadj[i+1];
        for(int j=start;j<end;j++)
        {
           int adjEl_id = adjcny[j];
-
+           //std::cout << adjcny[j] << " ";
           if(elem_set.find(adjEl_id) != elem_set.end())
           {
              for(int n=0;n<6;n++)
@@ -1716,7 +1708,12 @@ std::map<int, std::map<int, int> > getElement2ElementTopology(Partition* P, MPI_
                 }
              }
           }
+          else{
+              std::cout << "For " << i+of << " Element " << adjEl_id << " is note on rank " << world_rank << std::endl;
+          }
         }
+        //std::cout << std::endl;
+
         owned_faces.clear();
      }
     elem_set.erase(elem_set.begin(),elem_set.end());
@@ -1758,7 +1755,7 @@ Array<double>* SolveQR(double* A, int m, int n, Array<double>* b)
     {    
         out->setVal(i,0,b_copy->getVal(i,0));
     }  
-    delete[] b_copy; 
+    delete b_copy;
     return out; 
 }
 
@@ -2048,223 +2045,34 @@ Array<double>* ComputeHessian(Partition* P, int Nel, std::map<int,std::map<int,i
             delete[] Pijkm1;
         }
 
-        //std::cout << std::endl;
+       
+        double* A_cm = new double[6*3];
         
-
-//        for(int i=0;i<6;i++)
-//        {
-//            std::cout << b->getVal(i,0) << " ";
-//        }
-//        std::cout << std::endl;
-	/*
-	std::cout << "=====" << std::endl;
-	 for(int i=0;i<6;i++)
-        {    
+        for(int i=0;i<6;i++)
+        {
             for(int j=0;j<3;j++)
-            {    
-                std::cout << Vrt->getVal(i,j) << " ";
-            }    
-	    std::cout << std::endl;
-        }    
-        std::cout << "=====" << std::endl;
-	for(int i=0;i<3;i++)
-        {
-            for(int j=0;j<6;j++)
             {
-                Vrt_T->setVal(i,j,Vrt->getVal(j,i));
+                A_cm[j*6+i] = Vrt->getVal(i,j);
             }
         }
+    
 
-        Array<double>* R    = MatMul(Vrt_T,Vrt);
-        bool isdiag = isDiagonalMatrix(R);
-        if(isdiag==true)
-        {
-            Array<double>*Rinv = new Array<double>(3,3);
-            for(int i=0;i<Rinv->getNrow();i++)
-            {
-                for(int j=0;j<Rinv->getNcol();j++)
-                {
-                    Rinv->setVal(i,j,0.0);
-                }
-            }
-            
-            if(R->getVal(0,0)!=0.0)
-            {
-                Rinv->setVal(0,0,1.0/R->getVal(0,0));
-            }
-            else
-            {
-                Rinv->setVal(0,0,0.0);
-            }
-            if(R->getVal(1,1)!=0.0)
-            {
-                Rinv->setVal(1,1,1.0/R->getVal(1,1));
-            }
-            else
-            {
-                Rinv->setVal(1,1,0.0);
-            }
-            if(R->getVal(2,2)!=0.0)
-            {
-                Rinv->setVal(2,2,1.0/R->getVal(2,2));
-            }
-            else
-            {
-                Rinv->setVal(2,2,0.0);
-            }
-            Array<double>* Rn   = MatMul(Rinv,Vrt_T);
-            Array<double>* x    = MatMul(Rn,b);
+        Array<double>* x = SolveQR(A_cm,6,3,b);
 
-            hessian->setVal(e,0,x->getVal(0,0));
-            hessian->setVal(e,1,x->getVal(1,0));
-            hessian->setVal(e,2,x->getVal(2,0));
-
-            if(std::isnan(x->getVal(0,0)) || fabs(x->getVal(0,0))>1.0e7)
-	    {
-		x->setVal(0,0,0.0);
-		x->setVal(1,0,0.0);
-		x->setVal(2,0,0.0);
-		std::cout << rank << " diag -> " << " NaN" << std::endl;
-		for(int u=0;u<Rinv->getNrow();u++)
-		{
-			for(int w=0;w<Rinv->getNcol();w++)
-			{
-				std::cout << R->getVal(u,w) << " ";
-			}
-			std::cout << std::endl;
-		}
-            }
-
-	    delete Rinv;
-            delete[] R;
-            delete[] Rn;
-        }
-        else
-        {
-	    
-            Array<double>*Rinv  = MatInv(R);
-            Array<double>* Rn   = MatMul(Rinv,Vrt_T);
-            Array<double>* x    = MatMul(Rn,b);
-            if(std::isnan(x->getVal(0,0)) || x->getVal(0,0)>1.0e16)
-	    {
-		std::cout << rank << " non diag -> " << " NaN" << std::endl;
-		for(int u=0;u<Vrt->getNrow();u++)
-		{
-			for(int w=0;w<Vrt->getNcol();w++)
-			{
-				std::cout << Vrt->getVal(u,w) << " ";
-			}
-			std::cout << std::endl;
-		}
-	    }
-	    
-	    double* A_cm = new double[6*3];
-	    for(int i=0;i<6;i++)
-    	    {
-        	for(int j=0;j<3;j++)
-        	{
-           		A_cm[j*6+i] = Vrt->getVal(i,j);
-        	}
-    	    }
-	    Array<double>* x = SolveQR(A_cm,6,3,b);
-            if(std::isnan(x->getVal(0,0)) || x->getVal(0,0)>1.0e02)
-	    {
-		std::cout << rank << " non diag -> " << " NaN" << std::endl;
-                for(int u=0;u<Vrt->getNrow();u++)
-                {
-                        for(int w=0;w<Vrt->getNcol();w++)
-                        {
-                                std::cout << Vrt->getVal(u,w) << " ";
-                        }
-                        std::cout << std::endl;
-                }
-		for(int u=0;u<x->getNrow();u++)
-                {    
-                        for(int w=0;w<x->getNcol();w++)
-                        {    
-                                std::cout << x->getVal(u,w) << " "; 
-                        }    
-                        std::cout << std::endl;
-                } 
-		x->setVal(0,0,0.0);
-		x->setVal(1,0,0.0);
-		x->setVal(2,0,0.0); 
-
-	    }
-	*/
-
-	if(itadj->second.find(0) != itadj->second.end() && itadj->second.find(1) != itadj->second.end()
-		&& itadj->second.find(2) != itadj->second.end() && itadj->second.find(3) != itadj->second.end() && itadj->second.find(4) != itadj->second.end()  && itadj->second.find(5) != itadj->second.end())
-        {  
-	    double* A_cm = new double[6*3];
-            for(int i=0;i<6;i++)
-            {
-                for(int j=0;j<3;j++)
-                {
-
-                        A_cm[j*6+i] = Vrt->getVal(i,j);
-                }
-            }
-	    b->setVal(0,0,u_ip1jk-u_ijk);
- 	   b->setVal(1,0,u_im1jk-u_ijk);
- 	b->setVal(2,0,u_ijp1k-u_ijk);
-	 b->setVal(3,0,u_ijm1k-u_ijk);
-	 b->setVal(4,0,u_ijkp1-u_ijk);
-	 b->setVal(5,0,u_ijkm1-u_ijk);
-
-            Array<double>* x = SolveQR(A_cm,6,3,b);
-	   //std::cout << x->getVal(0,0) << " " << x->getVal(1,0) << " " << x->getVal(2,0) << std::endl;
-	    if(x->getVal(0,0)>100000)
-	    {
-		
-		std::cout << "=====Vrt start =====" << std::endl;
-		for(int i=0;i<6;i++)
-            	{    
-                	for(int j=0;j<3;j++)
-                	{    
-                        	std::cout << Vrt->getVal(i,j) << " ";
-                	}    
-			std::cout << std::endl;
-            	} 
-		for(int i=0;i<6;i++)
-            	{    
-                	std::cout << e << " b["<<i<<"]=" << b->getVal(i,0) << std::endl;
-            	}
-		std::cout <<e << " "<< u_ip1jk << " " << u_im1jk << " " << u_ijp1k << " " << u_ijm1k << " " << u_ijkp1 << " " << u_ijkm1 << " " << u_ijk << std::endl;
-		std::cout << "vert = " << Vijk.x << " " << Vijk.y << " " << Vijk.z << std::endl;
-		std::cout << "vert_ip1 = " << Vip1jk.x << " " << Vip1jk.y << " " << Vip1jk.z << std::endl;
-		std::cout << "vert_im1 = " << Vim1jk.x << " " << Vim1jk.y << " " << Vim1jk.z << std::endl;
-		std::cout << "vert_jp1 = " << Vijp1k.x << " " << Vijp1k.y << " " << Vijp1k.z << std::endl;
-		std::cout << "vert_jm1 = " << Vijm1k.x << " " << Vijm1k.y << " " << Vijm1k.z << std::endl;
-		std::cout << "vert_kp1 = " << Vijkp1.x << " " << Vijkp1.y << " " << Vijkp1.z << std::endl;
-		std::cout << "vert_km1 = " << Vijkm1.x << " " << Vijkm1.y << " " << Vijkm1.z << std::endl;
-		std::cout << rank <<  " rank << " <<  e << " ellie " << x->getVal(0,0) << " " << x->getVal(1,0) << " " << x->getVal(2,0) << std::endl;
-		std::cout << "=====Vrt end =====" << std::endl; 
-	    	
-	    }
-
-	
-		
-
-
-
-	    hessian->setVal(e,0,x->getVal(0,0));
-            hessian->setVal(e,1,x->getVal(1,0));
-            hessian->setVal(e,2,x->getVal(2,0));
-            
-            delete A_cm; 
-	    }
-	    else
-	    {
-		hessian->setVal(e,0,0.0);
-            	hessian->setVal(e,1,0.0);
-            	hessian->setVal(e,2,0.0);
-            }
-            //delete[] Rinv;
-            //delete[] R;
-            //delete[] Rn;
+        hessian->setVal(e,0,x->getVal(0,0));
+        hessian->setVal(e,1,x->getVal(1,0));
+        hessian->setVal(e,2,x->getVal(2,0));
         
+        delete[] A_cm;
+            
 
+//	    }
+//	    else
+//	    {
+//            hessian->setVal(e,0,0.0);
+//            hessian->setVal(e,1,0.0);
+//            hessian->setVal(e,2,0.0);
+//        }
 
         e++;
     }
@@ -2504,8 +2312,8 @@ int main(int argc, char** argv) {
 //============================================================
     
     //const char* fn_conn="grids/piston/conn.h5";
-    const char* fn_conn="grids/adept/conn.h5";
-    const char* fn_grid="grids/adept/grid.h5";
+    const char* fn_conn="grids/piston/conn.h5";
+    const char* fn_grid="grids/piston/grid.h5";
     const char* fn_data="grids/adept/data.h5";
     const char* fn_adept="grids/adept/conn.h5";
     
@@ -2527,7 +2335,7 @@ int main(int argc, char** argv) {
     
     int Nel = ien->getNglob();
     int Nel_part = ien->getNrow();
-    ParArray<double>* interior   = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_1","interior",Nel,comm,info);
+    //ParArray<double>* interior   = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_1","interior",Nel,comm,info);
 //===================================================================================
 
     ParallelState* pstate = new ParallelState(ien->getNglob(),comm);
@@ -2565,8 +2373,8 @@ int main(int argc, char** argv) {
     for(int i=0;i<Nel_part;i++)
     {
         double v = (i+ien->getOffset(world_rank))*0.2420;
-        //var->setVal(i,0,v);
-        var->setVal(i,0,interior->getVal(i,0));
+        var->setVal(i,0,v);
+        //var->setVal(i,0,interior->getVal(i,0));
     }
     
     double t0 = MPI_Wtime();
@@ -2581,7 +2389,7 @@ int main(int argc, char** argv) {
         std::cout << "t_max := " << max_time  << std::endl;
     }
     double  t1 = MPI_Wtime();
-    
+    /*
     std::map<int,map<int,int> > E2Etopo = getElement2ElementTopology(P, comm);
     double t2 = MPI_Wtime();
     double timing2 = t2-t1;
@@ -2600,7 +2408,7 @@ int main(int argc, char** argv) {
 //
 //        for(itm=itadj->second.begin();itm!=itadj->second.end();itm++)
 //        {
-//            if(itm->first == 1 || itm->first == 0)
+//            if(world_rank == 0)
 //            {
 //                std::cout << itadj->first << " => " << itm->first << " " << itm->second;
 //                std::cout << std::endl;
@@ -2608,7 +2416,7 @@ int main(int argc, char** argv) {
 //            }
 //        }
 //    }
-    
+//
     
      double  t3 = MPI_Wtime();
      Array<double>* hessian = ComputeHessian(P,ien_copy->getNglob(),E2Etopo,comm);
@@ -2655,10 +2463,7 @@ int main(int argc, char** argv) {
         dudy = hessian->getVal(e,1);
         dudz = hessian->getVal(e,2);
         
-        if(world_rank == 0)
-        {
-            std::cout << world_rank << " " << dudx << " " << dudy << " " << dudz << std::endl;
-        }
+        //std::cout << world_rank << " " << glob_el_id << " " << dudx << " " << dudy << " " << dudz << std::endl;
         
         for(int j=0;j<Elvert.size();j++)
         {
@@ -2690,6 +2495,7 @@ int main(int argc, char** argv) {
     }
     
     OutputZone(P,Hvert_real,comm);
+     */
     MPI_Finalize();
     
     //delete ien;

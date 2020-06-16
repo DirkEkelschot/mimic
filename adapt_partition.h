@@ -1,4 +1,5 @@
 #include "adapt.h"
+#include "adapt_schedule.h"
 #include "adapt_parstate.h"
 #include "adapt_array.h"
 #include "adapt_parmetisstate.h"
@@ -19,7 +20,6 @@ class Partition {
     ParArray<int>* getPart();
     std::vector<Vert> getLocalVerts();
     Vert getLocalVert(int v_loc_id);
-    
     
     Array<int>* getLocalElem2GlobalVert();
     Array<int>* getLocalElem2LocalVert();
@@ -288,7 +288,6 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
                 
             }// We do not care about the vertices for these elements since they are needed on other ranks anyways.
             //====================Hexes=======================
-            
             
             not_on_rank++;
         }
@@ -578,6 +577,7 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
         elem_set.insert(TotRecvElement_IDs[i]);
     }
     
+    
     // ==========================================================================================================
     // ==========================================================================================================
     // ==========================================================================================================
@@ -664,8 +664,6 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
     
 
     std::map<int, std::set<int> > sendFromRank2Rank_v_set;
-    std::map<int, std::vector<int> > recvRankFromRank_map_v_vec;
-    std::map<int, std::vector<int> > recvRankFromRank_map_Nvert_v_vec;
     std::map<int, std::set<int> > recvRankFromRank_map_v_set;
     //=========================================
     for(i=0;i<size;i++)
@@ -678,56 +676,23 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
             sendFromRank2Rank_v_set[sendFromRank2Rank_vert_Global[of]].insert(sendFromRank2Rank_vert_Global[j]);
             
             recvRankFromRank_map_v_set[sendFromRank2Rank_vert_Global[j]].insert(sendFromRank2Rank_vert_Global[of]);
-            recvRankFromRank_map_v_vec[sendFromRank2Rank_vert_Global[j]].push_back(sendFromRank2Rank_vert_Global[of]);
-            recvRankFromRank_map_Nvert_v_vec[sendFromRank2Rank_vert_Global[j]].push_back(sendNvertFromRank2Rank_Global[j]);
         }
     }
     
-    std::map<int,std::map<int,int> > glob_rank_rank2req_vert; // This map links current rank to rank2vert map.
-    
-    for(it=recvRankFromRank_map_v_vec.begin();it!=recvRankFromRank_map_v_vec.end();it++)
+    int TotNvert_recv = 0;
+    for(it2=rank2req_vert.begin();it2!=rank2req_vert.end();it2++)
     {
-        //it->first is the value of the receiving rank
-        //it->second are the ids of the ranks that send data to the receiving rank.
-        for(int k=0;k<it->second.size();k++)
-        {
-            glob_rank_rank2req_vert[it->first][recvRankFromRank_map_v_vec[it->first][k]] = recvRankFromRank_map_Nvert_v_vec[it->first][k];
-        }
+        TotNvert_recv = TotNvert_recv+it2->second.size();
     }
-    
-    std::map<int,int> local_rank_rank2req_vert = glob_rank_rank2req_vert[rank];
-    
-    std::map<int, std::vector<int> >::iterator it8;
 
-    
-    int* recv_offset2 = new int[local_rank_rank2req_vert.size()+1];
-    recv_offset2[0]   = 0;
-    int* recv_loc2    = new int[local_rank_rank2req_vert.size()];
-    int TotNvert_recv    = 0;
-    
-    std::map< int, int> RecvAlloc_offset_map_v;
-    std::map< int, int> loc_map2;
-    std::map< int, int>::iterator it_loc2;
-    i = 0;
-    int offs = 0;
-    
-    for(it_loc2=local_rank_rank2req_vert.begin();it_loc2!=local_rank_rank2req_vert.end();it_loc2++)
-    {
-        recv_loc2[i]                = it_loc2->second;
-        recv_offset2[i+1]           = recv_offset2[i]+recv_loc2[i];
-        loc_map2[it_loc2->first]    = recv_loc2[i];
-        RecvAlloc_offset_map_v[it_loc2->first] = recv_offset2[i];
-        offs                        = offs+it_loc2->second;
-        TotNvert_recv               = TotNvert_recv+it_loc2->second;
-        i++;
-    }
-    
     int n_reqstd_ids;
     int n_req_recv_v2;
     
     int* TotRecvVert_IDs = new int[TotNvert_recv];
     // This thing needs to revised because for the verts it doesnt work.
     // The current rank does not have the verts_to_send_rank. Instead it has an request list.
+    
+    ScheduleObj* sobj = DoScheduling(rank2req_vert,comm);
     
     std::map<int,std::vector<int> >  reqstd_ids_per_rank;
     
@@ -750,7 +715,7 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
                 i++;
             }
         }
-        else if (sendFromRank2Rank_v_set[q].find( rank ) != sendFromRank2Rank_v_set[q].end())
+        else if (sobj->SendFromRank2Rank[q].find( rank ) != sobj->SendFromRank2Rank[q].end())
         {
             MPI_Recv(&n_reqstd_ids, 1, MPI_INT, q, 9876+10*rank, comm, MPI_STATUS_IGNORE);
             //MPI_Recv(&TotRecvVert_IDs[RecvAlloc_offset_map_v[q]], n_reqstd_ids, MPI_INT, q, 9876+rank*2, comm, MPI_STATUS_IGNORE);
@@ -796,7 +761,7 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
                 delete[] vert_send;
             }
         }
-        if(recvRankFromRank_map_v_set[q].find( rank ) != recvRankFromRank_map_v_set[q].end())
+        if(sobj->RecvRankFromRank[q].find( rank ) != sobj->RecvRankFromRank[q].end())
         {
             MPI_Recv(&n_recv_back, 1, MPI_INT, q, 9876+1000*rank, comm, MPI_STATUS_IGNORE);
             

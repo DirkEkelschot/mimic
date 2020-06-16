@@ -2,6 +2,49 @@
 
 using namespace std;
 
+void OutputPartition(Partition* part, MPI_Comm comm)
+{
+    
+    int size;
+    MPI_Comm_size(comm, &size);
+    // Get the rank of the process
+    int rank;
+    MPI_Comm_rank(comm, &rank);
+    Array<int>* loc_elem2verts_loc = part->getLocalElem2LocalVert();
+    int nloc = loc_elem2verts_loc->getNrow();
+    int ncol = loc_elem2verts_loc->getNcol();
+    string filename = "quantity_rank_" + std::to_string(rank) + ".dat";
+    ofstream myfile;
+    myfile.open(filename);
+    myfile << "TITLE=\"volume_part_"  + std::to_string(rank) +  ".tec\"" << std::endl;
+    myfile <<"VARIABLES = \"X\", \"Y\", \"Z\"" << std::endl;
+    std::vector<Vert> LVerts =  part->getLocalVerts();
+    int nvert = LVerts.size();
+    myfile <<"ZONE N = " << nvert << ", E = " << nloc << ", DATAPACKING = POINT, ZONETYPE = FEBRICK" << std::endl;
+    //std::cout << rank << " number of nodes -> " << nvert << " " << H->getNrow() << std::endl;
+    for(int i=0;i<nvert;i++)
+    {
+       myfile << LVerts[i].x << "   " << LVerts[i].y << "   " << LVerts[i].z << std::endl;
+    }
+    
+    
+    for(int i=0;i<nloc;i++)
+    {
+       myfile << loc_elem2verts_loc->getVal(i,0)+1 << "  " <<
+                 loc_elem2verts_loc->getVal(i,1)+1 << "  " <<
+                 loc_elem2verts_loc->getVal(i,2)+1 << "  " <<
+                 loc_elem2verts_loc->getVal(i,3)+1 << "  " <<
+                 loc_elem2verts_loc->getVal(i,4)+1 << "  " <<
+                 loc_elem2verts_loc->getVal(i,5)+1 << "  " <<
+                 loc_elem2verts_loc->getVal(i,6)+1 << "  " <<
+                 loc_elem2verts_loc->getVal(i,7)+1 << std::endl;
+    }
+    
+    
+    myfile.close();
+}
+
+
 void OutputZone(Partition* part, Array<double>* H, MPI_Comm comm)
 {
     
