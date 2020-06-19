@@ -1118,7 +1118,8 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
     cnf = 0;
     int ofs = xcn_parstate->getOffset(rank);
     int nlo = xcn_parstate->getNloc(rank);
-
+    int idsave = 0;
+    std::cout << adj_verts.size() << " " << Nel_extra2 <<std::endl;
     for(int m=0;m<Nel_extra2;m++)
     {
         el_id = adj_elements[m];
@@ -1133,7 +1134,7 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
         {
             glob_v = adj_verts[cnv];
             loc_v  = GlobalVert2LocalVert[glob_v];
-            
+            idsave=glob_v;
             LocalElem2GlobalVert->setVal(m+o,p,glob_v);
             LocalElem2LocalVert->setVal(m+o,p,loc_v);
             globElem2globVerts[el_id].push_back(glob_v);
@@ -1275,7 +1276,6 @@ inline std::map<int,int> Partition::getLocalElement2GlobalElement()
 {
     return LocalElement2GlobalElement;
 }
-
 //ParallelState* getXcnParallelState();
 //ParallelState* getIenParallelState();
 //ParallelState_Parmetis* getParallelStateParmetis();

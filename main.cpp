@@ -2690,6 +2690,7 @@ int main(int argc, char** argv) {
     }
     
     OutputGradient(P,Hvert_real,pstate,comm);
+    //OutputPartition(P,comm);
     MPI_Finalize();
     
     //delete ien;
