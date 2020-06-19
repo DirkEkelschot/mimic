@@ -107,12 +107,8 @@ ScheduleObj* DoScheduling(std::map<int,std::vector<int> > Rank2RequestEntity, MP
 
 
     ScheduleObj* scheduleObj   = new ScheduleObj;
-    
-    std::map<int, std::set<int> >    sendFromRank2Rank_v_set;
-    std::map<int, std::set<int> >    recvRankFromRank_map_v_set;
-    
-    
-    //============================================================================
+
+    //====================================================================
     for(i=0;i<size;i++)
     {
         int of = reduced_nRank_RequestEntity_offset[i];
@@ -125,7 +121,7 @@ ScheduleObj* DoScheduling(std::map<int,std::vector<int> > Rank2RequestEntity, MP
             scheduleObj->RecvRankFromRank[sendFromRank2Rank_Entity_Global[j]].insert(sendFromRank2Rank_Entity_Global[of]);
         }
     }
-    //============================================================================
+    //====================================================================
     delete[] reduced_nRank_RequestEntity_offset;
     delete[] sendNentityFromRank2Rank_Global;
     delete[] sendFromRank2Rank_Entity_Global;
@@ -137,3 +133,125 @@ ScheduleObj* DoScheduling(std::map<int,std::vector<int> > Rank2RequestEntity, MP
     return scheduleObj;
     
 }
+
+
+
+//void GetAdjacentElementForRank(int *xadj, int* adjcny)
+//{
+//    std::map<int,std::vector<int> > req_elem;
+//
+//    for(int i=0;i<part->getNrow();i++)
+//    {
+//        int start = xadj[i];
+//        int end   = xadj[i+1];
+//        for(int j=start;j<end;j++)
+//        {
+//            int adjEl_id = adjcny[j];
+//
+//            if(elem_set.find(adjEl_id)==elem_set.end())
+//            {
+//                elem_set.insert(adjEl_id);
+//                p_id = part_global->getVal(adjEl_id,0);
+//                req_elem[p_id].push_back(adjEl_id);
+//            }
+//        }
+//    }
+//
+//    std::map<int,std::vector<int> >::iterator itv;
+//    for(itv=req_elem.begin();itv!=req_elem.end();itv++)
+//    {
+//        std::cout <<"rank " << rank << " requests " << " from rank " << itv->first << " the elements -> ";
+//        for(int j=0;j<itv->second.size();j++)
+//        {
+//            std::cout << itv->second[j] << " ";
+//        }
+//        std::cout << std::endl;
+//    }
+//
+//    ScheduleObj* sobj_el = DoScheduling(req_elem,comm);
+//
+//    std::map<int,std::vector<int> >  reqstd_adj_ids_per_rank;
+//    int n_reqstd_adj_ids;
+//    for(q=0;q<size;q++)
+//    {
+//        if(rank==q)
+//        {
+//            int i=0;
+//            for (it = req_elem.begin(); it != req_elem.end(); it++)
+//            {
+//                int n_req_adj_el           = it->second.size();
+//                int dest                   = it->first;
+//
+//                int destination = dest;
+//                //MPI_Send(&dest, 1, MPI_INT, dest, 9876+10*dest, comm);
+//                MPI_Send(&n_req_adj_el, 1, MPI_INT, dest, 9876000+10*dest, comm);
+//                //MPI_Send(&it->second[0], n_req, MPI_INT, dest, 9876+dest*2, comm);
+//                MPI_Send(&it->second[0], n_req_adj_el, MPI_INT, dest, 9876000*2+dest*2, comm);
+//
+//                i++;
+//            }
+//        }
+//        else if (sobj_el->SendFromRank2Rank[q].find( rank ) != sobj_el->SendFromRank2Rank[q].end())
+//        {
+//            MPI_Recv(&n_reqstd_adj_ids, 1, MPI_INT, q, 9876000+10*rank, comm, MPI_STATUS_IGNORE);
+//            //MPI_Recv(&TotRecvVert_IDs[RecvAlloc_offset_map_v[q]], n_reqstd_ids, MPI_INT, q, 9876+rank*2, comm, MPI_STATUS_IGNORE);
+//
+//            std::vector<int> recv_reqstd_adj_ids(n_reqstd_adj_ids);
+//            MPI_Recv(&recv_reqstd_adj_ids[0], n_reqstd_adj_ids, MPI_INT, q, 9876000*2+rank*2, comm, MPI_STATUS_IGNORE);
+//            reqstd_adj_ids_per_rank[q] = recv_reqstd_adj_ids;
+//        }
+//    }
+//
+//    for(itv=reqstd_adj_ids_per_rank.begin();itv!=reqstd_adj_ids_per_rank.end();itv++)
+//    {
+//        std::cout <<"rank " << rank << " received from " << itv->first << " the request for elements -> ";
+//        for(int j=0;j<itv->second.size();j++)
+//        {
+//            std::cout << itv->second[j] << " ";
+//        }
+//        std::cout << std::endl;
+//    }
+//
+//    int offset_adj_xcn = 0;
+//    int nloc_adj_xcn = 0;
+//    std::map<int,int  > recv_adj_back_Nverts;
+//    std::map<int,int* > recv_adj_back_verts;
+//    std::map<int,int* > recv_adj_back_verts_ids;
+//    int n_adj_recv_back;
+//
+//    // This sends the right vertices of the requested elements to correct processor.
+//    for(q=0;q<size;q++)
+//    {
+//        if(rank == q)
+//        {
+//            for (it = reqstd_adj_ids_per_rank.begin(); it != reqstd_adj_ids_per_rank.end(); it++)
+//            {
+//                int nv_adj_send       = it->second.size();
+//                double* vert_adj_send = new double[nv_adj_send*3];
+//                offset_adj_xcn        = xcn->getOffset(rank);
+//                nloc_adj_xcn          = xcn->getNloc(rank);
+//                for(int u=0;u<it->second.size();u++)
+//                {
+//                    vert_adj_send[u*3+0]=xcn->getVal(it->second[u]-offset_adj_xcn,0);
+//                    vert_adj_send[u*3+1]=xcn->getVal(it->second[u]-offset_adj_xcn,1);
+//                    vert_adj_send[u*3+2]=xcn->getVal(it->second[u]-offset_adj_xcn,2);
+//                }
+//
+//                int dest = it->first;
+//                MPI_Send(&nv_adj_send, 1, MPI_INT, dest, 98760000+1000*dest, comm);
+//                MPI_Send(&it->second[0], it->second.size(), MPI_INT, dest, 9999*9876+dest*8888,comm);
+//                delete[] vert_adj_send;
+//            }
+//        }
+//        if(sobj_el->RecvRankFromRank[q].find( rank ) != sobj_el->RecvRankFromRank[q].end())
+//        {
+//            MPI_Recv(&n_adj_recv_back, 1, MPI_INT, q, 98760000+1000*rank, comm, MPI_STATUS_IGNORE);
+//
+//            int* recv_adj_back_arr_ids = new int[n_adj_recv_back];
+//            MPI_Recv(&recv_adj_back_arr_ids[0], n_adj_recv_back, MPI_INT, q, 9999*9876+rank*8888, comm, MPI_STATUS_IGNORE);
+//
+//            recv_adj_back_Nverts[q]     = n_adj_recv_back;
+//            recv_adj_back_verts_ids[q]  = recv_adj_back_arr_ids;
+//        }
+//    }
+//}

@@ -44,6 +44,76 @@ void OutputPartition(Partition* part, MPI_Comm comm)
     myfile.close();
 }
 
+void OutputGradient(Partition* parttn, Array<double>* H, ParallelState* pstate, MPI_Comm comm)
+{
+    
+    int size;
+    MPI_Comm_size(comm, &size);
+    // Get the rank of the process
+    int rank;
+    MPI_Comm_rank(comm, &rank);
+    
+    int nloc = parttn->getNlocElem();
+    int ncol = 8;
+    
+    int loc_v_id, glob_v_id;
+    
+    Array<int>* loc_elem2verts_loc = new Array<int>(nloc,ncol);
+    int offset = pstate->getOffset(rank);
+    std::map<int,int> GlobalElement2LocalElement = parttn->getGlobalElement2LocalElement();
+    std::map<int,std::vector<int> > GlobElem2LocVerts = parttn->getGlobElem2LocVerts();
+    std::vector<int> loc_vert;
+    std::set<int> vert_used;
+    std::vector<int> vert_plot;
+    for(int i=0;i<nloc;i++)
+    {
+        int g_el_id = i+offset;
+        loc_vert = GlobElem2LocVerts[g_el_id];
+        for(int j=0;j<8;j++)
+        {
+            loc_v_id = loc_vert[j];
+            if(vert_used.find(loc_v_id)==vert_used.end())
+            {
+                vert_used.insert(loc_v_id);
+                vert_plot.push_back(loc_v_id);
+            }
+        }
+    }
+    
+    
+    string filename = "quantity_rank_" + std::to_string(rank) + ".dat";
+    ofstream myfile;
+    myfile.open(filename);
+    myfile << "TITLE=\"volume_part_"  + std::to_string(rank) +  ".tec\"" << std::endl;
+    myfile <<"VARIABLES = \"X\", \"Y\", \"Z\", \"rho\", \"drhox\", \"drhoy\", \"drhoz\"" << std::endl;
+    std::vector<Vert> LVerts =  parttn->getLocalVerts();
+    int nvert = LVerts.size();
+    myfile <<"ZONE N = " << nvert << ", E = " << nloc << ", DATAPACKING = POINT, ZONETYPE = FEBRICK" << std::endl;
+    Array<double>* U0 = parttn->getUvert();
+    //std::cout << rank << " number of nodes -> " << nvert << " " << H->getNrow() << std::endl;
+    for(int i=0;i<vert_plot.size();i++)
+    {
+       myfile << LVerts[vert_plot[i]].x << "   " << LVerts[vert_plot[i]].y << "   " << LVerts[vert_plot[i]].z << "   " << U0->getVal(vert_plot[i],0) << " " << H->getVal(vert_plot[i],0) << " " << H->getVal(vert_plot[i],1) << " " << H->getVal(vert_plot[i],2) << std::endl;
+    }
+    
+    
+    for(int i=0;i<nloc;i++)
+    {
+       myfile << loc_elem2verts_loc->getVal(i,0)+1 << "  " <<
+                 loc_elem2verts_loc->getVal(i,1)+1 << "  " <<
+                 loc_elem2verts_loc->getVal(i,2)+1 << "  " <<
+                 loc_elem2verts_loc->getVal(i,3)+1 << "  " <<
+                 loc_elem2verts_loc->getVal(i,4)+1 << "  " <<
+                 loc_elem2verts_loc->getVal(i,5)+1 << "  " <<
+                 loc_elem2verts_loc->getVal(i,6)+1 << "  " <<
+                 loc_elem2verts_loc->getVal(i,7)+1 << std::endl;
+    }
+    
+    
+    myfile.close();
+}
+
+
 
 void OutputZone(Partition* part, Array<double>* H, MPI_Comm comm)
 {
