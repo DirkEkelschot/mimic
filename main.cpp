@@ -1762,6 +1762,174 @@ Array<double>* SolveQR(double* A, int m, int n, Array<double>* b)
     return out; 
 }
 
+Array<double>* ComputeHessianNew(Partition* P, int Nel, std::map<int,std::map<int,int> > E2Etopo, MPI_Comm comm)
+{
+    int size;
+    MPI_Comm_size(comm, &size);
+    // Get the rank of the process
+    int rank;
+    MPI_Comm_rank(comm, &rank);
+    
+    Array<double>* hessian = new Array<double>(Nel,3);
+    
+    std::map<int,std::vector<int> > gE2lV       = P->getGlobElem2LocVerts();
+
+    std::vector<Vert> locVerts                  = P->getLocalVerts();
+    int loc_vid = 0;
+    int np = 8;
+    std::map<int, int>::iterator itmap;
+    int e = 0;
+    std::map<int,std::map<int,int> >::iterator itadj;
+    std::vector<double> Hi;
+    double u_ip1jk = 0.0;
+    double u_im1jk = 0.0;
+    double u_ijp1k = 0.0;
+    double u_ijm1k = 0.0;
+    double u_ijkp1 = 0.0;
+    double u_ijkm1 = 0.0;
+    
+    for(itadj=E2Etopo.begin();itadj!=E2Etopo.end();itadj++)
+    {
+        int nadj = itadj->second.size();
+
+        std::cout << nadj << std::endl;
+        Array<double>* Vrt_T = new Array<double>(3,nadj);
+        Array<double>* Vrt   = new Array<double>(nadj,3);
+        Array<double>* b     = new Array<double>(nadj,1);
+        
+        for(int i=0;i<nadj;i++)
+        {
+            
+            for(int j=0;j<3;j++)
+            {
+                Vrt_T->setVal(j,i,0.0);
+                Vrt->setVal(i,j,0.0);
+            }
+        }
+        
+        
+        
+        double u_ijk = P->getU0atGlobalElem(itadj->first);
+        std::vector<int> vijkIDs = gE2lV[itadj->first];
+        
+        double* Pijk = new double[np*3];
+        for(int i=0;i<vijkIDs.size();i++)
+        {
+            loc_vid     = vijkIDs[i];
+            Pijk[i*3+0] = locVerts[loc_vid].x;
+            Pijk[i*3+1] = locVerts[loc_vid].y;
+            Pijk[i*3+2] = locVerts[loc_vid].z;
+        }
+        Vert Vip1jk;
+        Vip1jk.x = 0.0;Vip1jk.y=0.0;Vip1jk.z=0.0;
+        Vert Vim1jk;
+        Vim1jk.x = 0.0;Vim1jk.y=0.0;Vim1jk.z=0.0;
+        Vert Vijp1k;
+        Vijp1k.x = 0.0;Vijp1k.y=0.0;Vijp1k.z=0.0;
+        Vert Vijm1k;
+        Vijm1k.x = 0.0;Vijm1k.y=0.0;Vijm1k.z=0.0;
+        Vert Vijkp1;
+        Vijkp1.x = 0.0;Vijkp1.y=0.0;Vijkp1.z=0.0;
+        Vert Vijkm1;
+        Vijkm1.x = 0.0;Vijkm1.y=0.0;Vijkm1.z=0.0;
+        Vert Vijk = ComputeCenterCoord(Pijk,8);
+        
+        delete[] Pijk;
+        
+        std::map<int,int>::iterator itmap;
+        int tel = 0;
+        for(itmap=itadj->second.begin();itmap!=itadj->second.end();itmap++)
+        {
+            double u_po = P->getU0atGlobalElem(itmap->second);
+            double* Po = new double[np*3];
+            
+            for(int i=0;i<gE2lV[itmap->second].size();i++)
+            {
+                loc_vid   = gE2lV[itmap->second][i];
+                Po[i*3+0] = locVerts[loc_vid].x;
+                Po[i*3+1] = locVerts[loc_vid].y;
+                Po[i*3+2] = locVerts[loc_vid].z;
+            }
+            
+            Vert Vpo = ComputeCenterCoord(Po,8);
+            
+            Vrt->setVal(tel,0,Vpo.x-Vijk.x);
+            Vrt->setVal(tel,1,Vpo.y-Vijk.y);
+            Vrt->setVal(tel,2,Vpo.z-Vijk.z);
+            std::cout << rank << " tel = " << tel << " " <<itmap->second<<" "<< u_po << " " << u_ijk << std::endl;
+            b->setVal(tel,0,u_po-u_ijk);
+            
+            delete[] Po;
+            
+            tel++;
+        }
+        
+        double* A_cm = new double[nadj*3];
+        for(int i=0;i<nadj;i++)
+        {
+            for(int j=0;j<3;j++)
+            {
+                A_cm[j*nadj+i] = Vrt->getVal(i,j);
+            }
+        }
+        
+//        for(int i=0;i<nadj;i++)
+//        {
+//            b->setVal(i,0,0.0);
+//        }
+        //Array<double>* x = new Array<double>(3,1);
+        
+        for(int i=0;i<nadj;i++)
+        {
+            for(int j=0;j<3;j++)
+            {
+                std::cout << A_cm[j*nadj+i] << " ";
+            }
+            std::cout << std::endl;
+        }
+        for(int i=0;i<nadj;i++)
+        {
+            for(int j=0;j<1;j++)
+            {
+                std::cout << "b = " << b->getVal(i,j) << " ";
+            }
+            std::cout << std::endl;
+        }
+        std::cout << "nadj =  " << nadj << std::endl;
+        int* summ = new int[3];
+        summ[0] = 0;summ[1] = 0;summ[2] = 0;
+        for(int i=0;i<nadj;i++)
+        {
+            for(int j=0;j<3;j++)
+            {
+                std::cout << A_cm[j*nadj+i] << " ";
+                if(Vrt->getVal(i,j)!=0)
+                {
+                   summ[j] = summ[j]+1;
+                }
+                
+            }
+            std::cout << std::endl;
+        }
+        std::cout << std::endl;
+        
+        for(int i=0;i<3;i++)
+        {
+            std::cout  << "summ "<< summ[i] << std::endl;
+        }
+        Array<double>* x = SolveQR(A_cm,nadj,3,b);
+//        x->setVal(0,0,0.0);
+//        x->setVal(1,0,0.0);
+//        x->setVal(2,0,0.0);
+//
+        //std::cout << x->getVal(0,0) << " " << x->getVal(1,0) << " " << x->getVal(2,0) << std::endl;
+        delete b;
+        delete Vrt_T;
+        delete Vrt;
+    }
+    
+    return hessian;
+}
 
 
 Array<double>* ComputeHessian(Partition* P, int Nel, std::map<int,std::map<int,int> > E2Etopo, MPI_Comm comm)
@@ -2581,7 +2749,7 @@ int main(int argc, char** argv) {
         std::cout << "t_max := " << max_time  << std::endl;
     }
     double  t1 = MPI_Wtime();
-    
+   /* 
     std::map<int,map<int,int> > E2Etopo = getElement2ElementTopology(P, comm);
     double t2 = MPI_Wtime();
     double timing2 = t2-t1;
@@ -2620,18 +2788,95 @@ int main(int argc, char** argv) {
     {
         std::cout << "t_max3 := " << max_time3  << std::endl;
     }
-
-
-
-    std::map<int, std::vector<int> > glob_elem2loc_vert = P->getGlobElem2LocVerts();
+    
+    
+    std::vector<Vert> LocalVs = P->getLocalVerts();
     int e = 0;
     double dudx = 0.0;
     double dudy = 0.0;
     double dudz = 0.0;
     int loc_v_id = 0;
-    Array<double>* Hvert   = new Array<double>(P->getNlocVerts(),3);
-    Array<double>* Hvert_c = new Array<double>(P->getNlocVerts(),3);
+    Array<int>* loc_elem2verts_loc = P->getLocalElem2LocalVert();
+    std::vector<Vert> LVerts =  P->getLocalVerts();
+    //Array<double>* hx=new Array<double>(ien_copy->getNrow(),ien_copy->getNcol());
+    //Array<double>* hy=new Array<double>(ien_copy->getNrow(),ien_copy->getNcol());
+    //Array<double>* hz=new Array<double>(ien_copy->getNrow(),ien_copy->getNcol());
+    std::map<int,std::vector<double> > collect_drhodx;
+    std::map<int,std::vector<double> > collect_drhody;
+    std::map<int,std::vector<double> > collect_drhodz;
+    int loc_v = 0;
+    Array<int>* LocalElem2LocalVert = P->getLocalElem2LocalVert();
+    for(int i=0;i<P->getNlocElem();i++)
+    {
+        
+        double drhodx_e = hessian->getVal(i,0);
+        double drhody_e = hessian->getVal(i,1);
+        double drhodz_e = hessian->getVal(i,2);
+        for(int j=0;j<8;j++)
+        {    
+   	     
+            loc_v = LocalElem2LocalVert->getVal(i,j);
+            collect_drhodx[loc_v].push_back(drhodx_e);
+            collect_drhody[loc_v].push_back(drhody_e);
+            collect_drhodz[loc_v].push_back(drhodz_e);
+        }
+    }
+    
+    std::map<int,std::vector<double> >::iterator it_rhos;
+    double sumdx = 0;
+    double sumdy = 0;
+    double sumdz = 0;
+    int c = 0;
+    std::vector<double> hx;
+    std::vector<double> hy;
+    std::vector<double> hz;
+    for(it_rhos=collect_drhodx.begin();it_rhos!=collect_drhodx.end();it_rhos++)
+    {
+        sumdx = 0;
+        sumdy = 0;
+        sumdz = 0;
+        for(int q = 0;q<it_rhos->second.size();q++)
+        {
+            sumdx = sumdx + it_rhos->second[q];
+            sumdy = sumdy + collect_drhody[it_rhos->first][q];
+            sumdz = sumdz + collect_drhodz[it_rhos->first][q];
+        }
+	hx.push_back(sumdx/it_rhos->second.size());
+	hy.push_back(sumdy/it_rhos->second.size());
+	hz.push_back(sumdz/it_rhos->second.size());
+       
+        c++;
+    }
+    
+    std::cout << LVerts.size() << " " << hx.size() << std::endl;  
+    string filename = "quantity_rank_" + std::to_string(world_rank) + ".dat";
+    ofstream myfile;
+    myfile.open(filename);
+    myfile << "TITLE=\"volume_part_"  + std::to_string(world_rank) +  ".tec\"" << std::endl;
+    myfile <<"VARIABLES = \"X\", \"Y\", \"Z\", \"drhox\", \"drhoy\", \"drhoz\"" << std::endl;
+    int nvert = LVerts.size();
+    myfile <<"ZONE N = " << nvert << ", E = " << ien_copy->getNrow() << ", DATAPACKING = POINT, ZONETYPE = FEBRICK" << std::endl;
+    for(int i=0;i<nvert;i++)
+    {
+       myfile << LVerts[i].x << "   " << LVerts[i].y << "   " << LVerts[i].z << "   " << hx[i] << " " << hy[i] << " " << hz[i] << std::endl;
+    }
 
+    
+
+    for(int i=0;i<ien_copy->getNrow();i++)
+    {
+       myfile << loc_elem2verts_loc->getVal(i,0)+1 << "  " <<
+                 loc_elem2verts_loc->getVal(i,1)+1 << "  " <<
+                 loc_elem2verts_loc->getVal(i,2)+1 << "  " <<
+                 loc_elem2verts_loc->getVal(i,3)+1 << "  " <<
+                 loc_elem2verts_loc->getVal(i,4)+1 << "  " <<
+                 loc_elem2verts_loc->getVal(i,5)+1 << "  " <<
+                 loc_elem2verts_loc->getVal(i,6)+1 << "  " <<
+                 loc_elem2verts_loc->getVal(i,7)+1 << std::endl;
+    }
+    myfile.close();
+    */ 
+ /*   
     for(int u =0;u<P->getNlocVerts();u++)
     {
         Hvert->setVal(u,0,0.0);
@@ -2644,6 +2889,7 @@ int main(int argc, char** argv) {
 
     }
     e = 0;
+
     for(itadj=E2Etopo.begin();itadj!=E2Etopo.end();itadj++)
     {
         std::map<int,int>::iterator itadj2;
@@ -2663,9 +2909,13 @@ int main(int argc, char** argv) {
         for(int j=0;j<Elvert.size();j++)
         {
             loc_v_id = Elvert[j];
-            Hvert->setVal(loc_v_id,0,dudx);
-            Hvert->setVal(loc_v_id,1,dudy);
-            Hvert->setVal(loc_v_id,2,dudz);
+            Hvert->setVal(loc_v_id,0,Hvert->getVal(loc_v_id,0)+dudx);
+            Hvert->setVal(loc_v_id,1,Hvert->getVal(loc_v_id,1)+dudy);
+            Hvert->setVal(loc_v_id,2,Hvert->getVal(loc_v_id,2)+dudz);
+	    if(fabs(LocalVs[loc_v_id].z)<1.0e-04)
+	    {
+		std::cout << LocalVs[loc_v_id].x << " " << LocalVs[loc_v_id].y << " " << LocalVs[loc_v_id].z << " :: " <<dudx<<" "<< dudy<< " " << dudz << std::endl;
+	    }
 
             Hvert_c->setVal(loc_v_id,0,Hvert_c->getVal(loc_v_id,0)+1);
             Hvert_c->setVal(loc_v_id,1,Hvert_c->getVal(loc_v_id,1)+1);
@@ -2688,9 +2938,10 @@ int main(int argc, char** argv) {
 
 	//std::cout << Hvert_c->getVal(u,0) << " " << Hvert_c->getVal(u,1) << " " << Hvert_c->getVal(u,2) << std::endl;
     }
-    
-    OutputGradient(P,Hvert_real,pstate,comm);
-    //OutputPartition(P,comm);
+    */    
+    //OutputGradient(P,Hvert_real,pstate,comm);
+//    OutputPartition(P,ien_copy,Hvert_real,comm);
+    //OutputPartition(P,ien_copy,Hvert_real,comm);
     MPI_Finalize();
     
     //delete ien;

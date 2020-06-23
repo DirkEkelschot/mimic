@@ -155,12 +155,13 @@ inline void Partition::DeterminePartitionLayout(ParArray<int>* ien, ParallelStat
                           numflag,ncommonnodes,
                           &xadj_par,&adjncy_par,&comm);
     
-    
+    /*
     for(int u=0;u<nloc;u++)
     {
         part_arr[u] = rank;
     }
-    /*
+    */
+
     ParMETIS_V3_AdaptiveRepart(pstate_parmetis->getElmdist(),
                            xadj_par, adjncy_par,
                                elmwgt, adjwgt,
@@ -168,7 +169,7 @@ inline void Partition::DeterminePartitionLayout(ParArray<int>* ien, ParallelStat
                    numflag, ncon, nparts,
                    tpwgts, ubvec, itr, options,
                    &edgecut, part_arr, &comm);
-    */
+    
     /*
     ParMETIS_V3_PartKway(pstate_parmetis->getElmdist(),
                          xadj_par,
@@ -255,7 +256,12 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
     {
         new_offsets[i] = xcn_parstate->getOffsets()[i]-1;
     }
-            
+    
+    int* new_offsets2 = new int[size];
+    for(int i=0;i<size;i++)
+    {
+   	new_offsets2[i] = pstate->getOffsets()[i]-1;
+    }
     for(i=0;i<part->getNrow();i++)
     {
         p_id  = part->getVal(i,0);
@@ -597,7 +603,8 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
         for(int j=start;j<end;j++)
         {
             int adjEl_id = adjcny[j];
-            p_id = part_global->getVal(adjEl_id,0);
+            //p_id = part_global->getVal(adjEl_id,0);
+            p_id = FindRank(new_offsets2,size,adjEl_id);
             if(p_id!=rank && (elem_set.find(adjEl_id)==elem_set.end()))
             {
 		adj_elements.push_back(adjEl_id);
@@ -647,7 +654,7 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
     std::map<int,std::vector<int> > send_adj_faces_IDs;
     int TotNelem_adj_recv = 0;
     std::vector<int> TotAdj_El_IDs;
-    std::map<int,std::vector<int> > send_adj_rhos;
+    std::map<int,std::vector<double> > send_adj_rhos;
     std::vector<double> TotAdj_Rhos;
     int adj_id;
 
@@ -658,30 +665,32 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
     for(itv=reqstd_adj_ids_per_rank.begin();itv!=reqstd_adj_ids_per_rank.end();itv++)
     {
         int dest = itv->first;
+        int offset_dest = pstate->getOffset(dest);
         for(int j=0;j<itv->second.size();j++)
         {
             adj_id = itv->second[j];
             TotAdj_El_IDs.push_back(adj_id);
             TotAdj_Rhos.push_back(U->getVal(adj_id-offset_new,0));
             send_adj_rhos[dest].push_back(U->getVal(adj_id-offset_new,0));
-
+            /*
             for(int k=0;k<8;k++)
             {
                 v_id = ien->getVal(adj_id-offset_new,k);
-                send_adj_verts_IDs[dest].push_back(v_id);
+  	        //std::cout << v_id << " " << adj_id-offset_new << " " << adj_id << " " << offset_new << std::endl;
+                //send_adj_verts_IDs[dest].push_back(v_id);
             }
-            
+              
             for(int k=0;k<6;k++)
             {
                 int offset_new = pstate->getOffset(rank);
                 f_id = ief->getVal(adj_id-offset_new,k);
                 send_adj_faces_IDs[dest].push_back(f_id);
-            }
+            }*/
         }
         
         TotNelem_adj_recv = TotNelem_adj_recv + itv->second.size();
     }
-    
+    /*
     //std::cout << "itel = " << itel << " " << TotNelem_adj_recv << " " << TotAdj_El_IDs.size() << std::endl;
     
     int offset_adj_xcn = 0;
@@ -904,15 +913,6 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
                 nloc_xcn          = xcn_parstate->getNloc(rank);
                 for(int u=0;u<it->second.size();u++)
                 {
-		    if(it->second[u]>(offset_xcn+nloc_xcn))
-	       	    {
-			std::cout << "Out of bounds > " << xcn->getNglob() << " " << it->second[u] << " " << offset_xcn+nloc_xcn << " " << offset_xcn << " " << nloc_xcn << std::endl;
-		    }
-		    else if(it->second[u]< offset_xcn)
-		    {
-
-			std::cout << "Out of bounds < " << xcn->getNglob() << " " << it->second[u] << " "      << offset_xcn+nloc_xcn << " " << offset_xcn << " " << nloc_xcn << std::endl;
-		    } 
                     vert_send[u*3+0]=xcn->getVal(it->second[u]-offset_xcn,0);
                     vert_send[u*3+1]=xcn->getVal(it->second[u]-offset_xcn,1);
                     vert_send[u*3+2]=xcn->getVal(it->second[u]-offset_xcn,2);
@@ -1167,7 +1167,7 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
         U0Vert->setVal(c,0,sum/it_rhos->second.size());
         c++;
     }
-    
+    */
     //std::cout << rank << " Partitioning on Rank = " << (double) not_on_rank/on_rank << std::endl;
 }
 

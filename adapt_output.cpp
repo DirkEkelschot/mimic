@@ -2,7 +2,7 @@
 
 using namespace std;
 
-void OutputPartition(Partition* part, MPI_Comm comm)
+void OutputPartition(Partition* part, ParArray<int>* ien, Array<double>* H,  MPI_Comm comm)
 {
     
     int size;
@@ -11,20 +11,96 @@ void OutputPartition(Partition* part, MPI_Comm comm)
     int rank;
     MPI_Comm_rank(comm, &rank);
     Array<int>* loc_elem2verts_loc = part->getLocalElem2LocalVert();
-    int nloc = loc_elem2verts_loc->getNrow();
+    std::map<int,int> globV2locV = part->getGlobalVert2LocalVert();
+    Array<int>* LE2LV = part->getLocalElem2LocalVert();
+    int nloc = ien->getNrow();
+    int ncol = ien->getNcol();
+    string filename = "quantity_rank_" + std::to_string(rank) + ".dat";
+    ofstream myfile;
+    myfile.open(filename);
+    myfile << "TITLE=\"volume_part_"  + std::to_string(rank) +  ".tec\"" << std::endl;
+    //myfile <<"VARIABLES = \"X\", \"Y\", \"Z\",  \"drhodx\",  \"drhody\",  \"drhodz\"" << std::endl;
+    myfile <<"VARIABLES = \"X\", \"Y\", \"Z\"" << std::endl;
+    std::vector<Vert> LVerts =  part->getLocalVerts();
+
+
+
+        
+    Array<int>* ien_local= new Array<int>(nloc,ncol); 
+    std::set<int> v_used;
+    std::vector<int> LocalVerticesID;
+    for(int i=0;i<nloc;i++)
+    {
+        for(int j=0;j<ncol;j++)
+        {
+	    int g_v_id = ien->getVal(i,j);
+	    int lv_id = globV2locV[g_v_id];
+            //int lv_id = LE2LV->getVal(i,j);
+            ien_local->setVal(i,j,lv_id);
+            if(v_used.find(lv_id)==v_used.end())
+            {
+                v_used.insert(lv_id);
+                LocalVerticesID.push_back(lv_id);
+            }
+        }
+    }
+    
+
+
+
+    
+    int nvert = LocalVerticesID.size();
+    myfile <<"ZONE N = " << nvert << ", E = " << nloc << ", DATAPACKING = POINT, ZONETYPE = FEBRICK" << std::endl;
+    //std::cout << rank << " number of nodes -> " << nvert << " " << H->getNrow() << std::endl;
+    /*for(int i=0;i<nvert;i++)
+    {
+       myfile << LVerts[LocalVerticesID[i]].x << "   " << LVerts[LocalVerticesID[i]].y << "   " << LVerts[LocalVerticesID[i]].z << "	" << H->getVal(LocalVerticesID[i],0) << "	"<< H->getVal(LocalVerticesID[i],1) << "	" << H->getVal(LocalVerticesID[i],2) <<  std::endl;
+    }*/
+    for(int i=0;i<nvert;i++)
+    {   
+       myfile << LVerts[LocalVerticesID[i]].x << "   " << LVerts[LocalVerticesID[i]].y << "   " << LVerts[LocalVerticesID[i]].z <<  std::endl;
+    }
+    for(int i=0;i<nloc;i++)
+    {
+       myfile << loc_elem2verts_loc->getVal(i,0)+1 << "  " <<
+                 loc_elem2verts_loc->getVal(i,1)+1 << "  " <<
+                 loc_elem2verts_loc->getVal(i,2)+1 << "  " <<
+                 loc_elem2verts_loc->getVal(i,3)+1 << "  " <<
+                 loc_elem2verts_loc->getVal(i,4)+1 << "  " <<
+                 loc_elem2verts_loc->getVal(i,5)+1 << "  " <<
+                 loc_elem2verts_loc->getVal(i,6)+1 << "  " <<
+                 loc_elem2verts_loc->getVal(i,7)+1 << std::endl;
+    }
+    
+    
+    myfile.close();
+}
+
+
+void OutputCompletePartition(Partition* part, ParArray<int>* ien, Array<double>*H, MPI_Comm comm)
+{
+    
+    int size;
+    MPI_Comm_size(comm, &size);
+    // Get the rank of the process
+    int rank;
+    MPI_Comm_rank(comm, &rank);
+    Array<int>* loc_elem2verts_loc = part->getLocalElem2LocalVert();
+    int nloc = ien->getNrow();
     int ncol = loc_elem2verts_loc->getNcol();
     string filename = "quantity_rank_" + std::to_string(rank) + ".dat";
     ofstream myfile;
     myfile.open(filename);
     myfile << "TITLE=\"volume_part_"  + std::to_string(rank) +  ".tec\"" << std::endl;
-    myfile <<"VARIABLES = \"X\", \"Y\", \"Z\"" << std::endl;
+    myfile <<"VARIABLES = \"X\", \"Y\", \"Z\",  \"drhodx\",  \"drhody\",  \"drhodz\"" << std::endl;
+    //myfile <<"VARIABLES = \"X\", \"Y\", \"Z\"" << std::endl;
     std::vector<Vert> LVerts =  part->getLocalVerts();
     int nvert = LVerts.size();
     myfile <<"ZONE N = " << nvert << ", E = " << nloc << ", DATAPACKING = POINT, ZONETYPE = FEBRICK" << std::endl;
     //std::cout << rank << " number of nodes -> " << nvert << " " << H->getNrow() << std::endl;
     for(int i=0;i<nvert;i++)
     {
-       myfile << LVerts[i].x << "   " << LVerts[i].y << "   " << LVerts[i].z << std::endl;
+       myfile << LVerts[i].x << "   " << LVerts[i].y << "   " << LVerts[i].z << " " << H->getVal(i,0) << " " << H->getVal(i,1) << " " << H->getVal(i,2) << std::endl;
     }
     
     
