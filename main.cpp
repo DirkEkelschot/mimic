@@ -1758,7 +1758,7 @@ Array<double>* SolveQR(double* A, int m, int n, Array<double>* b)
     {    
         out->setVal(i,0,b_copy->getVal(i,0));
     }  
-    delete[] b_copy; 
+    delete b_copy; 
     return out; 
 }
 
@@ -2420,7 +2420,7 @@ Array<double>* ComputeHessian(Partition* P, int Nel, std::map<int,std::map<int,i
             hessian->setVal(e,1,x->getVal(1,0));
             hessian->setVal(e,2,x->getVal(2,0));
             
-            delete A_cm; 
+            delete[] A_cm;
 	    }
 	    else
 	    {
@@ -2672,8 +2672,8 @@ int main(int argc, char** argv) {
 //============================================================
     
     //const char* fn_conn="grids/piston/conn.h5";
-    const char* fn_conn="grids/adept/conn.h5";
-    const char* fn_grid="grids/adept/grid.h5";
+    const char* fn_conn="grids/piston/conn.h5";
+    const char* fn_grid="grids/piston/grid.h5";
     const char* fn_data="grids/adept/data.h5";
     const char* fn_adept="grids/adept/conn.h5";
     
@@ -2695,7 +2695,7 @@ int main(int argc, char** argv) {
     
     int Nel = ien->getNglob();
     int Nel_part = ien->getNrow();
-    ParArray<double>* interior   = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_1","interior",Nel,comm,info);
+    ParArray<double>* interior   = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_6","interior",Nel,comm,info);
 //===================================================================================
 
     ParallelState* pstate = new ParallelState(ien->getNglob(),comm);
