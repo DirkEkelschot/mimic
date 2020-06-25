@@ -1,7 +1,7 @@
 OBJECTS = adapt_output.cpp\
 	  adapt_compute.cpp\
 	  adapt_part_func.cpp\
-	  schedule.cpp\
+	  adapt_schedule.cpp\
 	  adapt_operations.cpp\
 	  main.cpp
 

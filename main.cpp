@@ -1677,7 +1677,8 @@ std::map<int, std::map<int, int> > getElement2ElementTopology(Partition* P, MPI_
     std::map<int,std::map<int,int> > Element2ElementTopology;
     int nloc = P->getPart()->getNloc(world_rank);
     int of = P->getPart()->getOffset(world_rank);
-
+    //std::set<int> owned_faces;
+    //std::cout << elem2globface.size() << std::endl;
     for(int i = 0;i<nloc;i++)
     {
        std::set<int> owned_faces;
@@ -1688,21 +1689,26 @@ std::map<int, std::map<int, int> > getElement2ElementTopology(Partition* P, MPI_
         
        for(int n=0;n<6;n++)
        {
-//           if(world_rank == 0)
-//           {
-//               std::cout << elem2globface[i+of][n] << " ";
-//           }
-           owned_faces.insert(elem2globface[i+of][n]);
+           if(world_rank == 0 && i<10)
+           {
+               std::cout << elem2globface[i+of][n] << " ";
+           }
+          owned_faces.insert(elem2globface[i+of][n]);
        }
-        //std::cout << std::endl;
+        if(world_rank == 0 && i<10)
+        {
+            std::cout << std::endl;
+            
+        }
+        
        int start = xadj[i];
        int end   = xadj[i+1];
        for(int j=start;j<end;j++)
        {
           int adjEl_id = adjcny[j];
-
-          if(elem_set.find(adjEl_id) != elem_set.end())
-          {
+	
+          //if(elem_set.find(adjEl_id) != elem_set.end())
+          //{
              for(int n=0;n<6;n++)
              {
                 int f_id_ex = elem2globface[adjEl_id][n];
@@ -1715,10 +1721,15 @@ std::map<int, std::map<int, int> > getElement2ElementTopology(Partition* P, MPI_
                     Element2ElementTopology[i+of][n]=adjEl_id;
                 }
              }
-          }
+          //}
+           if(Element2ElementTopology.size()<=3)
+           {
+               std::cout << "rank = " << world_rank << " element " << i << " " << Element2ElementTopology.size() << std::endl;
+           }
+           
         }
         owned_faces.clear();
-     }
+    }
     elem_set.erase(elem_set.begin(),elem_set.end());
     delete[] xadj;
     delete[] adjcny;
@@ -1736,15 +1747,13 @@ Array<double>* SolveQR(double* A, int m, int n, Array<double>* b)
     
     double tau[ncol];
     int lda = nrow;
-    int lwork=-1;
+    int lwork=1;
     double iwork;
-    Array<double>* b_copy = new Array<double>(6,1);
-    b_copy->setVal(0,0,b->getVal(0,0));
-    b_copy->setVal(1,0,b->getVal(1,0));
-    b_copy->setVal(2,0,b->getVal(2,0));
-    b_copy->setVal(3,0,b->getVal(3,0));
-    b_copy->setVal(4,0,b->getVal(4,0));
-    b_copy->setVal(5,0,b->getVal(5,0));
+    Array<double>* b_copy = new Array<double>(m,1);
+    for(int i=0;i<m;i++)
+    {
+	b_copy->setVal(i,0,b->getVal(i,0));
+    }
     // DGEQRF for Q*R=A, i.e., A and tau hold R and Householder reflectors
 
     lapack::geqrf(nrow, ncol, A, nrow, tau);
@@ -1762,7 +1771,7 @@ Array<double>* SolveQR(double* A, int m, int n, Array<double>* b)
     return out; 
 }
 
-Array<double>* ComputeHessianNew(Partition* P, int Nel, std::map<int,std::map<int,int> > E2Etopo, MPI_Comm comm)
+Array<double>* ComputeHessianNew(Partition* P, int Nel, MPI_Comm comm)
 {
     int size;
     MPI_Comm_size(comm, &size);
@@ -1787,68 +1796,72 @@ Array<double>* ComputeHessianNew(Partition* P, int Nel, std::map<int,std::map<in
     double u_ijm1k = 0.0;
     double u_ijkp1 = 0.0;
     double u_ijkm1 = 0.0;
-    
-    for(itadj=E2Etopo.begin();itadj!=E2Etopo.end();itadj++)
+    int offset = P->getPart()->getOffset(rank);
+    int* xadj = P->getXadj();
+    int* adjcny = P->getAdjcny();
+    int nloc = P->getPart()->getNrow();
+    Vert Vip1jk;
+    Vert Vim1jk;
+    Vert Vijp1k;
+    Vert Vijm1k;
+    Vert Vijkp1;
+    Vert Vijkm1;
+    for(int i = 0;i<nloc;i++)
     {
-        int nadj = itadj->second.size();
-
-        std::cout << nadj << std::endl;
+        int start = xadj[i];
+        int end   = xadj[i+1];
+        int nadj  = xadj[i+1]-xadj[i];
+        
         Array<double>* Vrt_T = new Array<double>(3,nadj);
         Array<double>* Vrt   = new Array<double>(nadj,3);
         Array<double>* b     = new Array<double>(nadj,1);
         
-        for(int i=0;i<nadj;i++)
+        for(int q=0;q<nadj;q++)
         {
             
             for(int j=0;j<3;j++)
             {
-                Vrt_T->setVal(j,i,0.0);
-                Vrt->setVal(i,j,0.0);
+                Vrt_T->setVal(j,q,0.0);
+                Vrt->setVal(q,j,0.0);
             }
         }
         
-        
-        
-        double u_ijk = P->getU0atGlobalElem(itadj->first);
-        std::vector<int> vijkIDs = gE2lV[itadj->first];
+        double u_ijk = P->getU0atGlobalElem(i+offset);
+        std::vector<int> vijkIDs = gE2lV[i+offset];
         
         double* Pijk = new double[np*3];
-        for(int i=0;i<vijkIDs.size();i++)
+        for(int k=0;k<vijkIDs.size();k++)
         {
-            loc_vid     = vijkIDs[i];
-            Pijk[i*3+0] = locVerts[loc_vid].x;
-            Pijk[i*3+1] = locVerts[loc_vid].y;
-            Pijk[i*3+2] = locVerts[loc_vid].z;
+            loc_vid     = vijkIDs[k];
+            Pijk[k*3+0] = locVerts[loc_vid].x;
+            Pijk[k*3+1] = locVerts[loc_vid].y;
+            Pijk[k*3+2] = locVerts[loc_vid].z;
         }
-        Vert Vip1jk;
+        
         Vip1jk.x = 0.0;Vip1jk.y=0.0;Vip1jk.z=0.0;
-        Vert Vim1jk;
         Vim1jk.x = 0.0;Vim1jk.y=0.0;Vim1jk.z=0.0;
-        Vert Vijp1k;
         Vijp1k.x = 0.0;Vijp1k.y=0.0;Vijp1k.z=0.0;
-        Vert Vijm1k;
         Vijm1k.x = 0.0;Vijm1k.y=0.0;Vijm1k.z=0.0;
-        Vert Vijkp1;
         Vijkp1.x = 0.0;Vijkp1.y=0.0;Vijkp1.z=0.0;
-        Vert Vijkm1;
         Vijkm1.x = 0.0;Vijkm1.y=0.0;Vijkm1.z=0.0;
         Vert Vijk = ComputeCenterCoord(Pijk,8);
         
         delete[] Pijk;
         
-        std::map<int,int>::iterator itmap;
-        int tel = 0;
-        for(itmap=itadj->second.begin();itmap!=itadj->second.end();itmap++)
+        int tel   = 0;
+        for(int j=start;j<end;j++)
         {
-            double u_po = P->getU0atGlobalElem(itmap->second);
+            int adjEl_id = adjcny[j];
+            
+            double u_po = P->getU0atGlobalElem(adjEl_id);
             double* Po = new double[np*3];
             
-            for(int i=0;i<gE2lV[itmap->second].size();i++)
+            for(int k=0;k<gE2lV[adjEl_id].size();k++)
             {
-                loc_vid   = gE2lV[itmap->second][i];
-                Po[i*3+0] = locVerts[loc_vid].x;
-                Po[i*3+1] = locVerts[loc_vid].y;
-                Po[i*3+2] = locVerts[loc_vid].z;
+                loc_vid   = gE2lV[adjEl_id][k];
+                Po[k*3+0] = locVerts[loc_vid].x;
+                Po[k*3+1] = locVerts[loc_vid].y;
+                Po[k*3+2] = locVerts[loc_vid].z;
             }
             
             Vert Vpo = ComputeCenterCoord(Po,8);
@@ -1856,7 +1869,6 @@ Array<double>* ComputeHessianNew(Partition* P, int Nel, std::map<int,std::map<in
             Vrt->setVal(tel,0,Vpo.x-Vijk.x);
             Vrt->setVal(tel,1,Vpo.y-Vijk.y);
             Vrt->setVal(tel,2,Vpo.z-Vijk.z);
-            std::cout << rank << " tel = " << tel << " " <<itmap->second<<" "<< u_po << " " << u_ijk << std::endl;
             b->setVal(tel,0,u_po-u_ijk);
             
             delete[] Po;
@@ -1865,69 +1877,31 @@ Array<double>* ComputeHessianNew(Partition* P, int Nel, std::map<int,std::map<in
         }
         
         double* A_cm = new double[nadj*3];
-        for(int i=0;i<nadj;i++)
+        double sum =0.0;
+        for(int s=0;s<nadj;s++)
         {
             for(int j=0;j<3;j++)
             {
-                A_cm[j*nadj+i] = Vrt->getVal(i,j);
+                A_cm[j*nadj+s] = Vrt->getVal(s,j);
             }
         }
         
-//        for(int i=0;i<nadj;i++)
-//        {
-//            b->setVal(i,0,0.0);
-//        }
-        //Array<double>* x = new Array<double>(3,1);
-        
-        for(int i=0;i<nadj;i++)
-        {
-            for(int j=0;j<3;j++)
-            {
-                std::cout << A_cm[j*nadj+i] << " ";
-            }
-            std::cout << std::endl;
-        }
-        for(int i=0;i<nadj;i++)
-        {
-            for(int j=0;j<1;j++)
-            {
-                std::cout << "b = " << b->getVal(i,j) << " ";
-            }
-            std::cout << std::endl;
-        }
-        std::cout << "nadj =  " << nadj << std::endl;
-        int* summ = new int[3];
-        summ[0] = 0;summ[1] = 0;summ[2] = 0;
-        for(int i=0;i<nadj;i++)
-        {
-            for(int j=0;j<3;j++)
-            {
-                std::cout << A_cm[j*nadj+i] << " ";
-                if(Vrt->getVal(i,j)!=0)
-                {
-                   summ[j] = summ[j]+1;
-                }
-                
-            }
-            std::cout << std::endl;
-        }
-        std::cout << std::endl;
-        
-        for(int i=0;i<3;i++)
-        {
-            std::cout  << "summ "<< summ[i] << std::endl;
-        }
         Array<double>* x = SolveQR(A_cm,nadj,3,b);
-//        x->setVal(0,0,0.0);
-//        x->setVal(1,0,0.0);
-//        x->setVal(2,0,0.0);
-//
-        //std::cout << x->getVal(0,0) << " " << x->getVal(1,0) << " " << x->getVal(2,0) << std::endl;
-        delete b;
+        
+        hessian->setVal(i,0,x->getVal(0,0));
+        hessian->setVal(i,1,x->getVal(1,0));
+        hessian->setVal(i,2,x->getVal(2,0));
+        
+        vijkIDs.clear();
         delete Vrt_T;
         delete Vrt;
+        delete b;
+        delete[] A_cm;
     }
     
+    delete[] xadj;
+    delete[] adjcny;
+        
     return hessian;
 }
 
@@ -2364,59 +2338,24 @@ Array<double>* ComputeHessian(Partition* P, int Nel, std::map<int,std::map<int,i
 	if(itadj->second.find(0) != itadj->second.end() && itadj->second.find(1) != itadj->second.end()
 		&& itadj->second.find(2) != itadj->second.end() && itadj->second.find(3) != itadj->second.end() && itadj->second.find(4) != itadj->second.end()  && itadj->second.find(5) != itadj->second.end())
         {  
-	    double* A_cm = new double[6*3];
+            double* A_cm = new double[6*3];
             for(int i=0;i<6;i++)
             {
                 for(int j=0;j<3;j++)
                 {
-
-                        A_cm[j*6+i] = Vrt->getVal(i,j);
+                    A_cm[j*6+i] = Vrt->getVal(i,j);
                 }
             }
-	    b->setVal(0,0,u_ip1jk-u_ijk);
- 	   b->setVal(1,0,u_im1jk-u_ijk);
- 	b->setVal(2,0,u_ijp1k-u_ijk);
-	 b->setVal(3,0,u_ijm1k-u_ijk);
-	 b->setVal(4,0,u_ijkp1-u_ijk);
-	 b->setVal(5,0,u_ijkm1-u_ijk);
+            b->setVal(0,0,u_ip1jk-u_ijk);
+            b->setVal(1,0,u_im1jk-u_ijk);
+            b->setVal(2,0,u_ijp1k-u_ijk);
+            b->setVal(3,0,u_ijm1k-u_ijk);
+            b->setVal(4,0,u_ijkp1-u_ijk);
+            b->setVal(5,0,u_ijkm1-u_ijk);
 
             Array<double>* x = SolveQR(A_cm,6,3,b);
-	   //std::cout << x->getVal(0,0) << " " << x->getVal(1,0) << " " << x->getVal(2,0) << std::endl;
-	    if(x->getVal(0,0)>100000)
-	    {
-		
-		std::cout << "=====Vrt start =====" << std::endl;
-		for(int i=0;i<6;i++)
-            	{    
-                	for(int j=0;j<3;j++)
-                	{    
-                        	std::cout << Vrt->getVal(i,j) << " ";
-                	}    
-			std::cout << std::endl;
-            	} 
-		for(int i=0;i<6;i++)
-            	{    
-                	std::cout << e << " b["<<i<<"]=" << b->getVal(i,0) << std::endl;
-            	}
-		std::cout <<e << " "<< u_ip1jk << " " << u_im1jk << " " << u_ijp1k << " " << u_ijm1k << " " << u_ijkp1 << " " << u_ijkm1 << " " << u_ijk << std::endl;
-		std::cout << "vert = " << Vijk.x << " " << Vijk.y << " " << Vijk.z << std::endl;
-		std::cout << "vert_ip1 = " << Vip1jk.x << " " << Vip1jk.y << " " << Vip1jk.z << std::endl;
-		std::cout << "vert_im1 = " << Vim1jk.x << " " << Vim1jk.y << " " << Vim1jk.z << std::endl;
-		std::cout << "vert_jp1 = " << Vijp1k.x << " " << Vijp1k.y << " " << Vijp1k.z << std::endl;
-		std::cout << "vert_jm1 = " << Vijm1k.x << " " << Vijm1k.y << " " << Vijm1k.z << std::endl;
-		std::cout << "vert_kp1 = " << Vijkp1.x << " " << Vijkp1.y << " " << Vijkp1.z << std::endl;
-		std::cout << "vert_km1 = " << Vijkm1.x << " " << Vijkm1.y << " " << Vijkm1.z << std::endl;
-		std::cout << rank <<  " rank << " <<  e << " ellie " << x->getVal(0,0) << " " << x->getVal(1,0) << " " << x->getVal(2,0) << std::endl;
-		std::cout << "=====Vrt end =====" << std::endl; 
-	    	
-	    }
-
-	
-		
-
-
-
-	    hessian->setVal(e,0,x->getVal(0,0));
+	 
+            hessian->setVal(e,0,x->getVal(0,0));
             hessian->setVal(e,1,x->getVal(1,0));
             hessian->setVal(e,2,x->getVal(2,0));
             
@@ -2424,15 +2363,11 @@ Array<double>* ComputeHessian(Partition* P, int Nel, std::map<int,std::map<int,i
 	    }
 	    else
 	    {
-		hessian->setVal(e,0,0.0);
-            	hessian->setVal(e,1,0.0);
-            	hessian->setVal(e,2,0.0);
-            }
-            //delete[] Rinv;
-            //delete[] R;
-            //delete[] Rn;
-        
-
+            hessian->setVal(e,0,1.0);
+            hessian->setVal(e,1,1.0);
+            hessian->setVal(e,2,1.0);
+            
+        }
 
         e++;
     }
@@ -2672,8 +2607,8 @@ int main(int argc, char** argv) {
 //============================================================
     
     //const char* fn_conn="grids/piston/conn.h5";
-    const char* fn_conn="grids/piston/conn.h5";
-    const char* fn_grid="grids/piston/grid.h5";
+    const char* fn_conn="grids/adept/conn.h5";
+    const char* fn_grid="grids/adept/grid.h5";
     const char* fn_data="grids/adept/data.h5";
     const char* fn_adept="grids/adept/conn.h5";
     
@@ -2695,7 +2630,7 @@ int main(int argc, char** argv) {
     
     int Nel = ien->getNglob();
     int Nel_part = ien->getNrow();
-    ParArray<double>* interior   = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_6","interior",Nel,comm,info);
+    ParArray<double>* interior   = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_4","interior",Nel,comm,info);
 //===================================================================================
 
     ParallelState* pstate = new ParallelState(ien->getNglob(),comm);
@@ -2748,18 +2683,19 @@ int main(int argc, char** argv) {
     {
         std::cout << "t_max := " << max_time  << std::endl;
     }
-    double  t1 = MPI_Wtime();
-   /* 
-    std::map<int,map<int,int> > E2Etopo = getElement2ElementTopology(P, comm);
-    double t2 = MPI_Wtime();
-    double timing2 = t2-t1;
-      //std::cout << "time spent scheming " << t2-t1 << std::endl;
-    double max_time2 = 0.0;
-    MPI_Allreduce(&timing2, &max_time2, 1, MPI_DOUBLE, MPI_MAX, comm);
-    if (world_rank == 0)
-    {
-        std::cout << "t_max2 := " << max_time2  << std::endl;
-    }
+    
+    
+//    double  t1 = MPI_Wtime();
+//    std::map<int,map<int,int> > E2Etopo = getElement2ElementTopology(P, comm);
+//    double t2 = MPI_Wtime();
+//    double timing2 = t2-t1;
+//      //std::cout << "time spent scheming " << t2-t1 << std::endl;
+//    double max_time2 = 0.0;
+//    MPI_Allreduce(&timing2, &max_time2, 1, MPI_DOUBLE, MPI_MAX, comm);
+//    if (world_rank == 0)
+//    {
+//        std::cout << "t_max2 := " << max_time2  << std::endl;
+//    }
 
     std::map<int,std::map<int,int> >::iterator itadj;
 //    for(itadj=E2Etopo.begin();itadj!=E2Etopo.end();itadj++)
@@ -2777,9 +2713,9 @@ int main(int argc, char** argv) {
 //        }
 //    }
     
-    
+       
      double  t3 = MPI_Wtime();
-     Array<double>* hessian = ComputeHessian(P,ien_copy->getNglob(),E2Etopo,comm);
+     Array<double>* hessian = ComputeHessianNew(P,ien_copy->getNglob(),comm);
      double  t4 = MPI_Wtime();
       double timing3 = t4-t3;
     double max_time3 = 0.0;
@@ -2789,14 +2725,14 @@ int main(int argc, char** argv) {
         std::cout << "t_max3 := " << max_time3  << std::endl;
     }
     
-    
+    /*
     std::vector<Vert> LocalVs = P->getLocalVerts();
     int e = 0;
     double dudx = 0.0;
     double dudy = 0.0;
     double dudz = 0.0;
     int loc_v_id = 0;
-    Array<int>* loc_elem2verts_loc = P->getLocalElem2LocalVert();
+    std::vector<std::vector<int> > loc_elem2verts_loc = P->getLocalElem2LocalVert();
     std::vector<Vert> LVerts =  P->getLocalVerts();
     //Array<double>* hx=new Array<double>(ien_copy->getNrow(),ien_copy->getNcol());
     //Array<double>* hy=new Array<double>(ien_copy->getNrow(),ien_copy->getNcol());
@@ -2805,17 +2741,20 @@ int main(int argc, char** argv) {
     std::map<int,std::vector<double> > collect_drhody;
     std::map<int,std::vector<double> > collect_drhodz;
     int loc_v = 0;
-    Array<int>* LocalElem2LocalVert = P->getLocalElem2LocalVert();
+    //std::cout << " --> " << world_rank << " P->getNlocElem() " << P->getNlocElem() << " " << LVerts.size() << std::endl;
     for(int i=0;i<P->getNlocElem();i++)
     {
         
         double drhodx_e = hessian->getVal(i,0);
         double drhody_e = hessian->getVal(i,1);
         double drhodz_e = hessian->getVal(i,2);
+        if(world_rank == 0)
+        {
+         //   std::cout << drhodx_e << " " << drhody_e  << " " << drhodz_e << std::endl;
+        }
         for(int j=0;j<8;j++)
-        {    
-   	     
-            loc_v = LocalElem2LocalVert->getVal(i,j);
+        {
+            loc_v = loc_elem2verts_loc[i][j];
             collect_drhodx[loc_v].push_back(drhodx_e);
             collect_drhody[loc_v].push_back(drhody_e);
             collect_drhodz[loc_v].push_back(drhodz_e);
@@ -2823,32 +2762,37 @@ int main(int argc, char** argv) {
     }
     
     std::map<int,std::vector<double> >::iterator it_rhos;
+    
     double sumdx = 0;
     double sumdy = 0;
     double sumdz = 0;
+    
     int c = 0;
+    
     std::vector<double> hx;
     std::vector<double> hy;
     std::vector<double> hz;
+    
     for(it_rhos=collect_drhodx.begin();it_rhos!=collect_drhodx.end();it_rhos++)
     {
         sumdx = 0;
         sumdy = 0;
         sumdz = 0;
+        
         for(int q = 0;q<it_rhos->second.size();q++)
         {
             sumdx = sumdx + it_rhos->second[q];
             sumdy = sumdy + collect_drhody[it_rhos->first][q];
             sumdz = sumdz + collect_drhodz[it_rhos->first][q];
         }
-	hx.push_back(sumdx/it_rhos->second.size());
-	hy.push_back(sumdy/it_rhos->second.size());
-	hz.push_back(sumdz/it_rhos->second.size());
+        
+        hx.push_back(sumdx/it_rhos->second.size());
+        hy.push_back(sumdy/it_rhos->second.size());
+        hz.push_back(sumdz/it_rhos->second.size());
        
         c++;
     }
     
-    std::cout << LVerts.size() << " " << hx.size() << std::endl;  
     string filename = "quantity_rank_" + std::to_string(world_rank) + ".dat";
     ofstream myfile;
     myfile.open(filename);
@@ -2861,92 +2805,20 @@ int main(int argc, char** argv) {
        myfile << LVerts[i].x << "   " << LVerts[i].y << "   " << LVerts[i].z << "   " << hx[i] << " " << hy[i] << " " << hz[i] << std::endl;
     }
 
-    
-
     for(int i=0;i<ien_copy->getNrow();i++)
     {
-       myfile << loc_elem2verts_loc->getVal(i,0)+1 << "  " <<
-                 loc_elem2verts_loc->getVal(i,1)+1 << "  " <<
-                 loc_elem2verts_loc->getVal(i,2)+1 << "  " <<
-                 loc_elem2verts_loc->getVal(i,3)+1 << "  " <<
-                 loc_elem2verts_loc->getVal(i,4)+1 << "  " <<
-                 loc_elem2verts_loc->getVal(i,5)+1 << "  " <<
-                 loc_elem2verts_loc->getVal(i,6)+1 << "  " <<
-                 loc_elem2verts_loc->getVal(i,7)+1 << std::endl;
+       myfile << loc_elem2verts_loc[i][0]+1 << "  " <<
+                 loc_elem2verts_loc[i][1]+1 << "  " <<
+                 loc_elem2verts_loc[i][2]+1 << "  " <<
+                 loc_elem2verts_loc[i][3]+1 << "  " <<
+                 loc_elem2verts_loc[i][4]+1 << "  " <<
+                 loc_elem2verts_loc[i][5]+1 << "  " <<
+                 loc_elem2verts_loc[i][6]+1 << "  " <<
+                 loc_elem2verts_loc[i][7]+1 << std::endl;
     }
     myfile.close();
-    */ 
- /*   
-    for(int u =0;u<P->getNlocVerts();u++)
-    {
-        Hvert->setVal(u,0,0.0);
-        Hvert->setVal(u,1,0.0);
-        Hvert->setVal(u,2,0.0);
-
-        Hvert_c->setVal(u,0,0.0);
-        Hvert_c->setVal(u,1,0.0);
-        Hvert_c->setVal(u,2,0.0);
-
-    }
-    e = 0;
-
-    for(itadj=E2Etopo.begin();itadj!=E2Etopo.end();itadj++)
-    {
-        std::map<int,int>::iterator itadj2;
-        int glob_el_id = itadj->first;
-
-        std::vector<int> Elvert = glob_elem2loc_vert[glob_el_id];
-
-        dudx = hessian->getVal(e,0);
-        dudy = hessian->getVal(e,1);
-        dudz = hessian->getVal(e,2);
-        
-        if(world_rank == 0)
-        {
-            // std::cout << world_rank << " " << dudx << " " << dudy << " " << dudz << std::endl;
-        }
-        
-        for(int j=0;j<Elvert.size();j++)
-        {
-            loc_v_id = Elvert[j];
-            Hvert->setVal(loc_v_id,0,Hvert->getVal(loc_v_id,0)+dudx);
-            Hvert->setVal(loc_v_id,1,Hvert->getVal(loc_v_id,1)+dudy);
-            Hvert->setVal(loc_v_id,2,Hvert->getVal(loc_v_id,2)+dudz);
-	    if(fabs(LocalVs[loc_v_id].z)<1.0e-04)
-	    {
-		std::cout << LocalVs[loc_v_id].x << " " << LocalVs[loc_v_id].y << " " << LocalVs[loc_v_id].z << " :: " <<dudx<<" "<< dudy<< " " << dudz << std::endl;
-	    }
-
-            Hvert_c->setVal(loc_v_id,0,Hvert_c->getVal(loc_v_id,0)+1);
-            Hvert_c->setVal(loc_v_id,1,Hvert_c->getVal(loc_v_id,1)+1);
-            Hvert_c->setVal(loc_v_id,2,Hvert_c->getVal(loc_v_id,2)+1);
-        }
-        e++;
-    }
-
-    Array<double>* Hvert_real   = new Array<double>(P->getNlocVerts(),3);
-
-    for(int u =0;u<P->getNlocVerts();u++)
-    {
-        //Hvert_real->setVal(u,0,Hvert->getVal(u,0)/Hvert_c->getVal(u,0));
-        //Hvert_real->setVal(u,1,Hvert->getVal(u,1)/Hvert_c->getVal(u,1));
-        //Hvert_real->setVal(u,2,Hvert->getVal(u,2)/Hvert_c->getVal(u,2));
-
-	Hvert_real->setVal(u,0,Hvert->getVal(u,0));
-        Hvert_real->setVal(u,1,Hvert->getVal(u,1));
-        Hvert_real->setVal(u,2,Hvert->getVal(u,2));
-
-	//std::cout << Hvert_c->getVal(u,0) << " " << Hvert_c->getVal(u,1) << " " << Hvert_c->getVal(u,2) << std::endl;
-    }
-    */    
-    //OutputGradient(P,Hvert_real,pstate,comm);
-//    OutputPartition(P,ien_copy,Hvert_real,comm);
-    //OutputPartition(P,ien_copy,Hvert_real,comm);
+    */  
     MPI_Finalize();
-    
-    //delete ien;
-    //delete ien_copy;
-    //delete xcn_on_root;
     
     return 0;
      
