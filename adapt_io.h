@@ -538,7 +538,7 @@ Array<T>* ReadDataSetFromFileInParallelToAll(const char* file_name, const char* 
     }
     if(hid_from_type<T>()==H5T_NATIVE_DOUBLE)
     {
-        MPI_Allgather(parA->data, parA->getNloc(rank)*ncol, MPI_DOUBLE, A_ptot->data, nlocs_tmp, offsets_tmp, MPI_DOUBLE, comm);
+        MPI_Allgatherv(parA->data, parA->getNloc(rank)*ncol, MPI_DOUBLE, A_ptot->data, nlocs_tmp, offsets_tmp, MPI_DOUBLE, comm);
     }
     
 
