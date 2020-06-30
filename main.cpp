@@ -1675,8 +1675,8 @@ std::map<int, std::map<int, int> > getElement2ElementTopology(Partition* P, MPI_
     std::set<int> elem_set = P->getElemSet();
 
     std::map<int,std::map<int,int> > Element2ElementTopology;
-    int nloc = P->getParallelState()->getNloc(world_rank);
-    int of = P->getParallelState()->getOffset(world_rank);
+    int nloc = P->getPart()->getNloc(world_rank);
+    int of = P->getPart()->getOffset(world_rank);
     //std::set<int> owned_faces;
     //std::cout << elem2globface.size() << std::endl;
     for(int i = 0;i<nloc;i++)
@@ -1782,9 +1782,9 @@ Array<double>* ComputeHessianNew(Partition* P, int Nel, MPI_Comm comm)
     Array<double>* hessian = new Array<double>(Nel,3);
     
     std::map<int,std::vector<int> > gE2lV       = P->getGlobElem2LocVerts();
-    std::map<int,std::vector<int> > gE2gV       = P->getGlobElem2GlobVerts();
+
     std::vector<Vert> locVerts                  = P->getLocalVerts();
-    int loc_vid = 0;int glob_vid=0;
+    int loc_vid = 0;
     int np = 8;
     std::map<int, int>::iterator itmap;
     int e = 0;
@@ -1796,10 +1796,10 @@ Array<double>* ComputeHessianNew(Partition* P, int Nel, MPI_Comm comm)
     double u_ijm1k = 0.0;
     double u_ijkp1 = 0.0;
     double u_ijkm1 = 0.0;
-    int offset = P->getParallelState()->getOffset(rank);
+    int offset = P->getPart()->getOffset(rank);
     int* xadj = P->getXadj();
     int* adjcny = P->getAdjcny();
-    int nloc = P->getParallelState()->getNloc(rank);
+    int nloc = P->getPart()->getNrow();
     Vert Vip1jk;
     Vert Vim1jk;
     Vert Vijp1k;
@@ -1845,22 +1845,10 @@ Array<double>* ComputeHessianNew(Partition* P, int Nel, MPI_Comm comm)
         Vijkp1.x = 0.0;Vijkp1.y=0.0;Vijkp1.z=0.0;
         Vijkm1.x = 0.0;Vijkm1.y=0.0;Vijkm1.z=0.0;
         Vert Vijk = ComputeCenterCoord(Pijk,8);
-
         
-        /*
-        if(Vijk.y<1.0e-03)
-	{
-		for(int i=0;i<8;i++)
-		{
-			std::cout << Pijk[i*3+0] << " " << Pijk[i*3+1] << " " << Pijk[i*3+2] << std::endl;
-
-		}
-		
-	}
-	*/
-	delete[] Pijk; 
+        delete[] Pijk;
+        
         int tel   = 0;
-        int f = 0;
         for(int j=start;j<end;j++)
         {
             int adjEl_id = adjcny[j];
@@ -1871,24 +1859,13 @@ Array<double>* ComputeHessianNew(Partition* P, int Nel, MPI_Comm comm)
             for(int k=0;k<gE2lV[adjEl_id].size();k++)
             {
                 loc_vid   = gE2lV[adjEl_id][k];
-                glob_vid  = gE2gV[adjEl_id][k];
                 Po[k*3+0] = locVerts[loc_vid].x;
                 Po[k*3+1] = locVerts[loc_vid].y;
                 Po[k*3+2] = locVerts[loc_vid].z;
-		if(adjEl_id == 5233975 && rank == 0)
-		{
-			f = 1;
-			std::cout <<"check dan " <<  glob_vid << " :: " << Po[k*3+0] << " " << Po[k*3+1] << " " << Po[k*3+2] << std::endl;
-		}
             }
             
             Vert Vpo = ComputeCenterCoord(Po,8);
-            if(f == 1)
-	    {
-
-		std::cout << "check dan 2 " << Vpo.x << " " << Vpo.y << " " << Vpo.z << std::endl;
-	    	f = 0;
-	    }
+            
             Vrt->setVal(tel,0,Vpo.x-Vijk.x);
             Vrt->setVal(tel,1,Vpo.y-Vijk.y);
             Vrt->setVal(tel,2,Vpo.z-Vijk.z);
@@ -1908,35 +1885,8 @@ Array<double>* ComputeHessianNew(Partition* P, int Nel, MPI_Comm comm)
                 A_cm[j*nadj+s] = Vrt->getVal(s,j);
             }
         }
-        Array<double>* x = SolveQR(A_cm,nadj,3,b); 
-	
-	if(i==2359155 && rank == 0)
-	{
-		std::cout << "element = " << i << std::endl;
-		std::cout << "Vijk = " << Vijk.x << " " << Vijk.y << " " << Vijk.z << std::endl;
-		std::cout << "nadj = " << nadj << std::endl;	
-		for(int s=0;s<nadj;s++)
-		{
-			for(int j=0;j<3;j++)
-			{
-				std::cout << "dXnew["<<s<<","<<j<<"]=" << Vrt->getVal(s,j) << "; ";
-			}
-			std::cout << std::endl;
-
-		}
-		std::cout << std::endl;
-		for(int s=0;s<nadj;s++)
-		{
-
-			std::cout << "b["<<s<<"]="<< b->getVal(s,0) << std::endl;
-		}
-
-		for(int s=0;s<3;s++)
-		{
-			std::cout << "x=["<<s<<"]="<< x->getVal(s,0) << std::endl;
-		}
-	}
-
+        
+        Array<double>* x = SolveQR(A_cm,nadj,3,b);
         
         hessian->setVal(i,0,x->getVal(0,0));
         hessian->setVal(i,1,x->getVal(1,0));
@@ -2666,42 +2616,8 @@ int main(int argc, char** argv) {
     Array<int>*    zdefs = ReadDataSetFromGroupFromFile<int>(fn_adept,"zones","zdefs");
     Array<char>*  znames = ReadDataSetFromGroupFromFile<char>(fn_adept,"zones","znames");
     PlotBoundaryData(znames,zdefs,comm);
-    ParArray<int>* iee    = ReadDataSetFromFileInParallel<int>(fn_conn,"iee",comm,info);
-    Array<double>* xcn2    = ReadDataSetFromFile<double>(fn_grid,"xcn");
-    if(world_rank == 0)
-    {
-    for(int i=0;i<iee->getNcol();i++)
-    {
-	std::cout << iee->getVal(2359155,i) << " ";
-    }
-    }    
+    
     ParArray<int>* ien    = ReadDataSetFromFileInParallel<int>(fn_conn,"ien",comm,info);
-    if(world_rank == 1)
-    {
-	std::vector<int> vertvec;
-	for(int i=0;i<ien->getNcol()-1;i++)
-	{
-		//std::cout << ien->getVal(5233975-2839081,i) << " ";
-		vertvec.push_back(ien->getVal(5233975-2839081,i+1)-1);
-	}
-
-	std::cout << std::endl;
-	int np = 8;int loc_vid; 
-        double* Pijk = new double[np*3];
-        for(int k=0;k<vertvec.size();k++)
-        {    
-            loc_vid     = vertvec[k];
-	    std::cout << loc_vid << std::endl;
-            Pijk[k*3+0] = xcn2->getVal(loc_vid,0);
-            Pijk[k*3+1] = xcn2->getVal(loc_vid,1);
-            Pijk[k*3+2] = xcn2->getVal(loc_vid,2);
-        }    
-     
-        Vert Vijk = ComputeCenterCoord(Pijk,8);
-
-        std::cout <<"result=" << Vijk.x << " " << Vijk.y << " " << Vijk.z << std::endl;
-    }    
-    std::cout << std::endl;
     
     ParArray<int>* ief    = ReadDataSetFromFileInParallel<int>(fn_conn,"ief",comm,info);
     
@@ -2715,7 +2631,6 @@ int main(int argc, char** argv) {
     int Nel = ien->getNglob();
     int Nel_part = ien->getNrow();
     ParArray<double>* interior   = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_1","interior",Nel,comm,info);
-    ParArray<double>* xcn_new   = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_1","xcn",Nel,comm,info);
 //===================================================================================
 
     ParallelState* pstate = new ParallelState(ien->getNglob(),comm);
@@ -2747,7 +2662,7 @@ int main(int argc, char** argv) {
 
     ParallelState_Parmetis* parmetis_pstate = new ParallelState_Parmetis(ien_copy,comm,8);
 
-    ParallelState* xcn_parstate = new ParallelState(xcn_new->getNglob(),comm);
+    ParallelState* xcn_parstate = new ParallelState(xcn->getNglob(),comm);
     ParArray<double>* var = new ParArray<double>(Nel,1,comm);
     
     for(int i=0;i<Nel_part;i++)
@@ -2758,7 +2673,7 @@ int main(int argc, char** argv) {
     }
     
     double t0 = MPI_Wtime();
-    Partition* P = new Partition(ien_copy, ief_copy, parmetis_pstate,pstate, xcn_new,xcn_parstate,var,comm);
+    Partition* P = new Partition(ien_copy, ief_copy, parmetis_pstate,pstate, xcn,xcn_parstate,var,comm);
     double t00 = MPI_Wtime();
     double timing = t00-t0;
     double max_time = 0.0;
@@ -2800,7 +2715,7 @@ int main(int argc, char** argv) {
     
        
      double  t3 = MPI_Wtime();
-     Array<double>* hessian = ComputeHessianNew(P,ien_copy->getNrow(),comm);
+     Array<double>* hessian = ComputeHessianNew(P,ien_copy->getNglob(),comm);
      double  t4 = MPI_Wtime();
       double timing3 = t4-t3;
     double max_time3 = 0.0;
@@ -2826,31 +2741,26 @@ int main(int argc, char** argv) {
     std::map<int,std::vector<double> > collect_drhody;
     std::map<int,std::vector<double> > collect_drhodz;
     int loc_v = 0;
-    std::set<int> unique_verts;
-    std::vector<int> unique_verts_vec;
-    for(int i=0;i<ien_copy->getNrow();i++)
+    //std::cout << " --> " << world_rank << " P->getNlocElem() " << P->getNlocElem() << " " << LVerts.size() << std::endl;
+    for(int i=0;i<P->getNlocElem();i++)
     {
         
         double drhodx_e = hessian->getVal(i,0);
         double drhody_e = hessian->getVal(i,1);
         double drhodz_e = hessian->getVal(i,2);
-        //if(world_rank == 0)
-        //{
-	//    if(drhodx_e==0.0 || drhody_e == 0.0 || drhodz_e == 0.0)
-	//    {
-        //    std::cout << i << " " << drhodx_e << " " << drhody_e  << " " << drhodz_e << std::endl;
-        //	}
-        //}
-
+        if(world_rank == 0)
+        {
+         //   std::cout << drhodx_e << " " << drhody_e  << " " << drhodz_e << std::endl;
+        }
         for(int j=0;j<8;j++)
         {
             loc_v = loc_elem2verts_loc[i][j];
-	    collect_drhodx[loc_v].push_back(drhodx_e);
-	    collect_drhody[loc_v].push_back(drhody_e);
-	    collect_drhodz[loc_v].push_back(drhodz_e);
+            collect_drhodx[loc_v].push_back(drhodx_e);
+            collect_drhody[loc_v].push_back(drhody_e);
+            collect_drhodz[loc_v].push_back(drhodz_e);
         }
     }
-     
+    
     std::map<int,std::vector<double> >::iterator it_rhos;
     
     double sumdx = 0;
@@ -2868,34 +2778,32 @@ int main(int argc, char** argv) {
         sumdx = 0;
         sumdy = 0;
         sumdz = 0;
-
-        unique_verts_vec.push_back(it_rhos->first);
-
+        
         for(int q = 0;q<it_rhos->second.size();q++)
         {
             sumdx = sumdx + it_rhos->second[q];
             sumdy = sumdy + collect_drhody[it_rhos->first][q];
             sumdz = sumdz + collect_drhodz[it_rhos->first][q];
         }
- 
+        
         hx.push_back(sumdx/it_rhos->second.size());
         hy.push_back(sumdy/it_rhos->second.size());
         hz.push_back(sumdz/it_rhos->second.size());
+       
         c++;
     }
-    
-    //std::cout << hx.size() << " " << LVerts.size() << " " << unique_verts_vec.size() << std::endl;
     
     string filename = "quantity_rank_" + std::to_string(world_rank) + ".dat";
     ofstream myfile;
     myfile.open(filename);
     myfile << "TITLE=\"volume_part_"  + std::to_string(world_rank) +  ".tec\"" << std::endl;
     myfile <<"VARIABLES = \"X\", \"Y\", \"Z\", \"drhox\", \"drhoy\", \"drhoz\"" << std::endl;
-    int nvert = unique_verts_vec.size();
+    std::cout << " verts check " << LVerts.size() << " " << hx.size() << std::endl;
+    int nvert = LVerts.size();
     myfile <<"ZONE N = " << nvert << ", E = " << ien_copy->getNrow() << ", DATAPACKING = POINT, ZONETYPE = FEBRICK" << std::endl;
     for(int i=0;i<nvert;i++)
     {
-       myfile << LVerts[unique_verts_vec[i]].x << "   " << LVerts[unique_verts_vec[i]].y << "   " << LVerts[unique_verts_vec[i]].z << "   " << hx[i] << " " << hy[i] << " " << hz[i] << std::endl;
+       myfile << LVerts[i].x << "   " << LVerts[i].y << "   " << LVerts[i].z << "   " << hx[i] << " " << hy[i] << " " << hz[i] << std::endl;
     }
 
     for(int i=0;i<ien_copy->getNrow();i++)

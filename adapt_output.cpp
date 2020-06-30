@@ -189,7 +189,7 @@ void OutputCompletePartition(Partition* part, ParArray<int>* ien, Array<double>*
 //}
 
 
-/*
+
 void OutputZone(Partition* part, Array<double>* H, MPI_Comm comm)
 {
     
@@ -232,7 +232,7 @@ void OutputZone(Partition* part, Array<double>* H, MPI_Comm comm)
     
     myfile.close();
 }
-*/
+
 void OutputQuantityPartition(Partition_old* pa, Array<double>* Quan, MPI_Comm comm)
 {
     int size;
