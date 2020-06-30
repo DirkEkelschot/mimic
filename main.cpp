@@ -1806,6 +1806,7 @@ Array<double>* ComputeHessianNew(Partition* P, int Nel, MPI_Comm comm)
     Vert Vijm1k;
     Vert Vijkp1;
     Vert Vijkm1;
+    
     for(int i = 0;i<nloc;i++)
     {
         int start = xadj[i];
@@ -1869,6 +1870,13 @@ Array<double>* ComputeHessianNew(Partition* P, int Nel, MPI_Comm comm)
             Vrt->setVal(tel,0,Vpo.x-Vijk.x);
             Vrt->setVal(tel,1,Vpo.y-Vijk.y);
             Vrt->setVal(tel,2,Vpo.z-Vijk.z);
+            
+            /*     
+	    if (rank==38 && i==170192)
+	    {
+		std::cout << adjEl_id << " " << u_po << " " << u_ijk << std::endl;
+	    }
+	    */	
             b->setVal(tel,0,u_po-u_ijk);
             
             delete[] Po;
@@ -1892,6 +1900,27 @@ Array<double>* ComputeHessianNew(Partition* P, int Nel, MPI_Comm comm)
         hessian->setVal(i,1,x->getVal(1,0));
         hessian->setVal(i,2,x->getVal(2,0));
         
+	/*
+	if(rank==38 && x->getVal(0,0)<-4500)
+	{
+		for(int s=0;s<nadj;s++)
+		{
+			for(int j=0;j<3;j++)
+			{
+
+				std::cout << "dXnew=["<<s<<","<<j<<"]"<<Vrt->getVal(s,j) << " ";
+			}
+			std::cout << std::endl;
+		}
+		for(int s =0;s<nadj;s++)
+		{
+
+			std::cout << "b=["<<s<<"]="<< b->getVal(s,0) << std::endl;
+
+		}
+		std:cout << "element = " <<  i << x->getVal(0,0) << " " << x->getVal(1,0) << " " << x->getVal(2,0) << std::endl;
+	}
+	*/ 
         vijkIDs.clear();
         delete Vrt_T;
         delete Vrt;
@@ -2622,7 +2651,7 @@ int main(int argc, char** argv) {
     ParArray<int>* ief    = ReadDataSetFromFileInParallel<int>(fn_conn,"ief",comm,info);
     
     
-    ParArray<int>* ife    = ReadDataSetFromFileInParallel<int>(fn_conn,"ife",comm,info);
+    //ParArray<int>* ife    = ReadDataSetFromFileInParallel<int>(fn_conn,"ife",comm,info);
 
     ParArray<double>* xcn = ReadDataSetFromFileInParallel<double>(fn_grid,"xcn",comm,info);
 //    ParArray<double>* ifn = ReadDataSetFromFileInParallel<double>(fn_grid,"ifn",comm,info);
@@ -2648,6 +2677,7 @@ int main(int argc, char** argv) {
             ien_copy->setVal(i,j,ien->getVal(i,j+1)-1);
         }
     }
+    delete ien;
     //
     int ncol_ief = ief->getNcol()-1;
     ParArray<int>* ief_copy = new ParArray<int>(nglob,ncol_ief,comm);
@@ -2659,6 +2689,7 @@ int main(int argc, char** argv) {
             ief_copy->setVal(i,j,fabs(ief->getVal(i,j+1))-1);
         }
     }
+    delete ief;
 
     ParallelState_Parmetis* parmetis_pstate = new ParallelState_Parmetis(ien_copy,comm,8);
 
@@ -2671,7 +2702,8 @@ int main(int argc, char** argv) {
         //var->setVal(i,0,v);
         var->setVal(i,0,interior->getVal(i,0));
     }
-    
+    delete interior;
+   
     double t0 = MPI_Wtime();
     Partition* P = new Partition(ien_copy, ief_copy, parmetis_pstate,pstate, xcn,xcn_parstate,var,comm);
     double t00 = MPI_Wtime();
@@ -2793,12 +2825,12 @@ int main(int argc, char** argv) {
         c++;
     }
     
-    string filename = "quantity_rank_" + std::to_string(world_rank) + ".dat";
+    string filename = "deriv_rank_" + std::to_string(world_rank) + ".dat";
     ofstream myfile;
     myfile.open(filename);
     myfile << "TITLE=\"volume_part_"  + std::to_string(world_rank) +  ".tec\"" << std::endl;
     myfile <<"VARIABLES = \"X\", \"Y\", \"Z\", \"drhox\", \"drhoy\", \"drhoz\"" << std::endl;
-    std::cout << " verts check " << LVerts.size() << " " << hx.size() << std::endl;
+    //std::cout << " verts check " << LVerts.size() << " " << hx.size() << std::endl;
     int nvert = LVerts.size();
     myfile <<"ZONE N = " << nvert << ", E = " << ien_copy->getNrow() << ", DATAPACKING = POINT, ZONETYPE = FEBRICK" << std::endl;
     for(int i=0;i<nvert;i++)

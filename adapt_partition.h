@@ -813,6 +813,7 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
         el_id = loc_elem[m];
         rho_v = loc_rho[m];
         U0Elem.push_back(rho_v);
+        
         ElemPart.push_back(el_id);
         //U0Elem->setVal(m,0,rho_v);
         //ElemPart->setVal(m,0,el_id);
@@ -858,6 +859,7 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
         GlobalElement2LocalElement[el_id] = eloc;
         eloc++;
         rho_v = TotRecvElement_rhos[m];
+
         U0Elem.push_back(rho_v);
         ElemPart.push_back(el_id);
         //U0Elem->setVal(m+o,0,rho_v);
@@ -892,7 +894,7 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
         tmp_locv.clear();
     }
     
-    eloc = U0Elem.size();
+    //eloc = U0Elem.size();
     vloc = LocalVerts.size();
     floc = cnf;
 }
@@ -993,12 +995,13 @@ inline void Partition::DetermineAdjacentElement2ProcMap(ParArray<int>* ien, ParA
     int TotNelem_adj_recv = 0;
     std::vector<int> TotAdj_El_IDs;
     std::map<int,std::vector<double> > send_adj_rhos;
-    std::vector<double> TotAdj_Rhos;
+    //std::vector<double> TotAdj_Rhos;
     int adj_id;
 
     int offset_new = pstate->getOffset(rank);
     int nloc_new   = pstate->getNloc(rank);
 
+    int lelem = 0;
 
     for(itv=reqstd_adj_ids_per_rank.begin();itv!=reqstd_adj_ids_per_rank.end();itv++)
     {
@@ -1008,12 +1011,14 @@ inline void Partition::DetermineAdjacentElement2ProcMap(ParArray<int>* ien, ParA
         {
             adj_id = itv->second[j];
             TotAdj_El_IDs.push_back(adj_id);
-            TotAdj_Rhos.push_back(U->getVal(adj_id-offset_new,0));
-            send_adj_rhos[dest].push_back(U->getVal(adj_id-offset_new,0));
+            //TotAdj_Rhos.push_back(U->getVal(adj_id-offset_new,0));
+            //send_adj_rhos[dest].push_back(U->getVal(adj_id-offset_new,0));
+            lelem = GlobalElement2LocalElement[adj_id];
+            send_adj_rhos[dest].push_back(U0Elem[lelem]);
 
             for(int k=0;k<8;k++)
             {
-		v_id = globElem2globVerts[adj_id][k];
+                v_id = globElem2globVerts[adj_id][k];
                 //v_id = ien->getVal(adj_id-offset_new,k);
                 send_adj_verts_IDs[dest].push_back(v_id);
             }
@@ -1028,7 +1033,9 @@ inline void Partition::DetermineAdjacentElement2ProcMap(ParArray<int>* ien, ParA
 
         TotNelem_adj_recv = TotNelem_adj_recv + itv->second.size();
     }
-
+    
+    
+    
     //std::cout << "itel = " << itel << " " << TotNelem_adj_recv << " " << TotAdj_El_IDs.size() << std::endl;
 
     int offset_adj_xcn = 0;
@@ -1053,14 +1060,16 @@ inline void Partition::DetermineAdjacentElement2ProcMap(ParArray<int>* ien, ParA
                 int dest = it->first;
                 MPI_Send(&nv_adj_send, 1, MPI_INT, dest, 98760000+1000*dest, comm);
                 MPI_Send(&it->second[0], it->second.size(), MPI_INT, dest, 19999*9876+dest*8888,comm);
-
+                
+                
                 int nf_adj_send = send_adj_faces_IDs[it->first].size();
                 MPI_Send(&nf_adj_send, 1, MPI_INT, dest, 3333*9876+dest*8888,comm);
                 MPI_Send(&send_adj_faces_IDs[it->first][0], nf_adj_send, MPI_INT, dest, 2222*9876+dest*8888,comm);
                 int n_adj_rhos = send_adj_rhos[it->first].size();
                 MPI_Send(&n_adj_rhos, 1, MPI_INT, dest, 4444*9876+dest*8888,comm);
                 MPI_Send(&send_adj_rhos[it->first][0], n_adj_rhos, MPI_DOUBLE, dest, 5555*9876+dest*8888,comm);
-
+                
+                
             }
         }
         if(sobj_el->RecvRankFromRank[q].find( rank ) != sobj_el->RecvRankFromRank[q].end())
@@ -1123,8 +1132,10 @@ inline void Partition::DetermineAdjacentElement2ProcMap(ParArray<int>* ien, ParA
         for(int i=0;i<itm->second;i++)
         {
             adj_rhos.push_back(recv_adj_back_rhos[itm->first][i]);
+            
             adj_elements_vec.push_back(adj_elements[itm->first][i]);
-	}
+            
+        }
     }
 
     //std::cout << "TotNelem_adj_recv " << TotNelem_adj_recv << " should be equal to " << TotNrho_adj_recv << std::endl;
@@ -1385,6 +1396,7 @@ inline void Partition::DetermineAdjacentElement2ProcMap(ParArray<int>* ien, ParA
         GlobalElement2LocalElement[el_id] = eloc;
         eloc++;
         rho_v = adj_rhos[m];
+
         U0Elem.push_back(rho_v);
         ElemPart.push_back(el_id);
 //      U0Elem->setVal(m+o,0,rho_v);
