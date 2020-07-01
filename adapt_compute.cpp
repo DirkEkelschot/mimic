@@ -303,24 +303,18 @@ double ComputeVolumeHexCell(double *P)
         J[6], J[7], J[8]]
 */
 // J is computed using the 8-point isoparametric mapping for a hex. The 8-point rule should be sufficient since everything is linear anyways.
-Vert ComputeCenterCoord(double*P, int np)
+Vert* ComputeCenterCoord(double*P, int np)
 {
-    Vert V;
+    Vert* V = new Vert;
     
     int * ref = new int[np*3];
         
     // Allocate the arrays for the mapping function and its derivatives.
     double * N      = new double[np];
-    double * dNdeta = new double[np];
-    double * dNdmu  = new double[np];
-    double * dNdksi = new double[np];
     
     for(int i=0;i<np;i++)
     {
         N[i]      = 0.0;
-        dNdeta[i] = 0.0;
-        dNdmu[i]  = 0.0;
-        dNdksi[i] = 0.0;
     }
     
     // Define the reference element as [-1,1]^3
@@ -340,18 +334,21 @@ Vert ComputeCenterCoord(double*P, int np)
     double eta = 0;
     double mu  = 0;
     double ksi = 0;
-    V.x = 0.0;
-    V.y = 0.0;
-    V.z = 0.0;
+    V->x = 0.0;
+    V->y = 0.0;
+    V->z = 0.0;
 
     for(int i = 0; i < np; i++)
     {
         N[i] = 1.0/8.0*(1+ref[i*3+0]*eta)*(1+ref[i*3+1]*mu)*(1+ref[i*3+2]*ksi);
                         
-        V.x = V.x+N[i]*P[i*3+0];
-        V.y = V.y+N[i]*P[i*3+1];
-        V.z = V.z+N[i]*P[i*3+2];
+        V->x = V->x+N[i]*P[i*3+0];
+        V->y = V->y+N[i]*P[i*3+1];
+        V->z = V->z+N[i]*P[i*3+2];
     }
+    
+    delete[] ref;
+    delete[] N;
     return V;
 }
 

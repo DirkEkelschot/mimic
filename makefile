@@ -1,14 +1,16 @@
-OBJECTS = adapt_output.cpp\
-	  adapt_compute.cpp\
-	  adapt_part_func.cpp\
-	  adapt_schedule.cpp\
-	  adapt_operations.cpp\
-	  main.cpp
+OBJECTS = adapt_output.cpp adapt_compute.cpp adapt_part_func.cpp adapt_schedule.cpp adapt_operations.cpp main.cpp
 
-CXXFLAGS += -std=c++11 -DMPI_NO_CPPBIND
+PARMETIS_HOME = /Users/dekelschot/Software/parmetis-4.0.3/installation
+METIS_HOME = /Users/dekelschot/Software/parmetis-4.0.3/metis/installation
+HDF5_HOME = /Users/dekelschot/Software/hdf5-1.10.6/hdf5
+MPICH_HOME = /usr/local/
 
-LDLIBS += -lmpi -lparmetis -lmetis -lhdf5 -mkl
+CXXFLAGS += -std=c++11 -I$(PARMETIS_HOME)/include -I$(MPICH_HOME)/include -I$(HDF5_HOME)/include -I$(METIS_HOME)/include
+
+LDFLAGS += -L$(PARMETIS_HOME)/lib -L$(METIS_HOME)/lib -L$(MPICH_HOME)/lib -L$(HDF5_HOME)/lib
+
+LDLIBS += -lmetis -lparmetis -lhdf5 -lmpi -llapack -lblas
 
 all:
-	icpc $(CXXFLAGS) $(OBJECTS) -o adapt $(LDLIBS)
+	mpic++ $(CXXFLAGS) $(OBJECTS) -o adapt $(LDFLAGS) $(LDLIBS)
 #	rm -rf *.o *.mod

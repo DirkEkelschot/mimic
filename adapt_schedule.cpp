@@ -12,7 +12,7 @@ ScheduleObj* DoScheduling(std::map<int,std::vector<int> > Rank2RequestEntity, MP
     int rank;
     MPI_Comm_rank(comm, &rank);
     
-    int nRank_RequestEntity               = Rank2RequestEntity.size(); // The number of ranks from which current rank requests vertices/faces/elements.
+    int nRank_RequestEntity          = Rank2RequestEntity.size(); // The number of ranks from which current rank requests vertices/faces/elements.
     int* reduced_nRank_RequestEntity = new int[size]; // Defined memory for a reduced array so that all ranks are going to be aware of which information is required from each other.
     int* arr_nRank_RequestEntity     = new int[size]; // Defining memory to store local requesting information.
 

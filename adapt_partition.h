@@ -10,10 +10,11 @@
 
 class Partition {
    public:
-    Partition(ParArray<int>* ien, ParArray<int>* ief, ParallelState_Parmetis* pstate_parmetis, ParallelState* pstate, ParArray<double>* xcn, ParallelState* xcn_parstate, ParArray<double>* U, MPI_Comm comm);
-    void DeterminePartitionLayout(ParArray<int>* ien, ParallelState_Parmetis* pstate_parmetis, ParallelState* pstate, MPI_Comm comm);
-    void DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief, ParArray<int>* part, ParallelState* pstate, ParArray<double>* xcn, ParallelState* xcn_parstate, ParArray<double>* U, MPI_Comm comm);
-    void DetermineAdjacentElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief, ParArray<int>* part, ParallelState* pstate, ParArray<double>* xcn, ParallelState* xcn_parstate, ParArray<double>* U, MPI_Comm comm);
+    Partition(ParArray<int>* ien, ParArray<int>* ief, ParallelState_Parmetis* pstate_parmetis, ParallelState* ien_parstate, ParArray<double>* xcn, ParallelState* xcn_parstate, ParArray<double>* U, MPI_Comm comm);
+    void DeterminePartitionLayout(ParArray<int>* ien, ParallelState_Parmetis* pstate_parmetis, ParallelState* ien_parstate, MPI_Comm comm);
+    void DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief, ParArray<int>* part, ParallelState* ien_parstate, ParArray<double>* xcn, ParallelState* xcn_parstate, ParArray<double>* U, MPI_Comm comm);
+    void DetermineAdjacentElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief, ParArray<int>* part, ParallelState* ien_parstate, ParArray<double>* xcn, ParallelState* xcn_parstate, ParArray<double>* U, MPI_Comm comm);
+    void PartitionAuxilaryData(Array<double>* U, MPI_Comm comm);
     int getNlocElem();
     int getNlocVerts();
     int* getXadj();
@@ -41,6 +42,7 @@ class Partition {
     std::set<int> getElemSet();
     std::vector<double> getUelem();
     double getU0atGlobalElem(int elem);
+    double getUauxatGlobalElem(int elem);
     Array<double>* getUvert();
     
     ParallelState* getXcnParallelState();
@@ -66,6 +68,7 @@ class Partition {
       Array<int>* part_global;
       std::vector<Vert> LocalVerts;
       std::vector<double> U0Elem;
+      std::vector<double> UauxElem;
       std::vector<int> ElemPart;
 
       std::set<int> unique_vertIDs_on_rank_set;
@@ -93,28 +96,40 @@ class Partition {
       ParallelState* xcn_pstate;
       ParallelState* ien_pstate;
       ParallelState_Parmetis* pstate_parmetis;
+    
+    
+      std::map<int,std::vector<int> > adj_elements;
+      ScheduleObj* adj_schedule;
+      ScheduleObj* part_schedule;
+      std::map<int,std::vector<int> > elms_to_send_to_ranks;
+      std::map<int,std::vector<int> > part_tot_recv_elIDs;
+      std::map<int,std::vector<int> >  reqstd_adj_ids_per_rank;
+    
 };
 
 
-inline Partition::Partition(ParArray<int>* ien, ParArray<int>* ief, ParallelState_Parmetis* pstate_parmetis, ParallelState* pstate, ParArray<double>* xcn, ParallelState* xcn_parstate, ParArray<double>* U, MPI_Comm comm)
+inline Partition::Partition(ParArray<int>* ien, ParArray<int>* ief, ParallelState_Parmetis* pstate_parmetis, ParallelState* ien_parstate, ParArray<double>* xcn, ParallelState* xcn_parstate, ParArray<double>* U, MPI_Comm comm)
 {
-    
+    ien_pstate = ien_parstate;
+    xcn_pstate = xcn_parstate;
     // This function computes the xadj and adjcny array and the part array which determines which element at current rank should be sent to other ranks.
-    DeterminePartitionLayout(ien, pstate_parmetis, pstate, comm);
+    DeterminePartitionLayout(ien, pstate_parmetis, ien_pstate, comm);
     eloc = 0;
     vloc = 0;
     floc = 0;
-    ien_pstate = pstate;
+
     // This function takes care of the send and receive operations in order to send the appropriate elements and corresponding vertices to the appropriate rank.
     // These operations are based on the fact that part holds the desired partitioning of the elements. the spread of the vertices is based on the fact that all the vertices stored in xcn are distributed "uniformly";
-    DetermineElement2ProcMap(ien, ief, part, pstate, xcn, xcn_parstate, U, comm);
     
-    DetermineAdjacentElement2ProcMap(ien, ief, part, pstate, xcn, xcn_parstate, U, comm);
+    DetermineElement2ProcMap(ien, ief, part, ien_pstate, xcn, xcn_parstate, U, comm);
+    
+    DetermineAdjacentElement2ProcMap(ien, ief, part, ien_pstate, xcn, xcn_parstate, U, comm);
+    
     NlocElem = U0Elem.size();
 
 }
 
-inline void Partition::DeterminePartitionLayout(ParArray<int>* ien, ParallelState_Parmetis* pstate_parmetis, ParallelState* pstate, MPI_Comm comm)
+inline void Partition::DeterminePartitionLayout(ParArray<int>* ien, ParallelState_Parmetis* pstate_parmetis, ParallelState* ien_parstate, MPI_Comm comm)
 {
     int size;
     MPI_Comm_size(comm, &size);
@@ -195,6 +210,7 @@ inline void Partition::DeterminePartitionLayout(ParArray<int>* ien, ParallelStat
                          &edgecut, part_arr, &comm);
     
     */
+    
     part = new ParArray<int>(ien->getNglob(),1,comm);
     part_global = new Array<int>(ien->getNglob(),1);
 
@@ -205,14 +221,14 @@ inline void Partition::DeterminePartitionLayout(ParArray<int>* ien, ParallelStat
     MPI_Allgatherv(&part->data[0],
                    nloc, MPI_INT,
                    &part_global->data[0],
-                   pstate->getNlocs(),
-                   pstate->getOffsets(),
+                   ien_pstate->getNlocs(),
+                   ien_pstate->getOffsets(),
                    MPI_INT,comm);
     
 }
 
 
-inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief, ParArray<int>* part, ParallelState* pstate, ParArray<double>* xcn, ParallelState* xcn_parstate, ParArray<double>* U, MPI_Comm comm)
+inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief, ParArray<int>* part, ParallelState* ien_parstate, ParArray<double>* xcn, ParallelState* xcn_parstate, ParArray<double>* U, MPI_Comm comm)
 {
     int floc_tmp=0;
     int vloc_tmp=0;
@@ -231,7 +247,7 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
     std::vector<Vert> part_verts;
     std::vector<std::vector<int> > part_elem2verts;
 
-    std::map<int,std::vector<int> > elms_to_send_to_ranks;
+
     std::map<int,std::vector<int> > vertIDs_to_send_to_ranks;
     std::map<int,std::vector<int> > faceIDs_to_send_to_ranks;
     std::map<int,std::vector<double> > rho_to_send_to_ranks;
@@ -265,13 +281,13 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
     int* new_offsets = new int[size];
     for(int i=0;i<size;i++)
     {
-        new_offsets[i] = xcn_parstate->getOffsets()[i]-1;
+        new_offsets[i] = xcn_pstate->getOffsets()[i]-1;
     }
     
     int* new_offsets2 = new int[size];
     for(int i=0;i<size;i++)
     {
-   	new_offsets2[i] = pstate->getOffsets()[i]-1;
+   	new_offsets2[i] = ien_pstate->getOffsets()[i]-1;
     }
     for(i=0;i<part->getNrow();i++)
     {
@@ -517,6 +533,8 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
         TotRecvElement_rhos[i] = 0;
     }
     
+
+    
     int n_req_recv;
     
     int n_req_recv_v;
@@ -534,6 +552,7 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
                                 
                 MPI_Send(&n_req, 1, MPI_INT, dest, dest, comm);
                 MPI_Send(&it->second[0], n_req, MPI_INT, dest, 100+dest*2, comm);
+                MPI_Send(&it->second[0], n_req, MPI_INT, dest, -1000+dest*2, comm);
                 MPI_Send(&rho_to_send_to_ranks[it->first][0], n_req, MPI_DOUBLE, dest, 20000+100+dest*2, comm);
                 
                 //MPI_Send(&n_req_v, 1, MPI_INT, dest, 9000+dest, comm);
@@ -545,12 +564,19 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
         else if (sendFromRank2Rank_e[q].find( rank ) != sendFromRank2Rank_e[q].end())
         {
             MPI_Recv(&n_req_recv, 1, MPI_INT, q, rank, comm, MPI_STATUS_IGNORE);
+            //std::vector<int> part_recv_id(n_req_recv);
+            std::vector<int> part_recv_id(n_req_recv);
+            MPI_Recv(&part_recv_id[0], n_req_recv, MPI_INT, q, -1000+rank*2, comm, MPI_STATUS_IGNORE);
+            
             MPI_Recv(&TotRecvElement_IDs[RecvAlloc_offset_map_e[q]], n_req_recv, MPI_INT, q, 100+rank*2, comm, MPI_STATUS_IGNORE);
             MPI_Recv(&TotRecvElement_rhos[RecvAlloc_offset_map_e[q]], n_req_recv, MPI_DOUBLE, q, 20000+100+rank*2, comm, MPI_STATUS_IGNORE);
             
             //MPI_Recv(&n_req_recv_v, 1, MPI_INT, q, 9000+rank, comm, MPI_STATUS_IGNORE);
+            
             MPI_Recv(&TotRecvElement_IDs_v[RecvAlloc_offset_map_e[q]*8], n_req_recv*8, MPI_INT, q, 9000+100+rank*2, comm, MPI_STATUS_IGNORE);
             MPI_Recv(&TotRecvElement_IDs_f[RecvAlloc_offset_map_e[q]*6], n_req_recv*6, MPI_INT, q, 229000+100+rank*2, comm, MPI_STATUS_IGNORE);
+            
+            part_tot_recv_elIDs[q] = part_recv_id;
             
         }
     }
@@ -629,7 +655,7 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
     // This thing needs to revised because for the verts it doesnt work.
     // The current rank does not have the verts_to_send_rank. Instead it has an request list.
     
-    ScheduleObj* sobj = DoScheduling(rank2req_vert,comm);
+    ScheduleObj* part_schedule = DoScheduling(rank2req_vert,comm);
     
     std::map<int,std::vector<int> >  reqstd_ids_per_rank;
     
@@ -652,7 +678,7 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
                 i++;
             }
         }
-        else if (sobj->SendFromRank2Rank[q].find( rank ) != sobj->SendFromRank2Rank[q].end())
+        else if (part_schedule->SendFromRank2Rank[q].find( rank ) != part_schedule->SendFromRank2Rank[q].end())
         {
             MPI_Recv(&n_reqstd_ids, 1, MPI_INT, q, 9876+10*rank, comm, MPI_STATUS_IGNORE);
             //MPI_Recv(&TotRecvVert_IDs[RecvAlloc_offset_map_v[q]], n_reqstd_ids, MPI_INT, q, 9876+rank*2, comm, MPI_STATUS_IGNORE);
@@ -697,7 +723,7 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
 		delete[] vert_send;
             }
         }
-        if(sobj->RecvRankFromRank[q].find( rank ) != sobj->RecvRankFromRank[q].end())
+        if(part_schedule->RecvRankFromRank[q].find( rank ) != part_schedule->RecvRankFromRank[q].end())
          {
             MPI_Recv(&n_recv_back, 1, MPI_INT, q, 9876+1000*rank, comm, MPI_STATUS_IGNORE);
             
@@ -899,23 +925,22 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
     floc = cnf;
 }
 
-inline void Partition::DetermineAdjacentElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief, ParArray<int>* part, ParallelState* pstate, ParArray<double>* xcn, ParallelState* xcn_parstate, ParArray<double>* U, MPI_Comm comm)
+inline void Partition::DetermineAdjacentElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief, ParArray<int>* part, ParallelState* ien_parstate, ParArray<double>* xcn, ParallelState* xcn_parstate, ParArray<double>* U, MPI_Comm comm)
 {
     int floc_tmp = 0;
     int vloc_tmp = 0;
     int q=0;
     int i=0;
     int size;
-
     MPI_Comm_size(comm, &size);
     // Get the rank of the process
     int rank;
     MPI_Comm_rank(comm, &rank);
-
-    int xcn_o = xcn->getOffset(rank);
-    int xcn_n = xcn->getNloc(rank);
-    int ien_o = part->getOffset(rank);
-    int ien_n = part->getNloc(rank);
+    //std::cout << xcn->getOffset(rank) << " " << xcn_pstate->getOffset(rank) << std::endl;
+    int xcn_o = xcn_pstate->getOffset(rank);
+    int xcn_n = xcn_pstate->getNloc(rank);
+    int ien_o = ien_pstate->getOffset(rank);
+    int ien_n = ien_pstate->getNloc(rank);
     int el_id;
     int p_id;
     int v_id;
@@ -933,7 +958,7 @@ inline void Partition::DetermineAdjacentElement2ProcMap(ParArray<int>* ien, ParA
     //std::cout << " " << rank << " LocalVerts.size() before " << LocalVerts.size() << std::endl;
     std::map<int,std::vector<int> > req_elem;
     int itel = 0;
-    std::map<int,std::vector<int> > adj_elements;
+    
     for(int i=0;i<part->getNrow();i++)
     {
         int start = xadj[i];
@@ -953,11 +978,10 @@ inline void Partition::DetermineAdjacentElement2ProcMap(ParArray<int>* ien, ParA
         }
     }
     
+    adj_schedule = DoScheduling(req_elem,comm);
     
-    
-    ScheduleObj* sobj_el = DoScheduling(req_elem,comm);
     std::map<int,std::vector<int> >::iterator it;
-    std::map<int,std::vector<int> >  reqstd_adj_ids_per_rank;
+    
     int n_reqstd_adj_ids;
     for(q=0;q<size;q++)
     {
@@ -977,7 +1001,7 @@ inline void Partition::DetermineAdjacentElement2ProcMap(ParArray<int>* ien, ParA
                i++;
             }
         }
-        else if (sobj_el->SendFromRank2Rank[q].find( rank ) != sobj_el->SendFromRank2Rank[q].end())
+        else if (adj_schedule->SendFromRank2Rank[q].find( rank ) != adj_schedule->SendFromRank2Rank[q].end())
         {
             MPI_Recv(&n_reqstd_adj_ids, 1, MPI_INT, q, 9876000+10*rank, comm, MPI_STATUS_IGNORE);
             //MPI_Recv(&TotRecvVert_IDs[RecvAlloc_offset_map_v[q]], n_reqstd_ids, MPI_INT, q, 9876+rank*2, comm, MPI_STATUS_IGNORE);
@@ -998,15 +1022,15 @@ inline void Partition::DetermineAdjacentElement2ProcMap(ParArray<int>* ien, ParA
     //std::vector<double> TotAdj_Rhos;
     int adj_id;
 
-    int offset_new = pstate->getOffset(rank);
-    int nloc_new   = pstate->getNloc(rank);
+    int offset_new = ien_pstate->getOffset(rank);
+    int nloc_new   = ien_pstate->getNloc(rank);
 
     int lelem = 0;
 
     for(itv=reqstd_adj_ids_per_rank.begin();itv!=reqstd_adj_ids_per_rank.end();itv++)
     {
         int dest = itv->first;
-        int offset_dest = pstate->getOffset(dest);
+        int offset_dest = ien_pstate->getOffset(dest);
         for(int j=0;j<itv->second.size();j++)
         {
             adj_id = itv->second[j];
@@ -1025,7 +1049,7 @@ inline void Partition::DetermineAdjacentElement2ProcMap(ParArray<int>* ien, ParA
 
             for(int k=0;k<6;k++)
             {
-                int offset_new = pstate->getOffset(rank);
+                int offset_new = ien_pstate->getOffset(rank);
                 f_id = ief->getVal(adj_id-offset_new,k);
                 send_adj_faces_IDs[dest].push_back(f_id);
             }
@@ -1072,7 +1096,7 @@ inline void Partition::DetermineAdjacentElement2ProcMap(ParArray<int>* ien, ParA
                 
             }
         }
-        if(sobj_el->RecvRankFromRank[q].find( rank ) != sobj_el->RecvRankFromRank[q].end())
+        if(adj_schedule->RecvRankFromRank[q].find( rank ) != adj_schedule->RecvRankFromRank[q].end())
         {
             MPI_Recv(&n_adj_vert_recv_back, 1, MPI_INT, q, 98760000+1000*rank, comm, MPI_STATUS_IGNORE);
             int* recv_adj_back_arr_ids = new int[n_adj_vert_recv_back];
@@ -1207,7 +1231,7 @@ inline void Partition::DetermineAdjacentElement2ProcMap(ParArray<int>* ien, ParA
        // This thing needs to revised because for the verts it doesnt work.
        // The current rank does not have the verts_to_send_rank. Instead it has an request list.
        
-       ScheduleObj* sobj = DoScheduling(rank2req_vert,comm);
+       part_schedule = DoScheduling(rank2req_vert,comm);
        
        std::map<int,std::vector<int> >  reqstd_ids_per_rank;
        
@@ -1230,7 +1254,7 @@ inline void Partition::DetermineAdjacentElement2ProcMap(ParArray<int>* ien, ParA
                    i++;
                }
            }
-           else if (sobj->SendFromRank2Rank[q].find( rank ) != sobj->SendFromRank2Rank[q].end())
+           else if (part_schedule->SendFromRank2Rank[q].find( rank ) != part_schedule->SendFromRank2Rank[q].end())
            {
                MPI_Recv(&n_reqstd_ids, 1, MPI_INT, q, 6547+10*rank, comm, MPI_STATUS_IGNORE);
                //MPI_Recv(&TotRecvVert_IDs[RecvAlloc_offset_map_v[q]], n_reqstd_ids, MPI_INT, q, 9876+rank*2, comm, MPI_STATUS_IGNORE);
@@ -1275,7 +1299,7 @@ inline void Partition::DetermineAdjacentElement2ProcMap(ParArray<int>* ien, ParA
            delete[] vert_send;
                }
            }
-           if(sobj->RecvRankFromRank[q].find( rank ) != sobj->RecvRankFromRank[q].end())
+           if(part_schedule->RecvRankFromRank[q].find( rank ) != part_schedule->RecvRankFromRank[q].end())
             {
                MPI_Recv(&n_recv_back, 1, MPI_INT, q, 6547+1000*rank, comm, MPI_STATUS_IGNORE);
                
@@ -1448,6 +1472,138 @@ inline void Partition::DetermineAdjacentElement2ProcMap(ParArray<int>* ien, ParA
 //    }
 }
 
+
+
+
+inline void Partition::PartitionAuxilaryData(Array<double>* U, MPI_Comm comm)
+{
+    int i;
+    // First send the aux data based on the partition array/
+    int size;
+    MPI_Comm_size(comm, &size);
+    // Get the rank of the process
+    int rank;
+    MPI_Comm_rank(comm, &rank);
+    std::map<int,std::vector<double> > aux_to_send_to_ranks;
+    std::map<int,double> elid_2_auxVal;
+    std::vector<double> aux_on_rank;
+    double aux = 0.0;
+    int p_id;
+    int el_id;
+    for(i=0;i<part->getNrow();i++)
+    {
+        p_id  = part->getVal(i,0);
+        el_id = part->getOffset(rank)+i;
+        aux   = U->getVal(i,0);
+        if(p_id!=rank) // If element is not on this rank and needs to be send to other rank (p_id), add it to rank to element map.
+        {
+            aux_to_send_to_ranks[p_id].push_back(aux);
+        }
+        else
+        {
+            UauxElem.push_back(aux);
+            elid_2_auxVal[el_id] = aux;
+        }
+    }
+    
+    ScheduleObj* aux_schedule = DoScheduling(elms_to_send_to_ranks, comm);
+
+    std::map<int,std::vector<double> > recv_FromRanks_aux;
+    std::map<int,std::vector<double> >::iterator it;
+    int n_req_recv;
+    int n_req_recv_v;
+    
+    for(int q=0;q<size;q++)
+    {
+        if(rank==q)
+        {
+            int i=0;
+            for (it = aux_to_send_to_ranks.begin(); it != aux_to_send_to_ranks.end(); it++)
+            {
+                int n_req           = it->second.size();
+                int dest            = it->first;
+                                
+                MPI_Send(&n_req, 1, MPI_INT, dest, dest, comm);
+                MPI_Send(&aux_to_send_to_ranks[it->first][0], n_req, MPI_DOUBLE, dest, 20000+100+dest*2, comm);
+                
+            }
+        }
+        else if (aux_schedule->SendFromRank2Rank[q].find( rank ) != aux_schedule->SendFromRank2Rank[q].end())
+        {
+            MPI_Recv(&n_req_recv, 1, MPI_INT, q, rank, comm, MPI_STATUS_IGNORE);
+            
+            std::vector<double> recv_aux(n_req_recv);
+            MPI_Recv(&recv_aux[0], n_req_recv, MPI_DOUBLE, q, 20000+100+rank*2, comm, MPI_STATUS_IGNORE);
+            
+            recv_FromRanks_aux[q] = recv_aux;
+        }
+    }
+    
+    std::map<int,std::vector<double> >::iterator it2;
+    for(it2 = recv_FromRanks_aux.begin();it2!=recv_FromRanks_aux.end();it2++)
+    {
+        for(int s=0;s<it2->second.size();s++)
+        {
+            el_id = part_tot_recv_elIDs[it2->first][s];
+            UauxElem.push_back(it2->second[s]);
+            elid_2_auxVal[el_id] = aux;
+        }
+    }
+    
+    // Once the the aux data is send and received by all processors based on the partition array.
+    // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    // reqstd_adj_ids_per_rank is data structure that is part of the Partition Object;
+    // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    std::map<int,std::vector<double> > send_adj_aux;
+    int adj_id;
+    std::map<int,std::vector<int> >::iterator itv;
+    for(itv=reqstd_adj_ids_per_rank.begin();itv!=reqstd_adj_ids_per_rank.end();itv++)
+    {
+        int dest = itv->first;
+        for(int j=0;j<itv->second.size();j++)
+        {
+            adj_id = itv->second[j];
+            send_adj_aux[dest].push_back(elid_2_auxVal[adj_id]);
+        }
+    }
+    
+    // This sends the right vertices of the requested elements to correct processor.
+    std::map<int,std::vector<double> > recv_adj_back_aux;
+    for(int q=0;q<size;q++)
+    {
+        if(rank == q)
+        {
+            for (it = send_adj_aux.begin(); it != send_adj_aux.end(); it++)
+            {
+                int nv_adj_send       = it->second.size();
+                int dest = it->first;
+                MPI_Send(&nv_adj_send, 1, MPI_INT, dest, 987600+1000*dest, comm);
+                MPI_Send(&it->second[0], it->second.size(), MPI_DOUBLE, dest, 17777*9876+dest*8888,comm);
+            }
+        }
+        if(adj_schedule->RecvRankFromRank[q].find( rank ) != adj_schedule->RecvRankFromRank[q].end())
+        {
+            int n_adj_aux_recv_back;
+            MPI_Recv(&n_adj_aux_recv_back, 1, MPI_INT, q, 987600+1000*rank, comm, MPI_STATUS_IGNORE);
+            std::vector<double> recv_adj_back_vec_aux(n_adj_aux_recv_back);
+            MPI_Recv(&recv_adj_back_vec_aux[0], n_adj_aux_recv_back, MPI_DOUBLE, q, 17777*9876+rank*8888, comm, MPI_STATUS_IGNORE);
+
+            recv_adj_back_aux[q]  = recv_adj_back_vec_aux;
+
+        }
+    }
+    
+    for(it2 = recv_adj_back_aux.begin();it2!=recv_adj_back_aux.end();it2++)
+    {
+        for(int s=0;s<it2->second.size();s++)
+        {
+            el_id = adj_elements[it2->first][s];
+            UauxElem.push_back(it2->second[s]);
+            elid_2_auxVal[el_id] = aux;
+        }
+    }
+}
+
 inline int Partition::getNlocElem()
 {
     return NlocElem;
@@ -1546,6 +1702,11 @@ inline std::map<int,int> Partition::getLocalElement2GlobalElement()
 inline ParallelState* Partition::getParallelState()
 {
     return ien_pstate;
+}
+inline double Partition::getUauxatGlobalElem(int gelem)
+{
+    int elem = GlobalElement2LocalElement[gelem];
+    return UauxElem[elem];
 }
 //ParallelState* getXcnParallelState();
 //ParallelState* getIenParallelState();

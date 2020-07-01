@@ -23,7 +23,7 @@ double ComputeVolumeHexCell(double *P);
         J[6], J[7], J[8]]
 */
 // J is computed using the 8-point isoparametric mapping for a hex. The 8-point rule should be sufficient since everything is linear anyways.
-Vert ComputeCenterCoord(double*P, int np);
+Vert* ComputeCenterCoord(double*P, int np);
 
 double* ComputeJAtCenter(double*P, int np);
 
