@@ -14,7 +14,7 @@ class Partition {
     void DeterminePartitionLayout(ParArray<int>* ien, ParallelState_Parmetis* pstate_parmetis, ParallelState* ien_parstate, MPI_Comm comm);
     void DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief, ParArray<int>* part, ParallelState* ien_parstate, ParArray<double>* xcn, ParallelState* xcn_parstate, ParArray<double>* U, MPI_Comm comm);
     void DetermineAdjacentElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief, ParArray<int>* part, ParallelState* ien_parstate, ParArray<double>* xcn, ParallelState* xcn_parstate, ParArray<double>* U, MPI_Comm comm);
-    void PartitionAuxilaryData(Array<double>* U, MPI_Comm comm);
+    std::vector<double> PartitionAuxilaryData(Array<double>* U, MPI_Comm comm);
     int getNlocElem();
     int getNlocVerts();
     int* getXadj();
@@ -68,7 +68,6 @@ class Partition {
       Array<int>* part_global;
       std::vector<Vert> LocalVerts;
       std::vector<double> U0Elem;
-      std::vector<double> UauxElem;
       std::vector<int> ElemPart;
 
       std::set<int> unique_vertIDs_on_rank_set;
@@ -1475,8 +1474,10 @@ inline void Partition::DetermineAdjacentElement2ProcMap(ParArray<int>* ien, ParA
 
 
 
-inline void Partition::PartitionAuxilaryData(Array<double>* U, MPI_Comm comm)
+inline std::vector<double> Partition::PartitionAuxilaryData(Array<double>* U, MPI_Comm comm)
 {
+    
+    std::vector<double> UauxElem;
     int i;
     // First send the aux data based on the partition array/
     int size;
@@ -1487,23 +1488,25 @@ inline void Partition::PartitionAuxilaryData(Array<double>* U, MPI_Comm comm)
     std::map<int,std::vector<double> > aux_to_send_to_ranks;
     std::map<int,double> elid_2_auxVal;
     std::vector<double> aux_on_rank;
+    
+
     double aux = 0.0;
     int p_id;
     int el_id;
     for(i=0;i<part->getNrow();i++)
     {
         p_id  = part->getVal(i,0);
-        el_id = part->getOffset(rank)+i;
+        el_id = ien_pstate->getOffset(rank)+i;
         aux   = U->getVal(i,0);
         if(p_id!=rank) // If element is not on this rank and needs to be send to other rank (p_id), add it to rank to element map.
         {
             aux_to_send_to_ranks[p_id].push_back(aux);
         }
-        else
-        {
-            UauxElem.push_back(aux);
-            elid_2_auxVal[el_id] = aux;
-        }
+        
+        UauxElem.push_back(aux);
+        elid_2_auxVal[el_id] = aux;
+
+
     }
     
     ScheduleObj* aux_schedule = DoScheduling(elms_to_send_to_ranks, comm);
@@ -1524,7 +1527,7 @@ inline void Partition::PartitionAuxilaryData(Array<double>* U, MPI_Comm comm)
                 int dest            = it->first;
                                 
                 MPI_Send(&n_req, 1, MPI_INT, dest, dest, comm);
-                MPI_Send(&aux_to_send_to_ranks[it->first][0], n_req, MPI_DOUBLE, dest, 20000+100+dest*2, comm);
+                MPI_Send(&it->second[0], n_req, MPI_DOUBLE, dest, 20000+100+dest*2, comm);
                 
             }
         }
@@ -1546,7 +1549,7 @@ inline void Partition::PartitionAuxilaryData(Array<double>* U, MPI_Comm comm)
         {
             el_id = part_tot_recv_elIDs[it2->first][s];
             UauxElem.push_back(it2->second[s]);
-            elid_2_auxVal[el_id] = aux;
+            elid_2_auxVal[el_id] = it2->second[s];
         }
     }
     
@@ -1602,6 +1605,17 @@ inline void Partition::PartitionAuxilaryData(Array<double>* U, MPI_Comm comm)
             elid_2_auxVal[el_id] = aux;
         }
     }
+    
+    
+    recv_FromRanks_aux.clear();
+    recv_adj_back_aux.clear();
+    elid_2_auxVal.clear();
+    aux_to_send_to_ranks.clear();
+    aux_on_rank.clear();
+    
+    
+    
+    return UauxElem;
 }
 
 inline int Partition::getNlocElem()
@@ -1703,11 +1717,11 @@ inline ParallelState* Partition::getParallelState()
 {
     return ien_pstate;
 }
-inline double Partition::getUauxatGlobalElem(int gelem)
-{
-    int elem = GlobalElement2LocalElement[gelem];
-    return UauxElem[elem];
-}
+//inline double Partition::getUauxatGlobalElem(int gelem)
+//{
+//    int elem = GlobalElement2LocalElement[gelem];
+//    return UauxElem[elem];
+//}
 //ParallelState* getXcnParallelState();
 //ParallelState* getIenParallelState();
 //ParallelState_Parmetis* getParallelStateParmetis();

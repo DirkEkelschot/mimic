@@ -1766,12 +1766,13 @@ Array<double>* SolveQR(double* A, int m, int n, Array<double>* b)
     for(int i = 0;i<ncol;i++)
     {    
         out->setVal(i,0,b_copy->getVal(i,0));
-    }  
+    } 
+   
     delete b_copy; 
     return out; 
 }
 
-Array<double>* ComputeGradient(Partition* P, int Nel, MPI_Comm comm)
+Array<double>* ComputedUdXi(Partition* P, std::vector<double> U, int Nel, MPI_Comm comm)
 {
     int size;
     MPI_Comm_size(comm, &size);
@@ -1779,29 +1780,19 @@ Array<double>* ComputeGradient(Partition* P, int Nel, MPI_Comm comm)
     int rank;
     MPI_Comm_rank(comm, &rank);
     
-    Array<double>* grad = new Array<double>(Nel,3);
-    
-    std::map<int,std::vector<int> > gE2lV       = P->getGlobElem2LocVerts();
-
-    std::vector<Vert> locVerts                  = P->getLocalVerts();
+    std::map<int,std::vector<int> > gE2lV = P->getGlobElem2LocVerts();
+    std::vector<Vert> locVerts            = P->getLocalVerts();
+    std::map<int,int> gE2lE               = P->getGlobalElement2LocalElement();
     int loc_vid = 0;
     int np = 8;
     std::map<int, int>::iterator itmap;
     int e = 0;
-    std::map<int,std::map<int,int> >::iterator itadj;
-
-    double u_ip1jk = 0.0;
-    double u_im1jk = 0.0;
-    double u_ijp1k = 0.0;
-    double u_ijm1k = 0.0;
-    double u_ijkp1 = 0.0;
-    double u_ijkm1 = 0.0;
-    int offset = P->getPart()->getOffset(rank);
-    int* xadj = P->getXadj();
+    int offset  = P->getPart()->getOffset(rank);
+    int* xadj   = P->getXadj();
     int* adjcny = P->getAdjcny();
-    int nloc = P->getPart()->getNrow();
-
-    
+    int nloc    = P->getPart()->getNrow();
+    int lid;
+    Array<double>* grad = new Array<double>(nloc,3);
     for(int i = 0;i<nloc;i++)
     {
         int start = xadj[i];
@@ -1821,8 +1812,8 @@ Array<double>* ComputeGradient(Partition* P, int Nel, MPI_Comm comm)
                 Vrt->setVal(q,j,0.0);
             }
         }
-        
-        double u_ijk = P->getU0atGlobalElem(i+offset);
+        lid = gE2lE[i+offset];
+        double u_ijk = U[lid];
         std::vector<int> vijkIDs = gE2lV[i+offset];
         
         double* Pijk = new double[np*3];
@@ -1843,8 +1834,8 @@ Array<double>* ComputeGradient(Partition* P, int Nel, MPI_Comm comm)
         for(int j=start;j<end;j++)
         {
             int adjEl_id = adjcny[j];
-            
-            double u_po = P->getU0atGlobalElem(adjEl_id);
+            lid = gE2lE[adjEl_id];
+            double u_po = U[lid];
             double* Po = new double[np*3];
             
             for(int k=0;k<gE2lV[adjEl_id].size();k++)
@@ -1878,11 +1869,8 @@ Array<double>* ComputeGradient(Partition* P, int Nel, MPI_Comm comm)
             }
         }
         
-        //Array<double>* x = SolveQR(A_cm,nadj,3,b);
-        Array<double>* x = new Array<double>(3,1);
-        x->setVal(0,0,0.0);
-        x->setVal(1,0,0.0);
-        x->setVal(2,0,0.0);
+        Array<double>* x = SolveQR(A_cm,nadj,3,b);
+
         grad->setVal(i,0,x->getVal(0,0));
         grad->setVal(i,1,x->getVal(1,0));
         grad->setVal(i,2,x->getVal(2,0));
@@ -1898,11 +1886,13 @@ Array<double>* ComputeGradient(Partition* P, int Nel, MPI_Comm comm)
         delete Vijk;
         
     }
-   /*
-    delete[] xadj;
-    delete[] adjcny;
-    gE2lV.clear();
-    locVerts.clear();*/
+     
+      
+    
+    //delete[] xadj;
+    //delete[] adjcny;
+    //gE2lV.clear();
+    //locVerts.clear();
     
     return grad;
 }
@@ -1952,7 +1942,7 @@ Array<double>* ComputeHessian(Partition* P, int Nel, MPI_Comm comm)
             }
         }
         
-        double u_ijk = P->getUauxatGlobalElem(i+offset);
+        double u_ijk = P->getU0atGlobalElem(i+offset);
         
         std::vector<int> vijkIDs = gE2lV[i+offset];
         
@@ -1974,7 +1964,7 @@ Array<double>* ComputeHessian(Partition* P, int Nel, MPI_Comm comm)
         {
             int adjEl_id = adjcny[j];
             
-            double u_po = P->getUauxatGlobalElem(adjEl_id);
+            double u_po = P->getU0atGlobalElem(adjEl_id);
             double* Po = new double[np*3];
             
             for(int k=0;k<gE2lV[adjEl_id].size();k++)
@@ -2022,6 +2012,7 @@ Array<double>* ComputeHessian(Partition* P, int Nel, MPI_Comm comm)
         delete Vrt_T;
         delete Vrt;
         delete b;
+        delete x;
     }
     
     //delete[] xadj;
@@ -2264,8 +2255,8 @@ int main(int argc, char** argv) {
 //============================================================
     
     //const char* fn_conn="grids/piston/conn.h5";
-    const char* fn_conn="grids/piston/conn.h5";
-    const char* fn_grid="grids/piston/grid.h5";
+    const char* fn_conn="grids/adept/conn.h5";
+    const char* fn_grid="grids/adept/grid.h5";
     const char* fn_data="grids/adept/data.h5";
     const char* fn_adept="grids/adept/conn.h5";
     
@@ -2277,13 +2268,14 @@ int main(int argc, char** argv) {
     ParArray<int>* ief    = ReadDataSetFromFileInParallel<int>(fn_conn,"ief",comm,info);
     //ParArray<int>* ife  = ReadDataSetFromFileInParallel<int>(fn_conn,"ife",comm,info);
     ParArray<double>* xcn = ReadDataSetFromFileInParallel<double>(fn_grid,"xcn",comm,info);
-
+    //ParArray<double>* xcn_def = ReadDataSetFromFileInParallel<double>(fn_data,"xcn",comm,info);
 //  ParArray<double>* ifn = ReadDataSetFromFileInParallel<double>(fn_grid,"ifn",comm,info);
 //  ParArray<double>* boundaries = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_6","boundaries",comm,info);
     
     int Nel = ien->getNglob();
     int Nel_part = ien->getNrow();
-    ParArray<double>* interior   = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_6","interior",Nel,comm,info);
+    ParArray<double>* xcn_def        = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_1","xcn",Nel,comm,info);
+    ParArray<double>* interior   = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_1","interior",Nel,comm,info);
 //===================================================================================
 
     ParallelState* pstate = new ParallelState(ien->getNglob(),comm);
@@ -2317,26 +2309,22 @@ int main(int argc, char** argv) {
 
     ParallelState_Parmetis* parmetis_pstate = new ParallelState_Parmetis(ien_copy,comm,8);
 
-    ParallelState* xcn_parstate = new ParallelState(xcn->getNglob(),comm);
+    ParallelState* xcn_parstate = new ParallelState(xcn_def->getNglob(),comm);
     ParArray<double>* var = new ParArray<double>(Nel,1,comm);
-    Array<double>* var2 = new Array<double>(Nel_part,1);
-
+    Array<double>* Uivar = new Array<double>(Nel_part,1);
+    std::vector<double> Ui(Nel_part);
     for(int i=0;i<Nel_part;i++)
     {
-        double v = (i+pstate->getOffset(world_rank))*0.2420;
-        var->setVal(i,0,v);
-        var2->setVal(i,0,v);
-//        if(world_rank == 0)
-//        {
-//            std::cout << "var->getVal(i,0)=" << var->getVal(i,0) << " " << (i+pstate->getOffset(world_rank)) << " " << ien->getOffset(world_rank) << std::endl;
-//
-//        }
-        //var->setVal(i,0,interior->getVal(i,0));
+        //double v = (i+pstate->getOffset(world_rank))*0.2420;
+        //var->setVal(i,0,v);
+        var->setVal(i,0,interior->getVal(i,0));
+        Ui[i] = interior->getVal(i,0);
+        Uivar->setVal(i,0,interior->getVal(i,0));
     }
     delete interior;
    
     double t0 = MPI_Wtime();
-    Partition* P = new Partition(ien_copy, ief_copy, parmetis_pstate,pstate, xcn,xcn_parstate,var,comm);
+    Partition* P = new Partition(ien_copy, ief_copy, parmetis_pstate,pstate, xcn_def,xcn_parstate,var,comm);
     double t00 = MPI_Wtime();
     double timing = t00-t0;
     double max_time = 0.0;
@@ -2347,9 +2335,28 @@ int main(int argc, char** argv) {
     {
         std::cout << "t_max := " << max_time  << std::endl;
     }
-
+    
+    std::vector<double> Uaux = P->PartitionAuxilaryData(Uivar, comm);
+    // ===================================================================
+    // ======================TEST AUX PARTITIONING========================
+    // ===================================================================
+//    std::vector<double> Uaux = P->PartitionAuxilaryData(Ui, comm);
+//    std::vector<double> Uelem = P->getUelem();
+//    std::cout << "Are sizes equal? -> " << Uaux.size() << " " << Uelem.size() << std::endl;
+//    for(int i=0;i<Uaux.size();i++)
+//    {
+//        if(Uaux[i] - Uelem[i] > 1.0e-09)
+//        {
+//            std::cout << Uaux[i] - Uelem[i] << std::endl;
+//        }
+//    }
+//    std::cout << "Are sizes equal? -> " << Uaux.size() << " " << Uelem.size() << std::endl;
+    // ===================================================================
+    // ===================================================================
+    // ===================================================================
+    
     double  t3 = MPI_Wtime();
-    Array<double>* grad = ComputeGradient(P,ien_copy->getNglob(),comm);
+    Array<double>* dUdXi = ComputedUdXi(P,Uaux,ien_copy->getNglob(),comm);
     double  t4 = MPI_Wtime();
     double timing3 = t4-t3;
     double max_time3 = 0.0;
@@ -2358,12 +2365,38 @@ int main(int argc, char** argv) {
     {
         std::cout << "t_max3 := " << max_time3  << std::endl;
     }
+//    double  t6 = MPI_Wtime();
+//    //P->PartitionAuxilaryData(grad, comm);
+//    double  t7 = MPI_Wtime();
+//    double timing6 = t7-t6;
+//    double max_time6 = 0.0;
+//    MPI_Allreduce(&timing6, &max_time6, 1, MPI_DOUBLE, MPI_MAX, comm);
+//    if (world_rank == 0)
+//    {
+//      std::cout << "t_max6 := " << max_time6  << std::endl;
+//
+//    }
+    Array<double>* dUidx = dUdXi->getColumn(0);
+    Array<double>* dUidy = dUdXi->getColumn(1);
+    Array<double>* dUidz = dUdXi->getColumn(2); 
+    delete dUdXi;
+    std::vector<double> dUdxaux = P->PartitionAuxilaryData(dUidx, comm);    
+    delete dUidx;
+    std::vector<double> dUdyaux = P->PartitionAuxilaryData(dUidy, comm);
+    delete dUidy;
+    std::vector<double> dUdzaux = P->PartitionAuxilaryData(dUidz, comm);
+    delete dUidz;
+    Array<double>* d2Udx2i = ComputedUdXi(P,dUdxaux,ien_copy->getNglob(),comm);
+    dUdxaux.clear();
+    Array<double>* d2Udy2i = ComputedUdXi(P,dUdyaux,ien_copy->getNglob(),comm);
+    /*Array<double>* d2Udz2i = ComputedUdXi(P,dUdzaux,ien_copy->getNglob(),comm);
+       
+    if (world_rank == 0)
+    {
+
+	    std::cout << "Hessian computed!!!" << std::endl;
+    }
     
-    P->PartitionAuxilaryData(grad, comm);
-    
-    
-    Array<double>* hessian = ComputeHessian(P,ien_copy->getNglob(),comm);
-    /*
     std::vector<Vert> LocalVs = P->getLocalVerts();
     int e = 0;
     double dudx = 0.0;
@@ -2372,16 +2405,35 @@ int main(int argc, char** argv) {
     int loc_v_id = 0;
     std::vector<std::vector<int> > loc_elem2verts_loc = P->getLocalElem2LocalVert();
     std::vector<Vert> LVerts =  P->getLocalVerts();
-    std::map<int,std::vector<double> > collect_drhodx;
-    std::map<int,std::vector<double> > collect_drhody;
-    std::map<int,std::vector<double> > collect_drhodz;
+    
+    std::map<int,std::vector<double> > collect_d2Udxx;
+    std::map<int,std::vector<double> > collect_d2Udxy;
+    std::map<int,std::vector<double> > collect_d2Udxz;
+    
+    std::map<int,std::vector<double> > collect_d2Udyx;
+    std::map<int,std::vector<double> > collect_d2Udyy;
+    std::map<int,std::vector<double> > collect_d2Udyz;
+    
+    std::map<int,std::vector<double> > collect_d2Udzx;
+    std::map<int,std::vector<double> > collect_d2Udzy;
+    std::map<int,std::vector<double> > collect_d2Udzz;
+    
     int loc_v = 0;
     for(int i=0;i<P->getNlocElem();i++)
     {
         
-        double drhodx_e = grad->getVal(i,0);
-        double drhody_e = grad->getVal(i,1);
-        double drhodz_e = grad->getVal(i,2);
+        double d2Udxx_e = d2Udx2i->getVal(i,0);
+        double d2Udxy_e = d2Udx2i->getVal(i,1);
+        double d2Udxz_e = d2Udx2i->getVal(i,2);
+        
+        double d2Udyx_e = d2Udy2i->getVal(i,0);
+        double d2Udyy_e = d2Udy2i->getVal(i,1);
+        double d2Udyz_e = d2Udy2i->getVal(i,2);
+        
+        double d2Udzx_e = d2Udz2i->getVal(i,0);
+        double d2Udzy_e = d2Udz2i->getVal(i,1);
+        double d2Udzz_e = d2Udz2i->getVal(i,2);
+        
         if(world_rank == 0)
         {
          //   std::cout << drhodx_e << " " << drhody_e  << " " << drhodz_e << std::endl;
@@ -2389,55 +2441,81 @@ int main(int argc, char** argv) {
         for(int j=0;j<8;j++)
         {
             loc_v = loc_elem2verts_loc[i][j];
-            collect_drhodx[loc_v].push_back(drhodx_e);
-            collect_drhody[loc_v].push_back(drhody_e);
-            collect_drhodz[loc_v].push_back(drhodz_e);
+            
+            collect_d2Udxx[loc_v].push_back(d2Udxx_e);
+            collect_d2Udxy[loc_v].push_back(d2Udxy_e);
+            collect_d2Udxz[loc_v].push_back(d2Udxz_e);
+            
+            collect_d2Udyx[loc_v].push_back(d2Udyx_e);
+            collect_d2Udyy[loc_v].push_back(d2Udyy_e);
+            collect_d2Udyz[loc_v].push_back(d2Udyz_e);
+            
+            collect_d2Udzx[loc_v].push_back(d2Udzx_e);
+            collect_d2Udzy[loc_v].push_back(d2Udzy_e);
+            collect_d2Udzz[loc_v].push_back(d2Udzz_e);
         }
     }
     
-    std::map<int,std::vector<double> >::iterator it_rhos;
     
-    double sumdx = 0;
-    double sumdy = 0;
-    double sumdz = 0;
+    double sumd2udxx = 0; double sumd2udxy = 0; double sumd2udxz = 0; 
+    double sumd2udyx = 0; double sumd2udyy = 0; double sumd2udyz = 0;
+    double sumd2udzx = 0; double sumd2udzy = 0; double sumd2udzz = 0;
     
     int c = 0;
     
-    std::vector<double> hx;
-    std::vector<double> hy;
-    std::vector<double> hz;
+    std::vector<double> hxx; std::vector<double> hxy; std::vector<double> hxz;
+    std::vector<double> hyx; std::vector<double> hyy; std::vector<double> hyz;
+    std::vector<double> hzx; std::vector<double> hzy; std::vector<double> hzz;
     
-    for(it_rhos=collect_drhodx.begin();it_rhos!=collect_drhodx.end();it_rhos++)
+    std::map<int,std::vector<double> >::iterator it_rhos;
+
+    for(it_rhos=collect_d2Udxx.begin();it_rhos!=collect_d2Udxx.end();it_rhos++)
     {
-        sumdx = 0;
-        sumdy = 0;
-        sumdz = 0;
+        sumd2udxx = 0; sumd2udxy = 0; sumd2udxz = 0;
+        sumd2udxy = 0; sumd2udyy = 0; sumd2udyz = 0;
+        sumd2udxz = 0; sumd2udzy = 0; sumd2udzz = 0;
         
         for(int q = 0;q<it_rhos->second.size();q++)
         {
-            sumdx = sumdx + it_rhos->second[q];
-            sumdy = sumdy + collect_drhody[it_rhos->first][q];
-            sumdz = sumdz + collect_drhodz[it_rhos->first][q];
-        }
+            sumd2udxx = sumd2udxx + it_rhos->second[q];
+            sumd2udxy = sumd2udxy + collect_d2Udxy[it_rhos->first][q];
+            sumd2udxz = sumd2udxz + collect_d2Udxz[it_rhos->first][q];
         
-        hx.push_back(sumdx/it_rhos->second.size());
-        hy.push_back(sumdy/it_rhos->second.size());
-        hz.push_back(sumdz/it_rhos->second.size());
-       
+	    sumd2udyx = sumd2udyx + collect_d2Udyx[it_rhos->first][q];
+	    sumd2udyy = sumd2udyy + collect_d2Udyy[it_rhos->first][q];
+ 	    sumd2udyz = sumd2udyz + collect_d2Udyz[it_rhos->first][q];
+
+	    sumd2udzx = sumd2udzx + collect_d2Udzx[it_rhos->first][q];
+	    sumd2udzy = sumd2udzy + collect_d2Udzy[it_rhos->first][q];
+ 	    sumd2udzz = sumd2udzz + collect_d2Udzz[it_rhos->first][q];
+	}
+        
+        hxx.push_back(sumd2udxx/it_rhos->second.size());
+        hxy.push_back(sumd2udxy/it_rhos->second.size());
+        hxz.push_back(sumd2udxz/it_rhos->second.size());
+
+	hyx.push_back(sumd2udyx/it_rhos->second.size());
+        hyy.push_back(sumd2udyy/it_rhos->second.size());
+        hyz.push_back(sumd2udyz/it_rhos->second.size());
+	
+	hzx.push_back(sumd2udzx/it_rhos->second.size());
+	hzy.push_back(sumd2udzy/it_rhos->second.size());
+	hzz.push_back(sumd2udzz/it_rhos->second.size());
+	
         c++;
     }
     
-    string filename = "deriv_rank_" + std::to_string(world_rank) + ".dat";
+    string filename = "hessian_rank_" + std::to_string(world_rank) + ".dat";
     ofstream myfile;
     myfile.open(filename);
     myfile << "TITLE=\"volume_part_"  + std::to_string(world_rank) +  ".tec\"" << std::endl;
-    myfile <<"VARIABLES = \"X\", \"Y\", \"Z\", \"drhox\", \"drhoy\", \"drhoz\"" << std::endl;
+    myfile <<"VARIABLES = \"X\", \"Y\", \"Z\", \"hxx\", \"hxy\", \"hxz\", \"hyx\", \"hyy\", \"hyz\", \"hzx\", \"hzy\", \"hzz\"" << std::endl;
     //std::cout << " verts check " << LVerts.size() << " " << hx.size() << std::endl;
     int nvert = LVerts.size();
     myfile <<"ZONE N = " << nvert << ", E = " << ien_copy->getNrow() << ", DATAPACKING = POINT, ZONETYPE = FEBRICK" << std::endl;
     for(int i=0;i<nvert;i++)
     {
-       myfile << LVerts[i].x << "   " << LVerts[i].y << "   " << LVerts[i].z << "   " << hx[i] << " " << hy[i] << " " << hz[i] << std::endl;
+       myfile << LVerts[i].x << "   " << LVerts[i].y << "   " << LVerts[i].z << "   " << hxx[i] << " " << hxy[i] << " " << hxz[i] << " " << hyx[i] << " " << hyy[i] << " " << hyz[i] << " " << hzx[i] << " " << hzy[i] << " " << hzz[i] << std::endl;
     }
 
     for(int i=0;i<ien_copy->getNrow();i++)
