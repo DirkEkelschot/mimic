@@ -1875,6 +1875,13 @@ Array<double>* ComputedUdXi(Partition* P, std::vector<double> U, int Nel, MPI_Co
         grad->setVal(i,1,x->getVal(1,0));
         grad->setVal(i,2,x->getVal(2,0));
         
+        if(rank==0)
+        {
+            if(fabs(grad->getVal(i,0))>1000 || fabs(grad->getVal(i,1))>1000 || fabs(grad->getVal(i,2))>1000)
+            {
+                std::cout << " computing " << grad->getVal(i,0) <<" " << grad->getVal(i,1) << " " << grad->getVal(i,2) << std::endl;
+            }
+        }
         
         delete[] Pijk;
         vijkIDs.clear();
@@ -2267,7 +2274,7 @@ int main(int argc, char** argv) {
     ParArray<int>* ien    = ReadDataSetFromFileInParallel<int>(fn_conn,"ien",comm,info);
     ParArray<int>* ief    = ReadDataSetFromFileInParallel<int>(fn_conn,"ief",comm,info);
     //ParArray<int>* ife  = ReadDataSetFromFileInParallel<int>(fn_conn,"ife",comm,info);
-    ParArray<double>* xcn = ReadDataSetFromFileInParallel<double>(fn_grid,"xcn",comm,info);
+    //ParArray<double>* xcn = ReadDataSetFromFileInParallel<double>(fn_grid,"xcn",comm,info);
     //ParArray<double>* xcn_def = ReadDataSetFromFileInParallel<double>(fn_data,"xcn",comm,info);
 //  ParArray<double>* ifn = ReadDataSetFromFileInParallel<double>(fn_grid,"ifn",comm,info);
 //  ParArray<double>* boundaries = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_6","boundaries",comm,info);
@@ -2324,7 +2331,7 @@ int main(int argc, char** argv) {
     delete interior;
    
     double t0 = MPI_Wtime();
-    Partition* P = new Partition(ien_copy, ief_copy, parmetis_pstate,pstate, xcn_def,xcn_parstate,var,comm);
+    Partition* P = new Partition(ien_copy, ief_copy, parmetis_pstate,pstate, xcn_def,xcn_parstate,Uivar,comm);
     double t00 = MPI_Wtime();
     double timing = t00-t0;
     double max_time = 0.0;
@@ -2335,21 +2342,23 @@ int main(int argc, char** argv) {
     {
         std::cout << "t_max := " << max_time  << std::endl;
     }
+    int nElemLoc = P->getNlocElem();
+
     
     std::vector<double> Uaux = P->PartitionAuxilaryData(Uivar, comm);
     // ===================================================================
     // ======================TEST AUX PARTITIONING========================
     // ===================================================================
-//    std::vector<double> Uaux = P->PartitionAuxilaryData(Ui, comm);
-//    std::vector<double> Uelem = P->getUelem();
-//    std::cout << "Are sizes equal? -> " << Uaux.size() << " " << Uelem.size() << std::endl;
-//    for(int i=0;i<Uaux.size();i++)
-//    {
-//        if(Uaux[i] - Uelem[i] > 1.0e-09)
-//        {
-//            std::cout << Uaux[i] - Uelem[i] << std::endl;
-//        }
-//    }
+    //std::vector<double> Uaux = P->PartitionAuxilaryData(Ui, comm);
+    std::vector<double> Uelem = P->getUelem();
+    std::cout << "Are sizes equal? -> " << Uaux.size() << " " << Uelem.size() << std::endl;
+    for(int i=0;i<Uaux.size();i++)
+    {
+        if(Uaux[i] - Uelem[i] > 1.0e-09)
+        {
+            std::cout << Uaux[i] - Uelem[i] << std::endl;
+        }
+    }
 //    std::cout << "Are sizes equal? -> " << Uaux.size() << " " << Uelem.size() << std::endl;
     // ===================================================================
     // ===================================================================
@@ -2357,6 +2366,8 @@ int main(int argc, char** argv) {
     
     double  t3 = MPI_Wtime();
     Array<double>* dUdXi = ComputedUdXi(P,Uaux,ien_copy->getNglob(),comm);
+    
+    //Uaux.clear();
     double  t4 = MPI_Wtime();
     double timing3 = t4-t3;
     double max_time3 = 0.0;
@@ -2376,26 +2387,65 @@ int main(int argc, char** argv) {
 //      std::cout << "t_max6 := " << max_time6  << std::endl;
 //
 //    }
-    Array<double>* dUidx = dUdXi->getColumn(0);
-    Array<double>* dUidy = dUdXi->getColumn(1);
-    Array<double>* dUidz = dUdXi->getColumn(2); 
-    delete dUdXi;
-    std::vector<double> dUdxaux = P->PartitionAuxilaryData(dUidx, comm);    
-    delete dUidx;
-    std::vector<double> dUdyaux = P->PartitionAuxilaryData(dUidy, comm);
-    delete dUidy;
-    std::vector<double> dUdzaux = P->PartitionAuxilaryData(dUidz, comm);
-    delete dUidz;
-    Array<double>* d2Udx2i = ComputedUdXi(P,dUdxaux,ien_copy->getNglob(),comm);
-    dUdxaux.clear();
-    Array<double>* d2Udy2i = ComputedUdXi(P,dUdyaux,ien_copy->getNglob(),comm);
-    /*Array<double>* d2Udz2i = ComputedUdXi(P,dUdzaux,ien_copy->getNglob(),comm);
-       
-    if (world_rank == 0)
+    
+    Array<double>* dUidx = new Array<double>(Nel_part,1);
+    Array<double>* dUidy = new Array<double>(Nel_part,1);
+    Array<double>* dUidz = new Array<double>(Nel_part,1);
+    std::vector<double> dudx_vec;
+    std::cout << dUdXi->getNrow() << " " << Nel_part << " " << dUdXi->getNcol() << std::endl;
+    for(int i=0;i<Nel_part;i++)
     {
-
-	    std::cout << "Hessian computed!!!" << std::endl;
+        dUidx->setVal(i,0,dUdXi->getVal(i,0));
+        dUidy->setVal(i,0,dUdXi->getVal(i,1));
+        dUidz->setVal(i,0,dUdXi->getVal(i,2));
+        dudx_vec.push_back(dUdXi->getVal(i,0));
+    } 
+    //delete dUdXi;
+    std::vector<double> dUdxaux = P->PartitionAuxilaryData(dUidx, comm);    
+    //delete dUidx;
+    //MPI_Barrier();
+    //std::vector<double> dUdyaux = P->PartitionAuxilaryData(dUidy, comm);
+    //delete dUidy;
+    //MPI_Barrier();
+    //std::vector<double> dUdzaux = P->PartitionAuxilaryData(dUidz, comm);
+    //delete dUidz;
+    //MPI_Barrier();
+    std::cout << dUdxaux.size() << " " << Uaux.size() << " " << P->getNlocElem() << " comre sire " << std::endl;
+    Array<double>* d2Udx2i = ComputedUdXi(P,dUdxaux,ien_copy->getNglob(),comm);
+    
+    Array<double>* d2Udxx = new Array<double>(Nel_part,1);
+    Array<double>* d2Udxy = new Array<double>(Nel_part,1);
+    Array<double>* d2Udxz = new Array<double>(Nel_part,1);
+    
+    for(int i=0;i<Nel_part;i++)
+    {
+        d2Udxx->setVal(i,0,d2Udx2i->getVal(i,0));
+        d2Udxy->setVal(i,0,d2Udx2i->getVal(i,1));
+        d2Udxz->setVal(i,0,d2Udx2i->getVal(i,2));
     }
+    
+    std::vector<double> dU2dxxaux = P->PartitionAuxilaryData(d2Udxx, comm);
+    std::vector<double> dU2dxyaux = P->PartitionAuxilaryData(d2Udxy, comm);
+    std::vector<double> dU2dxzaux = P->PartitionAuxilaryData(d2Udxz, comm);
+//    //dUdxaux.clear();
+//    if(world_rank == 0)
+//    {
+//        std::cout << "computed d2Udx2i" << std::endl;
+//    }
+//    Array<double>* d2Udy2i = ComputedUdXi(P,dUdyaux,ien_copy->getNglob(),comm);
+//    if(world_rank == 0)
+//    {
+//     std::cout << "computed d2Udy2i" << std::endl;
+//    }
+//    Array<double>* d2Udz2i = ComputedUdXi(P,dUdzaux,ien_copy->getNglob(),comm);
+//
+//    if (world_rank == 0)
+//    {
+//
+//	    std::cout << "Hessian computed!!!" << std::endl;
+//    }
+    
+    
     
     std::vector<Vert> LocalVs = P->getLocalVerts();
     int e = 0;
@@ -2410,34 +2460,44 @@ int main(int argc, char** argv) {
     std::map<int,std::vector<double> > collect_d2Udxy;
     std::map<int,std::vector<double> > collect_d2Udxz;
     
-    std::map<int,std::vector<double> > collect_d2Udyx;
-    std::map<int,std::vector<double> > collect_d2Udyy;
-    std::map<int,std::vector<double> > collect_d2Udyz;
+//  std::map<int,std::vector<double> > collect_d2Udyx;
+//  std::map<int,std::vector<double> > collect_d2Udyy;
+//  std::map<int,std::vector<double> > collect_d2Udyz;
+
+//  std::map<int,std::vector<double> > collect_d2Udzx;
+//  std::map<int,std::vector<double> > collect_d2Udzy;
+//  std::map<int,std::vector<double> > collect_d2Udzz;
     
-    std::map<int,std::vector<double> > collect_d2Udzx;
-    std::map<int,std::vector<double> > collect_d2Udzy;
-    std::map<int,std::vector<double> > collect_d2Udzz;
-    
+    //std::map<int,int> gE2lE = P->getGlobalElement2LocalElement();
+
     int loc_v = 0;
-    for(int i=0;i<P->getNlocElem();i++)
+    for(int i=0;i<nElemLoc;i++)
     {
         
-        double d2Udxx_e = d2Udx2i->getVal(i,0);
-        double d2Udxy_e = d2Udx2i->getVal(i,1);
-        double d2Udxz_e = d2Udx2i->getVal(i,2);
         
-        double d2Udyx_e = d2Udy2i->getVal(i,0);
-        double d2Udyy_e = d2Udy2i->getVal(i,1);
-        double d2Udyz_e = d2Udy2i->getVal(i,2);
+        double d2Udxx_e = dU2dxxaux[i];
+        double d2Udxy_e = dU2dxyaux[i];
+        double d2Udxz_e = dU2dxzaux[i];
         
-        double d2Udzx_e = d2Udz2i->getVal(i,0);
-        double d2Udzy_e = d2Udz2i->getVal(i,1);
-        double d2Udzz_e = d2Udz2i->getVal(i,2);
-        
-        if(world_rank == 0)
+        if(world_rank==0)
         {
-         //   std::cout << drhodx_e << " " << drhody_e  << " " << drhodz_e << std::endl;
+            if(fabs(d2Udxx_e)>1000 || fabs(d2Udxy_e)>1000 || fabs(d2Udxz_e)>1000)
+            {
+                std::cout << " collecting " << d2Udxx_e <<" " << d2Udxy_e << " " << d2Udxz_e << std::endl;
+            }
         }
+        //double d2Udxx_e = d2Udx2i->getVal(i,0);
+        //double d2Udxy_e = d2Udx2i->getVal(i,1);
+        //double d2Udxz_e = d2Udx2i->getVal(i,2);
+    
+//        double d2Udyx_e = d2Udy2i->getVal(i,0);
+//        double d2Udyy_e = d2Udy2i->getVal(i,1);
+//        double d2Udyz_e = d2Udy2i->getVal(i,2);
+//
+//        double d2Udzx_e = d2Udz2i->getVal(i,0);
+//        double d2Udzy_e = d2Udz2i->getVal(i,1);
+//        double d2Udzz_e = d2Udz2i->getVal(i,2);
+        
         for(int j=0;j<8;j++)
         {
             loc_v = loc_elem2verts_loc[i][j];
@@ -2446,34 +2506,35 @@ int main(int argc, char** argv) {
             collect_d2Udxy[loc_v].push_back(d2Udxy_e);
             collect_d2Udxz[loc_v].push_back(d2Udxz_e);
             
-            collect_d2Udyx[loc_v].push_back(d2Udyx_e);
-            collect_d2Udyy[loc_v].push_back(d2Udyy_e);
-            collect_d2Udyz[loc_v].push_back(d2Udyz_e);
+//            collect_d2Udyx[loc_v].push_back(d2Udyx_e);
+//            collect_d2Udyy[loc_v].push_back(d2Udyy_e);
+//            collect_d2Udyz[loc_v].push_back(d2Udyz_e);
+//
+//            collect_d2Udzx[loc_v].push_back(d2Udzx_e);
+//            collect_d2Udzy[loc_v].push_back(d2Udzy_e);
+//            collect_d2Udzz[loc_v].push_back(d2Udzz_e);
             
-            collect_d2Udzx[loc_v].push_back(d2Udzx_e);
-            collect_d2Udzy[loc_v].push_back(d2Udzy_e);
-            collect_d2Udzz[loc_v].push_back(d2Udzz_e);
         }
     }
     
     
     double sumd2udxx = 0; double sumd2udxy = 0; double sumd2udxz = 0; 
-    double sumd2udyx = 0; double sumd2udyy = 0; double sumd2udyz = 0;
-    double sumd2udzx = 0; double sumd2udzy = 0; double sumd2udzz = 0;
-    
+//    double sumd2udyx = 0; double sumd2udyy = 0; double sumd2udyz = 0;
+//    double sumd2udzx = 0; double sumd2udzy = 0; double sumd2udzz = 0;
+//
     int c = 0;
     
     std::vector<double> hxx; std::vector<double> hxy; std::vector<double> hxz;
-    std::vector<double> hyx; std::vector<double> hyy; std::vector<double> hyz;
-    std::vector<double> hzx; std::vector<double> hzy; std::vector<double> hzz;
-    
+//    std::vector<double> hyx; std::vector<double> hyy; std::vector<double> hyz;
+//    std::vector<double> hzx; std::vector<double> hzy; std::vector<double> hzz;
+//
     std::map<int,std::vector<double> >::iterator it_rhos;
 
     for(it_rhos=collect_d2Udxx.begin();it_rhos!=collect_d2Udxx.end();it_rhos++)
     {
         sumd2udxx = 0; sumd2udxy = 0; sumd2udxz = 0;
-        sumd2udxy = 0; sumd2udyy = 0; sumd2udyz = 0;
-        sumd2udxz = 0; sumd2udzy = 0; sumd2udzz = 0;
+//        sumd2udxy = 0; sumd2udyy = 0; sumd2udyz = 0;
+//        sumd2udxz = 0; sumd2udzy = 0; sumd2udzz = 0;
         
         for(int q = 0;q<it_rhos->second.size();q++)
         {
@@ -2481,27 +2542,35 @@ int main(int argc, char** argv) {
             sumd2udxy = sumd2udxy + collect_d2Udxy[it_rhos->first][q];
             sumd2udxz = sumd2udxz + collect_d2Udxz[it_rhos->first][q];
         
-	    sumd2udyx = sumd2udyx + collect_d2Udyx[it_rhos->first][q];
-	    sumd2udyy = sumd2udyy + collect_d2Udyy[it_rhos->first][q];
- 	    sumd2udyz = sumd2udyz + collect_d2Udyz[it_rhos->first][q];
-
-	    sumd2udzx = sumd2udzx + collect_d2Udzx[it_rhos->first][q];
-	    sumd2udzy = sumd2udzy + collect_d2Udzy[it_rhos->first][q];
- 	    sumd2udzz = sumd2udzz + collect_d2Udzz[it_rhos->first][q];
+//	    sumd2udyx = sumd2udyx + collect_d2Udyx[it_rhos->first][q];
+//	    sumd2udyy = sumd2udyy + collect_d2Udyy[it_rhos->first][q];
+// 	    sumd2udyz = sumd2udyz + collect_d2Udyz[it_rhos->first][q];
+//
+//	    sumd2udzx = sumd2udzx + collect_d2Udzx[it_rhos->first][q];
+//	    sumd2udzy = sumd2udzy + collect_d2Udzy[it_rhos->first][q];
+// 	    sumd2udzz = sumd2udzz + collect_d2Udzz[it_rhos->first][q];
 	}
         
         hxx.push_back(sumd2udxx/it_rhos->second.size());
         hxy.push_back(sumd2udxy/it_rhos->second.size());
         hxz.push_back(sumd2udxz/it_rhos->second.size());
-
-	hyx.push_back(sumd2udyx/it_rhos->second.size());
-        hyy.push_back(sumd2udyy/it_rhos->second.size());
-        hyz.push_back(sumd2udyz/it_rhos->second.size());
-	
-	hzx.push_back(sumd2udzx/it_rhos->second.size());
-	hzy.push_back(sumd2udzy/it_rhos->second.size());
-	hzz.push_back(sumd2udzz/it_rhos->second.size());
-	
+        
+        
+        if(world_rank==0)
+        {
+            if(fabs(sumd2udxx/it_rhos->second.size())>1000 || fabs(sumd2udxy/it_rhos->second.size())>1000 || fabs(sumd2udxz/it_rhos->second.size())>1000)
+            {
+                std::cout << " summing " << sumd2udxx/it_rhos->second.size() <<" " << sumd2udxy/it_rhos->second.size() << " " << sumd2udxz/it_rhos->second.size() << std::endl;
+            }
+        }
+//	    hyx.push_back(sumd2udyx/it_rhos->second.size());
+//        hyy.push_back(sumd2udyy/it_rhos->second.size());
+//        hyz.push_back(sumd2udyz/it_rhos->second.size());
+//
+//         hzx.push_back(sumd2udzx/it_rhos->second.size());
+//         hzy.push_back(sumd2udzy/it_rhos->second.size());
+//         hzz.push_back(sumd2udzz/it_rhos->second.size());
+         
         c++;
     }
     
@@ -2509,13 +2578,15 @@ int main(int argc, char** argv) {
     ofstream myfile;
     myfile.open(filename);
     myfile << "TITLE=\"volume_part_"  + std::to_string(world_rank) +  ".tec\"" << std::endl;
-    myfile <<"VARIABLES = \"X\", \"Y\", \"Z\", \"hxx\", \"hxy\", \"hxz\", \"hyx\", \"hyy\", \"hyz\", \"hzx\", \"hzy\", \"hzz\"" << std::endl;
-    //std::cout << " verts check " << LVerts.size() << " " << hx.size() << std::endl;
+    //myfile <<"VARIABLES = \"X\", \"Y\", \"Z\", \"hxx\", \"hxy\", \"hxz\", \"hyx\", \"hyy\", \"hyz\", \"hzx\", \"hzy\", \"hzz\"" << std::endl;
+    myfile <<"VARIABLES = \"X\", \"Y\", \"Z\", \"hxx\", \"hxy\", \"hxz\"" << std::endl;
+    std::cout << " verts check " << LVerts.size() << " " << hxx.size() << std::endl;
     int nvert = LVerts.size();
     myfile <<"ZONE N = " << nvert << ", E = " << ien_copy->getNrow() << ", DATAPACKING = POINT, ZONETYPE = FEBRICK" << std::endl;
     for(int i=0;i<nvert;i++)
     {
-       myfile << LVerts[i].x << "   " << LVerts[i].y << "   " << LVerts[i].z << "   " << hxx[i] << " " << hxy[i] << " " << hxz[i] << " " << hyx[i] << " " << hyy[i] << " " << hyz[i] << " " << hzx[i] << " " << hzy[i] << " " << hzz[i] << std::endl;
+       //myfile << LVerts[i].x << "   " << LVerts[i].y << "   " << LVerts[i].z << "   " << hxx[i] << " " << hxy[i] << " " << hxz[i] << " " << hyx[i] << " " << hyy[i] << " " << hyz[i] << " " << hzx[i] << " " << hzy[i] << " " << hzz[i] << std::endl;
+        myfile << LVerts[i].x << "   " << LVerts[i].y << "   " << LVerts[i].z << "   " << hxx[i] << " " << hxy[i] << " " << hxz[i] << std::endl;
     }
 
     for(int i=0;i<ien_copy->getNrow();i++)
@@ -2530,7 +2601,7 @@ int main(int argc, char** argv) {
                  loc_elem2verts_loc[i][7]+1 << std::endl;
     }
     myfile.close();
-    */
+    
     MPI_Finalize();
     
     return 0;

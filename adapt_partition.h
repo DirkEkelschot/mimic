@@ -10,10 +10,10 @@
 
 class Partition {
    public:
-    Partition(ParArray<int>* ien, ParArray<int>* ief, ParallelState_Parmetis* pstate_parmetis, ParallelState* ien_parstate, ParArray<double>* xcn, ParallelState* xcn_parstate, ParArray<double>* U, MPI_Comm comm);
+    Partition(ParArray<int>* ien, ParArray<int>* ief, ParallelState_Parmetis* pstate_parmetis, ParallelState* ien_parstate, ParArray<double>* xcn, ParallelState* xcn_parstate, Array<double>* U, MPI_Comm comm);
     void DeterminePartitionLayout(ParArray<int>* ien, ParallelState_Parmetis* pstate_parmetis, ParallelState* ien_parstate, MPI_Comm comm);
-    void DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief, ParArray<int>* part, ParallelState* ien_parstate, ParArray<double>* xcn, ParallelState* xcn_parstate, ParArray<double>* U, MPI_Comm comm);
-    void DetermineAdjacentElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief, ParArray<int>* part, ParallelState* ien_parstate, ParArray<double>* xcn, ParallelState* xcn_parstate, ParArray<double>* U, MPI_Comm comm);
+    void DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief, ParArray<int>* part, ParallelState* ien_parstate, ParArray<double>* xcn, ParallelState* xcn_parstate, Array<double>* U, MPI_Comm comm);
+    void DetermineAdjacentElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief, ParArray<int>* part, ParallelState* ien_parstate, ParArray<double>* xcn, ParallelState* xcn_parstate, Array<double>* U, MPI_Comm comm);
     std::vector<double> PartitionAuxilaryData(Array<double>* U, MPI_Comm comm);
     int getNlocElem();
     int getNlocVerts();
@@ -107,7 +107,7 @@ class Partition {
 };
 
 
-inline Partition::Partition(ParArray<int>* ien, ParArray<int>* ief, ParallelState_Parmetis* pstate_parmetis, ParallelState* ien_parstate, ParArray<double>* xcn, ParallelState* xcn_parstate, ParArray<double>* U, MPI_Comm comm)
+inline Partition::Partition(ParArray<int>* ien, ParArray<int>* ief, ParallelState_Parmetis* pstate_parmetis, ParallelState* ien_parstate, ParArray<double>* xcn, ParallelState* xcn_parstate, Array<double>* U, MPI_Comm comm)
 {
     ien_pstate = ien_parstate;
     xcn_pstate = xcn_parstate;
@@ -227,7 +227,7 @@ inline void Partition::DeterminePartitionLayout(ParArray<int>* ien, ParallelStat
 }
 
 
-inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief, ParArray<int>* part, ParallelState* ien_parstate, ParArray<double>* xcn, ParallelState* xcn_parstate, ParArray<double>* U, MPI_Comm comm)
+inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief, ParArray<int>* part, ParallelState* ien_parstate, ParArray<double>* xcn, ParallelState* xcn_parstate, Array<double>* U, MPI_Comm comm)
 {
     int floc_tmp=0;
     int vloc_tmp=0;
@@ -924,7 +924,7 @@ inline void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int
     floc = cnf;
 }
 
-inline void Partition::DetermineAdjacentElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief, ParArray<int>* part, ParallelState* ien_parstate, ParArray<double>* xcn, ParallelState* xcn_parstate, ParArray<double>* U, MPI_Comm comm)
+inline void Partition::DetermineAdjacentElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief, ParArray<int>* part, ParallelState* ien_parstate, ParArray<double>* xcn, ParallelState* xcn_parstate, Array<double>* U, MPI_Comm comm)
 {
     int floc_tmp = 0;
     int vloc_tmp = 0;
@@ -1606,13 +1606,13 @@ inline std::vector<double> Partition::PartitionAuxilaryData(Array<double>* U, MP
         }
     }
     
-    
+    /*    
     recv_FromRanks_aux.clear();
     recv_adj_back_aux.clear();
     elid_2_auxVal.clear();
     aux_to_send_to_ranks.clear();
     aux_on_rank.clear();
-    
+    */
     
     
     return UauxElem;
