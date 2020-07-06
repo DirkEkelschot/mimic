@@ -1875,13 +1875,6 @@ Array<double>* ComputedUdXi(Partition* P, std::vector<double> U, int Nel, MPI_Co
         grad->setVal(i,1,x->getVal(1,0));
         grad->setVal(i,2,x->getVal(2,0));
         
-        if(rank==0)
-        {
-            if(fabs(grad->getVal(i,0))>1000 || fabs(grad->getVal(i,1))>1000 || fabs(grad->getVal(i,2))>1000)
-            {
-                std::cout << " computing " << grad->getVal(i,0) <<" " << grad->getVal(i,1) << " " << grad->getVal(i,2) << std::endl;
-            }
-        }
         
         delete[] Pijk;
         vijkIDs.clear();
@@ -2351,7 +2344,7 @@ int main(int argc, char** argv) {
     // ===================================================================
     //std::vector<double> Uaux = P->PartitionAuxilaryData(Ui, comm);
     std::vector<double> Uelem = P->getUelem();
-    std::cout << "Are sizes equal? -> " << Uaux.size() << " " << Uelem.size() << std::endl;
+    //std::cout << "Are sizes equal? -> " << Uaux.size() << " " << Uelem.size() << std::endl;
     for(int i=0;i<Uaux.size();i++)
     {
         if(Uaux[i] - Uelem[i] > 1.0e-09)
@@ -2388,65 +2381,23 @@ int main(int argc, char** argv) {
 //
 //    }
     
-    Array<double>* dUidx = new Array<double>(Nel_part,1);
-    Array<double>* dUidy = new Array<double>(Nel_part,1);
-    Array<double>* dUidz = new Array<double>(Nel_part,1);
-    std::vector<double> dudx_vec;
-    std::cout << dUdXi->getNrow() << " " << Nel_part << " " << dUdXi->getNcol() << std::endl;
-    for(int i=0;i<Nel_part;i++)
-    {
-        dUidx->setVal(i,0,dUdXi->getVal(i,0));
-        dUidy->setVal(i,0,dUdXi->getVal(i,1));
-        dUidz->setVal(i,0,dUdXi->getVal(i,2));
-        dudx_vec.push_back(dUdXi->getVal(i,0));
-    } 
-    //delete dUdXi;
-    std::vector<double> dUdxaux = P->PartitionAuxilaryData(dUidx, comm);    
-    //delete dUidx;
-    //MPI_Barrier();
-    //std::vector<double> dUdyaux = P->PartitionAuxilaryData(dUidy, comm);
-    //delete dUidy;
-    //MPI_Barrier();
-    //std::vector<double> dUdzaux = P->PartitionAuxilaryData(dUidz, comm);
-    //delete dUidz;
-    //MPI_Barrier();
-    std::cout << dUdxaux.size() << " " << Uaux.size() << " " << P->getNlocElem() << " comre sire " << std::endl;
-    Array<double>* d2Udx2i = ComputedUdXi(P,dUdxaux,ien_copy->getNglob(),comm);
     
-    Array<double>* d2Udxx = new Array<double>(Nel_part,1);
-    Array<double>* d2Udxy = new Array<double>(Nel_part,1);
-    Array<double>* d2Udxz = new Array<double>(Nel_part,1);
-    
-    for(int i=0;i<Nel_part;i++)
-    {
-        d2Udxx->setVal(i,0,d2Udx2i->getVal(i,0));
-        d2Udxy->setVal(i,0,d2Udx2i->getVal(i,1));
-        d2Udxz->setVal(i,0,d2Udx2i->getVal(i,2));
-    }
-    
-    std::vector<double> dU2dxxaux = P->PartitionAuxilaryData(d2Udxx, comm);
-    std::vector<double> dU2dxyaux = P->PartitionAuxilaryData(d2Udxy, comm);
-    std::vector<double> dU2dxzaux = P->PartitionAuxilaryData(d2Udxz, comm);
-//    //dUdxaux.clear();
-//    if(world_rank == 0)
-//    {
-//        std::cout << "computed d2Udx2i" << std::endl;
-//    }
-//    Array<double>* d2Udy2i = ComputedUdXi(P,dUdyaux,ien_copy->getNglob(),comm);
-//    if(world_rank == 0)
-//    {
-//     std::cout << "computed d2Udy2i" << std::endl;
-//    }
-//    Array<double>* d2Udz2i = ComputedUdXi(P,dUdzaux,ien_copy->getNglob(),comm);
-//
-//    if (world_rank == 0)
-//    {
-//
-//	    std::cout << "Hessian computed!!!" << std::endl;
-//    }
-    
-    
-    
+    std::map<int,std::vector<double> > collect_d2Udxix;
+    std::map<int,std::vector<double> > collect_d2Udxiy;
+    std::map<int,std::vector<double> > collect_d2Udxiz;
+    std::map<int,std::vector<double> > collect_Vi;
+    std::vector<double> dUdxiaux;
+    std::vector<double> dU2dxixaux;
+    std::vector<double> dU2dxiyaux;
+    std::vector<double> dU2dxizaux;
+    Array<double>* d2Udxix = new Array<double>(Nel_part,1);
+    Array<double>* d2Udxiy = new Array<double>(Nel_part,1);
+    Array<double>* d2Udxiz = new Array<double>(Nel_part,1);
+    std::map<int,std::vector<double> >::iterator it_rhos;
+    std::map<int,std::vector<double> >::iterator it_vi;
+    std::vector<std::vector<double> > Hess;
+
+    std::vector<Array<double>* > Hess_El;
     std::vector<Vert> LocalVs = P->getLocalVerts();
     int e = 0;
     double dudx = 0.0;
@@ -2456,137 +2407,242 @@ int main(int argc, char** argv) {
     std::vector<std::vector<int> > loc_elem2verts_loc = P->getLocalElem2LocalVert();
     std::vector<Vert> LVerts =  P->getLocalVerts();
     
-    std::map<int,std::vector<double> > collect_d2Udxx;
-    std::map<int,std::vector<double> > collect_d2Udxy;
-    std::map<int,std::vector<double> > collect_d2Udxz;
-    
-//  std::map<int,std::vector<double> > collect_d2Udyx;
-//  std::map<int,std::vector<double> > collect_d2Udyy;
-//  std::map<int,std::vector<double> > collect_d2Udyz;
-
-//  std::map<int,std::vector<double> > collect_d2Udzx;
-//  std::map<int,std::vector<double> > collect_d2Udzy;
-//  std::map<int,std::vector<double> > collect_d2Udzz;
-    
-    //std::map<int,int> gE2lE = P->getGlobalElement2LocalElement();
-
-    int loc_v = 0;
-    for(int i=0;i<nElemLoc;i++)
+    for(int i=0;i<3;i++)
     {
+        Array<double>* dUidxi = new Array<double>(Nel_part,1);
         
-        
-        double d2Udxx_e = dU2dxxaux[i];
-        double d2Udxy_e = dU2dxyaux[i];
-        double d2Udxz_e = dU2dxzaux[i];
-        
-        if(world_rank==0)
+        for(int j=0;j<Nel_part;j++)
         {
-            if(fabs(d2Udxx_e)>1000 || fabs(d2Udxy_e)>1000 || fabs(d2Udxz_e)>1000)
-            {
-                std::cout << " collecting " << d2Udxx_e <<" " << d2Udxy_e << " " << d2Udxz_e << std::endl;
-            }
+            dUidxi->setVal(j,0,dUdXi->getVal(j,i));
         }
-        //double d2Udxx_e = d2Udx2i->getVal(i,0);
-        //double d2Udxy_e = d2Udx2i->getVal(i,1);
-        //double d2Udxz_e = d2Udx2i->getVal(i,2);
-    
-//        double d2Udyx_e = d2Udy2i->getVal(i,0);
-//        double d2Udyy_e = d2Udy2i->getVal(i,1);
-//        double d2Udyz_e = d2Udy2i->getVal(i,2);
-//
-//        double d2Udzx_e = d2Udz2i->getVal(i,0);
-//        double d2Udzy_e = d2Udz2i->getVal(i,1);
-//        double d2Udzz_e = d2Udz2i->getVal(i,2);
-        
-        for(int j=0;j<8;j++)
+        dUdxiaux = P->PartitionAuxilaryData(dUidxi, comm);
+        delete dUidxi;
+        Array<double>* d2Udxixj = ComputedUdXi(P,dUdxiaux,ien_copy->getNglob(),comm);
+        dUdxiaux.clear();
+        for(int i=0;i<Nel_part;i++)
         {
-            loc_v = loc_elem2verts_loc[i][j];
-            
-            collect_d2Udxx[loc_v].push_back(d2Udxx_e);
-            collect_d2Udxy[loc_v].push_back(d2Udxy_e);
-            collect_d2Udxz[loc_v].push_back(d2Udxz_e);
-            
-//            collect_d2Udyx[loc_v].push_back(d2Udyx_e);
-//            collect_d2Udyy[loc_v].push_back(d2Udyy_e);
-//            collect_d2Udyz[loc_v].push_back(d2Udyz_e);
-//
-//            collect_d2Udzx[loc_v].push_back(d2Udzx_e);
-//            collect_d2Udzy[loc_v].push_back(d2Udzy_e);
-//            collect_d2Udzz[loc_v].push_back(d2Udzz_e);
-            
+            d2Udxix->setVal(i,0,d2Udxixj->getVal(i,0));
+            d2Udxiy->setVal(i,0,d2Udxixj->getVal(i,1));
+            d2Udxiz->setVal(i,0,d2Udxixj->getVal(i,2));
         }
+        delete d2Udxixj;
+        Hess_El.push_back(d2Udxix);
+        Hess_El.push_back(d2Udxiy);
+        Hess_El.push_back(d2Udxiz);
     }
     
     
-    double sumd2udxx = 0; double sumd2udxy = 0; double sumd2udxz = 0; 
-//    double sumd2udyx = 0; double sumd2udyy = 0; double sumd2udyz = 0;
-//    double sumd2udzx = 0; double sumd2udzy = 0; double sumd2udzz = 0;
-//
-    int c = 0;
+    Array<double>* Di = new Array<double>(Nel_part,3);
+    Array<double>* Vi = new Array<double>(Nel_part,9);
+    Array<double>* Vitmp = new Array<double>(Nel_part,1);
+    std::vector<double> Viaux;
+    std::vector<std::vector<double> > ViPlot;
     
-    std::vector<double> hxx; std::vector<double> hxy; std::vector<double> hxz;
-//    std::vector<double> hyx; std::vector<double> hyy; std::vector<double> hyz;
-//    std::vector<double> hzx; std::vector<double> hzy; std::vector<double> hzz;
-//
-    std::map<int,std::vector<double> >::iterator it_rhos;
-
-    for(it_rhos=collect_d2Udxx.begin();it_rhos!=collect_d2Udxx.end();it_rhos++)
+    double* M = new double[9];
+    for(int i=0;i<Nel_part;i++)
     {
-        sumd2udxx = 0; sumd2udxy = 0; sumd2udxz = 0;
-//        sumd2udxy = 0; sumd2udyy = 0; sumd2udyz = 0;
-//        sumd2udxz = 0; sumd2udzy = 0; sumd2udzz = 0;
+        M[0] = Hess_El[0]->getVal(i,0);
+        M[1] = Hess_El[1]->getVal(i,0);
+        M[2] = Hess_El[2]->getVal(i,0);
         
-        for(int q = 0;q<it_rhos->second.size();q++)
-        {
-            sumd2udxx = sumd2udxx + it_rhos->second[q];
-            sumd2udxy = sumd2udxy + collect_d2Udxy[it_rhos->first][q];
-            sumd2udxz = sumd2udxz + collect_d2Udxz[it_rhos->first][q];
+        M[3] = Hess_El[3]->getVal(i,0);
+        M[4] = Hess_El[4]->getVal(i,0);
+        M[5] = Hess_El[5]->getVal(i,0);
         
-//	    sumd2udyx = sumd2udyx + collect_d2Udyx[it_rhos->first][q];
-//	    sumd2udyy = sumd2udyy + collect_d2Udyy[it_rhos->first][q];
-// 	    sumd2udyz = sumd2udyz + collect_d2Udyz[it_rhos->first][q];
-//
-//	    sumd2udzx = sumd2udzx + collect_d2Udzx[it_rhos->first][q];
-//	    sumd2udzy = sumd2udzy + collect_d2Udzy[it_rhos->first][q];
-// 	    sumd2udzz = sumd2udzz + collect_d2Udzz[it_rhos->first][q];
-	}
+        M[6] = Hess_El[6]->getVal(i,0);
+        M[7] = Hess_El[7]->getVal(i,0);
+        M[8] = Hess_El[8]->getVal(i,0);
         
-        hxx.push_back(sumd2udxx/it_rhos->second.size());
-        hxy.push_back(sumd2udxy/it_rhos->second.size());
-        hxz.push_back(sumd2udxz/it_rhos->second.size());
-        
+        double * WR = new double[3];
+        double * WI = new double[3];
+        double * V = new double[3*3];
+        double * iV = new double[3*3];
+
+        EigenDecomp(3, M,  WR,  WI, V, iV );
         
         if(world_rank==0)
         {
-            if(fabs(sumd2udxx/it_rhos->second.size())>1000 || fabs(sumd2udxy/it_rhos->second.size())>1000 || fabs(sumd2udxz/it_rhos->second.size())>1000)
+            std::cout << WR[0] << " " << WR[1] << " " << WR[2] << std::endl;
+
+        }
+        
+        Di->setVal(i,0,WR[0]);
+        Di->setVal(i,1,WR[1]);
+        Di->setVal(i,2,WR[2]);
+        
+        Vi->setVal(i,0,V[0]);
+        Vi->setVal(i,1,V[1]);
+        Vi->setVal(i,2,V[2]);
+        
+        Vi->setVal(i,3,V[3]);
+        Vi->setVal(i,4,V[4]);
+        Vi->setVal(i,5,V[5]);
+        
+        Vi->setVal(i,6,V[6]);
+        Vi->setVal(i,7,V[7]);
+        Vi->setVal(i,8,V[8]);
+        delete[] V;
+	delete[] iV;
+	delete[] WI;
+	delete[] WR;    
+    }
+     
+    delete d2Udxix;
+    delete d2Udxiy;
+    delete d2Udxiz;
+    Hess_El.clear();
+    
+    int t = 0;
+    for(int i=0;i<3;i++)
+    {
+        //for(int j=0;j<3;j++)
+        //{
+            for(int k=0;k<Nel_part;k++)
             {
-                std::cout << " summing " << sumd2udxx/it_rhos->second.size() <<" " << sumd2udxy/it_rhos->second.size() << " " << sumd2udxz/it_rhos->second.size() << std::endl;
+                Vitmp->setVal(k,0,Di->getVal(k,t));
+            }
+
+            Viaux = P->PartitionAuxilaryData(Vitmp, comm);
+
+            int loc_v = 0;
+            for(int i=0;i<nElemLoc;i++)
+            {
+                double Vi = Viaux[i];
+
+                for(int j=0;j<8;j++)
+                {
+                    loc_v = loc_elem2verts_loc[i][j];
+
+                    collect_Vi[loc_v].push_back(Vi);
+                }
+            }
+        
+            Viaux.clear();
+
+            double sumVi = 0;
+            int c = 0;
+
+            std::vector<double> Vivec;
+            
+            for(it_vi=collect_Vi.begin();it_vi!=collect_Vi.end();it_vi++)
+            {
+                sumVi = 0;
+
+                for(int q = 0;q<it_vi->second.size();q++)
+                {
+                    sumVi = sumVi + it_vi->second[q];
+                }
+                Vivec.push_back(sumVi/it_vi->second.size());
+                c++;
+            }
+            
+            collect_Vi.clear();
+            ViPlot.push_back(Vivec);
+            Vivec.clear();
+            
+            t++;
+
+        //}
+
+    }
+    
+    // std::cout << ViPlot.size() << " " << ViPlot[0].size() << " " <<  LVerts.size() << std::endl;
+    /*
+    for(int i=0;i<3;i++)
+    {
+        Array<double>* dUidxi = new Array<double>(Nel_part,1);
+        
+        for(int j=0;j<Nel_part;j++)
+        {
+            dUidxi->setVal(j,0,dUdXi->getVal(j,i));
+        }
+        
+        dUdxiaux = P->PartitionAuxilaryData(dUidxi, comm);
+        delete dUidxi;
+        Array<double>* d2Udxixj = ComputedUdXi(P,dUdxiaux,ien_copy->getNglob(),comm);
+        dUdxiaux.clear();
+        for(int i=0;i<Nel_part;i++)
+        {
+            d2Udxix->setVal(i,0,d2Udxixj->getVal(i,0));
+            d2Udxiy->setVal(i,0,d2Udxixj->getVal(i,1));
+            d2Udxiz->setVal(i,0,d2Udxixj->getVal(i,2));
+        }
+        
+        dU2dxixaux = P->PartitionAuxilaryData(d2Udxix, comm);
+        dU2dxiyaux = P->PartitionAuxilaryData(d2Udxiy, comm);
+        dU2dxizaux = P->PartitionAuxilaryData(d2Udxiz, comm);
+    
+        int loc_v = 0;
+        for(int i=0;i<nElemLoc;i++)
+        {
+            double d2Udxix_e = dU2dxixaux[i];
+            double d2Udxiy_e = dU2dxiyaux[i];
+            double d2Udxiz_e = dU2dxizaux[i];
+            
+            for(int j=0;j<8;j++)
+            {
+                loc_v = loc_elem2verts_loc[i][j];
+                
+                collect_d2Udxix[loc_v].push_back(d2Udxix_e);
+                collect_d2Udxiy[loc_v].push_back(d2Udxiy_e);
+                collect_d2Udxiz[loc_v].push_back(d2Udxiz_e);
             }
         }
-//	    hyx.push_back(sumd2udyx/it_rhos->second.size());
-//        hyy.push_back(sumd2udyy/it_rhos->second.size());
-//        hyz.push_back(sumd2udyz/it_rhos->second.size());
-//
-//         hzx.push_back(sumd2udzx/it_rhos->second.size());
-//         hzy.push_back(sumd2udzy/it_rhos->second.size());
-//         hzz.push_back(sumd2udzz/it_rhos->second.size());
-         
-        c++;
+        dU2dxixaux.clear();
+        dU2dxiyaux.clear();
+        dU2dxizaux.clear();
+        
+        double sumd2udxx = 0; double sumd2udxy = 0; double sumd2udxz = 0;
+        int c = 0;
+            
+        std::vector<double> hxix;
+        std::vector<double> hxiy;
+        std::vector<double> hxiz;
+        
+        for(it_rhos=collect_d2Udxix.begin();it_rhos!=collect_d2Udxix.end();it_rhos++)
+        {
+            sumd2udxx = 0; sumd2udxy = 0; sumd2udxz = 0;
+            
+            for(int q = 0;q<it_rhos->second.size();q++)
+            {
+                sumd2udxx = sumd2udxx + it_rhos->second[q];
+                sumd2udxy = sumd2udxy + collect_d2Udxiy[it_rhos->first][q];
+                sumd2udxz = sumd2udxz + collect_d2Udxiz[it_rhos->first][q];
+            }
+            hxix.push_back(sumd2udxx/it_rhos->second.size());
+            hxiy.push_back(sumd2udxy/it_rhos->second.size());
+            hxiz.push_back(sumd2udxz/it_rhos->second.size());
+            c++;
+        }
+        
+        delete d2Udxixj;
+        collect_d2Udxix.clear();
+        collect_d2Udxiy.clear();
+        collect_d2Udxiz.clear();
+        Hess.push_back(hxix);
+        Hess.push_back(hxiy);
+        Hess.push_back(hxiz);
     }
+    
+    */
+    
     
     string filename = "hessian_rank_" + std::to_string(world_rank) + ".dat";
     ofstream myfile;
     myfile.open(filename);
     myfile << "TITLE=\"volume_part_"  + std::to_string(world_rank) +  ".tec\"" << std::endl;
     //myfile <<"VARIABLES = \"X\", \"Y\", \"Z\", \"hxx\", \"hxy\", \"hxz\", \"hyx\", \"hyy\", \"hyz\", \"hzx\", \"hzy\", \"hzz\"" << std::endl;
-    myfile <<"VARIABLES = \"X\", \"Y\", \"Z\", \"hxx\", \"hxy\", \"hxz\"" << std::endl;
-    std::cout << " verts check " << LVerts.size() << " " << hxx.size() << std::endl;
+    //myfile <<"VARIABLES = \"X\", \"Y\", \"Z\", \"hxx\", \"hxy\", \"hxz\", \"hyx\", \"hyy\", \"hyz\", \"hzx\", \"hzy\", \"hzz\"" << std::endl;
+    myfile <<"VARIABLES = \"X\", \"Y\", \"Z\", \"v00\", \"v01\", \"v02\"" << std::endl;
+    //std::cout << " verts check " << LVerts.size() << " " << ViPlot[0].size() << std::endl;
     int nvert = LVerts.size();
     myfile <<"ZONE N = " << nvert << ", E = " << ien_copy->getNrow() << ", DATAPACKING = POINT, ZONETYPE = FEBRICK" << std::endl;
     for(int i=0;i<nvert;i++)
     {
        //myfile << LVerts[i].x << "   " << LVerts[i].y << "   " << LVerts[i].z << "   " << hxx[i] << " " << hxy[i] << " " << hxz[i] << " " << hyx[i] << " " << hyy[i] << " " << hyz[i] << " " << hzx[i] << " " << hzy[i] << " " << hzz[i] << std::endl;
-        myfile << LVerts[i].x << "   " << LVerts[i].y << "   " << LVerts[i].z << "   " << hxx[i] << " " << hxy[i] << " " << hxz[i] << std::endl;
+        //myfile << LVerts[i].x << "   " << LVerts[i].y << "   " << LVerts[i].z << "   " << Hess[0][i] << " " << Hess[1][i] << " " << Hess[2][i] << "   " << Hess[3][i] << " " << Hess[4][i] << " " << Hess[5][i] << "   " << Hess[6][i] << " " << Hess[7][i] << " " << Hess[8][i] << std::endl;
+        //myfile << LVerts[i].x << "   " << LVerts[i].y << "   " << LVerts[i].z << "   " << ViPlot[0][i] << " " << ViPlot[1][i] << " " << ViPlot[2][i] << "   " << ViPlot[3][i] << " " << ViPlot[4][i] << " " << ViPlot[5][i] << "   " << ViPlot[6][i] << " " << ViPlot[7][i] << " " << ViPlot[8][i] << std::endl;
+        myfile << LVerts[i].x << "   " << LVerts[i].y << "   " << LVerts[i].z << "   " << ViPlot[0][i] << " " << ViPlot[1][i] << " " << ViPlot[2][i] << std::endl;
     }
 
     for(int i=0;i<ien_copy->getNrow();i++)
@@ -2601,7 +2657,7 @@ int main(int argc, char** argv) {
                  loc_elem2verts_loc[i][7]+1 << std::endl;
     }
     myfile.close();
-    
+     
     MPI_Finalize();
     
     return 0;
