@@ -2406,6 +2406,13 @@ struct MmgTestData{
     std::map<int,std::vector<int> > E2N;
     std::map<int,std::vector<int> > F2N;
     
+    double* vert_coor_all;
+    int* vert_ref_all;
+    int* tetra_vert_all;
+    int* tetra_ref_all;
+    int* tria_vert_all;
+    int* tria_ref_all;
+    double* met_all;
 };
 
 
@@ -2565,6 +2572,17 @@ MmgTestData* GetStructuredBlockMmgMesh(int N,MMG5_pMesh& mmgMesh, MMG5_pSol& mmg
     MMG5_ARG_ppMesh,&mmgMesh,MMG5_ARG_ppMet,&mmgSol,
     MMG5_ARG_end);
     
+    
+//    double* vert_coor_all;
+//    int vert_ref_all;
+//    int* tetra_vert_all;
+//    int* tetra_ref_all;
+//    int* tria_vert_all;
+//    int* tria_ref_all;
+//
+    MmgTdata->vert_coor_all = new double[nvertices*3];
+    MmgTdata->vert_ref_all = new int[nvertices];
+
     for(int i=0;i<N;i++)
     {
         vy = 0;
@@ -2578,6 +2596,12 @@ MmgTestData* GetStructuredBlockMmgMesh(int N,MMG5_pMesh& mmgMesh, MMG5_pSol& mmg
                 V.y = vy;
                 V.z = vz;
                 verts.push_back(V);
+                
+                MmgTdata->vert_coor_all[cnt*3+0] = V.x;
+                MmgTdata->vert_coor_all[cnt*3+1] = V.y;
+                MmgTdata->vert_coor_all[cnt*3+2] = V.z;
+                MmgTdata->vert_ref_all[cnt] = 0;
+                
                 vx = vx+dx;
                 cnt++;
             }
@@ -3207,11 +3231,13 @@ MmgTestData* GetStructuredBlockMmgMesh(int N,MMG5_pMesh& mmgMesh, MMG5_pSol& mmg
         }
     }
 
-
-    if ( MMG3D_Set_meshSize(mmgMesh,nvertices,tets.size(),0,triangles.size(),0,0) != 1 )  exit(EXIT_FAILURE);
+    //std::cout << "sizng " << triangles.size() << " " << F2N.size() << std::endl;
+    if ( MMG3D_Set_meshSize(mmgMesh,nvertices,tets.size(),0,F2N.size(),0,0) != 1 )  exit(EXIT_FAILURE);
+    MmgTdata->met_all = new double[nvertices];
     for(int i=0;i<nvertices;i++)
     {
         mmgMesh->point[i+1].c[0]  = verts[i].x;  mmgMesh->point[i+1].c[1]  = verts[i].y; mmgMesh->point[i+1].c[2]  = verts[i].z; mmgMesh->point[i+1].ref  = 0;
+        MmgTdata->met_all[i]=0.01;
 
     }
     
@@ -3222,41 +3248,61 @@ MmgTestData* GetStructuredBlockMmgMesh(int N,MMG5_pMesh& mmgMesh, MMG5_pSol& mmg
     std::cout << " size F2E = " << F2E.size() << std::endl;
     std::cout << " Number of vertices = " << nvertices << std::endl;
     
+    MmgTdata->tetra_vert_all = new int[tets.size()*4];
+    MmgTdata->tetra_ref_all = new int[tets.size()];
     
     for(int i=1;i<=tets.size();i++)
     {
+        
         mmgMesh->tetra[i].v[0] = tets[i-1][0]+1;
         mmgMesh->tetra[i].v[1] = tets[i-1][1]+1;
         mmgMesh->tetra[i].v[2] = tets[i-1][2]+1;
         mmgMesh->tetra[i].v[3] = tets[i-1][3]+1;
+        
+        MmgTdata->tetra_vert_all[(i-1)*4+0] = tets[i-1][0]+1;
+        MmgTdata->tetra_vert_all[(i-1)*4+1] = tets[i-1][1]+1;
+        MmgTdata->tetra_vert_all[(i-1)*4+2] = tets[i-1][2]+1;
+        MmgTdata->tetra_vert_all[(i-1)*4+3] = tets[i-1][3]+1;
+        MmgTdata->tetra_ref_all[(i-1)] = 0;
        // mmgMesh->tetra[i].ref  = 1;
+
+    }
+    
+    MmgTdata->tria_vert_all = new int[F2N.size()*3];
+    MmgTdata->tria_ref_all = new int[F2N.size()];
+
+    std::map<int,std::vector<int> >::iterator f2nit;
+    int q=0;
+    for(f2nit=F2N.begin();f2nit!=F2N.end();f2nit++)
+    {
+        for(int j=0;j<3;j++)
+        {
+           mmgMesh->tria[q+1].v[j] = f2nit->second[j]+1;
+           MmgTdata->tria_vert_all[q*3+j] = f2nit->second[j]+1;
+        }
+        
+        MmgTdata->tria_ref_all[q]   = 0;
+        mmgMesh->tria[q+1].ref      = 0;
+        q++;
 
     }
 
     MMG3D_saveMesh(mmgMesh,"meshname.mesh");
     
-    MmgTdata->mmgMesh = mmgMesh;
-    MmgTdata->E2N = E2N;
-    MmgTdata->F2N = F2N;
-    MmgTdata->E2F = E2F;
-    MmgTdata->F2E = F2E;
-    MmgTdata->E2N = E2N;
+    MmgTdata->mmgMesh   = mmgMesh;
+    MmgTdata->E2N       = E2N;
+    MmgTdata->F2N       = F2N;
+    MmgTdata->E2F       = E2F;
+    MmgTdata->F2E       = F2E;
+    MmgTdata->E2N       = E2N;
     return MmgTdata;
 }
 
-
 struct TestMesh{
-    
-    MMG5_pMesh mmgMesh;
-    MMG5_pSol mmgSol;
     
     int nv;
     int ne;
     int nt;
-    
-    Array<int>* ien_glob;
-    ParArray<int>* ien_loc;
-    ParallelState* pstate;
     
     double* vert_coor_all;
     int* vert_ref_all;
@@ -3266,388 +3312,97 @@ struct TestMesh{
     int* tria_ref_all;
     double* met_all;
     
-    std::map<int,std::vector<int> > E2F;
-    std::map<int,std::vector<int> > F2E;
-    std::map<int,std::vector<int> > E2N;
-    std::map<int,std::vector<int> > F2N;
-    
 };
 
-MmgTestData* GetStructureBlockMesh(int Nx, int Ny, int Nz,MMG5_pMesh &mmgMesh, MMG5_pSol &mmgSol, MPI_Comm comm)
+TestMesh* LoadTestMesh()
 {
-    int world_size;
-    MPI_Comm_size(comm, &world_size);
-    // Get the rank of the process
-    int world_rank;
-    MPI_Comm_rank(comm, &world_rank);
+    TestMesh* tmesh = new TestMesh;
     
-    int nvertices = Nx*Ny*Nz;
-    int Nel = (Nx-1)*(Ny-1)*(Nz-1);
+    tmesh->nv = 12;
+    tmesh->ne = 12;
+    tmesh->nt = 20;
 
-    double dx = 1.0/(Nx-1);
-    double dy = 1.0/(Ny-1);
-    double dz = 1.0/(Nz-1);
-    double vx = 0.0;
-    double vy = 0.0;
-    double vz = 0.0;
-    std::vector<Vert> verts;
-    double* vert_coor_all   = new double[nvertices*3];
-    int* vert_ref_all       = new int[nvertices];
-
-    MmgTestData* tmesh = new MmgTestData;
+/** 2) Build a global mesh in MMG5 format */
+/** a) give the vertices (12 vertices with 3 coor = array of size 36) */
+    double vert_coor_all[36] = { 0.0, 0.0, 0.0,
+                                   0.5, 0.0, 0.0,
+                                   0.5, 0.0, 1.0,
+                                   0.0, 0.0, 1.0,
+                                   0.0, 1.0, 0.0,
+                                   0.5, 1.0, 0.0,
+                                   0.5, 1.0, 1.0,
+                                   0.0, 1.0, 1.0,
+                                   1.0, 0.0, 0.0,
+                                   1.0, 1.0, 0.0,
+                                   1.0, 0.0, 1.0,
+                                   1.0, 1.0, 1.0};
+   
     
-    MMG3D_Init_mesh(MMG5_ARG_start,
-    MMG5_ARG_ppMesh,&mmgMesh,MMG5_ARG_ppMet,&mmgSol,
-    MMG5_ARG_end);
-    
-    int cnt = 0;
-    for(int i=0;i<Nz;i++)
-    {
-       vy = 0;
-       for(int j=0;j<Ny;j++)
-       {
-           vx = 0;
-           for(int k=0;k<Nx;k++)
-           {
-               Vert V;
-               V.x = vx;
-               V.y = vy;
-               V.z = vz;
-               verts.push_back(V);
-               
-               vert_coor_all[cnt*3+0] = V.x;
-               vert_coor_all[cnt*3+1] = V.y;
-               vert_coor_all[cnt*3+2] = V.z;
-               vert_ref_all[cnt] = 1;
-               //std::cout << V.x << ", " << V.y << ", " << V.z << std::endl;
-               
-               vx = vx+dx;
-               cnt++;
-           }
-           vy = vy+dy;
-       }
-       vz = vz+dz;
-    }
-    
-    
-    int e   = 0;
-    std::vector<std::vector<int> > tets;
-    std::vector<std::vector<int> > hexes;
-    for(int k=0;k<(Nz-1);k++)
-    {
-        for(int j=0;j<(Ny-1);j++)
-        {
-            for(int i=0;i<(Nx-1);i++)
-            {
-                std::vector<int> H(8);
+    int  vert_ref_all[12] = {0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  };
 
-                H[0] = j*(Nx)+i+(Nx)*(Ny)*(k);
-                H[1] = j*(Nx)+i+1+(Nx)*(Ny)*(k);
-                H[2] = (Nx)*(j+1)+i+(Nx)*(Ny)*(k);
-                H[3] = (Nx)*(j+1)+i+1+(Nx)*(Ny)*(k);
+    /** b) give the tetrahedras (12 tetra with 4 vertices = array of size 48) */
+    int tetra_vert_all[48] = { 1,  4,  2,  8,
+                               8,  3,  2,  7,
+                               5,  2,  6,  8,
+                               5,  8,  1,  2,
+                               7,  2,  8,  6,
+                               2,  4,  3,  8,
+                               9,  2,  3,  7,
+                               7, 11,  9, 12,
+                               6,  9, 10,  7,
+                               6,  7,  2,  9,
+                               12, 9,  7, 10,
+                               9,  3, 11,  7  };
 
-                H[4] = (Nx)*j+i+(Nx)*(Ny)*(k+1);
-                H[5] = (Nx)*j+i+1+(Nx)*(Ny)*(k+1);
-                H[6] = (Nx)*(j+1)+i+(Nx)*(Ny)*(k+1);
-                H[7] = (Nx)*(j+1)+i+1+(Nx)*(Ny)*(k+1);
-                std::vector<int> T1(4);
-                std::vector<int> T2(4);
-                std::vector<int> T3(4);
-                std::vector<int> T4(4);
-                std::vector<int> T5(4);
-                std::vector<int> T6(4);
-                //std::cout << "Element " <<  H[0] << " " << H[1] << " "<< H[2] << " " << H[3] << " " << H[4] << " " << H[5] << " " << H[6] << " " << H[7] << std::endl;
-                //========================================================
-                //========================================================
-                T1[0] = H[0]+1;
-                T1[1] = H[4]+1;
-                T1[2] = H[1]+1;
-                T1[3] = H[6]+1;
-                //========================================================
-                //========================================================
-                T2[0] = H[1]+1;
-                T2[1] = H[7]+1;
-                T2[2] = H[5]+1;
-                T2[3] = H[6]+1;
-                //========================================================
-                //========================================================
-                T3[0] = H[1]+1;
-                T3[1] = H[2]+1;
-                T3[2] = H[3]+1;
-                T3[3] = H[6]+1;
-                //========================================================
-                //========================================================
-                T4[0] = H[0]+1;
-                T4[1] = H[2]+1;
-                T4[2] = H[1]+1;
-                T4[3] = H[6]+1;
-                //========================================================
-                //========================================================
-                T5[0] = H[3]+1;
-                T5[1] = H[7]+1;
-                T5[2] = H[1]+1;
-                T5[3] = H[6]+1;
-                //========================================================
-                //========================================================
-                T6[0] = H[5]+1;
-                T6[1] = H[4]+1;
-                T6[2] = H[1]+1;
-                T6[3] = H[6]+1;
-                //========================================================
-                //========================================================
+    int tetra_ref_all[12] = {1  ,1  ,1  ,1  ,1  ,1  ,2  ,2  ,2  ,2  ,2  ,2  };
 
-                tets.push_back(T1);
-                tets.push_back(T2);
-                tets.push_back(T3);
-                tets.push_back(T4);
-                tets.push_back(T5);
-                tets.push_back(T6);
+    /** c) give the triangles (20 tria with 3 vertices = array of size 60  */
+    int tria_vert_all[84] = { 1,  4,  8,/*  1 */
+                              1,  2,  4,/*  2 */
+                              8,  3,  7,/*  3 */
+                              5,  8,  6,/*  4 */
+                              5,  6,  2,/*  5 */
+                              5,  2,  1,/*  6 */
+                              5,  1,  8,/*  7 */
+                              7,  6,  8,/*  8 */
+                              4,  3,  8,/*  9 */
+                              2,  3,  4,/* 10 */
+                              9,  3,  2,/* 11 */
+                              11, 9, 12,/* 12 */
+                              7, 11, 12,/* 13 */
+                              6,  7, 10,/* 14 */
+                              6, 10,  9,/* 15 */
+                              6,  9,  2,/* 16 */
+                              12,10,  7,/* 17 */
+                              12, 9, 10,/* 18 */
+                              3, 11,  7,/* 19 */
+                              9, 11,  3,/* 20 */
+                              7,  6,  2,/* 21) on 2 procs, ifc 0-1 */
+                              7,  3,  2,/* 22) on 2 procs, ifc 0-1 */
+                              8,  6,  2,/* 23) on 4 procs, ifc 0-1 */
+                              8,  4,  2,/* 24) on 4 procs, ifc 0-3 */
+                              8,  7,  2,/* 25) on 4 procs, ifc 1-3 */
+                              2,  7,  9,/* 26) on 4 procs, ifc 1-3 */
+                              7,  9, 10,/* 27) on 4 procs, ifc 1-2 */
+                              7,  3,  9 /* 28) on 4 procs, ifc 2-3 */
+                              };
 
-                T1.clear();
-                T2.clear();
-                T3.clear();
-                T4.clear();
-                T5.clear();
-                T6.clear();
-
-                hexes.push_back(H);
-                H.clear();
-            }
-        }
-    }
-//
-    int* tetra_vert_all = new int[tmesh->ne*4];
-    int* tetra_ref_all = new int[tmesh->ne];
-
-    std::set<int> tri;
-    std::map<int,std::vector<int> > E2F;
-    std::map<int,std::vector<int> > F2E;
-    std::map<int,std::vector<int> > E2N;
-    std::map<int,std::vector<int> > F2N;
-    Array<int>* ien_glob = new Array<int>(Nel,4);
-    
-    //
-    int offset = pstate->getOffset(world_rank);
-    std::map<int, std::set<int> > fid2t;
-    std::map<std::set<int>,int> t2fid;
-//
-    int fid = 1;
-    for(int i=0;i<Nel;i++)
-    {
-        for(int j=0;j<4;j++)
-        {
-            ien_glob->setVal(i,j,tets[i][j]);
-            tetra_vert_all[i*4+j] = tets[i][j];
-            
-            E2N[i+1].push_back(tets[i][j]);
-        }
-        
-        tetra_ref_all[i] = 1;
-
-        tri.insert(ien_glob->getVal(i,0));
-        tri.insert(ien_glob->getVal(i,1));
-        tri.insert(ien_glob->getVal(i,2));
-
-        if(t2fid.find(tri)==t2fid.end())
-        {
-            t2fid[tri] = fid;
-            fid2t[fid] = tri;
-            fid++;
-        }
-        tri.clear();
-
-
-        tri.insert(ien_glob->getVal(i,1));
-        tri.insert(ien_glob->getVal(i,2));
-        tri.insert(ien_glob->getVal(i,3));
-        if(t2fid.find(tri)==t2fid.end())
-        {
-            t2fid[tri] = fid;
-            fid2t[fid] = tri;
-            fid++;
-        }
-        tri.clear();
-
-        tri.insert(ien_glob->getVal(i,2));
-        tri.insert(ien_glob->getVal(i,3));
-        tri.insert(ien_glob->getVal(i,0));
-        if(t2fid.find(tri)==t2fid.end())
-        {
-            t2fid[tri] = fid;
-            fid2t[fid] = tri;
-            fid++;
-        }
-        tri.clear();
-
-        tri.insert(ien_glob->getVal(i,3));
-        tri.insert(ien_glob->getVal(i,0));
-        tri.insert(ien_glob->getVal(i,1));
-        if(t2fid.find(tri)==t2fid.end())
-        {
-            t2fid[tri] = fid;
-            fid2t[fid] = tri;
-            fid++;
-        }
-        tri.clear();
-    }
-
-    std::map<int, std::set<int> >::iterator fit;
-    std::map<int,int> loc2glob_face;
-    int i=0;
-    for(fit=fid2t.begin();fit!=fid2t.end();fit++)
-    {
-        std::set<int>::iterator fis;
-        int j=0;
-//        if(world_rank == 0)
-//        {
-//            std::cout << "face = " << fit->first << " -> ";
-//
-//        }
-        for(fis=fit->second.begin();fis!=fit->second.end();fis++)
-        {
-            F2N[fit->first].push_back(*fis);
-//            if(world_rank == 0)
-//            {
-//                std::cout << *fis << " ";
-//            }
-        }
-//        if(world_rank == 0)
-//        {
-//            std::cout << std::endl;
-//        }
-        loc2glob_face[i]=fit->first;
-        i++;
-    }
-    tmesh->ne = ien_glob->getNrow();
-    tmesh->nt = F2N.size();
-    //std::cout << "number of tris = " <<  tmesh->ne << " " << tmesh->nt << " " << tmesh->nv << std::endl;
-    int* tria_vert_all = new int[F2N.size()*3];
-    int* tria_ref_all = new int[F2N.size()];
-
-//    for(int i=0;i<tmesh->nt;i++)
-//    {
-//        for(int j=0;j<3;j++)
-//        {
-//            tria_vert_all[i*3+j] = F2N[loc2glob_face[i]][j];
-//        }
-//
-//        tria_ref_all[i] = 0;
-//
-//    }
-    i=0;
-    for(fit=fid2t.begin();fit!=fid2t.end();fit++)
-    {
-        std::set<int>::iterator fis;
-        int j=0;
-        for(fis=fit->second.begin();fis!=fit->second.end();fis++)
-        {
-            tria_vert_all[i*3+j] = *fis;
-            j++;
-        }
-        i++;
-    }
-    std::map<std::set<int>,int>::iterator itts;
-
-    for(int i=0;i<ien_glob->getNrow();i++)
-    {
-        tri.insert(ien_glob->getVal(i,0));
-        tri.insert(ien_glob->getVal(i,1));
-        tri.insert(ien_glob->getVal(i,2));
-        E2F[i+1].push_back(t2fid[tri]);
-        F2E[t2fid[tri]].push_back(i+1);
-        tri.clear();
-
-        tri.insert(ien_glob->getVal(i,1));
-        tri.insert(ien_glob->getVal(i,2));
-        tri.insert(ien_glob->getVal(i,3));
-        E2F[i+1].push_back(t2fid[tri]);
-        F2E[t2fid[tri]].push_back(i+1);
-        tri.clear();
-
-
-        tri.insert(ien_glob->getVal(i,2));
-        tri.insert(ien_glob->getVal(i,3));
-        tri.insert(ien_glob->getVal(i,0));
-        E2F[i+1].push_back(t2fid[tri]);
-        F2E[t2fid[tri]].push_back(i+1);
-        tri.clear();
-
-        tri.insert(ien_glob->getVal(i,3));
-        tri.insert(ien_glob->getVal(i,0));
-        tri.insert(ien_glob->getVal(i,1));
-        E2F[i+1].push_back(t2fid[tri]);
-        F2E[t2fid[tri]].push_back(i+1);
-        tri.clear();
-    }
+    int tria_ref_all[28] = { 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+                             4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
+                             3, 3,
+                             3, 3, 3, 4, 4, 4};
 
     /** d) give solutions values and positions */
-
-    
-
-    double* met_all = new double[nvertices];
-    for(int i=0;i<tmesh->nv;i++)
-    {
-        met_all[i] = 1.0;
-    }
-
-
-    tmesh->E2F = E2F;
-    tmesh->F2E = F2E;
-    tmesh->F2N = F2N;
-    tmesh->E2N = E2N;
-    
-//     TestMesh Structure has the following members:
-//    int nv;
-//    int ne;
-//    int nt;
-//
-//    Array<int>* ien_glob;
-//    ParArray<int>* ien_loc;
-//    ParallelState* pstate;
-//
-//    double* vert_coor_all;
-//    int* vert_ref_all;
-//    int* tetra_vert_all;
-//    int* tetra_ref_all;
-//    int* tria_vert_all;
-//    int* tria_ref_all;
-//    double* met_all;
-//
-//    std::map<int,std::vector<int> > E2F;
-//    std::map<int,std::vector<int> > F2E;
-//    std::map<int,std::vector<int> > E2N;
-//    std::map<int,std::vector<int> > F2N;
-    
-    if ( MMG3D_Set_meshSize(mmgMesh,nvertices,tets.size(),0,F2N.size(),0,0) != 1 )  exit(EXIT_FAILURE);
-    for(int i=0;i<nvertices;i++)
-    {
-        mmgMesh->point[i+1].c[0]  = vert_coord_all[i*3+0];  mmgMesh->point[i+1].c[1]  = vert_coord_all[i*3+1]; mmgMesh->point[i+1].c[2]  = vert_coord_all[i*3+2]; mmgMesh->point[i+1].ref  = 0;
-
-    }
-    
-    
-    std::cout << "Test mesh stats:" << std::endl;
-    std::cout << " Number of tetrahedra = " << tets.size() << std::endl;
-    std::cout << " Number of triangles = " << triangles.size() << std::endl;
-    std::cout << " Number of triangles map = " << Tr.size() << std::endl;
-    std::cout << " size F2E = " << F2E.size() << std::endl;
-    std::cout << " Number of vertices = " << nvertices << std::endl;
-    
-    
-    for(int i=1;i<=tets.size();i++)
-    {
-        mmgMesh->tetra[i].v[0] = tets[i-1][0];
-        mmgMesh->tetra[i].v[1] = tets[i-1][1];
-        mmgMesh->tetra[i].v[2] = tets[i-1][2];
-        mmgMesh->tetra[i].v[3] = tets[i-1][3];
-       // mmgMesh->tetra[i].ref  = 1;
-
-    }
-    
-    tmesh->mmgMesh;
-    tmesh->mmgSol;
+    double met_all[12] = {0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01};
+    tmesh->vert_coor_all=vert_coor_all;
+    tmesh->vert_ref_all = vert_ref_all;
+    tmesh->tetra_vert_all = tetra_vert_all;
+    tmesh->tria_vert_all=tria_vert_all;
+    tmesh->tria_ref_all =tria_ref_all;
+    tmesh->met_all = met_all;
     
     return tmesh;
+    
 }
 
 
@@ -3688,7 +3443,7 @@ int main(int argc, char** argv) {
 //    UnitTestEigenDecomp();
 
 
-
+    
 
     /** 2) Build mesh in MMG5 format */
     /** Two solutions: just use the MMG3D_loadMesh function that will read a .mesh(b)
@@ -3701,14 +3456,6 @@ int main(int argc, char** argv) {
 
     MMG5_pMesh mmgMesh = NULL;
     MMG5_pSol mmgSol   = NULL;
-    
-//    PMMG_pParMesh parmesh;
-//    PMMG_Init_parMesh(PMMG_ARG_start,
-//    PMMG_ARG_ppParMesh, &parmesh,
-//    PMMG_ARG_pMesh, PMMG_ARG_pMet,
-//    PMMG_ARG_dim, 3,
-//    PMMG_ARG_MPIComm, MPI_COMM_WORLD,
-//    PMMG_ARG_end);
     
     //int nvertices = 12;
     //if ( MMG3D_Set_meshSize(mmgMesh,12,12,0,20,0,0) != 1 )  exit(EXIT_FAILURE);
@@ -3757,7 +3504,7 @@ int main(int argc, char** argv) {
     /** 4) If you don't use the API functions, you MUST call
         the MMG3D_Set_handGivenMesh() function. Don't call it if you use
         the API functions */
-    //MMG3D_Set_handGivenMesh(mmgMesh);
+    MMG3D_Set_handGivenMesh(mmgMesh);
 
     /** 5) (not mandatory): check if the number of given entities match with mesh size */
     if ( MMG3D_Chk_meshData(mmgMesh,mmgSol) != 1 ) exit(EXIT_FAILURE);
@@ -3817,49 +3564,11 @@ int main(int argc, char** argv) {
 ////        std::cout << std::endl;
 ////    }
     
-    std::map<int,std::vector<int> > E2F1 = mmgdata->E2F;
-    std::map<int,std::vector<int> >::iterator maps1;
-    if(world_rank == 0)
-    {
-        std::cout << "E2F1 " << E2F1.size() << std::endl;
-
-        std::cout << "before = " << std::endl;
-        for(maps1=E2F1.begin();maps1!=E2F1.end();maps1++)
-        {
-            int l = maps1->second.size();
-            
-            for(int i=0;i<l;i++)
-            {
-                std::cout << maps1->second[i] << " ";
-            }
-            
-            std::cout << std::endl;
-            
-        }
-    }
-    UpdateConnectivityMmgMesh(mmgdata,comm);
     
-    std::map<int,std::vector<int> > E2F2 = mmgdata->E2F;
-    std::map<int,std::vector<int> >::iterator maps2;
-    if(world_rank == 0)
-    {
-        std::cout << "E2F2 " << E2F2.size() << std::endl;
+    //UpdateConnectivityMmgMesh(mmgdata,comm);
 
-        std::cout << "after = " << std::endl;
-        for(maps2=E2F2.begin();maps2!=E2F2.end();maps2++)
-        {
-            int l = maps2->second.size();
-
-            for(int i=0;i<l;i++)
-            {
-                std::cout << maps2->second[i] << " ";
-            }
-
-            std::cout << std::endl;
-
-        }
-    }
     
+    std::map<int,std::vector<int> > E2N = mmgdata->E2N;
     std::map<int,std::vector<int> > E2F = mmgdata->E2F;
     std::map<int,std::vector<int> > F2N = mmgdata->F2N;
     int fadj = 0;
@@ -3867,25 +3576,37 @@ int main(int argc, char** argv) {
     std::map<int, std::set<int> > proc2nodes;
     std::map<int, int> face2proc;
     std::vector<int> partfaces;
+    std::set<int> tetra_mask_set;
+    std::set<int> tria_mask_set;
+    std::set<int> vert_mask_set;
     for(int i=0;i<pTmp->lPart->getNrow();i++)
     {
+        tetra_mask_set.insert(offset+i+1);
+        
         std::set<int> owned_faces;
         for(int n=0;n<4;n++)
         {
-           owned_faces.insert(E2F[offset+i][n]);
+            owned_faces.insert(E2F[offset+i][n]);
+            tria_mask_set.insert(E2F[offset+i][n]+1);
         }
-        //
-        int start = pTmp->xadj[i];
-        int end   = pTmp->xadj[i+1];
-        //
+        
+        for(int n=0;n<4;n++)
+        {
+            vert_mask_set.insert(E2N[offset+i][n]+1);
+        }
+        
+        int start       = pTmp->xadj[i];
+        int end         = pTmp->xadj[i+1];
+        
+        
+        
         for(int j=start;j<end;j++)
         {
             int adjEl_id = pTmp->adjcny[j];
             int p_id = pTmp->gPart->getVal(adjEl_id,0);
+            
             if(p_id!=world_rank) // find the adjacent element that is not on this partition.
             {
-                //adj_elements[p_id].push_back(adjEl_id);
-
                 for(int s=0;s<4;s++)
                 {
                     fadj = E2F[adjEl_id][s];
@@ -3899,7 +3620,6 @@ int main(int argc, char** argv) {
                         {
                             proc2nodes[p_id].insert(F2N[fadj][g]);
                         }
-                        
                     }
                 }
             }
@@ -3907,6 +3627,47 @@ int main(int argc, char** argv) {
         owned_faces.clear();
     }
     
+    std::set<int>::iterator mask;
+    int nv = vert_mask_set.size();
+    int nt = tria_mask_set.size();
+    int ne = tetra_mask_set.size();
+    int* vert_mask = new int[nv];
+    int v=0;
+    for(mask=vert_mask_set.begin();mask!=vert_mask_set.end();mask++)
+    {
+        vert_mask[v] = *mask;
+        v++;
+    }
+    int* tetra_mask = new int[ne];
+    v=0;
+    for(mask=tetra_mask_set.begin();mask!=tetra_mask_set.end();mask++)
+    {
+        tetra_mask[v] = *mask;
+        v++;
+    }
+    int* tria_mask = new int[nt];
+    v=0;
+    for(mask=tria_mask_set.begin();mask!=tria_mask_set.end();mask++)
+    {
+        tria_mask[v] = *mask;
+        v++;
+    }
+
+    int* inv_vert_mask = new int[mmgdata->mmgMesh->np];
+    int* inv_tria_mask = new int[mmgdata->mmgMesh->nt];
+
+    //std::cout << mmgdata->mmgMesh->np << " " << mmgdata->mmgMesh->ne << " " << mmgdata->mmgMesh->nt << std::endl;
+
+    double* vert_coor = new double[nv*3];
+    int* vert_ref = new int[nv];
+    double* met = new double[nv];
+    int* tetra_vert = new int[ne*4];
+    int* tetra_ref = new int[ne];
+
+    int* tria_vert = new int[nt*3];
+    int* tria_ref = new int[nt];
+
+
     int ncomm = proc2face.size();
     int* color_node = new int[ncomm];
     int* color_face = new int[ncomm];
@@ -3916,74 +3677,419 @@ int main(int argc, char** argv) {
     int t = 0;
     int u = 0;
     
-    int *ifc_tria_glob[ncomm];
-    int *ifc_tria_loc[ncomm];
+    int** ifc_tria_glob = (int **) malloc(ncomm*sizeof(int *));
+    int** ifc_tria_loc  = (int **) malloc(ncomm*sizeof(int *));
+
+    //int *ifc_tria_glob[ncomm];
+    //int *ifc_tria_loc[ncomm];
     for(its=proc2face.begin();its!=proc2face.end();its++)
     {
         color_face[t]=its->first;
         ntifc[t] = its->second.size();
-        
-        ifc_tria_glob[t] = new int[ntifc[t]];
-        ifc_tria_loc[t]  = new int[ntifc[t]];
-        
+ 
+        ifc_tria_glob[t] = (int *) malloc(ntifc[t]*sizeof(int));
+        ifc_tria_loc[t]  = (int *) malloc(ntifc[t]*sizeof(int));
+
         std::set<int>::iterator itsn;
         u = 0;
         for(itsn=its->second.begin();itsn!=its->second.end();itsn++)
         {
-            ifc_tria_glob[t][u] = *itsn;
+            ifc_tria_glob[t][u] = *itsn+1;
             u++;
         }
         t++;
     }
-    
-    int *ifc_nodes_glob[ncomm];
-    int *ifc_nodes_loc[ncomm];
+    int** ifc_nodes_glob = (int **) malloc(ncomm*sizeof(int *));
+    int** ifc_nodes_loc  = (int **) malloc(ncomm*sizeof(int *));
+//    int **ifc_nodes_glob[ncomm];
+//    int **ifc_nodes_loc[ncomm];
     t = 0;
     for(its=proc2nodes.begin();its!=proc2nodes.end();its++)
     {
         color_node[t]=its->first;
         npifc[t] = its->second.size();
-        
-        ifc_nodes_glob[t] = new int[npifc[t]];
-        ifc_nodes_loc[t] = new int[npifc[t]];
-        
+
+        ifc_nodes_glob[t] = (int *) malloc(npifc[t]*sizeof(int));
+        ifc_nodes_loc[t]  = (int *) malloc(npifc[t]*sizeof(int));
+
         std::set<int>::iterator itsn;
         u = 0;
         for(itsn=its->second.begin();itsn!=its->second.end();itsn++)
         {
-            ifc_nodes_glob[t][u] = *itsn;
+            ifc_nodes_glob[t][u] = *itsn+1;
             u++;
         }
         t++;
     }
+
+
+
+    get_local_mesh(nv, ne, nt, vert_mask, inv_vert_mask,
+                   tetra_mask,
+                   tria_mask, inv_tria_mask,
+                               vert_coor,mmgdata->vert_coor_all,
+                               vert_ref,mmgdata->vert_ref_all,
+                               tetra_vert,mmgdata->tetra_vert_all,
+                               tetra_ref,mmgdata->tetra_ref_all,
+                               tria_vert,mmgdata->tria_vert_all,
+                               tria_ref,mmgdata->tria_ref_all,
+                               met,mmgdata->met_all,ncomm,
+                               ntifc,ifc_tria_loc,ifc_tria_glob,
+                               npifc,ifc_nodes_loc,ifc_nodes_glob);
     
+    if(world_rank == 0)
+    {
+        for(int i=0;i<nv;i++)
+        {
+            std::cout << "rankie vert " << world_rank << " :: " <<  vert_coor[i*3+0] << " " << vert_coor[i*3+1] << " " << vert_coor[i*3+2] << std::endl;
+        }
+        
+        for(int i=0;i<ne;i++)
+        {
+            std::cout << "rankie tetra " << world_rank << " :: " <<  tetra_vert[i*4+0] << " " << tetra_vert[i*4+1] << " " << tetra_vert[i*4+2] << " " << tetra_vert[i*4+3] << std::endl;
+        }
+        
+        for(int i=0;i<nt;i++)
+        {
+            std::cout << "rankie tria " << world_rank << " :: " <<  tria_vert[i*3+0] << " " << tria_vert[i*3+1] << " " << tria_vert[i*3+2] << std::endl;
+        }
+        
+        for(int i=0;i<ncomm;i++)
+        {
+            int ntr=ntifc[i];
+            std::cout << "for rank " << world_rank << " global faces connects to -> " << color_face[i] << " - with faces " << std::endl;
+            for(int j=0;j<ntr;j++)
+            {
+                std::cout  << ifc_tria_glob[i][j] << " -> (";
+                for(int k=0;k<3;k++)
+                {
+                    std::cout << mmgdata->mmgMesh->tria[ifc_tria_glob[i][j]].v[k] << " ";
+                }
+                std::cout << ") " << std::endl;
+
+            }
+        }
+        for(int i=0;i<ncomm;i++)
+        {
+            int ntr=npifc[i];
+            std::cout << "for rank " << world_rank << " global verts connects to -> " << color_node[i] << " - with verts ";
+            for(int j=0;j<ntr;j++)
+            {
+                std::cout  << " " << ifc_nodes_glob[i][j] << " ";
+            }
+            std::cout << std::endl;
+        }
     
-//    if(world_rank == 0)
-//    {
-//        std::cout << "rank = " << world_rank << std::endl;
-//        for(int i=0;i<ncomm;i++)
-//        {
-//            std::cout << "faces SHARED with proc " << color_face[i] << " -> ";
-//            for(int j=0;j<ntifc[i];j++)
-//            {
-//                std::cout << ifc_tria_glob[i][j] << " ";
-//            }
-//            std::cout << std::endl;
-//        }
-//
-//        for(int i=0;i<ncomm;i++)
-//        {
-//            std::cout << "nodes SHARED with proc " << color_node[i] << " -> ";
-//
-//            for(int j=0;j<npifc[i];j++)
-//            {
-//                std::cout << ifc_nodes_glob[i][j] << " ";
-//            }
-//            std::cout << std::endl;
-//        }
+    }
+
+    /** Pass mesh and solution in MMG5 format, set interface entities in ParMMG.*/
+
+    /** 1) Manually set your mesh using the PMMG_Set* functions */
+
+    /** a) give the size of the mesh */
+    int nVertices       = nv;
+    int nTetrahedra     = ne;
+    int nPrisms         = 0;
+    int nTriangles      = nt;
+    int nQuadrilaterals = 0;
+    int nEdges          = 0;
+    //std::cout << world_rank << " stats :: " << nVertices << " " << nTetrahedra << " " << nTriangles << std::endl;
+    
+    PMMG_pParMesh parmesh;
+    PMMG_Init_parMesh(PMMG_ARG_start,
+                      PMMG_ARG_ppParMesh, &parmesh,
+                      PMMG_ARG_pMesh, PMMG_ARG_pMet,
+                      PMMG_ARG_dim, 3,
+                      PMMG_ARG_MPIComm, comm,
+                      PMMG_ARG_end);
+    
+    if ( PMMG_Set_meshSize(parmesh,nVertices,nTetrahedra,nPrisms,nTriangles,
+                              nQuadrilaterals,nEdges) != 1 ) {
+      MPI_Finalize();
+      exit(EXIT_FAILURE);
+    }
+     
+    int solType[1] = {MMG5_Tensor};
+    const int nSolsAtVertices = 1; // 1 solution per vertex
+    if ( PMMG_Set_solsAtVerticesSize(parmesh,nSolsAtVertices,nVertices,solType) != 1 ) {
+      MPI_Finalize();
+      exit(EXIT_FAILURE);
+    }
+
+    int pos;
+    for ( k=0; k<nVertices; ++k ) {
+      pos = 3*k;
+        //std::cout  << world_rank << " :: vert " << vert_coor[pos] << " " << vert_coor[pos+1] << " " << vert_coor[pos+2] << " " << vert_ref[k] << std::endl;
+      if ( PMMG_Set_vertex(parmesh,vert_coor[pos],vert_coor[pos+1],vert_coor[pos+2],
+                           vert_ref[k], k+1) != 1 ) {
+        MPI_Finalize();
+        exit(EXIT_FAILURE);
+      }
+    }
+    for ( k=0; k<nTetrahedra; ++k )
+    {
+        pos = 4*k;
+        //std::cout  << world_rank << " :: el " << tetra_vert[pos] << " " << tetra_vert[pos+1] << " " << tetra_vert[pos+2] << " " << tetra_vert[pos+3] << " " << tetra_ref[k] << std::endl;
+        if ( PMMG_Set_tetrahedron(parmesh,tetra_vert[pos],tetra_vert[pos+1],
+                                tetra_vert[pos+2],tetra_vert[pos+3],tetra_ref[k],k+1) != 1 )
+        {
+            MPI_Finalize();
+            exit(EXIT_FAILURE);
+        }
+    }
+    for ( k=0; k<nTriangles; ++k )
+    {
+        pos = 3*k;
+        //std::cout  << world_rank << " :: tri " << tria_vert[pos] << " " << tria_vert[pos+1] << " " << tria_vert[pos+2] << " " << tria_ref[k] << std::endl;
+        if ( PMMG_Set_triangle(parmesh,
+                            tria_vert[pos],tria_vert[pos+1],tria_vert[pos+2],
+                            tria_ref[k],k+1) != 1 )
+        {
+            MPI_Finalize();
+            exit(EXIT_FAILURE);
+        }
+    }
+
+//    if ( PMMG_Set_metSize(parmesh,MMG5_Vertex,nVertices,MMG5_Scalar) != 1 ) {
+//      MPI_Finalize();
+//      exit(EXIT_FAILURE);
 //    }
     
+//    if ( PMMG_Set_metSize(parmesh,MMG5_Vertex,nVertices,MMG5_Tensor) != 1 ) {
+//      MPI_Finalize();
+//      exit(EXIT_FAILURE);
+//    }
     
+//    for ( k=0; k<nVertices ; k++ ) {
+//        std::cout << met[k] << std::endl;
+//
+//    }
+
+    double* tensor_sol = new double[nVertices*6];
+    for(int i=0;i<nVertices*6;i++)
+    {
+        tensor_sol[i] = 0.0;
+    }
+    hmax = 0.2;
+    
+    for ( k=0; k<nVertices; k++ ) {
+
+        pos = 3*k;
+//      double x   = vert_coor[pos];
+//      double y   = vert_coor[pos+1];
+//      double z   = vert_coor[pos+2];
+        double x = mmgMesh->point[k].c[0];
+        double y = mmgMesh->point[k].c[1];
+        double z = mmgMesh->point[k].c[2];
+        double a = 10*fabs(0.75-sqrt(x*x+y*y));
+        double hx = min(0.002*pow(5,a),hmax);
+        double hy = min(0.05*pow(2,a),hmax);
+        double hz = hmax;
+        double rat;
+        if(x==0)
+        {
+            rat = 1.0;
+        }
+        else
+        {
+            rat = y/x;
+        }
+
+        double theta = atan(rat);
+        //std::cout << hx << " " << hy << " " << hz << " " << theta << " " << rat << std::endl;
+        double m11 = (1.0/(hx*hx))*cos(theta)*cos(theta)+(1.0/(hy*hy))*sin(theta)*sin(theta);
+        double m12 = (1.0/(hx*hx)-1.0/(hy*hy))*cos(theta)*sin(theta);
+        double m13 = 0.0;
+        double m22 = (1.0/(hx*hx))*sin(theta)*sin(theta)+(1.0/(hy*hy))*cos(theta)*cos(theta);
+        double m23 = 0.0;
+        double m33 = hz;
+        //std::cout << m11 << " " << m12 << "  " << m13 << " " << m22 << " " << m23 << "  " << m33 << std::endl;
+
+        /* Third */
+        tensor_sol[6*k]   = m11;
+        tensor_sol[6*k+1] = m12;
+        tensor_sol[6*k+2] = m13;
+        tensor_sol[6*k+3] = m22;
+        tensor_sol[6*k+4] = m23;
+        tensor_sol[6*k+5] = m33;
+        std::cout << tensor_sol[6*k] << " " << tensor_sol[6*k+1] << " " << tensor_sol[6*k+2] << " " << tensor_sol[6*k+3] << " " << tensor_sol[6*k+4] << " " << tensor_sol[6*5] << std::endl;
+//        tensor_sol[6*k]   = 1.0;
+//        tensor_sol[6*k+1] = 0.0;
+//        tensor_sol[6*k+2] = 0.0;
+//        tensor_sol[6*k+3] = 1.0;
+//        tensor_sol[6*k+4] = 0.0;
+//        tensor_sol[6*k+5] = 1.0;
+            
+//      if ( PMMG_Set_tensorMet(parmesh,m11,m12,m13,m22,m23,m33,k+1) != 1 )
+//      {
+//          MPI_Finalize();
+//          exit(EXIT_FAILURE);
+//      }
+    }
+    
+    for ( k=0; k<nVertices; k++ )
+    {
+        pos = 6*(k-1);
+        
+        if ( PMMG_Set_ithSol_inSolsAtVertices(parmesh,1,&(tensor_sol[pos]),k+1) != 1 ) {
+          MPI_Finalize();
+          exit(EXIT_FAILURE);
+        }
+    }
+    PMMG_saveAllSols_centralized(parmesh,"init-solphys.sol");
+    int API_mode = 0;
+    int icomm;
+    int niter = 1;
+    int ierlib;
+    int i;
+    /* Set API mode */
+    if( !PMMG_Set_iparameter( parmesh, PMMG_IPARAM_APImode, API_mode ) ) {
+      MPI_Finalize();
+      exit(EXIT_FAILURE);
+    };
+    
+    switch( API_mode ) {
+
+      case PMMG_APIDISTRIB_faces :
+        if( !world_rank ) printf("\n--- API mode: Setting face communicators\n");
+
+        /* Set the number of interfaces */
+        ier = PMMG_Set_numberOfFaceCommunicators(parmesh, ncomm);
+
+        /* Loop on each interface (proc pair) seen by the current rank) */
+        for( icomm=0; icomm<ncomm; icomm++ ) {
+
+          /* Set nb. of entities on interface and rank of the outward proc */
+          ier = PMMG_Set_ithFaceCommunicatorSize(parmesh, icomm,
+                                                 color_face[icomm],
+                                                 ntifc[icomm]);
+
+          /* Set local and global index for each entity on the interface */
+          ier = PMMG_Set_ithFaceCommunicator_faces(parmesh, icomm,
+                                                   ifc_tria_loc[icomm],
+                                                   ifc_tria_glob[icomm], 1 );
+            if(world_rank == 0)
+            {
+                for(int i=0;i<ntifc[icomm];i++)
+                {
+                    //std::cout <<  "faces loc 2 glob " << ifc_tria_loc[icomm][i] << " " << ifc_tria_glob[icomm][i] << std::endl;
+                }
+                for(int i=0;i<npifc[icomm];i++)
+                {
+                    std::cout <<  "vert loc 2 glob " << color_node[icomm] << " " << ifc_nodes_loc[icomm][i] << " " << ifc_nodes_glob[icomm][i] << std::endl;
+                }
+            }
+            
+            
+        }
+        break;
+
+      case PMMG_APIDISTRIB_nodes :
+        if( !world_rank ) printf("\n--- API mode: Setting node communicators\n");
+
+        /* Set the number of interfaces */
+        ier = PMMG_Set_numberOfNodeCommunicators(parmesh, ncomm);
+
+        /* Loop on each interface (proc pair) seen by the current rank) */
+        for( icomm=0; icomm<ncomm; icomm++ ) {
+
+          /* Set nb. of entities on interface and rank of the outward proc */
+          ier = PMMG_Set_ithNodeCommunicatorSize(parmesh, icomm,
+                                                 color_node[icomm],
+                                                 npifc[icomm]);
+
+          /* Set local and global index for each entity on the interface */
+          ier = PMMG_Set_ithNodeCommunicator_nodes(parmesh, icomm,
+                                                   ifc_nodes_loc[icomm],
+                                                   ifc_nodes_glob[icomm], 1 );
+        }
+        break;
+    }
+      /** save mesh and interfaces **/
+      char filemesh[48];
+      sprintf(filemesh,"cube_in.%d.mesh",parmesh->myrank);
+      MMG3D_saveMesh(parmesh->listgrp[0].mesh,filemesh);
+    
+      FILE *fid;
+      sprintf(filemesh,"cube_in.%d.mesh_parFaces",parmesh->myrank);
+      fid = fopen(filemesh,"w");
+      fprintf(fid,"# Number of communicators\n%d\n",ncomm);
+      for( icomm = 0; icomm < ncomm; icomm++ ) {
+        fprintf(fid,"\n# Color\n%d\n# Number of items\n%d\n# Local and global enumeration\n",color_face[icomm],ntifc[icomm]);
+        for( i = 0; i < ntifc[icomm]; i++ )
+          fprintf(fid,"%d %d\n",ifc_tria_loc[icomm][i],ifc_tria_glob[icomm][i]);
+      }
+      fclose(fid);
+    
+      sprintf(filemesh,"cube_in.%d.mesh_parNodes",parmesh->myrank);
+      fid = fopen(filemesh,"w");
+      fprintf(fid,"# Number of communicators\n");
+      fprintf(fid,"%d\n",ncomm);
+      for( icomm = 0; icomm < ncomm; icomm++ ) {
+        fprintf(fid,"\n# Color\n%d\n# Number of items\n%d\n# Local and global enumeration\n",color_node[icomm],npifc[icomm]);
+        for( i = 0; i < npifc[icomm]; i++ )
+          fprintf(fid,"%d %d\n",ifc_nodes_loc[icomm][i],ifc_nodes_glob[icomm][i]);
+      }
+      fclose(fid);
+    
+    /** ------------------------------ STEP III -------------------------- */
+    /** remesh step */
+    
+    /* Set number of iterations */
+    if( !PMMG_Set_iparameter( parmesh, PMMG_IPARAM_niter, niter ) ) {
+      MPI_Finalize();
+      exit(EXIT_FAILURE);
+    };
+
+    /* remeshing function */
+    ierlib = PMMG_parmmglib_distributed( parmesh );
+    
+    if ( ierlib == PMMG_SUCCESS )
+    {
+        std::cout << "succes!" << std::endl;
+    }
+    std::cout << "ierlib " << ierlib << std::endl;
+//
+//    if ( ierlib == PMMG_SUCCESS )
+//    {
+//
+//      /** If no remeshing is performed (zero remeshing iterations), check set
+//       * parallel interfaces against input data. */
+//      if( !niter )
+//      {
+//
+//        /* Check matching of input interface nodes with the set ones */
+//        if( !PMMG_Check_Set_NodeCommunicators(parmesh,ncomm,npifc,
+//                                              color_node,ifc_nodes_loc) ) {
+//          printf("### Wrong set node communicators!\n");
+//          MPI_Finalize();
+//          exit(EXIT_FAILURE);
+//        }
+//
+//        /* Get input triangle nodes */
+//        int** faceNodes = (int **) malloc(ncomm*sizeof(int *));
+//        for( icomm = 0; icomm < ncomm; icomm++ ) {
+//          faceNodes[icomm] = (int *) malloc(3*ntifc[icomm]*sizeof(int));
+//          for( i = 0; i < ntifc[icomm]; i++ ) {
+//            pos = ifc_tria_loc[icomm][i];
+//            faceNodes[icomm][3*i]   = tria_vert[3*(pos-1)];
+//            faceNodes[icomm][3*i+1] = tria_vert[3*(pos-1)+1];
+//            faceNodes[icomm][3*i+2] = tria_vert[3*(pos-1)+2];
+//          }
+//        }
+//
+//        /* Check matching of input interface triangles with the set ones */
+//        if( !PMMG_Check_Set_FaceCommunicators(parmesh,ncomm,ntifc,
+//                                           color_face,faceNodes) ) {
+//          printf("### Wrong set face communicators!\n");
+//          MPI_Finalize();
+//          exit(EXIT_FAILURE);
+//        }
+//      }
+//    }
+
+
+      /** ------------------------------ STEP  IV -------------------------- */
     
     MPI_Finalize();
     
