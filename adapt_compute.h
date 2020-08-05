@@ -5,7 +5,13 @@
 
 double ComputeDetJac(double *P0,double *P1,double *P2,double *P3);
 
+/* 
+This needs to be done when linking C programs to Fortran. The reason is name mangling
+AKA name decoration
+*/
+extern "C" {
 double ComputeJ(double*P, int ElType);
+}
 
 inline double ComputeEdgeLength(Vert* v0, Vert* v1);
 
@@ -20,7 +26,9 @@ double ComputeVolumeHexCell(double *P);
 */
 // J is computed using the 8-point isoparametric mapping for a hex. The 8-point rule should be sufficient since everything is linear anyways.
 
+extern "C" {
 double* ComputeJAtCenter(double*P, int np);
+}
 
 double ComputeDeterminantJ(double*P, int np);
 
