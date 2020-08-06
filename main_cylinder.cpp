@@ -7,11 +7,6 @@
 #include "adapt_partition.h"
 //#include "adapt.h"
 #include <iomanip>
-#include "mmg/mmgs/libmmgs.h"
-#include "mmg/mmg3d/libmmg3d.h"
-#include "parmmg/libparmmg.h"
-
-
 int mpi_size, mpi_rank;
 
 #define MIN(a,b) (((a)<(b))?(a):(b))
@@ -364,9 +359,9 @@ map< pair<int,int>, HalfEdge* > GetHalfEdges(int* element_verts, int* M, int nlo
 void UnitTestEigenDecomp()
 {
     double *M = new double[3*3];
-    M[0] = 0.25;M[1]=0.1;M[2]=0.14;
-    M[3] = 0.2;M[4]=0.25;M[5]=0.0;
-    M[6] = 0.4;M[7]=0.3;M[8]=0.25;
+    M[0] = 0.25;M[1]=-0.3;M[2]=0.4;
+    M[3] = -0.3;M[4]=1.25;M[5]=0.1;
+    M[6] = 0.4;M[7]=0.1;M[8]=0.25;
     
     double * WR = new double[3];
     double * WI = new double[3];
@@ -1740,6 +1735,7 @@ std::map<int, std::map<int, int> > getElement2ElementTopology(Partition* P, MPI_
     delete[] adjcny;
     return Element2ElementTopology;
 }
+*/
 
 Array<double>* SolveQR(double* A, int m, int n, Array<double>* b)
 {
@@ -1771,12 +1767,13 @@ Array<double>* SolveQR(double* A, int m, int n, Array<double>* b)
     for(int i = 0;i<ncol;i++)
     {    
         out->setVal(i,0,b_copy->getVal(i,0));
-    }  
+    } 
+   
     delete b_copy; 
     return out; 
 }
 
-Array<double>* ComputeGradient(Partition* P, int Nel, MPI_Comm comm)
+Array<double>* ComputedUdXi(Partition* P, std::vector<double> U, int Nel, MPI_Comm comm)
 {
     int size;
     MPI_Comm_size(comm, &size);
@@ -1784,29 +1781,23 @@ Array<double>* ComputeGradient(Partition* P, int Nel, MPI_Comm comm)
     int rank;
     MPI_Comm_rank(comm, &rank);
     
-    Array<double>* grad = new Array<double>(Nel,3);
-    
-    std::map<int,std::vector<int> > gE2lV       = P->getGlobElem2LocVerts();
-
-    std::vector<Vert> locVerts                  = P->getLocalVerts();
+    std::map<int,std::vector<int> > gE2lV = P->getGlobElem2LocVerts();
+    std::vector<Vert> locVerts            = P->getLocalVerts();
+    std::map<int,int> gE2lE               = P->getGlobalElement2LocalElement();
     int loc_vid = 0;
     int np = 8;
     std::map<int, int>::iterator itmap;
     int e = 0;
-    std::map<int,std::map<int,int> >::iterator itadj;
-
-    double u_ip1jk = 0.0;
-    double u_im1jk = 0.0;
-    double u_ijp1k = 0.0;
-    double u_ijm1k = 0.0;
-    double u_ijkp1 = 0.0;
-    double u_ijkm1 = 0.0;
-    int offset = P->getPart()->getOffset(rank);
-    int* xadj = P->getXadj();
+    int offset  = P->getPart()->getOffset(rank);
+    int* xadj   = P->getXadj();
     int* adjcny = P->getAdjcny();
-    int nloc = P->getPart()->getNrow();
-
-    
+    int nloc    = P->getPart()->getNrow();
+    int lid;
+    Array<double>* grad = new Array<double>(nloc,3);
+    std::vector<std::vector<double> > store_coords;
+    std::vector<double> upo_stored;
+    std::vector<double> upijk_stored;
+    std::vector<double> fac_stored;
     for(int i = 0;i<nloc;i++)
     {
         int start = xadj[i];
@@ -1819,17 +1810,15 @@ Array<double>* ComputeGradient(Partition* P, int Nel, MPI_Comm comm)
         
         for(int q=0;q<nadj;q++)
         {
-            
             for(int j=0;j<3;j++)
             {
                 Vrt_T->setVal(j,q,0.0);
                 Vrt->setVal(q,j,0.0);
             }
         }
-        
-        double u_ijk = P->getU0atGlobalElem(i+offset);
+        lid = gE2lE[i+offset];
+        double u_ijk = U[lid];
         std::vector<int> vijkIDs = gE2lV[i+offset];
-        
         double* Pijk = new double[np*3];
         for(int k=0;k<vijkIDs.size();k++)
         {
@@ -1839,17 +1828,16 @@ Array<double>* ComputeGradient(Partition* P, int Nel, MPI_Comm comm)
             Pijk[k*3+2] = locVerts[loc_vid].z;
         }
         
-
         Vert* Vijk = ComputeCenterCoord(Pijk,8);
-        
-        
-        
+        //double Volijk = ComputeVolumeHexCell(Pijk);           
         int tel   = 0;
+        std::vector<double> tmp;
+
         for(int j=start;j<end;j++)
         {
             int adjEl_id = adjcny[j];
-            
-            double u_po = P->getU0atGlobalElem(adjEl_id);
+            lid = gE2lE[adjEl_id];
+            double u_po = U[lid];
             double* Po = new double[np*3];
             
             for(int k=0;k<gE2lV[adjEl_id].size();k++)
@@ -1858,19 +1846,47 @@ Array<double>* ComputeGradient(Partition* P, int Nel, MPI_Comm comm)
                 Po[k*3+0] = locVerts[loc_vid].x;
                 Po[k*3+1] = locVerts[loc_vid].y;
                 Po[k*3+2] = locVerts[loc_vid].z;
+                
+                tmp.push_back(Po[k*3+0]);
+                tmp.push_back(Po[k*3+1]);
+                tmp.push_back(Po[k*3+2]);
+                
             }
             
+            store_coords.push_back(tmp);
+            tmp.clear();
+            
             Vert* Vpo = ComputeCenterCoord(Po,8);
+            //double Volpo = ComputeVolumeHexCell(Po);
+ 
+            double wi = sqrt((Vpo->x-Vijk->x)*(Vpo->x-Vijk->x)+
+                             (Vpo->y-Vijk->y)*(Vpo->y-Vijk->y)+
+                             (Vpo->z-Vijk->z)*(Vpo->z-Vijk->z));
+                       
+            double fac = (wi);
             
-            Vrt->setVal(tel,0,Vpo->x-Vijk->x);
-            Vrt->setVal(tel,1,Vpo->y-Vijk->y);
-            Vrt->setVal(tel,2,Vpo->z-Vijk->z);
+            Vrt->setVal(tel,0,(Vpo->x-Vijk->x));
+            Vrt->setVal(tel,1,(Vpo->y-Vijk->y));
+            Vrt->setVal(tel,2,(Vpo->z-Vijk->z));
             
-            b->setVal(tel,0,u_po-u_ijk);
-            
+            //b->setVal(tel,0,fac*(u_po-u_ijk));
+            upo_stored.push_back(u_po);
+            upijk_stored.push_back(u_ijk);
+            fac_stored.push_back(fac);
             delete[] Po;
             delete Vpo;
             tel++;
+        }
+        
+        
+        double min = *min_element(fac_stored.begin(), fac_stored.end());
+        double max = *max_element(fac_stored.begin(), fac_stored.end());
+        
+        std::vector<double> fac_stored_update(nadj);
+        
+        for(int s=0;s<nadj;s++)
+        {
+            fac_stored_update[s] = (1.0/fac_stored[s]);
         }
         
         double* A_cm = new double[nadj*3];
@@ -1879,20 +1895,54 @@ Array<double>* ComputeGradient(Partition* P, int Nel, MPI_Comm comm)
         {
             for(int j=0;j<3;j++)
             {
-                A_cm[j*nadj+s] = Vrt->getVal(s,j);
+                A_cm[j*nadj+s] = fac_stored_update[s]*Vrt->getVal(s,j);
             }
         }
         
-        //Array<double>* x = SolveQR(A_cm,nadj,3,b);
-        Array<double>* x = new Array<double>(3,1);
-        x->setVal(0,0,0.0);
-        x->setVal(1,0,0.0);
-        x->setVal(2,0,0.0);
+        
+        for(int s=0;s<nadj;s++)
+        {
+            b->setVal(s,0,fac_stored_update[s]*(upo_stored[s]-upijk_stored[s]));
+        }
+        Array<double>* x = SolveQR(A_cm,nadj,3,b);
+	
+	
         grad->setVal(i,0,x->getVal(0,0));
         grad->setVal(i,1,x->getVal(1,0));
         grad->setVal(i,2,x->getVal(2,0));
-        
-        
+//        if(rank == 1 && i == 48690)
+//	{
+//
+//	//	grad->setVal(i,0,0.0);
+////		grad->setVal(i,1,0.0);
+////		grad->setVal(i,2,0.0);
+//                //if(fabs(x->getVal(0,0))> 100 || fabs(x->getVal(0,0))>100 || fabs(x->getVal(0,0))>100)
+//		//{
+//        for(int s=0;s<nadj;s++)
+//        {
+//            //std::cout << "row = " << s << " -> ";
+//            for(int j=0;j<3;j++)
+//            {
+//               std::cout << "dXnew["<<s<<","<<j<<"]= " << fac_stored_update[s]*Vrt->getVal(s,j) << "]; ";
+//            }
+//            std::cout << std::endl;
+//
+//
+//        }
+//        std::cout << std::endl;
+//        for(int s=0;s<nadj;s++)
+//        {
+//            std::cout << "b["<<s<<"]="<< b->getVal(s,0) << std::endl;
+//            //std::cout << "b["<<s<<"]="<< b->getVal(s,0) << " " << upo_stored[s] << " " << upijk_stored[s] << " " << upo_stored[s]-upijk_stored[s] << " " << fac_stored[s] << " " << fac_stored_update[s] << " " << min/max  <<" -> " << min/max*fac_stored_update[s]<< std::endl;
+//        }
+//	           std::cout << rank << " :: element -> " << i << " <- " << x->getVal(0,0) << " " << x->getVal(1,0) << "  " << x->getVal(2,0) << std::endl;
+//		//}
+//	}
+        upo_stored.clear();
+        upijk_stored.clear();
+        fac_stored.clear();
+        fac_stored_update.clear();
+        store_coords.clear();
         delete[] Pijk;
         vijkIDs.clear();
         delete Vrt_T;
@@ -1903,17 +1953,125 @@ Array<double>* ComputeGradient(Partition* P, int Nel, MPI_Comm comm)
         delete Vijk;
         
     }
-   
-    delete[] xadj;
-    delete[] adjcny;
-    gE2lV.clear();
-    locVerts.clear();
+     
+      
+    
+    //delete[] xadj;
+    //delete[] adjcny;
+    //gE2lV.clear();
+    //locVerts.clear();
     
     return grad;
 }
 
 
 
+Array<double>* ComputedUdXi_v2(Partition* P, std::vector<double> U, std::vector<double> Uvert, int Nel, MPI_Comm comm)
+{
+    int size;
+    MPI_Comm_size(comm, &size);
+    // Get the rank of the process
+    int rank;
+    MPI_Comm_rank(comm, &rank);
+    
+    std::map<int,std::vector<int> > gE2lV = P->getGlobElem2LocVerts();
+    std::vector<Vert> locVerts            = P->getLocalVerts();
+    std::map<int,int> gE2lE               = P->getGlobalElement2LocalElement();
+    int loc_vid = 0;
+    int np = 8;
+    std::map<int, int>::iterator itmap;
+    int e = 0;
+    int offset  = P->getPart()->getOffset(rank);
+    int* xadj   = P->getXadj();
+    int* adjcny = P->getAdjcny();
+    int nloc    = P->getPart()->getNrow();
+    int lid;
+    Array<double>* grad = new Array<double>(nloc,3);
+    std::vector<std::vector<double> > store_coords;
+    std::vector<double> upo_stored;
+    std::vector<double> upijk_stored;
+    std::vector<double> fac_stored;
+    std::vector<double> ux;
+    std::vector<double> uy;
+    std::vector<double> uz;
+    std::vector<double> uu;
+    std::set<int> unique_verts;
+
+    for(int i = 0;i<nloc;i++)
+    {
+        int start = xadj[i];
+        int end   = xadj[i+1];
+        
+        
+//        Array<double>* Vrt_T = new Array<double>(3,nadj);
+//        Array<double>* Vrt   = new Array<double>(nadj,3);
+//        Array<double>* b     = new Array<double>(nadj,1);
+//
+//        for(int q=0;q<nadj;q++)
+//        {
+//            for(int j=0;j<3;j++)
+//            {
+//                Vrt_T->setVal(j,q,0.0);
+//                Vrt->setVal(q,j,0.0);
+//            }
+//        }
+        lid = gE2lE[i+offset];
+        double u_ijk = U[lid];
+        std::vector<int> vijkIDs = gE2lV[i+offset];
+        double* Pijk = new double[np*3];
+        for(int k=0;k<vijkIDs.size();k++)
+        {
+            loc_vid     = vijkIDs[k];
+            unique_verts.insert(loc_vid);
+            ux.push_back(locVerts[loc_vid].x);
+            uy.push_back(locVerts[loc_vid].y);
+            uz.push_back(locVerts[loc_vid].z);
+            uu.push_back(Uvert[loc_vid]);
+            
+            
+        }
+        for(int j=start;j<end;j++)
+        {
+            int adjEl_id = adjcny[j];
+            lid = gE2lE[adjEl_id];
+           
+            for(int k=0;k<gE2lV[adjEl_id].size();k++)
+            {
+                loc_vid   = gE2lV[adjEl_id][k];
+                
+                if(unique_verts.find(loc_vid)==unique_verts.end())
+                {
+                    unique_verts.insert(loc_vid);
+                    ux.push_back(locVerts[loc_vid].x);
+                    uy.push_back(locVerts[loc_vid].y);
+                    uz.push_back(locVerts[loc_vid].z);
+                    uu.push_back(Uvert[loc_vid]);
+                }
+            }
+        }
+        
+        int nadj = uu.size();
+        std::cout << nadj << std::endl;
+        unique_verts.clear();
+        uu.clear();
+        ux.clear();
+        uy.clear();
+        uz.clear();
+        
+    }
+     
+      
+    
+    //delete[] xadj;
+    //delete[] adjcny;
+    //gE2lV.clear();
+    //locVerts.clear();
+    
+    return grad;
+}
+
+
+/*
 Array<double>* ComputeHessian(Partition* P, int Nel, MPI_Comm comm)
 {
     int size;
@@ -1924,7 +2082,7 @@ Array<double>* ComputeHessian(Partition* P, int Nel, MPI_Comm comm)
     int nloc = P->getPart()->getNrow();
     Array<double>* hessian = new Array<double>(Nel,3);
     
-    std::map<int,std::vector<int> > gE2lV       = P->getGlobElem2LocVerts();
+    std::map<int,std::vector<int> > gE2lV       = P->getGlobalElement2LocalVert();
 
     std::vector<Vert> locVerts                  = P->getLocalVerts();
     int loc_vid = 0;
@@ -1936,7 +2094,7 @@ Array<double>* ComputeHessian(Partition* P, int Nel, MPI_Comm comm)
     int offset = P->getPart()->getOffset(rank);
     int* xadj = P->getXadj();
     int* adjcny = P->getAdjcny();
-  
+    
     for(int i = 0;i<nloc;i++)
     {
         
@@ -1957,7 +2115,7 @@ Array<double>* ComputeHessian(Partition* P, int Nel, MPI_Comm comm)
             }
         }
         
-        double u_ijk = P->getUauxatGlobalElem(i+offset);
+        double u_ijk = P->getU0atGlobalElem(i+offset);
         
         std::vector<int> vijkIDs = gE2lV[i+offset];
         
@@ -1979,7 +2137,7 @@ Array<double>* ComputeHessian(Partition* P, int Nel, MPI_Comm comm)
         {
             int adjEl_id = adjcny[j];
             
-            double u_po = P->getUauxatGlobalElem(adjEl_id);
+            double u_po = P->getU0atGlobalElem(adjEl_id);
             double* Po = new double[np*3];
             
             for(int k=0;k<gE2lV[adjEl_id].size();k++)
@@ -2027,6 +2185,7 @@ Array<double>* ComputeHessian(Partition* P, int Nel, MPI_Comm comm)
         delete Vrt_T;
         delete Vrt;
         delete b;
+        delete x;
     }
     
     //delete[] xadj;
@@ -2037,7 +2196,7 @@ Array<double>* ComputeHessian(Partition* P, int Nel, MPI_Comm comm)
 
 */
 
-/*
+
 void QRdecomTest()
 {
     Array<double>* Vrt = new Array<double>(4,3);
@@ -2182,112 +2341,9 @@ void QRdecomGradRecTest()
        }
 }
 
-*/
 
-struct PartTmp {
-    int* xadj;
-    int* adjcny;
-    Array<int>* lPart;
-    Array<int>* gPart;
-};
 
-PartTmp* getPartionIDS(ParArray<int>* ien, ParallelState* pstate, MPI_Comm comm, int ElType)
-{
-    MPI_Info info = MPI_INFO_NULL;
-    int world_size;
-    MPI_Comm_size(comm, &world_size);
-    // Get the rank of the process
-    int world_rank;
-    MPI_Comm_rank(comm, &world_rank);
-    int Nel = ien->getNglob();
-    
-    PartTmp* pTmp = new PartTmp;
-    pTmp->gPart = new Array<int>(Nel,1);
-    
-    ParallelState_Parmetis* pstate_parmetis = new ParallelState_Parmetis(ien,comm,ElType);
-    
-    
-    int nrow = ien->getNrow();
-    int nloc = nrow;
-    idx_t numflag_[] = {0};
-    idx_t *numflag = numflag_;
-    idx_t ncommonnodes_[] = {3};
-    idx_t *ncommonnodes = ncommonnodes_;
-    int edgecut      = 0;
-    idx_t *xadj_par      = NULL;
-    idx_t *adjncy_par    = NULL;
-    idx_t options_[] = {0, 0, 0};
-    idx_t *options   = options_;
-    idx_t wgtflag_[] = {0};
-    idx_t *wgtflag   = wgtflag_;
-    real_t ubvec_[]  = {1.05};
-    real_t *ubvec    = ubvec_;
 
-    idx_t *elmwgt = NULL;
-
-    int np           = world_size;
-    idx_t ncon_[]    = {1};
-    idx_t *ncon      = ncon_;
-    real_t *tpwgts   = new real_t[np*ncon[0]];
-
-    for(int i=0; i<np*ncon[0]; i++)
-    {
-        tpwgts[i] = 1.0/np;
-    }
-
-    idx_t nparts_[] = {np};
-    idx_t *nparts = nparts_;
-    int* part_arr = new int[nloc];
-    real_t itr_[]    = {1.05};
-    real_t *itr      = itr_;
-    idx_t *vsize = NULL;
-    idx_t *adjwgt = NULL;
-//
-    ParMETIS_V3_Mesh2Dual(pstate_parmetis->getElmdist(),
-                          pstate_parmetis->getEptr(),
-                          pstate_parmetis->getEind(),
-                          numflag,ncommonnodes,
-                          &xadj_par,&adjncy_par,&comm);
-//
-    
-//    for(int u=0;u<nloc;u++)
-//    {
-//        part_arr[u] = rank;
-//    }
-
-//
-    ParMETIS_V3_AdaptiveRepart(pstate_parmetis->getElmdist(),
-                           xadj_par, adjncy_par,
-                           elmwgt, adjwgt,
-                       vsize, wgtflag,
-                   numflag, ncon, nparts,
-                   tpwgts, ubvec, itr, options,
-                   &edgecut, part_arr, &comm);
-/*
-    ParMETIS_V3_PartKway(pstate_parmetis->getElmdist(),
-                         xadj_par,
-                         adjncy_par,
-                         elmwgt, NULL, wgtflag, numflag,
-                         ncon, nparts,
-                         tpwgts, ubvec, options,
-                         &edgecut, part_arr, &comm);
-*/
-
-    pTmp->lPart = new Array<int>(nloc,1);
-
-    pTmp->lPart->data = part_arr;
-    pTmp->xadj   = xadj_par;
-    pTmp->adjcny = adjncy_par;
-
-    MPI_Allgatherv(&pTmp->lPart->data[0],
-                   nloc, MPI_INT,
-                   &pTmp->gPart->data[0],
-                   pstate->getNlocs(),
-                   pstate->getOffsets(),
-                   MPI_INT,comm);
-    
-    return pTmp;
-}
 
 
 void GradRecTest()
@@ -2350,1311 +2406,288 @@ void GradRecTest()
 }
 
 
-
-
-/* Function to get a local mesh from a global one, */
-void get_local_mesh(int np, int ne, int nt, int *pmask, int *inv_pmask,
-                    int *emask, int *tmask, int *inv_tmask,
-                    double *pcoor, double *pcoor_all, int *pref, int *pref_all,
-                    int *evert, int *evert_all, int *eref, int *eref_all,
-                    int *tvert, int *tvert_all, int *tref, int *tref_all,
-                    double *met, double *met_all,int ncomm,
-                    int *ntifc, int **ifc_tria_loc, int **ifc_tria_glob,
-                    int *npifc, int **ifc_nodes_loc, int **ifc_nodes_glob) {
-
-  int k,d,icomm;
-
-  for( k=0; k<np; k++ ) {
-    inv_pmask[pmask[k]-1] = k+1;
-    for( d=0; d<3; d++ )
-      pcoor[3*k+d] = pcoor_all[3*(pmask[k]-1)+d];
-    pref[k] = pref_all[pmask[k]-1];
-  }
-  for( k=0; k<ne; k++ ) {
-    for( d=0; d<4; d++ )
-      evert[4*k+d] = inv_pmask[evert_all[4*(emask[k]-1)+d]-1];
-    eref[k] = eref_all[emask[k]-1];
-  }
-  for( k=0; k<nt; k++ ) {
-    inv_tmask[tmask[k]-1] = k+1;
-    for( d=0; d<3; d++ )
-      tvert[3*k+d] = inv_pmask[tvert_all[3*(tmask[k]-1)+d]-1];
-    tref[k] = tref_all[tmask[k]-1];
-  }
-  for( k=0; k<np; k++ ) {
-    met[k] = met_all[pmask[k]-1];
-  }
-  for( icomm=0; icomm<ncomm; icomm++ ) {
-    for( k=0; k<ntifc[icomm]; k++ ) {
-      ifc_tria_loc[icomm][k] = inv_tmask[ifc_tria_glob[icomm][k]-1];
-    }
-    for( k=0; k<npifc[icomm]; k++ ) {
-      ifc_nodes_loc[icomm][k] = inv_pmask[ifc_nodes_glob[icomm][k]-1];
-    }
-  }
-}
-
-
-
-struct MmgTestData{
-    
-    MMG5_pMesh mmgMesh;
-    MMG5_pSol mmgSol;
-    
-    std::map<int,std::vector<int> > E2F;
-    std::map<int,std::vector<int> > F2E;
-    std::map<int,std::vector<int> > E2N;
-    std::map<int,std::vector<int> > F2N;
-    
-};
-
-
-void UpdateConnectivityMmgMesh(MmgTestData* MmgTdata,MPI_Comm comm)
+std::vector<std::vector<double> > ComputeDistances(Partition* P, ParallelState* pstate, ParArray<int>* iee, Array<int>* ifn, int Nel, MPI_Comm comm)
 {
     int world_size;
     MPI_Comm_size(comm, &world_size);
     // Get the rank of the process
     int world_rank;
     MPI_Comm_rank(comm, &world_rank);
-    std::vector<int> T;
-    int fid = 0;
-    std::map<int,std::vector<int> > E2F;
-    std::map<int,std::vector<int> > F2E;
-    std::map<int,std::vector<int> > F2N;
-    std::map<int,std::vector<int> > E2N;
-    std::set<int> tri1;
-    std::set<int> tri2;
-    std::set<int> tri3;
-    std::set<int> tri4;
-    std::map<int,std::set<int> > Tr;
-    std::map<std::set<int>, int> TrID;
-    std::set<std::set<int> > faces;
-    int e = 0;
-    //std::cout << "Number of elements " << MmgTdata->mmgMesh->ne << std::endl;
-    for(int i=1;i<=MmgTdata->mmgMesh->ne;i++)
-    {
-        e = i-1;
-        
-        int vid0 = MmgTdata->mmgMesh->tetra[i].v[0]-1;
-        int vid1 = MmgTdata->mmgMesh->tetra[i].v[1]-1;
-        int vid2 = MmgTdata->mmgMesh->tetra[i].v[2]-1;
-        int vid3 = MmgTdata->mmgMesh->tetra[i].v[3]-1;
+    std::vector<Vert> LocalVs = P->getLocalVerts();
+    std::map<int,std::vector<int> > gE2lV = P->getGlobElem2LocVerts();
+    std::map<int,std::vector<int> > gE2gF = P->getglobElem2globFaces();
+    std::map<int,int> gV2lV = P->getGlobalVert2LocalVert();
     
-        T.push_back(vid0);
-        T.push_back(vid1);
-        T.push_back(vid2);
-        T.push_back(vid3);
-        E2N[e] =  T;
-//        if(world_rank == 0)
-//        {
-//            std::cout << "E2N[e],.size " << E2N[e].size() << << std::endl;
-//        }
-        tri1.insert(T[0]);tri1.insert(T[1]);tri1.insert(T[2]);
-        if( faces.count(tri1) != 1 )
-        {
-            F2N[fid].push_back(T[0]);
-            F2N[fid].push_back(T[1]);
-            F2N[fid].push_back(T[2]);
-            faces.insert(tri1);
-            Tr[fid]=tri1;
-            TrID[tri1]=fid;
-            E2F[e].push_back(fid);
-            F2E[fid].push_back(e);
-            fid++;
-        }
-        else
-        {
-            E2F[e].push_back(TrID[tri1]);
-            F2E[TrID[tri1]].push_back(e);
-        }
-        
-        
-        tri2.insert(T[1]);tri2.insert(T[2]);tri2.insert(T[3]);
-        if( faces.count(tri2) != 1 )
-        {
-            F2N[fid].push_back(T[1]);
-            F2N[fid].push_back(T[2]);
-            F2N[fid].push_back(T[3]);
-            faces.insert(tri2);
-            Tr[fid]=tri2;
-            TrID[tri2]=fid;
-            E2F[e].push_back(fid);
-            F2E[fid].push_back(e);
-            fid++;
-        }
-        else
-        {
-            E2F[e].push_back(TrID[tri2]);
-            F2E[TrID[tri2]].push_back(e);
-        }
-        
-        
-        tri3.insert(T[2]);tri3.insert(T[3]);tri3.insert(T[0]);
-        if( faces.count(tri3) != 1 )
-        {
-            F2N[fid].push_back(T[2]);
-            F2N[fid].push_back(T[3]);
-            F2N[fid].push_back(T[0]);
-            faces.insert(tri3);
-            Tr[fid]=tri3;
-            TrID[tri3]=fid;
-            E2F[e].push_back(fid);
-            F2E[fid].push_back(e);
-            fid++;
-        }
-        else
-        {
-            E2F[e].push_back(TrID[tri3]);
-            F2E[TrID[tri3]].push_back(e);
-        }
-        
-        
-        
-        tri4.insert(T[3]);tri4.insert(T[0]);tri4.insert(T[1]);
-        if( faces.count(tri4) != 1 )
-        {
-            F2N[fid].push_back(T[3]);
-            F2N[fid].push_back(T[0]);
-            F2N[fid].push_back(T[1]);
-            faces.insert(tri4);
-            Tr[fid]=tri4;
-            TrID[tri4]=fid;
-            E2F[e].push_back(fid);
-            F2E[fid].push_back(e);
-            fid++;
-        }
-        else
-        {
-            E2F[e].push_back(TrID[tri4]);
-            F2E[TrID[tri4]].push_back(e);
-        }
-        
-        T.clear();
-        tri1.clear();
-        tri2.clear();
-        tri3.clear();
-        tri4.clear();
-    }
+    std::vector<int> ElemPart = P->getLocElem();
     
-    MmgTdata->E2N = E2N;
-    MmgTdata->F2N = F2N;
-    MmgTdata->E2F = E2F;
-    MmgTdata->F2E = F2E;
-    MmgTdata->E2N = E2N;
-}
-
-MmgTestData* GetStructuredBlockMmgMesh(int N,MMG5_pMesh& mmgMesh, MMG5_pSol& mmgSol)
-{
-    
-    MmgTestData* MmgTdata = new MmgTestData;
-    int nvertices = N*N*N;
-    int Nel = (N-1)*(N-1)*(N-1);
-    int offsety_0 = 0;
-    int offsety_1 = N;
-    int offsetz = N*N;
-    double dx = 1.0/(N-1);
-    double dy = 1.0/(N-1);
-    double dz = 1.0/(N-1);
-    double vx = 0.0;
-    double vy = 0.0;
-    double vz = 0.0;
-    std::vector<Vert> verts;
-    int cnt = 0;
-    
-    MMG3D_Init_mesh(MMG5_ARG_start,
-    MMG5_ARG_ppMesh,&mmgMesh,MMG5_ARG_ppMet,&mmgSol,
-    MMG5_ARG_end);
-    
-    for(int i=0;i<N;i++)
-    {
-        vy = 0;
-        for(int j=0;j<N;j++)
-        {
-            vx = 0;
-            for(int k=0;k<N;k++)
-            {
-                Vert V;
-                V.x = vx;
-                V.y = vy;
-                V.z = vz;
-                verts.push_back(V);
-                vx = vx+dx;
-                cnt++;
-            }
-            vy = vy+dy;
-        }
-        vz = vz+dz;
-    }
-
-    std::vector<std::vector<int> > hexes;
-    std::vector<std::vector<int> > tets;
-    //Array<int>* E2F = new Array<int>(Nel*6,4);
-    std::map<int,std::vector<int> > E2F;
-    std::map<int,std::vector<int> > F2E;
-    std::map<int,std::vector<int> > F2N;
-    std::map<int,std::vector<int> > E2N;
-    std::set<std::set<int> > triangles;
-    std::set<int> tri1;
-    std::set<int> tri2;
-    std::set<int> tri3;
-    std::set<int> tri4;
-    std::map<int,std::set<int> > Tr;
-    std::map<std::set<int>, int> TrID;
-    int fid = 0;
-    int e   = 0;
-    for(int i=0;i<N-1;i++)
-    {
-        for(int j=0;j<N-1;j++)
-        {
-            for(int k=0;k<N-1;k++)
-            {
-                std::vector<int> H(8);
-                H[0] = N*i+j+N*N*(k);
-                H[1] = N*i+j+1+N*N*(k);
-                H[2] = N*(i+1)+j+N*N*(k);
-                H[3] = N*(i+1)+j+1+N*N*(k);
-
-                H[4] = N*i+j+N*N*(k+1);
-                H[5] = N*i+j+1+N*N*(k+1);
-                H[6] = N*(i+1)+j+N*N*(k+1);
-                H[7] = N*(i+1)+j+1+N*N*(k+1);
-                
-//                for(int i=0;i<8;i++)
-//                {
-//                    std::cout << H[i] << " ";
-//                }
-//                std::cout << std::endl;
-                
-                std::vector<int> T1(4);
-                std::vector<int> T2(4);
-                std::vector<int> T3(4);
-                std::vector<int> T4(4);
-                std::vector<int> T5(4);
-                std::vector<int> T6(4);
-                
-                
-                //======================================================================
-                T1[0] = H[0];
-                T1[1] = H[4];
-                T1[2] = H[1];
-                T1[3] = H[6];
-                E2N[e]=T1;
-                //======================================================================
-                tri1.insert(T1[0]);tri1.insert(T1[1]);tri1.insert(T1[2]);
-                if( triangles.count(tri1) != 1 )
-                {
-                    F2N[fid].push_back(T1[0]);
-                    F2N[fid].push_back(T1[1]);
-                    F2N[fid].push_back(T1[2]);
-                    triangles.insert(tri1);
-                    Tr[fid]=tri1;
-                    TrID[tri1]=fid;
-                    E2F[e].push_back(fid);
-                    F2E[fid].push_back(e);
-                    fid++;
-                }
-                else
-                {
-                    E2F[e].push_back(TrID[tri1]);
-                    F2E[TrID[tri1]].push_back(e);
-                }
-                
-                
-                tri2.insert(T1[1]);tri2.insert(T1[2]);tri2.insert(T1[3]);
-                if( triangles.count(tri2) != 1 )
-                {
-                    F2N[fid].push_back(T1[1]);
-                    F2N[fid].push_back(T1[2]);
-                    F2N[fid].push_back(T1[3]);
-                    triangles.insert(tri2);
-                    Tr[fid]=tri2;
-                    TrID[tri2]=fid;
-                    E2F[e].push_back(fid);
-                    F2E[fid].push_back(e);
-                    fid++;
-                }
-                else
-                {
-                    E2F[e].push_back(TrID[tri2]);
-                    F2E[TrID[tri2]].push_back(e);
-                }
-                
-                
-                tri3.insert(T1[2]);tri3.insert(T1[3]);tri3.insert(T1[0]);
-                if( triangles.count(tri3) != 1 )
-                {
-                    F2N[fid].push_back(T1[2]);
-                    F2N[fid].push_back(T1[3]);
-                    F2N[fid].push_back(T1[0]);
-                    triangles.insert(tri3);
-                    Tr[fid]=tri3;
-                    TrID[tri3]=fid;
-                    E2F[e].push_back(fid);
-                    F2E[fid].push_back(e);
-                    fid++;
-                }
-                else
-                {
-                    E2F[e].push_back(TrID[tri3]);
-                    F2E[TrID[tri3]].push_back(e);
-                }
-                
-                
-                
-                tri4.insert(T1[3]);tri4.insert(T1[0]);tri4.insert(T1[1]);
-                if( triangles.count(tri4) != 1 )
-                {
-                    F2N[fid].push_back(T1[3]);
-                    F2N[fid].push_back(T1[0]);
-                    F2N[fid].push_back(T1[1]);
-                    triangles.insert(tri4);
-                    Tr[fid]=tri4;
-                    TrID[tri4]=fid;
-                    E2F[e].push_back(fid);
-                    F2E[fid].push_back(e);
-                    fid++;
-                }
-                else
-                {
-                    E2F[e].push_back(TrID[tri4]);
-                    F2E[TrID[tri4]].push_back(e);
-                }
-                
-                tri1.clear();
-                tri2.clear();
-                tri3.clear();
-                tri4.clear();
-                e++;
-                //======================================================================
-                T2[0] = H[1];
-                T2[1] = H[7];
-                T2[2] = H[5];
-                T2[3] = H[6];
-                E2N[e]=T2;
-                //======================================================================
-                tri1.insert(T2[0]);tri1.insert(T2[1]);tri1.insert(T2[2]);
-                if( triangles.count(tri1) != 1 )
-                {
-                    F2N[fid].push_back(T2[0]);
-                    F2N[fid].push_back(T2[1]);
-                    F2N[fid].push_back(T2[2]);
-                    triangles.insert(tri1);
-                    Tr[fid]=tri1;
-                    TrID[tri1]=fid;
-                    E2F[e].push_back(fid);
-                    F2E[fid].push_back(e);
-                    fid++;
-                }
-                else
-                {
-                    E2F[e].push_back(TrID[tri1]);
-                    F2E[TrID[tri1]].push_back(e);
-                }
-                
-                
-                tri2.insert(T2[1]);tri2.insert(T2[2]);tri2.insert(T2[3]);
-                if( triangles.count(tri2) != 1 )
-                {
-                    F2N[fid].push_back(T2[1]);
-                    F2N[fid].push_back(T2[2]);
-                    F2N[fid].push_back(T2[3]);
-                    triangles.insert(tri2);
-                    Tr[fid]=tri2;
-                    TrID[tri2]=fid;
-                    E2F[e].push_back(fid);
-                    F2E[fid].push_back(e);
-                    fid++;
-                }
-                else
-                {
-                    E2F[e].push_back(TrID[tri2]);
-                    F2E[TrID[tri2]].push_back(e);
-                }
-                
-                
-                tri3.insert(T2[2]);tri3.insert(T2[3]);tri3.insert(T2[0]);
-                if( triangles.count(tri3) != 1 )
-                {
-                    F2N[fid].push_back(T2[2]);
-                    F2N[fid].push_back(T2[3]);
-                    F2N[fid].push_back(T2[0]);
-                    triangles.insert(tri3);
-                    Tr[fid]=tri3;
-                    TrID[tri3]=fid;
-                    E2F[e].push_back(fid);
-                    F2E[fid].push_back(e);
-                    fid++;
-                }
-                else
-                {
-                    E2F[e].push_back(TrID[tri3]);
-                    F2E[TrID[tri3]].push_back(e);
-                }
-                
-                
-                
-                tri4.insert(T2[3]);tri4.insert(T2[0]);tri4.insert(T2[1]);
-                if( triangles.count(tri4) != 1 )
-                {
-                    F2N[fid].push_back(T2[3]);
-                    F2N[fid].push_back(T2[0]);
-                    F2N[fid].push_back(T2[1]);
-                    triangles.insert(tri4);
-                    Tr[fid]=tri4;
-                    TrID[tri4]=fid;
-                    E2F[e].push_back(fid);
-                    F2E[fid].push_back(e);
-                    fid++;
-                }
-                else
-                {
-                    E2F[e].push_back(TrID[tri4]);
-                    F2E[TrID[tri4]].push_back(e);
-                }
-                
-                tri1.clear();
-                tri2.clear();
-                tri3.clear();
-                tri4.clear();
-                e++;
-                //======================================================================
-
-
-                T3[0] = H[1];
-                T3[1] = H[2];
-                T3[2] = H[3];
-                T3[3] = H[6];
-                E2N[e]=T3;
-                //======================================================================
-                tri1.insert(T3[0]);tri1.insert(T3[1]);tri1.insert(T3[2]);
-                if( triangles.count(tri1) != 1 )
-                {
-                    F2N[fid].push_back(T3[0]);
-                    F2N[fid].push_back(T3[1]);
-                    F2N[fid].push_back(T3[2]);
-                    triangles.insert(tri1);
-                    Tr[fid]=tri1;
-                    TrID[tri1]=fid;
-                    E2F[e].push_back(fid);
-                    F2E[fid].push_back(e);
-                    fid++;
-                }
-                else
-                {
-                    E2F[e].push_back(TrID[tri1]);
-                    F2E[TrID[tri1]].push_back(e);
-                }
-                
-                
-                tri2.insert(T3[1]);tri2.insert(T3[2]);tri2.insert(T3[3]);
-                if( triangles.count(tri2) != 1 )
-                {
-                    F2N[fid].push_back(T3[1]);
-                    F2N[fid].push_back(T3[2]);
-                    F2N[fid].push_back(T3[3]);
-                    triangles.insert(tri2);
-                    Tr[fid]=tri2;
-                    TrID[tri2]=fid;
-                    E2F[e].push_back(fid);
-                    F2E[fid].push_back(e);
-                    fid++;
-                }
-                else
-                {
-                    E2F[e].push_back(TrID[tri2]);
-                    F2E[TrID[tri2]].push_back(e);
-                }
-                
-                
-                tri3.insert(T3[2]);tri3.insert(T3[3]);tri3.insert(T3[0]);
-                if( triangles.count(tri3) != 1 )
-                {
-                    F2N[fid].push_back(T3[2]);
-                    F2N[fid].push_back(T3[3]);
-                    F2N[fid].push_back(T3[0]);
-                    triangles.insert(tri3);
-                    Tr[fid]=tri3;
-                    TrID[tri3]=fid;
-                    E2F[e].push_back(fid);
-                    F2E[fid].push_back(e);
-                    fid++;
-                }
-                else
-                {
-                    E2F[e].push_back(TrID[tri3]);
-                    F2E[TrID[tri3]].push_back(e);
-                }
-                
-                
-                
-                tri4.insert(T3[3]);tri4.insert(T3[0]);tri4.insert(T3[1]);
-                if( triangles.count(tri4) != 1 )
-                {
-                    F2N[fid].push_back(T3[3]);
-                    F2N[fid].push_back(T3[0]);
-                    F2N[fid].push_back(T3[1]);
-                    triangles.insert(tri4);
-                    Tr[fid]=tri4;
-                    TrID[tri4]=fid;
-                    E2F[e].push_back(fid);
-                    F2E[fid].push_back(e);
-                    fid++;
-                }
-                else
-                {
-                    E2F[e].push_back(TrID[tri4]);
-                    F2E[TrID[tri4]].push_back(e);
-                }
-                
-                tri1.clear();
-                tri2.clear();
-                tri3.clear();
-                tri4.clear();
-                e++;
-                //======================================================================
-
-                T4[0] = H[0];
-                T4[1] = H[2];
-                T4[2] = H[1];
-                T4[3] = H[6];
-                E2N[e]=T4;
-                //======================================================================
-                tri1.insert(T4[0]);tri1.insert(T4[1]);tri1.insert(T4[2]);
-                
-                if( triangles.count(tri1) != 1 )
-                {
-                    F2N[fid].push_back(T4[0]);
-                    F2N[fid].push_back(T4[1]);
-                    F2N[fid].push_back(T4[2]);
-                    triangles.insert(tri1);
-                    Tr[fid]=tri1;
-                    TrID[tri1]=fid;
-                    E2F[e].push_back(fid);
-                    F2E[fid].push_back(e);
-                    fid++;
-                }
-                else
-                {
-                    E2F[e].push_back(TrID[tri1]);
-                    F2E[TrID[tri1]].push_back(e);
-                }
-                
-                
-                tri2.insert(T4[1]);tri2.insert(T4[2]);tri2.insert(T4[3]);
-                if( triangles.count(tri2) != 1 )
-                {
-                    F2N[fid].push_back(T4[1]);
-                    F2N[fid].push_back(T4[2]);
-                    F2N[fid].push_back(T4[3]);
-                    triangles.insert(tri2);
-                    Tr[fid]=tri2;
-                    TrID[tri2]=fid;
-                    E2F[e].push_back(fid);
-                    F2E[fid].push_back(e);
-                    fid++;
-                }
-                else
-                {
-                    E2F[e].push_back(TrID[tri2]);
-                    F2E[TrID[tri2]].push_back(e);
-                }
-                
-                
-                tri3.insert(T4[2]);tri3.insert(T4[3]);tri3.insert(T4[0]);
-                if( triangles.count(tri3) != 1 )
-                {
-                    F2N[fid].push_back(T4[4]);
-                    F2N[fid].push_back(T4[3]);
-                    F2N[fid].push_back(T4[0]);
-                    triangles.insert(tri3);
-                    Tr[fid]=tri3;
-                    TrID[tri3]=fid;
-                    E2F[e].push_back(fid);
-                    F2E[fid].push_back(e);
-                    fid++;
-                }
-                else
-                {
-                    E2F[e].push_back(TrID[tri3]);
-                    F2E[TrID[tri3]].push_back(e);
-                }
-                
-                
-                
-                tri4.insert(T4[3]);tri4.insert(T4[0]);tri4.insert(T4[1]);
-                if( triangles.count(tri4) != 1 )
-                {
-                    F2N[fid].push_back(T4[3]);
-                    F2N[fid].push_back(T4[0]);
-                    F2N[fid].push_back(T4[1]);
-                    triangles.insert(tri4);
-                    Tr[fid]=tri4;
-                    TrID[tri4]=fid;
-                    E2F[e].push_back(fid);
-                    F2E[fid].push_back(e);
-                    fid++;
-                }
-                else
-                {
-                    E2F[e].push_back(TrID[tri4]);
-                    F2E[TrID[tri4]].push_back(e);
-                }
-                
-                tri1.clear();
-                tri2.clear();
-                tri3.clear();
-                tri4.clear();
-                e++;
-                //======================================================================
-
-                T5[0] = H[3];
-                T5[1] = H[7];
-                T5[2] = H[1];
-                T5[3] = H[6];
-                E2N[e]=T5;
-                //======================================================================
-                tri1.insert(T5[0]);tri1.insert(T5[1]);tri1.insert(T5[2]);
-                if( triangles.count(tri1) != 1 )
-                {
-                    F2N[fid].push_back(T5[0]);
-                    F2N[fid].push_back(T5[1]);
-                    F2N[fid].push_back(T5[2]);
-                    triangles.insert(tri1);
-                    Tr[fid]=tri1;
-                    TrID[tri1]=fid;
-                    E2F[e].push_back(fid);
-                    F2E[fid].push_back(e);
-                    fid++;
-                }
-                else
-                {
-                    E2F[e].push_back(TrID[tri1]);
-                    F2E[TrID[tri1]].push_back(e);
-                }
-                
-                
-                tri2.insert(T5[1]);tri2.insert(T5[2]);tri2.insert(T5[3]);
-                if( triangles.count(tri2) != 1 )
-                {
-                    F2N[fid].push_back(T5[1]);
-                    F2N[fid].push_back(T5[2]);
-                    F2N[fid].push_back(T5[3]);
-                    triangles.insert(tri2);
-                    Tr[fid]=tri2;
-                    TrID[tri2]=fid;
-                    E2F[e].push_back(fid);
-                    F2E[fid].push_back(e);
-                    fid++;
-                }
-                else
-                {
-                    E2F[e].push_back(TrID[tri2]);
-                    F2E[TrID[tri2]].push_back(e);
-                }
-                
-                
-                tri3.insert(T5[2]);tri3.insert(T5[3]);tri3.insert(T5[0]);
-                if( triangles.count(tri3) != 1 )
-                {
-                    F2N[fid].push_back(T5[2]);
-                    F2N[fid].push_back(T5[3]);
-                    F2N[fid].push_back(T5[0]);
-                    triangles.insert(tri3);
-                    Tr[fid]=tri3;
-                    TrID[tri3]=fid;
-                    E2F[e].push_back(fid);
-                    F2E[fid].push_back(e);
-                    fid++;
-                }
-                else
-                {
-                    E2F[e].push_back(TrID[tri3]);
-                    F2E[TrID[tri3]].push_back(e);
-                }
-                
-                
-                
-                tri4.insert(T5[3]);tri4.insert(T5[0]);tri4.insert(T5[1]);
-                if( triangles.count(tri4) != 1 )
-                {
-                    F2N[fid].push_back(T5[3]);
-                    F2N[fid].push_back(T5[0]);
-                    F2N[fid].push_back(T5[1]);
-                    triangles.insert(tri4);
-                    Tr[fid]=tri4;
-                    TrID[tri4]=fid;
-                    E2F[e].push_back(fid);
-                    F2E[fid].push_back(e);
-                    fid++;
-                }
-                else
-                {
-                    E2F[e].push_back(TrID[tri4]);
-                    F2E[TrID[tri4]].push_back(e);
-                }
-                
-                tri1.clear();
-                tri2.clear();
-                tri3.clear();
-                tri4.clear();
-                e++;
-                //======================================================================
-
-                T6[0] = H[5];
-                T6[1] = H[4];
-                T6[2] = H[1];
-                T6[3] = H[6];
-                E2N[e]=T6;
-                //======================================================================
-                tri1.insert(T6[0]);tri1.insert(T6[1]);tri1.insert(T6[2]);
-                if( triangles.count(tri1) != 1 )
-                {
-                    F2N[fid].push_back(T6[0]);
-                    F2N[fid].push_back(T6[1]);
-                    F2N[fid].push_back(T6[2]);
-                    triangles.insert(tri1);
-                    Tr[fid]=tri1;
-                    TrID[tri1]=fid;
-                    E2F[e].push_back(fid);
-                    F2E[fid].push_back(e);
-                    fid++;
-                }
-                else
-                {
-                    E2F[e].push_back(TrID[tri1]);
-                    F2E[TrID[tri1]].push_back(e);
-                }
-                
-                
-                tri2.insert(T6[1]);tri2.insert(T6[2]);tri2.insert(T6[3]);
-                if( triangles.count(tri2) != 1 )
-                {
-                    F2N[fid].push_back(T6[1]);
-                    F2N[fid].push_back(T6[2]);
-                    F2N[fid].push_back(T6[3]);
-                    triangles.insert(tri2);
-                    Tr[fid]=tri2;
-                    TrID[tri2]=fid;
-                    E2F[e].push_back(fid);
-                    F2E[fid].push_back(e);
-                    fid++;
-                }
-                else
-                {
-                    E2F[e].push_back(TrID[tri2]);
-                    F2E[TrID[tri2]].push_back(e);
-                }
-                
-                
-                tri3.insert(T6[2]);tri3.insert(T6[3]);tri3.insert(T6[0]);
-                if( triangles.count(tri3) != 1 )
-                {
-                    F2N[fid].push_back(T6[2]);
-                    F2N[fid].push_back(T6[3]);
-                    F2N[fid].push_back(T6[0]);
-                    triangles.insert(tri3);
-                    Tr[fid]=tri3;
-                    TrID[tri3]=fid;
-                    E2F[e].push_back(fid);
-                    F2E[fid].push_back(e);
-                    fid++;
-                }
-                else
-                {
-                    E2F[e].push_back(TrID[tri3]);
-                    F2E[TrID[tri3]].push_back(e);
-                }
-                
-                
-                
-                tri4.insert(T6[3]);tri4.insert(T6[0]);tri4.insert(T6[1]);
-                if( triangles.count(tri4) != 1 )
-                {
-                    F2N[fid].push_back(T6[3]);
-                    F2N[fid].push_back(T6[0]);
-                    F2N[fid].push_back(T6[1]);
-                    triangles.insert(tri4);
-                    Tr[fid]=tri4;
-                    TrID[tri4]=fid;
-                    E2F[e].push_back(fid);
-                    F2E[fid].push_back(e);
-                    fid++;
-                }
-                else
-                {
-                    E2F[e].push_back(TrID[tri4]);
-                    F2E[TrID[tri4]].push_back(e);
-                }
-                
-                tri1.clear();
-                tri2.clear();
-                tri3.clear();
-                tri4.clear();
-                e++;
-                //======================================================================
-
-                tets.push_back(T1);
-                tets.push_back(T2);
-                tets.push_back(T3);
-                tets.push_back(T4);
-                tets.push_back(T5);
-                tets.push_back(T6);
-                
-                
-                
-                hexes.push_back(H);
-            }
-        }
-    }
-
-
-    if ( MMG3D_Set_meshSize(mmgMesh,nvertices,tets.size(),0,triangles.size(),0,0) != 1 )  exit(EXIT_FAILURE);
-    for(int i=0;i<nvertices;i++)
-    {
-        mmgMesh->point[i+1].c[0]  = verts[i].x;  mmgMesh->point[i+1].c[1]  = verts[i].y; mmgMesh->point[i+1].c[2]  = verts[i].z; mmgMesh->point[i+1].ref  = 0;
-
-    }
-    
-    std::cout << "Test mesh stats:" << std::endl;
-    std::cout << " Number of tetrahedra = " << tets.size() << std::endl;
-    std::cout << " Number of triangles = " << triangles.size() << std::endl;
-    std::cout << " Number of triangles map = " << Tr.size() << std::endl;
-    std::cout << " size F2E = " << F2E.size() << std::endl;
-    std::cout << " Number of vertices = " << nvertices << std::endl;
-    
-    
-    for(int i=1;i<=tets.size();i++)
-    {
-        mmgMesh->tetra[i].v[0] = tets[i-1][0]+1;
-        mmgMesh->tetra[i].v[1] = tets[i-1][1]+1;
-        mmgMesh->tetra[i].v[2] = tets[i-1][2]+1;
-        mmgMesh->tetra[i].v[3] = tets[i-1][3]+1;
-       // mmgMesh->tetra[i].ref  = 1;
-
-    }
-
-    MMG3D_saveMesh(mmgMesh,"meshname.mesh");
-    
-    MmgTdata->mmgMesh = mmgMesh;
-    MmgTdata->E2N = E2N;
-    MmgTdata->F2N = F2N;
-    MmgTdata->E2F = E2F;
-    MmgTdata->F2E = F2E;
-    MmgTdata->E2N = E2N;
-    return MmgTdata;
-}
-
-
-struct TestMesh{
-    
-    MMG5_pMesh mmgMesh;
-    MMG5_pSol mmgSol;
-    
-    int nv;
-    int ne;
-    int nt;
-    
-    Array<int>* ien_glob;
-    ParArray<int>* ien_loc;
-    ParallelState* pstate;
-    
-    double* vert_coor_all;
-    int* vert_ref_all;
-    int* tetra_vert_all;
-    int* tetra_ref_all;
-    int* tria_vert_all;
-    int* tria_ref_all;
-    double* met_all;
-    
-    std::map<int,std::vector<int> > E2F;
-    std::map<int,std::vector<int> > F2E;
-    std::map<int,std::vector<int> > E2N;
-    std::map<int,std::vector<int> > F2N;
-    
-};
-
-MmgTestData* GetStructureBlockMesh(int Nx, int Ny, int Nz,MMG5_pMesh &mmgMesh, MMG5_pSol &mmgSol, MPI_Comm comm)
-{
-    int world_size;
-    MPI_Comm_size(comm, &world_size);
-    // Get the rank of the process
-    int world_rank;
-    MPI_Comm_rank(comm, &world_rank);
-    
-    int nvertices = Nx*Ny*Nz;
-    int Nel = (Nx-1)*(Ny-1)*(Nz-1);
-
-    double dx = 1.0/(Nx-1);
-    double dy = 1.0/(Ny-1);
-    double dz = 1.0/(Nz-1);
-    double vx = 0.0;
-    double vy = 0.0;
-    double vz = 0.0;
-    std::vector<Vert> verts;
-    double* vert_coor_all   = new double[nvertices*3];
-    int* vert_ref_all       = new int[nvertices];
-
-    MmgTestData* tmesh = new MmgTestData;
-    
-    MMG3D_Init_mesh(MMG5_ARG_start,
-    MMG5_ARG_ppMesh,&mmgMesh,MMG5_ARG_ppMet,&mmgSol,
-    MMG5_ARG_end);
-    
-    int cnt = 0;
-    for(int i=0;i<Nz;i++)
-    {
-       vy = 0;
-       for(int j=0;j<Ny;j++)
-       {
-           vx = 0;
-           for(int k=0;k<Nx;k++)
-           {
-               Vert V;
-               V.x = vx;
-               V.y = vy;
-               V.z = vz;
-               verts.push_back(V);
-               
-               vert_coor_all[cnt*3+0] = V.x;
-               vert_coor_all[cnt*3+1] = V.y;
-               vert_coor_all[cnt*3+2] = V.z;
-               vert_ref_all[cnt] = 1;
-               //std::cout << V.x << ", " << V.y << ", " << V.z << std::endl;
-               
-               vx = vx+dx;
-               cnt++;
-           }
-           vy = vy+dy;
-       }
-       vz = vz+dz;
-    }
-    
-    
-    int e   = 0;
-    std::vector<std::vector<int> > tets;
-    std::vector<std::vector<int> > hexes;
-    for(int k=0;k<(Nz-1);k++)
-    {
-        for(int j=0;j<(Ny-1);j++)
-        {
-            for(int i=0;i<(Nx-1);i++)
-            {
-                std::vector<int> H(8);
-
-                H[0] = j*(Nx)+i+(Nx)*(Ny)*(k);
-                H[1] = j*(Nx)+i+1+(Nx)*(Ny)*(k);
-                H[2] = (Nx)*(j+1)+i+(Nx)*(Ny)*(k);
-                H[3] = (Nx)*(j+1)+i+1+(Nx)*(Ny)*(k);
-
-                H[4] = (Nx)*j+i+(Nx)*(Ny)*(k+1);
-                H[5] = (Nx)*j+i+1+(Nx)*(Ny)*(k+1);
-                H[6] = (Nx)*(j+1)+i+(Nx)*(Ny)*(k+1);
-                H[7] = (Nx)*(j+1)+i+1+(Nx)*(Ny)*(k+1);
-                std::vector<int> T1(4);
-                std::vector<int> T2(4);
-                std::vector<int> T3(4);
-                std::vector<int> T4(4);
-                std::vector<int> T5(4);
-                std::vector<int> T6(4);
-                //std::cout << "Element " <<  H[0] << " " << H[1] << " "<< H[2] << " " << H[3] << " " << H[4] << " " << H[5] << " " << H[6] << " " << H[7] << std::endl;
-                //========================================================
-                //========================================================
-                T1[0] = H[0]+1;
-                T1[1] = H[4]+1;
-                T1[2] = H[1]+1;
-                T1[3] = H[6]+1;
-                //========================================================
-                //========================================================
-                T2[0] = H[1]+1;
-                T2[1] = H[7]+1;
-                T2[2] = H[5]+1;
-                T2[3] = H[6]+1;
-                //========================================================
-                //========================================================
-                T3[0] = H[1]+1;
-                T3[1] = H[2]+1;
-                T3[2] = H[3]+1;
-                T3[3] = H[6]+1;
-                //========================================================
-                //========================================================
-                T4[0] = H[0]+1;
-                T4[1] = H[2]+1;
-                T4[2] = H[1]+1;
-                T4[3] = H[6]+1;
-                //========================================================
-                //========================================================
-                T5[0] = H[3]+1;
-                T5[1] = H[7]+1;
-                T5[2] = H[1]+1;
-                T5[3] = H[6]+1;
-                //========================================================
-                //========================================================
-                T6[0] = H[5]+1;
-                T6[1] = H[4]+1;
-                T6[2] = H[1]+1;
-                T6[3] = H[6]+1;
-                //========================================================
-                //========================================================
-
-                tets.push_back(T1);
-                tets.push_back(T2);
-                tets.push_back(T3);
-                tets.push_back(T4);
-                tets.push_back(T5);
-                tets.push_back(T6);
-
-                T1.clear();
-                T2.clear();
-                T3.clear();
-                T4.clear();
-                T5.clear();
-                T6.clear();
-
-                hexes.push_back(H);
-                H.clear();
-            }
-        }
-    }
-//
-    int* tetra_vert_all = new int[tmesh->ne*4];
-    int* tetra_ref_all = new int[tmesh->ne];
-
-    std::set<int> tri;
-    std::map<int,std::vector<int> > E2F;
-    std::map<int,std::vector<int> > F2E;
-    std::map<int,std::vector<int> > E2N;
-    std::map<int,std::vector<int> > F2N;
-    Array<int>* ien_glob = new Array<int>(Nel,4);
-    
-    //
+    std::vector<std::vector<double> > iee_dist;
+    std::vector<double> dist;
+    double* Pijk = new double[8*3];
+    double* Padj = new double[8*3];
+    double d;
+    int loc_vid,adjID,elID;
+    int cou = 0;
     int offset = pstate->getOffset(world_rank);
-    std::map<int, std::set<int> > fid2t;
-    std::map<std::set<int>,int> t2fid;
-//
-    int fid = 1;
-    for(int i=0;i<Nel;i++)
+    Vert* Vc = new Vert;
+    for(int i=0;i<iee->getNrow();i++)
     {
-        for(int j=0;j<4;j++)
+        int elID = i+offset;//ElemPart[i];
+        //std::vector<int> vijkIDs = gE2lV[elID];
+        for(int k=0;k<gE2lV[elID].size();k++)
         {
-            ien_glob->setVal(i,j,tets[i][j]);
-            tetra_vert_all[i*4+j] = tets[i][j];
-            
-            E2N[i+1].push_back(tets[i][j]);
+            loc_vid     = gE2lV[elID][k];
+            Pijk[k*3+0] = LocalVs[loc_vid].x;
+            Pijk[k*3+1] = LocalVs[loc_vid].y;
+            Pijk[k*3+2] = LocalVs[loc_vid].z;
+        }
+        Vert* Vijk = ComputeCenterCoord(Pijk,8);
+        for(int j=0;j<6;j++)
+        {
+            adjID = iee->getVal(i,j);
+
+            if(adjID<Nel)
+            {
+                //std::cout << gE2lV[adjID].size() << std::endl;
+                for(int k=0;k<gE2lV[adjID].size();k++)
+                {
+                    loc_vid     = gE2lV[adjID][k];
+                    Padj[k*3+0] = LocalVs[loc_vid].x;
+                    Padj[k*3+1] = LocalVs[loc_vid].y;
+                    Padj[k*3+2] = LocalVs[loc_vid].z;
+                }
+                Vert* Vadj = ComputeCenterCoord(Padj,8);
+
+                d = sqrt((Vadj->x-Vijk->x)*(Vadj->x-Vijk->x)+
+                         (Vadj->y-Vijk->y)*(Vadj->y-Vijk->y)+
+                         (Vadj->z-Vijk->z)*(Vadj->z-Vijk->z));
+
+                dist.push_back(d);
+            }
+            else
+            {
+                int fid = gE2gF[elID][j];
+
+                std::vector<int> faceverts;
+                //double* face_adj = new double[4*3];
+                Vc->x = 0.0;Vc->y = 0.0;Vc->z = 0.0;
+                for(int s=0;s<4;s++)
+                {
+                    int gvid = ifn->getVal(fid,s);
+                    int lvid = gV2lV[gvid];
+
+//                    face_adj[s*3+0] = LocalVs[lvid].x;
+//                    face_adj[s*3+1] = LocalVs[lvid].y;
+//                    face_adj[s*3+2] = LocalVs[lvid].z;
+
+                    Vc->x = Vc->x+LocalVs[lvid].x;
+                    Vc->y = Vc->y+LocalVs[lvid].y;
+                    Vc->z = Vc->z+LocalVs[lvid].z;
+                }
+//
+                Vc->x = Vc->x/4.0;
+                Vc->y = Vc->y/4.0;
+                Vc->z = Vc->z/4.0;
+
+                cou++;
+
+                faceverts.clear();
+
+                d = 2.0*sqrt((Vc->x-Vijk->x)*(Vc->x-Vijk->x)+
+                             (Vc->y-Vijk->y)*(Vc->y-Vijk->y)+
+                             (Vc->z-Vijk->z)*(Vc->z-Vijk->z));
+
+                dist.push_back(d);
+            }
+        }
+        iee_dist.push_back(dist);
+        dist.clear();
+    }
+    return iee_dist;
+}
+
+Array<double>* ComputedUdx(Partition* P, ParallelState* pstate, ParArray<int>* iee, Array<int>* ifn, int Nel, std::vector<double> U, Array<double>* ghost, Array<double>* bound, MPI_Comm comm)
+{
+    int world_size;
+    MPI_Comm_size(comm, &world_size);
+    // Get the rank of the process
+    int world_rank;
+    MPI_Comm_rank(comm, &world_rank);
+    std::vector<Vert> LocalVs = P->getLocalVerts();
+    std::map<int,std::vector<int> > gE2lV = P->getGlobElem2LocVerts();
+    std::map<int,std::vector<int> > gE2gF = P->getglobElem2globFaces();
+    std::map<int,int> gV2lV               = P->getGlobalVert2LocalVert();
+    std::map<int,int> gE2lE               = P->getGlobalElement2LocalElement();
+    std::vector<int> ElemPart             = P->getLocElem();
+    
+    std::vector<std::vector<double> > iee_dist;
+    std::vector<double> dist;
+    double* Pijk = new double[8*3];
+    double* Padj = new double[8*3];
+    double d;
+    int loc_vid,adjID,elID;
+    int cou = 0;
+    int offset = pstate->getOffset(world_rank);
+    Vert* Vc = new Vert;
+    int lid = 0;
+    double u_ijk, u_po;
+    int nadj = 6;
+    Array<double>* Vrt_T = new Array<double>(3,nadj);
+    Array<double>* Vrt   = new Array<double>(nadj,3);
+    Array<double>* b     = new Array<double>(nadj,1);
+    
+    Array<double>* grad = new Array<double>(iee->getNrow(),3);
+    
+    for(int i=0;i<iee->getNrow();i++)
+    {
+        for(int q=0;q<nadj;q++)
+        {
+            for(int j=0;j<3;j++)
+            {
+                Vrt_T->setVal(j,q,0.0);
+                Vrt->setVal(q,j,0.0);
+            }
         }
         
-        tetra_ref_all[i] = 1;
-
-        tri.insert(ien_glob->getVal(i,0));
-        tri.insert(ien_glob->getVal(i,1));
-        tri.insert(ien_glob->getVal(i,2));
-
-        if(t2fid.find(tri)==t2fid.end())
+        int elID = i+offset;//ElemPart[i];
+        for(int k=0;k<gE2lV[elID].size();k++)
         {
-            t2fid[tri] = fid;
-            fid2t[fid] = tri;
-            fid++;
+            loc_vid     = gE2lV[elID][k];
+            Pijk[k*3+0] = LocalVs[loc_vid].x;
+            Pijk[k*3+1] = LocalVs[loc_vid].y;
+            Pijk[k*3+2] = LocalVs[loc_vid].z;
         }
-        tri.clear();
-
-
-        tri.insert(ien_glob->getVal(i,1));
-        tri.insert(ien_glob->getVal(i,2));
-        tri.insert(ien_glob->getVal(i,3));
-        if(t2fid.find(tri)==t2fid.end())
+        Vert* Vijk = ComputeCenterCoord(Pijk,8);
+        lid = gE2lE[i+offset];
+        u_ijk = U[lid];
+        for(int j=0;j<6;j++)
         {
-            t2fid[tri] = fid;
-            fid2t[fid] = tri;
-            fid++;
-        }
-        tri.clear();
+            adjID = iee->getVal(i,j);
+            if(adjID<Nel)
+            {
+                lid = gE2lE[adjID];
+                u_po = U[lid];
 
-        tri.insert(ien_glob->getVal(i,2));
-        tri.insert(ien_glob->getVal(i,3));
-        tri.insert(ien_glob->getVal(i,0));
-        if(t2fid.find(tri)==t2fid.end())
+                for(int k=0;k<gE2lV[adjID].size();k++)
+                {
+                    loc_vid     = gE2lV[adjID][k];
+                    Padj[k*3+0] = LocalVs[loc_vid].x;
+                    Padj[k*3+1] = LocalVs[loc_vid].y;
+                    Padj[k*3+2] = LocalVs[loc_vid].z;
+                }
+                Vert* Vadj = ComputeCenterCoord(Padj,8);
+
+                d = sqrt((Vadj->x-Vijk->x)*(Vadj->x-Vijk->x)+
+                         (Vadj->y-Vijk->y)*(Vadj->y-Vijk->y)+
+                         (Vadj->z-Vijk->z)*(Vadj->z-Vijk->z));
+                
+                Vrt->setVal(j,0,(Vadj->x-Vijk->x));
+                Vrt->setVal(j,1,(Vadj->y-Vijk->y));
+                Vrt->setVal(j,2,(Vadj->z-Vijk->z));
+                
+                b->setVal(j,0,u_po-u_ijk);
+                delete Vadj;
+                dist.push_back(d);
+            }
+            else
+            {
+                int fid = gE2gF[elID][j];
+
+                //double* face_adj = new double[4*3];
+                Vc->x = 0.0;Vc->y = 0.0;Vc->z = 0.0;
+                for(int s=0;s<4;s++)
+                {
+                    int gvid = ifn->getVal(fid,s);
+                    int lvid = gV2lV[gvid];
+
+                    Vc->x = Vc->x+LocalVs[lvid].x;
+                    Vc->y = Vc->y+LocalVs[lvid].y;
+                    Vc->z = Vc->z+LocalVs[lvid].z;
+                }
+
+                Vc->x = Vc->x/4.0;
+                Vc->y = Vc->y/4.0;
+                Vc->z = Vc->z/4.0;
+                //delete[] Padj;
+                cou++;
+
+                d = 2.0*sqrt((Vc->x-Vijk->x)*(Vc->x-Vijk->x)+
+                             (Vc->y-Vijk->y)*(Vc->y-Vijk->y)+
+                             (Vc->z-Vijk->z)*(Vc->z-Vijk->z));
+                
+                u_po = bound->getVal(adjID-Nel,0);
+
+                Vrt->setVal(j,0,(Vc->x-Vijk->x));
+                Vrt->setVal(j,1,(Vc->y-Vijk->y));
+                Vrt->setVal(j,2,(Vc->z-Vijk->z));
+                b->setVal(j,0,u_po-u_ijk);
+
+                dist.push_back(d);
+            }
+            
+            double* A_cm = new double[nadj*3];
+            double sum =0.0;
+            for(int s=0;s<nadj;s++)
+            {
+                for(int j=0;j<3;j++)
+                {
+                    A_cm[j*nadj+s] = Vrt->getVal(s,j);
+                }
+            }
+            
+            Array<double>* x = SolveQR(A_cm,nadj,3,b);
+        
+            grad->setVal(i,0,x->getVal(0,0));
+            grad->setVal(i,1,x->getVal(1,0));
+            grad->setVal(i,2,x->getVal(2,0));
+            
+            delete[] A_cm;
+            delete x;
+        }
+        iee_dist.push_back(dist);
+        dist.clear();
+    }
+    return grad;
+}
+
+std::vector<double> ReduceToVertices(Partition* P, Array<double>* Uelem, MPI_Comm comm)
+{
+    std::vector<double> Uelem_all = P->PartitionAuxilaryData(Uelem, comm);
+    std::map<int,std::vector<double> > collect_Ui;
+    std::vector<std::vector<int> > loc_elem2verts_loc = P->getLocalElem2LocalVert();
+    for(int i=0;i<Uelem_all.size();i++)
+    {
+        double uinew = Uelem_all[i];
+        int loc_v;
+        for(int j=0;j<8;j++)
         {
-            t2fid[tri] = fid;
-            fid2t[fid] = tri;
-            fid++;
+            loc_v = loc_elem2verts_loc[i][j];
+            collect_Ui[loc_v].push_back(uinew);
         }
-        tri.clear();
-
-        tri.insert(ien_glob->getVal(i,3));
-        tri.insert(ien_glob->getVal(i,0));
-        tri.insert(ien_glob->getVal(i,1));
-        if(t2fid.find(tri)==t2fid.end())
+    }
+    std::map<int,std::vector<double> >::iterator it_rhos;
+    std::vector<double> uivert;
+    
+    for(it_rhos=collect_Ui.begin();it_rhos!=collect_Ui.end();it_rhos++)
+    {
+        double sum_u = 0;
+        
+        for(int q = 0;q<it_rhos->second.size();q++)
         {
-            t2fid[tri] = fid;
-            fid2t[fid] = tri;
-            fid++;
+            sum_u    = sum_u + it_rhos->second[q];
         }
-        tri.clear();
+        uivert.push_back(sum_u/it_rhos->second.size());
+        
     }
-
-    std::map<int, std::set<int> >::iterator fit;
-    std::map<int,int> loc2glob_face;
-    int i=0;
-    for(fit=fid2t.begin();fit!=fid2t.end();fit++)
-    {
-        std::set<int>::iterator fis;
-        int j=0;
-//        if(world_rank == 0)
-//        {
-//            std::cout << "face = " << fit->first << " -> ";
-//
-//        }
-        for(fis=fit->second.begin();fis!=fit->second.end();fis++)
-        {
-            F2N[fit->first].push_back(*fis);
-//            if(world_rank == 0)
-//            {
-//                std::cout << *fis << " ";
-//            }
-        }
-//        if(world_rank == 0)
-//        {
-//            std::cout << std::endl;
-//        }
-        loc2glob_face[i]=fit->first;
-        i++;
-    }
-    tmesh->ne = ien_glob->getNrow();
-    tmesh->nt = F2N.size();
-    //std::cout << "number of tris = " <<  tmesh->ne << " " << tmesh->nt << " " << tmesh->nv << std::endl;
-    int* tria_vert_all = new int[F2N.size()*3];
-    int* tria_ref_all = new int[F2N.size()];
-
-//    for(int i=0;i<tmesh->nt;i++)
-//    {
-//        for(int j=0;j<3;j++)
-//        {
-//            tria_vert_all[i*3+j] = F2N[loc2glob_face[i]][j];
-//        }
-//
-//        tria_ref_all[i] = 0;
-//
-//    }
-    i=0;
-    for(fit=fid2t.begin();fit!=fid2t.end();fit++)
-    {
-        std::set<int>::iterator fis;
-        int j=0;
-        for(fis=fit->second.begin();fis!=fit->second.end();fis++)
-        {
-            tria_vert_all[i*3+j] = *fis;
-            j++;
-        }
-        i++;
-    }
-    std::map<std::set<int>,int>::iterator itts;
-
-    for(int i=0;i<ien_glob->getNrow();i++)
-    {
-        tri.insert(ien_glob->getVal(i,0));
-        tri.insert(ien_glob->getVal(i,1));
-        tri.insert(ien_glob->getVal(i,2));
-        E2F[i+1].push_back(t2fid[tri]);
-        F2E[t2fid[tri]].push_back(i+1);
-        tri.clear();
-
-        tri.insert(ien_glob->getVal(i,1));
-        tri.insert(ien_glob->getVal(i,2));
-        tri.insert(ien_glob->getVal(i,3));
-        E2F[i+1].push_back(t2fid[tri]);
-        F2E[t2fid[tri]].push_back(i+1);
-        tri.clear();
-
-
-        tri.insert(ien_glob->getVal(i,2));
-        tri.insert(ien_glob->getVal(i,3));
-        tri.insert(ien_glob->getVal(i,0));
-        E2F[i+1].push_back(t2fid[tri]);
-        F2E[t2fid[tri]].push_back(i+1);
-        tri.clear();
-
-        tri.insert(ien_glob->getVal(i,3));
-        tri.insert(ien_glob->getVal(i,0));
-        tri.insert(ien_glob->getVal(i,1));
-        E2F[i+1].push_back(t2fid[tri]);
-        F2E[t2fid[tri]].push_back(i+1);
-        tri.clear();
-    }
-
-    /** d) give solutions values and positions */
-
+        
+    return uivert;
     
-
-    double* met_all = new double[nvertices];
-    for(int i=0;i<tmesh->nv;i++)
-    {
-        met_all[i] = 1.0;
-    }
-
-
-    tmesh->E2F = E2F;
-    tmesh->F2E = F2E;
-    tmesh->F2N = F2N;
-    tmesh->E2N = E2N;
-    
-//     TestMesh Structure has the following members:
-//    int nv;
-//    int ne;
-//    int nt;
-//
-//    Array<int>* ien_glob;
-//    ParArray<int>* ien_loc;
-//    ParallelState* pstate;
-//
-//    double* vert_coor_all;
-//    int* vert_ref_all;
-//    int* tetra_vert_all;
-//    int* tetra_ref_all;
-//    int* tria_vert_all;
-//    int* tria_ref_all;
-//    double* met_all;
-//
-//    std::map<int,std::vector<int> > E2F;
-//    std::map<int,std::vector<int> > F2E;
-//    std::map<int,std::vector<int> > E2N;
-//    std::map<int,std::vector<int> > F2N;
-    
-    if ( MMG3D_Set_meshSize(mmgMesh,nvertices,tets.size(),0,F2N.size(),0,0) != 1 )  exit(EXIT_FAILURE);
-    for(int i=0;i<nvertices;i++)
-    {
-        mmgMesh->point[i+1].c[0]  = vert_coord_all[i*3+0];  mmgMesh->point[i+1].c[1]  = vert_coord_all[i*3+1]; mmgMesh->point[i+1].c[2]  = vert_coord_all[i*3+2]; mmgMesh->point[i+1].ref  = 0;
-
-    }
-    
-    
-    std::cout << "Test mesh stats:" << std::endl;
-    std::cout << " Number of tetrahedra = " << tets.size() << std::endl;
-    std::cout << " Number of triangles = " << triangles.size() << std::endl;
-    std::cout << " Number of triangles map = " << Tr.size() << std::endl;
-    std::cout << " size F2E = " << F2E.size() << std::endl;
-    std::cout << " Number of vertices = " << nvertices << std::endl;
-    
-    
-    for(int i=1;i<=tets.size();i++)
-    {
-        mmgMesh->tetra[i].v[0] = tets[i-1][0];
-        mmgMesh->tetra[i].v[1] = tets[i-1][1];
-        mmgMesh->tetra[i].v[2] = tets[i-1][2];
-        mmgMesh->tetra[i].v[3] = tets[i-1][3];
-       // mmgMesh->tetra[i].ref  = 1;
-
-    }
-    
-    tmesh->mmgMesh;
-    tmesh->mmgSol;
-    
-    return tmesh;
 }
 
 
 int main(int argc, char** argv) {
     
     MPI_Init(NULL, NULL);
-
+   
     MPI_Comm comm = MPI_COMM_WORLD;
     MPI_Info info = MPI_INFO_NULL;
     int world_size;
@@ -3663,326 +2696,724 @@ int main(int argc, char** argv) {
     int world_rank;
     MPI_Comm_rank(comm, &world_rank);
     std::clock_t startr;
-    startr = std::clock();
+    startr = std::clock(); 
     //  GetXadjandAdjcyArrays(iee,ien,comm);
     //  Example3DPartitioningWithParVarParMetis();
     //  ExampleUS3DPartitioningWithParVarParMetis();
     //Example3DPartitioningWithParVarParMetis();
 //============================================================
-
+    
     //const char* fn_conn="grids/piston/conn.h5";
-    const char* fn_conn="grids/piston/conn.h5";
-    const char* fn_grid="grids/piston/grid.h5";
-    const char* fn_data="grids/adept/data.h5";
-    const char* fn_adept="grids/adept/conn.h5";
-
-//
-//    Array<int>*    zdefs  = ReadDataSetFromGroupFromFile<int>(fn_adept,"zones","zdefs");
-//    Array<char>*  znames  = ReadDataSetFromGroupFromFile<char>(fn_adept,"zones","znames");
-//    PlotBoundaryData(znames,zdefs,comm);
-//    ParArray<int>* ien    = ReadDataSetFromFileInParallel<int>(fn_conn,"ien",comm,info);
-//    ParArray<int>* ief    = ReadDataSetFromFileInParallel<int>(fn_conn,"ief",comm,info);
-//    //ParArray<int>* ife  = ReadDataSetFromFileInParallel<int>(fn_conn,"ife",comm,info);
-//    ParArray<double>* xcn = ReadDataSetFromFileInParallel<double>(fn_grid,"xcn",comm,info);
-//
-//    UnitTestEigenDecomp();
-
-
-
-
-    /** 2) Build mesh in MMG5 format */
-    /** Two solutions: just use the MMG3D_loadMesh function that will read a .mesh(b)
-        file formatted or manually set your mesh using the MMG3D_Set* functions */
-    int k =0;
-    int ier;
-    /** Manually set of the mesh */
-    /** a) give the size of the mesh: 12 vertices, 12 tetra,0 prisms, 20
-     * triangles, 0 quads, 0 edges */
-
-    MMG5_pMesh mmgMesh = NULL;
-    MMG5_pSol mmgSol   = NULL;
+    const char* fn_conn="conn_66k.h5";
+    const char* fn_grid="grid_66k.h5";
+    const char* fn_data="data_66k.h5";
+    const char* fn_adept="conn_66k.h5";
     
-//    PMMG_pParMesh parmesh;
-//    PMMG_Init_parMesh(PMMG_ARG_start,
-//    PMMG_ARG_ppParMesh, &parmesh,
-//    PMMG_ARG_pMesh, PMMG_ARG_pMet,
-//    PMMG_ARG_dim, 3,
-//    PMMG_ARG_MPIComm, MPI_COMM_WORLD,
-//    PMMG_ARG_end);
     
-    //int nvertices = 12;
-    //if ( MMG3D_Set_meshSize(mmgMesh,12,12,0,20,0,0) != 1 )  exit(EXIT_FAILURE);
-
-    double N = 2.0;
+    Array<int>*    zdefs = ReadDataSetFromGroupFromFile<int>(fn_adept,"zones","zdefs");
+    Array<char>*  znames = ReadDataSetFromGroupFromFile<char>(fn_adept,"zones","znames");
+    ParArray<int>* ien = ReadDataSetFromFileInParallel<int>(fn_conn,"ien",comm,info);
+    ParArray<int>* ief = ReadDataSetFromFileInParallel<int>(fn_conn,"ief",comm,info);
+    ParArray<int>* iee = ReadDataSetFromFileInParallel<int>(fn_conn,"iee",comm,info);
+    ParArray<double>* xcn_def = ReadDataSetFromFileInParallel<double>(fn_grid,"xcn",comm,info);
+    //ParArray<double>* xcn_def = ReadDataSetFromFileInParallel<double>(fn_data,"xcn",comm,info);
+    //ParArray<double>* ifn = ReadDataSetFromFileInParallel<double>(fn_grid,"ifn",comm,info);
+    Array<double>* ifn = ReadDataSetFromFile<double>(fn_grid,"ifn");
+    int nFglob = ifn->getNrow();
+    //ParArray<double>* boundaries = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_1","boundaries",comm,info);
+    PlotBoundaryData(znames,zdefs,comm);
     
-    MmgTestData* mmgdata = GetStructuredBlockMmgMesh(N, mmgMesh, mmgSol);
+    int Nel = ien->getNglob();
+    int Nel_part = ien->getNrow();
+    //ParArray<double>* xcn_def        = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_1","xcn",Nel,0,comm,info);
+    ParArray<double>* interior = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_1","interior",0,Nel,comm,info);
+    Array<double>* ghost = ReadUS3DGhostCellsFromRun<double>(fn_data,"run_1","interior",Nel);
+    Array<double>* bound = ReadDataSetFromRunInFile<double>(fn_data,"run_1","boundaries");
+    
+    std::cout << "boundary faces = " << bound->getNrow() << " " << ghost->getNrow() << std::endl;
+//===================================================================================
 
-    if ( MMG3D_Set_solSize(mmgMesh,mmgSol,MMG5_Vertex,mmgMesh->np,MMG5_Tensor) != 1 ) exit(EXIT_FAILURE);
-    double hmax = 0.2;
-    /** b) give solutions values and positions */
-    for(k=1 ; k<=mmgMesh->np ; k++)
+    ParallelState* pstate = new ParallelState(ien->getNglob(),comm);
+    //
+    int nglob = ien->getNglob();
+    int nrow  = ien->getNrow();
+    int ncol  = ien->getNcol()-1;
+    //
+    ParArray<int>* ien_copy = new ParArray<int>(nglob,ncol,comm);
+    //
+    for(int i=0;i<nrow;i++)
     {
-      //mmgSol->m[k] = 0.5;
-        double x = mmgMesh->point[k].c[0];
-        double y = mmgMesh->point[k].c[1];
-        double z = mmgMesh->point[k].c[2];
-        double a = 10*fabs(0.75-sqrt(x*x+y*y));
-        double hx = min(0.002*pow(5,a),hmax);
-        double hy = min(0.05*pow(2,a),hmax);
-        double hz = hmax;
-        double rat;
-        if(x==0)
+        for(int j=0;j<ncol;j++)
         {
-            rat = 1.0;
+            ien_copy->setVal(i,j,ien->getVal(i,j+1)-1);
         }
-        else
+    }
+    delete ien;
+    //
+    int ncol_ief = ief->getNcol()-1;
+    ParArray<int>* ief_copy = new ParArray<int>(nglob,ncol_ief,comm);
+
+    for(int i=0;i<nrow;i++)
+    {
+        for(int j=0;j<ncol_ief;j++)
         {
-            rat = y/x;
+            ief_copy->setVal(i,j,fabs(ief->getVal(i,j+1))-1);
         }
-
-        double theta = atan(rat);
-        //std::cout << hx << " " << hy << " " << hz << " " << theta << " " << rat << std::endl;
-        double m11 = (1.0/(hx*hx))*cos(theta)*cos(theta)+(1.0/(hy*hy))*sin(theta)*sin(theta);
-        double m12 = (1.0/(hx*hx)-1.0/(hy*hy))*cos(theta)*sin(theta);
-        double m13 = 0.0;
-        double m22 = (1.0/(hx*hx))*sin(theta)*sin(theta)+(1.0/(hy*hy))*cos(theta)*cos(theta);
-        double m23 = 0.0;
-        double m33 = hz;
-        if ( MMG3D_Set_tensorSol(mmgSol, m11,m12,m13,m22,m23,m33,k) != 1 ) exit(EXIT_FAILURE);
-        //if ( MMG3D_Set_tensorSol(mmgSol, m11,m12,m13,m22,m23,m33,k) != 1 ) exit(EXIT_FAILURE);
-        //if ( MMG3D_Set_tensorSol(mmgSol, 1.0,0.0,0.0,0.1,0.0,1.0,k) != 1 ) exit(EXIT_FAILURE);
-      /* or with the api function :
-         if ( MMG3D_Set_scalarSol(mmgSol,0.5,k) != 1 ) exit(EXIT_FAILURE); */
     }
-    /** 4) If you don't use the API functions, you MUST call
-        the MMG3D_Set_handGivenMesh() function. Don't call it if you use
-        the API functions */
-    //MMG3D_Set_handGivenMesh(mmgMesh);
-
-    /** 5) (not mandatory): check if the number of given entities match with mesh size */
-    if ( MMG3D_Chk_meshData(mmgMesh,mmgSol) != 1 ) exit(EXIT_FAILURE);
-
-//    * ------------------------------ STEP  II --------------------------
-//    * remesh function
-//     WARNING: the MMG3D_mmg3dlib function returns 1 if success, 0 if fail.
-//     The MMG3D4 library was working opposite.
-    //ier = MMG3D_mmg3dlib(mmgMesh,mmgSol);
-
-    ofstream myfile2;
-    myfile2.open("mmgMesh_v3.dat");
-    myfile2 << "TITLE=\"volume_part_"  + std::to_string(world_rank) +  ".tec\"" << std::endl;
-    myfile2 <<"VARIABLES = \"X\", \"Y\", \"Z\"" << std::endl;
-    //std::cout << " verts check " << LVerts.size() << " " << hx.size() << std::endl;
-    myfile2 <<"ZONE N = " << mmgMesh->np << ", E = " << mmgMesh->ne << ", DATAPACKING = POINT, ZONETYPE = FETETRAHEDRON" << std::endl;
-    for(int i=0;i<mmgMesh->np;i++)
+    delete ief;
+    ParArray<int>* iee_copy = new ParArray<int>(nglob,ncol,comm);
+    int ncol_iee = iee->getNcol()-1;
+    for(int i=0;i<nrow;i++)
     {
-        myfile2 << mmgMesh->point[i+1].c[0] << " " <<mmgMesh->point[i+1].c[1] << " " << mmgMesh->point[i+1].c[2] << std::endl;
+        for(int j=0;j<ncol_iee;j++)
+        {
+            iee_copy->setVal(i,j,iee->getVal(i,j+1)-1);
+        }
     }
-
-    for(int i=1;i<=mmgMesh->ne;i++)
+    delete iee;
+    
+    Array<int>* ifn_copy = new Array<int>(nFglob,ncol);
+    int nrow_ifn = ifn->getNrow();
+    int ncol_ifn = 4;
+    for(int i=0;i<nrow;i++)
     {
-        myfile2 << mmgMesh->tetra[i].v[0] << " " << mmgMesh->tetra[i].v[1] << " " << mmgMesh->tetra[i].v[2] << " " << mmgMesh->tetra[i].v[3] << std::endl;
+        for(int j=0;j<ncol_ifn;j++)
+        {
+            ifn_copy->setVal(i,j,ifn->getVal(i,j+1)-1);
+        }
     }
+    delete ifn;
 
-    myfile2.close();
+    ParallelState_Parmetis* parmetis_pstate = new ParallelState_Parmetis(ien_copy,comm,8);
 
-//    for(int i=1;i<=mmgMesh->ne;i++)
+    ParallelState* xcn_parstate = new ParallelState(xcn_def->getNglob(),comm);
+    ParArray<double>* var = new ParArray<double>(Nel,1,comm);
+    Array<double>* Uivar = new Array<double>(Nel_part,1);
+    std::vector<double> Ui(Nel_part);
+    for(int i=0;i<Nel_part;i++)
+    {
+        //double v = (i+pstate->getOffset(world_rank))*0.2420;
+        //var->setVal(i,0,v);
+        var->setVal(i,0,interior->getVal(i,0));
+        Ui[i] = interior->getVal(i,0);
+        Uivar->setVal(i,0,interior->getVal(i,0));
+    }
+    delete interior;
+   
+    Partition* P = new Partition(ien_copy, ief_copy, parmetis_pstate,pstate, xcn_def,xcn_parstate,Uivar,comm);
+    
+    int nElemLoc = P->getNlocElem();
+    std::vector<double> Uaux = P->PartitionAuxilaryData(Uivar, comm);
+
+    // ===================================================================
+    // ======================TEST AUX PARTITIONING========================
+    // ===================================================================
+    //std::vector<double> Uaux = P->PartitionAuxilaryData(Ui, comm);
+//    std::vector<double> Uelem = P->getUelem();
+//    //std::cout << "Are sizes equal? -> " << Uaux.size() << " " << Uelem.size() << std::endl;
+//    for(int i=0;i<Uaux.size();i++)
 //    {
-//       std::cout << i << " :: " << mmgMesh->tetra[i].v[0] << " " << mmgMesh->tetra[i].v[1] << " " << mmgMesh->tetra[i].v[2] << " " << mmgMesh->tetra[i].v[3] << std::endl;
-//    }
-
-    ParArray<int>* ien_tet = new ParArray<int>(mmgMesh->ne,4,comm);
-    int Nel = ien_tet->getNglob();
-    ParallelState* pstate  = new ParallelState(Nel,comm);
-    int nloc_tet = pstate->getNloc(world_rank);
-    int offset = pstate->getOffset(world_rank);
-
-    for(int i=0;i<nloc_tet;i++)
-    {
-        for(int j=0;j<4;j++)
-        {
-            ien_tet->setVal(i,j,(mmgMesh->tetra[offset+i+1].v[j]-1));
-        }
-    }
-
-    PartTmp* pTmp = getPartionIDS(ien_tet, pstate, comm, 4);
-//    std::map<int,std::vector<int> > adj_elements;
-////    for(int i=0;i<mmgdata->F2E.size();i++)
-////    {
-////        for(int j=0;j<mmgdata->F2E[i].size();j++)
-////        {
-////            std::cout << mmgdata->F2E[i][j] << " ";
-////        }
-////
-////        std::cout << std::endl;
-////    }
-    
-    std::map<int,std::vector<int> > E2F1 = mmgdata->E2F;
-    std::map<int,std::vector<int> >::iterator maps1;
-    if(world_rank == 0)
-    {
-        std::cout << "E2F1 " << E2F1.size() << std::endl;
-
-        std::cout << "before = " << std::endl;
-        for(maps1=E2F1.begin();maps1!=E2F1.end();maps1++)
-        {
-            int l = maps1->second.size();
-            
-            for(int i=0;i<l;i++)
-            {
-                std::cout << maps1->second[i] << " ";
-            }
-            
-            std::cout << std::endl;
-            
-        }
-    }
-    UpdateConnectivityMmgMesh(mmgdata,comm);
-    
-    std::map<int,std::vector<int> > E2F2 = mmgdata->E2F;
-    std::map<int,std::vector<int> >::iterator maps2;
-    if(world_rank == 0)
-    {
-        std::cout << "E2F2 " << E2F2.size() << std::endl;
-
-        std::cout << "after = " << std::endl;
-        for(maps2=E2F2.begin();maps2!=E2F2.end();maps2++)
-        {
-            int l = maps2->second.size();
-
-            for(int i=0;i<l;i++)
-            {
-                std::cout << maps2->second[i] << " ";
-            }
-
-            std::cout << std::endl;
-
-        }
-    }
-    
-    std::map<int,std::vector<int> > E2F = mmgdata->E2F;
-    std::map<int,std::vector<int> > F2N = mmgdata->F2N;
-    int fadj = 0;
-    std::map<int, std::set<int> > proc2face;
-    std::map<int, std::set<int> > proc2nodes;
-    std::map<int, int> face2proc;
-    std::vector<int> partfaces;
-    for(int i=0;i<pTmp->lPart->getNrow();i++)
-    {
-        std::set<int> owned_faces;
-        for(int n=0;n<4;n++)
-        {
-           owned_faces.insert(E2F[offset+i][n]);
-        }
-        //
-        int start = pTmp->xadj[i];
-        int end   = pTmp->xadj[i+1];
-        //
-        for(int j=start;j<end;j++)
-        {
-            int adjEl_id = pTmp->adjcny[j];
-            int p_id = pTmp->gPart->getVal(adjEl_id,0);
-            if(p_id!=world_rank) // find the adjacent element that is not on this partition.
-            {
-                //adj_elements[p_id].push_back(adjEl_id);
-
-                for(int s=0;s<4;s++)
-                {
-                    fadj = E2F[adjEl_id][s];
-
-                    if(owned_faces.find(fadj)!=owned_faces.end())
-                    {
-                        partfaces.push_back(fadj);
-                        proc2face[p_id].insert(fadj);
-                        face2proc[fadj]=p_id;
-                        for(int g=0;g<3;g++)
-                        {
-                            proc2nodes[p_id].insert(F2N[fadj][g]);
-                        }
-                        
-                    }
-                }
-            }
-        }
-        owned_faces.clear();
-    }
-    
-    int ncomm = proc2face.size();
-    int* color_node = new int[ncomm];
-    int* color_face = new int[ncomm];
-    int* ntifc = new int[ncomm];
-    int* npifc = new int[ncomm];
-    std::map<int,std::set<int> >::iterator its;
-    int t = 0;
-    int u = 0;
-    
-    int *ifc_tria_glob[ncomm];
-    int *ifc_tria_loc[ncomm];
-    for(its=proc2face.begin();its!=proc2face.end();its++)
-    {
-        color_face[t]=its->first;
-        ntifc[t] = its->second.size();
-        
-        ifc_tria_glob[t] = new int[ntifc[t]];
-        ifc_tria_loc[t]  = new int[ntifc[t]];
-        
-        std::set<int>::iterator itsn;
-        u = 0;
-        for(itsn=its->second.begin();itsn!=its->second.end();itsn++)
-        {
-            ifc_tria_glob[t][u] = *itsn;
-            u++;
-        }
-        t++;
-    }
-    
-    int *ifc_nodes_glob[ncomm];
-    int *ifc_nodes_loc[ncomm];
-    t = 0;
-    for(its=proc2nodes.begin();its!=proc2nodes.end();its++)
-    {
-        color_node[t]=its->first;
-        npifc[t] = its->second.size();
-        
-        ifc_nodes_glob[t] = new int[npifc[t]];
-        ifc_nodes_loc[t] = new int[npifc[t]];
-        
-        std::set<int>::iterator itsn;
-        u = 0;
-        for(itsn=its->second.begin();itsn!=its->second.end();itsn++)
-        {
-            ifc_nodes_glob[t][u] = *itsn;
-            u++;
-        }
-        t++;
-    }
-    
-    
-//    if(world_rank == 0)
-//    {
-//        std::cout << "rank = " << world_rank << std::endl;
-//        for(int i=0;i<ncomm;i++)
+//        if(Uaux[i] - Uelem[i] > 1.0e-09)
 //        {
-//            std::cout << "faces SHARED with proc " << color_face[i] << " -> ";
-//            for(int j=0;j<ntifc[i];j++)
-//            {
-//                std::cout << ifc_tria_glob[i][j] << " ";
-//            }
-//            std::cout << std::endl;
-//        }
-//
-//        for(int i=0;i<ncomm;i++)
-//        {
-//            std::cout << "nodes SHARED with proc " << color_node[i] << " -> ";
-//
-//            for(int j=0;j<npifc[i];j++)
-//            {
-//                std::cout << ifc_nodes_glob[i][j] << " ";
-//            }
-//            std::cout << std::endl;
+//            std::cout << Uaux[i] - Uelem[i] << std::endl;
 //        }
 //    }
+//    std::cout << "Are sizes equal? -> " << Uaux.size() << " " << Uelem.size() << std::endl;
+    // ===================================================================
+    // ===================================================================
+    // ===================================================================
+
+    //std::vector<std::vector<double> > dist = ComputeDistances(P, pstate, iee_copy, ifn_copy, Nel, comm);
     
+    //std::vector<double> Uvert = ReduceToVertices(P,Uivar,comm);
+    
+    //Array<double>* dUdXi = ComputedUdx(P, pstate, iee_copy, ifn_copy, Nel, Uaux, ghost, bound, comm);
+    Array<double>* dUdXi = ComputedUdXi(P,Uaux,ien_copy->getNglob(),comm);
+    //Array<double>* dUdXi = ComputedUdXi_v2(P,Uaux,Uvert,ien_copy->getNglob(),comm);
+    
+    
+    
+    
+    
+    double  t6 = MPI_Wtime();
+    //P->PartitionAuxilaryData(grad, comm);
+    double  t7 = MPI_Wtime();
+    double timing6 = t7-t6;
+    double max_time6 = 0.0;
+    MPI_Allreduce(&timing6, &max_time6, 1, MPI_DOUBLE, MPI_MAX, comm);
+    if (world_rank == 0)
+    {
+      std::cout << "t_max6 := " << max_time6  << std::endl;
+
+    }
+    
+    
+    
+//    if (world_rank == 0)
+//    {
+//        std::cout << max_time_part << " " << max_time_grad << " " << max_time_aux << std::endl;
+//    }
+     
+    //==============================================================================================
+    //================================Compute Eigenvalues/vectors on verts for output===============
+    //==============================================================================================
+    
+    std::map<int,std::vector<double> > collect_d2Udxix;
+    std::map<int,std::vector<double> > collect_d2Udxiy;
+    std::map<int,std::vector<double> > collect_d2Udxiz;
+    std::map<int,std::vector<double> > collect_dUidX;
+    std::map<int,std::vector<double> > collect_dUidY;
+    std::map<int,std::vector<double> > collect_dUidZ;
+    std::map<int,std::vector<double> > collect_dU2idX2;
+    std::map<int,std::vector<double> > collect_dU2idXY;
+    std::map<int,std::vector<double> > collect_dU2idXZ;
+    
+    std::map<int,std::vector<double> > collect_dU2idYX;
+    std::map<int,std::vector<double> > collect_dU2idY2;
+    std::map<int,std::vector<double> > collect_dU2idYZ;
+    
+    std::map<int,std::vector<double> > collect_dU2idZX;
+    std::map<int,std::vector<double> > collect_dU2idZY;
+    std::map<int,std::vector<double> > collect_dU2idZ2;
+    
+    std::map<int,std::vector<double> > collect_Ui;
+    std::map<int,std::vector<double> > collect_Vi;
+    std::map<int,std::vector<double> > collect_Di;
+    std::vector<double> dUdxiaux;
+    std::vector<double> dU2dxixaux;
+    std::vector<double> dU2dxiyaux;
+    std::vector<double> dU2dxizaux;
+//    Array<double>* d2Udxix = new Array<double>(Nel_part,1);
+//    Array<double>* d2Udxiy = new Array<double>(Nel_part,1);
+//    Array<double>* d2Udxiz = new Array<double>(Nel_part,1);
+    std::map<int,std::vector<double> >::iterator it_rhos;
+    std::map<int,std::vector<double> >::iterator it_vi;
+    std::map<int,std::vector<double> >::iterator it_di;
+    std::vector<std::vector<double> > Hess;
+    std::vector<double> d2Udxix;
+    std::vector<double> d2Udxiy;
+    std::vector<double> d2Udxiz;
+    std::vector<std::vector<double> > Hess_El;
+    std::vector<Vert> LocalVs = P->getLocalVerts();
+    int e = 0;
+    double dudx = 0.0;
+    double dudy = 0.0;
+    double dudz = 0.0;
+    int loc_v_id = 0;
+    std::vector<std::vector<int> > loc_elem2verts_loc = P->getLocalElem2LocalVert();
+    std::vector<Vert> LVerts =  P->getLocalVerts();
+    
+    int loc_v = 0;
+    
+    Array<double>* dUidxi = new Array<double>(Nel_part,1);
+    Array<double>* dUidyi = new Array<double>(Nel_part,1);
+    Array<double>* dUidzi = new Array<double>(Nel_part,1);
+    
+    Array<double>* dU2idx2i_new = new Array<double>(Nel_part,1);
+    Array<double>* dU2idxyi_new = new Array<double>(Nel_part,1);
+    Array<double>* dU2idxzi_new = new Array<double>(Nel_part,1);
+    
+    Array<double>* dU2idyxi_new = new Array<double>(Nel_part,1);
+    Array<double>* dU2idy2i_new = new Array<double>(Nel_part,1);
+    Array<double>* dU2idyzi_new = new Array<double>(Nel_part,1);
+    
+    Array<double>* dU2idzxi_new = new Array<double>(Nel_part,1);
+    Array<double>* dU2idzyi_new = new Array<double>(Nel_part,1);
+    Array<double>* dU2idz2i_new = new Array<double>(Nel_part,1);
+    
+    
+    for(int i=0;i<Nel_part;i++)
+    {
+        dUidxi->setVal(i,0,dUdXi->getVal(i,0));
+        dUidyi->setVal(i,1,dUdXi->getVal(i,1));
+        dUidzi->setVal(i,2,dUdXi->getVal(i,2));
+    }
+    
+    std::vector<double> dUdXaux = P->PartitionAuxilaryData(dUidxi, comm);
+    std::vector<double> dUdYaux = P->PartitionAuxilaryData(dUidyi, comm);
+    std::vector<double> dUdZaux = P->PartitionAuxilaryData(dUidzi, comm);
+
+    Array<double>* dU2dXi2 = ComputedUdXi(P,dUdXaux,ien_copy->getNglob(),comm);
+    Array<double>* dU2dYi2 = ComputedUdXi(P,dUdYaux,ien_copy->getNglob(),comm);
+    Array<double>* dU2dZi2 = ComputedUdXi(P,dUdZaux,ien_copy->getNglob(),comm);
+
+    for(int i=0;i<Nel_part;i++)
+    {
+        dU2idx2i_new->setVal(i,0,dU2dXi2->getVal(i,0));
+        dU2idxyi_new->setVal(i,0,dU2dXi2->getVal(i,1));
+        dU2idxzi_new->setVal(i,0,dU2dXi2->getVal(i,2));
+
+        dU2idyxi_new->setVal(i,0,dU2dYi2->getVal(i,0));
+        dU2idy2i_new->setVal(i,0,dU2dYi2->getVal(i,1));
+        dU2idyzi_new->setVal(i,0,dU2dYi2->getVal(i,2));
+
+        dU2idzxi_new->setVal(i,0,dU2dZi2->getVal(i,0));
+        dU2idzyi_new->setVal(i,0,dU2dZi2->getVal(i,1));
+        dU2idz2i_new->setVal(i,0,dU2dZi2->getVal(i,2));
+        
+        std::cout << "Hessian symmetric ??? " << i << std::endl;
+        std::cout << dU2idx2i_new->getVal(i,0) << " " << dU2idxyi_new->getVal(i,0) << " " << dU2idxzi_new->getVal(i,0) << std::endl;
+        std::cout << dU2idyxi_new->getVal(i,0) << " " << dU2idy2i_new->getVal(i,0) << " " << dU2idyzi_new->getVal(i,0) << std::endl;
+        std::cout << dU2idzxi_new->getVal(i,0) << " " << dU2idzyi_new->getVal(i,0) << " " << dU2idz2i_new->getVal(i,0) << std::endl;
+        std::cout << "======================" << std::endl;
+        
+    }
+    
+    std::vector<double> dU2dX2aux = P->PartitionAuxilaryData(dU2idx2i_new, comm);
+    std::vector<double> dU2dXYaux = P->PartitionAuxilaryData(dU2idxyi_new, comm);
+    std::vector<double> dU2dXZaux = P->PartitionAuxilaryData(dU2idxzi_new, comm);
+
+    std::vector<double> dU2dYXaux = P->PartitionAuxilaryData(dU2idyxi_new, comm);
+    std::vector<double> dU2dY2aux = P->PartitionAuxilaryData(dU2idy2i_new, comm);
+    std::vector<double> dU2dYZaux = P->PartitionAuxilaryData(dU2idyzi_new, comm);
+
+    std::vector<double> dU2dZXaux = P->PartitionAuxilaryData(dU2idzxi_new, comm);
+    std::vector<double> dU2dZYaux = P->PartitionAuxilaryData(dU2idzyi_new, comm);
+    std::vector<double> dU2dZ2aux = P->PartitionAuxilaryData(dU2idz2i_new, comm);
+    
+    for(int i=0;i<nElemLoc;i++)
+    {
+        double uinew = Uaux[i];
+        double duidxnew = dUdXaux[i];
+        double duidynew = dUdYaux[i];
+        double duidznew = dUdZaux[i];
+        
+        double du2idx2new = dU2dX2aux[i];
+        double du2idxynew = dU2dXYaux[i];
+        double du2idxznew = dU2dXZaux[i];
+
+        double du2idyxnew = dU2dYXaux[i];
+        double du2idy2new = dU2dY2aux[i];
+        double du2idyznew = dU2dYZaux[i];
+
+        double du2idzxnew = dU2dZXaux[i];
+        double du2idzynew = dU2dZYaux[i];
+        double du2idz2new = dU2dZ2aux[i];
+        
+
+
+//        if(world_rank == 0)
+//        if(world_rank == 0)
+//        {
+//            std::cout << "du2idx2new  " << du2idx2new << std::endl;
+//        }
+        for(int j=0;j<8;j++)
+        {
+            loc_v = loc_elem2verts_loc[i][j];
+            collect_Ui[loc_v].push_back(uinew);
+            
+            collect_dUidX[loc_v].push_back(duidxnew);
+            collect_dUidY[loc_v].push_back(duidynew);
+            collect_dUidZ[loc_v].push_back(duidznew);
+            
+            collect_dU2idX2[loc_v].push_back(du2idx2new);
+            collect_dU2idXY[loc_v].push_back(du2idxynew);
+            collect_dU2idXZ[loc_v].push_back(du2idxznew);
+
+            collect_dU2idYX[loc_v].push_back(du2idyxnew);
+            collect_dU2idY2[loc_v].push_back(du2idy2new);
+            collect_dU2idYZ[loc_v].push_back(du2idyznew);
+
+            collect_dU2idZX[loc_v].push_back(du2idzxnew);
+            collect_dU2idZY[loc_v].push_back(du2idzynew);
+            collect_dU2idZ2[loc_v].push_back(du2idz2new);
+            
+        }
+    }
+    int c= 0;
+    double sum_u;
+    
+    double sum_dudx;
+    double sum_dudy;
+    double sum_dudz;
+    
+    double sum_du2dx2;
+    double sum_du2dxy;
+    double sum_du2dxz;
+
+    double sum_du2dyx;
+    double sum_du2dy2;
+    double sum_du2dyz;
+
+    double sum_du2dzx;
+    double sum_du2dzy;
+    double sum_du2dz2;
+    
+    std::vector<double> uivert;
+    std::vector<double> dudxivert;
+    std::vector<double> dudyivert;
+    std::vector<double> dudzivert;
+    
+    std::vector<double> du2dx2vert;
+    std::vector<double> du2dxyvert;
+    std::vector<double> du2dxzvert;
+
+    std::vector<double> du2dyxvert;
+    std::vector<double> du2dy2vert;
+    std::vector<double> du2dyzvert;
+
+    std::vector<double> du2dzxvert;
+    std::vector<double> du2dzyvert;
+    std::vector<double> du2dz2vert;
+    
+    std::vector<double> WRarr_00;
+    std::vector<double> WRarr_01;
+    std::vector<double> WRarr_02;
+    
+    std::vector<double> WRarr_10;
+    std::vector<double> WRarr_11;
+    std::vector<double> WRarr_12;
+    
+    std::vector<double> WRarr_20;
+    std::vector<double> WRarr_21;
+    std::vector<double> WRarr_22;
+    
+    double*Hmet = new double[9];
+
+    for(it_rhos=collect_Ui.begin();it_rhos!=collect_Ui.end();it_rhos++)
+    {
+        sum_u = 0;
+        sum_dudx = 0;
+        sum_dudy = 0;
+        sum_dudz = 0;
+        sum_du2dx2 = 0;
+        sum_du2dxy = 0;
+        sum_du2dxz = 0;
+        sum_du2dyx = 0;
+        sum_du2dy2 = 0;
+        sum_du2dyz = 0;
+        sum_du2dzx = 0;
+        sum_du2dzy = 0;
+        sum_du2dz2 = 0;
+        for(int q = 0;q<it_rhos->second.size();q++)
+        {
+            sum_u    = sum_u + it_rhos->second[q];
+            sum_dudx = sum_dudx + collect_dUidX[it_rhos->first][q];
+            sum_dudy = sum_dudy + collect_dUidY[it_rhos->first][q];
+            sum_dudz = sum_dudz + collect_dUidZ[it_rhos->first][q];
+            
+            sum_du2dx2 = sum_du2dx2 + collect_dU2idX2[it_rhos->first][q];
+            sum_du2dxy = sum_du2dxy + collect_dU2idXY[it_rhos->first][q];
+            sum_du2dxz = sum_du2dxz + collect_dU2idXZ[it_rhos->first][q];
+
+            sum_du2dyx = sum_du2dyx + collect_dU2idYX[it_rhos->first][q];
+            sum_du2dy2 = sum_du2dy2 + collect_dU2idY2[it_rhos->first][q];
+            sum_du2dyz = sum_du2dyz + collect_dU2idYZ[it_rhos->first][q];
+
+            sum_du2dzx = sum_du2dzx + collect_dU2idZX[it_rhos->first][q];
+            sum_du2dzy = sum_du2dzy + collect_dU2idZY[it_rhos->first][q];
+            sum_du2dz2 = sum_du2dz2 + collect_dU2idZ2[it_rhos->first][q];
+            
+        }
+//        Hmet[0] = 1.0+sum_du2dx2/it_rhos->second.size();
+//        Hmet[1] = sum_du2dxy/it_rhos->second.size();
+//        Hmet[2] = sum_du2dxz/it_rhos->second.size();
+//
+//        Hmet[3] = sum_du2dyx/it_rhos->second.size();
+//        Hmet[4] = 1.0+sum_du2dy2/it_rhos->second.size();
+//        Hmet[5] = sum_du2dyz/it_rhos->second.size();
+//
+//        Hmet[6] = sum_du2dzx/it_rhos->second.size();
+//        Hmet[7] = sum_du2dzy/it_rhos->second.size();
+//        Hmet[8] = 1.0+sum_du2dz2/it_rhos->second.size();
+//
+//        double * WR = new double[3];
+//        double * WI = new double[3];
+//        double * V = new double[3*3];
+//        double * iV = new double[3*3];
+//
+//        EigenDecomp(3, Hmet,  WR,  WI, V, iV );
+//
+//        WRarr_0.push_back(fabs(WR[0]) );
+//        WRarr_1.push_back(fabs(WR[1]) );
+//        WRarr_2.push_back(fabs(WR[2]));
+            
+        uivert.push_back(sum_u/it_rhos->second.size());
+        
+        dudxivert.push_back(sum_dudx/it_rhos->second.size());
+        dudyivert.push_back(sum_dudy/it_rhos->second.size());
+        dudzivert.push_back(sum_dudz/it_rhos->second.size());
+            
+        du2dx2vert.push_back(sum_du2dx2/it_rhos->second.size());
+        du2dxyvert.push_back(sum_du2dxy/it_rhos->second.size());
+        du2dxzvert.push_back(sum_du2dxz/it_rhos->second.size());
+
+        du2dyxvert.push_back(sum_du2dyx/it_rhos->second.size());
+        du2dy2vert.push_back(sum_du2dy2/it_rhos->second.size());
+        du2dyzvert.push_back(sum_du2dyz/it_rhos->second.size());
+
+        du2dzxvert.push_back(sum_du2dzx/it_rhos->second.size());
+        du2dzyvert.push_back(sum_du2dzy/it_rhos->second.size());
+        du2dz2vert.push_back(sum_du2dz2/it_rhos->second.size());
+        
+        c++;
+    }
+    double du2dx2vert_max = *std::max_element(du2dx2vert.begin(), du2dx2vert.end());
+    double du2dxyvert_max = *std::max_element(du2dxyvert.begin(), du2dxyvert.end());
+    double du2dxzvert_max = *std::max_element(du2dxzvert.begin(), du2dxzvert.end());
+    double du2dyxvert_max = *std::max_element(du2dyxvert.begin(), du2dyxvert.end());
+    double du2dy2vert_max = *std::max_element(du2dy2vert.begin(), du2dy2vert.end());
+    double du2dyzvert_max = *std::max_element(du2dyzvert.begin(), du2dyzvert.end());
+    double du2dzxvert_max = *std::max_element(du2dzxvert.begin(), du2dzxvert.end());
+    double du2dzyvert_max = *std::max_element(du2dzyvert.begin(), du2dzyvert.end());
+    double du2dz2vert_max = *std::max_element(du2dz2vert.begin(), du2dz2vert.end());
+    
+    double R = 0.056;
+    double hmin = 0.000001;
+    double hmax = 0.01;
+    
+    
+    
+    for(int i=0;i<LVerts.size();i++)
+    {
+        double r = sqrt((LVerts[i].x-0.0)*(LVerts[i].x-0.0)
+                       +(LVerts[i].y-0.0)*(LVerts[i].y-0.0));
+        
+        //std::cout << "r = " << r << " " << LVerts[i].x << " " << LVerts[i].y << " " << LVerts[i].z << std::endl;
+        if (r < R)
+        {
+            dudxivert[i] = 0.0;
+            dudyivert[i] = 0.0;
+            dudzivert[i] = 0.0;
+            
+            du2dx2vert[i] = 0.0;
+            du2dxyvert[i] = 0.0;
+            du2dxzvert[i] = 0.0;
+            
+            du2dyxvert[i] = 0.0;
+            du2dy2vert[i] = 0.0;
+            du2dyzvert[i] = 0.0;
+            
+            du2dzxvert[i] = 0.0;
+            du2dzyvert[i] = 0.0;
+            du2dz2vert[i] = 0.0;
+        }
+        
+        if(du2dx2vert[i]<0.1*du2dx2vert_max)
+        {
+            dudxivert[i] = 0.0;
+            dudyivert[i] = 0.0;
+            dudzivert[i] = 0.0;
+
+            du2dx2vert[i] = 0.0;
+            du2dxyvert[i] = 0.0;
+            du2dxzvert[i] = 0.0;
+
+            du2dyxvert[i] = 0.0;
+            du2dy2vert[i] = 0.0;
+            du2dyzvert[i] = 0.0;
+
+            du2dzxvert[i] = 0.0;
+            du2dzyvert[i] = 0.0;
+            du2dz2vert[i] = 0.0;
+        }
+        
+        Hmet[0] = du2dx2vert[i];
+        Hmet[1] = du2dxyvert[i];
+        Hmet[2] = du2dxzvert[i];
+
+        Hmet[3] = du2dyxvert[i];
+        Hmet[4] = du2dy2vert[i];
+        Hmet[5] = du2dyzvert[i];
+        
+        Hmet[6] = du2dzxvert[i];
+        Hmet[7] = du2dzyvert[i];
+        Hmet[8] = du2dz2vert[i];
+
+        double * WR = new double[3];
+        double * WI = new double[3];
+        double * V = new double[3*3];
+        double * iV = new double[3*3];
+        double* WRn = new double[3];
+        Array<double>* DR  = new Array<double>(3,3);
+        Array<double>* VR  = new Array<double>(3,3);
+        Array<double>* iVR = new Array<double>(3,3);
+        for(int i=0;i<3;i++)
+        {
+            WR[i]  = 0.0;
+            WRn[i] = 0.0;
+            WI[i]  = 0.0;
+            for(int j=0;j<3;j++)
+            {
+                DR->setVal(i,j,0.0);
+                VR->setVal(i,j,0.0);
+                iVR->setVal(i,j,0.0);
+                V[i*3+j] = 0.0;
+                iV[i*3+j] = 0.0;
+            }
+
+        }
+        
+        EigenDecomp(3, Hmet,  WR,  WI, V, iV );
+
+        int f = 12;
+        WRn[0] = std::min(std::max(f*fabs(WR[0]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
+        WRn[1] = std::min(std::max(f*fabs(WR[1]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
+        WRn[2] = 1.0/(0.005*0.005);
+
+//
+        DR->setVal(0,0,WRn[0]);DR->setVal(0,1,0.0);DR->setVal(0,1,0.0);
+        DR->setVal(1,0,0.0);DR->setVal(1,1,WRn[1]);DR->setVal(1,2,0.0);
+        DR->setVal(2,0,0.0);DR->setVal(2,1,0.0);DR->setVal(2,2,WRn[2]);
+
+        VR->setVal(0,0,V[0]);VR->setVal(0,1,V[1]);VR->setVal(0,2,V[2]);
+        VR->setVal(1,0,V[3]);VR->setVal(1,1,V[4]);VR->setVal(1,2,V[5]);
+        VR->setVal(2,0,V[6]);VR->setVal(2,1,V[7]);VR->setVal(2,2,V[8]);
+
+        iVR->setVal(0,0,iV[0]);iVR->setVal(0,1,iV[1]);iVR->setVal(0,2,iV[2]);
+        iVR->setVal(1,0,iV[3]);iVR->setVal(1,1,iV[4]);iVR->setVal(1,2,iV[5]);
+        iVR->setVal(2,0,iV[6]);iVR->setVal(2,1,iV[7]);iVR->setVal(2,2,iV[8]);
+
+//        VRi->setVal(2,0,iV[6]);VRi->setVal(2,1,iV[7]);VRi->setVal(2,2,iV[8]);
+
+        Array<double>* Rs = MatMul(VR,DR);
+        Array<double>* Rf = MatMul(Rs,iVR);
+        if(i==2)
+        {
+        std::cout << "========================================================" << std::endl;
+        std::cout << "H " << std::endl;
+        std::cout << Hmet[0] << " " <<  Hmet[1] << " " <<  Hmet[2] << std::endl;
+        std::cout << Hmet[3] << " " <<  Hmet[4] << " " <<  Hmet[5] << std::endl;
+        std::cout << Hmet[6] << " " <<  Hmet[7] << " " <<  Hmet[8] << std::endl;
+        std::cout << "DR " << std::endl;
+        std::cout << DR->getVal(0,0) << " " <<  DR->getVal(0,1) << " " <<  DR->getVal(0,2) << std::endl;
+        std::cout << DR->getVal(1,0) << " " <<  DR->getVal(1,1) << " " <<  DR->getVal(1,2) << std::endl;
+        std::cout << DR->getVal(2,0) << " " <<  DR->getVal(2,1) << " " <<  DR->getVal(2,2) << std::endl;
+
+        std::cout << "VR " << std::endl;
+        std::cout << VR->getVal(0,0) << " " <<  VR->getVal(0,1) << " " <<  VR->getVal(0,2) << std::endl;
+        std::cout << VR->getVal(1,0) << " " <<  VR->getVal(1,1) << " " <<  VR->getVal(1,2) << std::endl;
+        std::cout << VR->getVal(2,0) << " " <<  VR->getVal(2,1) << " " <<  VR->getVal(2,2) << std::endl;
+        
+        std::cout << "iVR " << std::endl;
+        std::cout << iVR->getVal(0,0) << " " <<  iVR->getVal(0,1) << " " <<  iVR->getVal(0,2) << std::endl;
+        std::cout << iVR->getVal(1,0) << " " <<  iVR->getVal(1,1) << " " <<  iVR->getVal(1,2) << std::endl;
+        std::cout << iVR->getVal(2,0) << " " <<  iVR->getVal(2,1) << " " <<  iVR->getVal(2,2) << std::endl;
+
+        std::cout << "Rs " << std::endl;
+        std::cout << Rs->getVal(0,0) << " " <<  Rs->getVal(0,1) << " " <<  Rs->getVal(0,2) << std::endl;
+        std::cout << Rs->getVal(1,0) << " " <<  Rs->getVal(1,1) << " " <<  Rs->getVal(1,2) << std::endl;
+        std::cout << Rs->getVal(2,0) << " " <<  Rs->getVal(2,1) << " " <<  Rs->getVal(2,2) << std::endl;
+        std::cout << "Rf " << std::endl;
+        std::cout << Rf->getVal(0,0) << " " <<  Rf->getVal(0,1) << " " <<  Rf->getVal(0,2) << std::endl;
+        std::cout << Rf->getVal(1,0) << " " <<  Rf->getVal(1,1) << " " <<  Rf->getVal(1,2) << std::endl;
+        std::cout << Rf->getVal(2,0) << " " <<  Rf->getVal(2,1) << " " <<  Rf->getVal(2,2) << std::endl;
+        std::cout << "========================================================" << std::endl;
+        }
+        
+//        WRarr_00.push_back( Rf->getVal(0,0) );
+//        WRarr_01.push_back( Rf->getVal(0,1) );
+//        WRarr_02.push_back( Rf->getVal(0,2) );
+//
+//        WRarr_10.push_back( Rf->getVal(1,0) );
+//        WRarr_11.push_back( Rf->getVal(1,1) );
+//        WRarr_12.push_back( Rf->getVal(1,2) );
+//
+//        WRarr_20.push_back( Rf->getVal(2,0) );
+//        WRarr_21.push_back( Rf->getVal(2,1) );
+//        WRarr_22.push_back( Rf->getVal(2,2) );
+        
+        WRarr_00.push_back( Hmet[0] );
+        WRarr_01.push_back( Hmet[1] );
+        WRarr_02.push_back( Hmet[2] );
+
+        WRarr_10.push_back( Hmet[1] );
+        WRarr_11.push_back( Hmet[4] );
+        WRarr_12.push_back( Hmet[5] );
+
+        WRarr_20.push_back( Hmet[2] );
+        WRarr_21.push_back( Hmet[5] );
+        WRarr_22.push_back( Hmet[8] );
+        
+        
+        delete DR;
+        delete VR;
+        delete iVR;
+        delete Rs;
+        delete Rf;
+
+        delete[] iV;
+        delete[] V;
+        delete[] WR;
+        delete[] WI;
+        delete[] WRn;
+        
+    }
+    
+    
+    int nvert = uivert.size();
+    UnitTestEigenDecomp();
+    
+    //==============================================================================================
+    //================================Output the data in Tecplot format=============================
+    //==============================================================================================
+    string filename10 = "pre_elem_rank_" + std::to_string(world_rank) + ".dat";
+    ofstream myfile10; 
+    myfile10.open(filename10);
+    //string filename2 = "eig_slice_rank_" + std::to_string(world_rank) + ".dat";
+    //ofstream myfile2;
+    //myfile2.open(filename2);
+    string filename3 = "pre_metric_rank_" + std::to_string(world_rank) + "_v1.dat";
+    ofstream myfile3;
+    myfile3.open(filename3);
+    string filename = "eig_rank_" + std::to_string(world_rank) + ".dat";
+    ofstream myfile;
+    myfile.open(filename);
+    myfile << "TITLE=\"volume_part_"  + std::to_string(world_rank) +  ".tec\"" << std::endl;
+    //myfile <<"VARIABLES = \"X\", \"Y\", \"Z\", \"hxx\", \"hxy\", \"hxz\", \"hyx\", \"hyy\", \"hyz\", \"hzx\", \"hzy\", \"hzz\"" << std::endl;
+    //myfile <<"VARIABLES = \"X\", \"Y\", \"Z\", \"hxx\", \"hxy\", \"hxz\", \"hyx\", \"hyy\", \"hyz\", \"hzx\", \"hzy\", \"hzz\"" << std::endl;
+    //myfile <<"VARIABLES = \"X\", \"Y\", \"Z\", \"var\", \"gradx_var\", \"grady_var\", \"gradz_var\", \"v00\", \"v01\", \"v02\", \"v10\", \"v11\", \"v12\", \"v20\", \"v21\", \"v22\"" << std::endl;
+    myfile <<"VARIABLES = \"X\", \"Y\", \"Z\", \"var\", \"gradx_var\", \"grady_var\", \"gradz_var\",\"gxx\",\"gxy\",\"gxz\",\"gyx\",\"gyy\",\"gyz\",\"gzx\",\"gzy\",\"gzz\",\"H00\",\"H01\",\"H02\",\"H10\",\"H11\",\"H12\",\"H20\",\"H21\",\"H22\"" << std::endl;
+    //myfile <<"VARIABLES = \"X\", \"Y\", \"Z\", \"var\", \"gradx_var\", \"grady_var\", \"gradz_var\"" << std::endl;
+    std::cout << " verts check " << LVerts.size() << " " << WRarr_00.size() << std::endl;
+    int nvert2 = LVerts.size();
+    myfile <<"ZONE N = " << nvert2 << ", E = " << ien_copy->getNrow() << ", DATAPACKING = POINT, ZONETYPE = FEBRICK" << std::endl;
+    for(int i=0;i<nvert;i++)
+    {
+       //myfile << LVerts[i].x << "   " << LVerts[i].y << "   " << LVerts[i].z << "   " << hxx[i] << " " << hxy[i] << " " << hxz[i] << " " << hyx[i] << " " << hyy[i] << " " << hyz[i] << " " << hzx[i] << " " << hzy[i] << " " << hzz[i] << std::endl;
+        myfile << LVerts[i].x << " " << LVerts[i].y << " " << LVerts[i].z << " " << uivert[i] << " " << dudxivert[i] << " " << dudyivert[i]<< " " << dudzivert[i] << " " << du2dx2vert[i] << " " << du2dxyvert[i]<< " " << du2dxzvert[i]<< " " << du2dyxvert[i]<< " " << du2dy2vert[i]<< " " << du2dyzvert[i]<< " " << du2dzxvert[i]<< " " << du2dzyvert[i]<< " " << du2dz2vert[i] << " " << WRarr_00[i]<< " " << WRarr_01[i]<< " " << WRarr_02[i] << " " << WRarr_10[i]<< " " << WRarr_11[i]<< " " << WRarr_12[i] << " " << WRarr_20[i]<< " " << WRarr_21[i]<< " " << WRarr_22[i] <<std::endl;
+        //myfile << LVerts[i].x << " " << LVerts[i].y << " " << LVerts[i].z << " " << uivert[i] << " " << dudxivert[i] << " " << dudyivert[i]<< " " << dudzivert[i] << std::endl;
+        
+        myfile3 << LVerts[i].x << " " << LVerts[i].y << " " << LVerts[i].z << " " << WRarr_00[i]<< " " << WRarr_01[i]<< " " << WRarr_02[i] << " " << WRarr_10[i]<< " " << WRarr_11[i]<< " " << WRarr_12[i] << " " << WRarr_20[i]<< " " << WRarr_21[i]<< " " << WRarr_22[i]<< std::endl;
+        
+        
+        
+        //myfile << LVerts[i].x << " " << LVerts[i].y << " " << LVerts[i].z << " " << uivert[i] << " " << dudxivert[i] << " " << dudyivert[i]<< " " << dudzivert[i]<< " " << Hess[0][i] << " " << Hess[1][i] << " " << Hess[2][i] << " " << Hess[3][i] << " " << Hess[4][i] << " " << Hess[5][i] << " " << Hess[6][i] << " " << Hess[7][i] << " " << Hess[8][i] << std::endl;
+        //myfile << LVerts[i].x << "   " << LVerts[i].y << "   " << LVerts[i].z << "   " << DiPlot[0][i] << " " << DiPlot[1][i] << " " << DiPlot[2][i] << " " << ViPlot[0][i] << " " << ViPlot[1][i] << " " << ViPlot[2][i] << "   " << ViPlot[3][i] << " " << ViPlot[4][i] << " " << ViPlot[5][i] << "   " << ViPlot[6][i] << " " << ViPlot[7][i] << " " << ViPlot[8][i] << std::endl;
+        //myfile << LVerts[i].x << "   " << LVerts[i].y << "   " << LVerts[i].z << "   " << ViPlot[0][i] << " " << ViPlot[1][i] << " " << ViPlot[2][i] << std::endl;
+       //myfile3 << LVerts[i].x << " " << LVerts[i].y << " " << LVerts[i].z << " " << Hess[0][i] << " " << Hess[1][i] << " " << Hess[2][i] << " " << Hess[3][i] << " " << Hess[4][i] << " " << Hess[5][i] << " " << Hess[6][i] << " " << Hess[7][i] << " " << Hess[8][i] << std::endl;
+//       if(fabs(LVerts[i].z)<1.0e-02)
+//       {
+//           myfile2 << LVerts[i].x << " " << LVerts[i].y << " " << LVerts[i].z << " " << DiPlot->getVal(0,i) << " " << DiPlot->getVal(1,i) << " " << DiPlot->getVal(2,i) << " " << ViPlot->getVal(0,i) << " " << ViPlot->getVal(1,i) << " " << ViPlot->getVal(2,i) << " " << ViPlot->getVal(3,i) << " " << ViPlot->getVal(4,i) << " " << ViPlot->getVal(5,i) << " " << ViPlot->getVal(6,i) << " " << ViPlot->getVal(7,i) << " " << ViPlot->getVal(8,i) << std::endl;
+//     //  myfile3 << LVerts[i].x << " " << LVerts[i].y << " " << LVerts[i].z << " " << Hess[0][i] << " " << Hess[1][i] << " " << Hess[2][i] << " " << Hess[3][i] << " " << Hess[4][i] << " " << Hess[5][i] << " " << Hess[6][i] << " " << Hess[7][i] << " " << Hess[8][i] << " " << DiPlot->getVal(i,0) << " " << DiPlot->getVal(i,1) << " " << DiPlot->getVal(i,2) << std::endl;
+//       }
+    }
+
+    for(int i=0;i<ien_copy->getNrow();i++)
+    {
+       myfile10 << loc_elem2verts_loc[i][0]+1 << " " <<
+                 loc_elem2verts_loc[i][1]+1 << " " <<
+                 loc_elem2verts_loc[i][2]+1 << " " <<
+                 loc_elem2verts_loc[i][3]+1 << " " <<
+                 loc_elem2verts_loc[i][4]+1 << " " <<
+                 loc_elem2verts_loc[i][5]+1 << " " <<
+                 loc_elem2verts_loc[i][6]+1 << " " <<
+                 loc_elem2verts_loc[i][7]+1 << std::endl;
+
+ 
+       myfile << loc_elem2verts_loc[i][0]+1 << "  " <<
+                 loc_elem2verts_loc[i][1]+1 << "  " <<
+                 loc_elem2verts_loc[i][2]+1 << "  " <<
+                 loc_elem2verts_loc[i][3]+1 << "  " <<
+                 loc_elem2verts_loc[i][4]+1 << "  " <<
+                 loc_elem2verts_loc[i][5]+1 << "  " <<
+                 loc_elem2verts_loc[i][6]+1 << "  " <<
+                 loc_elem2verts_loc[i][7]+1 << std::endl;
+    }
+    myfile.close();
+    //myfile2.close();
+    myfile3.close();
+    myfile10.close();
     
     
     MPI_Finalize();
