@@ -3398,10 +3398,10 @@ int main(int argc, char** argv) {
 //============================================================
     
     //const char* fn_conn="grids/piston/conn.h5";
-    const char* fn_conn="conn_stretch.h5";
-    const char* fn_grid="grid_stretch.h5";
-    const char* fn_data="data_stretch.h5";
-    const char* fn_adept="conn_stretch.h5";
+    const char* fn_conn="cases/cylinder/anisotropic_16k/conn_aniso_16k.h5";
+    const char* fn_grid="cases/cylinder/anisotropic_16k/grid_aniso_16k.h5";
+    const char* fn_data="cases/cylinder/anisotropic_16k/data_aniso_16k.h5";
+    const char* fn_adept="cases/cylinder/anisotropic_16k/conn_aniso_16k.h5";
     
     Array<int>*    zdefs = ReadDataSetFromGroupFromFile<int>(fn_adept,"zones","zdefs");
     Array<char>*  znames = ReadDataSetFromGroupFromFile<char>(fn_adept,"zones","znames");
