@@ -2953,8 +2953,8 @@ ModifiedGreenGauss* ComputeMofiedGreenGaussData(Partition* Pa, ParArray<int>* ie
     std::map<int,std::vector<int> > gE2gF = Pa->getglobElem2globFaces();
     np                                    = 8;
     double* Pijk                          = new double[np*3];
-    std::vector<int> Loc_Elem          = Pa->getLocElem();
-    int nLocElem = Loc_Elem.size();
+    std::vector<int> Loc_Elem             = Pa->getLocElem();
+    int nLocElem                          = Loc_Elem.size();
     Array<double>* cc                     = new Array<double>(nLocElem,3);
     std::map<int,int> gV2lV               = Pa->getGlobalVert2LocalVert();
     

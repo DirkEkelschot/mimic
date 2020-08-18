@@ -10,13 +10,13 @@ project(ADAPT VERSION 1.0)
 #set(CMAKE_CXX_STANDARD 11)
 #set(CMAKE_CXX_STANDARD_REQUIRED True)
 
-include(platforms/MacOSX_Dirk_home.cmake)
+include(platforms/MacOSX_Dirk_work.cmake)
 
 #set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c++11 -Wno-dev)
 
 #set(LIBRARY_OUTPUT_PATH lib/)
 
-set(SRC adapt_output.cpp adapt_compute.cpp adapt_part_func.cpp adapt_schedule.cpp adapt_operations.cpp main.cpp)
+set(SRC adapt_output.cpp adapt_compute.cpp adapt_part_func.cpp adapt_schedule.cpp adapt_operations.cpp adapt_geometry.cpp main.cpp)
 
 #set(EXECUTABLE_OUTPUT_PATH bin/)
 set(COMPILE_FLAGS ${COMPILE_FLAGS} ${MPI_COMPILE_FLAGS})
