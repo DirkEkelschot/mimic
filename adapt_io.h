@@ -157,6 +157,59 @@ Array<T>* ReadDataSetFromRunInFile(const char* file_name, const char* run_name,c
 
 
 
+template<typename T>
+Array<T>* ReadUS3DGhostCellsFromRun(const char* file_name, const char* run_name,const char* dataset_name, int Nel)
+{
+    
+    herr_t ret;
+    hid_t file_id        = H5Fopen(file_name, H5F_ACC_RDONLY,H5P_DEFAULT);
+    hid_t group_id       = H5Gopen(file_id,"solution",H5P_DEFAULT);
+    hid_t run_id         = H5Gopen(group_id,run_name,H5P_DEFAULT);
+    hid_t dset_id        = H5Dopen(run_id,dataset_name,H5P_DEFAULT);
+    hid_t dspace         = H5Dget_space(dset_id);
+    int ndims            = H5Sget_simple_extent_ndims(dspace);
+    
+    hsize_t dims[ndims];
+    H5Sget_simple_extent_dims(dspace, dims, NULL);
+    int nrow             = dims[0];
+    int ncol             = dims[1];
+    int N = nrow-Nel;
+    int g_offset = Nel;
+    
+    hsize_t offset[2];   // hyperslab offset in the file
+    hsize_t count[2];    // size of the hyperslab in the file
+    offset[0] = g_offset;
+    offset[1] = 0;
+    count[0]  = N;
+    count[1]  = ncol;
+    
+    ret = H5Sselect_hyperslab(dspace, H5S_SELECT_SET, offset, NULL, count, NULL);
+    /*
+    * Define the memory dataspace.
+    */
+    hsize_t     dimsm[2];              /* memory space dimensions */
+    dimsm[0] = N;
+    dimsm[1] = ncol;
+    hid_t memspace = H5Screate_simple (2, dimsm, NULL);
+    /*
+    * Define memory hyperslab.
+    */
+    hsize_t      offset_out[2];   // hyperslab offset in memory
+    hsize_t      count_out[2];    // size of the hyperslab in memory
+    offset_out[0] = 0;
+    offset_out[1] = 0;
+    count_out[0]  = N;
+    count_out[1]  = ncol;
+    
+    ret = H5Sselect_hyperslab (memspace, H5S_SELECT_SET, offset_out, NULL,count_out, NULL);
+    
+    Array<T>* A_t = new Array<T>(N,ncol);
+    
+    ret = H5Dread (dset_id, hid_from_type<T>(), memspace, dspace, H5P_DEFAULT, A_t->data);
+    
+    return A_t;
+}
+
 
 
 
@@ -165,7 +218,7 @@ Array<T>* ReadDataSetFromRunInFile(const char* file_name, const char* run_name,c
 
 
 template<typename T>
-ParArray<T>* ReadDataSetFromRunInFileInParallel(const char* file_name, const char* run_name,const char* dataset_name, int Nel, MPI_Comm comm, MPI_Info info)
+ParArray<T>* ReadDataSetFromRunInFileInParallel(const char* file_name, const char* run_name,const char* dataset_name, int g, int Nel, MPI_Comm comm, MPI_Info info)
 {
     int size;
     MPI_Comm_size(comm, &size);
@@ -186,11 +239,20 @@ ParArray<T>* ReadDataSetFromRunInFileInParallel(const char* file_name, const cha
     int nrow             = dims[0];
     int ncol             = dims[1];
     int N = nrow;
-    
+    std::cout << "Ntotal = " << N << std::endl;
+    int g_offset = 0;
     if (strcmp(dataset_name, "interior") == 0)
     {
-    //   std::cout << "reading interior" << std::endl;
-        N = Nel;
+        if(g == 1)
+        {
+            g_offset = Nel;
+            N = nrow-Nel;
+        }
+        else{
+            g_offset = 0;
+            N = Nel;
+        }
+        
     }
     //std::cout << "Nel = " << N << std::endl;
     ParArray<T>* A_ptmp = new ParArray<T>(N,ncol,comm);

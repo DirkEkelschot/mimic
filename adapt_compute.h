@@ -1,7 +1,14 @@
 #include "adapt_datastruct.h"
 #include "adapt_part_func.h"
+#include "adapt_partition.h"
+#include "adapt_datatype.h"
 #ifndef ADAPT_COMPUTE_H
 #define ADAPT_COMPUTE_H
+
+
+void NegateVec3D(Vec3D* a);
+
+double DotVec3D(Vec3D* a, Vec3D* b);
 
 Array<double>* MatInv(Array<double>* A);
 
@@ -29,7 +36,7 @@ double* ComputeJAtCenter(double*P, int np);
 
 double ComputeDeterminantJ(double*P, int np);
 
-Array<double>* ComputeDeterminantofJacobian(PartitionStruct*   pa);
+Array<double>* ComputeDeterminantofJacobian(ParArray<int>* ien, Array<double>* xcn);
 
 double* ComputeVolumeCells(Array<double>* xcn, Array<int>* ien, MPI_Comm comm);
 

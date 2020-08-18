@@ -3,8 +3,20 @@
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #define MAX(a,b) (((a)>(b))?(a):(b))
 
+void NegateVec3D(Vec3D* a)
+{
+    a->c0 = -a->c0;
+    a->c1 = -a->c1;
+    a->c2 = -a->c2;
+    
+}
 
-
+double DotVec3D(Vec3D* a, Vec3D* b)
+{
+    double res = a->c0*b->c0+a->c1*b->c1+a->c2*b->c2;
+    
+    return res;
+}
 
 Array<double>* MatMul(Array<double>* A, Array<double>* B)
 {
@@ -18,6 +30,7 @@ Array<double>* MatMul(Array<double>* A, Array<double>* B)
         throw std::runtime_error("error :: Dimensions of A and B do not correspond.");
     }
     Array<double>* R = new Array<double>(n,m);
+    
     double res = 0.0;
     for(int i=0;i<n;i++)
     {
@@ -397,7 +410,7 @@ double* ComputeJAtCenter(double*P, int np)
     double xphys = 0.0;double yphys = 0.0;double zphys = 0.0;
 
     // The basis functions for the 8 point isoparametric mapping for a hex
-    // looks like the following.
+    // looks like:
     
     /*
     N[0] = 1.0/8.0*(1-eta)*(1-mu)*(1-ksi);
@@ -461,12 +474,12 @@ Array<double>* ComputeHessian(Partition_old* pa)
 }
 
 
-Array<double>* ComputeDeterminantofJacobian(Partition_old* pa)
+Array<double>* ComputeDeterminantofJacobian(ParArray<int>* ien, Array<double>* xcn)
 {
     
     int np = 8; // Assuming its all hexes.
-    int nel_loc = pa->ien->getNrow();
-    int ncol = pa->ien->getNcol();
+    int nel_loc = ien->getNrow();
+    int ncol = ien->getNcol();
     Array<double>* detJ = new Array<double>(nel_loc,1);
     double* P = new double[np*3];
     int Vid, Vlid;
@@ -474,13 +487,11 @@ Array<double>* ComputeDeterminantofJacobian(Partition_old* pa)
     {
         for(int j=0;j<ncol-1;j++)
         {
-            Vid = pa->ien->getVal(i,j+1)-1;
+            Vid = ien->getVal(i,j);
             
-            Vlid = pa->glob2loc_Vmap[Vid];
-            
-            P[j*3+0] = pa->Verts->getVal(Vlid,0);
-            P[j*3+1] = pa->Verts->getVal(Vlid,1);
-            P[j*3+2] = pa->Verts->getVal(Vlid,2);
+            P[j*3+0] = xcn->getVal(Vid,0);
+            P[j*3+1] = xcn->getVal(Vid,1);
+            P[j*3+2] = xcn->getVal(Vid,2);
         }
         
         double dJ = ComputeDeterminantJ(P,8);

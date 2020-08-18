@@ -5,6 +5,8 @@
 #include <math.h>
 #include "adapt_output.h"
 #include "adapt_partition.h"
+//#include "adapt_datatype.h"
+#include "adapt_geometry.h"
 //#include "adapt.h"
 #include <iomanip>
 int mpi_size, mpi_rank;
@@ -125,6 +127,8 @@ struct HalfEdge
    int face_g;
    int face_l;
 };
+
+
 
 
 
@@ -359,9 +363,9 @@ map< pair<int,int>, HalfEdge* > GetHalfEdges(int* element_verts, int* M, int nlo
 void UnitTestEigenDecomp()
 {
     double *M = new double[3*3];
-    M[0] = 0.25;M[1]=0.0;M[2]=0.0;
-    M[3] = 0.0;M[4]=0.25;M[5]=0.0;
-    M[6] = 0.0;M[7]=0.0;M[8]=0.25;
+    M[0] = 0.25;M[1]=-0.3;M[2]=0.4;
+    M[3] = -0.3;M[4]=1.25;M[5]=0.1;
+    M[6] = 0.4;M[7]=0.1;M[8]=0.25;
     
     double * WR = new double[3];
     double * WI = new double[3];
@@ -1658,7 +1662,7 @@ void ParallelSortTest_v2()
     
 }
 
-
+/*
 std::map<int, std::map<int, int> > getElement2ElementTopology(Partition* P, MPI_Comm comm)
 {
     int world_size;
@@ -1675,8 +1679,8 @@ std::map<int, std::map<int, int> > getElement2ElementTopology(Partition* P, MPI_
     std::set<int> elem_set = P->getElemSet();
 
     std::map<int,std::map<int,int> > Element2ElementTopology;
-    int nloc = P->getPart()->getNloc(world_rank);
-    int of = P->getPart()->getOffset(world_rank);
+    int nloc = P->getLocalPartition()->getNloc(world_rank);
+    int of = P->getLocalPartition()->getOffset(world_rank);
     //std::set<int> owned_faces;
     //std::cout << elem2globface.size() << std::endl;
     for(int i = 0;i<nloc;i++)
@@ -1735,6 +1739,7 @@ std::map<int, std::map<int, int> > getElement2ElementTopology(Partition* P, MPI_
     delete[] adjcny;
     return Element2ElementTopology;
 }
+*/
 
 Array<double>* SolveQR(double* A, int m, int n, Array<double>* b)
 {
@@ -1787,12 +1792,16 @@ Array<double>* ComputedUdXi(Partition* P, std::vector<double> U, int Nel, MPI_Co
     int np = 8;
     std::map<int, int>::iterator itmap;
     int e = 0;
-    int offset  = P->getPart()->getOffset(rank);
+    int offset  = P->getLocalPartition()->getOffset(rank);
     int* xadj   = P->getXadj();
     int* adjcny = P->getAdjcny();
-    int nloc    = P->getPart()->getNrow();
+    int nloc    = P->getLocalPartition()->getNrow();
     int lid;
     Array<double>* grad = new Array<double>(nloc,3);
+    std::vector<std::vector<double> > store_coords;
+    std::vector<double> upo_stored;
+    std::vector<double> upijk_stored;
+    std::vector<double> fac_stored;
     for(int i = 0;i<nloc;i++)
     {
         int start = xadj[i];
@@ -1805,7 +1814,6 @@ Array<double>* ComputedUdXi(Partition* P, std::vector<double> U, int Nel, MPI_Co
         
         for(int q=0;q<nadj;q++)
         {
-            
             for(int j=0;j<3;j++)
             {
                 Vrt_T->setVal(j,q,0.0);
@@ -1815,7 +1823,6 @@ Array<double>* ComputedUdXi(Partition* P, std::vector<double> U, int Nel, MPI_Co
         lid = gE2lE[i+offset];
         double u_ijk = U[lid];
         std::vector<int> vijkIDs = gE2lV[i+offset];
-        
         double* Pijk = new double[np*3];
         for(int k=0;k<vijkIDs.size();k++)
         {
@@ -1825,19 +1832,26 @@ Array<double>* ComputedUdXi(Partition* P, std::vector<double> U, int Nel, MPI_Co
             Pijk[k*3+2] = locVerts[loc_vid].z;
         }
         
-
         Vert* Vijk = ComputeCenterCoord(Pijk,8);
-        
-        
-        
+        //double Volijk = ComputeVolumeHexCell(Pijk);           
         int tel   = 0;
+        std::vector<double> tmp;
+        if(i==1000)
+        {
+            std::cout << "adjEl_id ";
+        }
         for(int j=start;j<end;j++)
         {
             int adjEl_id = adjcny[j];
+            if(i==1000)
+            {
+                std::cout << adjEl_id << " ";
+            }
+            
             lid = gE2lE[adjEl_id];
             double u_po = U[lid];
             double* Po = new double[np*3];
-            
+
             for(int k=0;k<gE2lV[adjEl_id].size();k++)
             {
                 loc_vid   = gE2lV[adjEl_id][k];
@@ -1845,37 +1859,72 @@ Array<double>* ComputedUdXi(Partition* P, std::vector<double> U, int Nel, MPI_Co
                 Po[k*3+1] = locVerts[loc_vid].y;
                 Po[k*3+2] = locVerts[loc_vid].z;
             }
-            
+
+
             Vert* Vpo = ComputeCenterCoord(Po,8);
-            
-            Vrt->setVal(tel,0,Vpo->x-Vijk->x);
-            Vrt->setVal(tel,1,Vpo->y-Vijk->y);
-            Vrt->setVal(tel,2,Vpo->z-Vijk->z);
-            
-            b->setVal(tel,0,u_po-u_ijk);
-            
+            //double Volpo = ComputeVolumeHexCell(Po);
+
+            double wi = sqrt((Vpo->x-Vijk->x)*(Vpo->x-Vijk->x)+
+                             (Vpo->y-Vijk->y)*(Vpo->y-Vijk->y)+
+                             (Vpo->z-Vijk->z)*(Vpo->z-Vijk->z));
+
+            double fac = (wi);
+
+            Vrt->setVal(tel,0,(Vpo->x-Vijk->x));
+            Vrt->setVal(tel,1,(Vpo->y-Vijk->y));
+            Vrt->setVal(tel,2,(Vpo->z-Vijk->z));
+//
+//          //b->setVal(tel,0,fac*(u_po-u_ijk));
+            upo_stored.push_back(u_po);
+            upijk_stored.push_back(u_ijk);
+            fac_stored.push_back(fac);
             delete[] Po;
             delete Vpo;
             tel++;
         }
-        
+        if(i==1000)
+        {
+            std::cout << std::endl;
+        }
+
+        double min = *min_element(fac_stored.begin(), fac_stored.end());
+        double max = *max_element(fac_stored.begin(), fac_stored.end());
+
+        std::vector<double> fac_stored_update(nadj);
+
+        for(int s=0;s<nadj;s++)
+        {
+            fac_stored_update[s] = (1.0/fac_stored[s]);
+        }
+
         double* A_cm = new double[nadj*3];
         double sum =0.0;
         for(int s=0;s<nadj;s++)
         {
             for(int j=0;j<3;j++)
             {
-                A_cm[j*nadj+s] = Vrt->getVal(s,j);
+                A_cm[j*nadj+s] = fac_stored_update[s]*Vrt->getVal(s,j);
             }
         }
-        
+
+
+        for(int s=0;s<nadj;s++)
+        {
+            b->setVal(s,0,fac_stored_update[s]*(upo_stored[s]-upijk_stored[s]));
+        }
         Array<double>* x = SolveQR(A_cm,nadj,3,b);
+
 
         grad->setVal(i,0,x->getVal(0,0));
         grad->setVal(i,1,x->getVal(1,0));
         grad->setVal(i,2,x->getVal(2,0));
-        
-        
+
+
+        upo_stored.clear();
+        upijk_stored.clear();
+        fac_stored.clear();
+        fac_stored_update.clear();
+        store_coords.clear();
         delete[] Pijk;
         vijkIDs.clear();
         delete Vrt_T;
@@ -1884,6 +1933,112 @@ Array<double>* ComputedUdXi(Partition* P, std::vector<double> U, int Nel, MPI_Co
         delete[] A_cm;
         delete x;
         delete Vijk;
+        
+    }
+    std::cout << std::endl;
+     
+      
+    
+    //delete[] xadj;
+    //delete[] adjcny;
+    //gE2lV.clear();
+    //locVerts.clear();
+    
+    return grad;
+}
+
+
+
+Array<double>* ComputedUdXi_v2(Partition* P, std::vector<double> U, std::vector<double> Uvert, int Nel, MPI_Comm comm)
+{
+    int size;
+    MPI_Comm_size(comm, &size);
+    // Get the rank of the process
+    int rank;
+    MPI_Comm_rank(comm, &rank);
+    
+    std::map<int,std::vector<int> > gE2lV = P->getGlobElem2LocVerts();
+    std::vector<Vert> locVerts            = P->getLocalVerts();
+    std::map<int,int> gE2lE               = P->getGlobalElement2LocalElement();
+    int loc_vid = 0;
+    int np = 8;
+    std::map<int, int>::iterator itmap;
+    int e = 0;
+    int offset  = P->getLocalPartition()->getOffset(rank);
+    int* xadj   = P->getXadj();
+    int* adjcny = P->getAdjcny();
+    int nloc    = P->getLocalPartition()->getNrow();
+    int lid;
+    Array<double>* grad = new Array<double>(nloc,3);
+    std::vector<std::vector<double> > store_coords;
+    std::vector<double> upo_stored;
+    std::vector<double> upijk_stored;
+    std::vector<double> fac_stored;
+    std::vector<double> ux;
+    std::vector<double> uy;
+    std::vector<double> uz;
+    std::vector<double> uu;
+    std::set<int> unique_verts;
+
+    for(int i = 0;i<nloc;i++)
+    {
+        int start = xadj[i];
+        int end   = xadj[i+1];
+        
+        
+//        Array<double>* Vrt_T = new Array<double>(3,nadj);
+//        Array<double>* Vrt   = new Array<double>(nadj,3);
+//        Array<double>* b     = new Array<double>(nadj,1);
+//
+//        for(int q=0;q<nadj;q++)
+//        {
+//            for(int j=0;j<3;j++)
+//            {
+//                Vrt_T->setVal(j,q,0.0);
+//                Vrt->setVal(q,j,0.0);
+//            }
+//        }
+        lid = gE2lE[i+offset];
+        double u_ijk = U[lid];
+        std::vector<int> vijkIDs = gE2lV[i+offset];
+        double* Pijk = new double[np*3];
+        for(int k=0;k<vijkIDs.size();k++)
+        {
+            loc_vid     = vijkIDs[k];
+            unique_verts.insert(loc_vid);
+            ux.push_back(locVerts[loc_vid].x);
+            uy.push_back(locVerts[loc_vid].y);
+            uz.push_back(locVerts[loc_vid].z);
+            uu.push_back(Uvert[loc_vid]);
+            
+            
+        }
+        for(int j=start;j<end;j++)
+        {
+            int adjEl_id = adjcny[j];
+            lid = gE2lE[adjEl_id];
+           
+            for(int k=0;k<gE2lV[adjEl_id].size();k++)
+            {
+                loc_vid   = gE2lV[adjEl_id][k];
+                
+                if(unique_verts.find(loc_vid)==unique_verts.end())
+                {
+                    unique_verts.insert(loc_vid);
+                    ux.push_back(locVerts[loc_vid].x);
+                    uy.push_back(locVerts[loc_vid].y);
+                    uz.push_back(locVerts[loc_vid].z);
+                    uu.push_back(Uvert[loc_vid]);
+                }
+            }
+        }
+        
+        int nadj = uu.size();
+        unique_verts.clear();
+        uu.clear();
+        ux.clear();
+        uy.clear();
+        uz.clear();
         
     }
      
@@ -1898,7 +2053,7 @@ Array<double>* ComputedUdXi(Partition* P, std::vector<double> U, int Nel, MPI_Co
 }
 
 
-
+/*
 Array<double>* ComputeHessian(Partition* P, int Nel, MPI_Comm comm)
 {
     int size;
@@ -1906,10 +2061,10 @@ Array<double>* ComputeHessian(Partition* P, int Nel, MPI_Comm comm)
     // Get the rank of the process
     int rank;
     MPI_Comm_rank(comm, &rank);
-    int nloc = P->getPart()->getNrow();
+    int nloc = P->getLocalPartition()->getNrow();
     Array<double>* hessian = new Array<double>(Nel,3);
     
-    std::map<int,std::vector<int> > gE2lV       = P->getGlobElem2LocVerts();
+    std::map<int,std::vector<int> > gE2lV       = P->getGlobalElement2LocalVert();
 
     std::vector<Vert> locVerts                  = P->getLocalVerts();
     int loc_vid = 0;
@@ -1918,10 +2073,10 @@ Array<double>* ComputeHessian(Partition* P, int Nel, MPI_Comm comm)
     int e = 0;
     std::map<int,std::map<int,int> >::iterator itadj;
 
-    int offset = P->getPart()->getOffset(rank);
+    int offset = P->getLocalPartition()->getOffset(rank);
     int* xadj = P->getXadj();
     int* adjcny = P->getAdjcny();
-    /**/
+    
     for(int i = 0;i<nloc;i++)
     {
         
@@ -2021,7 +2176,7 @@ Array<double>* ComputeHessian(Partition* P, int Nel, MPI_Comm comm)
     return hessian;
 }
 
-
+*/
 
 
 void QRdecomTest()
@@ -2233,6 +2388,994 @@ void GradRecTest()
 }
 
 
+std::vector<std::vector<double> > ComputeDistances(Partition* P, ParallelState* pstate, ParArray<int>* iee, Array<int>* ifn, int Nel, MPI_Comm comm)
+{
+    int world_size;
+    MPI_Comm_size(comm, &world_size);
+    // Get the rank of the process
+    int world_rank;
+    MPI_Comm_rank(comm, &world_rank);
+    std::vector<Vert> LocalVs = P->getLocalVerts();
+    std::map<int,std::vector<int> > gE2lV = P->getGlobElem2LocVerts();
+    std::map<int,std::vector<int> > gE2gF = P->getglobElem2globFaces();
+    std::map<int,int> gV2lV               = P->getGlobalVert2LocalVert();
+    
+    std::vector<int> ElemPart = P->getLocElem();
+    
+    std::vector<std::vector<double> > iee_dist;
+    std::vector<double> dist;
+    double* Pijk = new double[8*3];
+    double* Padj = new double[8*3];
+    double d;
+    int loc_vid,adjID,elID;
+    int cou = 0;
+    int offset = pstate->getOffset(world_rank);
+    Vert* Vc = new Vert;
+    for(int i=0;i<iee->getNrow();i++)
+    {
+        int elID = i+offset;//ElemPart[i];
+        //std::vector<int> vijkIDs = gE2lV[elID];
+        for(int k=0;k<gE2lV[elID].size();k++)
+        {
+            loc_vid     = gE2lV[elID][k];
+            Pijk[k*3+0] = LocalVs[loc_vid].x;
+            Pijk[k*3+1] = LocalVs[loc_vid].y;
+            Pijk[k*3+2] = LocalVs[loc_vid].z;
+        }
+        Vert* Vijk = ComputeCenterCoord(Pijk,8);
+        for(int j=0;j<6;j++)
+        {
+            adjID = iee->getVal(i,j);
+
+            if(adjID<Nel)
+            {
+                //std::cout << gE2lV[adjID].size() << std::endl;
+                for(int k=0;k<gE2lV[adjID].size();k++)
+                {
+                    loc_vid     = gE2lV[adjID][k];
+                    Padj[k*3+0] = LocalVs[loc_vid].x;
+                    Padj[k*3+1] = LocalVs[loc_vid].y;
+                    Padj[k*3+2] = LocalVs[loc_vid].z;
+                }
+                Vert* Vadj = ComputeCenterCoord(Padj,8);
+
+                d = sqrt((Vadj->x-Vijk->x)*(Vadj->x-Vijk->x)+
+                         (Vadj->y-Vijk->y)*(Vadj->y-Vijk->y)+
+                         (Vadj->z-Vijk->z)*(Vadj->z-Vijk->z));
+
+                dist.push_back(d);
+            }
+            else
+            {
+                int fid = gE2gF[elID][j];
+
+                std::vector<int> faceverts;
+                //double* face_adj = new double[4*3];
+                Vc->x = 0.0;Vc->y = 0.0;Vc->z = 0.0;
+                for(int s=0;s<4;s++)
+                {
+                    int gvid = ifn->getVal(fid,s);
+                    int lvid = gV2lV[gvid];
+
+//                  face_adj[s*3+0] = LocalVs[lvid].x;
+//                  face_adj[s*3+1] = LocalVs[lvid].y;
+//                  face_adj[s*3+2] = LocalVs[lvid].z;
+                    
+                    Vc->x = Vc->x+LocalVs[lvid].x;
+                    Vc->y = Vc->y+LocalVs[lvid].y;
+                    Vc->z = Vc->z+LocalVs[lvid].z;
+                }
+//
+                Vc->x = Vc->x/4.0;
+                Vc->y = Vc->y/4.0;
+                Vc->z = Vc->z/4.0;
+
+                cou++;
+
+                faceverts.clear();
+
+                d = 2.0*sqrt((Vc->x-Vijk->x)*(Vc->x-Vijk->x)+
+                             (Vc->y-Vijk->y)*(Vc->y-Vijk->y)+
+                             (Vc->z-Vijk->z)*(Vc->z-Vijk->z));
+
+                dist.push_back(d);
+            }
+        }
+        iee_dist.push_back(dist);
+        dist.clear();
+    }
+    return iee_dist;
+}
+
+
+Array<double>* ComputedUdx(Partition* P, ParallelState* pstate, ParArray<int>* iee, std::map<int,std::vector<int> > iee_vec,std::map<int,std::vector<int> > ief_vec, Array<int>* ifn, Array<int>* ief, int Nel, std::vector<double> U, Array<double>* ghost, Array<double>* bound, MPI_Comm comm, Array<int>* ife)
+{
+    int world_size;
+    MPI_Comm_size(comm, &world_size);
+    // Get the rank of the process
+    int world_rank;
+    MPI_Comm_rank(comm, &world_rank);
+    std::vector<Vert> LocalVs = P->getLocalVerts();
+    std::map<int,std::vector<int> > gE2lV = P->getGlobElem2LocVerts();
+    std::map<int,std::vector<int> > gE2gF = P->getglobElem2globFaces();
+    std::map<int,int> gV2lV               = P->getGlobalVert2LocalVert();
+    std::map<int,int> gE2lE               = P->getGlobalElement2LocalElement();
+    std::vector<int> ElemPart             = P->getLocElem();
+    std::vector<int> Loc_Elem          = P->getLocElem();
+    int* xadj                             = P->getXadj();
+    int* adjcny                           = P->getAdjcny();
+    std::vector<std::vector<double> > iee_dist;
+    std::vector<double> dist;
+    double* Pijk = new double[8*3];
+    double* Padj = new double[8*3];
+    
+    double d;
+    int loc_vid,adjID,elID;
+    int cou = 0;
+    int offset = pstate->getOffset(world_rank);
+    Vert* Vc = new Vert;
+    int lid = 0;
+    double u_ijk, u_po;
+
+    int nLocElem = Loc_Elem.size();
+    Array<double>* grad = new Array<double>(nLocElem,3);
+
+    for(int i=0;i<nLocElem;i++)
+    {
+        int nadj = 6;
+    
+       // std::vector<int> adj_el_real;
+//        for(int q=0;q<6;q++)
+//        {
+//            if(iee->getVal(i,q)<Nel)
+//            {
+//                adj_el_real.push_back(iee->getVal(i,q));
+//                nadj++;
+//            }
+//        }
+                
+        Array<double>* Vrt_T = new Array<double>(3,nadj);
+        Array<double>* Vrt   = new Array<double>(nadj,3);
+        Array<double>* b     = new Array<double>(nadj,1);
+        
+        std::vector<std::vector<int> > MatVrt;
+        
+        for(int q=0;q<nadj;q++)
+        {
+            for(int j=0;j<3;j++)
+            {
+                Vrt_T->setVal(j,q,0.0);
+                Vrt->setVal(q,j,0.0);
+            }
+        }
+        
+        int elID = Loc_Elem[i];
+        for(int k=0;k<gE2lV[elID].size();k++)
+        {
+            loc_vid     = gE2lV[elID][k];
+            Pijk[k*3+0] = LocalVs[loc_vid].x;
+            Pijk[k*3+1] = LocalVs[loc_vid].y;
+            Pijk[k*3+2] = LocalVs[loc_vid].z;
+        }
+        Vert* Vijk = ComputeCenterCoord(Pijk,8);
+        
+        lid = gE2lE[elID];
+        u_ijk = U[lid];
+        int t = 0;
+        int start = xadj[i];
+        int end   = xadj[i+1];
+        for(int j=0;j<6;j++)
+        {
+            
+            int fid = gE2gF[elID][j];
+            adjID   = iee_vec[elID][j];
+            //adjID = adjcny[start+j];
+            int fid2 = ief_vec[elID][j];
+//            if(world_rank == 0)
+//            {
+//            std::cout << "---" << world_rank  << " " << offset << " fid = " << fid << " -> (" << ife->getVal(fid,0) << " " << ife->getVal(fid,1) << ") --- (" << adjID << ", " << elID <<") ??? fid2 = " << fid2 << " -> (" << ife->getVal(fid2,0) << " " << ife->getVal(fid2,1) << ")" << std::endl;
+//            }
+            
+            if(adjID<Nel)
+            {
+                lid = gE2lE[adjID];
+                u_po = U[lid];
+
+                for(int k=0;k<gE2lV[adjID].size();k++)
+                {
+                    loc_vid     = gE2lV[adjID][k];
+                    Padj[k*3+0] = LocalVs[loc_vid].x;
+                    Padj[k*3+1] = LocalVs[loc_vid].y;
+                    Padj[k*3+2] = LocalVs[loc_vid].z;
+                }
+                
+                Vert* Vadj = ComputeCenterCoord(Padj,8);
+
+                d = sqrt((Vadj->x-Vijk->x)*(Vadj->x-Vijk->x)+
+                         (Vadj->y-Vijk->y)*(Vadj->y-Vijk->y)+
+                         (Vadj->z-Vijk->z)*(Vadj->z-Vijk->z));
+                
+                Vrt->setVal(t,0,(Vadj->x-Vijk->x));
+                Vrt->setVal(t,1,(Vadj->y-Vijk->y));
+                Vrt->setVal(t,2,(Vadj->z-Vijk->z));
+                                
+                b->setVal(t,0,u_po-u_ijk);
+                delete Vadj;
+                dist.push_back(d);
+                t++;
+
+                
+            }
+            
+            else
+            {
+                int fid = gE2gF[elID][j];
+
+                Vc->x = 0.0;Vc->y = 0.0;Vc->z = 0.0;
+                
+                for(int s=0;s<4;s++)
+                {
+                    int gvid = ifn->getVal(fid,s);
+                    int lvid = gV2lV[gvid];
+
+                    Vc->x = Vc->x+LocalVs[lvid].x;
+                    Vc->y = Vc->y+LocalVs[lvid].y;
+                    Vc->z = Vc->z+LocalVs[lvid].z;
+                }
+                
+                Vc->x = Vc->x/4.0;
+                Vc->y = Vc->y/4.0;
+                Vc->z = Vc->z/4.0;
+
+                d = sqrt((Vc->x-Vijk->x)*(Vc->x-Vijk->x)+
+                             (Vc->y-Vijk->y)*(Vc->y-Vijk->y)+
+                             (Vc->z-Vijk->z)*(Vc->z-Vijk->z));
+
+                u_po = ghost->getVal(adjID-Nel,0);
+                
+                double u_fpo = bound->getVal(adjID-Nel,0);
+ 
+                Vrt->setVal(t,0,(Vc->x-Vijk->x));
+                Vrt->setVal(t,1,(Vc->y-Vijk->y));
+                Vrt->setVal(t,2,(Vc->z-Vijk->z));
+//
+                b->setVal(t,0,u_po-u_ijk);
+                t++;
+                dist.push_back(d);
+            }
+            
+            double* A_cm = new double[nadj*3];
+            double sum =0.0;
+            for(int s=0;s<nadj;s++)
+            {
+                for(int j=0;j<3;j++)
+                {
+                    A_cm[j*nadj+s] = Vrt->getVal(s,j);
+                }
+            }
+            
+            
+            Array<double>* x = SolveQR(A_cm,nadj,3,b);
+            //std::cout << x->getVal(0,0) << " " << x->getVal(1,0) << " " << x->getVal(2,0) << std::endl;
+            grad->setVal(i,0,x->getVal(0,0));
+            grad->setVal(i,1,x->getVal(1,0));
+            grad->setVal(i,2,x->getVal(2,0));
+            
+            delete[] A_cm;
+            delete x;
+             
+             
+        }
+//        if(world_rank == 1)
+//        {
+//            std::cout << std::endl;
+//        }
+        //adj_el_real.clear();
+        
+        delete Vrt_T;
+        delete Vrt;
+        delete b;
+        
+        iee_dist.push_back(dist);
+        dist.clear();
+    }
+    return grad;
+}
+
+
+Array<double>* ComputedUdx2(Partition* P, ParallelState* pstate, ParArray<int>* iee, Array<int>* ifn, Array<int>* ief, int Nel, std::vector<double> U, Array<double>* ghost, Array<double>* bound, MPI_Comm comm)
+{
+    int world_size;
+    MPI_Comm_size(comm, &world_size);
+    // Get the rank of the process
+    int world_rank;
+    MPI_Comm_rank(comm, &world_rank);
+    std::vector<Vert> LocalVs = P->getLocalVerts();
+    std::map<int,std::vector<int> > gE2lV = P->getGlobElem2LocVerts();
+    std::map<int,std::vector<int> > gE2gF = P->getglobElem2globFaces();
+    std::map<int,int> gV2lV               = P->getGlobalVert2LocalVert();
+    std::map<int,int> gE2lE               = P->getGlobalElement2LocalElement();
+    std::vector<int> ElemPart             = P->getLocElem();
+    
+    std::vector<std::vector<double> > iee_dist;
+    std::vector<double> dist;
+    double* Pijk = new double[8*3];
+    double* Padj = new double[8*3];
+    double d;
+    int loc_vid,adjID,elID;
+    int cou = 0;
+    int offset = pstate->getOffset(world_rank);
+    Vert* Vc = new Vert;
+    int lid = 0;
+    double u_ijk, u_po;
+
+    
+    Array<double>* grad = new Array<double>(iee->getNrow(),3);
+    
+    for(int i=0;i<iee->getNrow();i++)
+    {
+        int nadj = 6;
+        
+       // std::vector<int> adj_el_real;
+//        for(int q=0;q<6;q++)
+//        {
+//            if(iee->getVal(i,q)<Nel)
+//            {
+//                adj_el_real.push_back(iee->getVal(i,q));
+//                nadj++;
+//            }
+//        }
+                
+        Array<double>* Vrt_T = new Array<double>(3,nadj);
+        Array<double>* Vrt   = new Array<double>(nadj,3);
+        Array<double>* b     = new Array<double>(nadj,1);
+        
+        std::vector<std::vector<int> > MatVrt;
+        
+        for(int q=0;q<nadj;q++)
+        {
+            for(int j=0;j<3;j++)
+            {
+                Vrt_T->setVal(j,q,0.0);
+                Vrt->setVal(q,j,0.0);
+            }
+        }
+        
+        int elID = i+offset;//ElemPart[i];
+        for(int k=0;k<gE2lV[elID].size();k++)
+        {
+            loc_vid     = gE2lV[elID][k];
+            Pijk[k*3+0] = LocalVs[loc_vid].x;
+            Pijk[k*3+1] = LocalVs[loc_vid].y;
+            Pijk[k*3+2] = LocalVs[loc_vid].z;
+        }
+        Vert* Vijk = ComputeCenterCoord(Pijk,8);
+        lid = gE2lE[i+offset];
+        u_ijk = U[lid];
+        int t = 0;
+        for(int j=0;j<6;j++)
+        {
+            adjID = iee->getVal(i,j);
+
+            if(adjID<Nel)
+            {
+                lid = gE2lE[adjID];
+                u_po = U[lid];
+
+                for(int k=0;k<gE2lV[adjID].size();k++)
+                {
+                    loc_vid     = gE2lV[adjID][k];
+                    Padj[k*3+0] = LocalVs[loc_vid].x;
+                    Padj[k*3+1] = LocalVs[loc_vid].y;
+                    Padj[k*3+2] = LocalVs[loc_vid].z;
+                }
+                
+                Vert* Vadj = ComputeCenterCoord(Padj,8);
+
+                d = sqrt((Vadj->x-Vijk->x)*(Vadj->x-Vijk->x)+
+                         (Vadj->y-Vijk->y)*(Vadj->y-Vijk->y)+
+                         (Vadj->z-Vijk->z)*(Vadj->z-Vijk->z));
+                
+                Vrt->setVal(t,0,(Vadj->x-Vijk->x));
+                Vrt->setVal(t,1,(Vadj->y-Vijk->y));
+                Vrt->setVal(t,2,(Vadj->z-Vijk->z));
+                
+                b->setVal(t,0,u_po-u_ijk);
+                delete Vadj;
+                dist.push_back(d);
+                t++;
+//                Vecb.push_back(u_po-u_ijk);
+//                MatVrt.push_back(tmp);
+                
+            }
+            else
+            {
+                //int fid = gE2gF[elID][j];
+                int fid = ief->getVal(elID,j);
+                //double* face_adj = new double[4*3];
+                Vc->x = 0.0;Vc->y = 0.0;Vc->z = 0.0;
+                
+                for(int s=0;s<4;s++)
+                {
+                    int gvid = ifn->getVal(fid,s);
+                    int lvid = gV2lV[gvid];
+                    
+                    Vc->x = Vc->x+LocalVs[lvid].x;
+                    Vc->y = Vc->y+LocalVs[lvid].y;
+                    Vc->z = Vc->z+LocalVs[lvid].z;
+                }
+                
+                Vc->x = Vc->x/4.0;
+                Vc->y = Vc->y/4.0;
+                Vc->z = Vc->z/4.0;
+                
+                d = sqrt((Vc->x-Vijk->x)*(Vc->x-Vijk->x)+
+                             (Vc->y-Vijk->y)*(Vc->y-Vijk->y)+
+                             (Vc->z-Vijk->z)*(Vc->z-Vijk->z));
+
+                u_po = ghost->getVal(adjID-Nel,0);
+                
+                double u_fpo = bound->getVal(adjID-Nel,0);
+ 
+                Vrt->setVal(t,0,(Vc->x-Vijk->x));
+                Vrt->setVal(t,1,(Vc->y-Vijk->y));
+                Vrt->setVal(t,2,(Vc->z-Vijk->z));
+                b->setVal(t,0,u_po-u_ijk);
+                t++;
+                dist.push_back(d);
+            }
+            
+            double* A_cm = new double[nadj*3];
+            double sum =0.0;
+            for(int s=0;s<nadj;s++)
+            {
+                for(int j=0;j<3;j++)
+                {
+                    A_cm[j*nadj+s] = Vrt->getVal(s,j);
+                }
+            }
+            
+//            if(nadj<7)
+//            {
+//                std::cout << "NADJ = " << nadj << std::endl;
+//                for(int s=0;s<nadj;s++)
+//                {
+//                    for(int j=0;j<3;j++)
+//                    {
+//                        std::cout << Vrt->getVal(s,j) << " ";
+//                    }
+//
+//                    std::cout << std::endl;
+//                }
+//                std::cout << std::endl;
+//            }
+            
+            
+            Array<double>* x = SolveQR(A_cm,nadj,3,b);
+        
+            grad->setVal(i,0,x->getVal(0,0));
+            grad->setVal(i,1,x->getVal(1,0));
+            grad->setVal(i,2,x->getVal(2,0));
+            
+            delete[] A_cm;
+            delete x;
+        }
+        
+        //adj_el_real.clear();
+        
+        delete Vrt_T;
+        delete Vrt;
+        delete b;
+        
+        iee_dist.push_back(dist);
+        dist.clear();
+    }
+    return grad;
+}
+
+std::vector<double> ReduceToVertices(Partition* P, Array<double>* Uelem, MPI_Comm comm)
+{
+    std::vector<double> Uelem_all = P->PartitionAuxilaryData(Uelem, comm);
+    std::map<int,std::vector<double> > collect_Ui;
+    std::vector<std::vector<int> > loc_elem2verts_loc = P->getLocalElem2LocalVert();
+    for(int i=0;i<Uelem_all.size();i++)
+    {
+        double uinew = Uelem_all[i];
+        int loc_v;
+        for(int j=0;j<8;j++)
+        {
+            loc_v = loc_elem2verts_loc[i][j];
+            collect_Ui[loc_v].push_back(uinew);
+        }
+    }
+    std::map<int,std::vector<double> >::iterator it_rhos;
+    std::vector<double> uivert;
+    
+    for(it_rhos=collect_Ui.begin();it_rhos!=collect_Ui.end();it_rhos++)
+    {
+        double sum_u = 0;
+        
+        for(int q = 0;q<it_rhos->second.size();q++)
+        {
+            sum_u    = sum_u + it_rhos->second[q];
+        }
+        uivert.push_back(sum_u/it_rhos->second.size());
+        
+    }
+        
+    return uivert;
+    
+}
+
+
+struct ModifiedGreenGauss
+{
+    Array<double>* elem_center;
+    std::map<int, int> ief_map;
+    std::map<int,vector<Vec3D*> > face_n;
+    std::map<int,vector<Vec3D*> > face_r;
+    std::map<int,vector<Vec3D*> > xfxc;
+    std::map<int,vector<double> > dr;
+    std::map<int,double> vol;
+    std::map<int,vector<double> > dS;
+    
+};
+
+
+//void CheckSurfaceOrientation(double* Plane)
+//{
+//    double*E0 = new double[2];
+//}
+
+
+ModifiedGreenGauss* ComputeMofiedGreenGaussData(Partition* Pa, ParArray<int>* iee, std::map<int,std::vector<int> > iee_vec, Array<int>* ifn, ParArray<int>* ief, std::map<int,std::vector<int> > ief_vec, Array<int>* ife, Array<double>* ghost, std::map<int,double> U, MPI_Comm comm)
+{
+    int nlocElem, start, end, offset, nloc, np, loc_vid, size, rank, lid;
+    int vf0, vf1, vf2, vf3, vf4, vf5, vf6, vf7, fid;
+    double wi, ds0, ds1 ,ds2, ds3, ds4, ds5, u_po,orient0,orient1,orient2,orient3,orient4,orient5,L0,L1,L2,L3,L4,L5;
+    
+    double* v0=new double[3];
+    double* v1=new double[3];
+    double* v2=new double[3];
+    int Nel = iee->getNglob();
+    
+    MPI_Comm_size(comm, &size);
+    // Get the rank of the process
+    MPI_Comm_rank(comm, &rank);
+    std::map<int,std::vector<int> > gE2lV = Pa->getGlobElem2LocVerts();
+    std::vector<Vert> locVerts            = Pa->getLocalVerts();
+    offset                                = Pa->getLocalPartition()->getOffset(rank);
+    nloc                                  = Pa->getLocalPartition()->getNloc(rank);
+    std::map<int,int> gE2lE               = Pa->getGlobalElement2LocalElement();
+    std::map<int,int> lE2gE               = Pa->getLocalElement2GlobalElement();
+    int* xadj                             = Pa->getXadj();
+    int* adjcny                           = Pa->getAdjcny();
+    std::map<int,std::vector<int> > gE2gF = Pa->getglobElem2globFaces();
+    np                                    = 8;
+    double* Pijk                          = new double[np*3];
+    std::vector<int> Loc_Elem          = Pa->getLocElem();
+    int nLocElem = Loc_Elem.size();
+    Array<double>* cc                     = new Array<double>(nLocElem,3);
+    std::map<int,int> gV2lV               = Pa->getGlobalVert2LocalVert();
+    
+    std::vector<int> ElemPart               = Pa->getLocElem();
+    int nLocElemInc = ElemPart.size();
+
+    std::vector<int> vijkIDs;
+    std::map<int,vector<Vec3D*> > normals;
+    std::map<int,vector<Vec3D*> > rvector;
+    std::map<int,vector<Vec3D*> > dxfxc;
+    std::map<int,double> vol;
+    std::map<int,vector<double> > dr;
+    std::map<int,vector<double> > dS;
+    double* Po  = new double[np*3];
+    int tel     = 0;
+    Vert* fc0 = new Vert;
+    Vert* fc1 = new Vert;
+    Vert* fc2 = new Vert;
+    Vert* fc3 = new Vert;
+    Vert* fc4 = new Vert;
+    Vert* fc5 = new Vert;
+        
+    ModifiedGreenGauss* mggData = new ModifiedGreenGauss;
+    std::vector<Vert*> face;
+    for(int i=0;i<nLocElem;i++)
+    {
+        int gEl = Loc_Elem[i];
+
+        vijkIDs = gE2lV[gEl];
+
+        for(int k=0;k<vijkIDs.size();k++)
+        {
+           loc_vid     = vijkIDs[k];
+           Pijk[k*3+0] = locVerts[loc_vid].x;
+           Pijk[k*3+1] = locVerts[loc_vid].y;
+           Pijk[k*3+2] = locVerts[loc_vid].z;
+        }
+
+        Vert* Vijk = ComputeCenterCoord(Pijk, np);
+        double Vol = ComputeVolumeHexCell(Pijk);
+        vol[gEl]   = Vol;
+        
+        for(int s=0;s<6;s++)
+        {
+            int faceid = ief_vec[gEl][s];
+
+            Vert* Vface = new Vert;
+            
+            for(int r=0;r<4;r++)
+            {
+                int gvid = ifn->getVal(faceid,r);
+                int lvid = gV2lV[gvid];
+                
+                Vert* V = new Vert;
+                V->x    = locVerts[lvid].x;
+                V->y    = locVerts[lvid].y;
+                V->z    = locVerts[lvid].z;
+                
+                Vface->x = Vface->x+locVerts[lvid].x;
+                Vface->y = Vface->y+locVerts[lvid].y;
+                Vface->z = Vface->z+locVerts[lvid].z;
+                
+                face.push_back(V);
+                
+            }
+
+            Vface->x = Vface->x/4.0;
+            Vface->y = Vface->y/4.0;
+            Vface->z = Vface->z/4.0;
+            
+            L0 = sqrt((Vface->x-Vijk->x)*(Vface->x-Vijk->x)
+                     +(Vface->y-Vijk->y)*(Vface->y-Vijk->y)
+                     +(Vface->z-Vijk->z)*(Vface->z-Vijk->z));
+            
+            Vec3D* r0 = new Vec3D;
+            
+            r0->c0 = (Vface->x-Vijk->x);
+            r0->c1 = (Vface->y-Vijk->y);
+            r0->c2 = (Vface->z-Vijk->z);
+            
+            v0[0] = face[1]->x-face[0]->x;
+            v0[1] = face[1]->y-face[0]->y;
+            v0[2] = face[1]->z-face[0]->z;
+
+            v1[0] = face[3]->x-face[0]->x;
+            v1[1] = face[3]->y-face[0]->y;
+            v1[2] = face[3]->z-face[0]->z;
+            
+            Vec3D* n0 = ComputeSurfaceNormal(v0,v1);
+            orient0   = DotVec3D(r0,n0);
+            
+            if(orient0<0.0)
+            {
+                NegateVec3D(n0);
+            }
+            
+            double orientaft = DotVec3D(r0,n0);
+            
+            ds0 = ComputeSurfaceArea(v0,v1);
+            dS[gEl].push_back(ds0);
+            normals[gEl].push_back(n0);
+            dxfxc[gEl].push_back(r0);
+            face.clear();
+        }
+        
+        tel = 0;
+        start = xadj[i];
+        end = xadj[i+1];
+       
+        for(int j=0;j<6;j++)
+        {
+           int fid   = ief_vec[gEl][j];
+           int adjID = iee_vec[gEl][j];
+
+           if(adjID<Nel)// If internal element;
+           {
+               lid  = gE2lE[adjID];
+               u_po = U[adjID];
+               
+               for(int k=0;k<gE2lV[adjID].size();k++)
+               {
+                   loc_vid     = gE2lV[adjID][k];
+                   Po[k*3+0] = locVerts[loc_vid].x;
+                   Po[k*3+1] = locVerts[loc_vid].y;
+                   Po[k*3+2] = locVerts[loc_vid].z;
+               }
+               
+               Vert* Vpo = ComputeCenterCoord(Po,8);
+
+               double d = sqrt((Vpo->x-Vijk->x)*(Vpo->x-Vijk->x)+
+                               (Vpo->y-Vijk->y)*(Vpo->y-Vijk->y)+
+                               (Vpo->z-Vijk->z)*(Vpo->z-Vijk->z));
+            
+               Vec3D* rf = new Vec3D;
+               rf->c0    = (Vpo->x-Vijk->x)/d;
+               rf->c1    = (Vpo->y-Vijk->y)/d;
+               rf->c2    = (Vpo->z-Vijk->z)/d;
+               
+               rvector[gEl].push_back(rf);
+               dr[gEl].push_back(d);
+           }
+           else // If boundary face then search data in the correct ghost cell;
+           {
+               fid = ief_vec[gEl][j];
+
+               //double* face_adj = new double[4*3];
+               Vert* Vpo = new Vert;
+               Vpo->x = 0.0;Vpo->y = 0.0;Vpo->z = 0.0;
+               for(int s=0;s<4;s++)
+               {
+                   int gvid = ifn->getVal(fid,s);
+                   int lvid = gV2lV[gvid];
+
+                   Vpo->x = Vpo->x+locVerts[lvid].x;
+                   Vpo->y = Vpo->y+locVerts[lvid].y;
+                   Vpo->z = Vpo->z+locVerts[lvid].z;
+               }
+
+               Vpo->x = Vpo->x/4.0;
+               Vpo->y = Vpo->y/4.0;
+               Vpo->z = Vpo->z/4.0;
+
+               double d = 2.0*sqrt((Vpo->x-Vijk->x)*(Vpo->x-Vijk->x)+
+                            (Vpo->y-Vijk->y)*(Vpo->y-Vijk->y)+
+                            (Vpo->z-Vijk->z)*(Vpo->z-Vijk->z));
+               
+               u_po = ghost->getVal(adjID-Nel,0);
+               
+               Vec3D* rf = new Vec3D;
+               rf->c0    = (Vpo->x-Vijk->x)/d;
+               rf->c1    = (Vpo->y-Vijk->y)/d;
+               rf->c2    = (Vpo->z-Vijk->z)/d;
+
+               rvector[gEl].push_back(rf);
+               dr[gEl].push_back(d);
+               
+               
+               delete Vpo;
+           }
+           tel++;
+        }
+    }
+    
+
+    mggData->elem_center  = cc;
+    mggData->face_n = normals;
+    mggData->face_r = rvector;
+    mggData->xfxc = dxfxc;
+    mggData->dr = dr;
+    mggData->dS = dS;
+    mggData->vol = vol;
+    return mggData;
+}
+
+
+Array<double>* ReconstructGradient(Partition* Pa, std::map<int,std::vector<int> > iee_vec, std::map<int,std::vector<int> > ief_vec, std::map<int,double> U, ModifiedGreenGauss* mgg, Array<double>* ghost, Array<int>* ife,MPI_Comm comm)
+{
+    int lid, gEl, adjID, l_adjid, size, rank;
+    double u_c, u_nb, gu_c_vx, gu_c_vy, gu_c_vz, gu_nb_vx, gu_nb_vy, gu_nb_vz,sum_phix,sum_phiy,sum_phiz,dphi_dn,Vol;
+    MPI_Comm_size(comm, &size);
+    // Get the rank of the process
+    MPI_Comm_rank(comm, &rank);
+    int Nel = Pa->getLocalPartition()->getNglob();
+    
+    std::map<int,int> gE2lE                 = Pa->getGlobalElement2LocalElement();
+    std::vector<int> Loc_Elem               = Pa->getLocElem();
+    int nLoc_Elem                           = Loc_Elem.size();
+    
+    Array<double>* gu_c_x      = new Array<double>(nLoc_Elem,1);
+    Array<double>* gu_c_y      = new Array<double>(nLoc_Elem,1);
+    Array<double>* gu_c_z      = new Array<double>(nLoc_Elem,1);
+    
+    Array<double>* gu_c_old    = new Array<double>(nLoc_Elem,3);
+    
+    std::map<int,std::vector<int> > gE2gF = Pa->getglobElem2globFaces();
+    
+    for(int i=0;i<nLoc_Elem;i++)
+    {
+        gu_c_x->setVal(i,0,0.0);
+        gu_c_y->setVal(i,0,0.0);
+        gu_c_z->setVal(i,0,0.0);
+        
+        gu_c_old->setVal(i,0,0.0);
+        gu_c_old->setVal(i,1,0.0);
+        gu_c_old->setVal(i,2,0.0);
+    }
+    
+    std::map<int,vector<Vec3D*> > normals   = mgg->face_n;
+    std::map<int,vector<Vec3D*> > rvector   = mgg->face_r;
+    std::map<int,vector<Vec3D*> > dxfxc     = mgg->xfxc;
+    std::map<int,vector<double> > dS        = mgg->dS;
+    std::map<int,vector<double> > dr        = mgg->dr;
+    std::map<int,double > vol               = mgg->vol;
+    int it = 0;
+    double alpha   = 0.0;
+    double L2normx = 0.0;
+    double L2normy = 0.0;
+    double L2normz = 0.0;
+    std::vector<Vec3D*> n_grads;
+
+
+    for(int it=0;it<10;it++)
+    {
+        for(int i=0;i<nLoc_Elem;i++)
+        {
+            gu_c_old->setVal(i,0,gu_c_x->getVal(i,0));
+            gu_c_old->setVal(i,1,gu_c_y->getVal(i,0));
+            gu_c_old->setVal(i,2,gu_c_z->getVal(i,0));
+        }
+        
+         //communicate grad phi!!!
+        
+        std::map<int,double> dUdx_p_bnd = Pa->CommunicateAdjacentDataUS3D(gu_c_x, comm);
+        std::map<int,double> dUdy_p_bnd = Pa->CommunicateAdjacentDataUS3D(gu_c_y, comm);
+        std::map<int,double> dUdz_p_bnd = Pa->CommunicateAdjacentDataUS3D(gu_c_z, comm);
+
+        for(int i=0;i<nLoc_Elem;i++)
+         {
+             gEl = Loc_Elem[i];
+             lid = gE2lE[gEl];
+             u_c = U[gEl];
+
+             gu_c_vx = gu_c_x->getVal(lid,0);
+             gu_c_vy = gu_c_y->getVal(lid,0);
+             gu_c_vz = gu_c_z->getVal(lid,0);
+
+             sum_phix = 0.0;
+             sum_phiy = 0.0;
+             sum_phiz = 0.0;
+             
+             for(int j=0;j<6;j++)
+             {
+                 adjID   = iee_vec[gEl][j];
+                 int fid = ief_vec[gEl][j];
+                 
+                 if(adjID<Nel)
+                 {
+                     //l_adjid = gE2lE[adjID];
+                     gu_nb_vx = dUdx_p_bnd[adjID];
+                     gu_nb_vy = dUdy_p_bnd[adjID];
+                     gu_nb_vz = dUdz_p_bnd[adjID];
+                     u_nb = U[adjID];
+                 }
+                 else
+                 {
+                     u_nb     = ghost->getVal(adjID-Nel,0);
+                     
+                     gu_nb_vx = gu_c_x->getVal(lid,0);
+                     gu_nb_vy = gu_c_y->getVal(lid,0);
+                     gu_nb_vz = gu_c_z->getVal(lid,0);
+                     
+                 }
+                 
+                 Vec3D* nj          = normals[gEl][j];
+                 Vec3D* rj          = rvector[gEl][j];
+                 
+                 double alpha     = DotVec3D(nj,rj);
+                 
+                 Vec3D* nf_m_arf    = new Vec3D;
+
+                 nf_m_arf->c0=nj->c0-alpha*rj->c0;
+                 nf_m_arf->c1=nj->c1-alpha*rj->c1;
+                 nf_m_arf->c2=nj->c2-alpha*rj->c2;
+                 //std::cout << alpha << std::endl;
+                 dphi_dn = alpha * (u_nb - u_c)/dr[gEl][j]; +  0.5 * ((gu_nb_vx + gu_c_vx) * nf_m_arf->c0 +  (gu_nb_vy + gu_c_vy) * nf_m_arf->c1 +  (gu_nb_vz + gu_c_vz) * nf_m_arf->c2);
+                 
+                 sum_phix = sum_phix+dphi_dn*dxfxc[gEl][j]->c0*dS[gEl][j];
+                 sum_phiy = sum_phiy+dphi_dn*dxfxc[gEl][j]->c1*dS[gEl][j];
+                 sum_phiz = sum_phiz+dphi_dn*dxfxc[gEl][j]->c2*dS[gEl][j];
+             }
+             
+             Vol = vol[gEl];
+             gu_c_x->setVal(i,0,1.0/Vol*sum_phix);
+             gu_c_y->setVal(i,0,1.0/Vol*sum_phiy);
+             gu_c_z->setVal(i,0,1.0/Vol*sum_phiz);
+         }
+        dUdx_p_bnd.clear();
+        dUdy_p_bnd.clear();
+        dUdz_p_bnd.clear();
+        L2normx = 0.0;
+        L2normy = 0.0;
+        L2normz = 0.0;
+        for(int n=0;n<nLoc_Elem;n++)
+        {
+            L2normx = L2normx+ sqrt((gu_c_x->getVal(n,0)-gu_c_old->getVal(n,0))*(gu_c_x->getVal(n,0)-gu_c_old->getVal(n,0)));
+
+            L2normy = L2normy+ sqrt((gu_c_y->getVal(n,0)-gu_c_old->getVal(n,1))*(gu_c_y->getVal(n,0)-gu_c_old->getVal(n,1)));
+
+            L2normz = L2normz+ sqrt((gu_c_z->getVal(n,0)-gu_c_old->getVal(n,2))*(gu_c_z->getVal(n,0)-gu_c_old->getVal(n,2)));
+
+        }
+        std::cout << it << " -> convergence " <<  L2normx <<","<<L2normy<<","<<L2normz<<","<< std::endl;
+        if(L2normx<1.0e-07 && L2normy<1.0e-07 && L2normz<1.0e-07)
+        {
+            break;
+        }
+        
+    }
+    
+    return gu_c_old;
+    
+}
+
+
+void ComputeFaceValues(Partition* P, Array<double>* U, MPI_Comm comm)
+{
+    int nface, start, end, rank, size;
+    int nloc, offset, adjEl_id, leid, geid, i, t;
+    double u_o,u_c;
+    MPI_Comm_size(comm, &size);
+    // Get the rank of the process
+    MPI_Comm_rank(comm, &rank);
+    
+    offset  = P->getLocalPartition()->getOffset(rank);
+    int* xadj   = P->getXadj();
+    int* adjcny = P->getAdjcny();
+    nloc    = P->getLocalPartition()->getNrow();
+    
+    nface = 6; // # hardcoded for hexes for now
+    
+    std::vector<double> Uelem_all         = P->PartitionAuxilaryData(U, comm);
+    std::map<int,int> gE2lE               = P->getGlobalElement2LocalElement();
+    std::map<int,int> lE2gE               = P->getLocalElement2GlobalElement();
+    std::map<int,std::vector<int> > gE2gF = P->getglobElem2globFaces();
+    std::map<int,int> gV2lV               = P->getGlobalVert2LocalVert();
+    Array<double>* Uf                     = new Array<double>(nloc,nface);
+    std::map<int,std::vector<int> > gE2lV = P->getGlobElem2LocVerts();
+
+    
+    
+    for(i=0;i<nloc;i++)
+    {
+        start  = xadj[i];
+        end    = xadj[i+1];
+        geid   = lE2gE[i];
+        u_c    = U->getVal(i,0);
+        t = 0;
+        for(int j=start;j<end;j++)
+        {
+            adjEl_id = adjcny[j];
+            leid     = gE2lE[adjEl_id];
+            u_o      = Uelem_all[leid];
+            
+            Uf->setVal(i,t,u_c-u_o);
+            
+            t++;
+        }
+    }
+}
+
+
+Array<double>* ComputeVolumes(Partition* Pa)
+{
+    int loc_vid;
+    std::map<int,int> gE2lE                 = Pa->getGlobalElement2LocalElement();
+    std::vector<int> Loc_Elem               = Pa->getLocElem();
+    int nLocElem                            = Loc_Elem.size();
+    std::map<int,std::vector<int> > gE2lV   = Pa->getGlobElem2LocVerts();
+    std::vector<Vert> locVerts              = Pa->getLocalVerts();
+    Array<double>* Volumes = new Array<double>(nLocElem,1);
+    std::vector<int> vijkIDs;
+    double* Pijk = new double[8*3];
+    for(int i=0;i<nLocElem;i++)
+    {
+       int gEl = Loc_Elem[i];
+
+       vijkIDs = gE2lV[gEl];
+
+       for(int k=0;k<vijkIDs.size();k++)
+       {
+          loc_vid     = vijkIDs[k];
+          Pijk[k*3+0] = locVerts[loc_vid].x;
+          Pijk[k*3+1] = locVerts[loc_vid].y;
+          Pijk[k*3+2] = locVerts[loc_vid].z;
+       }
+
+       double Vol = ComputeVolumeHexCell(Pijk);
+       Volumes->setVal(i,0,Vol);
+    }
+    return Volumes;
+}
 
 
 int main(int argc, char** argv) {
@@ -2255,27 +3398,33 @@ int main(int argc, char** argv) {
 //============================================================
     
     //const char* fn_conn="grids/piston/conn.h5";
-    const char* fn_conn="grids/adept/conn.h5";
-    const char* fn_grid="grids/adept/grid.h5";
-    const char* fn_data="grids/adept/data.h5";
-    const char* fn_adept="grids/adept/conn.h5";
+    const char* fn_conn="conn_stretch.h5";
+    const char* fn_grid="grid_stretch.h5";
+    const char* fn_data="data_stretch.h5";
+    const char* fn_adept="conn_stretch.h5";
     
-    
-    Array<int>*    zdefs  = ReadDataSetFromGroupFromFile<int>(fn_adept,"zones","zdefs");
-    Array<char>*  znames  = ReadDataSetFromGroupFromFile<char>(fn_adept,"zones","znames");
-    PlotBoundaryData(znames,zdefs,comm);
-    ParArray<int>* ien    = ReadDataSetFromFileInParallel<int>(fn_conn,"ien",comm,info);
-    ParArray<int>* ief    = ReadDataSetFromFileInParallel<int>(fn_conn,"ief",comm,info);
-    //ParArray<int>* ife  = ReadDataSetFromFileInParallel<int>(fn_conn,"ife",comm,info);
-    //ParArray<double>* xcn = ReadDataSetFromFileInParallel<double>(fn_grid,"xcn",comm,info);
+    Array<int>*    zdefs = ReadDataSetFromGroupFromFile<int>(fn_adept,"zones","zdefs");
+    Array<char>*  znames = ReadDataSetFromGroupFromFile<char>(fn_adept,"zones","znames");
+    ParArray<int>* ien = ReadDataSetFromFileInParallel<int>(fn_conn,"ien",comm,info);
+    ParArray<int>* ief = ReadDataSetFromFileInParallel<int>(fn_conn,"ief",comm,info);
+    ParArray<int>* iee = ReadDataSetFromFileInParallel<int>(fn_conn,"iee",comm,info);
+    ParArray<double>* xcn_def = ReadDataSetFromFileInParallel<double>(fn_grid,"xcn",comm,info);
+    Array<int>* ife = ReadDataSetFromFile<int>(fn_conn,"ife");
     //ParArray<double>* xcn_def = ReadDataSetFromFileInParallel<double>(fn_data,"xcn",comm,info);
-//  ParArray<double>* ifn = ReadDataSetFromFileInParallel<double>(fn_grid,"ifn",comm,info);
-//  ParArray<double>* boundaries = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_6","boundaries",comm,info);
+    //ParArray<double>* ifn = ReadDataSetFromFileInParallel<double>(fn_grid,"ifn",comm,info);
+    Array<int>* ifn = ReadDataSetFromFile<int>(fn_grid,"ifn");
+    int nFglob = ifn->getNrow();
+    //ParArray<double>* boundaries = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_1","boundaries",comm,info);
+    PlotBoundaryData(znames,zdefs,comm);
     
     int Nel = ien->getNglob();
     int Nel_part = ien->getNrow();
-    ParArray<double>* xcn_def        = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_1","xcn",Nel,comm,info);
-    ParArray<double>* interior   = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_1","interior",Nel,comm,info);
+    //ParArray<double>* xcn_def        = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_1","xcn",Nel,0,comm,info);
+    ParArray<double>* interior = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_1","interior",0,Nel,comm,info);
+    Array<double>* ghost = ReadUS3DGhostCellsFromRun<double>(fn_data,"run_1","interior",Nel);
+    Array<double>* bound = ReadDataSetFromRunInFile<double>(fn_data,"run_1","boundaries");
+    
+    std::cout << "boundary faces = " << bound->getNrow() << " " << ghost->getNrow() << std::endl;
 //===================================================================================
 
     ParallelState* pstate = new ParallelState(ien->getNglob(),comm);
@@ -2306,69 +3455,256 @@ int main(int argc, char** argv) {
         }
     }
     delete ief;
+    
+    int ncol_iee = iee->getNcol()-1;
+    ParArray<int>* iee_copy = new ParArray<int>(nglob,6,comm);
+    
+    for(int i=0;i<nrow;i++)
+    {
+        for(int j=0;j<ncol_iee;j++)
+        {
+            iee_copy->setVal(i,j,iee->getVal(i,j+1)-1);
+        }
+    }
+    delete iee;
+    
+    int nrow_ifn = ifn->getNrow();
+    int ncol_ifn = 4;
+    Array<int>* ifn_copy = new Array<int>(nFglob,ncol_ifn);
+    for(int i=0;i<nrow_ifn;i++)
+    {
+        for(int j=0;j<ncol_ifn;j++)
+        {
+            ifn_copy->setVal(i,j,ifn->getVal(i,j+1)-1);
+        }
+    }
+    delete ifn;
+    
+    int nrow_ife = ife->getNrow();
+    int ncol_ife = 2;
+    Array<int>* ife_copy = new Array<int>(nrow_ife,ncol_ife);
+    for(int i=0;i<nrow_ife;i++)
+    {
+        for(int j=0;j<ncol_ife;j++)
+        {
+            ife_copy->setVal(i,j,ife->getVal(i,j)-1);
+        }
+    }
+    delete ife;
 
     ParallelState_Parmetis* parmetis_pstate = new ParallelState_Parmetis(ien_copy,comm,8);
 
     ParallelState* xcn_parstate = new ParallelState(xcn_def->getNglob(),comm);
-    ParArray<double>* var = new ParArray<double>(Nel,1,comm);
     Array<double>* Uivar = new Array<double>(Nel_part,1);
-    std::vector<double> Ui(Nel_part);
     for(int i=0;i<Nel_part;i++)
     {
-        //double v = (i+pstate->getOffset(world_rank))*0.2420;
-        //var->setVal(i,0,v);
-        var->setVal(i,0,interior->getVal(i,0));
-        Ui[i] = interior->getVal(i,0);
         Uivar->setVal(i,0,interior->getVal(i,0));
     }
     delete interior;
    
-    double t0 = MPI_Wtime();
-    Partition* P = new Partition(ien_copy, ief_copy, parmetis_pstate,pstate, xcn_def,xcn_parstate,Uivar,comm);
-    double t00 = MPI_Wtime();
-    double timing = t00-t0;
-    double max_time = 0.0;
-    MPI_Allreduce(&timing, &max_time, 1, MPI_DOUBLE, MPI_MAX, comm);
-    double tn0 = MPI_Wtime();
-
-    if (world_rank == 0)
-    {
-        std::cout << "t_max := " << max_time  << std::endl;
-    }
-    int nElemLoc = P->getNlocElem();
-
+    Partition* P = new Partition(ien_copy, iee_copy, ief_copy, parmetis_pstate,pstate, xcn_def,xcn_parstate,Uivar,comm);
+    
+    //std::map<int,std::vector<int> > iee_loc = P->getElement2EntityPerPartition(iee_copy,comm);
+    
+//    std::map<int,std::vector<int> >::iterator it;
+//    for(it=iee_loc.begin();it!=iee_loc.end();it++)
+//    {
+//        std::cout << it->first << " ";
+//        for(int q=0;q<it->second.size();q++)
+//        {
+//            std::cout  << it->second[q] << " ";
+//        }
+//        std::cout << std::endl;
+//    }
+    
     
     std::vector<double> Uaux = P->PartitionAuxilaryData(Uivar, comm);
-    // ===================================================================
-    // ======================TEST AUX PARTITIONING========================
-    // ===================================================================
-    //std::vector<double> Uaux = P->PartitionAuxilaryData(Ui, comm);
-    std::vector<double> Uelem = P->getUelem();
-    //std::cout << "Are sizes equal? -> " << Uaux.size() << " " << Uelem.size() << std::endl;
-    for(int i=0;i<Uaux.size();i++)
+    
+    std::map<int,std::vector<int> > iee_loc = P->getElement2EntityPerPartition(iee_copy,comm);
+    std::map<int,std::vector<int> > ief_loc = P->getElement2EntityPerPartition(ief_copy,comm);
+    
+    Array<double>* dUdXi_v2 = ComputedUdx(P, pstate, iee_copy, iee_loc, ief_loc, ifn_copy, ief_copy, Nel, Uaux, ghost, bound, comm, ife_copy);
+
+   
+//    if(world_rank == 1)
+//    {
+//        std::map<int,std::vector<int> >::iterator itmp;
+//        for(itmp=iee_loc.begin();itmp!=iee_loc.end();itmp++)
+//        {
+//            std::cout << "rank = " << world_rank << " "  << itmp->first << std::endl;
+//        }
+//    }
+    
+    std::map<int,double> UauxNew = P->CommunicateAdjacentDataUS3D(Uivar,comm);
+
+    ModifiedGreenGauss* mggData = ComputeMofiedGreenGaussData(P,iee_copy,iee_loc,ifn_copy,ief_copy,ief_loc,ife_copy,ghost,UauxNew,comm);
+////
+   Array<double>* dUdXi = ReconstructGradient(P,iee_loc,ief_loc,UauxNew,mggData,ghost,ife_copy,comm);
+//
+    Array<double>* dUidxi = new Array<double>(dUdXi->getNrow(),1);
+    Array<double>* dUidyi = new Array<double>(dUdXi->getNrow(),1);
+    Array<double>* dUidzi = new Array<double>(dUdXi->getNrow(),1);
+
+    for(int i=0;i<dUdXi->getNrow();i++)
     {
-        if(Uaux[i] - Uelem[i] > 1.0e-09)
+        dUidxi->setVal(i,0,dUdXi->getVal(i,0));
+        dUidyi->setVal(i,0,dUdXi->getVal(i,1));
+        dUidzi->setVal(i,0,dUdXi->getVal(i,2));
+    }
+//    std::vector<double> dUdxaux = P->PartitionAuxilaryData(dUidxi, comm);
+//
+//    Array<double>* dU2dXi2 = ReconstructGradient(P,iee_loc,dUdxaux,mggData,ghost,ife_copy);
+//
+//    Array<double>* dudx = new Array<double>(dUdXi->getNrow(),1);
+//    Array<double>* dudy = new Array<double>(dUdXi->getNrow(),1);
+//    Array<double>* dudz = new Array<double>(dUdXi->getNrow(),1);
+//
+//    Array<double>* du2dx2 = new Array<double>(dUdXi->getNrow(),1);
+//    Array<double>* du2dxy = new Array<double>(dUdXi->getNrow(),1);
+//    Array<double>* du2dxz = new Array<double>(dUdXi->getNrow(),1);
+//
+//    for(int i=0;i<dU2dXi2->getNrow();i++)
+//    {
+//        dudx->setVal(i,0,dUdXi->getVal(i,0));
+//        dudy->setVal(i,0,dUdXi->getVal(i,1));
+//        dudz->setVal(i,0,dUdXi->getVal(i,2));
+//
+//        du2dx2->setVal(i,0,dU2dXi2->getVal(i,0));
+//        du2dxy->setVal(i,0,dU2dXi2->getVal(i,1));
+//        du2dxz->setVal(i,0,dU2dXi2->getVal(i,2));
+//    }
+////
+////
+////
+//    int nloc_e = P->getNlocElem();
+//
+//    int nElemLoc = P->getNlocElem();
+//    //std::vector<double> Uaux = P->PartitionAuxilaryData(Uivar, comm);
+//
+//    // ===================================================================
+//    // ======================TEST AUX PARTITIONING========================
+//    // ===================================================================
+//    //std::vector<double> Uaux = P->PartitionAuxilaryData(Ui, comm);
+////    std::vector<double> Uelem = P->getUelem();
+////    //std::cout << "Are sizes equal? -> " << Uaux.size() << " " << Uelem.size() << std::endl;
+////    for(int i=0;i<Uaux.size();i++)
+////    {
+////        if(Uaux[i] - Uelem[i] > 1.0e-09)
+////        {
+////            std::cout << Uaux[i] - Uelem[i] << std::endl;
+////        }
+////    }
+////    std::cout << "Are sizes equal? -> " << Uaux.size() << " " << Uelem.size() << std::endl;
+//    // ===================================================================
+//    // ===================================================================
+//    // ===================================================================
+//
+//    //std::vector<std::vector<double> > dist = ComputeDistances(P, pstate, iee_copy, ifn_copy, Nel, comm);
+//
+//
+////    int offset = pstate->getOffsets()[world_rank];
+////
+////    //Array<double>* dUdXi = ComputedUdx(P, pstate, iee_copy, iee_loc, ifn_copy, ief_copy, Nel, Uaux, ghost, bound, comm);
+////    //Array<double>* dUdXi = ComputedUdx(P, pstate, iee_loc, iee_copy, ifn_copy, ief_copy, Nel, Uaux, ghost, bound, comm);
+////    //Array<double>* dUdXi = ComputedUdx2(P, pstate, iee_copy, ifn_copy, ief_copy, Nel, Uaux, ghost, bound, comm);
+////
+////
+////
+
+//
+    
+    Array<double>* dudx_v2 = new Array<double>(dUdXi_v2->getNrow(),1);
+    Array<double>* dudy_v2 = new Array<double>(dUdXi_v2->getNrow(),1);
+    Array<double>* dudz_v2 = new Array<double>(dUdXi_v2->getNrow(),1);
+
+    for(int i=0;i<dUdXi_v2->getNrow();i++)
+    {
+        dudx_v2->setVal(i,0,dUdXi_v2->getVal(i,0));
+        dudy_v2->setVal(i,0,dUdXi_v2->getVal(i,1));
+        dudz_v2->setVal(i,0,dUdXi_v2->getVal(i,2));
+
+    }
+    std::vector<double> dUdxaux_old = P->PartitionAuxilaryData(dudx_v2, comm);
+//
+//    Array<double>* dU2dXi2_old = ComputedUdx(P, pstate, iee_copy, iee_loc, ifn_copy, ief_copy, Nel, dUdxaux_old, ghost, bound, comm);
+////
+//    Array<double>* du2dx2_old = new Array<double>(dU2dXi2_old->getNrow(),1);
+//    Array<double>* du2dxy_old = new Array<double>(dU2dXi2_old->getNrow(),1);
+//    Array<double>* du2dxz_old = new Array<double>(dU2dXi2_old->getNrow(),1);
+//
+//    for(int i=0;i<dU2dXi2_old->getNrow();i++)
+//    {
+//        du2dx2_old->setVal(i,0,dU2dXi2_old->getVal(i,0));
+//        du2dxy_old->setVal(i,0,dU2dXi2_old->getVal(i,1));
+//        du2dxz_old->setVal(i,0,dU2dXi2_old->getVal(i,2));
+//    }
+////
+    std::vector<double> u_v = ReduceToVertices(P,Uivar,comm);
+////
+    std::vector<double> dudx_v = ReduceToVertices(P,dUidxi,comm);
+    std::vector<double> dudy_v = ReduceToVertices(P,dUidyi,comm);
+    std::vector<double> dudz_v = ReduceToVertices(P,dUidzi,comm);
+//
+//    std::vector<double> du2dx2_v = ReduceToVertices(P,du2dx2,comm);
+//    std::vector<double> du2dxy_v = ReduceToVertices(P,du2dxy,comm);
+//    std::vector<double> du2dxz_v = ReduceToVertices(P,du2dxz,comm);
+//
+//    std::vector<double> du2dx2_v_old = ReduceToVertices(P,du2dx2_old,comm);
+////
+//
+//////
+    std::vector<double> dudx_v_v2 = ReduceToVertices(P,dudx_v2,comm);
+    std::vector<double> dudy_v_v2 = ReduceToVertices(P,dudy_v2,comm);
+    std::vector<double> dudz_v_v2 = ReduceToVertices(P,dudz_v2,comm);
+////
+    std::vector<Vert> Verts =  P->getLocalVerts();
+    std::vector<std::vector<int> > loc_elem2verts_loc = P->getLocalElem2LocalVert();
+//
+//    //std::cout << "gradsizes " << dUdXi->getNrow() << " " << dUdXi_v2->getNrow() << " " << Verts.size() << std::endl;
+//    //=============================================================================
+//    //=====================Output the data in Tecplot format=======================
+//    //=============================================================================
+        string filename = "gradients_" + std::to_string(world_rank) + ".dat";
+        ofstream myfile;
+        myfile.open(filename);
+        myfile << "TITLE=\"volume_part_"  + std::to_string(world_rank) +  ".tec\"" << std::endl;
+        //myfile <<"VARIABLES = \"X\", \"Y\", \"Z\", \"u\", \"dx\", \"dy\", \"dz\", \"dx_old\", \"dy_old\", \"dz_old\", \"dx_v2\", \"dy_v2\", \"dz_v2\", \"dx2_old\"" << std::endl;
+    myfile <<"VARIABLES = \"X\", \"Y\", \"Z\", \"u\", \"dx\", \"dy\", \"dz\", \"dx_old\", \"dy_old\", \"dz_old\"" << std::endl;
+        int nvert = Verts.size();
+        myfile <<"ZONE N = " << nvert << ", E = " << ien_copy->getNrow() << ", DATAPACKING = POINT, ZONETYPE = FEBRICK" << std::endl;
+
+        for(int i=0;i<nvert;i++)
         {
-            std::cout << Uaux[i] - Uelem[i] << std::endl;
+            myfile<< Verts[i].x << " " << Verts[i].y << " " << Verts[i].z << " " << u_v[i] << " "<< dudx_v[i] << " " << dudy_v[i] << " " << dudz_v[i] << " " << dudx_v_v2[i] << " " << dudy_v_v2[i] << " " << dudz_v_v2[i] << std::endl;
         }
-    }
-//    std::cout << "Are sizes equal? -> " << Uaux.size() << " " << Uelem.size() << std::endl;
-    // ===================================================================
-    // ===================================================================
-    // ===================================================================
+
+        for(int i=0;i<ien_copy->getNrow();i++)
+        {
+           myfile << loc_elem2verts_loc[i][0]+1 << "  " <<
+                     loc_elem2verts_loc[i][1]+1 << "  " <<
+                     loc_elem2verts_loc[i][2]+1 << "  " <<
+                     loc_elem2verts_loc[i][3]+1 << "  " <<
+                     loc_elem2verts_loc[i][4]+1 << "  " <<
+                     loc_elem2verts_loc[i][5]+1 << "  " <<
+                     loc_elem2verts_loc[i][6]+1 << "  " <<
+                     loc_elem2verts_loc[i][7]+1 << std::endl;
+        }
+        myfile.close();
+//
+     
+    //=============================================================================
+    //=====================Output the data in Tecplot format=======================
+    //=============================================================================
     
-    double  t3 = MPI_Wtime();
-    Array<double>* dUdXi = ComputedUdXi(P,Uaux,ien_copy->getNglob(),comm);
     
-    //Uaux.clear();
-    double  t4 = MPI_Wtime();
-    double timing3 = t4-t3;
-    double max_time3 = 0.0;
-    MPI_Allreduce(&timing3, &max_time3, 1, MPI_DOUBLE, MPI_MAX, comm);
-    if (world_rank == 0)
-    {
-        std::cout << "t_max3 := " << max_time3  << std::endl;
-    }
+    
+//    Array<double>* dUdXi = ComputedUdXi(P,Uaux,ien_copy->getNglob(),comm);
+//    //Array<double>* dUdXi = ComputedUdXi_v2(P,Uaux,Uvert,ien_copy->getNglob(),comm);
+//
+//
+//
+//
+//
 //    double  t6 = MPI_Wtime();
 //    //P->PartitionAuxilaryData(grad, comm);
 //    double  t7 = MPI_Wtime();
@@ -2380,284 +3716,576 @@ int main(int argc, char** argv) {
 //      std::cout << "t_max6 := " << max_time6  << std::endl;
 //
 //    }
+//
+//
+//
+////    if (world_rank == 0)
+////    {
+////        std::cout << max_time_part << " " << max_time_grad << " " << max_time_aux << std::endl;
+////    }
+//
+//    //==============================================================================================
+//    //================================Compute Eigenvalues/vectors on verts for output===============
+//    //==============================================================================================
+//
+//    std::map<int,std::vector<double> > collect_d2Udxix;
+//    std::map<int,std::vector<double> > collect_d2Udxiy;
+//    std::map<int,std::vector<double> > collect_d2Udxiz;
+//    std::map<int,std::vector<double> > collect_dUidX;
+//    std::map<int,std::vector<double> > collect_dUidY;
+//    std::map<int,std::vector<double> > collect_dUidZ;
+//    std::map<int,std::vector<double> > collect_dU2idX2;
+//    std::map<int,std::vector<double> > collect_dU2idXY;
+//    std::map<int,std::vector<double> > collect_dU2idXZ;
+//
+//    std::map<int,std::vector<double> > collect_dU2idYX;
+//    std::map<int,std::vector<double> > collect_dU2idY2;
+//    std::map<int,std::vector<double> > collect_dU2idYZ;
+//
+//    std::map<int,std::vector<double> > collect_dU2idZX;
+//    std::map<int,std::vector<double> > collect_dU2idZY;
+//    std::map<int,std::vector<double> > collect_dU2idZ2;
+//
+//    std::map<int,std::vector<double> > collect_Ui;
+//    std::map<int,std::vector<double> > collect_Vi;
+//    std::map<int,std::vector<double> > collect_Di;
+//    std::vector<double> dUdxiaux;
+//    std::vector<double> dU2dxixaux;
+//    std::vector<double> dU2dxiyaux;
+//    std::vector<double> dU2dxizaux;
+////    Array<double>* d2Udxix = new Array<double>(Nel_part,1);
+////    Array<double>* d2Udxiy = new Array<double>(Nel_part,1);
+////    Array<double>* d2Udxiz = new Array<double>(Nel_part,1);
+//    std::map<int,std::vector<double> >::iterator it_rhos;
+//    std::map<int,std::vector<double> >::iterator it_vi;
+//    std::map<int,std::vector<double> >::iterator it_di;
+//    std::vector<std::vector<double> > Hess;
+//    std::vector<double> d2Udxix;
+//    std::vector<double> d2Udxiy;
+//    std::vector<double> d2Udxiz;
+//    std::vector<std::vector<double> > Hess_El;
+//    std::vector<Vert> LocalVs = P->getLocalVerts();
+//    int e = 0;
+//    double dudx = 0.0;
+//    double dudy = 0.0;
+//    double dudz = 0.0;
+//    int loc_v_id = 0;
+//    std::vector<std::vector<int> > loc_elem2verts_loc = P->getLocalElem2LocalVert();
+//    std::vector<Vert> LVerts =  P->getLocalVerts();
+//
+//    int loc_v = 0;
+//
+//    Array<double>* dUidxi = new Array<double>(Nel_part,1);
+//    Array<double>* dUidyi = new Array<double>(Nel_part,1);
+//    Array<double>* dUidzi = new Array<double>(Nel_part,1);
+//
+//    Array<double>* dU2idx2i_new = new Array<double>(Nel_part,1);
+//    Array<double>* dU2idxyi_new = new Array<double>(Nel_part,1);
+//    Array<double>* dU2idxzi_new = new Array<double>(Nel_part,1);
+//
+//    Array<double>* dU2idyxi_new = new Array<double>(Nel_part,1);
+//    Array<double>* dU2idy2i_new = new Array<double>(Nel_part,1);
+//    Array<double>* dU2idyzi_new = new Array<double>(Nel_part,1);
+//
+//    Array<double>* dU2idzxi_new = new Array<double>(Nel_part,1);
+//    Array<double>* dU2idzyi_new = new Array<double>(Nel_part,1);
+//    Array<double>* dU2idz2i_new = new Array<double>(Nel_part,1);
+//
+//
+//    for(int i=0;i<Nel_part;i++)
+//    {
+//        dUidxi->setVal(i,0,dUdXi->getVal(i,0));
+//        dUidyi->setVal(i,1,dUdXi->getVal(i,1));
+//        dUidzi->setVal(i,2,dUdXi->getVal(i,2));
+//    }
+//
+//    std::vector<double> dUdXaux = P->PartitionAuxilaryData(dUidxi, comm);
+//    std::vector<double> dUdYaux = P->PartitionAuxilaryData(dUidyi, comm);
+//    std::vector<double> dUdZaux = P->PartitionAuxilaryData(dUidzi, comm);
+//
+//    Array<double>* dU2dXi2 = ComputedUdXi(P,dUdXaux,ien_copy->getNglob(),comm);
+//    Array<double>* dU2dYi2 = ComputedUdXi(P,dUdYaux,ien_copy->getNglob(),comm);
+//    Array<double>* dU2dZi2 = ComputedUdXi(P,dUdZaux,ien_copy->getNglob(),comm);
+//
+//    for(int i=0;i<Nel_part;i++)
+//    {
+//        dU2idx2i_new->setVal(i,0,dU2dXi2->getVal(i,0));
+//        dU2idxyi_new->setVal(i,0,dU2dXi2->getVal(i,1));
+//        dU2idxzi_new->setVal(i,0,dU2dXi2->getVal(i,2));
+//
+//        dU2idyxi_new->setVal(i,0,dU2dYi2->getVal(i,0));
+//        dU2idy2i_new->setVal(i,0,dU2dYi2->getVal(i,1));
+//        dU2idyzi_new->setVal(i,0,dU2dYi2->getVal(i,2));
+//
+//        dU2idzxi_new->setVal(i,0,dU2dZi2->getVal(i,0));
+//        dU2idzyi_new->setVal(i,0,dU2dZi2->getVal(i,1));
+//        dU2idz2i_new->setVal(i,0,dU2dZi2->getVal(i,2));
+//
+//        std::cout << "Hessian symmetric ??? " << i << std::endl;
+//        std::cout << dU2idx2i_new->getVal(i,0) << " " << dU2idxyi_new->getVal(i,0) << " " << dU2idxzi_new->getVal(i,0) << std::endl;
+//        std::cout << dU2idyxi_new->getVal(i,0) << " " << dU2idy2i_new->getVal(i,0) << " " << dU2idyzi_new->getVal(i,0) << std::endl;
+//        std::cout << dU2idzxi_new->getVal(i,0) << " " << dU2idzyi_new->getVal(i,0) << " " << dU2idz2i_new->getVal(i,0) << std::endl;
+//        std::cout << "======================" << std::endl;
+//
+//    }
+//
+//    std::vector<double> dU2dX2aux = P->PartitionAuxilaryData(dU2idx2i_new, comm);
+//    std::vector<double> dU2dXYaux = P->PartitionAuxilaryData(dU2idxyi_new, comm);
+//    std::vector<double> dU2dXZaux = P->PartitionAuxilaryData(dU2idxzi_new, comm);
+//
+//    std::vector<double> dU2dYXaux = P->PartitionAuxilaryData(dU2idyxi_new, comm);
+//    std::vector<double> dU2dY2aux = P->PartitionAuxilaryData(dU2idy2i_new, comm);
+//    std::vector<double> dU2dYZaux = P->PartitionAuxilaryData(dU2idyzi_new, comm);
+//
+//    std::vector<double> dU2dZXaux = P->PartitionAuxilaryData(dU2idzxi_new, comm);
+//    std::vector<double> dU2dZYaux = P->PartitionAuxilaryData(dU2idzyi_new, comm);
+//    std::vector<double> dU2dZ2aux = P->PartitionAuxilaryData(dU2idz2i_new, comm);
+//
+//    for(int i=0;i<nElemLoc;i++)
+//    {
+//        double uinew = Uaux[i];
+//        double duidxnew = dUdXaux[i];
+//        double duidynew = dUdYaux[i];
+//        double duidznew = dUdZaux[i];
+//
+//        double du2idx2new = dU2dX2aux[i];
+//        double du2idxynew = dU2dXYaux[i];
+//        double du2idxznew = dU2dXZaux[i];
+//
+//        double du2idyxnew = dU2dYXaux[i];
+//        double du2idy2new = dU2dY2aux[i];
+//        double du2idyznew = dU2dYZaux[i];
+//
+//        double du2idzxnew = dU2dZXaux[i];
+//        double du2idzynew = dU2dZYaux[i];
+//        double du2idz2new = dU2dZ2aux[i];
+//
+//
+//
+////        if(world_rank == 0)
+////        if(world_rank == 0)
+////        {
+////            std::cout << "du2idx2new  " << du2idx2new << std::endl;
+////        }
+//        for(int j=0;j<8;j++)
+//        {
+//            loc_v = loc_elem2verts_loc[i][j];
+//            collect_Ui[loc_v].push_back(uinew);
+//
+//            collect_dUidX[loc_v].push_back(duidxnew);
+//            collect_dUidY[loc_v].push_back(duidynew);
+//            collect_dUidZ[loc_v].push_back(duidznew);
+//
+//            collect_dU2idX2[loc_v].push_back(du2idx2new);
+//            collect_dU2idXY[loc_v].push_back(du2idxynew);
+//            collect_dU2idXZ[loc_v].push_back(du2idxznew);
+//
+//            collect_dU2idYX[loc_v].push_back(du2idyxnew);
+//            collect_dU2idY2[loc_v].push_back(du2idy2new);
+//            collect_dU2idYZ[loc_v].push_back(du2idyznew);
+//
+//            collect_dU2idZX[loc_v].push_back(du2idzxnew);
+//            collect_dU2idZY[loc_v].push_back(du2idzynew);
+//            collect_dU2idZ2[loc_v].push_back(du2idz2new);
+//
+//        }
+//    }
+//    int c= 0;
+//    double sum_u;
+//
+//    double sum_dudx;
+//    double sum_dudy;
+//    double sum_dudz;
+//
+//    double sum_du2dx2;
+//    double sum_du2dxy;
+//    double sum_du2dxz;
+//
+//    double sum_du2dyx;
+//    double sum_du2dy2;
+//    double sum_du2dyz;
+//
+//    double sum_du2dzx;
+//    double sum_du2dzy;
+//    double sum_du2dz2;
+//
+//    std::vector<double> uivert;
+//    std::vector<double> dudxivert;
+//    std::vector<double> dudyivert;
+//    std::vector<double> dudzivert;
+//
+//    std::vector<double> du2dx2vert;
+//    std::vector<double> du2dxyvert;
+//    std::vector<double> du2dxzvert;
+//
+//    std::vector<double> du2dyxvert;
+//    std::vector<double> du2dy2vert;
+//    std::vector<double> du2dyzvert;
+//
+//    std::vector<double> du2dzxvert;
+//    std::vector<double> du2dzyvert;
+//    std::vector<double> du2dz2vert;
+//
+//    std::vector<double> WRarr_00;
+//    std::vector<double> WRarr_01;
+//    std::vector<double> WRarr_02;
+//
+//    std::vector<double> WRarr_10;
+//    std::vector<double> WRarr_11;
+//    std::vector<double> WRarr_12;
+//
+//    std::vector<double> WRarr_20;
+//    std::vector<double> WRarr_21;
+//    std::vector<double> WRarr_22;
+//
+//    double*Hmet = new double[9];
+//
+//    for(it_rhos=collect_Ui.begin();it_rhos!=collect_Ui.end();it_rhos++)
+//    {
+//        sum_u = 0;
+//        sum_dudx = 0;
+//        sum_dudy = 0;
+//        sum_dudz = 0;
+//        sum_du2dx2 = 0;
+//        sum_du2dxy = 0;
+//        sum_du2dxz = 0;
+//        sum_du2dyx = 0;
+//        sum_du2dy2 = 0;
+//        sum_du2dyz = 0;
+//        sum_du2dzx = 0;
+//        sum_du2dzy = 0;
+//        sum_du2dz2 = 0;
+//        for(int q = 0;q<it_rhos->second.size();q++)
+//        {
+//            sum_u    = sum_u + it_rhos->second[q];
+//            sum_dudx = sum_dudx + collect_dUidX[it_rhos->first][q];
+//            sum_dudy = sum_dudy + collect_dUidY[it_rhos->first][q];
+//            sum_dudz = sum_dudz + collect_dUidZ[it_rhos->first][q];
+//
+//            sum_du2dx2 = sum_du2dx2 + collect_dU2idX2[it_rhos->first][q];
+//            sum_du2dxy = sum_du2dxy + collect_dU2idXY[it_rhos->first][q];
+//            sum_du2dxz = sum_du2dxz + collect_dU2idXZ[it_rhos->first][q];
+//
+//            sum_du2dyx = sum_du2dyx + collect_dU2idYX[it_rhos->first][q];
+//            sum_du2dy2 = sum_du2dy2 + collect_dU2idY2[it_rhos->first][q];
+//            sum_du2dyz = sum_du2dyz + collect_dU2idYZ[it_rhos->first][q];
+//
+//            sum_du2dzx = sum_du2dzx + collect_dU2idZX[it_rhos->first][q];
+//            sum_du2dzy = sum_du2dzy + collect_dU2idZY[it_rhos->first][q];
+//            sum_du2dz2 = sum_du2dz2 + collect_dU2idZ2[it_rhos->first][q];
+//
+//        }
+////        Hmet[0] = 1.0+sum_du2dx2/it_rhos->second.size();
+////        Hmet[1] = sum_du2dxy/it_rhos->second.size();
+////        Hmet[2] = sum_du2dxz/it_rhos->second.size();
+////
+////        Hmet[3] = sum_du2dyx/it_rhos->second.size();
+////        Hmet[4] = 1.0+sum_du2dy2/it_rhos->second.size();
+////        Hmet[5] = sum_du2dyz/it_rhos->second.size();
+////
+////        Hmet[6] = sum_du2dzx/it_rhos->second.size();
+////        Hmet[7] = sum_du2dzy/it_rhos->second.size();
+////        Hmet[8] = 1.0+sum_du2dz2/it_rhos->second.size();
+////
+////        double * WR = new double[3];
+////        double * WI = new double[3];
+////        double * V = new double[3*3];
+////        double * iV = new double[3*3];
+////
+////        EigenDecomp(3, Hmet,  WR,  WI, V, iV );
+////
+////        WRarr_0.push_back(fabs(WR[0]) );
+////        WRarr_1.push_back(fabs(WR[1]) );
+////        WRarr_2.push_back(fabs(WR[2]));
+//
+//        uivert.push_back(sum_u/it_rhos->second.size());
+//
+//        dudxivert.push_back(sum_dudx/it_rhos->second.size());
+//        dudyivert.push_back(sum_dudy/it_rhos->second.size());
+//        dudzivert.push_back(sum_dudz/it_rhos->second.size());
+//
+//        du2dx2vert.push_back(sum_du2dx2/it_rhos->second.size());
+//        du2dxyvert.push_back(sum_du2dxy/it_rhos->second.size());
+//        du2dxzvert.push_back(sum_du2dxz/it_rhos->second.size());
+//
+//        du2dyxvert.push_back(sum_du2dyx/it_rhos->second.size());
+//        du2dy2vert.push_back(sum_du2dy2/it_rhos->second.size());
+//        du2dyzvert.push_back(sum_du2dyz/it_rhos->second.size());
+//
+//        du2dzxvert.push_back(sum_du2dzx/it_rhos->second.size());
+//        du2dzyvert.push_back(sum_du2dzy/it_rhos->second.size());
+//        du2dz2vert.push_back(sum_du2dz2/it_rhos->second.size());
+//
+//        c++;
+//    }
+//    double du2dx2vert_max = *std::max_element(du2dx2vert.begin(), du2dx2vert.end());
+//    double du2dxyvert_max = *std::max_element(du2dxyvert.begin(), du2dxyvert.end());
+//    double du2dxzvert_max = *std::max_element(du2dxzvert.begin(), du2dxzvert.end());
+//    double du2dyxvert_max = *std::max_element(du2dyxvert.begin(), du2dyxvert.end());
+//    double du2dy2vert_max = *std::max_element(du2dy2vert.begin(), du2dy2vert.end());
+//    double du2dyzvert_max = *std::max_element(du2dyzvert.begin(), du2dyzvert.end());
+//    double du2dzxvert_max = *std::max_element(du2dzxvert.begin(), du2dzxvert.end());
+//    double du2dzyvert_max = *std::max_element(du2dzyvert.begin(), du2dzyvert.end());
+//    double du2dz2vert_max = *std::max_element(du2dz2vert.begin(), du2dz2vert.end());
+//
+//    double R = 0.056;
+//    double hmin = 0.000001;
+//    double hmax = 0.01;
+//
+//
+//
+//    for(int i=0;i<LVerts.size();i++)
+//    {
+//        double r = sqrt((LVerts[i].x-0.0)*(LVerts[i].x-0.0)
+//                       +(LVerts[i].y-0.0)*(LVerts[i].y-0.0));
+//
+//        //std::cout << "r = " << r << " " << LVerts[i].x << " " << LVerts[i].y << " " << LVerts[i].z << std::endl;
+//        if (r < R)
+//        {
+//            dudxivert[i] = 0.0;
+//            dudyivert[i] = 0.0;
+//            dudzivert[i] = 0.0;
+//
+//            du2dx2vert[i] = 0.0;
+//            du2dxyvert[i] = 0.0;
+//            du2dxzvert[i] = 0.0;
+//
+//            du2dyxvert[i] = 0.0;
+//            du2dy2vert[i] = 0.0;
+//            du2dyzvert[i] = 0.0;
+//
+//            du2dzxvert[i] = 0.0;
+//            du2dzyvert[i] = 0.0;
+//            du2dz2vert[i] = 0.0;
+//        }
+//
+//        if(du2dx2vert[i]<0.1*du2dx2vert_max)
+//        {
+//            dudxivert[i] = 0.0;
+//            dudyivert[i] = 0.0;
+//            dudzivert[i] = 0.0;
+//
+//            du2dx2vert[i] = 0.0;
+//            du2dxyvert[i] = 0.0;
+//            du2dxzvert[i] = 0.0;
+//
+//            du2dyxvert[i] = 0.0;
+//            du2dy2vert[i] = 0.0;
+//            du2dyzvert[i] = 0.0;
+//
+//            du2dzxvert[i] = 0.0;
+//            du2dzyvert[i] = 0.0;
+//            du2dz2vert[i] = 0.0;
+//        }
+//
+//        Hmet[0] = du2dx2vert[i];
+//        Hmet[1] = du2dxyvert[i];
+//        Hmet[2] = du2dxzvert[i];
+//
+//        Hmet[3] = du2dyxvert[i];
+//        Hmet[4] = du2dy2vert[i];
+//        Hmet[5] = du2dyzvert[i];
+//
+//        Hmet[6] = du2dzxvert[i];
+//        Hmet[7] = du2dzyvert[i];
+//        Hmet[8] = du2dz2vert[i];
+//
+//        double * WR = new double[3];
+//        double * WI = new double[3];
+//        double * V = new double[3*3];
+//        double * iV = new double[3*3];
+//        double* WRn = new double[3];
+//        Array<double>* DR  = new Array<double>(3,3);
+//        Array<double>* VR  = new Array<double>(3,3);
+//        Array<double>* iVR = new Array<double>(3,3);
+//        for(int i=0;i<3;i++)
+//        {
+//            WR[i]  = 0.0;
+//            WRn[i] = 0.0;
+//            WI[i]  = 0.0;
+//            for(int j=0;j<3;j++)
+//            {
+//                DR->setVal(i,j,0.0);
+//                VR->setVal(i,j,0.0);
+//                iVR->setVal(i,j,0.0);
+//                V[i*3+j] = 0.0;
+//                iV[i*3+j] = 0.0;
+//            }
+//
+//        }
+//
+//        EigenDecomp(3, Hmet,  WR,  WI, V, iV );
+//
+//        int f = 12;
+//        WRn[0] = std::min(std::max(f*fabs(WR[0]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
+//        WRn[1] = std::min(std::max(f*fabs(WR[1]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
+//        WRn[2] = 1.0/(0.005*0.005);
+//
+////
+//        DR->setVal(0,0,WRn[0]);DR->setVal(0,1,0.0);DR->setVal(0,1,0.0);
+//        DR->setVal(1,0,0.0);DR->setVal(1,1,WRn[1]);DR->setVal(1,2,0.0);
+//        DR->setVal(2,0,0.0);DR->setVal(2,1,0.0);DR->setVal(2,2,WRn[2]);
+//
+//        VR->setVal(0,0,V[0]);VR->setVal(0,1,V[1]);VR->setVal(0,2,V[2]);
+//        VR->setVal(1,0,V[3]);VR->setVal(1,1,V[4]);VR->setVal(1,2,V[5]);
+//        VR->setVal(2,0,V[6]);VR->setVal(2,1,V[7]);VR->setVal(2,2,V[8]);
+//
+//        iVR->setVal(0,0,iV[0]);iVR->setVal(0,1,iV[1]);iVR->setVal(0,2,iV[2]);
+//        iVR->setVal(1,0,iV[3]);iVR->setVal(1,1,iV[4]);iVR->setVal(1,2,iV[5]);
+//        iVR->setVal(2,0,iV[6]);iVR->setVal(2,1,iV[7]);iVR->setVal(2,2,iV[8]);
+//
+////        VRi->setVal(2,0,iV[6]);VRi->setVal(2,1,iV[7]);VRi->setVal(2,2,iV[8]);
+//
+//        Array<double>* Rs = MatMul(VR,DR);
+//        Array<double>* Rf = MatMul(Rs,iVR);
+//        if(i==2)
+//        {
+//        std::cout << "========================================================" << std::endl;
+//        std::cout << "H " << std::endl;
+//        std::cout << Hmet[0] << " " <<  Hmet[1] << " " <<  Hmet[2] << std::endl;
+//        std::cout << Hmet[3] << " " <<  Hmet[4] << " " <<  Hmet[5] << std::endl;
+//        std::cout << Hmet[6] << " " <<  Hmet[7] << " " <<  Hmet[8] << std::endl;
+//        std::cout << "DR " << std::endl;
+//        std::cout << DR->getVal(0,0) << " " <<  DR->getVal(0,1) << " " <<  DR->getVal(0,2) << std::endl;
+//        std::cout << DR->getVal(1,0) << " " <<  DR->getVal(1,1) << " " <<  DR->getVal(1,2) << std::endl;
+//        std::cout << DR->getVal(2,0) << " " <<  DR->getVal(2,1) << " " <<  DR->getVal(2,2) << std::endl;
+//
+//        std::cout << "VR " << std::endl;
+//        std::cout << VR->getVal(0,0) << " " <<  VR->getVal(0,1) << " " <<  VR->getVal(0,2) << std::endl;
+//        std::cout << VR->getVal(1,0) << " " <<  VR->getVal(1,1) << " " <<  VR->getVal(1,2) << std::endl;
+//        std::cout << VR->getVal(2,0) << " " <<  VR->getVal(2,1) << " " <<  VR->getVal(2,2) << std::endl;
+//
+//        std::cout << "iVR " << std::endl;
+//        std::cout << iVR->getVal(0,0) << " " <<  iVR->getVal(0,1) << " " <<  iVR->getVal(0,2) << std::endl;
+//        std::cout << iVR->getVal(1,0) << " " <<  iVR->getVal(1,1) << " " <<  iVR->getVal(1,2) << std::endl;
+//        std::cout << iVR->getVal(2,0) << " " <<  iVR->getVal(2,1) << " " <<  iVR->getVal(2,2) << std::endl;
+//
+//        std::cout << "Rs " << std::endl;
+//        std::cout << Rs->getVal(0,0) << " " <<  Rs->getVal(0,1) << " " <<  Rs->getVal(0,2) << std::endl;
+//        std::cout << Rs->getVal(1,0) << " " <<  Rs->getVal(1,1) << " " <<  Rs->getVal(1,2) << std::endl;
+//        std::cout << Rs->getVal(2,0) << " " <<  Rs->getVal(2,1) << " " <<  Rs->getVal(2,2) << std::endl;
+//        std::cout << "Rf " << std::endl;
+//        std::cout << Rf->getVal(0,0) << " " <<  Rf->getVal(0,1) << " " <<  Rf->getVal(0,2) << std::endl;
+//        std::cout << Rf->getVal(1,0) << " " <<  Rf->getVal(1,1) << " " <<  Rf->getVal(1,2) << std::endl;
+//        std::cout << Rf->getVal(2,0) << " " <<  Rf->getVal(2,1) << " " <<  Rf->getVal(2,2) << std::endl;
+//        std::cout << "========================================================" << std::endl;
+//        }
+//
+////        WRarr_00.push_back( Rf->getVal(0,0) );
+////        WRarr_01.push_back( Rf->getVal(0,1) );
+////        WRarr_02.push_back( Rf->getVal(0,2) );
+////
+////        WRarr_10.push_back( Rf->getVal(1,0) );
+////        WRarr_11.push_back( Rf->getVal(1,1) );
+////        WRarr_12.push_back( Rf->getVal(1,2) );
+////
+////        WRarr_20.push_back( Rf->getVal(2,0) );
+////        WRarr_21.push_back( Rf->getVal(2,1) );
+////        WRarr_22.push_back( Rf->getVal(2,2) );
+//
+//        WRarr_00.push_back( Hmet[0] );
+//        WRarr_01.push_back( Hmet[1] );
+//        WRarr_02.push_back( Hmet[2] );
+//
+//        WRarr_10.push_back( Hmet[1] );
+//        WRarr_11.push_back( Hmet[4] );
+//        WRarr_12.push_back( Hmet[5] );
+//
+//        WRarr_20.push_back( Hmet[2] );
+//        WRarr_21.push_back( Hmet[5] );
+//        WRarr_22.push_back( Hmet[8] );
+//
+//
+//        delete DR;
+//        delete VR;
+//        delete iVR;
+//        delete Rs;
+//        delete Rf;
+//
+//        delete[] iV;
+//        delete[] V;
+//        delete[] WR;
+//        delete[] WI;
+//        delete[] WRn;
+//
+//    }
+//
+//
+//    int nvert = uivert.size();
+//    UnitTestEigenDecomp();
+//
+//    //==============================================================================================
+//    //================================Output the data in Tecplot format=============================
+//    //==============================================================================================
+//    string filename10 = "pre_elem_rank_" + std::to_string(world_rank) + ".dat";
+//    ofstream myfile10;
+//    myfile10.open(filename10);
+//    //string filename2 = "eig_slice_rank_" + std::to_string(world_rank) + ".dat";
+//    //ofstream myfile2;
+//    //myfile2.open(filename2);
+//    string filename3 = "pre_metric_rank_" + std::to_string(world_rank) + "_v1.dat";
+//    ofstream myfile3;
+//    myfile3.open(filename3);
+//    string filename = "eig_rank_" + std::to_string(world_rank) + ".dat";
+//    ofstream myfile;
+//    myfile.open(filename);
+//    myfile << "TITLE=\"volume_part_"  + std::to_string(world_rank) +  ".tec\"" << std::endl;
+//    //myfile <<"VARIABLES = \"X\", \"Y\", \"Z\", \"hxx\", \"hxy\", \"hxz\", \"hyx\", \"hyy\", \"hyz\", \"hzx\", \"hzy\", \"hzz\"" << std::endl;
+//    //myfile <<"VARIABLES = \"X\", \"Y\", \"Z\", \"hxx\", \"hxy\", \"hxz\", \"hyx\", \"hyy\", \"hyz\", \"hzx\", \"hzy\", \"hzz\"" << std::endl;
+//    //myfile <<"VARIABLES = \"X\", \"Y\", \"Z\", \"var\", \"gradx_var\", \"grady_var\", \"gradz_var\", \"v00\", \"v01\", \"v02\", \"v10\", \"v11\", \"v12\", \"v20\", \"v21\", \"v22\"" << std::endl;
+//    myfile <<"VARIABLES = \"X\", \"Y\", \"Z\", \"var\", \"gradx_var\", \"grady_var\", \"gradz_var\",\"gxx\",\"gxy\",\"gxz\",\"gyx\",\"gyy\",\"gyz\",\"gzx\",\"gzy\",\"gzz\",\"H00\",\"H01\",\"H02\",\"H10\",\"H11\",\"H12\",\"H20\",\"H21\",\"H22\"" << std::endl;
+//    //myfile <<"VARIABLES = \"X\", \"Y\", \"Z\", \"var\", \"gradx_var\", \"grady_var\", \"gradz_var\"" << std::endl;
+//    std::cout << " verts check " << LVerts.size() << " " << WRarr_00.size() << std::endl;
+//    int nvert2 = LVerts.size();
+//    myfile <<"ZONE N = " << nvert2 << ", E = " << ien_copy->getNrow() << ", DATAPACKING = POINT, ZONETYPE = FEBRICK" << std::endl;
+//    for(int i=0;i<nvert;i++)
+//    {
+//       //myfile << LVerts[i].x << "   " << LVerts[i].y << "   " << LVerts[i].z << "   " << hxx[i] << " " << hxy[i] << " " << hxz[i] << " " << hyx[i] << " " << hyy[i] << " " << hyz[i] << " " << hzx[i] << " " << hzy[i] << " " << hzz[i] << std::endl;
+//        myfile << LVerts[i].x << " " << LVerts[i].y << " " << LVerts[i].z << " " << uivert[i] << " " << dudxivert[i] << " " << dudyivert[i]<< " " << dudzivert[i] << " " << du2dx2vert[i] << " " << du2dxyvert[i]<< " " << du2dxzvert[i]<< " " << du2dyxvert[i]<< " " << du2dy2vert[i]<< " " << du2dyzvert[i]<< " " << du2dzxvert[i]<< " " << du2dzyvert[i]<< " " << du2dz2vert[i] << " " << WRarr_00[i]<< " " << WRarr_01[i]<< " " << WRarr_02[i] << " " << WRarr_10[i]<< " " << WRarr_11[i]<< " " << WRarr_12[i] << " " << WRarr_20[i]<< " " << WRarr_21[i]<< " " << WRarr_22[i] <<std::endl;
+//        //myfile << LVerts[i].x << " " << LVerts[i].y << " " << LVerts[i].z << " " << uivert[i] << " " << dudxivert[i] << " " << dudyivert[i]<< " " << dudzivert[i] << std::endl;
+//
+//        myfile3 << LVerts[i].x << " " << LVerts[i].y << " " << LVerts[i].z << " " << WRarr_00[i]<< " " << WRarr_01[i]<< " " << WRarr_02[i] << " " << WRarr_10[i]<< " " << WRarr_11[i]<< " " << WRarr_12[i] << " " << WRarr_20[i]<< " " << WRarr_21[i]<< " " << WRarr_22[i]<< std::endl;
+//
+//
+//
+//        //myfile << LVerts[i].x << " " << LVerts[i].y << " " << LVerts[i].z << " " << uivert[i] << " " << dudxivert[i] << " " << dudyivert[i]<< " " << dudzivert[i]<< " " << Hess[0][i] << " " << Hess[1][i] << " " << Hess[2][i] << " " << Hess[3][i] << " " << Hess[4][i] << " " << Hess[5][i] << " " << Hess[6][i] << " " << Hess[7][i] << " " << Hess[8][i] << std::endl;
+//        //myfile << LVerts[i].x << "   " << LVerts[i].y << "   " << LVerts[i].z << "   " << DiPlot[0][i] << " " << DiPlot[1][i] << " " << DiPlot[2][i] << " " << ViPlot[0][i] << " " << ViPlot[1][i] << " " << ViPlot[2][i] << "   " << ViPlot[3][i] << " " << ViPlot[4][i] << " " << ViPlot[5][i] << "   " << ViPlot[6][i] << " " << ViPlot[7][i] << " " << ViPlot[8][i] << std::endl;
+//        //myfile << LVerts[i].x << "   " << LVerts[i].y << "   " << LVerts[i].z << "   " << ViPlot[0][i] << " " << ViPlot[1][i] << " " << ViPlot[2][i] << std::endl;
+//       //myfile3 << LVerts[i].x << " " << LVerts[i].y << " " << LVerts[i].z << " " << Hess[0][i] << " " << Hess[1][i] << " " << Hess[2][i] << " " << Hess[3][i] << " " << Hess[4][i] << " " << Hess[5][i] << " " << Hess[6][i] << " " << Hess[7][i] << " " << Hess[8][i] << std::endl;
+////       if(fabs(LVerts[i].z)<1.0e-02)
+////       {
+////           myfile2 << LVerts[i].x << " " << LVerts[i].y << " " << LVerts[i].z << " " << DiPlot->getVal(0,i) << " " << DiPlot->getVal(1,i) << " " << DiPlot->getVal(2,i) << " " << ViPlot->getVal(0,i) << " " << ViPlot->getVal(1,i) << " " << ViPlot->getVal(2,i) << " " << ViPlot->getVal(3,i) << " " << ViPlot->getVal(4,i) << " " << ViPlot->getVal(5,i) << " " << ViPlot->getVal(6,i) << " " << ViPlot->getVal(7,i) << " " << ViPlot->getVal(8,i) << std::endl;
+////     //  myfile3 << LVerts[i].x << " " << LVerts[i].y << " " << LVerts[i].z << " " << Hess[0][i] << " " << Hess[1][i] << " " << Hess[2][i] << " " << Hess[3][i] << " " << Hess[4][i] << " " << Hess[5][i] << " " << Hess[6][i] << " " << Hess[7][i] << " " << Hess[8][i] << " " << DiPlot->getVal(i,0) << " " << DiPlot->getVal(i,1) << " " << DiPlot->getVal(i,2) << std::endl;
+////       }
+//    }
+//
+//    for(int i=0;i<ien_copy->getNrow();i++)
+//    {
+//       myfile10 << loc_elem2verts_loc[i][0]+1 << " " <<
+//                 loc_elem2verts_loc[i][1]+1 << " " <<
+//                 loc_elem2verts_loc[i][2]+1 << " " <<
+//                 loc_elem2verts_loc[i][3]+1 << " " <<
+//                 loc_elem2verts_loc[i][4]+1 << " " <<
+//                 loc_elem2verts_loc[i][5]+1 << " " <<
+//                 loc_elem2verts_loc[i][6]+1 << " " <<
+//                 loc_elem2verts_loc[i][7]+1 << std::endl;
+//
+//
+//       myfile << loc_elem2verts_loc[i][0]+1 << "  " <<
+//                 loc_elem2verts_loc[i][1]+1 << "  " <<
+//                 loc_elem2verts_loc[i][2]+1 << "  " <<
+//                 loc_elem2verts_loc[i][3]+1 << "  " <<
+//                 loc_elem2verts_loc[i][4]+1 << "  " <<
+//                 loc_elem2verts_loc[i][5]+1 << "  " <<
+//                 loc_elem2verts_loc[i][6]+1 << "  " <<
+//                 loc_elem2verts_loc[i][7]+1 << std::endl;
+//    }
+//    myfile.close();
+//    //myfile2.close();
+//    myfile3.close();
+//    myfile10.close();
     
     
-    std::map<int,std::vector<double> > collect_d2Udxix;
-    std::map<int,std::vector<double> > collect_d2Udxiy;
-    std::map<int,std::vector<double> > collect_d2Udxiz;
-    std::map<int,std::vector<double> > collect_Vi;
-    std::vector<double> dUdxiaux;
-    std::vector<double> dU2dxixaux;
-    std::vector<double> dU2dxiyaux;
-    std::vector<double> dU2dxizaux;
-    Array<double>* d2Udxix = new Array<double>(Nel_part,1);
-    Array<double>* d2Udxiy = new Array<double>(Nel_part,1);
-    Array<double>* d2Udxiz = new Array<double>(Nel_part,1);
-    std::map<int,std::vector<double> >::iterator it_rhos;
-    std::map<int,std::vector<double> >::iterator it_vi;
-    std::vector<std::vector<double> > Hess;
-
-    std::vector<Array<double>* > Hess_El;
-    std::vector<Vert> LocalVs = P->getLocalVerts();
-    int e = 0;
-    double dudx = 0.0;
-    double dudy = 0.0;
-    double dudz = 0.0;
-    int loc_v_id = 0;
-    std::vector<std::vector<int> > loc_elem2verts_loc = P->getLocalElem2LocalVert();
-    std::vector<Vert> LVerts =  P->getLocalVerts();
-    
-    for(int i=0;i<3;i++)
-    {
-        Array<double>* dUidxi = new Array<double>(Nel_part,1);
-        
-        for(int j=0;j<Nel_part;j++)
-        {
-            dUidxi->setVal(j,0,dUdXi->getVal(j,i));
-        }
-        dUdxiaux = P->PartitionAuxilaryData(dUidxi, comm);
-        delete dUidxi;
-        Array<double>* d2Udxixj = ComputedUdXi(P,dUdxiaux,ien_copy->getNglob(),comm);
-        dUdxiaux.clear();
-        for(int i=0;i<Nel_part;i++)
-        {
-            d2Udxix->setVal(i,0,d2Udxixj->getVal(i,0));
-            d2Udxiy->setVal(i,0,d2Udxixj->getVal(i,1));
-            d2Udxiz->setVal(i,0,d2Udxixj->getVal(i,2));
-        }
-        delete d2Udxixj;
-        Hess_El.push_back(d2Udxix);
-        Hess_El.push_back(d2Udxiy);
-        Hess_El.push_back(d2Udxiz);
-    }
-    
-    
-    Array<double>* Di = new Array<double>(Nel_part,3);
-    Array<double>* Vi = new Array<double>(Nel_part,9);
-    Array<double>* Vitmp = new Array<double>(Nel_part,1);
-    std::vector<double> Viaux;
-    std::vector<std::vector<double> > ViPlot;
-    
-    double* M = new double[9];
-    for(int i=0;i<Nel_part;i++)
-    {
-        M[0] = Hess_El[0]->getVal(i,0);
-        M[1] = Hess_El[1]->getVal(i,0);
-        M[2] = Hess_El[2]->getVal(i,0);
-        
-        M[3] = Hess_El[3]->getVal(i,0);
-        M[4] = Hess_El[4]->getVal(i,0);
-        M[5] = Hess_El[5]->getVal(i,0);
-        
-        M[6] = Hess_El[6]->getVal(i,0);
-        M[7] = Hess_El[7]->getVal(i,0);
-        M[8] = Hess_El[8]->getVal(i,0);
-        
-        double * WR = new double[3];
-        double * WI = new double[3];
-        double * V = new double[3*3];
-        double * iV = new double[3*3];
-
-        EigenDecomp(3, M,  WR,  WI, V, iV );
-        
-        if(world_rank==0)
-        {
-            std::cout << WR[0] << " " << WR[1] << " " << WR[2] << std::endl;
-
-        }
-        
-        Di->setVal(i,0,WR[0]);
-        Di->setVal(i,1,WR[1]);
-        Di->setVal(i,2,WR[2]);
-        
-        Vi->setVal(i,0,V[0]);
-        Vi->setVal(i,1,V[1]);
-        Vi->setVal(i,2,V[2]);
-        
-        Vi->setVal(i,3,V[3]);
-        Vi->setVal(i,4,V[4]);
-        Vi->setVal(i,5,V[5]);
-        
-        Vi->setVal(i,6,V[6]);
-        Vi->setVal(i,7,V[7]);
-        Vi->setVal(i,8,V[8]);
-        delete[] V;
-	delete[] iV;
-	delete[] WI;
-	delete[] WR;    
-    }
-     
-    delete d2Udxix;
-    delete d2Udxiy;
-    delete d2Udxiz;
-    Hess_El.clear();
-    
-    int t = 0;
-    for(int i=0;i<3;i++)
-    {
-        //for(int j=0;j<3;j++)
-        //{
-            for(int k=0;k<Nel_part;k++)
-            {
-                Vitmp->setVal(k,0,Di->getVal(k,t));
-            }
-
-            Viaux = P->PartitionAuxilaryData(Vitmp, comm);
-
-            int loc_v = 0;
-            for(int i=0;i<nElemLoc;i++)
-            {
-                double Vi = Viaux[i];
-
-                for(int j=0;j<8;j++)
-                {
-                    loc_v = loc_elem2verts_loc[i][j];
-
-                    collect_Vi[loc_v].push_back(Vi);
-                }
-            }
-        
-            Viaux.clear();
-
-            double sumVi = 0;
-            int c = 0;
-
-            std::vector<double> Vivec;
-            
-            for(it_vi=collect_Vi.begin();it_vi!=collect_Vi.end();it_vi++)
-            {
-                sumVi = 0;
-
-                for(int q = 0;q<it_vi->second.size();q++)
-                {
-                    sumVi = sumVi + it_vi->second[q];
-                }
-                Vivec.push_back(sumVi/it_vi->second.size());
-                c++;
-            }
-            
-            collect_Vi.clear();
-            ViPlot.push_back(Vivec);
-            Vivec.clear();
-            
-            t++;
-
-        //}
-
-    }
-    
-    // std::cout << ViPlot.size() << " " << ViPlot[0].size() << " " <<  LVerts.size() << std::endl;
-    /*
-    for(int i=0;i<3;i++)
-    {
-        Array<double>* dUidxi = new Array<double>(Nel_part,1);
-        
-        for(int j=0;j<Nel_part;j++)
-        {
-            dUidxi->setVal(j,0,dUdXi->getVal(j,i));
-        }
-        
-        dUdxiaux = P->PartitionAuxilaryData(dUidxi, comm);
-        delete dUidxi;
-        Array<double>* d2Udxixj = ComputedUdXi(P,dUdxiaux,ien_copy->getNglob(),comm);
-        dUdxiaux.clear();
-        for(int i=0;i<Nel_part;i++)
-        {
-            d2Udxix->setVal(i,0,d2Udxixj->getVal(i,0));
-            d2Udxiy->setVal(i,0,d2Udxixj->getVal(i,1));
-            d2Udxiz->setVal(i,0,d2Udxixj->getVal(i,2));
-        }
-        
-        dU2dxixaux = P->PartitionAuxilaryData(d2Udxix, comm);
-        dU2dxiyaux = P->PartitionAuxilaryData(d2Udxiy, comm);
-        dU2dxizaux = P->PartitionAuxilaryData(d2Udxiz, comm);
-    
-        int loc_v = 0;
-        for(int i=0;i<nElemLoc;i++)
-        {
-            double d2Udxix_e = dU2dxixaux[i];
-            double d2Udxiy_e = dU2dxiyaux[i];
-            double d2Udxiz_e = dU2dxizaux[i];
-            
-            for(int j=0;j<8;j++)
-            {
-                loc_v = loc_elem2verts_loc[i][j];
-                
-                collect_d2Udxix[loc_v].push_back(d2Udxix_e);
-                collect_d2Udxiy[loc_v].push_back(d2Udxiy_e);
-                collect_d2Udxiz[loc_v].push_back(d2Udxiz_e);
-            }
-        }
-        dU2dxixaux.clear();
-        dU2dxiyaux.clear();
-        dU2dxizaux.clear();
-        
-        double sumd2udxx = 0; double sumd2udxy = 0; double sumd2udxz = 0;
-        int c = 0;
-            
-        std::vector<double> hxix;
-        std::vector<double> hxiy;
-        std::vector<double> hxiz;
-        
-        for(it_rhos=collect_d2Udxix.begin();it_rhos!=collect_d2Udxix.end();it_rhos++)
-        {
-            sumd2udxx = 0; sumd2udxy = 0; sumd2udxz = 0;
-            
-            for(int q = 0;q<it_rhos->second.size();q++)
-            {
-                sumd2udxx = sumd2udxx + it_rhos->second[q];
-                sumd2udxy = sumd2udxy + collect_d2Udxiy[it_rhos->first][q];
-                sumd2udxz = sumd2udxz + collect_d2Udxiz[it_rhos->first][q];
-            }
-            hxix.push_back(sumd2udxx/it_rhos->second.size());
-            hxiy.push_back(sumd2udxy/it_rhos->second.size());
-            hxiz.push_back(sumd2udxz/it_rhos->second.size());
-            c++;
-        }
-        
-        delete d2Udxixj;
-        collect_d2Udxix.clear();
-        collect_d2Udxiy.clear();
-        collect_d2Udxiz.clear();
-        Hess.push_back(hxix);
-        Hess.push_back(hxiy);
-        Hess.push_back(hxiz);
-    }
-    
-    */
-    
-    
-    string filename = "hessian_rank_" + std::to_string(world_rank) + ".dat";
-    ofstream myfile;
-    myfile.open(filename);
-    myfile << "TITLE=\"volume_part_"  + std::to_string(world_rank) +  ".tec\"" << std::endl;
-    //myfile <<"VARIABLES = \"X\", \"Y\", \"Z\", \"hxx\", \"hxy\", \"hxz\", \"hyx\", \"hyy\", \"hyz\", \"hzx\", \"hzy\", \"hzz\"" << std::endl;
-    //myfile <<"VARIABLES = \"X\", \"Y\", \"Z\", \"hxx\", \"hxy\", \"hxz\", \"hyx\", \"hyy\", \"hyz\", \"hzx\", \"hzy\", \"hzz\"" << std::endl;
-    myfile <<"VARIABLES = \"X\", \"Y\", \"Z\", \"v00\", \"v01\", \"v02\"" << std::endl;
-    //std::cout << " verts check " << LVerts.size() << " " << ViPlot[0].size() << std::endl;
-    int nvert = LVerts.size();
-    myfile <<"ZONE N = " << nvert << ", E = " << ien_copy->getNrow() << ", DATAPACKING = POINT, ZONETYPE = FEBRICK" << std::endl;
-    for(int i=0;i<nvert;i++)
-    {
-       //myfile << LVerts[i].x << "   " << LVerts[i].y << "   " << LVerts[i].z << "   " << hxx[i] << " " << hxy[i] << " " << hxz[i] << " " << hyx[i] << " " << hyy[i] << " " << hyz[i] << " " << hzx[i] << " " << hzy[i] << " " << hzz[i] << std::endl;
-        //myfile << LVerts[i].x << "   " << LVerts[i].y << "   " << LVerts[i].z << "   " << Hess[0][i] << " " << Hess[1][i] << " " << Hess[2][i] << "   " << Hess[3][i] << " " << Hess[4][i] << " " << Hess[5][i] << "   " << Hess[6][i] << " " << Hess[7][i] << " " << Hess[8][i] << std::endl;
-        //myfile << LVerts[i].x << "   " << LVerts[i].y << "   " << LVerts[i].z << "   " << ViPlot[0][i] << " " << ViPlot[1][i] << " " << ViPlot[2][i] << "   " << ViPlot[3][i] << " " << ViPlot[4][i] << " " << ViPlot[5][i] << "   " << ViPlot[6][i] << " " << ViPlot[7][i] << " " << ViPlot[8][i] << std::endl;
-        myfile << LVerts[i].x << "   " << LVerts[i].y << "   " << LVerts[i].z << "   " << ViPlot[0][i] << " " << ViPlot[1][i] << " " << ViPlot[2][i] << std::endl;
-    }
-
-    for(int i=0;i<ien_copy->getNrow();i++)
-    {
-       myfile << loc_elem2verts_loc[i][0]+1 << "  " <<
-                 loc_elem2verts_loc[i][1]+1 << "  " <<
-                 loc_elem2verts_loc[i][2]+1 << "  " <<
-                 loc_elem2verts_loc[i][3]+1 << "  " <<
-                 loc_elem2verts_loc[i][4]+1 << "  " <<
-                 loc_elem2verts_loc[i][5]+1 << "  " <<
-                 loc_elem2verts_loc[i][6]+1 << "  " <<
-                 loc_elem2verts_loc[i][7]+1 << std::endl;
-    }
-    myfile.close();
-     
     MPI_Finalize();
     
     return 0;
