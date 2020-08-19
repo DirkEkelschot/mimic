@@ -3240,8 +3240,8 @@ Array<double>* ReconstructGradient(Partition* Pa, std::map<int,std::vector<int> 
                  }
                  else
                  {
-                     u_nb     = ghost->getVal(adjID-Nel,0);
-                     
+                     //u_nb     = ghost->getVal(adjID-Nel,0);
+                     u_nb     = U[gEl];
                      gu_nb_vx = gu_c_x->getVal(lid,0);
                      gu_nb_vy = gu_c_y->getVal(lid,0);
                      gu_nb_vz = gu_c_z->getVal(lid,0);
@@ -3398,13 +3398,24 @@ int main(int argc, char** argv) {
 //============================================================
     
     //const char* fn_conn="grids/piston/conn.h5";
-    const char* fn_conn="cases/cylinder/anisotropic_16k/conn_aniso_16k.h5";
-    const char* fn_grid="cases/cylinder/anisotropic_16k/grid_aniso_16k.h5";
-    const char* fn_data="cases/cylinder/anisotropic_16k/data_aniso_16k.h5";
-    const char* fn_adept="cases/cylinder/anisotropic_16k/conn_aniso_16k.h5";
+//    const char* fn_conn="cases/cylinder/anisotropic_16k/conn_aniso_16k.h5";
+//    const char* fn_grid="cases/cylinder/anisotropic_16k/grid_aniso_16k.h5";
+//    const char* fn_data="cases/cylinder/anisotropic_16k/data_aniso_16k.h5";
+//    const char* fn_adept="cases/cylinder/anisotropic_16k/conn_aniso_16k.h5";
     
-    Array<int>*    zdefs = ReadDataSetFromGroupFromFile<int>(fn_adept,"zones","zdefs");
-    Array<char>*  znames = ReadDataSetFromGroupFromFile<char>(fn_adept,"zones","znames");
+    const char* fn_conn="cases/cylinder/isotropic_133k/conn_iso_133k.h5";
+    const char* fn_grid="cases/cylinder/isotropic_133k/grid_iso_133k.h5";
+    const char* fn_data="cases/cylinder/isotropic_133k/data_iso_133k.h5";
+    const char* fn_adept="cases/cylinder/isotropic_133k/conn_iso_133k.h5";
+    
+//    const char* fn_conn="grids/adept/conn.h5";
+//    const char* fn_grid="grids/adept/grid.h5";
+//    const char* fn_data="grids/adept/data.h5";
+//    const char* fn_adept="grids/adept/conn.h5";
+    
+    
+//    Array<int>*    zdefs = ReadDataSetFromGroupFromFile<int>(fn_adept,"zones","zdefs");
+//    Array<char>*  znames = ReadDataSetFromGroupFromFile<char>(fn_adept,"zones","znames");
     ParArray<int>* ien = ReadDataSetFromFileInParallel<int>(fn_conn,"ien",comm,info);
     ParArray<int>* ief = ReadDataSetFromFileInParallel<int>(fn_conn,"ief",comm,info);
     ParArray<int>* iee = ReadDataSetFromFileInParallel<int>(fn_conn,"iee",comm,info);
@@ -3415,7 +3426,7 @@ int main(int argc, char** argv) {
     Array<int>* ifn = ReadDataSetFromFile<int>(fn_grid,"ifn");
     int nFglob = ifn->getNrow();
     //ParArray<double>* boundaries = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_1","boundaries",comm,info);
-    PlotBoundaryData(znames,zdefs,comm);
+    //PlotBoundaryData(znames,zdefs,comm);
     
     int Nel = ien->getNglob();
     int Nel_part = ien->getNrow();
@@ -3426,7 +3437,7 @@ int main(int argc, char** argv) {
     
     std::cout << "boundary faces = " << bound->getNrow() << " " << ghost->getNrow() << std::endl;
 //===================================================================================
-
+    
     ParallelState* pstate = new ParallelState(ien->getNglob(),comm);
     //
     int nglob = ien->getNglob();
@@ -3504,36 +3515,12 @@ int main(int argc, char** argv) {
    
     Partition* P = new Partition(ien_copy, iee_copy, ief_copy, parmetis_pstate,pstate, xcn_def,xcn_parstate,Uivar,comm);
     
-    //std::map<int,std::vector<int> > iee_loc = P->getElement2EntityPerPartition(iee_copy,comm);
-    
-//    std::map<int,std::vector<int> >::iterator it;
-//    for(it=iee_loc.begin();it!=iee_loc.end();it++)
-//    {
-//        std::cout << it->first << " ";
-//        for(int q=0;q<it->second.size();q++)
-//        {
-//            std::cout  << it->second[q] << " ";
-//        }
-//        std::cout << std::endl;
-//    }
-    
-    
     std::vector<double> Uaux = P->PartitionAuxilaryData(Uivar, comm);
     
     std::map<int,std::vector<int> > iee_loc = P->getElement2EntityPerPartition(iee_copy,comm);
     std::map<int,std::vector<int> > ief_loc = P->getElement2EntityPerPartition(ief_copy,comm);
     
     Array<double>* dUdXi_v2 = ComputedUdx(P, pstate, iee_copy, iee_loc, ief_loc, ifn_copy, ief_copy, Nel, Uaux, ghost, bound, comm, ife_copy);
-
-   
-//    if(world_rank == 1)
-//    {
-//        std::map<int,std::vector<int> >::iterator itmp;
-//        for(itmp=iee_loc.begin();itmp!=iee_loc.end();itmp++)
-//        {
-//            std::cout << "rank = " << world_rank << " "  << itmp->first << std::endl;
-//        }
-//    }
     
     std::map<int,double> UauxNew = P->CommunicateAdjacentDataUS3D(Uivar,comm);
 
@@ -3551,111 +3538,59 @@ int main(int argc, char** argv) {
         dUidyi->setVal(i,0,dUdXi->getVal(i,1));
         dUidzi->setVal(i,0,dUdXi->getVal(i,2));
     }
-//    std::vector<double> dUdxaux = P->PartitionAuxilaryData(dUidxi, comm);
-//
-//    Array<double>* dU2dXi2 = ReconstructGradient(P,iee_loc,dUdxaux,mggData,ghost,ife_copy);
-//
-//    Array<double>* dudx = new Array<double>(dUdXi->getNrow(),1);
-//    Array<double>* dudy = new Array<double>(dUdXi->getNrow(),1);
-//    Array<double>* dudz = new Array<double>(dUdXi->getNrow(),1);
-//
-//    Array<double>* du2dx2 = new Array<double>(dUdXi->getNrow(),1);
-//    Array<double>* du2dxy = new Array<double>(dUdXi->getNrow(),1);
-//    Array<double>* du2dxz = new Array<double>(dUdXi->getNrow(),1);
-//
-//    for(int i=0;i<dU2dXi2->getNrow();i++)
-//    {
-//        dudx->setVal(i,0,dUdXi->getVal(i,0));
-//        dudy->setVal(i,0,dUdXi->getVal(i,1));
-//        dudz->setVal(i,0,dUdXi->getVal(i,2));
-//
-//        du2dx2->setVal(i,0,dU2dXi2->getVal(i,0));
-//        du2dxy->setVal(i,0,dU2dXi2->getVal(i,1));
-//        du2dxz->setVal(i,0,dU2dXi2->getVal(i,2));
-//    }
-////
-////
-////
-//    int nloc_e = P->getNlocElem();
-//
-//    int nElemLoc = P->getNlocElem();
-//    //std::vector<double> Uaux = P->PartitionAuxilaryData(Uivar, comm);
-//
-//    // ===================================================================
-//    // ======================TEST AUX PARTITIONING========================
-//    // ===================================================================
-//    //std::vector<double> Uaux = P->PartitionAuxilaryData(Ui, comm);
-////    std::vector<double> Uelem = P->getUelem();
-////    //std::cout << "Are sizes equal? -> " << Uaux.size() << " " << Uelem.size() << std::endl;
-////    for(int i=0;i<Uaux.size();i++)
-////    {
-////        if(Uaux[i] - Uelem[i] > 1.0e-09)
-////        {
-////            std::cout << Uaux[i] - Uelem[i] << std::endl;
-////        }
-////    }
-////    std::cout << "Are sizes equal? -> " << Uaux.size() << " " << Uelem.size() << std::endl;
-//    // ===================================================================
-//    // ===================================================================
-//    // ===================================================================
-//
-//    //std::vector<std::vector<double> > dist = ComputeDistances(P, pstate, iee_copy, ifn_copy, Nel, comm);
-//
-//
-////    int offset = pstate->getOffsets()[world_rank];
-////
-////    //Array<double>* dUdXi = ComputedUdx(P, pstate, iee_copy, iee_loc, ifn_copy, ief_copy, Nel, Uaux, ghost, bound, comm);
-////    //Array<double>* dUdXi = ComputedUdx(P, pstate, iee_loc, iee_copy, ifn_copy, ief_copy, Nel, Uaux, ghost, bound, comm);
-////    //Array<double>* dUdXi = ComputedUdx2(P, pstate, iee_copy, ifn_copy, ief_copy, Nel, Uaux, ghost, bound, comm);
-////
-////
-////
-
-//
     
-    Array<double>* dudx_v2 = new Array<double>(dUdXi_v2->getNrow(),1);
-    Array<double>* dudy_v2 = new Array<double>(dUdXi_v2->getNrow(),1);
-    Array<double>* dudz_v2 = new Array<double>(dUdXi_v2->getNrow(),1);
+    std::map<int,double> dUdxauxNew = P->CommunicateAdjacentDataUS3D(dUidxi,comm);
+    std::map<int,double> dUdyauxNew = P->CommunicateAdjacentDataUS3D(dUidyi,comm);
+    std::map<int,double> dUdzauxNew = P->CommunicateAdjacentDataUS3D(dUidzi,comm);
+    
+    Array<double>* dU2dXi2 = ReconstructGradient(P,iee_loc,ief_loc,dUdxauxNew,mggData,ghost,ife_copy,comm);
+    Array<double>* dU2dYi2 = ReconstructGradient(P,iee_loc,ief_loc,dUdyauxNew,mggData,ghost,ife_copy,comm);
+    Array<double>* dU2dZi2 = ReconstructGradient(P,iee_loc,ief_loc,dUdzauxNew,mggData,ghost,ife_copy,comm);
+    
+    Array<double>* d2udx2 = new Array<double>(dU2dXi2->getNrow(),1);
+    Array<double>* d2udxy = new Array<double>(dU2dXi2->getNrow(),1);
+    Array<double>* d2udxz = new Array<double>(dU2dXi2->getNrow(),1);
+    
+    Array<double>* d2udyx = new Array<double>(dU2dYi2->getNrow(),1);
+    Array<double>* d2udy2 = new Array<double>(dU2dYi2->getNrow(),1);
+    Array<double>* d2udyz = new Array<double>(dU2dYi2->getNrow(),1);
 
-    for(int i=0;i<dUdXi_v2->getNrow();i++)
+    Array<double>* d2udzx = new Array<double>(dU2dZi2->getNrow(),1);
+    Array<double>* d2udzy = new Array<double>(dU2dZi2->getNrow(),1);
+    Array<double>* d2udz2 = new Array<double>(dU2dZi2->getNrow(),1);
+
+    for(int i=0;i<dU2dXi2->getNrow();i++)
     {
-        dudx_v2->setVal(i,0,dUdXi_v2->getVal(i,0));
-        dudy_v2->setVal(i,0,dUdXi_v2->getVal(i,1));
-        dudz_v2->setVal(i,0,dUdXi_v2->getVal(i,2));
-
+        d2udx2->setVal(i,0,dU2dXi2->getVal(i,0));
+        d2udxy->setVal(i,0,dU2dXi2->getVal(i,1));
+        d2udxz->setVal(i,0,dU2dXi2->getVal(i,2));
+        
+        d2udyx->setVal(i,0,dU2dYi2->getVal(i,0));
+        d2udy2->setVal(i,0,dU2dYi2->getVal(i,1));
+        d2udyz->setVal(i,0,dU2dYi2->getVal(i,2));
+        
+        d2udzx->setVal(i,0,dU2dZi2->getVal(i,0));
+        d2udzy->setVal(i,0,dU2dZi2->getVal(i,1));
+        d2udz2->setVal(i,0,dU2dZi2->getVal(i,2));
     }
-    std::vector<double> dUdxaux_old = P->PartitionAuxilaryData(dudx_v2, comm);
-//
-//    Array<double>* dU2dXi2_old = ComputedUdx(P, pstate, iee_copy, iee_loc, ifn_copy, ief_copy, Nel, dUdxaux_old, ghost, bound, comm);
-////
-//    Array<double>* du2dx2_old = new Array<double>(dU2dXi2_old->getNrow(),1);
-//    Array<double>* du2dxy_old = new Array<double>(dU2dXi2_old->getNrow(),1);
-//    Array<double>* du2dxz_old = new Array<double>(dU2dXi2_old->getNrow(),1);
-//
-//    for(int i=0;i<dU2dXi2_old->getNrow();i++)
-//    {
-//        du2dx2_old->setVal(i,0,dU2dXi2_old->getVal(i,0));
-//        du2dxy_old->setVal(i,0,dU2dXi2_old->getVal(i,1));
-//        du2dxz_old->setVal(i,0,dU2dXi2_old->getVal(i,2));
-//    }
-////
+    
     std::vector<double> u_v = ReduceToVertices(P,Uivar,comm);
 ////
     std::vector<double> dudx_v = ReduceToVertices(P,dUidxi,comm);
     std::vector<double> dudy_v = ReduceToVertices(P,dUidyi,comm);
     std::vector<double> dudz_v = ReduceToVertices(P,dUidzi,comm);
-//
-//    std::vector<double> du2dx2_v = ReduceToVertices(P,du2dx2,comm);
-//    std::vector<double> du2dxy_v = ReduceToVertices(P,du2dxy,comm);
-//    std::vector<double> du2dxz_v = ReduceToVertices(P,du2dxz,comm);
-//
-//    std::vector<double> du2dx2_v_old = ReduceToVertices(P,du2dx2_old,comm);
-////
-//
-//////
-    std::vector<double> dudx_v_v2 = ReduceToVertices(P,dudx_v2,comm);
-    std::vector<double> dudy_v_v2 = ReduceToVertices(P,dudy_v2,comm);
-    std::vector<double> dudz_v_v2 = ReduceToVertices(P,dudz_v2,comm);
+    
+    std::vector<double> d2udx2_v = ReduceToVertices(P,d2udx2,comm);
+    std::vector<double> d2udxy_v = ReduceToVertices(P,d2udxy,comm);
+    std::vector<double> d2udxz_v = ReduceToVertices(P,d2udxz,comm);
+    
+    std::vector<double> d2udyx_v = ReduceToVertices(P,d2udyx,comm);
+    std::vector<double> d2udy2_v = ReduceToVertices(P,d2udy2,comm);
+    std::vector<double> d2udyz_v = ReduceToVertices(P,d2udyz,comm);
+    
+    std::vector<double> d2udzx_v = ReduceToVertices(P,d2udzx,comm);
+    std::vector<double> d2udzy_v = ReduceToVertices(P,d2udzy,comm);
+    std::vector<double> d2udz2_v = ReduceToVertices(P,d2udz2,comm);
 ////
     std::vector<Vert> Verts =  P->getLocalVerts();
     std::vector<std::vector<int> > loc_elem2verts_loc = P->getLocalElem2LocalVert();
@@ -3664,18 +3599,18 @@ int main(int argc, char** argv) {
 //    //=============================================================================
 //    //=====================Output the data in Tecplot format=======================
 //    //=============================================================================
-        string filename = "gradients_" + std::to_string(world_rank) + ".dat";
+        string filename = "gradients_hess_" + std::to_string(world_rank) + ".dat";
         ofstream myfile;
         myfile.open(filename);
         myfile << "TITLE=\"volume_part_"  + std::to_string(world_rank) +  ".tec\"" << std::endl;
         //myfile <<"VARIABLES = \"X\", \"Y\", \"Z\", \"u\", \"dx\", \"dy\", \"dz\", \"dx_old\", \"dy_old\", \"dz_old\", \"dx_v2\", \"dy_v2\", \"dz_v2\", \"dx2_old\"" << std::endl;
-    myfile <<"VARIABLES = \"X\", \"Y\", \"Z\", \"u\", \"dx\", \"dy\", \"dz\", \"dx_old\", \"dy_old\", \"dz_old\"" << std::endl;
+    myfile <<"VARIABLES = \"X\", \"Y\", \"Z\", \"u\", \"dx\", \"dy\", \"dz\", \"d2udx2\", \"d2udxy\", \"d2udxz\", \"d2udyx\", \"d2udy2\", \"d2udyz\", \"d2udzx\", \"d2udzy\", \"d2udz2\"" << std::endl;
         int nvert = Verts.size();
         myfile <<"ZONE N = " << nvert << ", E = " << ien_copy->getNrow() << ", DATAPACKING = POINT, ZONETYPE = FEBRICK" << std::endl;
 
         for(int i=0;i<nvert;i++)
         {
-            myfile<< Verts[i].x << " " << Verts[i].y << " " << Verts[i].z << " " << u_v[i] << " "<< dudx_v[i] << " " << dudy_v[i] << " " << dudz_v[i] << " " << dudx_v_v2[i] << " " << dudy_v_v2[i] << " " << dudz_v_v2[i] << std::endl;
+            myfile<< Verts[i].x << " " << Verts[i].y << " " << Verts[i].z << " " << u_v[i] << " "<< dudx_v[i] << " " << dudy_v[i] << " " << dudz_v[i] << " " << d2udx2_v[i] << " " << d2udxy_v[i] << " " << d2udxz_v[i] << " " << d2udyx_v[i] << " " << d2udy2_v[i] << " " << d2udyz_v[i] << " " << d2udzx_v[i] << " " << d2udzy_v[i] << " " << d2udz2_v[i] << std::endl;
         }
 
         for(int i=0;i<ien_copy->getNrow();i++)
