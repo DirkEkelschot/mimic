@@ -1014,7 +1014,6 @@ PartitionStruct* DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* par
                 int n_req           = it->second.size();
                 int dest            = it->first;
                 
-                int destination = dest;
                 //MPI_Send(&dest, 1, MPI_INT, dest, 9876+10*dest, comm);
                 MPI_Send(&n_req, 1, MPI_INT, dest, 9876+10*dest, comm);
                 //MPI_Send(&it->second[0], n_req, MPI_INT, dest, 9876+dest*2, comm);

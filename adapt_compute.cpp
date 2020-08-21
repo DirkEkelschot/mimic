@@ -614,6 +614,243 @@ double* ComputeVolumeCellsReducedToVerts(Array<double>* xcn, Array<int>* ien)
 
 
 
+void UnitTestJacobian()
+{
+    double* Hex = new double[8*3];
+    
+    Hex[0*3+0] = 0;     Hex[0*3+1] = 0;     Hex[0*3+2] = 0;
+    Hex[1*3+0] = 0.5;   Hex[1*3+1] = 0;     Hex[1*3+2] = 0;
+    Hex[2*3+0] = 0.5;   Hex[2*3+1] = 0.5;   Hex[2*3+2] = 0;
+    Hex[3*3+0] = 0;     Hex[3*3+1] = 0.5;   Hex[3*3+2] = 0;
+    
+    Hex[4*3+0] = 0;     Hex[4*3+1] = 0;     Hex[4*3+2] = 0.5;
+    Hex[5*3+0] = 0.5;   Hex[5*3+1] = 0;     Hex[5*3+2] = 0.5;
+    Hex[6*3+0] = 0.5;   Hex[6*3+1] = 0.5;   Hex[6*3+2] = 0.5;
+    Hex[7*3+0] = 0;     Hex[7*3+1] = 0.5;   Hex[7*3+2] = 0.5;
+    
+    double* JP1 = ComputeJAtCenter(Hex,8);
+    
+    for(int i=0;i<3;i++)
+    {
+        for(int j=0;j<3;j++)
+        {
+            std::cout << JP1[i*3+j] << " ";
+        }
+        std::cout << " " << std::endl;
+    }
+    
+    double DetJ = JP1[0]*(JP1[4]*JP1[8]-JP1[7]*JP1[5])
+                 -JP1[1]*(JP1[3]*JP1[8]-JP1[6]*JP1[5])
+                 +JP1[2]*(JP1[3]*JP1[7]-JP1[6]*JP1[4]);
+    
+    std::cout << DetJ << std::endl;
+}
+
+void ComputeMetric(std::vector<Vert> Verts, Array<double>* grad, Array<double>* hessian)
+{
+    //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    //+++++++++++++Required Parameter set for scaling eigenvalues/eigenvectors+++++++++++++++
+    double R            = 0.056;
+    double hmin         = 0.000001;
+    double hmax         = 0.01;
+    int f               = 12;
+    double hmax_z       = 0.005;
+    //double d2udx2_v_max = *std::max_element(d2udx2_v.begin(), d2udx2_v.end());
+    //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    double* Hmet = new double[9];
+    int nVerts = Verts.size();
+    for(int i=0;i<nVerts;i++)
+    {
+        double r = sqrt((Verts[i].x-0.0)*(Verts[i].x-0.0)
+                       +(Verts[i].y-0.0)*(Verts[i].y-0.0));
+
+        if (r < R)
+        {
+            hessian->setVal(i,0,0.0);
+            hessian->setVal(i,1,0.0);
+            hessian->setVal(i,2,0.0);
+            
+            hessian->setVal(i,3,0.0);
+            hessian->setVal(i,4,0.0);
+            hessian->setVal(i,5,0.0);
+            
+            hessian->setVal(i,6,0.0);
+            hessian->setVal(i,7,0.0);
+            hessian->setVal(i,8,0.0);
+            
+            grad->setVal(i,0,0.0);
+            grad->setVal(i,1,0.0);
+            grad->setVal(i,2,0.0);
+
+        }
+
+        Hmet[0] = hessian->getVal(i,0);
+        Hmet[1] = hessian->getVal(i,1);
+        Hmet[2] = hessian->getVal(i,2);
+
+        Hmet[3] = hessian->getVal(i,3);
+        Hmet[4] = hessian->getVal(i,4);
+        Hmet[5] = hessian->getVal(i,5);
+
+        Hmet[6] = hessian->getVal(i,6);
+        Hmet[7] = hessian->getVal(i,7);
+        Hmet[8] = hessian->getVal(i,8);
+
+        double * WR = new double[3];
+        double * WI = new double[3];
+        double * V = new double[3*3];
+        double * iV = new double[3*3];
+        double* WRn = new double[3];
+        Array<double>* DR  = new Array<double>(3,3);
+        Array<double>* VR  = new Array<double>(3,3);
+        Array<double>* iVR = new Array<double>(3,3);
+        for(int i=0;i<3;i++)
+        {
+            WR[i]  = 0.0;
+            WRn[i] = 0.0;
+            WI[i]  = 0.0;
+            for(int j=0;j<3;j++)
+            {
+                DR->setVal(i,j,0.0);
+                VR->setVal(i,j,0.0);
+                iVR->setVal(i,j,0.0);
+                V[i*3+j] = 0.0;
+                iV[i*3+j] = 0.0;
+            }
+
+        }
+
+        EigenDecomp(3, Hmet,  WR,  WI, V, iV );
+
+        WRn[0] = std::min(std::max(f*fabs(WR[0]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
+        WRn[1] = std::min(std::max(f*fabs(WR[1]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
+        WRn[2] = 1.0/(hmax_z*hmax_z);
+
+//
+        DR->setVal(0,0,WRn[0]);DR->setVal(0,1,0.0);DR->setVal(0,1,0.0);
+        DR->setVal(1,0,0.0);DR->setVal(1,1,WRn[1]);DR->setVal(1,2,0.0);
+        DR->setVal(2,0,0.0);DR->setVal(2,1,0.0);DR->setVal(2,2,WRn[2]);
+
+        VR->setVal(0,0,V[0]);VR->setVal(0,1,V[1]);VR->setVal(0,2,V[2]);
+        VR->setVal(1,0,V[3]);VR->setVal(1,1,V[4]);VR->setVal(1,2,V[5]);
+        VR->setVal(2,0,V[6]);VR->setVal(2,1,V[7]);VR->setVal(2,2,V[8]);
+
+        iVR->setVal(0,0,iV[0]);iVR->setVal(0,1,iV[1]);iVR->setVal(0,2,iV[2]);
+        iVR->setVal(1,0,iV[3]);iVR->setVal(1,1,iV[4]);iVR->setVal(1,2,iV[5]);
+        iVR->setVal(2,0,iV[6]);iVR->setVal(2,1,iV[7]);iVR->setVal(2,2,iV[8]);
+        
+        Array<double>* Rs = MatMul(VR,DR);
+        Array<double>* Rf = MatMul(Rs,iVR);
+        
+        hessian->setVal(i,0,Rf->getVal(0,0));
+        hessian->setVal(i,0,Rf->getVal(0,1));
+        hessian->setVal(i,0,Rf->getVal(0,2));
+        
+        hessian->setVal(i,0,Rf->getVal(1,0));
+        hessian->setVal(i,0,Rf->getVal(1,1));
+        hessian->setVal(i,0,Rf->getVal(1,2));
+        
+        hessian->setVal(i,0,Rf->getVal(2,0));
+        hessian->setVal(i,0,Rf->getVal(2,1));
+        hessian->setVal(i,0,Rf->getVal(2,2));
+        
+        delete DR;
+        delete VR;
+        delete iVR;
+        delete Rs;
+        delete Rf;
+
+        delete[] iV;
+        delete[] V;
+        delete[] WR;
+        delete[] WI;
+        delete[] WRn;
+    }
+    
+    delete[] Hmet;
+}
+
+
+Array<double>* ComputeFaceValues(Partition* P, Array<double>* U, MPI_Comm comm)
+{
+    int nface, start, end, rank, size;
+    int nloc, offset, adjEl_id, leid, geid, i, t;
+    double u_o,u_c;
+    MPI_Comm_size(comm, &size);
+    // Get the rank of the process
+    MPI_Comm_rank(comm, &rank);
+    
+    //offset  = P->getLocalPartition()->getOffset(rank);
+    int* xadj   = P->getXadj();
+    int* adjcny = P->getAdjcny();
+    nloc    = P->getLocalPartition()->getNrow();
+    
+    nface = 6; // # hardcoded for hexes for now
+    
+    std::vector<double> Uelem_all         = P->PartitionAuxilaryData(U, comm);
+    std::map<int,int> gE2lE               = P->getGlobalElement2LocalElement();
+    std::map<int,int> lE2gE               = P->getLocalElement2GlobalElement();
+    std::map<int,std::vector<int> > gE2gF = P->getglobElem2globFaces();
+    std::map<int,int> gV2lV               = P->getGlobalVert2LocalVert();
+    Array<double>* Uf                     = new Array<double>(nloc,nface);
+    std::map<int,std::vector<int> > gE2lV = P->getGlobElem2LocVerts();
+
+    
+    
+    for(i=0;i<nloc;i++)
+    {
+        start  = xadj[i];
+        end    = xadj[i+1];
+        u_c    = U->getVal(i,0);
+        t = 0;
+        for(int j=start;j<end;j++)
+        {
+            adjEl_id = adjcny[j];
+            leid     = gE2lE[adjEl_id];
+            u_o      = Uelem_all[leid];
+            
+            Uf->setVal(i,t,u_c-u_o);
+            
+            t++;
+        }
+    }
+    
+    return Uf;
+}
+
+
+Array<double>* ComputeVolumes(Partition* Pa)
+{
+    int loc_vid;
+    std::map<int,int> gE2lE                 = Pa->getGlobalElement2LocalElement();
+    std::vector<int> Loc_Elem               = Pa->getLocElem();
+    int nLocElem                            = Loc_Elem.size();
+    std::map<int,std::vector<int> > gE2lV   = Pa->getGlobElem2LocVerts();
+    std::vector<Vert> locVerts              = Pa->getLocalVerts();
+    Array<double>* Volumes = new Array<double>(nLocElem,1);
+    std::vector<int> vijkIDs;
+    double* Pijk = new double[8*3];
+    for(int i=0;i<nLocElem;i++)
+    {
+       int gEl = Loc_Elem[i];
+
+       vijkIDs = gE2lV[gEl];
+
+       for(int k=0;k<vijkIDs.size();k++)
+       {
+          loc_vid     = vijkIDs[k];
+          Pijk[k*3+0] = locVerts[loc_vid].x;
+          Pijk[k*3+1] = locVerts[loc_vid].y;
+          Pijk[k*3+2] = locVerts[loc_vid].z;
+       }
+
+       double Vol = ComputeVolumeHexCell(Pijk);
+       Volumes->setVal(i,0,Vol);
+    }
+    return Volumes;
+}
+
 
 
 /*

@@ -15,15 +15,9 @@
 #include <iostream>
 #include <stdlib.h>
 #include <fstream>
-
+#include <climits>
 #include <sstream>
 #include <iomanip>
-#include "adapt_io.h"
-#include "adapt_compute.h"
-#include "adapt_operations.h"
-#include "adapt_math.h"
-#include "adapt_output.h"
-#include "adapt_partition.h"
 #include <sstream>
 #include <iomanip>
 #include "mmg/mmgs/libmmgs.h"

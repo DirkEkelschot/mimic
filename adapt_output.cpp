@@ -43,6 +43,8 @@ void OutputPartition(Partition* part, ParArray<int>* ien, Array<double>* H,  MPI
         }
     }
     
+    
+    delete ien_local;
 
 
 
@@ -318,7 +320,7 @@ void OutputQuantityPartition(Partition_old* pa, Array<double>* Quan, MPI_Comm co
 
 }
 
-
+/*
 void OutputPartionVolumes(ParArray<int>* ien, Array<double>* xcn_on_root, MPI_Comm comm)
 {
     int size;
@@ -396,9 +398,9 @@ void OutputPartionVolumes(ParArray<int>* ien, Array<double>* xcn_on_root, MPI_Co
     myfile.close();
     delete[] l_vert_id;
 }
+*/
 
-
-
+/*
 void OutputPartitionFaces()
 {
     MPI_Comm comm = MPI_COMM_WORLD;
@@ -488,7 +490,7 @@ void OutputPartitionFaces()
         delete xcn;
      }
 }
-
+*/
 
 
 void WriteBoundaryDataInSerial3(Array<double>* xcn)

@@ -1,5 +1,5 @@
 #include "adapt_datastruct.h"
-#include "adapt_part_func.h"
+//#include "adapt_part_func.h"
 #include "adapt_partition.h"
 #include "adapt_io.h"
 #include "adapt.h"
@@ -20,9 +20,9 @@ void OutputGradient(Partition* parttn, Array<double>* H, ParallelState* pstate, 
 
 void OutputQuantityPartition(Partition_old* pa, Array<double>* Quan, MPI_Comm comm);
 
-void OutputPartionVolumes(ParArray<int>* ien, Array<double>* xcn_on_root, MPI_Comm comm);
+//void OutputPartionVolumes(ParArray<int>* ien, Array<double>* xcn_on_root, MPI_Comm comm);
 
-void OutputPartitionFaces();
+//void OutputPartitionFaces();
 
 void WriteBoundaryDataInSerial3(Array<double>* xcn);
 

@@ -1,4 +1,5 @@
 #include "adapt.h"
+#include "adapt_parstate.h"
 
 #ifndef ADAPT_OPERATIONS_H
 #define ADAPT_OPERATIONS_H
@@ -20,5 +21,11 @@ std::vector<int> merge_vec(std::vector<int> a, std::vector<int> b);
 int* mergeSort(int height, int id, int* localArray, int size, MPI_Comm comm, int* globalArray);
 
 std::vector<int> mergeSort_vec(int height, int rank, std::vector<int> localArray, int size, MPI_Comm comm, std::vector<int> globalArray);
+
+int binarySearch(int* arr, int low, int high, int key);
+
+int largest(int arr[], int n);
+
+void TestFindRank(MPI_Comm comm);
 
 #endif

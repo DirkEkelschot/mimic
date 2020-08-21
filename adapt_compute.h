@@ -1,7 +1,9 @@
 #include "adapt_datastruct.h"
-#include "adapt_part_func.h"
 #include "adapt_partition.h"
 #include "adapt_datatype.h"
+#include "adapt_math.h"
+
+
 #ifndef ADAPT_COMPUTE_H
 #define ADAPT_COMPUTE_H
 
@@ -41,6 +43,14 @@ Array<double>* ComputeDeterminantofJacobian(ParArray<int>* ien, Array<double>* x
 double* ComputeVolumeCells(Array<double>* xcn, Array<int>* ien, MPI_Comm comm);
 
 double* ComputeVolumeCellsReducedToVerts(Array<double>* xcn, Array<int>* ien);
+
+void UnitTestJacobian();
+
+void ComputeMetric(std::vector<Vert> Verts, Array<double>* grad, Array<double>* hessian);
+
+Array<double>* ComputeFaceValues(Partition* P, Array<double>* U, MPI_Comm comm);
+
+Array<double>* ComputeVolumes(Partition* Pa);
 
 /*
 double* ComputeVolumeCells(Array<double>* xcn, Array<int>* ien)

@@ -1,7 +1,7 @@
 #include "adapt.h"
-#include "adapt_part_func.h"
+//#include "adapt_part_func.h"
 #include "adapt_array.h"
-
+#include "adapt_datatype.h"
 #ifndef ADAPT_IO_H
 #define ADAPT_IO_H
 
@@ -610,6 +610,7 @@ Array<T>* ReadDataSetFromFileInParallelToAll(const char* file_name, const char* 
     delete parA;
     return A_ptot;
 }
+
 
 
 
