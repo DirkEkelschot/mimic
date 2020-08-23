@@ -1,10 +1,12 @@
 OBJECTS = adapt_output.cpp\
 	  adapt_compute.cpp\
-	  adapt_part_func.cpp\
 	  adapt_schedule.cpp\
 	  adapt_operations.cpp\
 	  hex2tet.cpp \
 	  adapt_geometry.cpp \
+	  adapt_math.cpp \
+	  adapt_recongrad.cpp \
+	  adapt_io.cpp \
 	  main.cpp
 
 PARMETIS_HOME = /Users/dekelsch/Software/parmetis-4.0.3/parmetis-install
