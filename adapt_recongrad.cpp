@@ -152,7 +152,7 @@ Array<double>* ComputedUdx_LSQ(Partition* P, std::vector<double> U, int Nel, MPI
 
 
 
-Array<double>* ComputedUdx_LSQ_US3D_v1(Partition* P, ParallelState* pstate, ParArray<int>* iee, std::map<int,std::vector<int> > iee_vec,std::map<int,std::vector<int> > ief_vec, Array<int>* ifn, Array<int>* ief, int Nel, std::vector<double> U, Array<double>* ghost, Array<double>* bound, MPI_Comm comm, Array<int>* ife)
+Array<double>* ComputedUdx_LSQ_US3D_v1(Partition* P, ParallelState* pstate, ParArray<int>* iee, std::map<int,std::vector<int> > iee_vec,std::map<int,std::vector<int> > ief_vec, Array<int>* ifn, Array<int>* ief, int Nel, std::vector<double> U, Array<double>* ghost, Array<double>* bound, MPI_Comm comm)
 {
     int world_size;
     MPI_Comm_size(comm, &world_size);
@@ -505,9 +505,8 @@ Array<double>* ComputedUdx_LSQ_US3D_v2(Partition* P, ParallelState* pstate, ParA
 
 
 
-Array<double>* ComputedUdx_MGG(Partition* Pa, std::map<int,std::vector<int> > iee_vec,
-                                   std::map<int,std::vector<int> > ief_vec, std::map<int,double> U,
-                                   Mesh_Topology* meshTopo, Array<double>* ghost, Array<int>* ife, MPI_Comm comm)
+Array<double>* ComputedUdx_MGG(Partition* Pa, std::map<int,double> U,
+                                   Mesh_Topology* meshTopo, Array<double>* ghost, MPI_Comm comm)
 {
     int lid, gEl, adjID, l_adjid, size, rank;
     double u_c, u_nb, gu_c_vx, gu_c_vy, gu_c_vz, gu_nb_vx, gu_nb_vy, gu_nb_vz,sum_phix,sum_phiy,sum_phiz,dphi_dn,Vol;
@@ -523,7 +522,7 @@ Array<double>* ComputedUdx_MGG(Partition* Pa, std::map<int,std::vector<int> > ie
     Array<double>* gu_c_x      = new Array<double>(nLoc_Elem,1);
     Array<double>* gu_c_y      = new Array<double>(nLoc_Elem,1);
     Array<double>* gu_c_z      = new Array<double>(nLoc_Elem,1);
-    
+    std::map<int,std::vector<int> > iee_vec = Pa->getIEEpartmap();
     Array<double>* gu_c_old    = new Array<double>(nLoc_Elem,3);
     
     std::map<int,std::vector<int> > gE2gF = Pa->getglobElem2globFaces();

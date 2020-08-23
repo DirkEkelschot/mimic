@@ -66,7 +66,8 @@ class Partition {
     ParallelState* getIenParallelState();
     ParallelState* getParallelState();   
     ParallelState_Parmetis* getParallelStateParmetis();
-    
+    std::map<int,std::vector<int> > getIEEpartmap();
+    std::map<int,std::vector<int> > getIEFpartmap();
    private:
       
       std::vector<int> Loc_Elem;
@@ -124,6 +125,8 @@ class Partition {
       std::map<int,std::vector<int> > elms_to_send_to_ranks;
       std::map<int,std::vector<int> > part_tot_recv_elIDs;
       std::map<int,std::vector<int> >  reqstd_adj_ids_per_rank;
+      std::map<int,std::vector<int> > iee_part_map;
+      std::map<int,std::vector<int> > ief_part_map;
     
 };
 
@@ -158,21 +161,10 @@ inline Partition::Partition(ParArray<int>* ien, ParArray<int>* iee, ParArray<int
 
     //DetermineAdjacentElement2ProcMap(ien, ief, part, ien_pstate, xcn, xcn_parstate, U, comm);
     
+    iee_part_map = getElement2EntityPerPartition(iee, comm);
+    ief_part_map = getElement2EntityPerPartition(ief, comm);
     
-    std::map<int,std::vector<int> > iee_map = getElement2EntityPerPartition(iee, comm);
-//    std::map<int,std::vector<int> >::iterator it;
-//    for(it=iee_map.begin();it!=iee_map.end();it++)
-//    {
-//        std::cout << it->first << " ";
-//        for(int q=0;q<it->second.size();q++)
-//        {
-//            std::cout << it->second[q] << " ";
-//        }
-//        std::cout << std::endl;
-//    }
-    
-    
-    DetermineAdjacentElement2ProcMapUS3D(ien, iee_map, part, ien_pstate, xcn, xcn_parstate, U, comm);
+    DetermineAdjacentElement2ProcMapUS3D(ien, iee_part_map, part, ien_pstate, xcn, xcn_parstate, U, comm);
    
     
     nLocAndAdj_Elem = LocAndAdj_Elem.size();
@@ -2861,6 +2853,14 @@ inline std::map<int,int> Partition::getLocalElement2GlobalElement()
 inline ParallelState* Partition::getParallelState()
 {
     return ien_pstate;
+}
+inline std::map<int,std::vector<int> > Partition::getIEEpartmap()
+{
+    return iee_part_map;
+}
+inline std::map<int,std::vector<int> > Partition::getIEFpartmap()
+{
+    return ief_part_map;
 }
 //inline double Partition::getUauxatGlobalElem(int gelem)
 //{

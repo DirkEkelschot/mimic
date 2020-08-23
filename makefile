@@ -6,6 +6,7 @@ OBJECTS = adapt_output.cpp\
 	  adapt_geometry.cpp \
 	  adapt_math.cpp \
 	  adapt_recongrad.cpp \
+	  adapt_io.cpp \
 	  main.cpp
 
 PARMETIS_HOME = /Users/dekelsch/Software/parmetis-4.0.3/parmetis-install

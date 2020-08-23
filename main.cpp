@@ -1,110 +1,10 @@
 #include "adapt_io.h"
 #include "adapt_recongrad.h"
-
+#include "adapt_recongrad2.h"
 int mpi_size, mpi_rank;
 
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #define MAX(a,b) (((a)>(b))?(a):(b))
-US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data, MPI_Comm comm, MPI_Info info)
-{
-    
-    US3D* us3d = new US3D;
-    ParArray<double>* xcn = ReadDataSetFromFileInParallel<double>(fn_grid,"xcn",comm,info);
-
-    ParArray<int>* ien = ReadDataSetFromFileInParallel<int>(fn_conn,"ien",comm,info);
-    ParArray<int>* ief = ReadDataSetFromFileInParallel<int>(fn_conn,"ief",comm,info);
-    ParArray<int>* iee = ReadDataSetFromFileInParallel<int>(fn_conn,"iee",comm,info);
-
-    Array<int>* ifn = ReadDataSetFromFile<int>(fn_grid,"ifn");
-    Array<int>* ife = ReadDataSetFromFile<int>(fn_conn,"ife");
-    
-    int Nel = ien->getNglob();
-    
-    ParArray<double>* interior = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_1","interior",0,Nel,comm,info);
-    Array<double>* ghost = ReadUS3DGhostCellsFromRun<double>(fn_data,"run_1","interior",Nel);
-    
-    int i,j;
-    int nglob = ien->getNglob();
-    int nrow  = ien->getNrow();
-    int ncol  = ien->getNcol()-1;
-    //
-    ParArray<int>* ien_copy = new ParArray<int>(nglob,ncol,comm);
-    //
-    for(i=0;i<nrow;i++)
-    {
-        for(int j=0;j<ncol;j++)
-        {
-            ien_copy->setVal(i,j,ien->getVal(i,j+1)-1);
-        }
-    }
-    delete ien;
-    //
-    int ncol_ief = ief->getNcol()-1;
-    ParArray<int>* ief_copy = new ParArray<int>(nglob,ncol_ief,comm);
-
-    for(i=0;i<nrow;i++)
-    {
-        for(j=0;j<ncol_ief;j++)
-        {
-            ief_copy->setVal(i,j,fabs(ief->getVal(i,j+1))-1);
-        }
-    }
-    delete ief;
-    
-    int ncol_iee = iee->getNcol()-1;
-    ParArray<int>* iee_copy = new ParArray<int>(nglob,6,comm);
-    
-    for(i=0;i<nrow;i++)
-    {
-        for(j=0;j<ncol_iee;j++)
-        {
-            iee_copy->setVal(i,j,iee->getVal(i,j+1)-1);
-        }
-    }
-    delete iee;
-    
-    int nrow_ifn = ifn->getNrow();
-
-    int ncol_ifn = 4;
-    Array<int>* ifn_copy = new Array<int>(nrow_ifn,ncol_ifn);
-    for(i=0;i<nrow_ifn;i++)
-    {
-        for(j=0;j<ncol_ifn;j++)
-        {
-            ifn_copy->setVal(i,j,ifn->getVal(i,j+1)-1);
-        }
-    }
-    delete ifn;
-    
-    int nrow_ife = ife->getNrow();
-    int ncol_ife = 2;
-    Array<int>* ife_copy = new Array<int>(nrow_ife,ncol_ife);
-    for(i=0;i<nrow_ife;i++)
-    {
-        for(j=0;j<ncol_ife;j++)
-        {
-            ife_copy->setVal(i,j,ife->getVal(i,j)-1);
-        }
-    }
-    delete ife;
-    
-    us3d->xcn = xcn;
-    
-    us3d->ien = ien_copy;
-    us3d->ief = ief_copy;
-    us3d->iee = iee_copy;
-    
-    us3d->ifn = ifn_copy;
-    us3d->ife = ife_copy;
-    
-    us3d->interior  = interior;
-    us3d->ghost     = ghost;
-    
-    return us3d;
-}
-
-
-
 
 int main(int argc, char** argv) {
     
@@ -118,22 +18,55 @@ int main(int argc, char** argv) {
     int world_rank;
     MPI_Comm_rank(comm, &world_rank);
     int i,j;
-    //  GetXadjandAdjcyArrays(iee,ien,comm);
-    //  Example3DPartitioningWithParVarParMetis();
-    //  ExampleUS3DPartitioningWithParVarParMetis();
-    //Example3DPartitioningWithParVarParMetis();
-//============================================================
-//    const char* fn_conn="grids/piston/conn.h5";
-//    const char* fn_conn="cases/cylinder/anisotropic_16k/conn_aniso_16k.h5";
-//    const char* fn_grid="cases/cylinder/anisotropic_16k/grid_aniso_16k.h5";
-//    const char* fn_data="cases/cylinder/anisotropic_16k/data_aniso_16k.h5";
-//    const char* fn_adept="cases/cylinder/anisotropic_16k/conn_aniso_16k.h5";
     
-    const char* fn_conn="cases/cylinder/isotropic_133k/conn_iso_133k.h5";
-    const char* fn_grid="cases/cylinder/isotropic_133k/grid_iso_133k.h5";
-    const char* fn_data="cases/cylinder/isotropic_133k/data_iso_133k.h5";
-    const char* fn_adept="cases/cylinder/isotropic_133k/conn_iso_133k.h5";
+    //======================================================================================
+    //====================Parsing the inputs from the command line==========================
+    //======================================================================================
+    std::string fn_grid_t;
+    std::string fn_conn_t;
+    std::string fn_data_t;
+    std::string destination;
     
+    char buffer[20];
+    
+    const char* fn_grid;
+    const char* fn_conn;
+    const char* fn_data;
+    for(int i = 1;i<argc;i++)
+    {
+        std::string str = argv[i];
+        std::size_t l = str.copy(buffer,6,0);
+        buffer[l]='\0';
+        
+        if (str.compare(0,6,"--grid") == 0)
+        {
+            char fn_grid_n[20];
+            std::size_t ln = str.copy(fn_grid_n,str.size(),7);
+            fn_grid_n[ln]='\0';
+            fn_grid = fn_grid_n;
+        }
+        else if (str.compare(0,6,"--conn") == 0)
+        {
+            char fn_conn_n[20];
+            std::size_t ln = str.copy(fn_conn_n,str.size(),7);
+            fn_conn_n[ln]='\0';
+            fn_conn = fn_conn_n;
+        }
+        else if (str.compare(0,6,"--data") == 0)
+        {
+            char fn_data_n[20];
+            std::size_t ln = str.copy(fn_data_n,str.size(),7);
+            fn_data_n[ln]='\0';
+            fn_data = fn_data_n;
+        }
+        else
+        {
+            std::cout << "set correct path for " << buffer  << std::endl;
+        }
+    }
+    //======================================================================================
+    //======================================================================================
+    //======================================================================================
     US3D* us3d = ReadUS3DData(fn_conn,fn_grid,fn_data,comm,info);
     
     int Nel_part = us3d->ien->getNrow();
@@ -152,19 +85,18 @@ int main(int argc, char** argv) {
     delete us3d->interior;
     
     Partition* P = new Partition(us3d->ien, us3d->iee, us3d->ief, parmetis_pstate,pstate, us3d->xcn,xcn_parstate,Uivar,comm);
-    
-    
-    std::map<int,std::vector<int> > iee_loc = P->getElement2EntityPerPartition(us3d->iee,comm);
-    std::map<int,std::vector<int> > ief_loc = P->getElement2EntityPerPartition(us3d->ief,comm);
-    
+
     //Array<double>* dUdXi_v2 = ComputedUdx(P, pstate, iee_copy, iee_loc, ief_loc, ifn_copy, ief_copy, Nel, Uaux, ghost, bound, comm, ife_copy);
     
     std::map<int,double> UauxNew = P->CommunicateAdjacentDataUS3D(Uivar,comm);
     
-    Mesh_Topology* meshTopo = new Mesh_Topology(P,us3d->iee,iee_loc,us3d->ifn,us3d->ief,ief_loc,us3d->ife,us3d->ghost,UauxNew,comm);
+    Mesh_Topology* meshTopo = new Mesh_Topology(P,us3d->ifn,us3d->ghost,UauxNew,comm);
     
-    Array<double>* dUdXi = ComputedUdx_MGG(P,iee_loc,ief_loc,UauxNew,meshTopo,us3d->ghost,us3d->ife,comm);
-
+    Gradients* dudxObj = new Gradients(P,meshTopo,UauxNew,us3d->ghost,"us3d","MMG",comm);
+    
+    Array<double>* dUdXi = dudxObj->getdUdXi();
+    
+    
     Array<double>* dUidxi = new Array<double>(dUdXi->getNrow(),1);
     Array<double>* dUidyi = new Array<double>(dUdXi->getNrow(),1);
     Array<double>* dUidzi = new Array<double>(dUdXi->getNrow(),1);
@@ -194,9 +126,9 @@ int main(int argc, char** argv) {
 //    }
     delete dUdXi;
     
-    Array<double>* dU2dXi2 = ComputedUdx_MGG(P,iee_loc,ief_loc,dUdxauxNew,meshTopo,us3d->ghost,us3d->ife,comm);
-    Array<double>* dU2dYi2 = ComputedUdx_MGG(P,iee_loc,ief_loc,dUdyauxNew,meshTopo,us3d->ghost,us3d->ife,comm);
-    Array<double>* dU2dZi2 = ComputedUdx_MGG(P,iee_loc,ief_loc,dUdzauxNew,meshTopo,us3d->ghost,us3d->ife,comm);
+    Array<double>* dU2dXi2 = ComputedUdx_MGG(P,dUdxauxNew,meshTopo,us3d->ghost,comm);
+    Array<double>* dU2dYi2 = ComputedUdx_MGG(P,dUdyauxNew,meshTopo,us3d->ghost,comm);
+    Array<double>* dU2dZi2 = ComputedUdx_MGG(P,dUdzauxNew,meshTopo,us3d->ghost,comm);
     
     Array<double>* d2udx2 = new Array<double>(dU2dXi2->getNrow(),1);
     Array<double>* d2udxy = new Array<double>(dU2dXi2->getNrow(),1);

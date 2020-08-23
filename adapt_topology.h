@@ -11,7 +11,7 @@ using namespace std;
 class Mesh_Topology {
     public:
         Mesh_Topology(){};
-        Mesh_Topology(Partition* Pa, ParArray<int>* iee, std::map<int,std::vector<int> > iee_vec, Array<int>* ifn, ParArray<int>* ief, std::map<int,std::vector<int> > ief_vec, Array<int>* ife, Array<double>* ghost, std::map<int,double> U, MPI_Comm comm);
+        Mesh_Topology(Partition* Pa, Array<int>* ifn, Array<double>* ghost, std::map<int,double> U, MPI_Comm comm);
         std::map<int,vector<Vec3D*> > getNormals();
         std::map<int,vector<Vec3D*> > getRvectors();
         std::map<int,vector<Vec3D*> > getdXfXc();
@@ -32,7 +32,7 @@ class Mesh_Topology {
 };
 
 
-inline Mesh_Topology::Mesh_Topology(Partition* Pa, ParArray<int>* iee, std::map<int,std::vector<int> > iee_vec, Array<int>* ifn, ParArray<int>* ief, std::map<int,std::vector<int> > ief_vec, Array<int>* ife, Array<double>* ghost, std::map<int,double> U, MPI_Comm comm)
+inline Mesh_Topology::Mesh_Topology(Partition* Pa, Array<int>* ifn, Array<double>* ghost, std::map<int,double> U, MPI_Comm comm)
 {
     int nlocElem, start, end, offset, nloc, np, loc_vid, size, rank, lid;
     int vf0, vf1, vf2, vf3, vf4, vf5, vf6, vf7, fid;
@@ -42,24 +42,27 @@ inline Mesh_Topology::Mesh_Topology(Partition* Pa, ParArray<int>* iee, std::map<
     c = comm;
     double* v0=new double[3];
     double* v1=new double[3];
-    int Nel = iee->getNglob();
+    int Nel = Pa->getGlobalPartition()->getNrow();
     
     MPI_Comm_size(comm, &size);
     // Get the rank of the process
     MPI_Comm_rank(comm, &rank);
+    
+    np                                    = 8;
     std::map<int,std::vector<int> > gE2lV = Pa->getGlobElem2LocVerts();
     std::vector<Vert> locVerts            = Pa->getLocalVerts();
     std::map<int,int> gE2lE               = Pa->getGlobalElement2LocalElement();
     std::map<int,int> lE2gE               = Pa->getLocalElement2GlobalElement();
     std::map<int,std::vector<int> > gE2gF = Pa->getglobElem2globFaces();
-    np                                    = 8;
+    
     double* Pijk                          = new double[np*3];
     std::vector<int> Loc_Elem             = Pa->getLocElem();
     int nLocElem                          = Loc_Elem.size();
     std::map<int,int> gV2lV               = Pa->getGlobalVert2LocalVert();
     
     std::vector<int> ElemPart             = Pa->getLocElem();
-
+    std::map<int,std::vector<int> > ief_part_map = Pa->getIEFpartmap();
+    std::map<int,std::vector<int> > iee_part_map = Pa->getIEEpartmap();
     std::vector<int> vijkIDs;
     
     cc                     = new Array<double>(nLocElem,3);
@@ -93,7 +96,7 @@ inline Mesh_Topology::Mesh_Topology(Partition* Pa, ParArray<int>* iee, std::map<
         
         for(int s=0;s<6;s++)
         {
-            int faceid = ief_vec[gEl][s];
+            int faceid = ief_part_map[gEl][s];
 
             Vert* Vface = new Vert;
             
@@ -157,7 +160,7 @@ inline Mesh_Topology::Mesh_Topology(Partition* Pa, ParArray<int>* iee, std::map<
        
         for(int j=0;j<6;j++)
         {
-           int adjID = iee_vec[gEl][j];
+           int adjID = iee_part_map[gEl][j];
 
            if(adjID<Nel)// If internal element;
            {
@@ -188,7 +191,7 @@ inline Mesh_Topology::Mesh_Topology(Partition* Pa, ParArray<int>* iee, std::map<
            }
            else // If boundary face then search data in the correct ghost cell;
            {
-               fid = ief_vec[gEl][j];
+               fid = ief_part_map[gEl][j];
                Vert* Vpo = new Vert;
                Vpo->x = 0.0;Vpo->y = 0.0;Vpo->z = 0.0;
                for(int s=0;s<4;s++)
