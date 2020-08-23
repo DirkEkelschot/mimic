@@ -11,12 +11,13 @@ using namespace std;
 class Mesh_Topology {
     public:
         Mesh_Topology(){};
-        Mesh_Topology(Partition* Pa, Array<int>* ifn, Array<double>* ghost, std::map<int,double> U, MPI_Comm comm);
+        Mesh_Topology(Partition* Pa, Array<int>* ifn_in, Array<double>* ghost, std::map<int,double> U, MPI_Comm comm);
         std::map<int,vector<Vec3D*> > getNormals();
         std::map<int,vector<Vec3D*> > getRvectors();
         std::map<int,vector<Vec3D*> > getdXfXc();
         std::map<int,vector<double> > getdr();
         std::map<int,vector<double> > getdS();
+        Array<int>* getIFN();
         std::map<int,double> getVol();
         std::vector<double> ReduceUToVertices(Array<double>* Uelem);
     private:
@@ -28,16 +29,18 @@ class Mesh_Topology {
         std::map<int,vector<double> > dS;
         std::map<int,double> Vol;
         Partition* P;
+        Array<int>* ifn;
         MPI_Comm c;
 };
 
 
-inline Mesh_Topology::Mesh_Topology(Partition* Pa, Array<int>* ifn, Array<double>* ghost, std::map<int,double> U, MPI_Comm comm)
+inline Mesh_Topology::Mesh_Topology(Partition* Pa, Array<int>* ifn_in, Array<double>* ghost, std::map<int,double> U, MPI_Comm comm)
 {
     int nlocElem, start, end, offset, nloc, np, loc_vid, size, rank, lid;
     int vf0, vf1, vf2, vf3, vf4, vf5, vf6, vf7, fid;
     double wi, ds0, ds1 ,ds2, ds3, ds4, ds5, u_po,orient0,orient1,orient2,orient3,orient4,orient5,L0,L1,L2,L3,L4,L5;
     
+    ifn = ifn_in;
     P = Pa;
     c = comm;
     double* v0=new double[3];
@@ -297,5 +300,9 @@ inline std::map<int,vector<double> > Mesh_Topology::getdS()
 inline std::map<int,double > Mesh_Topology::getVol()
 {
     return Vol;
+}
+inline Array<int>* Mesh_Topology::getIFN()
+{
+    return ifn;
 }
 #endif

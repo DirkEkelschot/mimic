@@ -308,7 +308,6 @@ Array<double>* ComputedUdx_LSQ_US3D_v1(Partition* P, ParallelState* pstate, ParA
                 }
             }
             
-            
             Array<double>* x = SolveQR(A_cm,nadj,3,b);
 
             grad->setVal(i,0,x->getVal(0,0));
@@ -554,24 +553,23 @@ Array<double>* ComputedUdx_MGG(Partition* Pa, std::map<int,double> U,
     double L2normy_max = 0.0;
     double L2normz_max = 0.0;
     std::vector<Vec3D*> n_grads;
+    clock_t t;
     
     for(int it=0;it<100;it++)
     {
-        for(int i=0;i<nLoc_Elem;i++)
-        {
-            gu_c_old->setVal(i,0,gu_c_x->getVal(i,0));
-            gu_c_old->setVal(i,1,gu_c_y->getVal(i,0));
-            gu_c_old->setVal(i,2,gu_c_z->getVal(i,0));
-        }
-        
-         //communicate grad phi!!!
+        t = clock();
+        //communicate grad phi!!!
         
         std::map<int,double> dUdx_p_bnd = Pa->CommunicateAdjacentDataUS3D(gu_c_x, comm);
         std::map<int,double> dUdy_p_bnd = Pa->CommunicateAdjacentDataUS3D(gu_c_y, comm);
         std::map<int,double> dUdz_p_bnd = Pa->CommunicateAdjacentDataUS3D(gu_c_z, comm);
         
         //std::map<int,std::vector<double> > dUdxi_p_bnd = Pa->CommunicateAdjacentDataUS3DNew(gu_c_old, comm);
-
+                
+        L2normx = 0.0;
+        L2normy = 0.0;
+        L2normz = 0.0;
+        
         for(int i=0;i<nLoc_Elem;i++)
          {
              gEl = Loc_Elem[i];
@@ -589,7 +587,6 @@ Array<double>* ComputedUdx_MGG(Partition* Pa, std::map<int,double> U,
              for(int j=0;j<6;j++)
              {
                  adjID   = iee_vec[gEl][j];
-                 //int fid = ief_vec[gEl][j];
                  
                  if(adjID<Nel)
                  {
@@ -598,9 +595,10 @@ Array<double>* ComputedUdx_MGG(Partition* Pa, std::map<int,double> U,
                      gu_nb_vy = dUdy_p_bnd[adjID];
                      gu_nb_vz = dUdz_p_bnd[adjID];
                      
-//                     gu_nb_vx = dUdxi_p_bnd[adjID][0];//dUdx_p_bnd[adjID];
-//                     gu_nb_vy = dUdxi_p_bnd[adjID][1];//dUdy_p_bnd[adjID];
-//                     gu_nb_vz = dUdxi_p_bnd[adjID][2];//dUdz_p_bnd[adjID];
+//                   gu_nb_vx = dUdxi_p_bnd[adjID][0];//dUdx_p_bnd[adjID];
+//                   gu_nb_vy = dUdxi_p_bnd[adjID][1];//dUdy_p_bnd[adjID];
+//                   gu_nb_vz = dUdxi_p_bnd[adjID][2];//dUdz_p_bnd[adjID];
+                     
                      u_nb = U[adjID];
                  }
                  else
@@ -636,39 +634,41 @@ Array<double>* ComputedUdx_MGG(Partition* Pa, std::map<int,double> U,
              }
              
              Vol = vol[gEl];
+             
+             gu_c_old->setVal(i,0,gu_c_x->getVal(i,0));
+             gu_c_old->setVal(i,1,gu_c_y->getVal(i,0));
+             gu_c_old->setVal(i,2,gu_c_z->getVal(i,0));
+             
              gu_c_x->setVal(i,0,1.0/Vol*sum_phix);
              gu_c_y->setVal(i,0,1.0/Vol*sum_phiy);
              gu_c_z->setVal(i,0,1.0/Vol*sum_phiz);
+             
+             L2normx = L2normx+ sqrt((gu_c_x->getVal(i,0)-gu_c_old->getVal(i,0))*(gu_c_x->getVal(i,0)-gu_c_old->getVal(i,0)));
+
+             L2normy = L2normy+ sqrt((gu_c_y->getVal(i,0)-gu_c_old->getVal(i,1))*(gu_c_y->getVal(i,0)-gu_c_old->getVal(i,1)));
+
+             L2normz = L2normz+ sqrt((gu_c_z->getVal(i,0)-gu_c_old->getVal(i,2))*(gu_c_z->getVal(i,0)-gu_c_old->getVal(i,2)));
          }
         
         dUdx_p_bnd.clear();
         dUdy_p_bnd.clear();
         dUdz_p_bnd.clear();
-                
-        L2normx = 0.0;
-        L2normy = 0.0;
-        L2normz = 0.0;
-        
-        for(int n=0;n<nLoc_Elem;n++)
-        {
-            L2normx = L2normx+ sqrt((gu_c_x->getVal(n,0)-gu_c_old->getVal(n,0))*(gu_c_x->getVal(n,0)-gu_c_old->getVal(n,0)));
-
-            L2normy = L2normy+ sqrt((gu_c_y->getVal(n,0)-gu_c_old->getVal(n,1))*(gu_c_y->getVal(n,0)-gu_c_old->getVal(n,1)));
-
-            L2normz = L2normz+ sqrt((gu_c_z->getVal(n,0)-gu_c_old->getVal(n,2))*(gu_c_z->getVal(n,0)-gu_c_old->getVal(n,2)));
-        }
         
         MPI_Allreduce(&L2normx, &L2normx_max, 1, MPI_DOUBLE, MPI_MAX, comm);
         MPI_Allreduce(&L2normy, &L2normy_max, 1, MPI_DOUBLE, MPI_MAX, comm);
         MPI_Allreduce(&L2normz, &L2normz_max, 1, MPI_DOUBLE, MPI_MAX, comm);
-        
+        t = clock()-t;
+        double tn = ((double)t);
+        double tmax = 0.0;
+        MPI_Allreduce(&tn, &tmax, 1, MPI_DOUBLE, MPI_MAX, comm);
+        tmax=tmax/CLOCKS_PER_SEC;
         if(rank == 0)
         {
-            std::cout << it << " " <<  L2normx_max <<","<<L2normy_max<<","<<L2normz_max << std::endl;
+            std::cout << it << " " <<  L2normx_max <<","<<L2normy_max<<","<<L2normz_max << " time = " << tmax << std::endl;
         }
+        
         if(L2normx_max<1.0e-07 && L2normy_max<1.0e-07 && L2normz_max<1.0e-07)
         {
-            
             break;
         }
         
