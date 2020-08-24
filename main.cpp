@@ -99,21 +99,21 @@ int main(int argc, char** argv) {
     double tmax = 0.0;
     double tn = 0.0;
     t = clock();
-    //Array<double>* dUdXi = ComputedUdx_MGG(P,UauxNew,meshTopo,us3d->ghost,comm);
+    Array<double>* dUdXi = ComputedUdx_MGG(P,UauxNew,meshTopo,us3d->ghost,comm);
     t = clock()-t;
     tn = ((double)t);
     MPI_Allreduce(&tn, &tmax, 1, MPI_DOUBLE, MPI_MAX, comm);
     tmax=tmax/CLOCKS_PER_SEC;
     std::cout << "gradient = " << tmax << std::endl;
     t = clock();
-    Gradients* dudxObj = new Gradients(P,meshTopo,UauxNew,us3d->ghost,"us3d","LSQ",comm);
+    //Gradients* dudxObj = new Gradients(P,meshTopo,UauxNew,us3d->ghost,"us3d","MGG",comm);
     t = clock()-t;
     tn = ((double)t);
     MPI_Allreduce(&tn, &tmax, 1, MPI_DOUBLE, MPI_MAX, comm);
     tmax=tmax/CLOCKS_PER_SEC;
     std::cout << "gradient_v2 = " << tmax << std::endl;
-    Array<double>* dUdXi = dudxObj->getdUdXi();
-    
+    //Array<double>* dUdXi = dudxObj->getdUdXi();
+
     Array<double>* dUidxi = new Array<double>(dUdXi->getNrow(),1);
     Array<double>* dUidyi = new Array<double>(dUdXi->getNrow(),1);
     Array<double>* dUidzi = new Array<double>(dUdXi->getNrow(),1);
@@ -277,7 +277,7 @@ int main(int argc, char** argv) {
     delete hessian;
     delete grad;
     delete parmetis_pstate;
-    
+     
     MPI_Finalize();
     
     return 0;

@@ -660,7 +660,8 @@ void ComputeMetric(std::vector<Vert> Verts, Array<double>* grad, Array<double>* 
     //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     double* Hmet = new double[9];
     int nVerts = Verts.size();
-    for(int i=0;i<nVerts;i++)
+    int i;
+    for(i=0;i<nVerts;i++)
     {
         double r = sqrt((Verts[i].x-0.0)*(Verts[i].x-0.0)
                        +(Verts[i].y-0.0)*(Verts[i].y-0.0));
@@ -705,18 +706,18 @@ void ComputeMetric(std::vector<Vert> Verts, Array<double>* grad, Array<double>* 
         Array<double>* DR  = new Array<double>(3,3);
         Array<double>* VR  = new Array<double>(3,3);
         Array<double>* iVR = new Array<double>(3,3);
-        for(int i=0;i<3;i++)
+        for(int j=0;j<3;j++)
         {
-            WR[i]  = 0.0;
-            WRn[i] = 0.0;
-            WI[i]  = 0.0;
-            for(int j=0;j<3;j++)
+            WR[j]  = 0.0;
+            WRn[j] = 0.0;
+            WI[j]  = 0.0;
+            for(int k=0;k<3;k++)
             {
-                DR->setVal(i,j,0.0);
-                VR->setVal(i,j,0.0);
-                iVR->setVal(i,j,0.0);
-                V[i*3+j] = 0.0;
-                iV[i*3+j] = 0.0;
+                DR->setVal(j,k,0.0);
+                VR->setVal(j,k,0.0);
+                iVR->setVal(j,k,0.0);
+                V[j*3+k] = 0.0;
+                iV[j*3+k] = 0.0;
             }
 
         }
