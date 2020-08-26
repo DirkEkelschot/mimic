@@ -22,7 +22,7 @@ Array<double>* GetSolutionOnRoot(Partition* P, US3D* us3d, Array<double>* Hv, MP
     int nElem = us3d->ien->getNglob();
     int nvg = us3d->xcn->getNglob();
     
-    std::map<int,int> gV2lV               = P->getGlobalVert2LocalVert();
+    std::map<int,int> gV2lV = P->getGlobalVert2LocalVert();
 
     std::vector<double> Uvloc;
     std::vector<int> vids;
@@ -30,15 +30,16 @@ Array<double>* GetSolutionOnRoot(Partition* P, US3D* us3d, Array<double>* Hv, MP
     int gid,lid;
     int nval = 6;
     std::set<int> vdone;
-   
+    
     for(i=0;i<nlElem;i++)
     {
        for(j=0;j<8;j++)
        {
            gid = us3d->ien->getVal(i,j);
            lid = gV2lV[gid];
-           
-           if(vdone.find(lid)==vdone.end() && (lid<xcn_pstate->getNlocs()[world_rank]))
+           int lrange = xcn_pstate->getOffsets()[world_rank];
+           int hrange = xcn_pstate->getOffsets()[world_rank]+xcn_pstate->getNlocs()[world_rank];
+           if(vdone.find(lid)==vdone.end() && (lrange<gid<hrange))
            {
                vdone.insert(lid);
                vids.push_back(gid);
@@ -125,23 +126,16 @@ Array<double>* GetSolutionOnRoot(Partition* P, US3D* us3d, Array<double>* Hv, MP
     if(world_rank == 0)
     {
         Ug = new Array<double>(us3d->xcn->getNglob(),nval);
-        for(i=0;i<us3d->xcn->getNglob();i++)
-        {
-            Ug->setVal(i,0,0.0);
-        }
         int cid=0;
         for(i=0;i<world_size;i++)
         {
             for(j=0;j<vglob_nlocs[i];j++)
             {
                 cid = vids_t[vglob_offsets[i]+j];
-               
-                if (Ug->getVal(cid,0) == 0)
+            
+                for(int k=0;k<nval;k++)
                 {
-                    for(int k=0;k<nval;k++)
-                    {
-                        Ug->setVal(cid,k,Uvids_t[(vglob_offsets[i]+j)*nval+k]);
-                    }
+                    Ug->setVal(cid,k,Uvids_t[(vglob_offsets[i]+j)*nval+k]);
                 }
             }
         }
@@ -170,7 +164,7 @@ Array<double>* GetSolutionOnRoot(Partition* P, US3D* us3d, Array<double>* Hv, MP
     int* xcn_nlocs      = new int[world_size];
     int* xcn_offsets    = new int[world_size];
    
-    for(i=0;i<world_size;i++)
+    for(int i=0;i<world_size;i++)
     {
         
         xcn_nlocs[i]   = xcn_pstate->getNlocs()[i]*3;
@@ -356,7 +350,7 @@ int main(int argc, char** argv) {
         Array<double>* dUidyi = new Array<double>(dUdXi->getNrow(),1);
         Array<double>* dUidzi = new Array<double>(dUdXi->getNrow(),1);
 
-        for(i=0;i<dUdXi->getNrow();i++)
+        for(int i=0;i<dUdXi->getNrow();i++)
         {
             dUidxi->setVal(i,0,dUdXi->getVal(i,0));
             dUidyi->setVal(i,0,dUdXi->getVal(i,1));
@@ -434,7 +428,7 @@ int main(int argc, char** argv) {
         int nVerts = Verts.size();
         Array<double>* hessian = new Array<double>(nVerts,9);
         Array<double>* grad    = new Array<double>(nVerts,3);
-        for(i=0;i<nVerts;i++)
+        for(int i=0;i<nVerts;i++)
         {
             grad->setVal(i,0,dudx_v[i]);grad->setVal(i,1,dudy_v[i]);grad->setVal(i,2,dudz_v[i]);
             hessian->setVal(i,0,d2udx2_v[i]); hessian->setVal(i,1,d2udxy_v[i]); hessian->setVal(i,2,d2udxz_v[i]);
