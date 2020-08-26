@@ -39,8 +39,6 @@ inline Gradients::Gradients(Partition* Pa, Mesh_Topology* meshTopo, std::map<int
     }
 }
 
-
-
 inline Array<double>* Gradients::ComputedUdx_MGG(Partition* Pa, std::map<int,double> U,
 Mesh_Topology* meshTopo, Array<double>* ghost, MPI_Comm comm)
 {
@@ -240,7 +238,6 @@ inline Array<double>* Gradients::ComputedUdx_LSQ_US3D_v2(Partition* Pa, std::map
    double d;
    int loc_vid,adjID,elID;
    int cou = 0;
-   int offset = Pa->getParallelState()->getOffset(world_rank);
    Vert* Vc = new Vert;
    int lid = 0;
    double u_ijk, u_po;
@@ -281,7 +278,6 @@ inline Array<double>* Gradients::ComputedUdx_LSQ_US3D_v2(Partition* Pa, std::map
 
            if(adjID<Nel)
            {
-               lid = gE2lE[adjID];
                u_po = U[adjID];
 
                for(int k=0;k<gE2lV[adjID].size();k++)

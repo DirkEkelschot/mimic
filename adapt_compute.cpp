@@ -823,6 +823,7 @@ Array<double>* ComputeFaceValues(Partition* P, Array<double>* U, MPI_Comm comm)
 
 Array<double>* ComputeVolumes(Partition* Pa)
 {
+    int i,j,k;
     int loc_vid;
     std::map<int,int> gE2lE                 = Pa->getGlobalElement2LocalElement();
     std::vector<int> Loc_Elem               = Pa->getLocElem();
@@ -832,13 +833,13 @@ Array<double>* ComputeVolumes(Partition* Pa)
     Array<double>* Volumes = new Array<double>(nLocElem,1);
     std::vector<int> vijkIDs;
     double* Pijk = new double[8*3];
-    for(int i=0;i<nLocElem;i++)
+    for(i=0;i<nLocElem;i++)
     {
        int gEl = Loc_Elem[i];
 
        vijkIDs = gE2lV[gEl];
 
-       for(int k=0;k<vijkIDs.size();k++)
+       for(k=0;k<vijkIDs.size();k++)
        {
           loc_vid     = vijkIDs[k];
           Pijk[k*3+0] = locVerts[loc_vid].x;
@@ -849,6 +850,8 @@ Array<double>* ComputeVolumes(Partition* Pa)
        double Vol = ComputeVolumeHexCell(Pijk);
        Volumes->setVal(i,0,Vol);
     }
+    
+    delete[] Pijk;
     return Volumes;
 }
 

@@ -92,8 +92,8 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
     us3d->ifn = ifn_copy;
     us3d->ife = ife_copy;
     
-    us3d->interior  = interior;
-    us3d->ghost     = ghost;
+    us3d->interior = interior;
+    us3d->ghost    = ghost;
     
     return us3d;
 }

@@ -555,7 +555,7 @@ Array<double>* ComputedUdx_MGG(Partition* Pa, std::map<int,double> U,
     std::vector<Vec3D*> n_grads;
     clock_t t;
     
-    for(int it=0;it<100;it++)
+    for(int it=0;it<1000;it++)
     {
         t = clock();
         //communicate grad phi!!!
