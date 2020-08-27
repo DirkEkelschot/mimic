@@ -1,13 +1,13 @@
 [CFD_SOLVER]
 !-----------------------------------------------------------------------
 !   nstop      ires     nplot     iconr      impl      kmax    kmaxo
-      050        06         1         0        21         6        4
+     1000        06        01         0        21         6        4
 !
 !   ivisc      ivib     ichem      itrb     ibase   idiss_g
        11         0         0         5         0        -1
 !
 !   ivmod     ikmod     idmod    UNUSED      icfl     dtfix
-        1      -999         1        99         0     1.0d-6
+        1      -999         1        99         0     2.0d-5
 !
 !  iorder      iuem    UNUSED       kbl      iman
         2         3        99       100        10
@@ -72,7 +72,7 @@ Air
 !US3D_RENAME_OLD_SOLN  = 1
 !US3D_SENS_INCR_REST   = 1
 !US3D_WALLDIST_METHOD  = 3
-!US3D_WRITE_AFTER_INIT = 0
+ US3D_WRITE_AFTER_INIT = 1
 !US3D_WRITER_METH      = 1
 !------------------------------------------
 [/CFD_SOLVER_OPTS]
@@ -96,7 +96,7 @@ Air
 ! mass
   0.1
 ! R1            R2
- 00.0001      001.00
+  0.0001      05.051
 !
 ! | ---   Moment of Inertia   --- |
   1.00000       0.00d00         0.00d00
@@ -115,16 +115,16 @@ Air
 !
 ! | ---    Initial attitude    --- |
 ! Pitch        Yaw            Roll
-  20.0          0.0            0.0
+  00.0          0.0            0.0
 !
 ! | ---      Initial rates     --- |
 ! Omegax       Omegay         Omegaz
-   0.0          0.0             0.0
+   0.0          0.0          1000.0
 !
 [/RIGID_BODY_DYNAMICS]
 
 [RIGID_BODY_SPECIAL_OPTS]
-save_runs = F 
+save_runs = T
 mv_x = 1
 mv_y = 0
 mv_z = 0
@@ -144,8 +144,8 @@ flow_statistics = -1
 ! zone    bcn    igrow   name         [parameters]  ...
 ! ----    ----   -----   ----------   ------------
 !    4     10      0     "inflow"     1.2 288.15 288.15 0.0
-     4     10      0     "inflow"     1.2 288.15 288.15 1045.0
-!    4     10      0     "inflow"     1.191E-01  296.26   296.26     3.390E+03
+     4     10      0     "inflow"     1.2 288.15 288.15 0.0! 1045.0
+!    4     10      0     "inflow"     1.191E-01  296.26   296.26 10.0!   3.390E+03
      5     36      0     "outflow"
      6      7      0     "symmetry"
      7      3      0     "wall"      2   3.0d2

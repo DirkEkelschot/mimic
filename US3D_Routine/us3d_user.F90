@@ -1,7 +1,6 @@
 #include "us3d_header.h"
 module userdata
       implicit none
-      double precision, parameter :: pi=4.0d0*atan(1.0d0)
       save
       contains
       !  ***********************************************************************************
@@ -10,48 +9,51 @@ module userdata
       ! variable with our Jacobian
       Subroutine my_postupdate(istage)
             use sizing,   only : nel ! number of elements
-            use geometry, only : xcn ! node centroids (3,nnds)
+            use geometry, only : xcn,dw,voli ! node centroids (3,nnds)
             use connect,  only : ien ! element to node mapping
             Use mpivars,  only : id  ! processor ID
-            use simvars, only : res  ! L2 norm of density residual that we will replace with Jacobian
+            use simvars,  only : res ! L2 norm of density residual that we will replace with Jacobian
             use, intrinsic :: ISO_C_Binding
             Implicit none
             ! We create an interface for the desired C++ function that we wish to call
             interface
-                  function ComputeJ (P, ElType) result(J) bind(C,name="ComputeJ")
+                  function ComputeJAtCenter (P, np) result(J) bind(C, name="ComputeJAtCenter")
                   use, intrinsic :: ISO_C_Binding
-                  import
-                  integer(C_int) :: ElType
-                  real(C_double) :: P(0:3*8-1)
+                  implicit none
+                  integer(c_int),value :: np
+                  real(C_double), dimension(3*8) :: P
                   real(C_double) :: J
-                  end function ComputeJ
+                  end function ComputeJAtCenter
             end interface
             integer :: i,j 
             integer, intent(IN) :: istage
-            integer(C_int)  :: ElType
-            real(C_double) :: Points(0:3*8-1)
+            integer(C_INT) :: numpoints
+            double precision :: Points(3*8)
             real(C_double) :: Jacobian
+            type(C_ptr) :: Pptr,npPtr
             double precision :: maxJac,OldJac
 
+            res = 0.0d0
             OldJac = 0.0d0
             do i = 1, nel
-                  do j = 0, ien(0,i) - 1
-                        Points(j*3+0) = xcn(1,ien(j+1,i))
-                        Points(j*3+1) = xcn(2,ien(j+1,i))
-                        Points(j*3+2) = xcn(3,ien(j+1,i))
-                  enddo
-                  Jacobian = 0.0d0
-                  Jacobian = ComputeJ(Points,ElType)
-                  res(i) = Jacobian
-                  maxJac = max(Jacobian,OldJac)
-                  OldJac = Jacobian
+                  if(dw(i).gt.1.0D-3)then
+                        numpoints = ien(0,i)
+                        do j = 1, ien(0,i)
+                              Points((j-1)*3+1) = xcn(1,ien(j,i))
+                              Points((j-1)*3+2) = xcn(2,ien(j,i))
+                              Points((j-1)*3+3) = xcn(3,ien(j,i))
+                        enddo
+                        Jacobian = 0.0d0
+                        Jacobian = ComputeJAtCenter(Points,numpoints)
+                        res(i) = Jacobian*voli(i)
+                        maxJac = max(Jacobian,OldJac)
+                        OldJac = Jacobian
+                  endif
             enddo
-            if(id.eq.0)print*,maxJac
+            print*,maxJac 
             return
       end Subroutine my_postupdate
 end module userdata
-!  ***********************************************************************************
-!     User initialization routine
 !  ***********************************************************************************
 subroutine user_initialize(component,debug,ier)
       use us3d_user_module, only: user_update_post

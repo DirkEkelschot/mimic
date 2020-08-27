@@ -1,1 +1,1 @@
-rm -f convergence* Body_1_Dynamics_Data.csv data.h5
+rm -f convergence* Body_1_Dynamics_Data.csv data* *.vtk
