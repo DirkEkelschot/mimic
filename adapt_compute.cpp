@@ -646,14 +646,15 @@ void UnitTestJacobian()
     std::cout << DetJ << std::endl;
 }
 
-void ComputeMetric(std::vector<Vert> Verts, Array<double>* grad, Array<double>* hessian)
+Array<double>* ComputeMetric(std::vector<Vert> Verts, Array<double>* grad, Array<double>* hessian, double max_v)
 {
     //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     //+++++++++++++Required Parameter set for scaling eigenvalues/eigenvectors+++++++++++++++
     double R            = 0.056;
     double hmin         = 0.000001;
     double hmax         = 0.01;
-    int f               = 12;
+    
+    int f               = 1000;
     double hmax_z       = 0.005;
     //double d2udx2_v_max = *std::max_element(d2udx2_v.begin(), d2udx2_v.end());
     //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -661,6 +662,7 @@ void ComputeMetric(std::vector<Vert> Verts, Array<double>* grad, Array<double>* 
     double* Hmet = new double[9];
     int nVerts = Verts.size();
     int i;
+    Array<double>* metric = new Array<double>(nVerts,9);
     for(i=0;i<nVerts;i++)
     {
         double r = sqrt((Verts[i].x-0.0)*(Verts[i].x-0.0)
@@ -685,6 +687,24 @@ void ComputeMetric(std::vector<Vert> Verts, Array<double>* grad, Array<double>* 
             grad->setVal(i,2,0.0);
 
         }
+        if(hessian->getVal(i,0)<0.1*max_v)
+        {
+            hessian->setVal(i,0,0.0);
+            hessian->setVal(i,1,0.0);
+            hessian->setVal(i,2,0.0);
+            
+            hessian->setVal(i,3,0.0);
+            hessian->setVal(i,4,0.0);
+            hessian->setVal(i,5,0.0);
+            
+            hessian->setVal(i,6,0.0);
+            hessian->setVal(i,7,0.0);
+            hessian->setVal(i,8,0.0);
+            
+            grad->setVal(i,0,0.0);
+            grad->setVal(i,1,0.0);
+            grad->setVal(i,2,0.0);
+        }
 
         Hmet[0] = hessian->getVal(i,0);
         Hmet[1] = hessian->getVal(i,1);
@@ -705,7 +725,7 @@ void ComputeMetric(std::vector<Vert> Verts, Array<double>* grad, Array<double>* 
         double* WRn = new double[3];
         Array<double>* DR  = new Array<double>(3,3);
         Array<double>* VR  = new Array<double>(3,3);
-        Array<double>* iVR = new Array<double>(3,3);
+        Array<double>* UR  = new Array<double>(3,3);
         for(int j=0;j<3;j++)
         {
             WR[j]  = 0.0;
@@ -715,50 +735,60 @@ void ComputeMetric(std::vector<Vert> Verts, Array<double>* grad, Array<double>* 
             {
                 DR->setVal(j,k,0.0);
                 VR->setVal(j,k,0.0);
-                iVR->setVal(j,k,0.0);
+                //iVR->setVal(j,k,0.0);
                 V[j*3+k] = 0.0;
                 iV[j*3+k] = 0.0;
             }
 
         }
+        SVD* svd = ComputeSVD(3,3,Hmet);
+        //EigenDecomp(3, Hmet,  WR,  WI, V, iV );
 
-        EigenDecomp(3, Hmet,  WR,  WI, V, iV );
-
-        WRn[0] = std::min(std::max(f*fabs(WR[0]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
-        WRn[1] = std::min(std::max(f*fabs(WR[1]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
-        WRn[2] = 1.0/(hmax_z*hmax_z);
+        WRn[0] = std::min(std::max(f*fabs(svd->s[0]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
+        WRn[1] = std::min(std::max(f*fabs(svd->s[1]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
+        WRn[2] = 0.01;
 
 //
         DR->setVal(0,0,WRn[0]);DR->setVal(0,1,0.0);DR->setVal(0,1,0.0);
         DR->setVal(1,0,0.0);DR->setVal(1,1,WRn[1]);DR->setVal(1,2,0.0);
         DR->setVal(2,0,0.0);DR->setVal(2,1,0.0);DR->setVal(2,2,WRn[2]);
 
-        VR->setVal(0,0,V[0]);VR->setVal(0,1,V[1]);VR->setVal(0,2,V[2]);
-        VR->setVal(1,0,V[3]);VR->setVal(1,1,V[4]);VR->setVal(1,2,V[5]);
-        VR->setVal(2,0,V[6]);VR->setVal(2,1,V[7]);VR->setVal(2,2,V[8]);
-
-        iVR->setVal(0,0,iV[0]);iVR->setVal(0,1,iV[1]);iVR->setVal(0,2,iV[2]);
-        iVR->setVal(1,0,iV[3]);iVR->setVal(1,1,iV[4]);iVR->setVal(1,2,iV[5]);
-        iVR->setVal(2,0,iV[6]);iVR->setVal(2,1,iV[7]);iVR->setVal(2,2,iV[8]);
+        UR->setVal(0,0,svd->u[0]);UR->setVal(0,1,svd->u[1]);UR->setVal(0,2,svd->u[2]);
+        UR->setVal(1,0,svd->u[3]);UR->setVal(1,1,svd->u[4]);UR->setVal(1,2,svd->u[5]);
+        UR->setVal(2,0,svd->u[6]);UR->setVal(2,1,svd->u[7]);UR->setVal(2,2,svd->u[8]);
         
+        VR->setVal(0,0,svd->vt[0]);VR->setVal(0,1,svd->vt[1]);VR->setVal(0,2,svd->vt[2]);
+        VR->setVal(1,0,svd->vt[3]);VR->setVal(1,1,svd->vt[4]);VR->setVal(1,2,svd->vt[5]);
+        VR->setVal(2,0,svd->vt[6]);VR->setVal(2,1,svd->vt[7]);VR->setVal(2,2,svd->vt[8]);
+        
+        //Array<double>* iVR = MatInv(VR);
+        Array<double>* iVR = MatInv(VR);
         Array<double>* Rs = MatMul(VR,DR);
         Array<double>* Rf = MatMul(Rs,iVR);
         
-        hessian->setVal(i,0,Rf->getVal(0,0));
-        hessian->setVal(i,0,Rf->getVal(0,1));
-        hessian->setVal(i,0,Rf->getVal(0,2));
+        metric->setVal(i,0,Rf->getVal(0,0));
+        metric->setVal(i,1,Rf->getVal(0,1));
+        metric->setVal(i,2,Rf->getVal(0,2));
         
-        hessian->setVal(i,0,Rf->getVal(1,0));
-        hessian->setVal(i,0,Rf->getVal(1,1));
-        hessian->setVal(i,0,Rf->getVal(1,2));
+        metric->setVal(i,3,Rf->getVal(1,0));
+        metric->setVal(i,4,Rf->getVal(1,1));
+        metric->setVal(i,5,Rf->getVal(1,2));
         
-        hessian->setVal(i,0,Rf->getVal(2,0));
-        hessian->setVal(i,0,Rf->getVal(2,1));
-        hessian->setVal(i,0,Rf->getVal(2,2));
-        
+        metric->setVal(i,6,Rf->getVal(2,0));
+        metric->setVal(i,7,Rf->getVal(2,1));
+        metric->setVal(i,8,Rf->getVal(2,2));
+//        if(world_rank == 0)
+//        {
+            std::cout << "======================="<<std::endl;
+            std::cout << hessian->getVal(i,0) <<","<<hessian->getVal(i,1)<<","<<hessian->getVal(i,2)<<std::endl;
+            std::cout << hessian->getVal(i,3) <<","<<hessian->getVal(i,4)<<","<<hessian->getVal(i,5)<<std::endl;
+            std::cout << hessian->getVal(i,6) <<","<<hessian->getVal(i,7)<<","<<hessian->getVal(i,8)<<std::endl;
+            std::cout << "======================="<<std::endl;
+        //}
+
         delete DR;
+        delete UR;
         delete VR;
-        delete iVR;
         delete Rs;
         delete Rf;
 
@@ -770,6 +800,7 @@ void ComputeMetric(std::vector<Vert> Verts, Array<double>* grad, Array<double>* 
     }
     
     delete[] Hmet;
+    return metric;
 }
 
 

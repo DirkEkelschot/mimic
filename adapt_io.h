@@ -239,7 +239,6 @@ ParArray<T>* ReadDataSetFromRunInFileInParallel(const char* file_name, const cha
     int nrow             = dims[0];
     int ncol             = dims[1];
     int N = nrow;
-    std::cout << "Ntotal = " << N << std::endl;
     int g_offset = 0;
     if (strcmp(dataset_name, "interior") == 0)
     {

@@ -101,6 +101,31 @@ void EigenDecomp(int n, double * A,  double * WR, double * WI, double * V, doubl
 }
 
 
+SVD* ComputeSVD(int M, int N, double * A)
+{
+    SVD* svd = new SVD;
+    double wkopt;
+    int size = 100*N;
+    double WORK [size];
+    int info, lwork;
+    int i,j;
+
+    int ldu = M;
+    int ldvt = N;
+    int lda = M;
+    char all = 'A';
+    double* s = new double[N];
+    double* u = new double[ldu*M];
+    double* vt = new double[ldvt*N];
+    //double u[ldu*M], vt[ldvt*N];
+    dgesvd_( &all, &all, &M, &N, A, &lda, s, u, &ldu, vt, &ldvt, WORK, &size, &info );
+    svd->s = s;
+    svd->u = u;
+    svd->vt = vt;
+    return svd;
+}
+
+
 
 bool isDiagonalMatrix(Array<double>* Msq)
 {
@@ -142,7 +167,36 @@ Array<double>* MatInv(Array<double>* A)
 
 
 
-/*
+
+ 
+ void UnitTestSVD()
+ {
+     double* A = new double[9];
+     A[0] = 2758;A[1]=-2477.29;A[2]=1.00706e-12;
+     A[3] = -2477.29;A[4]=324.239;A[5]=2.29616e-11;
+     A[6] = 1.00706e-12;A[7]=2.29616e-11;A[8]=1.55016e-11;
+     SVD* svd = ComputeSVD(3, 3, A);
+     std::cout << " s " << std::endl;
+     std::cout << svd->s[0] << " " << svd->s[1] << " " << svd->s[2] << std::endl;
+     std::cout << " u " << std::endl;
+     std::cout << svd->u[0] << " " << svd->u[1] << " " << svd->u[2] << std::endl;
+     std::cout << svd->u[3] << " " << svd->u[4] << " " << svd->u[5] << std::endl;
+     std::cout << svd->u[6] << " " << svd->u[7] << " " << svd->u[8] << std::endl;
+     std::cout << " vt " << std::endl;
+     std::cout << svd->vt[0] << " " << svd->vt[1] << " " << svd->vt[2] << std::endl;
+     std::cout << svd->vt[3] << " " << svd->vt[4] << " " << svd->vt[5] << std::endl;
+     std::cout << svd->vt[6] << " " << svd->vt[7] << " " << svd->vt[8] << std::endl;
+ //    U= [[-8.48791491e-01 -5.28727723e-01  1.09121085e-14]
+ //    [ 5.28727723e-01 -8.48791491e-01  1.25551127e-14]
+ //        [ 2.62386865e-15  1.64262071e-14  1.00000000e+00]];
+ //
+ //    Vh= [[-8.48791491e-01  5.28727723e-01  2.62386865e-15]
+ //    [ 5.28727723e-01  8.48791491e-01 -1.64262071e-14]
+ //    [ 1.09121085e-14  1.25551127e-14  1.00000000e+00]];
+
+ }
+ 
+ 
 void UnitTestEigenDecomp()
 {
     double *M = new double[3*3];
@@ -186,5 +240,5 @@ void UnitTestEigenDecomp()
     }
     std::cout << std::endl;
 }
-*/
+
 //#endif

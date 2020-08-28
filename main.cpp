@@ -1,12 +1,17 @@
 #include "adapt_io.h"
 #include "adapt_recongrad.h"
 #include "adapt_recongrad2.h"
+
+#include "mmg/mmgs/libmmgs.h"
+#include "mmg/mmg3d/libmmg3d.h"
+#include "parmmg/libparmmg.h"
+#include "hex2tet.h"
 int mpi_size, mpi_rank;
 
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #define MAX(a,b) (((a)>(b))?(a):(b))
 
-Array<double>* GetSolutionOnRoot(Partition* P, US3D* us3d, Array<double>* Hv, MPI_Comm comm)
+MMG5_pMesh GetOptimizedMMG3DMeshOnRoot(Partition* P, US3D* us3d, Array<double>* Hv, Array<double>* Mv, MPI_Comm comm)
 {
     int world_size;
     MPI_Comm_size(comm, &world_size);
@@ -15,18 +20,23 @@ Array<double>* GetSolutionOnRoot(Partition* P, US3D* us3d, Array<double>* Hv, MP
     MPI_Comm_rank(comm, &world_rank);
     int i,j;
     
-    ParallelState* xcn_pstate = P->getXcnParallelState();
-    ParallelState* ien_pstate = P->getIenParallelState();
+    MMG5_pMesh mmgMesh = NULL;
+    MMG5_pSol mmgSol   = NULL;
     
     int nlElem = us3d->ien->getNrow();
     int nElem = us3d->ien->getNglob();
     int nvg = us3d->xcn->getNglob();
+    
+    
+    ParallelState* xcn_pstate = P->getXcnParallelState();
+    ParallelState* ien_pstate = P->getIenParallelState();
     
     std::map<int,int> gV2lV = P->getGlobalVert2LocalVert();
 
     std::vector<double> Uvloc;
     std::vector<int> vids;
     std::vector<double> Uids;
+    std::vector<double> Hids;
     int gid,lid;
     int nval = 6;
     std::set<int> vdone;
@@ -44,12 +54,24 @@ Array<double>* GetSolutionOnRoot(Partition* P, US3D* us3d, Array<double>* Hv, MP
                vdone.insert(lid);
                vids.push_back(gid);
 
-               Uids.push_back(Hv->getVal(lid,0));
-               Uids.push_back(Hv->getVal(lid,1));
-               Uids.push_back(Hv->getVal(lid,2));
-               Uids.push_back(Hv->getVal(lid,4));
-               Uids.push_back(Hv->getVal(lid,5));
-               Uids.push_back(Hv->getVal(lid,8));
+               Uids.push_back(Mv->getVal(lid,0));
+               Uids.push_back(Mv->getVal(lid,1));
+               Uids.push_back(Mv->getVal(lid,2));
+               Uids.push_back(Mv->getVal(lid,4));
+               Uids.push_back(Mv->getVal(lid,5));
+               Uids.push_back(Mv->getVal(lid,8));
+               
+               Hids.push_back(Hv->getVal(lid,0));
+               Hids.push_back(Hv->getVal(lid,1));
+               Hids.push_back(Hv->getVal(lid,2));
+               
+               Hids.push_back(Hv->getVal(lid,3));
+               Hids.push_back(Hv->getVal(lid,4));
+               Hids.push_back(Hv->getVal(lid,5));
+               
+               Hids.push_back(Hv->getVal(lid,6));
+               Hids.push_back(Hv->getVal(lid,7));
+               Hids.push_back(Hv->getVal(lid,8));
            }
        }
     }
@@ -61,6 +83,10 @@ Array<double>* GetSolutionOnRoot(Partition* P, US3D* us3d, Array<double>* Hv, MP
     int* Uvglob_nloc    = new int[world_size];
     int* Uvglob_nlocs   = new int[world_size];
     int* Uvglob_offsets = new int[world_size];
+    
+    int* Hvglob_nloc    = new int[world_size];
+    int* Hvglob_nlocs   = new int[world_size];
+    int* Hvglob_offsets = new int[world_size];
    
 
     for(i=0;i<world_size;i++)
@@ -80,8 +106,9 @@ Array<double>* GetSolutionOnRoot(Partition* P, US3D* us3d, Array<double>* Hv, MP
     int offset  = 0;
     int vglobt  = 0;
     int Uvglobt = 0;
+    int Hvglobt = 0;
     int Uoffset = 0;
-    
+    int Hoffset = 0;
     for(i=0;i<world_size;i++)
     {
         vglob_offsets[i]=offset;
@@ -93,16 +120,23 @@ Array<double>* GetSolutionOnRoot(Partition* P, US3D* us3d, Array<double>* Hv, MP
         Uvglob_offsets[i]=Uoffset;
         Uoffset=Uoffset+Uvglob_nlocs[i];
         Uvglobt = Uvglobt+Uvglob_nlocs[i];
+        
+        Hvglob_nlocs[i] = vglob_nlocs[i]*9;
+        
+        Hvglob_offsets[i]=Hoffset;
+        Hoffset=Hoffset+Hvglob_nlocs[i];
+        Hvglobt = Hvglobt+Hvglob_nlocs[i];
        
     }
    
     int* vids_t = 0;
     double* Uvids_t = 0;
-   
+    double* Hvids_t = 0;
     if(world_rank == 0)
     {
        vids_t  = new int[vglobt];
        Uvids_t = new double[Uvglobt];
+       Hvids_t = new double[Hvglobt];
     }
 
     MPI_Gatherv(&vids[0],
@@ -120,12 +154,21 @@ Array<double>* GetSolutionOnRoot(Partition* P, US3D* us3d, Array<double>* Hv, MP
                 Uvglob_nlocs,
                 Uvglob_offsets,
                 MPI_DOUBLE, 0, comm);
+    
+    MPI_Gatherv(&Hids[0],
+                Hids.size(),
+                MPI_DOUBLE,
+                &Hvids_t[0],
+                Hvglob_nlocs,
+                Hvglob_offsets,
+                MPI_DOUBLE, 0, comm);
    
     Array<double>* Ug;
-    
+    Array<double>* Hg;
     if(world_rank == 0)
     {
         Ug = new Array<double>(us3d->xcn->getNglob(),nval);
+        Hg = new Array<double>(us3d->xcn->getNglob(),9);
         int cid=0;
         for(i=0;i<world_size;i++)
         {
@@ -137,12 +180,17 @@ Array<double>* GetSolutionOnRoot(Partition* P, US3D* us3d, Array<double>* Hv, MP
                 {
                     Ug->setVal(cid,k,Uvids_t[(vglob_offsets[i]+j)*nval+k]);
                 }
+                for(int k=0;k<nval;k++)
+                {
+                    Hg->setVal(cid,k,Hvids_t[(vglob_offsets[i]+j)*9+k]);
+                }
             }
         }
     }
     else
     {
         Ug = new Array<double>(1,1);
+        Hg = new Array<double>(1,1);
     }
    
     Array<double>* xcn_g;
@@ -190,8 +238,148 @@ Array<double>* GetSolutionOnRoot(Partition* P, US3D* us3d, Array<double>* Hv, MP
                 ien_nlocs,
                 ien_offsets,
                 MPI_INT, 0, comm);
+    
+    
+    
     if(world_rank == 0)
     {
+        int nbHex = nElem;
+        int nbVertices = nvg;
+        std::cout << "number of tets = " << nbHex*6 << std::endl;
+        MMG3D_Init_mesh(MMG5_ARG_start,
+        MMG5_ARG_ppMesh,&mmgMesh,MMG5_ARG_ppMet,&mmgSol,
+        MMG5_ARG_end);
+        std::ofstream myfile4;
+        myfile4.open("hexElements.dat");
+        for(int i=0;i<nbHex;i++)
+        {
+            for(int j=0;j<8;j++)
+            {
+                myfile4 << ien_g->getVal(i,j) << " ";
+            }
+            myfile4 << std::endl;
+        }
+        myfile4.close();
+        std::ofstream myfile5;
+        myfile5.open("hexVertices.dat");
+        for(int i=0;i<nbVertices;i++)
+        {
+            for(int j=0;j<3;j++)
+            {
+                myfile5 << xcn_g->getVal(i,j) << " ";
+            }
+            myfile5 << std::endl;
+        }
+        myfile5.close();
+        
+        
+        if ( MMG3D_Set_meshSize(mmgMesh,nbVertices,nbHex*6,0,0,0,0) != 1 )  exit(EXIT_FAILURE);
+        
+        if ( MMG3D_Set_solSize(mmgMesh,mmgSol,MMG5_Vertex,mmgMesh->np,MMG5_Tensor) != 1 ) exit(EXIT_FAILURE);
+        std::ofstream myfile10;
+        myfile10.open("metric.dat");
+        std::ofstream myfile11;
+        myfile11.open("hessian.dat");
+        for(int i=0;i<xcn_g->getNrow();i++)
+        {
+            mmgMesh->point[i+1].c[0] = xcn_g->getVal(i,0);
+            mmgMesh->point[i+1].c[1] = xcn_g->getVal(i,1);
+            mmgMesh->point[i+1].c[2] = xcn_g->getVal(i,2);
+            mmgMesh->point[i+1].ref = 1;
+            
+            double m11 = Ug->getVal(i,0);
+            double m12 = Ug->getVal(i,1);
+            double m13 = Ug->getVal(i,2);
+            double m22 = Ug->getVal(i,3);
+            double m23 = Ug->getVal(i,4);
+            double m33 = Ug->getVal(i,5);
+            
+            myfile10 << xcn_g->getVal(i,0) << " " << xcn_g->getVal(i,1) << " " << xcn_g->getVal(i,2) << Ug->getVal(i,0) << " " << Ug->getVal(i,1) << " " << Ug->getVal(i,2) << " " << Ug->getVal(i,3) << " " << Ug->getVal(i,4) << " " << Ug->getVal(i,5) << std::endl;
+            
+            myfile11 << xcn_g->getVal(i,0) << " " << xcn_g->getVal(i,1) << " " << xcn_g->getVal(i,2) << Hg->getVal(i,0) << " " << Hg->getVal(i,1) << " " << Hg->getVal(i,2) << " " << Hg->getVal(i,3) << " " << Hg->getVal(i,4) << " " << Hg->getVal(i,5) << " " << Hg->getVal(i,6) << " " << Hg->getVal(i,7) << " " << Hg->getVal(i,8) << std::endl;
+            
+            if ( MMG3D_Set_tensorSol(mmgSol, m11,m12,m13,m22,m23,m33,i+1) != 1 ) exit(EXIT_FAILURE);
+        }
+        myfile10.close();
+        std::cout << "mmgMesh->ne   BEFORE  " << mmgMesh->ne << std::endl;
+        int ref = 0;
+        int* hexTab = new int[9*(nbHex+1)];
+        for(int i=0;i<nbHex;i++)
+        {
+            int hexTabPosition = 9*(i+1);
+            for(int j=0;j<8;j++)
+            {
+                //int val = ien->getVal(i,j+1);
+                int val = ien_g->getVal(i,j)+1;
+                hexTab[hexTabPosition+j] = val;
+            }
+            hexTab[hexTabPosition+8] = ref;
+        }
+        
+        int num = H2T_chkorient(mmgMesh,hexTab,nbHex);
+        std::cout << "num = " << num << std::endl;
+        
+        int* adjahex = NULL;
+        adjahex = (int*)calloc(6*nbHex+7,sizeof(int));
+        assert(adjahex);
+        //
+        if(!H2T_hashHexa(hexTab,adjahex,nbHex))
+        {
+            std::cout << "Error :: setting up the new adjacency for the hexes after reorientation." << std::endl;
+        }
+        //
+        //    //for(int i=0;i<6*nbHex+7;i++)
+        //
+        Hedge        hed2;
+        hed2.size  = 6*nbHex;
+        hed2.hnxt  = 6*nbHex;
+        hed2.nhmax = (int)(16*6*nbHex);
+        hed2.item  = NULL;
+        hed2.item  = (hedge*)calloc(hed2.nhmax+1,sizeof(hedge));
+        ////
+        for (int k=6*nbHex; k<hed2.nhmax; k++)
+        {
+            hed2.item[k].nxt = k+1;
+        }
+    
+        int ret = H2T_cuthex(mmgMesh, &hed2, hexTab, adjahex, nbHex);
+        std::cout << "mmgMesh->ne   AFTER  " << mmgMesh->ne << std::endl;
+
+        MMG3D_Set_handGivenMesh(mmgMesh);
+            
+        if ( MMG3D_Set_dparameter(mmgMesh,mmgSol,MMG3D_DPARAM_hgrad, 3.5) != 1 )
+        exit(EXIT_FAILURE);
+        
+        int ier = MMG3D_mmg3dlib(mmgMesh,mmgSol);
+        std::ofstream myfile2;
+        myfile2.open("mmgMesh_v2.dat");
+        myfile2 << "TITLE=\"new_volume.tec\"" << std::endl;
+        myfile2 <<"VARIABLES = \"X\", \"Y\", \"Z\"" << std::endl;
+        //std::cout << " verts check " << LVerts.size() << " " << hx.size() << std::endl;
+        myfile2 <<"ZONE N = " << mmgMesh->np << ", E = " << mmgMesh->ne << ", DATAPACKING = POINT, ZONETYPE = FETETRAHEDRON" << std::endl;
+        for(int i=0;i<mmgMesh->np;i++)
+        {
+            myfile2 << mmgMesh->point[i+1].c[0] << " " <<mmgMesh->point[i+1].c[1] << " " << mmgMesh->point[i+1].c[2] <<  std::endl;
+        }
+
+        for(int i=1;i<=mmgMesh->ne;i++)
+        {
+            myfile2 << mmgMesh->tetra[i].v[0] << " " << mmgMesh->tetra[i].v[1] << " " << mmgMesh->tetra[i].v[2] << " " << mmgMesh->tetra[i].v[3] << std::endl;
+            //std::cout << i << " " << nbHex << " " << " " << mmgMesh->ne << " " << mmgMesh->np <<  " :: " << mmgMesh->tetra[i].v[0] << " " << mmgMesh->tetra[i].v[1] << " " << mmgMesh->tetra[i].v[2] << " " << mmgMesh->tetra[i].v[3] << std::endl;
+        }
+
+        myfile2.close();
+    }
+    //==================OUTPUT ORIGINAL MESH=======================
+    //==================OUTPUT ORIGINAL MESH=======================
+    
+    if(world_rank == 0)
+    {
+        string filename2 = "met_stored.dat";
+        ofstream myfile2;
+        myfile2.open(filename2);
+        
+        
         string filename = "d2UdX2i_global.dat";
         ofstream myfile;
         myfile.open(filename);
@@ -206,8 +394,11 @@ Array<double>* GetSolutionOnRoot(Partition* P, US3D* us3d, Array<double>* Hv, MP
             myfile << xcn_g->getVal(i,0) << " " << xcn_g->getVal(i,1) << " " << xcn_g->getVal(i,2)
             << " " << Ug->getVal(i,0) << " " << Ug->getVal(i,1) << " " << Ug->getVal(i,2)
             << " " << Ug->getVal(i,3) << " " << Ug->getVal(i,4) << " " << Ug->getVal(i,5) << std::endl;
+            
+            myfile2 << xcn_g->getVal(i,0) << " " << xcn_g->getVal(i,1) << " " << xcn_g->getVal(i,2)
+            << " " << Ug->getVal(i,0) << " " << Ug->getVal(i,1) << " " << Ug->getVal(i,2)
+            << " " << Ug->getVal(i,3) << " " << Ug->getVal(i,4) << " " << Ug->getVal(i,5) << std::endl;
         }
-
         for(int i=0;i<nElem;i++)
         {
             myfile << ien_g->getVal(i,0)+1 << " " <<
@@ -220,7 +411,10 @@ Array<double>* GetSolutionOnRoot(Partition* P, US3D* us3d, Array<double>* Hv, MP
                       ien_g->getVal(i,7)+1 << std::endl;
         }
         myfile.close();
+        myfile2.close();
     }
+    //==================OUTPUT ORIGINAL MESH=======================
+    //==================OUTPUT ORIGINAL MESH=======================
     
     delete[] vglob_nloc;
     delete[] vglob_nlocs;
@@ -232,7 +426,7 @@ Array<double>* GetSolutionOnRoot(Partition* P, US3D* us3d, Array<double>* Hv, MP
     delete xcn_g;
     delete ien_g;
     
-    return Ug;
+    return mmgMesh;
 }
 
 int main(int argc, char** argv) {
@@ -301,7 +495,7 @@ int main(int argc, char** argv) {
         }
         
         MPI_Finalize();
-        return 0;
+        
     }
     else
     {
@@ -436,13 +630,13 @@ int main(int argc, char** argv) {
             hessian->setVal(i,6,d2udzx_v[i]); hessian->setVal(i,7,d2udzy_v[i]); hessian->setVal(i,8,d2udz2_v[i]);
         }
         
-        Array<double>* UgRoot = GetSolutionOnRoot(P,us3d,hessian,comm);
+        //Array<double>* UgRoot = GetSolutionOnRoot(P,us3d,hessian,comm);
         
         std::vector<std::vector<int> > loc_elem2verts_loc = P->getLocalElem2LocalVert();
-            
-        ComputeMetric(Verts,grad,hessian);
+        double max_v = *std::max_element(d2udx2_v.begin(), d2udx2_v.end());
+        Array<double>* metric = ComputeMetric(Verts,grad,hessian,max_v);
         
-        //=================================================================
+//=================================================================
         //==================Output the data in Tecplot format==============
         //=================================================================
         
@@ -461,12 +655,12 @@ int main(int argc, char** argv) {
         {
             myfile<< Verts[i].x << " " << Verts[i].y << " " << Verts[i].z <<
             " " << u_v[i] << " "<< dudx_v[i] << " " << dudy_v[i] << " " << dudz_v[i] <<
-            " " << d2udx2_v[i] << " " << d2udxy_v[i] << " " << d2udxz_v[i] <<
-            " " << d2udyx_v[i] << " " << d2udy2_v[i] << " " << d2udyz_v[i] <<
-            " " << d2udzx_v[i] << " " << d2udzy_v[i] << " " << d2udz2_v[i] <<
             " " << hessian->getVal(i,0) << " " << hessian->getVal(i,1) << " " << hessian->getVal(i,2) <<
             " " << hessian->getVal(i,3) << " " << hessian->getVal(i,4) << " " << hessian->getVal(i,5) <<
-            " " << hessian->getVal(i,6) << " " << hessian->getVal(i,7) << " " << hessian->getVal(i,8) << std::endl;
+            " " << hessian->getVal(i,6) << " " << hessian->getVal(i,7) << " " << hessian->getVal(i,8) <<
+            " " << metric->getVal(i,0) << " " << metric->getVal(i,1) << " " << metric->getVal(i,2) <<
+            " " << metric->getVal(i,3) << " " << metric->getVal(i,4) << " " << metric->getVal(i,5) <<
+            " " << metric->getVal(i,6) << " " << metric->getVal(i,7) << " " << metric->getVal(i,8) << std::endl;
         }
 
         for(int i=0;i<us3d->ien->getNrow();i++)
@@ -481,6 +675,11 @@ int main(int argc, char** argv) {
                      loc_elem2verts_loc[i][7]+1 << std::endl;
         }
         myfile.close();
+        
+        
+        MMG5_pMesh mmgMesh = GetOptimizedMMG3DMeshOnRoot(P, us3d, hessian, metric, comm);
+        
+        
          
         delete d2udx2;
         delete d2udxy;
@@ -514,9 +713,10 @@ int main(int argc, char** argv) {
         delete grad;
         delete ien_pstate;
         delete parmetis_pstate;
-        delete UgRoot;
+        //delete UgRoot;
         MPI_Finalize();
         
-        return 0;
     }
+     
+    return 0;
 }

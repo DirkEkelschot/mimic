@@ -7,6 +7,8 @@ OBJECTS = adapt_output.cpp\
 	  adapt_math.cpp \
 	  adapt_recongrad.cpp \
 	  adapt_io.cpp \
+ 	  adapt_topology.cpp \
+	  adapt_partition.cpp \
 	  main.cpp
 
 PARMETIS_HOME = /Users/dekelsch/Software/parmetis-4.0.3/parmetis-install
