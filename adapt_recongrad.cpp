@@ -563,7 +563,7 @@ Array<double>* ComputedUdx_MGG(Partition* Pa, std::map<int,double> U,
         std::map<int,double> dUdx_p_bnd = Pa->CommunicateAdjacentDataUS3D(gu_c_x, comm);
         std::map<int,double> dUdy_p_bnd = Pa->CommunicateAdjacentDataUS3D(gu_c_y, comm);
         std::map<int,double> dUdz_p_bnd = Pa->CommunicateAdjacentDataUS3D(gu_c_z, comm);
-        
+
         //std::map<int,std::vector<double> > dUdxi_p_bnd = Pa->CommunicateAdjacentDataUS3DNew(gu_c_old, comm);
                 
         L2normx = 0.0;
@@ -631,6 +631,8 @@ Array<double>* ComputedUdx_MGG(Partition* Pa, std::map<int,double> U,
                  sum_phiz = sum_phiz+dphi_dn*dxfxc[gEl][j]->c2*dS[gEl][j];
                  
                  delete nf_m_arf;
+                 delete nj;
+                 delete rj;
              }
              
              Vol = vol[gEl];
@@ -657,6 +659,7 @@ Array<double>* ComputedUdx_MGG(Partition* Pa, std::map<int,double> U,
         MPI_Allreduce(&L2normx, &L2normx_max, 1, MPI_DOUBLE, MPI_MAX, comm);
         MPI_Allreduce(&L2normy, &L2normy_max, 1, MPI_DOUBLE, MPI_MAX, comm);
         MPI_Allreduce(&L2normz, &L2normz_max, 1, MPI_DOUBLE, MPI_MAX, comm);
+        
         t = clock()-t;
         double tn = ((double)t);
         double tmax = 0.0;
