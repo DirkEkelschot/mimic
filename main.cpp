@@ -11,6 +11,117 @@ int mpi_size, mpi_rank;
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #define MAX(a,b) (((a)>(b))?(a):(b))
 
+MMG5_pMesh ReadMMG_pMesh()
+{
+    MMG5_pMesh mmgMesh = NULL;
+    MMG5_pSol mmgSol   = NULL;
+    
+    MMG3D_Init_mesh(MMG5_ARG_start,
+    MMG5_ARG_ppMesh,&mmgMesh,MMG5_ARG_ppMet,&mmgSol,
+    MMG5_ARG_end);
+    
+    std::ifstream fin;
+    fin.open("metric_restart.dat");
+
+    // Read the file row by row
+    std::vector<double> row(9);
+    std::vector<std::vector<double> > Vmetric;
+    int t=0;
+    while(fin >> row[0] >> row[1] >> row[2] >> row[3] >> row[4] >> row[5] >> row[6] >> row[7] >> row[8])
+    {
+       Vmetric.push_back(row);
+       t++;
+    }
+    int L = Vmetric.size();
+    std::ifstream finhex;
+    finhex.open("elements_restart.dat");
+
+    // Read the file row by row
+    std::vector<int> rowHex(8);
+    std::vector<std::vector<int> > arrHex;
+
+    while(finhex >> rowHex[0] >> rowHex[1] >> rowHex[2] >> rowHex[3] >> rowHex[4] >> rowHex[5] >> rowHex[6] >> rowHex[7])
+    {
+       arrHex.push_back(rowHex);
+    }
+    
+    int nbHex      = arrHex.size();
+    int nbVertices = Vmetric.size();
+    if ( MMG3D_Set_meshSize(mmgMesh,nbVertices,nbHex*6,0,0,0,0) != 1 )  exit(EXIT_FAILURE);
+    
+    if ( MMG3D_Set_solSize(mmgMesh,mmgSol,MMG5_Vertex,mmgMesh->np,MMG5_Tensor) != 1 ) exit(EXIT_FAILURE);
+    
+    for(int i=0;i<nbVertices;i++)
+    {
+        mmgMesh->point[i+1].c[0] = Vmetric[i][0];
+        mmgMesh->point[i+1].c[1] = Vmetric[i][1];
+        mmgMesh->point[i+1].c[2] = Vmetric[i][2];
+        mmgMesh->point[i+1].ref = 1;
+        
+        double m11 = Vmetric[i][3];
+        double m12 = Vmetric[i][4];
+        double m13 = Vmetric[i][5];
+        double m22 = Vmetric[i][6];
+        double m23 = Vmetric[i][7];
+        double m33 = Vmetric[i][8];
+        
+        if ( MMG3D_Set_tensorSol(mmgSol, m11,m12,m13,m22,m23,m33,i+1) != 1 ) exit(EXIT_FAILURE);
+    }
+    
+    int* hexTab = new int[9*(nbHex+1)];
+    int ref = 0;
+    for(int i=0;i<nbHex;i++)
+    {
+        int hexTabPosition = 9*(i+1);
+        for(int j=0;j<8;j++)
+        {
+            //int val = ien->getVal(i,j+1);
+            int val = arrHex[i][j];
+            hexTab[hexTabPosition+j] = val;
+        }
+        hexTab[hexTabPosition+8] = ref;
+    }
+    
+    int num = H2T_chkorient(mmgMesh,hexTab,nbHex);
+    std::cout << "num = " << num << std::endl;
+
+    int* adjahex = NULL;
+    adjahex = (int*)calloc(6*nbHex+7,sizeof(int));
+    assert(adjahex);
+    //
+    if(!H2T_hashHexa(hexTab,adjahex,nbHex))
+    {
+        std::cout << "Error :: setting up the new adjacency for the hexes after reorientation." << std::endl;
+    }
+    //
+    //    //for(int i=0;i<6*nbHex+7;i++)
+    //
+    Hedge        hed2;
+    hed2.size  = 6*nbHex;
+    hed2.hnxt  = 6*nbHex;
+    hed2.nhmax = (int)(16*6*nbHex);
+    hed2.item  = NULL;
+    hed2.item  = (hedge*)calloc(hed2.nhmax+1,sizeof(hedge));
+    ////
+    for (int k=6*nbHex; k<hed2.nhmax; k++)
+    {
+        hed2.item[k].nxt = k+1;
+    }
+
+    int ret = H2T_cuthex(mmgMesh, &hed2, hexTab, adjahex, nbHex);
+
+    MMG3D_Set_handGivenMesh(mmgMesh);
+
+    if ( MMG3D_Set_dparameter(mmgMesh,mmgSol,MMG3D_DPARAM_hgrad, 3.5) != 1 )
+    exit(EXIT_FAILURE);
+
+    int ier = MMG3D_mmg3dlib(mmgMesh,mmgSol);
+//
+    return mmgMesh;
+}
+
+
+
 MMG5_pMesh GetOptimizedMMG3DMeshOnRoot(Partition* P, US3D* us3d, Array<double>* Hv, Array<double>* Mv, MPI_Comm comm)
 {
     int world_size;
@@ -238,9 +349,7 @@ MMG5_pMesh GetOptimizedMMG3DMeshOnRoot(Partition* P, US3D* us3d, Array<double>* 
                 ien_nlocs,
                 ien_offsets,
                 MPI_INT, 0, comm);
-    
-    
-    
+
     if(world_rank == 0)
     {
         int nbHex = nElem;
@@ -272,10 +381,10 @@ MMG5_pMesh GetOptimizedMMG3DMeshOnRoot(Partition* P, US3D* us3d, Array<double>* 
         }
         myfile5.close();
         
-        
         if ( MMG3D_Set_meshSize(mmgMesh,nbVertices,nbHex*6,0,0,0,0) != 1 )  exit(EXIT_FAILURE);
         
         if ( MMG3D_Set_solSize(mmgMesh,mmgSol,MMG5_Vertex,mmgMesh->np,MMG5_Tensor) != 1 ) exit(EXIT_FAILURE);
+        
         std::ofstream myfile10;
         myfile10.open("metric.dat");
         std::ofstream myfile11;
@@ -357,37 +466,105 @@ MMG5_pMesh GetOptimizedMMG3DMeshOnRoot(Partition* P, US3D* us3d, Array<double>* 
         myfile2 <<"VARIABLES = \"X\", \"Y\", \"Z\"" << std::endl;
         //std::cout << " verts check " << LVerts.size() << " " << hx.size() << std::endl;
         myfile2 <<"ZONE N = " << mmgMesh->np << ", E = " << mmgMesh->ne << ", DATAPACKING = POINT, ZONETYPE = FETETRAHEDRON" << std::endl;
+        
+        
+        Array<double>* xcn_mmg = new Array<double>(mmgMesh->np,3);
         for(int i=0;i<mmgMesh->np;i++)
         {
             myfile2 << mmgMesh->point[i+1].c[0] << " " <<mmgMesh->point[i+1].c[1] << " " << mmgMesh->point[i+1].c[2] <<  std::endl;
+            
+            xcn_mmg->setVal(i,0,mmgMesh->point[i+1].c[0]);
+            xcn_mmg->setVal(i,1,mmgMesh->point[i+1].c[1]);
+            xcn_mmg->setVal(i,2,mmgMesh->point[i+1].c[2]);
         }
-
+        std::set<std::set<int> > faces;
+        std::map<int,std::vector<int> > face2node;
+        int fid = 0;
+        std::set<int> face0;
+        std::set<int> face1;
+        std::set<int> face2;
+        std::set<int> face3;
         for(int i=1;i<=mmgMesh->ne;i++)
         {
             myfile2 << mmgMesh->tetra[i].v[0] << " " << mmgMesh->tetra[i].v[1] << " " << mmgMesh->tetra[i].v[2] << " " << mmgMesh->tetra[i].v[3] << std::endl;
             //std::cout << i << " " << nbHex << " " << " " << mmgMesh->ne << " " << mmgMesh->np <<  " :: " << mmgMesh->tetra[i].v[0] << " " << mmgMesh->tetra[i].v[1] << " " << mmgMesh->tetra[i].v[2] << " " << mmgMesh->tetra[i].v[3] << std::endl;
+        face0.insert(mmgMesh->tetra[i].v[0]);face0.insert(mmgMesh->tetra[i].v[1]);face0.insert(mmgMesh->tetra[i].v[2]);
+            if( faces.count(face0) != 1 )
+            {
+                faces.insert(face0);
+                face2node[fid].push_back(mmgMesh->tetra[i].v[0]);
+                face2node[fid].push_back(mmgMesh->tetra[i].v[1]);
+                face2node[fid].push_back(mmgMesh->tetra[i].v[2]);
+                fid++;
+            }
+        face1.insert(mmgMesh->tetra[i].v[1]);face1.insert(mmgMesh->tetra[i].v[2]);face1.insert(mmgMesh->tetra[i].v[3]);
+            if( faces.count(face1) != 1 )
+            {
+                faces.insert(face1);
+                face2node[fid].push_back(mmgMesh->tetra[i].v[1]);
+                face2node[fid].push_back(mmgMesh->tetra[i].v[2]);
+                face2node[fid].push_back(mmgMesh->tetra[i].v[3]);
+                fid++;
+            }
+        face2.insert(mmgMesh->tetra[i].v[2]);face2.insert(mmgMesh->tetra[i].v[3]);face2.insert(mmgMesh->tetra[i].v[0]);
+            if( faces.count(face2) != 1 )
+            {
+                faces.insert(face2);
+                face2node[fid].push_back(mmgMesh->tetra[i].v[2]);
+                face2node[fid].push_back(mmgMesh->tetra[i].v[3]);
+                face2node[fid].push_back(mmgMesh->tetra[i].v[0]);
+                fid++;
+            }
+        face3.insert(mmgMesh->tetra[i].v[3]);face3.insert(mmgMesh->tetra[i].v[0]);face3.insert(mmgMesh->tetra[i].v[1]);
+            if( faces.count(face3) != 1 )
+            {
+                faces.insert(face3);
+                face2node[fid].push_back(mmgMesh->tetra[i].v[3]);
+                face2node[fid].push_back(mmgMesh->tetra[i].v[0]);
+                face2node[fid].push_back(mmgMesh->tetra[i].v[1]);
+                fid++;
+            }
+            face0.clear();
+            face1.clear();
+            face2.clear();
+            face3.clear();
         }
-
         myfile2.close();
+        
+        
+        
+        
+        std::cout << "number of unique faces is: " << faces.size() << " " << face2node.size() << std::endl;
+        int ufaces = faces.size();
+        Array<int>* ifn_mmg = new Array<int>(faces.size(),3);
+        for(int i=0;i<ufaces;i++)
+        {
+            ifn_mmg->setVal(i,0,face2node[i][0]);
+            ifn_mmg->setVal(i,1,face2node[i][1]);
+            ifn_mmg->setVal(i,2,face2node[i][2]);
+        }
+        
+        
     }
     //==================OUTPUT ORIGINAL MESH=======================
     //==================OUTPUT ORIGINAL MESH=======================
     
     if(world_rank == 0)
     {
-        string filename2 = "met_stored.dat";
-        ofstream myfile2;
-        myfile2.open(filename2);
-        
-        
         string filename = "d2UdX2i_global.dat";
         ofstream myfile;
         myfile.open(filename);
         myfile << "TITLE=\"volume.tec\"" << std::endl;
-       
         myfile <<"VARIABLES = \"X\", \"Y\", \"Z\", \"gxx\", \"gxy\", \"gxz\", \"gyy\", \"gyz\", \"gzz\"" << std::endl;
         myfile <<"ZONE N = " << nvg << ", E = " << nElem << ", DATAPACKING = POINT, ZONETYPE = FEBRICK" << std::endl;
        
+        string filename2 = "metric_restart.dat";
+        ofstream myfile2;
+        myfile2.open(filename2);
+        
+        string filename3 = "elements_restart.dat";
+        ofstream myfile3;
+        myfile3.open(filename3);
         
         for(int i=0;i<nvg;i++)
         {
@@ -409,9 +586,19 @@ MMG5_pMesh GetOptimizedMMG3DMeshOnRoot(Partition* P, US3D* us3d, Array<double>* 
                       ien_g->getVal(i,5)+1 << " " <<
                       ien_g->getVal(i,6)+1 << " " <<
                       ien_g->getVal(i,7)+1 << std::endl;
+            
+            myfile3 << ien_g->getVal(i,0)+1 << " " <<
+                       ien_g->getVal(i,1)+1 << " " <<
+                       ien_g->getVal(i,2)+1 << " " <<
+                       ien_g->getVal(i,3)+1 << " " <<
+                       ien_g->getVal(i,4)+1 << " " <<
+                       ien_g->getVal(i,5)+1 << " " <<
+                       ien_g->getVal(i,6)+1 << " " <<
+                       ien_g->getVal(i,7)+1 << std::endl;
         }
         myfile.close();
         myfile2.close();
+        myfile3.close();
     }
     //==================OUTPUT ORIGINAL MESH=======================
     //==================OUTPUT ORIGINAL MESH=======================
@@ -502,7 +689,16 @@ int main(int argc, char** argv) {
         //========================================================================
         //========================================================================
         //========================================================================
-        US3D* us3d = ReadUS3DData(fn_conn,fn_grid,fn_data,comm,info);
+        
+        if(world_rank == 0)
+        {
+            MMG5_pMesh mmgMesh = ReadMMG_pMesh();
+        }
+        
+        
+        
+        
+        /*US3D* us3d = ReadUS3DData(fn_conn,fn_grid,fn_data,comm,info);
         
         int Nel_part = us3d->ien->getNrow();
         
@@ -712,7 +908,7 @@ int main(int argc, char** argv) {
         delete hessian;
         delete grad;
         delete ien_pstate;
-        delete parmetis_pstate;
+        delete parmetis_pstate;*/
         //delete UgRoot;
         MPI_Finalize();
         
