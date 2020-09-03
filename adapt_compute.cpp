@@ -779,11 +779,11 @@ Array<double>* ComputeMetric(std::vector<Vert> Verts, Array<double>* grad, Array
         metric->setVal(i,8,Rf->getVal(2,2));
 //        if(world_rank == 0)
 //        {
-            std::cout << "======================="<<std::endl;
-            std::cout << hessian->getVal(i,0) <<","<<hessian->getVal(i,1)<<","<<hessian->getVal(i,2)<<std::endl;
-            std::cout << hessian->getVal(i,3) <<","<<hessian->getVal(i,4)<<","<<hessian->getVal(i,5)<<std::endl;
-            std::cout << hessian->getVal(i,6) <<","<<hessian->getVal(i,7)<<","<<hessian->getVal(i,8)<<std::endl;
-            std::cout << "======================="<<std::endl;
+//            std::cout << "======================="<<std::endl;
+//            std::cout << hessian->getVal(i,0) <<","<<hessian->getVal(i,1)<<","<<hessian->getVal(i,2)<<std::endl;
+//            std::cout << hessian->getVal(i,3) <<","<<hessian->getVal(i,4)<<","<<hessian->getVal(i,5)<<std::endl;
+//            std::cout << hessian->getVal(i,6) <<","<<hessian->getVal(i,7)<<","<<hessian->getVal(i,8)<<std::endl;
+//            std::cout << "======================="<<std::endl;
         //}
 
         delete DR;

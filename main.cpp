@@ -1,7 +1,7 @@
 #include "adapt_io.h"
 #include "adapt_recongrad.h"
 #include "adapt_recongrad2.h"
-
+#include "adapt_output.h"
 #include "mmg/mmgs/libmmgs.h"
 #include "mmg/mmg3d/libmmg3d.h"
 #include "parmmg/libparmmg.h"
@@ -11,8 +11,189 @@ int mpi_size, mpi_rank;
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #define MAX(a,b) (((a)>(b))?(a):(b))
 
-MMG5_pMesh ReadMMG_pMesh()
+void OutputAdapt_Grid()
 {
+    
+    std::ifstream fin;
+    fin.open("xcn_mmg.dat");
+
+    // Read the file row by row
+    std::vector<double> row(3);
+    std::vector<std::vector<double> > xcn_vec;
+    int t=0;
+    while(fin >> row[0] >> row[1] >> row[2])
+    {
+       xcn_vec.push_back(row);
+       t++;
+    }
+    int L = xcn_vec.size();
+    std::ifstream finhex;
+    finhex.open("ien_mmg.dat");
+
+    // Read the file row by row
+    std::vector<int> rowTet(4);
+    std::vector<std::vector<int> > arrTet;
+
+    while(finhex >> rowTet[0] >> rowTet[1] >> rowTet[2] >> rowTet[3] )
+    {
+       arrTet.push_back(rowTet);
+    }
+    
+    std::map<std::set<int>, int> face2id;
+    std::set<std::set<int> > faces;
+    std::map<int,std::vector<int> > face2node;
+    std::map<int,std::vector<int> > element2face;
+    std::map<int,std::vector<int> > face2element;
+    int fid = 0;
+    std::set<int> face0;
+    std::set<int> face1;
+    std::set<int> face2;
+    std::set<int> face3;
+    for(int i=1;i<=arrTet.size();i++)
+    { face0.insert(arrTet[i-1][0]);face0.insert(arrTet[i-1][1]);face0.insert(arrTet[i-1][2]);
+        if( faces.count(face0) != 1 )
+        {
+            faces.insert(face0);
+            face2id[face0]=fid;
+            face2node[fid].push_back(arrTet[i-1][0]);
+            face2node[fid].push_back(arrTet[i-1][1]);
+            face2node[fid].push_back(arrTet[i-1][2]);
+            
+            element2face[i-1].push_back(fid);
+            face2element[fid].push_back(i-1);
+            
+            fid++;
+        }
+        else{
+            element2face[i-1].push_back(face2id[face0]);
+            face2element[face2id[face0]].push_back(i-1);
+        }
+    face1.insert(arrTet[i-1][1]);face1.insert(arrTet[i-1][2]);face1.insert(arrTet[i-1][3]);
+        if( faces.count(face1) != 1 )
+        {
+            faces.insert(face1);
+            face2id[face1]=fid;
+            
+            face2node[fid].push_back(arrTet[i-1][1]);
+            face2node[fid].push_back(arrTet[i-1][2]);
+            face2node[fid].push_back(arrTet[i-1][3]);
+            
+            element2face[i-1].push_back(fid);
+            face2element[fid].push_back(i-1);
+            
+            fid++;
+        }
+        else{
+            element2face[i-1].push_back(face2id[face1]);
+            face2element[face2id[face1]].push_back(i-1);
+        }
+        
+    face2.insert(arrTet[i-1][2]);face2.insert(arrTet[i-1][3]);face2.insert(arrTet[i-1][0]);
+        if( faces.count(face2) != 1 )
+        {
+            faces.insert(face2);
+            face2id[face2]=fid;
+            face2node[fid].push_back(arrTet[i-1][2]);
+            face2node[fid].push_back(arrTet[i-1][3]);
+            face2node[fid].push_back(arrTet[i-1][0]);
+            
+            element2face[i-1].push_back(fid);
+            face2element[fid].push_back(i-1);
+            
+            fid++;
+        }
+        else{
+            element2face[i-1].push_back(face2id[face2]);
+            face2element[face2id[face2]].push_back(i-1);
+        }
+    face3.insert(arrTet[i-1][3]);face3.insert(arrTet[i-1][0]);face3.insert(arrTet[i-1][1]);
+        if( faces.count(face3) != 1 )
+        {
+            faces.insert(face3);
+            face2id[face3]=fid;
+            face2node[fid].push_back(arrTet[i-1][3]);
+            face2node[fid].push_back(arrTet[i-1][0]);
+            face2node[fid].push_back(arrTet[i-1][1]);
+            
+            element2face[i-1].push_back(fid);
+            face2element[fid].push_back(i-1);
+            
+            fid++;
+        }
+        else{
+            element2face[i-1].push_back(face2id[face3]);
+            face2element[face2id[face3]].push_back(i-1);
+        }
+        
+        face0.clear();
+        face1.clear();
+        face2.clear();
+        face3.clear();
+    }
+    
+
+    std::cout << "number of unique faces is: " << faces.size() << " " << face2node.size() << std::endl;
+    
+    std::map<int,std::vector<int> >::iterator it;
+    
+    for(it=face2element.begin();it!=face2element.end();it++)
+    {
+        std::cout << it->first << " -> ";
+        std::vector<int>::iterator it2;
+        for(it2=it->second.begin();it2!=it->second.end();it2++)
+        {
+            std::cout << *it2 << " ";
+        }
+        std::cout << std::endl;
+    }
+    
+//    int ufaces = faces.size();
+//    Array<int>* ifn_mmg = new Array<int>(faces.size(),3);
+//    for(int i=0;i<ufaces;i++)
+//    {
+//        ifn_mmg->setVal(i,0,face2node[i][0]);
+//        ifn_mmg->setVal(i,1,face2node[i][1]);
+//        ifn_mmg->setVal(i,2,face2node[i][2]);
+//    }
+    
+    //Output the new grid.h5 which has the new vertices and ifn map.
+//    hid_t plist_id = H5Pcreate(H5P_FILE_ACCESS);
+//    plist_id               = H5P_DEFAULT;
+//    //H5Pset_fapl_mpio(plist_id, comm, info);
+//    hid_t file_id = H5Fcreate("adapt_grid.h5", H5F_ACC_TRUNC, H5P_DEFAULT, plist_id);
+//    H5Pclose(plist_id);
+//    hsize_t     dimsf[2];
+//    dimsf[0] = arrTet;
+//    dimsf[1] = arrTet;
+//    hid_t filespace = H5Screate_simple(2, dimsf, NULL);
+//
+//    hid_t dset_id = H5Dcreate(file_id, "xcn", H5T_NATIVE_DOUBLE, filespace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+//    H5Sclose(filespace);
+//
+//    hsize_t    count[2];              /* hyperslab selection parameters */
+//    hsize_t    offset[2];
+//    count[0] = dimsf[0];
+//    count[1] = dimsf[1];
+//    offset[0] = 0;
+//    offset[1] = 0;
+//    hid_t memspace = H5Screate_simple(2, count, NULL);
+//
+//    filespace = H5Dget_space(dset_id);
+//    H5Sselect_hyperslab(filespace, H5S_SELECT_SET, offset, NULL, count, NULL);
+//
+//    hid_t status = H5Dwrite(dset_id, H5T_NATIVE_DOUBLE, memspace, filespace, plist_id, xcn_mmg->data);
+}
+
+
+MMG5_pMesh ReadMMG_pMesh(MPI_Comm comm, MPI_Info info)
+{
+    int world_size;
+    MPI_Comm_size(comm, &world_size);
+    // Get the rank of the process
+    int world_rank;
+    MPI_Comm_rank(comm, &world_rank);
+    int i,j;
+
     MMG5_pMesh mmgMesh = NULL;
     MMG5_pSol mmgSol   = NULL;
     
@@ -56,7 +237,7 @@ MMG5_pMesh ReadMMG_pMesh()
         mmgMesh->point[i+1].c[0] = Vmetric[i][0];
         mmgMesh->point[i+1].c[1] = Vmetric[i][1];
         mmgMesh->point[i+1].c[2] = Vmetric[i][2];
-        mmgMesh->point[i+1].ref = 1;
+        mmgMesh->point[i+1].ref  = 1;
         
         double m11 = Vmetric[i][3];
         double m12 = Vmetric[i][4];
@@ -116,7 +297,12 @@ MMG5_pMesh ReadMMG_pMesh()
     exit(EXIT_FAILURE);
 
     int ier = MMG3D_mmg3dlib(mmgMesh,mmgSol);
-
+    
+    std::ofstream myfile20;
+    myfile20.open("xcn_mmg.dat");
+    std::ofstream myfile21;
+    myfile21.open("ien_mmg.dat");
+    
     std::ofstream myfile2;
     myfile2.open("mmgMesh.dat");
     myfile2 << "TITLE=\"new_volume.tec\"" << std::endl;
@@ -129,75 +315,81 @@ MMG5_pMesh ReadMMG_pMesh()
     {
         myfile2 << mmgMesh->point[i+1].c[0] << " " <<mmgMesh->point[i+1].c[1] << " " << mmgMesh->point[i+1].c[2] <<  std::endl;
         
+        myfile20 << mmgMesh->point[i+1].c[0] << " " <<mmgMesh->point[i+1].c[1] << " " << mmgMesh->point[i+1].c[2] <<  std::endl;
+        
         xcn_mmg->setVal(i,0,mmgMesh->point[i+1].c[0]);
         xcn_mmg->setVal(i,1,mmgMesh->point[i+1].c[1]);
         xcn_mmg->setVal(i,2,mmgMesh->point[i+1].c[2]);
     }
-    std::set<std::set<int> > faces;
-    std::map<int,std::vector<int> > face2node;
-    int fid = 0;
-    std::set<int> face0;
-    std::set<int> face1;
-    std::set<int> face2;
-    std::set<int> face3;
+    
+    myfile20.close();
+    
     for(int i=1;i<=mmgMesh->ne;i++)
     {
         myfile2 << mmgMesh->tetra[i].v[0] << " " << mmgMesh->tetra[i].v[1] << " " << mmgMesh->tetra[i].v[2] << " " << mmgMesh->tetra[i].v[3] << std::endl;
-    face0.insert(mmgMesh->tetra[i].v[0]);face0.insert(mmgMesh->tetra[i].v[1]);face0.insert(mmgMesh->tetra[i].v[2]);
-        if( faces.count(face0) != 1 )
-        {
-            faces.insert(face0);
-            face2node[fid].push_back(mmgMesh->tetra[i].v[0]);
-            face2node[fid].push_back(mmgMesh->tetra[i].v[1]);
-            face2node[fid].push_back(mmgMesh->tetra[i].v[2]);
-            fid++;
-        }
-    face1.insert(mmgMesh->tetra[i].v[1]);face1.insert(mmgMesh->tetra[i].v[2]);face1.insert(mmgMesh->tetra[i].v[3]);
-        if( faces.count(face1) != 1 )
-        {
-            faces.insert(face1);
-            face2node[fid].push_back(mmgMesh->tetra[i].v[1]);
-            face2node[fid].push_back(mmgMesh->tetra[i].v[2]);
-            face2node[fid].push_back(mmgMesh->tetra[i].v[3]);
-            fid++;
-        }
-    face2.insert(mmgMesh->tetra[i].v[2]);face2.insert(mmgMesh->tetra[i].v[3]);face2.insert(mmgMesh->tetra[i].v[0]);
-        if( faces.count(face2) != 1 )
-        {
-            faces.insert(face2);
-            face2node[fid].push_back(mmgMesh->tetra[i].v[2]);
-            face2node[fid].push_back(mmgMesh->tetra[i].v[3]);
-            face2node[fid].push_back(mmgMesh->tetra[i].v[0]);
-            fid++;
-        }
-    face3.insert(mmgMesh->tetra[i].v[3]);face3.insert(mmgMesh->tetra[i].v[0]);face3.insert(mmgMesh->tetra[i].v[1]);
-        if( faces.count(face3) != 1 )
-        {
-            faces.insert(face3);
-            face2node[fid].push_back(mmgMesh->tetra[i].v[3]);
-            face2node[fid].push_back(mmgMesh->tetra[i].v[0]);
-            face2node[fid].push_back(mmgMesh->tetra[i].v[1]);
-            fid++;
-        }
-        face0.clear();
-        face1.clear();
-        face2.clear();
-        face3.clear();
+        myfile21 << mmgMesh->tetra[i].v[0] << " " << mmgMesh->tetra[i].v[1] << " " << mmgMesh->tetra[i].v[2] << " " << mmgMesh->tetra[i].v[3] << std::endl;
+        
+//    face0.insert(mmgMesh->tetra[i].v[0]);face0.insert(mmgMesh->tetra[i].v[1]);face0.insert(mmgMesh->tetra[i].v[2]);
+//        if( faces.count(face0) != 1 )
+//        {
+//            faces.insert(face0);
+//            face2node[fid].push_back(mmgMesh->tetra[i].v[0]);
+//            face2node[fid].push_back(mmgMesh->tetra[i].v[1]);
+//            face2node[fid].push_back(mmgMesh->tetra[i].v[2]);
+//
+//            element2face[i-1].push_back(fid);
+//            face2element[fid].push_back(i-1);
+//
+//            fid++;
+//        }
+//    face1.insert(mmgMesh->tetra[i].v[1]);face1.insert(mmgMesh->tetra[i].v[2]);face1.insert(mmgMesh->tetra[i].v[3]);
+//        if( faces.count(face1) != 1 )
+//        {
+//            faces.insert(face1);
+//            face2node[fid].push_back(mmgMesh->tetra[i].v[1]);
+//            face2node[fid].push_back(mmgMesh->tetra[i].v[2]);
+//            face2node[fid].push_back(mmgMesh->tetra[i].v[3]);
+//
+//            element2face[i-1].push_back(fid);
+//            face2element[fid].push_back(i-1);
+//
+//            fid++;
+//        }
+//    face2.insert(mmgMesh->tetra[i].v[2]);face2.insert(mmgMesh->tetra[i].v[3]);face2.insert(mmgMesh->tetra[i].v[0]);
+//        if( faces.count(face2) != 1 )
+//        {
+//            faces.insert(face2);
+//            face2node[fid].push_back(mmgMesh->tetra[i].v[2]);
+//            face2node[fid].push_back(mmgMesh->tetra[i].v[3]);
+//            face2node[fid].push_back(mmgMesh->tetra[i].v[0]);
+//
+//            element2face[i-1].push_back(fid);
+//            face2element[fid].push_back(i-1);
+//
+//            fid++;
+//        }
+//    face3.insert(mmgMesh->tetra[i].v[3]);face3.insert(mmgMesh->tetra[i].v[0]);face3.insert(mmgMesh->tetra[i].v[1]);
+//        if( faces.count(face3) != 1 )
+//        {
+//            faces.insert(face3);
+//            face2node[fid].push_back(mmgMesh->tetra[i].v[3]);
+//            face2node[fid].push_back(mmgMesh->tetra[i].v[0]);
+//            face2node[fid].push_back(mmgMesh->tetra[i].v[1]);
+//
+//            element2face[i-1].push_back(fid);
+//            face2element[fid].push_back(i-1);
+//
+//            fid++;
+//        }
+//        face0.clear();
+//        face1.clear();
+//        face2.clear();
+//        face3.clear();
+        
     }
     
-    myfile2.close();
-
-    std::cout << "number of unique faces is: " << faces.size() << " " << face2node.size() << std::endl;
-    
-    int ufaces = faces.size();
-    Array<int>* ifn_mmg = new Array<int>(faces.size(),3);
-    for(int i=0;i<ufaces;i++)
-    {
-        ifn_mmg->setVal(i,0,face2node[i][0]);
-        ifn_mmg->setVal(i,1,face2node[i][1]);
-        ifn_mmg->setVal(i,2,face2node[i][2]);
-    }
-    
+    myfile21.close();
+//
     return mmgMesh;
 }
 
@@ -318,7 +510,6 @@ MMG5_pMesh GetOptimizedMMG3DMeshOnRoot(Partition* P, US3D* us3d, Array<double>* 
         Hvglob_offsets[i]=Hoffset;
         Hoffset=Hoffset+Hvglob_nlocs[i];
         Hvglobt = Hvglobt+Hvglob_nlocs[i];
-       
     }
    
     int* vids_t = 0;
@@ -748,15 +939,19 @@ int main(int argc, char** argv) {
             fn_data = fn_data_n;
             fnames[i]=fn_data;
         }
+        
+        
     }
     if(fnames.size()!=3)
     {
         if(world_rank == 0)
         {
-           std::cout << "required command line inputs are : --grid=\"grid_name\".h5 --conn=\"conn_name\".h5 --data=\"data_name\".h5 in order to compute a new Hessian-based error estimator. For now, reading existing metric data."  << std::endl;
+            std::cout << "For metric determination, the required command line inputs are : --grid=\"grid_name\".h5 --conn=\"conn_name\".h5 --data=\"data_name\".h5." << std::endl;
+            std::cout << "For now, reading existing metric data."  << std::endl;
             
-            MMG5_pMesh mmgMesh = ReadMMG_pMesh();
-
+            OutputAdapt_Grid();
+            
+            //MMG5_pMesh mmgMesh = ReadMMG_pMesh(comm,info);
         }
         MPI_Finalize();
     }
@@ -767,6 +962,7 @@ int main(int argc, char** argv) {
         //========================================================================
         
         US3D* us3d = ReadUS3DData(fn_conn,fn_grid,fn_data,comm,info);
+        
         
         int Nel_part = us3d->ien->getNrow();
         
@@ -789,8 +985,15 @@ int main(int argc, char** argv) {
         
         std::map<int,double> UauxNew = P->CommunicateAdjacentDataUS3D(Uivar,comm);
         
-        Mesh_Topology* meshTopo = new Mesh_Topology(P,us3d->ifn,us3d->ghost,UauxNew,comm);
+        Mesh_Topology* meshTopo = new Mesh_Topology(P,us3d->ifn,us3d->ghost,UauxNew,us3d->bnd_map,us3d->nBnd,comm);
+        //OutputBoundaryID(P, meshTopo, us3d, 0);
+//        OutputBoundaryID(P, meshTopo, us3d, 1);
+//        OutputBoundaryID(P, meshTopo, us3d, 2);
+//        OutputBoundaryID(P, meshTopo, us3d, 3);
+//        OutputBoundaryID(P, meshTopo, us3d, 4);
         
+        //std::map<int,int> faceref = meshTopo->getFaceRef();
+
         //Gradients* dudxObj = new Gradients(P,meshTopo,UauxNew,us3d->ghost,"us3d","MMG",comm);
         
         //Array<double>* dUdXi = dudxObj->getdUdXi();
@@ -904,6 +1107,12 @@ int main(int argc, char** argv) {
         //==================Output the data in Tecplot format==============
         //=================================================================
         
+        string filename11 = "metric_rank_" + std::to_string(world_rank) + ".dat";
+        ofstream myfile11;
+        myfile11.open(filename11);
+        string filename12 = "elements_rank_" + std::to_string(world_rank) + ".dat";
+        ofstream myfile12;
+        myfile11.open(filename12);
         string filename = "d2UdX2i_" + std::to_string(world_rank) + ".dat";
         ofstream myfile;
         myfile.open(filename);
@@ -925,6 +1134,8 @@ int main(int argc, char** argv) {
             " " << metric->getVal(i,0) << " " << metric->getVal(i,1) << " " << metric->getVal(i,2) <<
             " " << metric->getVal(i,3) << " " << metric->getVal(i,4) << " " << metric->getVal(i,5) <<
             " " << metric->getVal(i,6) << " " << metric->getVal(i,7) << " " << metric->getVal(i,8) << std::endl;
+            
+            myfile11 << Verts[i].x << " " << Verts[i].y << " " << Verts[i].z << " " << metric->getVal(i,0) << " " << metric->getVal(i,1) << " " << metric->getVal(i,2) << " " << metric->getVal(i,3) << " " << metric->getVal(i,4) << " " << metric->getVal(i,5) << " " << metric->getVal(i,6) << " " << metric->getVal(i,7) << " " << metric->getVal(i,8) << std::endl;
         }
 
         for(int i=0;i<us3d->ien->getNrow();i++)
@@ -937,8 +1148,20 @@ int main(int argc, char** argv) {
                      loc_elem2verts_loc[i][5]+1 << " " <<
                      loc_elem2verts_loc[i][6]+1 << " " <<
                      loc_elem2verts_loc[i][7]+1 << std::endl;
+            
+           myfile12 << loc_elem2verts_loc[i][0]+1 << " " <<
+                       loc_elem2verts_loc[i][1]+1 << " " <<
+                       loc_elem2verts_loc[i][2]+1 << " " <<
+                       loc_elem2verts_loc[i][3]+1 << " " <<
+                       loc_elem2verts_loc[i][4]+1 << " " <<
+                       loc_elem2verts_loc[i][5]+1 << " " <<
+                       loc_elem2verts_loc[i][6]+1 << " " <<
+                       loc_elem2verts_loc[i][7]+1 << std::endl;
         }
+        
         myfile.close();
+        myfile11.close();
+        myfile12.close();
         
         MMG5_pMesh mmgMesh = GetOptimizedMMG3DMeshOnRoot(P, us3d, hessian, metric, comm);
     
@@ -975,6 +1198,7 @@ int main(int argc, char** argv) {
         delete ien_pstate;
         delete parmetis_pstate;
         //delete UgRoot;
+        
         MPI_Finalize();
         
     }

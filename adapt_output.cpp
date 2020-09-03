@@ -2,6 +2,116 @@
 
 using namespace std;
 
+void OutputBoundaryID(Partition* Pa, Mesh_Topology* meshTopo, US3D* us3d, int bndID)
+{
+    std::cout << "Writing boundary "<< bndID << " to boundary_" << bndID<<  ".dat" << std::endl;
+    map< int, int > Loc2GlobBound;
+    map< int, Vert> BC_verts;
+
+    std::map<int,int> gV2lV               = Pa->getGlobalVert2LocalVert();
+    std::vector<Vert> locVerts            = Pa->getLocalVerts();
+    std::map<int,int> face2ref            = meshTopo->getFace2Ref();
+    std::map<int,std::vector<int> > ref2face            = meshTopo->getRef2Face();
+    std::map<int,std::vector<int> > ref2vert            = meshTopo->getRef2Vert();
+    int* bnd_map = us3d->bnd_map;
+
+    std::vector<int> bfaceIDs = ref2face[bndID];
+    
+    int n_bc_faces  =  bfaceIDs.size();
+    int* Loc        = new int[n_bc_faces*4];
+    int cnt = 0;
+    Vert V;
+    int tel = 0;
+    std::cout << bfaceIDs[0] << " " << bfaceIDs[bfaceIDs.size()-1] << " " << us3d->nBnd << " " << n_bc_faces << std::endl;
+    
+    cout << "\nMin Element = "
+    << *min_element(bfaceIDs.begin(), bfaceIDs.end());
+    cout << "\nMax Element = "
+    << *max_element(bfaceIDs.begin(), bfaceIDs.end());
+    
+    for(int j=0;j<bfaceIDs.size();j++)
+    {
+        int fid = bfaceIDs[j];
+        for(int k=0;k<4;k++)
+        {
+            int val = us3d->ifn->getVal(fid,k);
+            int lvid = gV2lV[val];
+            if ( Loc2GlobBound.find( val ) != Loc2GlobBound.end() )
+            {
+                Loc[tel*4+k]=Loc2GlobBound[val];
+            }
+            else
+            {
+                Loc2GlobBound[val] = cnt;
+                Loc[tel*4+k]=cnt;
+                V.x = locVerts[lvid].x;
+                V.y = locVerts[lvid].y;
+                V.z = locVerts[lvid].z;
+                BC_verts[cnt] = V;
+                cnt++;
+            }
+        }
+        tel++;
+    }
+//
+    ofstream myfile;
+
+    string filename = "boundary_" + std::to_string(bndID) + ".dat";
+
+    myfile.open(filename);
+    myfile << "TITLE=\"boundary.tec\"" << std::endl;
+    myfile <<"VARIABLES = \"X\", \"Y\", \"Z\"" << std::endl;
+    //ZONE N = 64, E = 48, DATAPACKING = POINT, ZONETYPE = FEQUADRILATERAL
+    myfile <<"ZONE N = " << BC_verts.size() << ", E = " << n_bc_faces << ", DATAPACKING = POINT, ZONETYPE = FEQUADRILATERAL" << std::endl;
+    for(int i=0;i<BC_verts.size();i++)
+    {
+      myfile << BC_verts[(i)].x << "   " << BC_verts[(i)].y << "   " << BC_verts[(i)].z << std::endl;
+    }
+
+    for(int i=0;i<n_bc_faces;i++)
+    {
+      myfile << Loc[i*4+0]+1 << "    " << Loc[i*4+1]+1 << "   " << Loc[i*4+2]+1 << "  " << Loc[i*4+3]+1 << std::endl;
+    }
+    myfile.close();
+
+    delete[] Loc;
+    
+}
+
+
+void PlotBoundaryData(Array<char>* znames, Array<int>* zdefs,MPI_Comm comm)
+{
+    int world_size;
+    MPI_Comm_size(comm, &world_size);
+    // Get the rank of the process
+    int world_rank;
+    MPI_Comm_rank(comm, &world_rank);
+    
+    int nrow = zdefs->getNrow();
+    int ncol = znames->getNcol();
+    if (world_rank == 0)
+    {
+        std::cout << "printing boundary data..." << nrow << " " << zdefs->getNcol() << std::endl;
+        for(int i=0;i<nrow;i++)
+        {
+            for(int j=0;j<ncol;j++)
+            {
+                std::cout << znames->getVal(i,j) << "";
+            }
+            std::cout << " :: ";
+            for(int j=0;j<zdefs->getNcol();j++)
+            {
+                std::cout << zdefs->getVal(i,j) << " ";
+            }
+            std::cout << std::endl;
+        }
+    }
+    
+}
+
+
+
+
 void OutputPartition(Partition* part, ParArray<int>* ien, Array<double>* H,  MPI_Comm comm)
 {
     

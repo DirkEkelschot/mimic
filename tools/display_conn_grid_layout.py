@@ -4,30 +4,58 @@ import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
+print("========================================================")
+print("==================== Print Grid data ===================")
+print("========================================================")
+filename = '../grids/piston/grid.h5'
+data = h5.File(filename, 'r')
+for group in data.keys():
+    if isinstance(data[group], h5.Group):
+       print("1.=",data[group])
+       for dset in data[group].keys():
+           print(data[group][dset])
+           ds = data[group][dset]
+           
+           print(data[group],group,ds)
+    else:
+        #print("print data !!! = ", data[group],group,len(data[group][:]))
+        
+        ds = data[group][:]
+        if group=='iet':
+            iet = ds
+        if group=='xcn':
+            xcn = ds
+        if group=='ifn':
+            ifn = ds
+        if group=='zdefs':
+            zdefs = ds
 
-def ComputeNormal(face):
-    print(face)
-    P1x=face[0,0];P1y=face[0,1];P1z=face[0,2];
-    P2x=face[1,0];P2y=face[1,1];P2z=face[1,2];
-    P3x=face[2,0];P3y=face[2,1];P3z=face[2,2];
-    P4x=face[3,0];P4y=face[3,1];P4z=face[3,2];
-    
-    QP = np.zeros((3,1))
-    QS = np.zeros((3,1))
-    QP[0] = P2x-P1x;
-    QP[1] = P2y-P1y;
-    QP[2] = P2z-P1z;
-    
-    QS[0] = P4x-P1x;
-    QS[1] = P4y-P1y;
-    QS[2] = P4z-P1z;
-    print("QP=",QP)
-    print("QS=",QS)
-    N=np.zeros((3,1))
-    N[0] =   QP[1]*QS[2]-QS[1]*QP[2];
-    N[1] = -(QP[0]*QS[2]-QS[0]*QP[2]);
-    N[2] =   QP[0]*QS[1]-QS[0]*QP[1];
-    return N;
+print("========= ifn ==========")
+print(ifn)
+
+#def ComputeNormal(face):
+#    print(face)
+#    P1x=face[0,0];P1y=face[0,1];P1z=face[0,2];
+#    P2x=face[1,0];P2y=face[1,1];P2z=face[1,2];
+#    P3x=face[2,0];P3y=face[2,1];P3z=face[2,2];
+#    P4x=face[3,0];P4y=face[3,1];P4z=face[3,2];
+#
+#    QP = np.zeros((3,1))
+#    QS = np.zeros((3,1))
+#    QP[0] = P2x-P1x;
+#    QP[1] = P2y-P1y;
+#    QP[2] = P2z-P1z;
+#
+#    QS[0] = P4x-P1x;
+#    QS[1] = P4y-P1y;
+#    QS[2] = P4z-P1z;
+#    print("QP=",QP)
+#    print("QS=",QS)
+#    N=np.zeros((3,1))
+#    N[0] =   QP[1]*QS[2]-QS[1]*QP[2];
+#    N[1] = -(QP[0]*QS[2]-QS[0]*QP[2]);
+#    N[2] =   QP[0]*QS[1]-QS[0]*QP[1];
+#    return N;
     
     
 '''
@@ -196,41 +224,41 @@ for group in data.keys():
 print("========= ifn ==========")
 print(ifn)
 
-print("========================================================")
-print("==================== Print Data data ===================")
-print("========================================================")
-filename = 'data.h5.old'
-data = h5.File(filename, 'r')
-for group in data.keys():
-    if isinstance(data[group], h5.Group):
-       print("data.h5 => ",data[group])
-       print(data[group].keys())
-       for dset in data[group].keys():
-           if isinstance(data[group][dset], h5.Group):
-              print("dset = ", dset)
-              print(data[group][dset].keys())
-              for dset2 in data[group][dset].keys():
-                  print("dset2 = ", dset2)
-                  ds = data[group][dset][dset2]
-                  if dset2=='boundaries':
-                     bnds=ds
-                  if dset2=='interior':
-                     interior=ds
-                  if dset2=='bvnames':
-                     bvnames=dset2
-           #print("dataset = ",data[group][dset],data[group])
-           #ds = data[group][dset]
-                   
-           #print("new = ",data[group],group,ds)
-           
-           #print("ds",ds)
-    else:
-        print("print data !!! = ", data[group],group,len(data[group][:]))
-        ds = data[group][:]
-
-print("bnds=",len(bnds[0,:]),len(bnds[:,0]))
-print("bnds array",bnds[0,:])
-print("bvnames = ",bvnames)
+#print("========================================================")
+#print("==================== Print Data data ===================")
+#print("========================================================")
+#filename = 'data.h5.old'
+#data = h5.File(filename, 'r')
+#for group in data.keys():
+#    if isinstance(data[group], h5.Group):
+#       print("data.h5 => ",data[group])
+#       print(data[group].keys())
+#       for dset in data[group].keys():
+#           if isinstance(data[group][dset], h5.Group):
+#              print("dset = ", dset)
+#              print(data[group][dset].keys())
+#              for dset2 in data[group][dset].keys():
+#                  print("dset2 = ", dset2)
+#                  ds = data[group][dset][dset2]
+#                  if dset2=='boundaries':
+#                     bnds=ds
+#                  if dset2=='interior':
+#                     interior=ds
+#                  if dset2=='bvnames':
+#                     bvnames=dset2
+#           #print("dataset = ",data[group][dset],data[group])
+#           #ds = data[group][dset]
+#
+#           #print("new = ",data[group],group,ds)
+#
+#           #print("ds",ds)
+#    else:
+#        print("print data !!! = ", data[group],group,len(data[group][:]))
+#        ds = data[group][:]
+#
+#print("bnds=",len(bnds[0,:]),len(bnds[:,0]))
+#print("bnds array",bnds[0,:])
+#print("bvnames = ",bvnames)
 
 #print("interior=",len(interior[0,:]),len(interior[:,0]))
 #Points = np.zeros((8,3));

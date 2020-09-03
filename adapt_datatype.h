@@ -17,6 +17,10 @@ struct US3D{
     ParArray<double>* interior;
     Array<double>* ghost;
     
+    Array<int>* zdefs;
+    std::vector<int> bnd_m;
+    int* bnd_map;
+    int nBnd;
 };
 
 struct Vec3D

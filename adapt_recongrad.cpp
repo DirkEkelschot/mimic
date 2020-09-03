@@ -554,7 +554,8 @@ Array<double>* ComputedUdx_MGG(Partition* Pa, std::map<int,double> U,
     double L2normz_max = 0.0;
     std::vector<Vec3D*> n_grads;
     clock_t t;
-    
+    Vec3D* nj;
+    Vec3D* rj;
     for(int it=0;it<1000;it++)
     {
         t = clock();
@@ -611,8 +612,8 @@ Array<double>* ComputedUdx_MGG(Partition* Pa, std::map<int,double> U,
                      
                  }
                  
-                 Vec3D* nj          = normals[gEl][j];
-                 Vec3D* rj          = rvector[gEl][j];
+                 nj          = normals[gEl][j];
+                 rj          = rvector[gEl][j];
                  
                  double alpha     = DotVec3D(nj,rj);
                  
@@ -631,8 +632,6 @@ Array<double>* ComputedUdx_MGG(Partition* Pa, std::map<int,double> U,
                  sum_phiz = sum_phiz+dphi_dn*dxfxc[gEl][j]->c2*dS[gEl][j];
                  
                  delete nf_m_arf;
-                 delete nj;
-                 delete rj;
              }
              
              Vol = vol[gEl];

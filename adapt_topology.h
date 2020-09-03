@@ -11,7 +11,7 @@ using namespace std;
 class Mesh_Topology {
     public:
         Mesh_Topology(){};
-        Mesh_Topology(Partition* Pa, Array<int>* ifn_in, Array<double>* ghost, std::map<int,double> U, MPI_Comm comm);
+        Mesh_Topology(Partition* Pa, Array<int>* ifn_in, Array<double>* ghost, std::map<int,double> U, int* bnd_map, int nBnd, MPI_Comm comm);
         std::map<int,vector<Vec3D*> > getNormals();
         std::map<int,vector<Vec3D*> > getRvectors();
         std::map<int,vector<Vec3D*> > getdXfXc();
@@ -20,6 +20,10 @@ class Mesh_Topology {
         Array<int>* getIFN();
         std::map<int,double> getVol();
         std::vector<double> ReduceUToVertices(Array<double>* Uelem);
+        std::map<int,int> getFace2Ref();
+        std::map<int,std::vector<int> > getRef2Face();
+        std::map<int,int> getVert2Ref();
+        std::map<int,std::vector<int> > getRef2Vert();
     private:
         Array<double>* cc;
         std::map<int,vector<Vec3D*> > normals;
@@ -30,6 +34,10 @@ class Mesh_Topology {
         std::map<int,double> Vol;
         Partition* P;
         Array<int>* ifn;
+        std::map<int,int> face2ref;
+        std::map<int,std::vector<int> > ref2face;
+        std::map<int,int> vert2ref;
+        std::map<int,std::vector<int> > ref2vert;
         MPI_Comm c;
 };
 

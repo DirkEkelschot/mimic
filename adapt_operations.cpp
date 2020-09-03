@@ -31,6 +31,31 @@ int FindRank(int* arr, int size, int val)
 
 
 
+int FindBoundaryID(int* arr, int size, int val)
+{
+    int start = 0;
+    int last  = size-1;
+    
+    int mid   = (start+last)/2;
+    
+    while (start<=last)
+    {
+        if (arr[mid]<=val)
+        {
+            start = mid + 1;
+        }
+        else
+        {
+            last  = mid - 1;
+        }
+        mid = (start+last)/2;
+    }
+
+    return mid;
+}
+
+
+
 std::vector<int> FindDuplicates(std::vector<int> arr)
 {
     int N = arr.size();

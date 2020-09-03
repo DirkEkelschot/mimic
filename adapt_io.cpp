@@ -1,7 +1,11 @@
 #include "adapt_io.h"
-
+#include "adapt_output.h"
 US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data, MPI_Comm comm, MPI_Info info)
 {
+    int size,rank;
+    MPI_Comm_size(comm, &size);
+    // Get the rank of the process
+    MPI_Comm_rank(comm, &rank);
     
     US3D* us3d = new US3D;
     ParArray<double>* xcn = ReadDataSetFromFileInParallel<double>(fn_grid,"xcn",comm,info);
@@ -15,8 +19,38 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
     
     int Nel = ien->getNglob();
     
-    ParArray<double>* interior = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_1","interior",0,Nel,comm,info);
-    Array<double>* ghost = ReadUS3DGhostCellsFromRun<double>(fn_data,"run_1","interior",Nel);
+    ParArray<double>* interior  = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_1","interior",0,Nel,comm,info);
+    Array<double>* ghost        = ReadUS3DGhostCellsFromRun<double>(fn_data,"run_1","interior",Nel);
+    
+    Array<int>*    zdefs        = ReadDataSetFromGroupFromFile<int>(fn_grid,"zones","zdefs");
+    Array<char>*  znames        = ReadDataSetFromGroupFromFile<char>(fn_grid,"zones","znames");
+    
+    // Collect boundary data;
+    std::vector<int> bnd_m;
+    int t=0;
+    for(int i=4;i<zdefs->getNrow();i++)
+    {
+        bnd_m.push_back(zdefs->getVal(i,3));
+    }
+    bnd_m.push_back(zdefs->getVal(zdefs->getNrow()-1,4));
+    
+    PlotBoundaryData(znames,zdefs,comm);
+    
+    int nBnd = zdefs->getNrow()-3;
+    int* bnd_map = new int[zdefs->getNrow()-3];
+    for(int i=3;i<zdefs->getNrow();i++)
+    {
+        bnd_map[i-3] = zdefs->getVal(i,3)-1;
+        //bnd_m.push_back(zdefs->getVal(i,3));
+    }
+    
+    if(rank == 0)
+    {
+        for(int i=0;i<zdefs->getNrow()-3;i++)
+        {
+            std::cout << "bnd_map " << bnd_map[i] << " " << nBnd << std::endl;
+        }
+    }
     
     int i,j;
     int nglob = ien->getNglob();
@@ -94,6 +128,11 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
     
     us3d->interior = interior;
     us3d->ghost    = ghost;
+    
+    us3d->zdefs = zdefs;
+    us3d->bnd_m = bnd_m;
+    us3d->bnd_map = bnd_map;
+    us3d->nBnd = nBnd;
     
     return us3d;
 }

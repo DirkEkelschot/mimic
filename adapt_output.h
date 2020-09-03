@@ -4,11 +4,14 @@
 #include "adapt_io.h"
 #include "adapt.h"
 #include "adapt_array.h"
-
+#include "adapt_topology.h"
 #ifndef ADAPT_OUTPUT_H
 #define ADAPT_OUTPUT_H
 
 using namespace std;
+void OutputBoundaryID(Partition* P, Mesh_Topology* meshTopo, US3D* us3d, int bndID);
+
+void PlotBoundaryData(Array<char>* znames, Array<int>* zdefs,MPI_Comm comm);
 
 void OutputPartition(Partition* part, ParArray<int>* ien, Array<double>* H,  MPI_Comm comm);
 

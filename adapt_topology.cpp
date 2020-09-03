@@ -1,6 +1,6 @@
 #include "adapt_topology.h"
 
-Mesh_Topology::Mesh_Topology(Partition* Pa, Array<int>* ifn_in, Array<double>* ghost, std::map<int,double> U, MPI_Comm comm)
+Mesh_Topology::Mesh_Topology(Partition* Pa, Array<int>* ifn_in, Array<double>* ghost, std::map<int,double> U, int* bnd_map, int nBnd, MPI_Comm comm)
 {
     int nlocElem, start, end, offset, nloc, np, loc_vid, size, rank, lid;
     int vf0, vf1, vf2, vf3, vf4, vf5, vf6, vf7, fid;
@@ -43,8 +43,12 @@ Mesh_Topology::Mesh_Topology(Partition* Pa, Array<int>* ifn_in, Array<double>* g
     Vert* fc3 = new Vert;
     Vert* fc4 = new Vert;
     Vert* fc5 = new Vert;
-        
     std::vector<Vert*> face;
+    int ref   = 0;
+    
+    //bnd_m.push_back(zdefs->getVal(zdefs->getNrow()-1,4));
+    int fint = bnd_map[0];
+    std::cout << "fint = " << fint << std::endl;
     for(int i=0;i<nLocElem;i++)
     {
         int gEl = Loc_Elem[i];
@@ -59,20 +63,37 @@ Mesh_Topology::Mesh_Topology(Partition* Pa, Array<int>* ifn_in, Array<double>* g
            Pijk[k*3+2] = locVerts[loc_vid].z;
         }
 
-        Vert* Vijk = ComputeCenterCoord(Pijk, np);
-        double volume = ComputeVolumeHexCell(Pijk);
-        Vol[gEl]   = volume;
+        Vert* Vijk     = ComputeCenterCoord(Pijk, np);
+        double volume  = ComputeVolumeHexCell(Pijk);
+        Vol[gEl]       = volume;
         
         for(int s=0;s<6;s++)
         {
             int faceid = ief_part_map[gEl][s];
-
+            
+            if(faceid<fint) // identify the internal face;
+            {
+                ref = 0;
+                face2ref[faceid] = ref;
+                ref2face[ref].push_back(faceid);
+            }
+            else // identify the boundary interface and based on bnd_map, determine the reference value.
+            {
+                ref = FindBoundaryID(bnd_map,nBnd,faceid)+1;
+                face2ref[faceid] = ref;
+                ref2face[ref].push_back(faceid);
+                
+            }
+            
             Vert* Vface = new Vert;
             
             for(int r=0;r<4;r++)
             {
                 int gvid = ifn->getVal(faceid,r);
                 int lvid = gV2lV[gvid];
+                
+                vert2ref[gvid] = ref;
+                ref2vert[ref].push_back(gvid);
                 
                 Vert* V = new Vert;
                 V->x    = locVerts[lvid].x;
@@ -274,4 +295,20 @@ std::map<int,double > Mesh_Topology::getVol()
 Array<int>* Mesh_Topology::getIFN()
 {
     return ifn;
+}
+std::map<int,int> Mesh_Topology::getFace2Ref()
+{
+    return face2ref;
+}
+std::map<int,std::vector<int> > Mesh_Topology::getRef2Face()
+{
+    return ref2face;
+}
+std::map<int,int> Mesh_Topology::getVert2Ref()
+{
+    return vert2ref;
+}
+std::map<int,std::vector<int> > Mesh_Topology::getRef2Vert()
+{
+    return ref2vert;
 }
