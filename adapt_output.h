@@ -5,10 +5,15 @@
 #include "adapt.h"
 #include "adapt_array.h"
 #include "adapt_topology.h"
+#include "mmg/mmgs/libmmgs.h"
+#include "mmg/mmg3d/libmmg3d.h"
 #ifndef ADAPT_OUTPUT_H
 #define ADAPT_OUTPUT_H
 
 using namespace std;
+
+void OutputBoundaryID_MMG(MMG5_pMesh mmgMesh, std::map<int,std::vector<int> > ref2face, int bndID);
+
 void OutputBoundaryID(Partition* P, Mesh_Topology* meshTopo, US3D* us3d, int bndID);
 
 void PlotBoundaryData(Array<char>* znames, Array<int>* zdefs,MPI_Comm comm);

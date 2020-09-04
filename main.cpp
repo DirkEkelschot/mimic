@@ -185,7 +185,7 @@ void OutputAdapt_Grid()
 }
 
 
-MMG5_pMesh ReadMMG_pMesh(MPI_Comm comm, MPI_Info info)
+MMG5_pMesh ReadMMG_pMesh(US3D* us3d, MPI_Comm comm, MPI_Info info)
 {
     int world_size;
     MPI_Comm_size(comm, &world_size);
@@ -228,7 +228,8 @@ MMG5_pMesh ReadMMG_pMesh(MPI_Comm comm, MPI_Info info)
     
     int nbHex      = arrHex.size();
     int nbVertices = Vmetric.size();
-    if ( MMG3D_Set_meshSize(mmgMesh,nbVertices,nbHex*6,0,0,0,0) != 1 )  exit(EXIT_FAILURE);
+    int nbTriangles = us3d->tria_ref_map.size();
+    if ( MMG3D_Set_meshSize(mmgMesh,nbVertices,nbHex*6,0,nbTriangles,0,0) != 1 )  exit(EXIT_FAILURE);
     
     if ( MMG3D_Set_solSize(mmgMesh,mmgSol,MMG5_Vertex,mmgMesh->np,MMG5_Tensor) != 1 ) exit(EXIT_FAILURE);
     
@@ -264,8 +265,7 @@ MMG5_pMesh ReadMMG_pMesh(MPI_Comm comm, MPI_Info info)
     }
     
     int num = H2T_chkorient(mmgMesh,hexTab,nbHex);
-    std::cout << "num = " << num << std::endl;
-
+    
     int* adjahex = NULL;
     adjahex = (int*)calloc(6*nbHex+7,sizeof(int));
     assert(adjahex);
@@ -274,23 +274,99 @@ MMG5_pMesh ReadMMG_pMesh(MPI_Comm comm, MPI_Info info)
     {
         std::cout << "Error :: setting up the new adjacency for the hexes after reorientation." << std::endl;
     }
-    //
-    //    //for(int i=0;i<6*nbHex+7;i++)
-    //
+
     Hedge        hed2;
     hed2.size  = 6*nbHex;
     hed2.hnxt  = 6*nbHex;
     hed2.nhmax = (int)(16*6*nbHex);
     hed2.item  = NULL;
     hed2.item  = (hedge*)calloc(hed2.nhmax+1,sizeof(hedge));
-    ////
+
     for (int k=6*nbHex; k<hed2.nhmax; k++)
     {
         hed2.item[k].nxt = k+1;
     }
 
     int ret = H2T_cuthex(mmgMesh, &hed2, hexTab, adjahex, nbHex);
-
+    
+    // allocate boundary ids:
+    
+    std::set<int> tria0;
+    std::set<int> tria1;
+    std::set<int> tria2;
+    std::set<int> tria3;
+    int ref0,ref1,ref2,ref3;
+    int tel = 0;
+    std::set<std::set<int> > tria_unique;
+    int offset_NE = (int)mmgMesh->ne/2;
+    t = 1;
+    for(int i=1;i<=offset_NE;i++)
+    {
+        tria0.insert(mmgMesh->tetra[offset_NE+i].v[0]);
+        tria0.insert(mmgMesh->tetra[offset_NE+i].v[1]);
+        tria0.insert(mmgMesh->tetra[offset_NE+i].v[2]);
+        if(us3d->tria_ref_map.find(tria0)!=us3d->tria_ref_map.end())
+        {
+            ref0 = us3d->tria_ref_map[tria0];
+            mmgMesh->tria[t].v[0] = mmgMesh->tetra[offset_NE+i].v[0];
+            mmgMesh->tria[t].v[1] = mmgMesh->tetra[offset_NE+i].v[1];
+            mmgMesh->tria[t].v[2] = mmgMesh->tetra[offset_NE+i].v[2];
+            mmgMesh->tria[t].ref  = ref0;
+            t++;
+        }
+        
+        tria1.insert(mmgMesh->tetra[offset_NE+i].v[1]);
+        tria1.insert(mmgMesh->tetra[offset_NE+i].v[2]);
+        tria1.insert(mmgMesh->tetra[offset_NE+i].v[3]);
+        if(us3d->tria_ref_map.find(tria2)!=us3d->tria_ref_map.end())
+        {
+            ref1 = us3d->tria_ref_map[tria2];
+            mmgMesh->tria[t].v[0] = mmgMesh->tetra[offset_NE+i].v[1];
+            mmgMesh->tria[t].v[1] = mmgMesh->tetra[offset_NE+i].v[2];
+            mmgMesh->tria[t].v[2] = mmgMesh->tetra[offset_NE+i].v[3];
+            mmgMesh->tria[t].ref  = ref1;
+            t++;
+        }
+        
+        tria2.insert(mmgMesh->tetra[offset_NE+i].v[2]);
+        tria2.insert(mmgMesh->tetra[offset_NE+i].v[3]);
+        tria2.insert(mmgMesh->tetra[offset_NE+i].v[0]);
+        if(us3d->tria_ref_map.find(tria2)!=us3d->tria_ref_map.end())
+        {
+            ref2 = us3d->tria_ref_map[tria2];
+            mmgMesh->tria[t].v[0] = mmgMesh->tetra[offset_NE+i].v[2];
+            mmgMesh->tria[t].v[1] = mmgMesh->tetra[offset_NE+i].v[3];
+            mmgMesh->tria[t].v[2] = mmgMesh->tetra[offset_NE+i].v[0];
+            mmgMesh->tria[t].ref  = ref2;
+            t++;
+        }
+        
+        tria3.insert(mmgMesh->tetra[offset_NE+i].v[3]);
+        tria3.insert(mmgMesh->tetra[offset_NE+i].v[0]);
+        tria3.insert(mmgMesh->tetra[offset_NE+i].v[1]);
+        if(us3d->tria_ref_map.find(tria3)!=us3d->tria_ref_map.end())
+        {
+            ref3 = us3d->tria_ref_map[tria3];
+            mmgMesh->tria[t].v[0] = mmgMesh->tetra[offset_NE+i].v[3];
+            mmgMesh->tria[t].v[1] = mmgMesh->tetra[offset_NE+i].v[0];
+            mmgMesh->tria[t].v[2] = mmgMesh->tetra[offset_NE+i].v[1];
+            mmgMesh->tria[t].ref  = ref3;
+            t++;
+        }
+        
+//            if(ref0!=0 || ref1!=0 || ref2!=0 || ref3!=0)
+//            {
+//                std::cout << "tel = " << tel << " :: " << ref0 << " " << ref1 << " " << ref2 << " " << ref3 << std::endl;
+//                tel++;
+//            }
+        tria0.clear();
+        tria1.clear();
+        tria2.clear();
+        tria3.clear();
+    }
+    
+    std::cout << t << " " << mmgMesh->nt << std::endl;
+    
     MMG3D_Set_handGivenMesh(mmgMesh);
 
     if ( MMG3D_Set_dparameter(mmgMesh,mmgSol,MMG3D_DPARAM_hgrad, 3.5) != 1 )
@@ -320,6 +396,18 @@ MMG5_pMesh ReadMMG_pMesh(MPI_Comm comm, MPI_Info info)
         xcn_mmg->setVal(i,0,mmgMesh->point[i+1].c[0]);
         xcn_mmg->setVal(i,1,mmgMesh->point[i+1].c[1]);
         xcn_mmg->setVal(i,2,mmgMesh->point[i+1].c[2]);
+    }
+//    std::map<int, std::vector<int> >ref2face;
+//    for(int i=0;i<mmgMesh->nt;i++)
+//    {
+//
+//          std::cout << "outcome2 = " << mmgMesh->tria[i].v[0] << " " << mmgMesh->tria[i].v[1] << " " << mmgMesh->tria[i].v[2] << " " << mmgMesh->tria[i].ref << std::endl;
+//
+//    }
+    
+    for(int i=0;i<mmgMesh->nt;i++)
+    {
+        std::cout << mmgMesh->tria[i].v[0] << " " << mmgMesh->tria[i].v[1] << " " << mmgMesh->tria[i].v[2] << " " << mmgMesh->tria[i].ref << std::endl;
     }
     
     myfile20.close();
@@ -389,6 +477,9 @@ MMG5_pMesh ReadMMG_pMesh(MPI_Comm comm, MPI_Info info)
     }
     
     myfile21.close();
+    
+    
+
 //
     return mmgMesh;
 }
@@ -626,7 +717,12 @@ MMG5_pMesh GetOptimizedMMG3DMeshOnRoot(Partition* P, US3D* us3d, Array<double>* 
     {
         int nbHex = nElem;
         int nbVertices = nvg;
-        std::cout << "number of tets = " << nbHex*6 << std::endl;
+        int nbTriangles = us3d->tria_ref_map.size();
+        
+        std::cout << " number of tets = " << nbHex*6 << std::endl;
+        
+        std::cout << " number of triangle = " << nbTriangles<<  " " << us3d->tria_ref.size() << std::endl;
+        
         MMG3D_Init_mesh(MMG5_ARG_start,
         MMG5_ARG_ppMesh,&mmgMesh,MMG5_ARG_ppMet,&mmgSol,
         MMG5_ARG_end);
@@ -682,7 +778,6 @@ MMG5_pMesh GetOptimizedMMG3DMeshOnRoot(Partition* P, US3D* us3d, Array<double>* 
             if ( MMG3D_Set_tensorSol(mmgSol, m11,m12,m13,m22,m23,m33,i+1) != 1 ) exit(EXIT_FAILURE);
         }
         myfile10.close();
-        std::cout << "mmgMesh->ne   BEFORE  " << mmgMesh->ne << std::endl;
         int ref = 0;
         int* hexTab = new int[9*(nbHex+1)];
         for(int i=0;i<nbHex;i++)
@@ -698,7 +793,6 @@ MMG5_pMesh GetOptimizedMMG3DMeshOnRoot(Partition* P, US3D* us3d, Array<double>* 
         }
         
         int num = H2T_chkorient(mmgMesh,hexTab,nbHex);
-        std::cout << "num = " << num << std::endl;
         
         int* adjahex = NULL;
         adjahex = (int*)calloc(6*nbHex+7,sizeof(int));
@@ -722,14 +816,126 @@ MMG5_pMesh GetOptimizedMMG3DMeshOnRoot(Partition* P, US3D* us3d, Array<double>* 
         {
             hed2.item[k].nxt = k+1;
         }
-    
+        
         int ret = H2T_cuthex(mmgMesh, &hed2, hexTab, adjahex, nbHex);
-        std::cout << "mmgMesh->ne   AFTER  " << mmgMesh->ne << std::endl;
 
+        std::cout << "check faces triangles boundary "  << us3d->tria_ref.size() << std::endl;
+        
+        
+        
+        std::set<int> tria0;
+        std::set<int> tria1;
+        std::set<int> tria2;
+        std::set<int> tria3;
+        int ref0,ref1,ref2,ref3;
+        int tel = 0;
+        std::set<std::set<int> > tria_unique;
+        int offset_NE = (int)mmgMesh->ne/2;
+        int t = 1;
+        for(int i=1;i<=mmgMesh->ne;i++)
+        {
+            tria0.insert(mmgMesh->tetra[offset_NE+i].v[0]);
+            tria0.insert(mmgMesh->tetra[offset_NE+i].v[1]);
+            tria0.insert(mmgMesh->tetra[offset_NE+i].v[2]);
+            std::cout << std::endl;
+            std::cout << mmgMesh->tetra[offset_NE+i].v[0] <<
+            " " << mmgMesh->tetra[offset_NE+i].v[0] <<
+            " " << mmgMesh->tetra[offset_NE+i].v[0] << std::endl;
+            
+            if(tria_unique.find(tria0)==tria_unique.end())
+            {
+                tria_unique.insert(tria0);
+                ref0 = us3d->tria_ref_map[tria0];
+//                mmgMesh->tria[t].v[0] = mmgMesh->tetra[offset_NE+i].v[0];
+//                mmgMesh->tria[t].v[1] = mmgMesh->tetra[offset_NE+i].v[1];
+//                mmgMesh->tria[t].v[2] = mmgMesh->tetra[offset_NE+i].v[2];
+//                mmgMesh->tria[t].ref  = ref0;
+                t++;
+            }
+            tria1.insert(mmgMesh->tetra[offset_NE+i].v[1]);
+            tria1.insert(mmgMesh->tetra[offset_NE+i].v[2]);
+            tria1.insert(mmgMesh->tetra[offset_NE+i].v[3]);
+            
+            std::cout << mmgMesh->tetra[offset_NE+i].v[1] <<
+            " " << mmgMesh->tetra[offset_NE+i].v[2] <<
+            " " << mmgMesh->tetra[offset_NE+i].v[3] << std::endl;
+            
+            if(tria_unique.find(tria1)==tria_unique.end())
+            {
+                tria_unique.insert(tria1);
+                ref1 = us3d->tria_ref_map[tria1];
+//                mmgMesh->tria[t].v[0] = mmgMesh->tetra[offset_NE+i].v[1];
+//                mmgMesh->tria[t].v[1] = mmgMesh->tetra[offset_NE+i].v[2];
+//                mmgMesh->tria[t].v[2] = mmgMesh->tetra[offset_NE+i].v[3];
+//                mmgMesh->tria[t].ref  = ref1;
+                t++;
+            }
+            tria2.insert(mmgMesh->tetra[offset_NE+i].v[2]);
+            tria2.insert(mmgMesh->tetra[offset_NE+i].v[3]);
+            tria2.insert(mmgMesh->tetra[offset_NE+i].v[0]);
+
+            std::cout << mmgMesh->tetra[offset_NE+i].v[2] <<
+            " " << mmgMesh->tetra[offset_NE+i].v[3] <<
+            " " << mmgMesh->tetra[offset_NE+i].v[0] << std::endl;
+            
+
+            
+            if(tria_unique.find(tria2)==tria_unique.end())
+            {
+                tria_unique.insert(tria2);
+                ref2 = us3d->tria_ref_map[tria2];
+//                mmgMesh->tria[t].v[0] = mmgMesh->tetra[offset_NE+i].v[2];
+//                mmgMesh->tria[t].v[1] = mmgMesh->tetra[offset_NE+i].v[3];
+//                mmgMesh->tria[t].v[2] = mmgMesh->tetra[offset_NE+i].v[0];
+//                mmgMesh->tria[t].ref  = ref2;
+                t++;
+            }
+            tria3.insert(mmgMesh->tetra[offset_NE+i].v[3]);
+            tria3.insert(mmgMesh->tetra[offset_NE+i].v[0]);
+            tria3.insert(mmgMesh->tetra[offset_NE+i].v[1]);
+            
+            std::cout << mmgMesh->tetra[offset_NE+i].v[3] <<
+            " " << mmgMesh->tetra[offset_NE+i].v[0] <<
+            " " << mmgMesh->tetra[offset_NE+i].v[1] << std::endl;
+            
+            if(tria_unique.find(tria3)==tria_unique.end())
+            {
+                tria_unique.insert(tria3);
+                ref3 = us3d->tria_ref_map[tria3];
+//                mmgMesh->tria[t].v[0] = mmgMesh->tetra[offset_NE+i].v[3];
+//                mmgMesh->tria[t].v[1] = mmgMesh->tetra[offset_NE+i].v[0];
+//                mmgMesh->tria[t].v[2] = mmgMesh->tetra[offset_NE+i].v[1];
+//                mmgMesh->tria[t].ref  = ref3;
+                t++;
+            }
+//            if(ref0!=0 || ref1!=0 || ref2!=0 || ref3!=0)
+//            {
+//                std::cout << "tel = " << tel << " :: " << ref0 << " " << ref1 << " " << ref2 << " " << ref3 << std::endl;
+//                tel++;
+//            }
+            tria0.clear();
+            tria1.clear();
+            tria2.clear();
+            tria3.clear();
+        }
+         
+//            std::cout << mmgMesh->tetra[offset_NE+i].v[0] << " " << mmgMesh->tetra[offset_NE+i].v[1] << " " << mmgMesh->tetra[offset_NE+i].v[2] << " " << mmgMesh->tetra[offset_NE+i].v[3] << " " << mmgMesh->tetra[offset_NE+i].ref <<  std::endl;
+//            std::cout << mmgMesh->tetra[offset_NE+i+1].v[0] << " " << mmgMesh->tetra[offset_NE+i+1].v[1] << " " << mmgMesh->tetra[offset_NE+i+1].v[2] << " " << mmgMesh->tetra[offset_NE+i+1].v[3] << " " << mmgMesh->tetra[offset_NE+i+1].ref <<  std::endl;
+//            std::cout << mmgMesh->tetra[offset_NE+i+2].v[0] << " " << mmgMesh->tetra[offset_NE+i+2].v[1] << " " << mmgMesh->tetra[offset_NE+i+2].v[2] << " " << mmgMesh->tetra[offset_NE+i+2].v[3] << " " << mmgMesh->tetra[offset_NE+i+2].ref <<  std::endl;
+//            std::cout << mmgMesh->tetra[offset_NE+i+3].v[0] << " " << mmgMesh->tetra[offset_NE+i+3].v[1] << " " << mmgMesh->tetra[offset_NE+i+3].v[2] << " " << mmgMesh->tetra[offset_NE+i+3].v[3] << " " << mmgMesh->tetra[offset_NE+i+3].ref <<  std::endl;
+//            std::cout << mmgMesh->tetra[offset_NE+i+4].v[0] << " " << mmgMesh->tetra[offset_NE+i+4].v[1] << " " << mmgMesh->tetra[offset_NE+i+4].v[2] << " " << mmgMesh->tetra[offset_NE+i+4].v[3] << " " << mmgMesh->tetra[offset_NE+i+4].ref << std::endl;
+//            std::cout << mmgMesh->tetra[offset_NE+i+5].v[0] << " " << mmgMesh->tetra[offset_NE+i+5].v[1] << " " << mmgMesh->tetra[offset_NE+i+5].v[2] << " " << mmgMesh->tetra[offset_NE+i+5].v[3] << " " << mmgMesh->tetra[offset_NE+i+5].ref << std::endl;
+//
+        
+        
+        
+        
+        
         MMG3D_Set_handGivenMesh(mmgMesh);
             
         if ( MMG3D_Set_dparameter(mmgMesh,mmgSol,MMG3D_DPARAM_hgrad, 3.5) != 1 )
         exit(EXIT_FAILURE);
+        
         
         int ier = MMG3D_mmg3dlib(mmgMesh,mmgSol);
         std::ofstream myfile2;
@@ -738,7 +944,6 @@ MMG5_pMesh GetOptimizedMMG3DMeshOnRoot(Partition* P, US3D* us3d, Array<double>* 
         myfile2 <<"VARIABLES = \"X\", \"Y\", \"Z\"" << std::endl;
         //std::cout << " verts check " << LVerts.size() << " " << hx.size() << std::endl;
         myfile2 <<"ZONE N = " << mmgMesh->np << ", E = " << mmgMesh->ne << ", DATAPACKING = POINT, ZONETYPE = FETETRAHEDRON" << std::endl;
-        
         
         Array<double>* xcn_mmg = new Array<double>(mmgMesh->np,3);
         for(int i=0;i<mmgMesh->np;i++)
@@ -801,7 +1006,16 @@ MMG5_pMesh GetOptimizedMMG3DMeshOnRoot(Partition* P, US3D* us3d, Array<double>* 
             face3.clear();
         }
         myfile2.close();
-
+        
+        std::map<int, std::vector<int> >ref2face;
+        for(int i=0;i<mmgMesh->nt;i++)
+        {
+            if(mmgMesh->tria[i].ref==2)
+            {
+              std::cout << "outcome2 = " << mmgMesh->tria[i].v[0] << " " << mmgMesh->tria[i].v[1] << " " << mmgMesh->tria[i].v[2] << " " << mmgMesh->tria[i].ref << std::endl;
+            }
+        }
+        /*
         std::cout << "number of unique faces is: " << faces.size() << " " << face2node.size() << std::endl;
         int ufaces = faces.size();
         Array<int>* ifn_mmg = new Array<int>(faces.size(),3);
@@ -811,10 +1025,11 @@ MMG5_pMesh GetOptimizedMMG3DMeshOnRoot(Partition* P, US3D* us3d, Array<double>* 
             ifn_mmg->setVal(i,1,face2node[i][1]);
             ifn_mmg->setVal(i,2,face2node[i][2]);
         }
+         */
     }
     //==================OUTPUT ORIGINAL MESH=======================
     //==================OUTPUT ORIGINAL MESH=======================
-    
+    /*
     if(world_rank == 0)
     {
         string filename = "d2UdX2i_global.dat";
@@ -878,7 +1093,7 @@ MMG5_pMesh GetOptimizedMMG3DMeshOnRoot(Partition* P, US3D* us3d, Array<double>* 
     delete[] Uvglob_offsets;
     delete xcn_g;
     delete ien_g;
-    
+    */
     return mmgMesh;
 }
 
@@ -949,9 +1164,9 @@ int main(int argc, char** argv) {
             std::cout << "For metric determination, the required command line inputs are : --grid=\"grid_name\".h5 --conn=\"conn_name\".h5 --data=\"data_name\".h5." << std::endl;
             std::cout << "For now, reading existing metric data."  << std::endl;
             
-            OutputAdapt_Grid();
+            //OutputAdapt_Grid();
             
-            //MMG5_pMesh mmgMesh = ReadMMG_pMesh(comm,info);
+            
         }
         MPI_Finalize();
     }
@@ -963,7 +1178,9 @@ int main(int argc, char** argv) {
         
         US3D* us3d = ReadUS3DData(fn_conn,fn_grid,fn_data,comm,info);
         
+        MMG5_pMesh mmgMesh = ReadMMG_pMesh(us3d,comm,info);
         
+        /*
         int Nel_part = us3d->ien->getNrow();
         
         ParallelState* ien_pstate = new ParallelState(us3d->ien->getNglob(),comm);
@@ -1198,7 +1415,7 @@ int main(int argc, char** argv) {
         delete ien_pstate;
         delete parmetis_pstate;
         //delete UgRoot;
-        
+        */
         MPI_Finalize();
         
     }
