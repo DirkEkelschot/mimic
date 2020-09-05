@@ -102,13 +102,16 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
     myfile20.open("ifn_ref.dat");
     std::map<std::set<int>,int> tria_ref_map;
     std::set<int> tria0;
+    std::set<int> tria00;
     std::set<int> tria1;
+    std::set<int> tria11;
     std::vector<int*> tria_ref;
-    
+    int faceid;
     for(i=0;i<nrow_ifn;i++)
     {
         for(j=0;j<ncol_ifn;j++)
         {
+            faceid = ifn->getVal(i,j+1)-1;
             ifn_copy->setVal(i,j,ifn->getVal(i,j+1)-1);
             
             if(i<fint) // identify the internal face;
@@ -128,46 +131,35 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
         tria0.insert(ifn->getVal(i,0+1)-1);
         tria0.insert(ifn->getVal(i,1+1)-1);
         tria0.insert(ifn->getVal(i,2+1)-1);
+        tria00.insert(ifn->getVal(i,0+1)-1);
+        tria00.insert(ifn->getVal(i,2+1)-1);
+        tria00.insert(ifn->getVal(i,3+1)-1);
         
         tria1.insert(ifn->getVal(i,0+1)-1);
         tria1.insert(ifn->getVal(i,1+1)-1);
         tria1.insert(ifn->getVal(i,3+1)-1);
+        tria11.insert(ifn->getVal(i,1+1)-1);
+        tria11.insert(ifn->getVal(i,2+1)-1);
+        tria11.insert(ifn->getVal(i,3+1)-1);
         
         if(tria_ref_map.find(tria0)==tria_ref_map.end() && ref!=0)
         {
-            
             tria_ref_map[tria0] = ref;
-            int* tria_tmp   = new int[4];
-            tria_tmp[0]     = ifn->getVal(i,0+1)-1;
-            tria_tmp[1]     = ifn->getVal(i,1+1)-1;
-            tria_tmp[2]     = ifn->getVal(i,2+1)-1;
-            tria_tmp[3]     = ref;
-            tria_ref.push_back(tria_tmp);
+            tria_ref_map[tria00] = ref;
         }
         if(tria_ref_map.find(tria1)==tria_ref_map.end() && ref!=0)
         {
             tria_ref_map[tria1] = ref;
-            int* tria_tmp   = new int[4];
-            tria_tmp[0]     = ifn->getVal(i,0+1)-1;
-            tria_tmp[1]     = ifn->getVal(i,1+1)-1;
-            tria_tmp[2]     = ifn->getVal(i,3+1)-1;
-            tria_tmp[3]     = ref;
-            tria_ref.push_back(tria_tmp);
+            tria_ref_map[tria11] = ref;
         }
         
         tria0.clear();
+        tria00.clear();
         tria1.clear();
-        
+        tria11.clear();
     }
     myfile20.close();
     
-    std::ofstream myfile21;
-    myfile21.open("tria_ref.dat");
-    for(int i=0;i<tria_ref.size();i++)
-    {
-        myfile21 << tria_ref[i][0] << " " << tria_ref[i][1] << " " << tria_ref[i][2] << " " << tria_ref[i][3]  << std::endl;
-    }
-    myfile21.close();
     
     delete ifn;
     int nrow_ife = ife->getNrow();

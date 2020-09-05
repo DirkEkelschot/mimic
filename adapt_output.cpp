@@ -2,20 +2,20 @@
 
 using namespace std;
 
-void OutputBoundaryID_MMG(MMG5_pMesh mmgMesh, std::map<int,std::vector<int> > ref2face, int bndID)
+void OutputBoundaryID_MMG(MMG5_pMesh mmgMesh, std::map<int,std::vector<int> > ref2bface, int bndID)
 {
     std::cout << "Writing boundary from mmgMesh "<< bndID << " to boundary_" << bndID<<  ".dat" << std::endl;
     map< int, int > Loc2GlobBound;
     map< int, Vert> BC_verts;
 
-    std::vector<int> bfaceIDs = ref2face[bndID];
+    std::vector<int> bfaceIDs = ref2bface[bndID];
     
     int n_bc_faces  =  bfaceIDs.size();
-    int* Loc        = new int[n_bc_faces*4];
+    int* Loc        = new int[n_bc_faces*3];
     int cnt = 0;
     Vert V;
     int tel = 0;
-    
+    std::cout << bndID << " " << bfaceIDs.size() << std::endl;
     for(int j=0;j<bfaceIDs.size();j++)
     {
         int fid = bfaceIDs[j];
@@ -29,7 +29,7 @@ void OutputBoundaryID_MMG(MMG5_pMesh mmgMesh, std::map<int,std::vector<int> > re
             else
             {
                 Loc2GlobBound[val] = cnt;
-                Loc[tel*4+k]=cnt;
+                Loc[tel*3+k]=cnt;
                 V.x = mmgMesh->point[val].c[0];
                 V.y = mmgMesh->point[val].c[1];
                 V.z = mmgMesh->point[val].c[2];
@@ -48,7 +48,7 @@ void OutputBoundaryID_MMG(MMG5_pMesh mmgMesh, std::map<int,std::vector<int> > re
     myfile << "TITLE=\"boundary.tec\"" << std::endl;
     myfile <<"VARIABLES = \"X\", \"Y\", \"Z\"" << std::endl;
     //ZONE N = 64, E = 48, DATAPACKING = POINT, ZONETYPE = FEQUADRILATERAL
-    myfile <<"ZONE N = " << BC_verts.size() << ", E = " << n_bc_faces << ", DATAPACKING = POINT, ZONETYPE = FEQUADRILATERAL" << std::endl;
+    myfile <<"ZONE N = " << BC_verts.size() << ", E = " << n_bc_faces << ", DATAPACKING = POINT, ZONETYPE = FETRIANGLE" << std::endl;
     for(int i=0;i<BC_verts.size();i++)
     {
       myfile << BC_verts[(i)].x << "   " << BC_verts[(i)].y << "   " << BC_verts[(i)].z << std::endl;
@@ -56,7 +56,7 @@ void OutputBoundaryID_MMG(MMG5_pMesh mmgMesh, std::map<int,std::vector<int> > re
 
     for(int i=0;i<n_bc_faces;i++)
     {
-      myfile << Loc[i*4+0]+1 << "    " << Loc[i*4+1]+1 << "   " << Loc[i*4+2]+1 << "  " << Loc[i*4+3]+1 << std::endl;
+      myfile << Loc[i*3+0]+1 << "    " << Loc[i*3+1]+1 << "   " << Loc[i*3+2]+1 << std::endl;
     }
     myfile.close();
 

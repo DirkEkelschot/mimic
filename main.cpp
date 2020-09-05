@@ -228,7 +228,8 @@ MMG5_pMesh ReadMMG_pMesh(US3D* us3d, MPI_Comm comm, MPI_Info info)
     
     int nbHex      = arrHex.size();
     int nbVertices = Vmetric.size();
-    int nbTriangles = us3d->tria_ref_map.size();
+    int  nbTriangles = us3d->tria_ref_map.size()/2;
+    std::cout << "Stats :: " << nbHex*6 << " " << nbVertices << " " << nbTriangles << std::endl;
     if ( MMG3D_Set_meshSize(mmgMesh,nbVertices,nbHex*6,0,nbTriangles,0,0) != 1 )  exit(EXIT_FAILURE);
     
     if ( MMG3D_Set_solSize(mmgMesh,mmgSol,MMG5_Vertex,mmgMesh->np,MMG5_Tensor) != 1 ) exit(EXIT_FAILURE);
@@ -302,9 +303,9 @@ MMG5_pMesh ReadMMG_pMesh(US3D* us3d, MPI_Comm comm, MPI_Info info)
     t = 1;
     for(int i=1;i<=offset_NE;i++)
     {
-        tria0.insert(mmgMesh->tetra[offset_NE+i].v[0]);
-        tria0.insert(mmgMesh->tetra[offset_NE+i].v[1]);
-        tria0.insert(mmgMesh->tetra[offset_NE+i].v[2]);
+        tria0.insert(mmgMesh->tetra[offset_NE+i].v[0]-1);
+        tria0.insert(mmgMesh->tetra[offset_NE+i].v[1]-1);
+        tria0.insert(mmgMesh->tetra[offset_NE+i].v[2]-1);
         if(us3d->tria_ref_map.find(tria0)!=us3d->tria_ref_map.end())
         {
             ref0 = us3d->tria_ref_map[tria0];
@@ -315,12 +316,12 @@ MMG5_pMesh ReadMMG_pMesh(US3D* us3d, MPI_Comm comm, MPI_Info info)
             t++;
         }
         
-        tria1.insert(mmgMesh->tetra[offset_NE+i].v[1]);
-        tria1.insert(mmgMesh->tetra[offset_NE+i].v[2]);
-        tria1.insert(mmgMesh->tetra[offset_NE+i].v[3]);
-        if(us3d->tria_ref_map.find(tria2)!=us3d->tria_ref_map.end())
+        tria1.insert(mmgMesh->tetra[offset_NE+i].v[1]-1);
+        tria1.insert(mmgMesh->tetra[offset_NE+i].v[2]-1);
+        tria1.insert(mmgMesh->tetra[offset_NE+i].v[3]-1);
+        if(us3d->tria_ref_map.find(tria1)!=us3d->tria_ref_map.end())
         {
-            ref1 = us3d->tria_ref_map[tria2];
+            ref1 = us3d->tria_ref_map[tria1];
             mmgMesh->tria[t].v[0] = mmgMesh->tetra[offset_NE+i].v[1];
             mmgMesh->tria[t].v[1] = mmgMesh->tetra[offset_NE+i].v[2];
             mmgMesh->tria[t].v[2] = mmgMesh->tetra[offset_NE+i].v[3];
@@ -328,9 +329,9 @@ MMG5_pMesh ReadMMG_pMesh(US3D* us3d, MPI_Comm comm, MPI_Info info)
             t++;
         }
         
-        tria2.insert(mmgMesh->tetra[offset_NE+i].v[2]);
-        tria2.insert(mmgMesh->tetra[offset_NE+i].v[3]);
-        tria2.insert(mmgMesh->tetra[offset_NE+i].v[0]);
+        tria2.insert(mmgMesh->tetra[offset_NE+i].v[2]-1);
+        tria2.insert(mmgMesh->tetra[offset_NE+i].v[3]-1);
+        tria2.insert(mmgMesh->tetra[offset_NE+i].v[0]-1);
         if(us3d->tria_ref_map.find(tria2)!=us3d->tria_ref_map.end())
         {
             ref2 = us3d->tria_ref_map[tria2];
@@ -341,9 +342,9 @@ MMG5_pMesh ReadMMG_pMesh(US3D* us3d, MPI_Comm comm, MPI_Info info)
             t++;
         }
         
-        tria3.insert(mmgMesh->tetra[offset_NE+i].v[3]);
-        tria3.insert(mmgMesh->tetra[offset_NE+i].v[0]);
-        tria3.insert(mmgMesh->tetra[offset_NE+i].v[1]);
+        tria3.insert(mmgMesh->tetra[offset_NE+i].v[3]-1);
+        tria3.insert(mmgMesh->tetra[offset_NE+i].v[0]-1);
+        tria3.insert(mmgMesh->tetra[offset_NE+i].v[1]-1);
         if(us3d->tria_ref_map.find(tria3)!=us3d->tria_ref_map.end())
         {
             ref3 = us3d->tria_ref_map[tria3];
@@ -359,6 +360,7 @@ MMG5_pMesh ReadMMG_pMesh(US3D* us3d, MPI_Comm comm, MPI_Info info)
 //                std::cout << "tel = " << tel << " :: " << ref0 << " " << ref1 << " " << ref2 << " " << ref3 << std::endl;
 //                tel++;
 //            }
+        
         tria0.clear();
         tria1.clear();
         tria2.clear();
@@ -384,9 +386,10 @@ MMG5_pMesh ReadMMG_pMesh(US3D* us3d, MPI_Comm comm, MPI_Info info)
     myfile2 << "TITLE=\"new_volume.tec\"" << std::endl;
     myfile2 <<"VARIABLES = \"X\", \"Y\", \"Z\"" << std::endl;
     //std::cout << " verts check " << LVerts.size() << " " << hx.size() << std::endl;
-    myfile2 <<"ZONE N = " << mmgMesh->np << ", E = " << mmgMesh->ne << ", DATAPACKING = POINT, ZONETYPE = FETETRAHEDRON" << std::endl;
+    myfile2 <<"ZONE N = " << mmgMesh->np/2 << ", E = " << mmgMesh->ne << ", DATAPACKING = POINT, ZONETYPE = FETETRAHEDRON" << std::endl;
     
     Array<double>* xcn_mmg = new Array<double>(mmgMesh->np,3);
+    
     for(int i=0;i<mmgMesh->np;i++)
     {
         myfile2 << mmgMesh->point[i+1].c[0] << " " <<mmgMesh->point[i+1].c[1] << " " << mmgMesh->point[i+1].c[2] <<  std::endl;
@@ -405,16 +408,21 @@ MMG5_pMesh ReadMMG_pMesh(US3D* us3d, MPI_Comm comm, MPI_Info info)
 //
 //    }
     
-    for(int i=0;i<mmgMesh->nt;i++)
+    std::map<int,std::vector<int> > ref2bface;
+    std::cout << "mmgMesh->nt " << mmgMesh->nt << std::endl;
+    for(int i=1;i<=mmgMesh->nt;i++)
     {
-        std::cout << mmgMesh->tria[i].v[0] << " " << mmgMesh->tria[i].v[1] << " " << mmgMesh->tria[i].v[2] << " " << mmgMesh->tria[i].ref << std::endl;
+        ref2bface[mmgMesh->tria[i].ref].push_back(i);
     }
-    
+    OutputBoundaryID_MMG(mmgMesh,ref2bface,1);
+    OutputBoundaryID_MMG(mmgMesh,ref2bface,2);
+    OutputBoundaryID_MMG(mmgMesh,ref2bface,3);
+    OutputBoundaryID_MMG(mmgMesh,ref2bface,4);
     myfile20.close();
-    
-    for(int i=1;i<=mmgMesh->ne;i++)
+    int again = mmgMesh->ne/2;
+    for(int i=1;i<=mmgMesh->ne/2;i++)
     {
-        myfile2 << mmgMesh->tetra[i].v[0] << " " << mmgMesh->tetra[i].v[1] << " " << mmgMesh->tetra[i].v[2] << " " << mmgMesh->tetra[i].v[3] << std::endl;
+        myfile2 << mmgMesh->tetra[again+i].v[0] << " " << mmgMesh->tetra[again+i].v[1] << " " << mmgMesh->tetra[again+i].v[2] << " " << mmgMesh->tetra[again+i].v[3] << std::endl;
         myfile21 << mmgMesh->tetra[i].v[0] << " " << mmgMesh->tetra[i].v[1] << " " << mmgMesh->tetra[i].v[2] << " " << mmgMesh->tetra[i].v[3] << std::endl;
         
 //    face0.insert(mmgMesh->tetra[i].v[0]);face0.insert(mmgMesh->tetra[i].v[1]);face0.insert(mmgMesh->tetra[i].v[2]);

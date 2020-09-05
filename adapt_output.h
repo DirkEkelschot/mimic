@@ -12,7 +12,7 @@
 
 using namespace std;
 
-void OutputBoundaryID_MMG(MMG5_pMesh mmgMesh, std::map<int,std::vector<int> > ref2face, int bndID);
+void OutputBoundaryID_MMG(MMG5_pMesh mmgMesh, std::map<int,std::vector<int> > ref2bface, int bndID);
 
 void OutputBoundaryID(Partition* P, Mesh_Topology* meshTopo, US3D* us3d, int bndID);
 

@@ -82,7 +82,6 @@ Mesh_Topology::Mesh_Topology(Partition* Pa, Array<int>* ifn_in, Array<double>* g
                 ref = FindBoundaryID(bnd_map,nBnd,faceid)+1;
                 face2ref[faceid] = ref;
                 ref2face[ref].push_back(faceid);
-                
             }
             
             Vert* Vface = new Vert;
