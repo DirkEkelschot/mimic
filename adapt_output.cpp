@@ -152,6 +152,7 @@ void PlotBoundaryData(Array<char>* znames, Array<int>* zdefs,MPI_Comm comm)
     
     int nrow = zdefs->getNrow();
     int ncol = znames->getNcol();
+    std::cout << "zdefs sizes = " << zdefs->getNrow() << " " << zdefs->getNcol() <<std::endl;
     if (world_rank == 0)
     {
         std::cout << "printing boundary data..." << nrow << " " << zdefs->getNcol() << std::endl;

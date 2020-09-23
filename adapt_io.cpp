@@ -187,6 +187,7 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
     us3d->interior      = interior;
     us3d->ghost         = ghost;
     
+    us3d->znames        = znames;
     us3d->zdefs         = zdefs;
     us3d->bnd_m         = bnd_m;
     us3d->bnd_map       = bnd_map;

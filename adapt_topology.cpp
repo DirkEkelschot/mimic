@@ -9,8 +9,8 @@ Mesh_Topology::Mesh_Topology(Partition* Pa, Array<int>* ifn_in, Array<double>* g
     ifn = ifn_in;
     P = Pa;
     c = comm;
-    double* v0=new double[3];
-    double* v1=new double[3];
+    Vec3D* v0 = new Vec3D;
+    Vec3D* v1 = new Vec3D;
     int Nel = Pa->getGlobalPartition()->getNrow();
     
     MPI_Comm_size(comm, &size);
@@ -120,13 +120,13 @@ Mesh_Topology::Mesh_Topology(Partition* Pa, Array<int>* ifn_in, Array<double>* g
             r0->c1 = (Vface->y-Vijk->y);
             r0->c2 = (Vface->z-Vijk->z);
             
-            v0[0] = face[1]->x-face[0]->x;
-            v0[1] = face[1]->y-face[0]->y;
-            v0[2] = face[1]->z-face[0]->z;
+            v0->c0 = face[1]->x-face[0]->x;
+            v0->c1 = face[1]->y-face[0]->y;
+            v0->c2 = face[1]->z-face[0]->z;
 
-            v1[0] = face[3]->x-face[0]->x;
-            v1[1] = face[3]->y-face[0]->y;
-            v1[2] = face[3]->z-face[0]->z;
+            v1->c0 = face[3]->x-face[0]->x;
+            v1->c1 = face[3]->y-face[0]->y;
+            v1->c2 = face[3]->z-face[0]->z;
             
             Vec3D* n0 = ComputeSurfaceNormal(v0,v1);
             orient0   = DotVec3D(r0,n0);
@@ -217,8 +217,8 @@ Mesh_Topology::Mesh_Topology(Partition* Pa, Array<int>* ifn_in, Array<double>* g
     delete[] Pijk;
     delete[] Po;
     
-    delete[] v0;
-    delete[] v1;
+    delete v0;
+    delete v1;
     
     delete fc0;
     delete fc1;
