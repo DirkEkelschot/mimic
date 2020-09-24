@@ -18,7 +18,7 @@ void OutputBoundaryID_MMG(MMG5_pMesh mmgMesh, std::map<int,std::vector<int> > re
 
 void OutputBoundaryID(Partition* P, Mesh_Topology* meshTopo, US3D* us3d, int bndID);
 
-void PlotBoundaryData(Array<char>* znames, Array<int>* zdefs,MPI_Comm comm);
+void PlotBoundaryData(Array<char>* znames, Array<int>* zdefs);
 
 void OutputPartition(Partition* part, ParArray<int>* ien, Array<double>* H,  MPI_Comm comm);
 

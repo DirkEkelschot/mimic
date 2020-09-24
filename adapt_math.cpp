@@ -119,8 +119,8 @@ SVD* ComputeSVD(int M, int N, double * A)
     double* vt = new double[ldvt*N];
     //double u[ldu*M], vt[ldvt*N];
     dgesvd_( &all, &all, &M, &N, A, &lda, s, u, &ldu, vt, &ldvt, WORK, &size, &info );
-    svd->s = s;
-    svd->u = u;
+    svd->s  = s;
+    svd->u  = u;
     svd->vt = vt;
     return svd;
 }

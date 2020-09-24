@@ -167,33 +167,25 @@ void OutputBoundaryID(Partition* Pa, Mesh_Topology* meshTopo, US3D* us3d, int bn
 }
 
 
-void PlotBoundaryData(Array<char>* znames, Array<int>* zdefs,MPI_Comm comm)
+void PlotBoundaryData(Array<char>* znames, Array<int>* zdefs)
 {
-    int world_size;
-    MPI_Comm_size(comm, &world_size);
-    // Get the rank of the process
-    int world_rank;
-    MPI_Comm_rank(comm, &world_rank);
-    
     int nrow = zdefs->getNrow();
     int ncol = znames->getNcol();
-    std::cout << "zdefs sizes = " << zdefs->getNrow() << " " << zdefs->getNcol() <<std::endl;
-    if (world_rank == 0)
+
+    std::cout << "printing boundary data..." << nrow << " " << zdefs->getNcol() << std::endl;
+    for(int i=0;i<nrow;i++)
     {
-        std::cout << "printing boundary data..." << nrow << " " << zdefs->getNcol() << std::endl;
-        for(int i=0;i<nrow;i++)
+        for(int j=0;j<ncol;j++)
         {
-            for(int j=0;j<ncol;j++)
-            {
-                std::cout << znames->getVal(i,j) << "";
-            }
-            std::cout << " :: ";
-            for(int j=0;j<zdefs->getNcol();j++)
-            {
-                std::cout << zdefs->getVal(i,j) << " ";
-            }
-            std::cout << std::endl;
+            std::cout << " (" << i << "," << j << ") ";
+            //std::cout << znames->getVal(i,j) << "";
         }
+//        //std::cout << " :: ";
+//        for(int j=0;j<zdefs->getNcol();j++)
+//        {
+//            std::cout << zdefs->getVal(i,j) << " ";
+//        }
+        std::cout << std::endl;
     }
     
 }

@@ -414,11 +414,12 @@ void WriteUS3DGridFromMMG(MMG5_pMesh mmgMesh, US3D* us3d)
 }
 US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data, MPI_Comm comm, MPI_Info info)
 {
-    int size,rank;
+    int size;
     MPI_Comm_size(comm, &size);
     // Get the rank of the process
+    int rank;
     MPI_Comm_rank(comm, &rank);
-    
+    std::cout << "rankioe " << rank << std::endl;
     US3D* us3d = new US3D;
     ParArray<double>* xcn = ReadDataSetFromFileInParallel<double>(fn_grid,"xcn",comm,info);
 
@@ -446,7 +447,11 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
     }
     bnd_m.push_back(zdefs->getVal(zdefs->getNrow()-1,4));
     
-    PlotBoundaryData(znames,zdefs,comm);
+    if(rank == 0)
+    {
+        std::cout << "Rank = " << rank << std::endl;
+       PlotBoundaryData(znames,zdefs);
+    }
     
     int nBnd = zdefs->getNrow()-3;
     int* bnd_map = new int[zdefs->getNrow()-3];
@@ -456,13 +461,13 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
         //bnd_m.push_back(zdefs->getVal(i,3));
     }
     int fint = bnd_map[0];
-    if(rank == 0)
-    {
-        for(int i=0;i<zdefs->getNrow()-3;i++)
-        {
-            std::cout << "bnd_map " << bnd_map[i] << " " << nBnd << std::endl;
-        }
-    }
+//    if(rank == 0)
+//    {
+//        for(int i=0;i<zdefs->getNrow()-3;i++)
+//        {
+//            std::cout << "bnd_map " << bnd_map[i] << " " << nBnd << std::endl;
+//        }
+//    }
     
     int i,j;
     int nglob = ien->getNglob();

@@ -748,7 +748,6 @@ Array<double>* ComputeMetric(std::vector<Vert> Verts, Array<double>* grad, Array
         WRn[1] = std::min(std::max(f*fabs(svd->s[1]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
         WRn[2] = 0.01;
 
-//
         DR->setVal(0,0,WRn[0]);DR->setVal(0,1,0.0);DR->setVal(0,1,0.0);
         DR->setVal(1,0,0.0);DR->setVal(1,1,WRn[1]);DR->setVal(1,2,0.0);
         DR->setVal(2,0,0.0);DR->setVal(2,1,0.0);DR->setVal(2,2,WRn[2]);
@@ -762,9 +761,9 @@ Array<double>* ComputeMetric(std::vector<Vert> Verts, Array<double>* grad, Array
         VR->setVal(2,0,svd->vt[6]);VR->setVal(2,1,svd->vt[7]);VR->setVal(2,2,svd->vt[8]);
         
         //Array<double>* iVR = MatInv(VR);
-        Array<double>* iVR = MatInv(VR);
-        Array<double>* Rs = MatMul(VR,DR);
-        Array<double>* Rf = MatMul(Rs,iVR);
+        //Array<double>* iVR = MatInv(VR);
+        Array<double>* Rs = MatMul(UR,DR);
+        Array<double>* Rf = MatMul(Rs,VR);
         
         metric->setVal(i,0,Rf->getVal(0,0));
         metric->setVal(i,1,Rf->getVal(0,1));
