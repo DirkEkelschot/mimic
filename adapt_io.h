@@ -611,7 +611,7 @@ Array<T>* ReadDataSetFromFileInParallelToAll(const char* file_name, const char* 
 }
 
 
-
+void WriteUS3DGridFromMMG(MMG5_pMesh mmgMesh, US3D* us3d);
 
 US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data, MPI_Comm comm, MPI_Info info);
 

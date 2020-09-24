@@ -2,6 +2,31 @@
 
 using namespace std;
 
+
+void OutputMesh_MMG(MMG5_pMesh mmgMesh)
+{
+    std::ofstream myfile;
+    myfile.open("mmgMesh_latest.dat");
+    myfile << "TITLE=\"new_volume.tec\"" << std::endl;
+    myfile <<"VARIABLES = \"X\", \"Y\", \"Z\"" << std::endl;
+    myfile <<"ZONE N = " << mmgMesh->np << ", E = " << mmgMesh->ne << ", DATAPACKING = POINT, ZONETYPE = FETETRAHEDRON" << std::endl;
+
+    for(int i=0;i<mmgMesh->np;i++)
+    {
+        myfile << mmgMesh->point[i+1].c[0] << " " <<mmgMesh->point[i+1].c[1] << " " << mmgMesh->point[i+1].c[2] <<  std::endl;
+    }
+    for(int i=1;i<=mmgMesh->ne;i++)
+    {
+        myfile << mmgMesh->tetra[i].v[0] << " " << mmgMesh->tetra[i].v[1] << " " << mmgMesh->tetra[i].v[2] << " " << mmgMesh->tetra[i].v[3] << std::endl;
+    }
+    myfile.close();
+}
+
+
+
+
+
+
 void OutputBoundaryID_MMG(MMG5_pMesh mmgMesh, std::map<int,std::vector<int> > ref2bface, int bndID)
 {
     std::cout << "Writing boundary from mmgMesh "<< bndID << " to boundary_" << bndID<<  ".dat" << std::endl;
