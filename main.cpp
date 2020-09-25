@@ -612,8 +612,9 @@ MMG_Mesh* GetOptimizedMMG3DMeshOnRoot(Partition* P, US3D* us3d, Array<double>* H
                 &ien_g->data[0],
                 ien_nlocs,
                 ien_offsets,
-                MPI_INT, 0, comm);
+                MPI_INT, 0, comm);  
 
+    
     if(world_rank == 0)
     {
         int nbHex = nElem;
@@ -623,17 +624,20 @@ MMG_Mesh* GetOptimizedMMG3DMeshOnRoot(Partition* P, US3D* us3d, Array<double>* H
         MMG3D_Init_mesh(MMG5_ARG_start,
         MMG5_ARG_ppMesh,&mmgMesh,MMG5_ARG_ppMet,&mmgSol,
         MMG5_ARG_end);
-        string filename = "metric_restart.dat";
+        if ( MMG3D_Set_meshSize(mmgMesh,nbVertices,nbHex*6,0,nbTriangles,0,0) != 1 )  exit(EXIT_FAILURE);
+        if ( MMG3D_Set_solSize(mmgMesh,mmgSol,MMG5_Vertex,mmgMesh->np,MMG5_Tensor) != 1 ) exit(EXIT_FAILURE);
+	string filename = "metric_restart.dat";
         ofstream myfile;
         myfile.open(filename);
-        
+        std::cout <<  xcn_g->getNrow() << std::endl; 
         for(int i=0;i<xcn_g->getNrow();i++)
         {
-            mmgMesh->point[i+1].c[0] = xcn_g->getVal(i,0);
+         
+	    mmgMesh->point[i+1].c[0] = xcn_g->getVal(i,0);
             mmgMesh->point[i+1].c[1] = xcn_g->getVal(i,1);
             mmgMesh->point[i+1].c[2] = xcn_g->getVal(i,2);
             mmgMesh->point[i+1].ref = 1;
-            
+             
             double m11 = Ug->getVal(i,0);
             double m12 = Ug->getVal(i,1);
             double m13 = Ug->getVal(i,2);
@@ -644,7 +648,8 @@ MMG_Mesh* GetOptimizedMMG3DMeshOnRoot(Partition* P, US3D* us3d, Array<double>* H
             myfile << mmgMesh->point[i+1].c[0] << " " << mmgMesh->point[i+1].c[0] << " " << mmgMesh->point[i+1].c[0] << " " << m11 << " " << m12 << " " << m13 << " " << m22 << " " << m23 << " " << m33 << std::endl;
             
             if ( MMG3D_Set_tensorSol(mmgSol, m11,m12,m13,m22,m23,m33,i+1) != 1 ) exit(EXIT_FAILURE);
-        }
+        
+	}
         myfile.close();
         
         int ref = 0;
@@ -659,7 +664,7 @@ MMG_Mesh* GetOptimizedMMG3DMeshOnRoot(Partition* P, US3D* us3d, Array<double>* H
             }
             hexTab[hexTabPosition+8] = ref;
         }
-        
+            
         int num = H2T_chkorient(mmgMesh,hexTab,nbHex);
         
         int* adjahex = NULL;
@@ -773,8 +778,10 @@ MMG_Mesh* GetOptimizedMMG3DMeshOnRoot(Partition* P, US3D* us3d, Array<double>* H
 //            xcn_mmg->setVal(i,2,mmgMesh->point[i+1].c[2]);
 //        }
     }
+    
     //==================OUTPUT ORIGINAL MESH=======================
     //==================OUTPUT ORIGINAL MESH=======================
+  
     /*
     if(world_rank == 0)
     {
@@ -1040,7 +1047,7 @@ int main(int argc, char** argv) {
         std::vector<std::vector<int> > loc_elem2verts_loc = P->getLocalElem2LocalVert();
         double max_v = *std::max_element(d2udx2_v.begin(), d2udx2_v.end());
         Array<double>* metric = ComputeMetric(Verts,grad,hessian,max_v);
-        /*
+        
 //=================================================================
         //==================Output the data in Tecplot format==============
         //=================================================================
@@ -1102,7 +1109,7 @@ int main(int argc, char** argv) {
         myfile12.close();
         
         MMG_Mesh* mmg = GetOptimizedMMG3DMeshOnRoot(P, us3d, hessian, metric, comm);
-    
+    	
         MMG3D_Set_handGivenMesh(mmg->mmgMesh);
             
         //    if ( MMG3D_Set_dparameter(mmgMesh,mmgSol,MMG3D_DPARAM_hgrad, 1.5) != 1 )
@@ -1149,7 +1156,7 @@ int main(int argc, char** argv) {
         delete ien_pstate;
         delete parmetis_pstate;
         //delete UgRoot;
-        */
+                
         MPI_Finalize();
         
     }

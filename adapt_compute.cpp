@@ -761,9 +761,9 @@ Array<double>* ComputeMetric(std::vector<Vert> Verts, Array<double>* grad, Array
         VR->setVal(2,0,svd->vt[6]);VR->setVal(2,1,svd->vt[7]);VR->setVal(2,2,svd->vt[8]);
         
         //Array<double>* iVR = MatInv(VR);
-        //Array<double>* iVR = MatInv(VR);
-        Array<double>* Rs = MatMul(UR,DR);
-        Array<double>* Rf = MatMul(Rs,VR);
+        Array<double>* iVR = MatInv(VR);
+        Array<double>* Rs = MatMul(VR,DR);
+        Array<double>* Rf = MatMul(Rs,iVR);
         
         metric->setVal(i,0,Rf->getVal(0,0));
         metric->setVal(i,1,Rf->getVal(0,1));
