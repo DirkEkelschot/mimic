@@ -46,7 +46,7 @@ double* ComputeVolumeCellsReducedToVerts(Array<double>* xcn, Array<int>* ien);
 
 void UnitTestJacobian();
 
-Array<double>* ComputeMetric(std::vector<Vert> Verts, Array<double>* grad, Array<double>* hessian, double max_v,std::vector<std::vector<int> > loc_elem2verts_loc, int nloc, MPI_Comm comm);
+Array<double>* ComputeMetric(std::vector<Vert> Verts, Array<double>* grad, Array<double>* hessian, double max_v,std::vector<std::vector<int> > loc_elem2verts_loc, int nloc, MPI_Comm comm, int dim);
 
 Array<double>* ComputeFaceValues(Partition* P, Array<double>* U, MPI_Comm comm);
 

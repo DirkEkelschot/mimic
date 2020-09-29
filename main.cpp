@@ -923,7 +923,7 @@ int main(int argc, char** argv) {
         Array<double>* Uivar = new Array<double>(Nel_part,1);
         for(int i=0;i<Nel_part;i++)
         {
-            Uivar->setVal(i,0,us3d->interior->getVal(i,0));
+            Uivar->setVal(i,0,us3d->interior->getVal(i,1));
         }
         
         delete us3d->interior;
@@ -952,6 +952,7 @@ int main(int argc, char** argv) {
         double tn = 0.0;
         //t = clock();
         Array<double>* dUdXi   = ComputedUdx_LSQ_US3D_v3(P,UauxNew,meshTopo,us3d->ghost,comm);
+//        Array<double>* dUdXi   = ComputedUdx_MGG(P,UauxNew,meshTopo,us3d->ghost,comm);
         //Gradients* dudxObj   = new Gradients(P,meshTopo,UauxNew,us3d->ghost,"us3d","LSQ",comm);
 //        Array<double>* dUdXi = dudxObj->getdUdXi();
         
@@ -989,6 +990,10 @@ int main(int argc, char** argv) {
         Array<double>* dU2dXi2 = ComputedUdx_LSQ_US3D_v3(P,dUdxauxNew,meshTopo,us3d->ghost,comm);
         Array<double>* dU2dYi2 = ComputedUdx_LSQ_US3D_v3(P,dUdyauxNew,meshTopo,us3d->ghost,comm);
         Array<double>* dU2dZi2 = ComputedUdx_LSQ_US3D_v3(P,dUdzauxNew,meshTopo,us3d->ghost,comm);
+
+//        Array<double>* dU2dXi2 = ComputedUdx_MGG(P,dUdxauxNew,meshTopo,us3d->ghost,comm);
+//        Array<double>* dU2dYi2 = ComputedUdx_MGG(P,dUdyauxNew,meshTopo,us3d->ghost,comm);
+//        Array<double>* dU2dZi2 = ComputedUdx_MGG(P,dUdzauxNew,meshTopo,us3d->ghost,comm);
         
         Array<double>* d2udx2 = new Array<double>(dU2dXi2->getNrow(),1);
         Array<double>* d2udxy = new Array<double>(dU2dXi2->getNrow(),1);
@@ -1018,7 +1023,6 @@ int main(int argc, char** argv) {
         }
         
         std::vector<double> u_v    = meshTopo->ReduceUToVertices(Uivar);
-        
         std::vector<double> dudx_v = meshTopo->ReduceUToVertices(dUidxi);
         std::vector<double> dudy_v = meshTopo->ReduceUToVertices(dUidyi);
         std::vector<double> dudz_v = meshTopo->ReduceUToVertices(dUidzi);
@@ -1051,9 +1055,9 @@ int main(int argc, char** argv) {
         
         std::vector<std::vector<int> > loc_elem2verts_loc = P->getLocalElem2LocalVert();
         double max_v = *std::max_element(d2udx2_v.begin(), d2udx2_v.end());
-        int mode = 3;
+        int dim = 3;
         
-        Array<double>* metric = ComputeMetric(Verts,grad,hessian,max_v,loc_elem2verts_loc,us3d->ien->getNrow(),comm);
+        Array<double>* metric = ComputeMetric(Verts,grad,hessian,max_v,loc_elem2verts_loc,us3d->ien->getNrow(),comm,dim);
         
 //=================================================================
         //==================Output the data in Tecplot format==============
@@ -1120,7 +1124,7 @@ int main(int argc, char** argv) {
         if (world_rank == 0)
         {
             MMG3D_Set_handGivenMesh(mmg->mmgMesh);
-            if ( MMG3D_Set_dparameter(mmg->mmgMesh,mmg->mmgSol,MMG3D_DPARAM_hgrad, 2.0) != 1 )    exit(EXIT_FAILURE);
+            if ( MMG3D_Set_dparameter(mmg->mmgMesh,mmg->mmgSol,MMG3D_DPARAM_hgrad, 3.5) != 1 )    exit(EXIT_FAILURE);
             
             int ier = MMG3D_mmg3dlib(mmg->mmgMesh,mmg->mmgSol);
             
