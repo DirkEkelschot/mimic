@@ -3,8 +3,8 @@
 #include "adapt_recongrad2.h"
 #include "adapt_output.h"
 #include "adapt_geometry.h"
-
 #include "hex2tet.h"
+
 int mpi_size, mpi_rank;
 
 #define MIN(a,b) (((a)<(b))?(a):(b))
@@ -445,9 +445,6 @@ MMG_Mesh* GetOptimizedMMG3DMeshOnRoot(Partition* P, US3D* us3d, Array<double>* H
                Hids.push_back(Hv->getVal(lid,4));
                Hids.push_back(Hv->getVal(lid,5));
                
-               Hids.push_back(Hv->getVal(lid,6));
-               Hids.push_back(Hv->getVal(lid,7));
-               Hids.push_back(Hv->getVal(lid,8));
            }
        }
     }
@@ -497,7 +494,7 @@ MMG_Mesh* GetOptimizedMMG3DMeshOnRoot(Partition* P, US3D* us3d, Array<double>* H
         Uoffset=Uoffset+Uvglob_nlocs[i];
         Uvglobt = Uvglobt+Uvglob_nlocs[i];
         
-        Hvglob_nlocs[i] = vglob_nlocs[i]*9;
+        Hvglob_nlocs[i] = vglob_nlocs[i]*6;
         
         Hvglob_offsets[i]=Hoffset;
         Hoffset=Hoffset+Hvglob_nlocs[i];
@@ -543,7 +540,7 @@ MMG_Mesh* GetOptimizedMMG3DMeshOnRoot(Partition* P, US3D* us3d, Array<double>* H
     if(world_rank == 0)
     {
         Ug = new Array<double>(us3d->xcn->getNglob(),nval);
-        Hg = new Array<double>(us3d->xcn->getNglob(),9);
+        Hg = new Array<double>(us3d->xcn->getNglob(),6);
         int cid=0;
         for(i=0;i<world_size;i++)
         {
@@ -557,7 +554,7 @@ MMG_Mesh* GetOptimizedMMG3DMeshOnRoot(Partition* P, US3D* us3d, Array<double>* H
                 }
                 for(int k=0;k<nval;k++)
                 {
-                    Hg->setVal(cid,k,Hvids_t[(vglob_offsets[i]+j)*9+k]);
+                    Hg->setVal(cid,k,Hvids_t[(vglob_offsets[i]+j)*6+k]);
                 }
             }
         }
@@ -617,6 +614,7 @@ MMG_Mesh* GetOptimizedMMG3DMeshOnRoot(Partition* P, US3D* us3d, Array<double>* H
     
     if(world_rank == 0)
     {
+        
         int nbHex = nElem;
         int nbVertices = nvg;
         int nbTriangles = us3d->tria_ref_map.size();
@@ -626,14 +624,14 @@ MMG_Mesh* GetOptimizedMMG3DMeshOnRoot(Partition* P, US3D* us3d, Array<double>* H
         MMG5_ARG_end);
         if ( MMG3D_Set_meshSize(mmgMesh,nbVertices,nbHex*6,0,nbTriangles,0,0) != 1 )  exit(EXIT_FAILURE);
         if ( MMG3D_Set_solSize(mmgMesh,mmgSol,MMG5_Vertex,mmgMesh->np,MMG5_Tensor) != 1 ) exit(EXIT_FAILURE);
-	string filename = "metric_restart.dat";
+        string filename = "metric_restart.dat";
         ofstream myfile;
         myfile.open(filename);
         std::cout <<  xcn_g->getNrow() << std::endl; 
         for(int i=0;i<xcn_g->getNrow();i++)
         {
          
-	    mmgMesh->point[i+1].c[0] = xcn_g->getVal(i,0);
+            mmgMesh->point[i+1].c[0] = xcn_g->getVal(i,0);
             mmgMesh->point[i+1].c[1] = xcn_g->getVal(i,1);
             mmgMesh->point[i+1].c[2] = xcn_g->getVal(i,2);
             mmgMesh->point[i+1].ref = 1;
@@ -649,7 +647,7 @@ MMG_Mesh* GetOptimizedMMG3DMeshOnRoot(Partition* P, US3D* us3d, Array<double>* H
             
             if ( MMG3D_Set_tensorSol(mmgSol, m11,m12,m13,m22,m23,m33,i+1) != 1 ) exit(EXIT_FAILURE);
         
-	}
+        }
         myfile.close();
         
         int ref = 0;
@@ -764,6 +762,9 @@ MMG_Mesh* GetOptimizedMMG3DMeshOnRoot(Partition* P, US3D* us3d, Array<double>* H
             tria2.clear();
             tria3.clear();
         }
+        
+        
+        
         //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         //End of a hack to match the boundary condition tags of the hexahedral mesh onto the tetrahedral mesh;
@@ -838,7 +839,11 @@ int main(int argc, char** argv) {
     MPI_Comm_rank(comm, &world_rank);
     int i,j;
     
-    //======================================================================================
+    if(world_rank == 0)
+    {
+        UnitTestEigenDecomp();
+    }
+     //======================================================================================
     //====================Parsing the inputs from the command line==========================
     //======================================================================================
     std::string fn_grid_t;
@@ -1032,21 +1037,23 @@ int main(int argc, char** argv) {
 
         std::vector<Vert> Verts =  P->getLocalVerts();
         int nVerts = Verts.size();
-        Array<double>* hessian = new Array<double>(nVerts,9);
+        Array<double>* hessian = new Array<double>(nVerts,6);
         Array<double>* grad    = new Array<double>(nVerts,3);
         for(int i=0;i<nVerts;i++)
         {
             grad->setVal(i,0,dudx_v[i]);grad->setVal(i,1,dudy_v[i]);grad->setVal(i,2,dudz_v[i]);
             hessian->setVal(i,0,d2udx2_v[i]); hessian->setVal(i,1,d2udxy_v[i]); hessian->setVal(i,2,d2udxz_v[i]);
-            hessian->setVal(i,3,d2udyx_v[i]); hessian->setVal(i,4,d2udy2_v[i]); hessian->setVal(i,5,d2udyz_v[i]);
-            hessian->setVal(i,6,d2udzx_v[i]); hessian->setVal(i,7,d2udzy_v[i]); hessian->setVal(i,8,d2udz2_v[i]);
+            hessian->setVal(i,3,d2udy2_v[i]); hessian->setVal(i,4,d2udyz_v[i]);
+            hessian->setVal(i,5,d2udz2_v[i]);
         }
         
         //Array<double>* UgRoot = GetSolutionOnRoot(P,us3d,hessian,comm);
         
         std::vector<std::vector<int> > loc_elem2verts_loc = P->getLocalElem2LocalVert();
         double max_v = *std::max_element(d2udx2_v.begin(), d2udx2_v.end());
-        Array<double>* metric = ComputeMetric(Verts,grad,hessian,max_v);
+        int mode = 3;
+        
+        Array<double>* metric = ComputeMetric(Verts,grad,hessian,max_v,loc_elem2verts_loc,us3d->ien->getNrow(),comm);
         
 //=================================================================
         //==================Output the data in Tecplot format==============
@@ -1074,8 +1081,8 @@ int main(int argc, char** argv) {
             myfile<< Verts[i].x << " " << Verts[i].y << " " << Verts[i].z <<
             " " << u_v[i] << " "<< dudx_v[i] << " " << dudy_v[i] << " " << dudz_v[i] <<
             " " << hessian->getVal(i,0) << " " << hessian->getVal(i,1) << " " << hessian->getVal(i,2) <<
-            " " << hessian->getVal(i,3) << " " << hessian->getVal(i,4) << " " << hessian->getVal(i,5) <<
-            " " << hessian->getVal(i,6) << " " << hessian->getVal(i,7) << " " << hessian->getVal(i,8) <<
+            " " << hessian->getVal(i,1) << " " << hessian->getVal(i,3) << " " << hessian->getVal(i,4) <<
+            " " << hessian->getVal(i,2) << " " << hessian->getVal(i,4) << " " << hessian->getVal(i,5) <<
             " " << metric->getVal(i,0) << " " << metric->getVal(i,1) << " " << metric->getVal(i,2) <<
             " " << metric->getVal(i,3) << " " << metric->getVal(i,4) << " " << metric->getVal(i,5) <<
             " " << metric->getVal(i,6) << " " << metric->getVal(i,7) << " " << metric->getVal(i,8) << std::endl;
@@ -1109,21 +1116,22 @@ int main(int argc, char** argv) {
         myfile12.close();
         
         MMG_Mesh* mmg = GetOptimizedMMG3DMeshOnRoot(P, us3d, hessian, metric, comm);
-    	
-        MMG3D_Set_handGivenMesh(mmg->mmgMesh);
-            
-        //    if ( MMG3D_Set_dparameter(mmgMesh,mmgSol,MMG3D_DPARAM_hgrad, 1.5) != 1 )
-        //    exit(EXIT_FAILURE);
-
-        int ier = MMG3D_mmg3dlib(mmg->mmgMesh,mmg->mmgSol);
-            
-        OutputMesh_MMG(mmg->mmgMesh);
-        //    OutputBoundaryID_MMG(mmgMesh,ref2bface,1);
-        //    OutputBoundaryID_MMG(mmgMesh,ref2bface,2);
-        //    OutputBoundaryID_MMG(mmgMesh,ref2bface,3);
-        //    OutputBoundaryID_MMG(mmgMesh,ref2bface,4);
-        WriteUS3DGridFromMMG(mmg->mmgMesh, us3d);
         
+        if (world_rank == 0)
+        {
+            MMG3D_Set_handGivenMesh(mmg->mmgMesh);
+            if ( MMG3D_Set_dparameter(mmg->mmgMesh,mmg->mmgSol,MMG3D_DPARAM_hgrad, 2.0) != 1 )    exit(EXIT_FAILURE);
+            
+            int ier = MMG3D_mmg3dlib(mmg->mmgMesh,mmg->mmgSol);
+            
+            OutputMesh_MMG(mmg->mmgMesh);
+//            OutputBoundaryID_MMG(mmgMesh,ref2bface,1);
+//            OutputBoundaryID_MMG(mmgMesh,ref2bface,2);
+//            OutputBoundaryID_MMG(mmgMesh,ref2bface,3);
+//            OutputBoundaryID_MMG(mmgMesh,ref2bface,4);
+            WriteUS3DGridFromMMG(mmg->mmgMesh, us3d);
+        }
+        /*
         delete d2udx2;
         delete d2udxy;
         delete d2udxz;
@@ -1156,7 +1164,7 @@ int main(int argc, char** argv) {
         delete ien_pstate;
         delete parmetis_pstate;
         //delete UgRoot;
-                
+            */
         MPI_Finalize();
         
     }

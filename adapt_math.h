@@ -77,6 +77,13 @@ struct SVD{
     double* vt;
 };
 
+struct Eig{
+    double* Dre;
+    double* Dim;
+    double* V;
+    double* iV;
+};
+
 extern "C" {
   void dgeev_(char const * __restrict JOBVL, char const * __restrict JOBVR, int const * __restrict n, double * __restrict A, int const * lda, double * __restrict WR, double * __restrict WI, double * __restrict VL, int const * __restrict ldvl, double * __restrict VR, int const * __restrict ldvr, double * __restrict Work, int const * __restrict lwork, int       * __restrict info );
   // LU decomoposition of a general matrix
@@ -114,6 +121,8 @@ void EigenDecomp(int n, double * A,  double * WR, double * WI, double * V, doubl
 bool isDiagonalMatrix(Array<double>* Msq);
 
 Array<double>* MatInv(Array<double>* A);
+
+Eig* ComputeEigenDecomp(int n, double * A);
 
 SVD* ComputeSVD(int M, int N, double * A);
 

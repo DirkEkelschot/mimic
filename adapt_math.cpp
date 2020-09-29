@@ -73,8 +73,9 @@ Array<double>* SolveQR(double* A, int m, int n, Array<double>* b)
 
 
 
-void EigenDecomp(int n, double * A,  double * WR, double * WI, double * V, double * iV )
+Eig* ComputeEigenDecomp(int n, double * A)
 {
+  Eig* eig = new Eig;
   char JOBVL = 'V';
   char JOBVR = 'N';
   int size = 10*n;
@@ -82,7 +83,11 @@ void EigenDecomp(int n, double * A,  double * WR, double * WI, double * V, doubl
   int info;
   int i,j;
   int Pivot[n];
-  
+  double * WR = new double[n];
+  double * WI = new double[n];
+  double * V = new double[n*n];
+  double * iV = new double[n*n];
+    
   // Copy A into V
   memcpy( V, A, n*n*sizeof(double) );
   
@@ -94,10 +99,17 @@ void EigenDecomp(int n, double * A,  double * WR, double * WI, double * V, doubl
     for ( j = 0; j < n; j++)
       V[i*n+j] = iV[j*n+i];
   
-  // Compute inverse of V1
-  memcpy( iV, V, n*n*sizeof(double) );
-  dgetrf_(&n, &n, iV, &n, Pivot, &info);
-  dgetri_(&n, iV, &n, Pivot, WORK, &size, &info);
+    // Compute inverse of V1
+    memcpy( iV, V, n*n*sizeof(double) );
+    dgetrf_(&n, &n, iV, &n, Pivot, &info);
+    dgetri_(&n, iV, &n, Pivot, WORK, &size, &info);
+    
+    eig->Dre = WR;
+    eig->Dim = WI;
+    
+    eig->V   = V;
+    eig->iV  = iV;
+    return eig;
 }
 
 
@@ -204,25 +216,34 @@ void UnitTestEigenDecomp()
     M[3] = -0.3;M[4]=1.25;M[5]=0.1;
     M[6] = 0.4;M[7]=0.1;M[8]=0.25;
     
-    double * WR = new double[3];
-    double * WI = new double[3];
-    double * V = new double[3*3];
-    double * iV = new double[3*3];
-    EigenDecomp(3, M,  WR,  WI, V, iV );
-    
+//    double * WR = new double[3];
+//    double * WI = new double[3];
+//    double * V = new double[3*3];
+//    double * iV = new double[3*3];
+    //EigenDecomp(3, M,  WR,  WI, V, iV );
+    Eig* eig = ComputeEigenDecomp(3,M);
     for(int i=0;i<3;i++)
     {
-        std::cout << "eigenvalues = " << WR[i] << " + " << WI[i] << "i" << std::endl;
+        std::cout << "eigenvalues = " << eig->Dre[i] << " + " << eig->Dim[i] << "i" << std::endl;
     }
     
+    double* Vref = new double[3*3];
+    double* iVref = new double[3*3];
     
+    Vref[0] = 0.71598;Vref[1] = 0.643504;Vref[2] = -0.270694;
+    Vref[3] = 0.193611;Vref[4] = 0.189507;Vref[5] = 0.962602;
+    Vref[6] = -0.670736;Vref[7] = 0.741613;Vref[8] = -0.0110941;
+    
+    iVref[0] = 0.71598;iVref[1] = 0.193611;iVref[2] = -0.670736;
+    iVref[3] = 0.643504;iVref[4] = 0.189507;iVref[5] = 0.741613;
+    iVref[6] = -0.270694;iVref[7] = 0.962602;iVref[8] = -0.0110941;
     
     std::cout << "V ==> "  << std::endl;;
     for(int i=0;i<3;i++)
     {
         for(int j=0;j<3;j++)
         {
-            std::cout << V[i*3+j] << " ";
+            std::cout << eig->V[i*3+j] << " ";
         }
         std::cout << std::endl;
     }
@@ -234,7 +255,7 @@ void UnitTestEigenDecomp()
     {
         for(int j=0;j<3;j++)
         {
-            std::cout << iV[i*3+j] << " ";
+            std::cout << eig->iV[i*3+j] << " ";
         }
         std::cout << std::endl;
     }

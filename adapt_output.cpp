@@ -177,14 +177,14 @@ void PlotBoundaryData(Array<char>* znames, Array<int>* zdefs)
     {
         for(int j=0;j<ncol;j++)
         {
-            std::cout << " (" << i << "," << j << ") ";
-            //std::cout << znames->getVal(i,j) << "";
+            //std::cout << " (" << i << "," << j << ") ";
+            std::cout << znames->getVal(i,j) << "";
         }
-//        //std::cout << " :: ";
-//        for(int j=0;j<zdefs->getNcol();j++)
-//        {
-//            std::cout << zdefs->getVal(i,j) << " ";
-//        }
+        std::cout << " :: ";
+        for(int j=0;j<zdefs->getNcol();j++)
+        {
+            std::cout << zdefs->getVal(i,j) << " ";
+        }
         std::cout << std::endl;
     }
     

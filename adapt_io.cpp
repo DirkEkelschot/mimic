@@ -419,7 +419,6 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
     // Get the rank of the process
     int rank;
     MPI_Comm_rank(comm, &rank);
-    std::cout << "rankioe " << rank << std::endl;
     US3D* us3d = new US3D;
     ParArray<double>* xcn = ReadDataSetFromFileInParallel<double>(fn_grid,"xcn",comm,info);
 
