@@ -655,10 +655,10 @@ Array<double>* ComputeMetric(std::vector<Vert> Verts, Array<double>* grad, Array
     //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     //+++++++++++++Required Parameter set for scaling eigenvalues/eigenvectors+++++++++++++++
     double R            = 0.056;
-    double hmin         = 0.00000001;
-    double hmax         = 0.01;
+    double hmin         = 0.00001;
+    double hmax         = 0.1;
     
-    double f            = 1000;
+    double f            = 0.1;
 
     //double d2udx2_v_max = *std::max_element(d2udx2_v.begin(), d2udx2_v.end());
     //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

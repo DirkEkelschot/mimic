@@ -777,6 +777,11 @@ Array<double>* ComputedUdx_MGG(Partition* Pa, std::map<int,double> U, Mesh_Topol
                      gu_nb_vy = gu_c_y->getVal(lid,0);
                      gu_nb_vz = gu_c_z->getVal(lid,0);
                      
+                     u_nb     = 0.0;
+                     gu_nb_vx = 0.0;
+                     gu_nb_vy = 0.0;
+                     gu_nb_vz = 0.0;
+                     
                  }
                  
                  nj          = normals[gEl][j];
@@ -836,7 +841,7 @@ Array<double>* ComputedUdx_MGG(Partition* Pa, std::map<int,double> U, Mesh_Topol
             std::cout << it << " " <<  L2normx_max <<","<<L2normy_max<<","<<L2normz_max << " time = " << tmax << std::endl;
         }
         
-        if(L2normx_max<1.0e-07 && L2normy_max<1.0e-07 && L2normz_max<1.0e-07)
+        if(L2normx_max<1.0e-06 && L2normy_max<1.0e-06 && L2normz_max<1.0e-06)
         {
             break;
         }

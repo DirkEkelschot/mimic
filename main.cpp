@@ -783,7 +783,7 @@ MMG_Mesh* GetOptimizedMMG3DMeshOnRoot(Partition* P, US3D* us3d, Array<double>* H
     //==================OUTPUT ORIGINAL MESH=======================
     //==================OUTPUT ORIGINAL MESH=======================
   
-    /*
+    
     if(world_rank == 0)
     {
         string filename2 = "metric_restart.dat";
@@ -816,7 +816,7 @@ MMG_Mesh* GetOptimizedMMG3DMeshOnRoot(Partition* P, US3D* us3d, Array<double>* H
     }
     //==================OUTPUT ORIGINAL MESH=======================
     //==================OUTPUT ORIGINAL MESH=======================
-    */
+    
     
     MMG_Mesh* mmg = new MMG_Mesh;
     
@@ -908,7 +908,7 @@ int main(int argc, char** argv) {
         //========================================================================
         //========================================================================
         //========================================================================
-        
+        int varia = 1;
         US3D* us3d = ReadUS3DData(fn_conn,fn_grid,fn_data,comm,info);
 //
         //MMG5_pMesh mmgMesh = ReadMMG_pMesh(us3d,comm,info);
@@ -923,7 +923,7 @@ int main(int argc, char** argv) {
         Array<double>* Uivar = new Array<double>(Nel_part,1);
         for(int i=0;i<Nel_part;i++)
         {
-            Uivar->setVal(i,0,us3d->interior->getVal(i,1));
+            Uivar->setVal(i,0,us3d->interior->getVal(i,varia));
         }
         
         delete us3d->interior;
@@ -934,7 +934,7 @@ int main(int argc, char** argv) {
         
         std::map<int,double> UauxNew = P->CommunicateAdjacentDataUS3D(Uivar,comm);
         
-        Mesh_Topology* meshTopo = new Mesh_Topology(P,us3d->ifn,us3d->ghost,UauxNew,us3d->bnd_map,us3d->nBnd,comm);
+        Mesh_Topology* meshTopo = new Mesh_Topology(P,us3d->ifn,UauxNew,us3d->bnd_map,us3d->nBnd,comm);
         
         //OutputBoundaryID(P, meshTopo, us3d, 0);
 //        OutputBoundaryID(P, meshTopo, us3d, 1);
@@ -951,7 +951,12 @@ int main(int argc, char** argv) {
         double tmax = 0.0;
         double tn = 0.0;
         //t = clock();
-        Array<double>* dUdXi   = ComputedUdx_LSQ_US3D_v3(P,UauxNew,meshTopo,us3d->ghost,comm);
+        Array<double>* gB = new Array<double>(us3d->ghost->getNrow(),1);
+        for(int i=0;i<us3d->ghost->getNrow();i++)
+        {
+            gB->setVal(i,0,us3d->ghost->getVal(i,varia));
+        }
+        Array<double>* dUdXi = ComputedUdx_LSQ_US3D_v3(P,UauxNew,meshTopo,gB,comm);
 //        Array<double>* dUdXi   = ComputedUdx_MGG(P,UauxNew,meshTopo,us3d->ghost,comm);
         //Gradients* dudxObj   = new Gradients(P,meshTopo,UauxNew,us3d->ghost,"us3d","LSQ",comm);
 //        Array<double>* dUdXi = dudxObj->getdUdXi();
@@ -985,11 +990,12 @@ int main(int argc, char** argv) {
     //        std::cout << itmv->second[0]-dUdxauxNew[itmv->first][0] << " " <<                  itmv->second[1]-dUdyauxNew[itmv->first][0]  << " " << itmv->second[2]-dUdzauxNew[itmv->first][0]  << std::endl;
     //        t++;
     //    }
+        
         delete dUdXi;
         
-        Array<double>* dU2dXi2 = ComputedUdx_LSQ_US3D_v3(P,dUdxauxNew,meshTopo,us3d->ghost,comm);
-        Array<double>* dU2dYi2 = ComputedUdx_LSQ_US3D_v3(P,dUdyauxNew,meshTopo,us3d->ghost,comm);
-        Array<double>* dU2dZi2 = ComputedUdx_LSQ_US3D_v3(P,dUdzauxNew,meshTopo,us3d->ghost,comm);
+        Array<double>* dU2dXi2 = ComputedUdx_LSQ_US3D_v3(P,dUdxauxNew,meshTopo,gB,comm);
+        Array<double>* dU2dYi2 = ComputedUdx_LSQ_US3D_v3(P,dUdyauxNew,meshTopo,gB,comm);
+        Array<double>* dU2dZi2 = ComputedUdx_LSQ_US3D_v3(P,dUdzauxNew,meshTopo,gB,comm);
 
 //        Array<double>* dU2dXi2 = ComputedUdx_MGG(P,dUdxauxNew,meshTopo,us3d->ghost,comm);
 //        Array<double>* dU2dYi2 = ComputedUdx_MGG(P,dUdyauxNew,meshTopo,us3d->ghost,comm);
@@ -1082,7 +1088,7 @@ int main(int argc, char** argv) {
         
         for(int i=0;i<nvert;i++)
         {
-            myfile<< Verts[i].x << " " << Verts[i].y << " " << Verts[i].z <<
+            myfile << Verts[i].x << " " << Verts[i].y << " " << Verts[i].z <<
             " " << u_v[i] << " "<< dudx_v[i] << " " << dudy_v[i] << " " << dudz_v[i] <<
             " " << hessian->getVal(i,0) << " " << hessian->getVal(i,1) << " " << hessian->getVal(i,2) <<
             " " << hessian->getVal(i,1) << " " << hessian->getVal(i,3) << " " << hessian->getVal(i,4) <<
@@ -1124,7 +1130,7 @@ int main(int argc, char** argv) {
         if (world_rank == 0)
         {
             MMG3D_Set_handGivenMesh(mmg->mmgMesh);
-            if ( MMG3D_Set_dparameter(mmg->mmgMesh,mmg->mmgSol,MMG3D_DPARAM_hgrad, 3.5) != 1 )    exit(EXIT_FAILURE);
+            if ( MMG3D_Set_dparameter(mmg->mmgMesh,mmg->mmgSol,MMG3D_DPARAM_hgrad, 2.0) != 1 )    exit(EXIT_FAILURE);
             
             int ier = MMG3D_mmg3dlib(mmg->mmgMesh,mmg->mmgSol);
             
@@ -1135,7 +1141,7 @@ int main(int argc, char** argv) {
 //            OutputBoundaryID_MMG(mmgMesh,ref2bface,4);
             WriteUS3DGridFromMMG(mmg->mmgMesh, us3d);
         }
-        /*
+        
         delete d2udx2;
         delete d2udxy;
         delete d2udxz;
@@ -1168,7 +1174,7 @@ int main(int argc, char** argv) {
         delete ien_pstate;
         delete parmetis_pstate;
         //delete UgRoot;
-            */
+            
         MPI_Finalize();
         
     }

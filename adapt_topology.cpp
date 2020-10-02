@@ -1,6 +1,6 @@
 #include "adapt_topology.h"
 
-Mesh_Topology::Mesh_Topology(Partition* Pa, Array<int>* ifn_in, Array<double>* ghost, std::map<int,double> U, int* bnd_map, int nBnd, MPI_Comm comm)
+Mesh_Topology::Mesh_Topology(Partition* Pa, Array<int>* ifn_in, std::map<int,double> U, int* bnd_map, int nBnd, MPI_Comm comm)
 {
     int nlocElem, start, end, offset, nloc, np, loc_vid, size, rank, lid;
     int vf0, vf1, vf2, vf3, vf4, vf5, vf6, vf7, fid;

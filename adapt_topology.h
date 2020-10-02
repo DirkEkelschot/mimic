@@ -11,7 +11,7 @@ using namespace std;
 class Mesh_Topology {
     public:
         Mesh_Topology(){};
-        Mesh_Topology(Partition* Pa, Array<int>* ifn_in, Array<double>* ghost, std::map<int,double> U, int* bnd_map, int nBnd, MPI_Comm comm);
+        Mesh_Topology(Partition* Pa, Array<int>* ifn_in, std::map<int,double> U, int* bnd_map, int nBnd, MPI_Comm comm);
         std::map<int,vector<Vec3D*> > getNormals();
         std::map<int,vector<Vec3D*> > getRvectors();
         std::map<int,vector<Vec3D*> > getdXfXc();
