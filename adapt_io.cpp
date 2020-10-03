@@ -514,8 +514,8 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
     Array<int>* ifn_copy = new Array<int>(nrow_ifn,ncol_ifn);
     Array<int>* ifn_ref  = new Array<int>(nrow_ifn,1);
     int ref;
-    std::ofstream myfile20;
-    myfile20.open("ifn_ref.dat");
+    //std::ofstream myfile20;
+    //myfile20.open("ifn_ref.dat");
     std::map<std::set<int>,int> tria_ref_map;
     std::set<int> tria0;
     std::set<int> tria00;
@@ -534,13 +534,13 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
             {
                 ref = 0;
                 ifn_ref->setVal(i,0,ref);
-                myfile20 << ref << std::endl;
+                //myfile20 << ref << std::endl;
             }
             else // identify the boundary interface and based on bnd_map, determine the reference value.
             {
                 ref = FindBoundaryID(bnd_map,nBnd,i)+1;
                 ifn_ref->setVal(i,0,ref);
-                myfile20 << ref << std::endl;
+                //myfile20 << ref << std::endl;
             }
         }
         
@@ -574,7 +574,7 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
         tria1.clear();
         tria11.clear();
     }
-    myfile20.close();
+    //myfile20.close();
     
     
     delete ifn;
