@@ -22,7 +22,7 @@ class Partition {
     std::map<int,double> CommunicateLocalDataUS3D(Array<double>* U, MPI_Comm comm);
     std::map<int,double> CommunicateAdjacentDataUS3D(Array<double>* U, MPI_Comm comm);
     
-    std::map<int,std::vector<int> > getElement2EntityPerPartition(ParArray<int>* iee, MPI_Comm comm);
+    i_part_map* getElement2EntityPerPartition(ParArray<int>* iee, MPI_Comm comm);
     std::vector<int> getLocElem();
     int getnLoc_Elem();
     std::vector<int> getLocAndAdjElem();
@@ -65,8 +65,9 @@ class Partition {
     ParallelState* getIenParallelState();
     ParallelState* getParallelState();   
     ParallelState_Parmetis* getParallelStateParmetis();
-    std::map<int,std::vector<int> > getIEEpartmap();
-    std::map<int,std::vector<int> > getIEFpartmap();
+    i_part_map* getIEEpartmap();
+    i_part_map* getIEFpartmap();
+    i_part_map* getIENpartmap();
    private:
       
       std::vector<int> Loc_Elem;
@@ -124,8 +125,9 @@ class Partition {
       std::map<int,std::vector<int> > elms_to_send_to_ranks;
       std::map<int,std::vector<int> > part_tot_recv_elIDs;
       std::map<int,std::vector<int> >  reqstd_adj_ids_per_rank;
-      std::map<int,std::vector<int> > iee_part_map;
-      std::map<int,std::vector<int> > ief_part_map;
-    
+      
+      i_part_map* iee_part_map;
+      i_part_map* ief_part_map;
+      i_part_map* ien_part_map;
 };
 #endif

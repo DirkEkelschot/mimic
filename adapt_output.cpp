@@ -268,6 +268,85 @@ void OutputPartition(Partition* part, ParArray<int>* ien, Array<double>* H,  MPI
 }
 
 
+void OutputBLElements(Partition* part, std::vector<int> elements,  MPI_Comm comm)
+{
+    
+    int size;
+    MPI_Comm_size(comm, &size);
+    // Get the rank of the process
+    int rank;
+    MPI_Comm_rank(comm, &rank);
+    std::vector<Vert> LVerts                          =  part->getLocalVerts();
+    std::vector<std::vector<int> > loc_elem2verts_loc =  part->getLocalElem2LocalVert();
+    std::map<int,int> gE2lE                           =  part->getGlobalElement2LocalElement();
+    std::set<int> v_used;
+    std::vector<int> LocalVerticesID;
+    int vid,gEl,lEl;
+    std::set<int> vert_used;
+    std::vector<int> vert_plot;
+    std::map<int,int> gv2lv;
+    Array<int>* ien_bl = new Array<int>(elements.size(),8);
+    int lvid = 0;
+    for(int i=0;i<elements.size();i++)
+    {
+        gEl = elements[i];
+        lEl = gE2lE[gEl];
+        
+        for(int j=0;j<8;j++)
+        {
+            vid = loc_elem2verts_loc[lEl][j];
+        
+            if(gEl==0)
+            {
+                std::cout << " printen " << rank << " " << vid << " " << gEl << std::endl;
+            }
+            if(vert_used.find(vid)==vert_used.end())
+            {
+                vert_used.insert(vid);
+                vert_plot.push_back(vid);
+                gv2lv[vid] = lvid;
+                ien_bl->setVal(i,j,lvid);
+                lvid++;
+            }
+            else
+            {
+                ien_bl->setVal(i,j,gv2lv[vid]);
+            }
+        }
+    }
+    
+    string filename = "BL_Mesh_" + std::to_string(rank) + ".dat";
+    ofstream myfile;
+    myfile.open(filename);
+    myfile << "TITLE=\"BL_part_"  + std::to_string(rank) +  ".tec\"" << std::endl;
+    myfile <<"VARIABLES = \"X\", \"Y\", \"Z\"" << std::endl;
+    myfile <<"ZONE N = " << vert_plot.size() << ", E = " << elements.size() << ", DATAPACKING = POINT, ZONETYPE = FEBRICK" << std::endl;
+    
+    for(int i=0;i<vert_plot.size();i++)
+    {
+        myfile << LVerts[vert_plot[i]].x << "   " << LVerts[vert_plot[i]].y << "   " << LVerts[vert_plot[i]].z << std::endl;
+        if(LVerts[vert_plot[i]].y>0.08)
+        {
+            std::cout << LVerts[vert_plot[i]].x << " " << LVerts[vert_plot[i]].y << " " << LVerts[vert_plot[i]].z << " " << rank << " "<< " " << vert_plot[i] << " " << i << " ranho " << std::endl;
+            
+        }
+    }
+    
+    for(int i=0;i<elements.size();i++)
+    {
+       myfile << ien_bl->getVal(i,0)+1 << "  " <<
+                 ien_bl->getVal(i,1)+1 << "  " <<
+                 ien_bl->getVal(i,2)+1 << "  " <<
+                 ien_bl->getVal(i,3)+1 << "  " <<
+                 ien_bl->getVal(i,4)+1 << "  " <<
+                 ien_bl->getVal(i,5)+1 << "  " <<
+                 ien_bl->getVal(i,6)+1 << "  " <<
+                 ien_bl->getVal(i,7)+1 << std::endl;
+    }
+    myfile.close();
+}
+
+
 void OutputCompletePartition(Partition* part, ParArray<int>* ien, Array<double>*H, MPI_Comm comm)
 {
     

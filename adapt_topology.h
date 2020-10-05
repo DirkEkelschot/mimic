@@ -11,7 +11,8 @@ using namespace std;
 class Mesh_Topology {
     public:
         Mesh_Topology(){};
-        Mesh_Topology(Partition* Pa, Array<int>* ifn_in, std::map<int,double> U, int* bnd_map, int nBnd, MPI_Comm comm);
+        Mesh_Topology(Partition* Pa, Array<int>* ifn_in, std::map<int,double> U, int* bnd_map, std::map<int,std::vector<int> > bnd_face_map, int nBnd, MPI_Comm comm);
+        std::map<int,std::vector<int> > DetermineBoundaryLayerElements(Partition* Pa, int nLayer, int bID, MPI_Comm comm);
         std::map<int,vector<Vec3D*> > getNormals();
         std::map<int,vector<Vec3D*> > getRvectors();
         std::map<int,vector<Vec3D*> > getdXfXc();
@@ -38,6 +39,9 @@ class Mesh_Topology {
         std::map<int,std::vector<int> > ref2face;
         std::map<int,int> vert2ref;
         std::map<int,std::vector<int> > ref2vert;
+        std::map<int,int> Bface2Element;
+        std::map<int,int> Bface2LocID;
+        std::map<int,Vec3D*> Bface2Normal;
         MPI_Comm c;
 };
 

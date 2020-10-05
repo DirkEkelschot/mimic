@@ -152,7 +152,7 @@ Array<double>* ComputedUdx_LSQ(Partition* P, std::vector<double> U, int Nel, MPI
 
 
 
-Array<double>* ComputedUdx_LSQ_US3D_v1(Partition* P, ParallelState* pstate, ParArray<int>* iee, std::map<int,std::vector<int> > iee_vec,std::map<int,std::vector<int> > ief_vec, Array<int>* ifn, Array<int>* ief, int Nel, std::vector<double> U, Array<double>* ghost, Array<double>* bound, MPI_Comm comm)
+Array<double>* ComputedUdx_LSQ_US3D_v1(Partition* P, ParallelState* pstate, ParArray<int>* iee, i_part_map* iee_vec,std::map<int,std::vector<int> > ief_vec, Array<int>* ifn, Array<int>* ief, int Nel, std::vector<double> U, Array<double>* ghost, Array<double>* bound, MPI_Comm comm)
 {
     int world_size;
     MPI_Comm_size(comm, &world_size);
@@ -228,7 +228,7 @@ Array<double>* ComputedUdx_LSQ_US3D_v1(Partition* P, ParallelState* pstate, ParA
         for(int j=0;j<6;j++)
         {
             
-            adjID   = iee_vec[elID][j];
+            adjID   = iee_vec->i_map[elID][j];
             //int fid2 = ief_vec[elID][j];
 //
             if(adjID<Nel)
@@ -521,7 +521,7 @@ Array<double>* ComputedUdx_LSQ_US3D_v3(Partition* Pa, std::map<int,double> U,Mes
    int nLoc_Elem                         = Loc_Elem.size();
    int Nel = Pa->getGlobalPartition()->getNrow();
    Array<int>* ifn = meshTopo->getIFN();
-   std::map<int,std::vector<int> > iee_vec = Pa->getIEEpartmap();
+   i_part_map* iee_vec = Pa->getIEEpartmap();
    std::vector<std::vector<double> > iee_dist;
    std::vector<double> dist;
    double* Pijk = new double[8*3];
@@ -566,7 +566,7 @@ Array<double>* ComputedUdx_LSQ_US3D_v3(Partition* Pa, std::map<int,double> U,Mes
        int t = 0;
        for(int j=0;j<6;j++)
        {
-             int adjID = iee_vec[elID][j];
+             int adjID = iee_vec->i_map[elID][j];
 
            if(adjID<Nel)
            {
@@ -688,7 +688,7 @@ Array<double>* ComputedUdx_MGG(Partition* Pa, std::map<int,double> U, Mesh_Topol
     Array<double>* gu_c_x      = new Array<double>(nLoc_Elem,1);
     Array<double>* gu_c_y      = new Array<double>(nLoc_Elem,1);
     Array<double>* gu_c_z      = new Array<double>(nLoc_Elem,1);
-    std::map<int,std::vector<int> > iee_vec = Pa->getIEEpartmap();
+    i_part_map* iee_vec = Pa->getIEEpartmap();
     Array<double>* gu_c_old    = new Array<double>(nLoc_Elem,3);
     
     std::map<int,std::vector<int> > gE2gF = Pa->getglobElem2globFaces();
@@ -754,7 +754,7 @@ Array<double>* ComputedUdx_MGG(Partition* Pa, std::map<int,double> U, Mesh_Topol
              
              for(int j=0;j<6;j++)
              {
-                 adjID   = iee_vec[gEl][j];
+                 adjID   = iee_vec->i_map[gEl][j];
                  
                  if(adjID<Nel)
                  {

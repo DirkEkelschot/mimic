@@ -32,8 +32,9 @@ Partition::Partition(ParArray<int>* ien, ParArray<int>* iee, ParArray<int>* ief,
     
     iee_part_map = getElement2EntityPerPartition(iee, comm);
     ief_part_map = getElement2EntityPerPartition(ief, comm);
+    //ien_part_map = getElement2EntityPerPartition(ien, comm); BROKEN!!! DONT KNOW WHY!!!!!
     
-    DetermineAdjacentElement2ProcMapUS3D(ien, iee_part_map, part, ien_pstate, xcn, xcn_parstate, U, comm);
+    DetermineAdjacentElement2ProcMapUS3D(ien, iee_part_map->i_map, part, ien_pstate, xcn, xcn_parstate, U, comm);
 
     nLocAndAdj_Elem = LocAndAdj_Elem.size();
     
@@ -2426,8 +2427,10 @@ std::vector<double> Partition::PartitionAuxilaryData(Array<double>* U, MPI_Comm 
     return UauxElem;
 }
 
-std::map<int,std::vector<int> > Partition::getElement2EntityPerPartition(ParArray<int>* iee, MPI_Comm comm)
+i_part_map* Partition::getElement2EntityPerPartition(ParArray<int>* iee, MPI_Comm comm)
 {
+    
+    i_part_map* iee_p_map = new i_part_map;
     
     int floc_tmp = 0;
     int vloc_tmp = 0;
@@ -2451,7 +2454,7 @@ std::map<int,std::vector<int> > Partition::getElement2EntityPerPartition(ParArra
     std::map<int,std::vector<int> > rank2req_Elems;
     int* new_offsets = new int[size];
     std::map<int,std::vector<int> > iee_loc;
-    
+    std::map<int,std::vector<int> > iee_loc_inv;
     for(int i=0;i<size;i++)
     {
         new_offsets[i] = ien_pstate->getOffsets()[i]-1;
@@ -2479,6 +2482,7 @@ std::map<int,std::vector<int> > Partition::getElement2EntityPerPartition(ParArra
             for(int j=0;j<ncol;j++)
             {
                 iee_loc[el_req].push_back(iee->getVal(el_req-ien_o,j));
+                iee_loc_inv[iee->getVal(el_req-ien_o,j)].push_back(el_req);
             }
         }
     }
@@ -2595,6 +2599,7 @@ std::map<int,std::vector<int> > Partition::getElement2EntityPerPartition(ParArra
             for(int r=0;r<ncol;r++)
             {
                 iee_loc[el_id].push_back(recv_back_iee[iter->first][s*ncol+r]);
+                iee_loc_inv[recv_back_iee[iter->first][s*ncol+r]].push_back(el_id);
                 
             }
         }
@@ -2603,8 +2608,14 @@ std::map<int,std::vector<int> > Partition::getElement2EntityPerPartition(ParArra
     
     delete[] new_offsets;
     
-    return iee_loc;
+    iee_p_map->i_map = iee_loc;
+    iee_p_map->i_inv_map = iee_loc_inv;
+    
+    return iee_p_map;
 }
+
+
+
 
 std::vector<int> Partition::getLocElem()
 {
@@ -2726,13 +2737,17 @@ ParallelState* Partition::getParallelState()
 {
     return ien_pstate;
 }
-std::map<int,std::vector<int> > Partition::getIEEpartmap()
+i_part_map* Partition::getIEEpartmap()
 {
     return iee_part_map;
 }
-std::map<int,std::vector<int> > Partition::getIEFpartmap()
+i_part_map* Partition::getIEFpartmap()
 {
     return ief_part_map;
+}
+i_part_map* Partition::getIENpartmap()
+{
+    return ien_part_map;
 }
 //double Partition::getUauxatGlobalElem(int gelem)
 //{

@@ -7,7 +7,11 @@
 
 
 
-
+struct i_part_map
+{
+    std::map<int,std::vector<int> > i_map;
+    std::map<int,std::vector<int> > i_inv_map;
+};
 
 struct ParVar
 {

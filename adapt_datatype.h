@@ -24,6 +24,7 @@ struct US3D{
     Array<int>* zdefs;
     std::vector<int> bnd_m;
     int* bnd_map;
+    std::map<int,std::vector<int> > bnd_face_map;
     int nBnd;
 };
 

@@ -162,7 +162,6 @@ void WriteUS3DGridFromMMG(MMG5_pMesh mmgMesh, US3D* us3d)
             adapt_ifn->setVal(t,6,itm->second+1);
             adapt_ifn->setVal(t,7,us3d->zdefs->getVal(3+bc_id-1,5));
             t++;
-            
         }
     }
     std::map<int,std::vector<int> >::iterator it_bref;
@@ -436,7 +435,7 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
     
     Array<int>*    zdefs        = ReadDataSetFromGroupFromFile<int>(fn_grid,"zones","zdefs");
     Array<char>*  znames        = ReadDataSetFromGroupFromFile<char>(fn_grid,"zones","znames");
-    
+    std::map<int,std::vector<int> > bnd_face_map;
     // Collect boundary data;
     std::vector<int> bnd_m;
     int t=0;
@@ -460,13 +459,7 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
         //bnd_m.push_back(zdefs->getVal(i,3));
     }
     int fint = bnd_map[0];
-//    if(rank == 0)
-//    {
-//        for(int i=0;i<zdefs->getNrow()-3;i++)
-//        {
-//            std::cout << "bnd_map " << bnd_map[i] << " " << nBnd << std::endl;
-//        }
-//    }
+    
     
     int i,j;
     int nglob = ien->getNglob();
@@ -523,25 +516,30 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
     std::set<int> tria11;
     std::vector<int*> tria_ref;
     int faceid;
+    int nodeid;
     for(i=0;i<nrow_ifn;i++)
     {
+        
+        if(i<fint) // identify the internal face;
+        {
+            ref = 0;
+            ifn_ref->setVal(i,0,ref);
+            //myfile20 << ref << std::endl;
+        }
+        else // identify the boundary interface and based on bnd_map, determine the reference value.
+        {
+            faceid = i;
+            ref = FindBoundaryID(bnd_map,nBnd,i)+1;
+            bnd_face_map[ref].push_back(faceid);
+            ifn_ref->setVal(i,0,ref);
+            //myfile20 << ref << std::endl;
+        }
+        
+        
         for(j=0;j<ncol_ifn;j++)
         {
-            faceid = ifn->getVal(i,j+1)-1;
+            nodeid = ifn->getVal(i,j+1)-1; // This is actually node ID!!!!
             ifn_copy->setVal(i,j,ifn->getVal(i,j+1)-1);
-            
-            if(i<fint) // identify the internal face;
-            {
-                ref = 0;
-                ifn_ref->setVal(i,0,ref);
-                //myfile20 << ref << std::endl;
-            }
-            else // identify the boundary interface and based on bnd_map, determine the reference value.
-            {
-                ref = FindBoundaryID(bnd_map,nBnd,i)+1;
-                ifn_ref->setVal(i,0,ref);
-                //myfile20 << ref << std::endl;
-            }
         }
         
         tria0.insert(ifn->getVal(i,0+1)-1);
@@ -575,7 +573,13 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
         tria11.clear();
     }
     //myfile20.close();
-    
+    if(rank == 0)
+    {
+        for(int i=0;i<nBnd;i++)
+        {
+            std::cout << "bnd_map " << i << " " << bnd_face_map[i].size() << std::endl;
+        }
+    }
     
     delete ifn;
     int nrow_ife = ife->getNrow();
@@ -607,6 +611,7 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
     us3d->zdefs         = zdefs;
     us3d->bnd_m         = bnd_m;
     us3d->bnd_map       = bnd_map;
+    us3d->bnd_face_map  = bnd_face_map;
     us3d->nBnd          = nBnd;
     us3d->tria_ref_map  = tria_ref_map;
     us3d->tria_ref      = tria_ref;

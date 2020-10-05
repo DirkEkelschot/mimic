@@ -57,7 +57,7 @@ Mesh_Topology* meshTopo, Array<double>* ghost, MPI_Comm comm)
     Array<double>* gu_c_x      = new Array<double>(nLoc_Elem,1);
     Array<double>* gu_c_y      = new Array<double>(nLoc_Elem,1);
     Array<double>* gu_c_z      = new Array<double>(nLoc_Elem,1);
-    std::map<int,std::vector<int> > iee_vec = Pa->getIEEpartmap();
+    i_part_map* iee_vec = Pa->getIEEpartmap();
     dudx    = new Array<double>(nLoc_Elem,3);
     
     std::map<int,std::vector<int> > gE2gF = Pa->getglobElem2globFaces();
@@ -122,7 +122,7 @@ Mesh_Topology* meshTopo, Array<double>* ghost, MPI_Comm comm)
              
              for(int j=0;j<6;j++)
              {
-                 adjID   = iee_vec[gEl][j];
+                 adjID   = iee_vec->i_map[gEl][j];
                  
                  if(adjID<Nel)
                  {
@@ -229,7 +229,7 @@ inline Array<double>* Gradients::ComputedUdx_LSQ_US3D_v2(Partition* Pa, std::map
    int nLoc_Elem                         = Loc_Elem.size();
    int Nel = Pa->getGlobalPartition()->getNrow();
    Array<int>* ifn = meshTopo->getIFN();
-   std::map<int,std::vector<int> > iee_vec = Pa->getIEEpartmap();
+   i_part_map* iee_vec = Pa->getIEEpartmap();
    std::vector<std::vector<double> > iee_dist;
    std::vector<double> dist;
    double* Pijk = new double[8*3];
@@ -274,7 +274,7 @@ inline Array<double>* Gradients::ComputedUdx_LSQ_US3D_v2(Partition* Pa, std::map
        int t = 0;
        for(int j=0;j<6;j++)
        {
-             int adjID = iee_vec[elID][j];
+             int adjID = iee_vec->i_map[elID][j];
 
            if(adjID<Nel)
            {

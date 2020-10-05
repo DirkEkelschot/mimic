@@ -34,6 +34,8 @@ void OutputQuantityPartition(Partition_old* pa, Array<double>* Quan, MPI_Comm co
 
 //void OutputPartitionFaces();
 
+void OutputBLElements(Partition* part, std::vector<int> elements,  MPI_Comm comm);
+
 void WriteBoundaryDataInSerial3(Array<double>* xcn);
 
 void WriteBoundaryDataInSerial(Array<double>* xcn, Array<int>* zdefs, Array<int>* ifn, double* detJ_verts, double* vol_verts, double* Jnorm_verts);

@@ -934,8 +934,8 @@ int main(int argc, char** argv) {
         
         std::map<int,double> UauxNew = P->CommunicateAdjacentDataUS3D(Uivar,comm);
         
-        Mesh_Topology* meshTopo = new Mesh_Topology(P,us3d->ifn,UauxNew,us3d->bnd_map,us3d->nBnd,comm);
-        
+        Mesh_Topology* meshTopo = new Mesh_Topology(P,us3d->ifn,UauxNew,us3d->bnd_map,us3d->bnd_face_map,us3d->nBnd,comm);
+        /*
         //OutputBoundaryID(P, meshTopo, us3d, 0);
 //        OutputBoundaryID(P, meshTopo, us3d, 1);
 //        OutputBoundaryID(P, meshTopo, us3d, 2);
@@ -1174,7 +1174,7 @@ int main(int argc, char** argv) {
         delete ien_pstate;
         delete parmetis_pstate;
         //delete UgRoot;
-            
+            */
         MPI_Finalize();
         
     }
