@@ -253,7 +253,7 @@ std::map<int,std::vector<int> > Mesh_Topology::DetermineBoundaryLayerElements(Pa
     std::map<int,int> gE2lE                             = Pa->getGlobalElement2LocalElement();
     std::vector<std::vector<int> > loc_elem2verts_loc   = Pa->getLocalElem2LocalVert();
     std::vector<Vert> LVerts                            = Pa->getLocalVerts();
-
+    std::map<int,std::vector<int> > gE2lV               = Pa->getGlobElem2LocVerts();
     //std::map<int,std::vector<int> >::iterator it;
     Array<int>* gPart = Pa->getGlobalPartition();
     int tel = 0;
@@ -264,7 +264,7 @@ std::map<int,std::vector<int> > Mesh_Topology::DetermineBoundaryLayerElements(Pa
     
     std::map<int,std::vector<int> > rank2req_vert;
     std::map<int,std::vector<int> > rank2req_elem;
-    
+    int ui=0;
     for(int i=0;i<ref2face[bID].size();i++)
     {
         fid_start = ref2face[bID][i];
@@ -308,22 +308,23 @@ std::map<int,std::vector<int> > Mesh_Topology::DetermineBoundaryLayerElements(Pa
             }
             else
             {
-//                std::cout << "compare rank with rank of element -> " << rank << " " << gEl << " " << ife_in->getVal(fid_new,0) << " " << " " << ife_in->getVal(fid_new,1) << " " << " " << gPart->getVal(ife_in->getVal(fid_new,1),0) << std::endl;
+                //std::cout << "compare rank with rank of element -> " << rank << " " << gEl << " " << ife_in->getVal(fid_new,0) << " " << " " << ife_in->getVal(fid_new,1) << " " << " " << gPart->getVal(ife_in->getVal(fid_new,1),0) << std::endl;
                 
-                gElvec0 = gPart->getVal(ife_in->getVal(fid_new,0),0);
-                gElvec1 = gPart->getVal(ife_in->getVal(fid_new,1),0);
-                
+                gElvec0 = ife_in->getVal(fid_new,0);
+                gElvec1 = ife_in->getVal(fid_new,1);
+                int rank_id0 = gPart->getVal(gElvec0,0);
+		int rank_id1 = gPart->getVal(gElvec1,0);
                 if(gElvec0==gEl)
                 {
-                    rank2req_elem[rank].push_back(gElvec1);
+                    rank2req_elem[rank_id1].push_back(gElvec1);
                 }
                 if(gElvec1==gEl)
                 {
-                    rank2req_elem[rank].push_back(gElvec0);
+                    rank2req_elem[rank_id0].push_back(gElvec0);
                 }
+  	 	ui++;
             }
         }
-        
         BLelements[fid_start] = ElLayer;
         ElLayer.clear();
     }
@@ -343,7 +344,10 @@ std::map<int,std::vector<int> > Mesh_Topology::DetermineBoundaryLayerElements(Pa
             {
                 int n_req           = it->second.size();
                 int dest            = it->first;
-
+                //for(int n=0;n<n_req;n++)
+		//{
+		//	std::cout << rank << " requested " << it->second[n] << std::endl;
+		//}
                 MPI_Send(&n_req, 1, MPI_INT, dest, 9876*7654+20*dest, comm);
                 MPI_Send(&it->second[0], n_req, MPI_INT, dest, 9876*2*7654+dest*40, comm);
 
@@ -362,8 +366,89 @@ std::map<int,std::vector<int> > Mesh_Topology::DetermineBoundaryLayerElements(Pa
             reqstd_E_IDs_per_rank[q] = recv_reqstd_ids;
         }
     }
+
+
+    std::cout << rank << " " << ui << " " << rank2req_elem.size() << std::endl;
     
+    /*
+    std::map<int,std::vector<int> >::iterator iter;
+
+    for(iter=rank2req_elem.begin();iter!=rank2req_elem.end();iter++)
+    {
+	std::cout << "Rank" << rank << " requests from " << iter->first << " for " << iter->second.size() << " IDs"<< std::endl;  
+    }
+    for(iter=reqstd_E_IDs_per_rank.begin();iter!=reqstd_E_IDs_per_rank.end();iter++)
+    {
+	std::cout << " Rank "<< rank << " received request from " << iter->first << " for " << iter->second.size() << std::endl;
+    }
+    */
+    std::map<int,int > recv_back_Niee;
+    std::map<int,int* > recv_back_el_ids;
+    std::map<int,double* > recv_back_iee;
     
+    for(int q=0;q<size;q++)
+    {
+        if(rank == q)
+        {
+            for (it = reqstd_E_IDs_per_rank.begin(); it != reqstd_E_IDs_per_rank.end(); it++)
+            {
+                int ne_send_el  = it->second.size();
+                int ne_send_vrt = it->second.size()*8*3;
+                double* iee_send_e = new double[ne_send_el];
+                double* iee_send_v = new double[ne_send_vrt];
+                for(int u=0;u<it->second.size();u++)
+                {
+                    for(int w=0;w<8;w++)
+                    {
+                        int lEl = gE2lV[it->second[u]][w];
+                        iee_send_v[u*8+0]=LVerts[lEl].x;
+                        iee_send_v[u*8+1]=LVerts[lEl].y;
+                        iee_send_v[u*8+2]=LVerts[lEl].z;
+                    }
+                }
+
+                int dest = it->first;
+                MPI_Send(&ne_send_el, 1, MPI_INT, dest, 9876*6666+1000*dest, comm);
+                
+                MPI_Send(&it->second[0], ne_send_el, MPI_INT, dest, 9876*7777+dest*888, comm);
+
+                MPI_Send(&iee_send_v[0], ne_send_vrt, MPI_DOUBLE, dest, 9876*6666+dest*8888, comm);
+
+                delete[] iee_send_e;
+		delete[] iee_send_v;
+            }
+        }
+        if(iee_schedule->RecvRankFromRank[q].find( rank ) != iee_schedule->RecvRankFromRank[q].end())
+         {
+	    int n_recv_back;
+            MPI_Recv(&n_recv_back, 1, MPI_INT, q, 9876*6666+1000*rank, comm, MPI_STATUS_IGNORE);
+             
+            double* recv_back_iee_arr   = new double[n_recv_back*8*3];
+            int*    recv_back_ids_arr   = new int[n_recv_back];
+            MPI_Recv(&recv_back_ids_arr[0], n_recv_back, MPI_INT, q, 9876*7777+rank*888, comm, MPI_STATUS_IGNORE);
+            MPI_Recv(&recv_back_iee_arr[0], n_recv_back*8*3, MPI_DOUBLE, q, 9876*6666+rank*8888, comm, MPI_STATUS_IGNORE);
+
+            recv_back_Niee[q]     = n_recv_back;
+            recv_back_el_ids[q]   = recv_back_ids_arr;
+            recv_back_iee[q]      = recv_back_iee_arr;
+         }
+    }
+
+    
+    std::map<int,int >::iterator iter;
+    int ntotal=0;
+    
+    for(iter=recv_back_Niee.begin();iter!=recv_back_Niee.end();iter++)
+    {
+        int L = iter->second;
+        
+        for(int s=0;s<L;s++)
+        {
+            int el_id = recv_back_el_ids[iter->first][s];
+            //std::cout << rank << " received " << el_id << std::endl;
+        }
+    }
+  
     return BLelements;
 }
 

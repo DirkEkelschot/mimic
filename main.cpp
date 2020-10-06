@@ -999,7 +999,7 @@ int main(int argc, char** argv) {
             }
         }
         
-        std::cout << "bl_elem size = " << bl_elem.size() << std::endl;
+        //std::cout << "bl_elem size = " << bl_elem.size() << std::endl;
         
         if(bl_layers.size()!=0)
         {
