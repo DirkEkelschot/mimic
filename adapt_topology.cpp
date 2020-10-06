@@ -261,6 +261,10 @@ std::map<int,std::vector<int> > Mesh_Topology::DetermineBoundaryLayerElements(Pa
     std::vector<int> ElLayer;
     int tel2 = 0;
     double min_val;
+    
+    std::map<int,std::vector<int> > rank2req_vert;
+    std::map<int,std::vector<int> > rank2req_elem;
+    
     for(int i=0;i<ref2face[bID].size();i++)
     {
         fid_start = ref2face[bID][i];
@@ -302,41 +306,63 @@ std::map<int,std::vector<int> > Mesh_Topology::DetermineBoundaryLayerElements(Pa
                 ElLayer.push_back(gElnew);
                 gEl=gElnew;
             }
-	    else
-	    {
-		 gElvec0    = gE2gF->i_inv_map[fid_new][0];
-		std::cout << "compare rank with rank of element -> " << rank << " " << gEl << " " << ife_in->getVal(fid_new,0) << " " << " " << ife_in->getVal(fid_new,1) << " " << gPart->getVal(ife_in->getVal(fid_new,0),0) << " " << gPart->getVal(ife_in->getVal(fid_new,1),0) << std::endl;
-
-	    }
-        }
-	
-        /*
-        if(ElLayer.size()==11)
-        {
-//            for(int g=0;g<5;g++)
-//            {
-//                std::cout << dp[g] << " " << min_index <<  " " << min_val << std::endl;
-//            }
-//            std::cout << std::endl;
-            tel2++;
-            
-        }
-        else
-        {
-            std::cout << rank << " "  << "not stacked!! " << i << " " << ElLayer.size() <<  std::endl;
-            for(int g=0;g<dp.size();g++)
+            else
             {
-                std::cout << dp[g] << " " << min_index <<  " " << min_val << std::endl;
+//                std::cout << "compare rank with rank of element -> " << rank << " " << gEl << " " << ife_in->getVal(fid_new,0) << " " << " " << ife_in->getVal(fid_new,1) << " " << " " << gPart->getVal(ife_in->getVal(fid_new,1),0) << std::endl;
+                
+                gElvec0 = gPart->getVal(ife_in->getVal(fid_new,0),0);
+                gElvec1 = gPart->getVal(ife_in->getVal(fid_new,1),0);
+                
+                if(gElvec0==gEl)
+                {
+                    rank2req_elem[rank].push_back(gElvec1);
+                }
+                if(gElvec1==gEl)
+                {
+                    rank2req_elem[rank].push_back(gElvec0);
+                }
             }
-            std::cout << std::endl;
         }
-	*/
         
         BLelements[fid_start] = ElLayer;
         ElLayer.clear();
     }
     
-    std::cout << "rank  = " << rank << " "  << ref2face[bID].size() << " counter full stack " << tel2 << std::endl;
+    
+    ScheduleObj* iee_schedule = DoScheduling(rank2req_elem,comm);
+
+    std::map<int,std::vector<int> >::iterator it;
+    std::map<int,std::vector<int> >  reqstd_E_IDs_per_rank;
+
+    for(int q=0;q<size;q++)
+    {
+        if(rank==q)
+        {
+            int i=0;
+            for (it = rank2req_elem.begin(); it != rank2req_elem.end(); it++)
+            {
+                int n_req           = it->second.size();
+                int dest            = it->first;
+
+                MPI_Send(&n_req, 1, MPI_INT, dest, 9876*7654+20*dest, comm);
+                MPI_Send(&it->second[0], n_req, MPI_INT, dest, 9876*2*7654+dest*40, comm);
+
+                i++;
+            }
+        }
+        else if (iee_schedule->SendFromRank2Rank[q].find( rank ) != iee_schedule->SendFromRank2Rank[q].end())
+        {
+            int n_reqstd_ids;
+            MPI_Recv(&n_reqstd_ids, 1, MPI_INT, q, 9876*7654+20*rank, comm, MPI_STATUS_IGNORE);
+
+            std::vector<int> recv_reqstd_ids(n_reqstd_ids);
+            
+            MPI_Recv(&recv_reqstd_ids[0], n_reqstd_ids, MPI_INT, q, 9876*2*7654+rank*40, comm, MPI_STATUS_IGNORE);
+            
+            reqstd_E_IDs_per_rank[q] = recv_reqstd_ids;
+        }
+    }
+    
     
     return BLelements;
 }
