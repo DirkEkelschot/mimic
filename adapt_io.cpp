@@ -577,7 +577,7 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
     {
         for(int i=0;i<nBnd;i++)
         {
-            std::cout << "bnd_map " << i << " " << bnd_face_map[i].size() << std::endl;
+            std::cout << "bnd_map " << i << " " << bnd_face_map[i+1].size() << std::endl;
         }
     }
     

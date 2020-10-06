@@ -898,8 +898,6 @@ int main(int argc, char** argv) {
             std::cout << "For now, reading existing metric data."  << std::endl;
             
             //OutputAdapt_Grid();
-            
-            
         }
         MPI_Finalize();
     }
@@ -935,6 +933,133 @@ int main(int argc, char** argv) {
         std::map<int,double> UauxNew = P->CommunicateAdjacentDataUS3D(Uivar,comm);
         
         Mesh_Topology* meshTopo = new Mesh_Topology(P,us3d->ifn,UauxNew,us3d->bnd_map,us3d->bnd_face_map,us3d->nBnd,comm);
+        
+        //======================================================================================
+        //======================================================================================
+        //======================================================================================
+        Array<double>* xcn_g;
+        Array<int>* ien_g;
+        if(world_rank == 0)
+        {
+            xcn_g = new Array<double>(us3d->xcn->getNglob(),3);
+            ien_g = new Array<int>(us3d->ien->getNglob(),8);
+        }
+        else
+        {
+            xcn_g = new Array<double>(1,1);
+            ien_g = new Array<int>(1,1);
+        }
+
+        int* ien_nlocs      = new int[world_size];
+        int* ien_offsets    = new int[world_size];
+        int* xcn_nlocs      = new int[world_size];
+        int* xcn_offsets    = new int[world_size];
+        for(int i=0;i<world_size;i++)
+        {
+            xcn_nlocs[i]   = xcn_pstate->getNlocs()[i]*3;
+            xcn_offsets[i] = xcn_pstate->getOffsets()[i]*3;
+            
+            ien_nlocs[i]   = ien_pstate->getNlocs()[i]*8;
+            ien_offsets[i] = ien_pstate->getOffsets()[i]*8;
+        }
+
+        MPI_Gatherv(&us3d->xcn->data[0],
+                    us3d->xcn->getNrow()*3,
+                    MPI_DOUBLE,
+                    &xcn_g->data[0],
+                    xcn_nlocs,
+                    xcn_offsets,
+                    MPI_DOUBLE, 0, comm);
+
+
+        MPI_Gatherv(&us3d->ien->data[0],
+                    us3d->ien->getNrow()*8,
+                    MPI_INT,
+                    &ien_g->data[0],
+                    ien_nlocs,
+                    ien_offsets,
+                    MPI_INT, 0, comm);
+        
+        
+        std::map<int,std::vector<int> > bl_layers = meshTopo->getBLlayers();
+        std::vector<int> bl_elem;
+        std::set<int> un_bl_elem;
+
+        std::map<int,std::vector<int> >::iterator itt;
+
+        for(itt=bl_layers.begin();itt!=bl_layers.end();itt++)
+        {
+            for(int q=0;q<itt->second.size();q++)
+            {
+                if(un_bl_elem.find(itt->second[q])==un_bl_elem.end())
+                {
+                    un_bl_elem.insert(itt->second[q]);
+                    bl_elem.push_back(itt->second[q]);
+                }
+            }
+        }
+        
+        std::cout << "bl_elem size = " << bl_elem.size() << std::endl;
+        
+        if(bl_layers.size()!=0)
+        {
+            OutputBLElements(P, bl_elem, comm, "bl_prank_");
+        }
+        
+        int nBLelem = bl_elem.size();
+        int* bl_sizes = new int[world_size];
+        int* bl_loc_sizes = new int[world_size];
+        for(int i=0;i<world_size;i++)
+        {
+            bl_sizes[i] = 0;
+            if(i == world_rank)
+            {
+                bl_loc_sizes[i] = nBLelem;
+            }
+            else
+            {
+                bl_loc_sizes[i] = 0;
+            }
+        }
+        
+        MPI_Allreduce(bl_loc_sizes, bl_sizes, world_size, MPI_INT, MPI_SUM, comm);
+        
+        int* bl_offset = new int[world_size];
+        bl_offset[0]  = 0;
+        int N_bl_elem = 0;
+        
+        for(int i=1;i<world_size+1;i++)
+        {
+            bl_offset[i] = bl_offset[i-1]+bl_sizes[i-1];
+            N_bl_elem = N_bl_elem + bl_sizes[i-1];
+        }
+        
+        std::vector<int> tot_bl_elems(N_bl_elem);
+        
+        MPI_Gatherv(&bl_elem[0], nBLelem, MPI_INT, &tot_bl_elems[0], bl_sizes, bl_offset, MPI_INT, 0, comm);
+        
+        if(world_rank == 0)
+        {
+            std::set<int> u_elem;
+            std::vector<int> bl_elem_root;
+            
+            for(int i=0;i<tot_bl_elems.size();i++)
+            {
+                if(u_elem.find(tot_bl_elems[i])==u_elem.end())
+                {
+                    u_elem.insert(tot_bl_elems[i]);
+                    bl_elem_root.push_back(tot_bl_elems[i]);
+                }
+            }
+            std::cout << bl_elem_root.size() << " bl_elem_root " << std::endl;
+            OutputBLElementsOnRoot(xcn_g, ien_g, bl_elem_root, comm, "bl_layers_");
+        }
+
+        //======================================================================================
+        //======================================================================================
+        //======================================================================================
+        
+        
         /*
         //OutputBoundaryID(P, meshTopo, us3d, 0);
 //        OutputBoundaryID(P, meshTopo, us3d, 1);

@@ -25,6 +25,7 @@ class Mesh_Topology {
         std::map<int,std::vector<int> > getRef2Face();
         std::map<int,int> getVert2Ref();
         std::map<int,std::vector<int> > getRef2Vert();
+        std::map<int, std::vector<int> > getBLlayers();
     private:
         Array<double>* cc;
         std::map<int,vector<Vec3D*> > normals;
@@ -42,6 +43,7 @@ class Mesh_Topology {
         std::map<int,int> Bface2Element;
         std::map<int,int> Bface2LocID;
         std::map<int,Vec3D*> Bface2Normal;
+        std::map<int,std::vector<int> > BLlayers;
         MPI_Comm c;
 };
 

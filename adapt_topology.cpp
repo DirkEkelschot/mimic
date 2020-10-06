@@ -1,5 +1,6 @@
 #include "adapt_topology.h"
 #include "adapt_output.h"
+
 Mesh_Topology::Mesh_Topology(Partition* Pa, Array<int>* ifn_in, std::map<int,double> U, int* bnd_map, std::map<int,std::vector<int> > bnd_face_map, int nBnd, MPI_Comm comm)
 {
     int nlocElem, start, end, offset, nloc, np, loc_vid, size, rank, lid;
@@ -217,50 +218,9 @@ Mesh_Topology::Mesh_Topology(Partition* Pa, Array<int>* ifn_in, std::map<int,dou
         }
     }
     
+    BLlayers = DetermineBoundaryLayerElements(Pa,10,3,c);
     
-    std::map<int,std::vector<int> > layers = DetermineBoundaryLayerElements(Pa,10,4,c);
-    
-    if(layers.size()!=0)
-    {
-        std::vector<int> elements;
-        std::set<int> un_elements;
 
-        std::map<int,std::vector<int> >::iterator itt;
-
-        for(itt=layers.begin();itt!=layers.end();itt++)
-        {
-            for(int q=0;q<itt->second.size();q++)
-            {
-                if(un_elements.find(itt->second[q])==un_elements.end())
-                {
-                    un_elements.insert(itt->second[q]);
-                    elements.push_back(itt->second[q]);
-                }
-            }
-        }
-
-        OutputBLElements(Pa, elements, c);
-    }
-    
-    
-    
-//
-//    if(rank == 0)
-//    {
-//        std::map<int,std::vector<int> >::iterator itt;
-//
-//        for(itt=layers.begin();itt!=layers.end();itt++)
-//        {
-//            std::cout << itt->first << " -> ";
-//            for(int q=0;q<itt->second.size();q++)
-//            {
-//                std::cout << itt->second[q] << " ";
-//            }
-//            std::cout << std::endl;
-//        }
-//    }
-//
-    
     delete[] Pijk;
     delete[] Po;
     
@@ -285,28 +245,28 @@ std::map<int,std::vector<int> > Mesh_Topology::DetermineBoundaryLayerElements(Pa
     MPI_Comm_rank(comm, &rank);
     int fid_start,gEl,t,gElnew,min_index,lid,fid_new,lEl;
     double newf_id;
-    std::vector<double> dp(5);
+    std::vector<double> dp(6);
     std::map<int,std::vector<int> > BLelements;
     std::vector<int> gElvec;
-    std::map<int,std::vector<int> > gF2gE = Pa->getglobFace2GlobalElements();
-    i_part_map* gE2gF = Pa->getIEFpartmap();
-    std::map<int,int> gE2lE               = Pa->getGlobalElement2LocalElement();
-    std::vector<std::vector<int> > loc_elem2verts_loc = Pa->getLocalElem2LocalVert();
-    std::vector<Vert> LVerts                          =  Pa->getLocalVerts();
+    std::map<int,std::vector<int> > gF2gE               = Pa->getglobFace2GlobalElements();
+    i_part_map* gE2gF                                   = Pa->getIEFpartmap();
+    std::map<int,int> gE2lE                             = Pa->getGlobalElement2LocalElement();
+    std::vector<std::vector<int> > loc_elem2verts_loc   = Pa->getLocalElem2LocalVert();
+    std::vector<Vert> LVerts                            = Pa->getLocalVerts();
 
     //std::map<int,std::vector<int> >::iterator it;
     Array<int>* gPart = Pa->getGlobalPartition();
     int tel = 0;
     int gElvec0,gElvec1;
     std::vector<int> ElLayer;
+    int tel2 = 0;
+    double min_val;
     for(int i=0;i<ref2face[bID].size();i++)
     {
         fid_start = ref2face[bID][i];
-        
-        ;
+    
         Vec3D* nb = Bface2Normal[fid_start];
         //NegateVec3D(nb);
-        lid = Bface2LocID[fid_start];
         gEl = Bface2Element[fid_start];
         ElLayer.push_back(gEl);
         for(int k=0;k<nLayer;k++)
@@ -315,34 +275,20 @@ std::map<int,std::vector<int> > Mesh_Topology::DetermineBoundaryLayerElements(Pa
             for(int j=0;j<6;j++)
             {
                 Vec3D* nt = normals[gEl][j];
-                if(j!=lid)
-                {
-                    dp[t] = DotVec3D(nb,nt);
-                    
-                    //std::cout << t << " "  << dp[t]  << std::endl;
-                                      
-                    t++;
-                }
+                dp[j] = DotVec3D(nb,nt);
             }
             
-            min_index = std::min_element(dp.begin(),dp.end())-dp.begin();
-            double min_val = *std::min_element(dp.begin(),dp.end());
-            fid_new   = gE2gF->i_map[gEl][min_index];
-            nb        = normals[gEl][min_index];
+            min_index       = std::min_element(dp.begin(),dp.end())-dp.begin();
+            min_val  = *std::min_element(dp.begin(),dp.end());
+            
+            fid_new         = gE2gF->i_map[gEl][min_index];
+            nb              = normals[gEl][min_index];
             NegateVec3D(nb);
 
             if(gE2gF->i_inv_map[fid_new].size()==2)
             {
                 gElvec0    = gE2gF->i_inv_map[fid_new][0];
                 gElvec1    = gE2gF->i_inv_map[fid_new][1];
-                if(gE2gF->i_map.find(gEl)==gE2gF->i_map.end())
-                {
-                    std::cout << "not in map 1" << std::endl;
-                }
-                if(gE2gF->i_inv_map.find(fid_new)==gE2gF->i_inv_map.end())
-                {
-                    std::cout << "not in map 2" << std::endl;
-                }
                 
                 if(gElvec0==gEl)
                 {
@@ -352,24 +298,36 @@ std::map<int,std::vector<int> > Mesh_Topology::DetermineBoundaryLayerElements(Pa
                 {
                     gElnew = gElvec0;
                 }
-                else{
-                    std::cout << rank << " "  << gEl << " :: " << gElvec0 << " ->  " << gPart->getVal(gElvec0,0) << " " << gElvec1 << " -> " << gPart->getVal(gElvec1,0) << " " << gE2gF->i_inv_map[fid_new].size() << " not on partition" << std::endl;
-                }
 
                 ElLayer.push_back(gElnew);
                 gEl=gElnew;
             }
-            else
-            {
-                gElvec0    = gE2gF->i_inv_map[fid_new][0];
-                std::cout << rank << " "  << gEl << " :: " << gElvec0 << std::endl;
-            
-            }
         }
-        //std::cout << std::endl;
+        if(ElLayer.size()==11)
+        {
+//            for(int g=0;g<5;g++)
+//            {
+//                std::cout << dp[g] << " " << min_index <<  " " << min_val << std::endl;
+//            }
+//            std::cout << std::endl;
+            tel2++;
+            
+        }
+        else
+        {
+            std::cout << rank << " "  << "not stacked!! " << i << " " << ElLayer.size() <<  std::endl;
+            for(int g=0;g<dp.size();g++)
+            {
+                std::cout << dp[g] << " " << min_index <<  " " << min_val << std::endl;
+            }
+            std::cout << std::endl;
+        }
+        
         BLelements[fid_start] = ElLayer;
         ElLayer.clear();
     }
+    
+    std::cout << "rank  = " << rank << " "  << ref2face[bID].size() << " counter full stack " << tel2 << std::endl;
     
     return BLelements;
 }
@@ -456,4 +414,8 @@ std::map<int,int> Mesh_Topology::getVert2Ref()
 std::map<int,std::vector<int> > Mesh_Topology::getRef2Vert()
 {
     return ref2vert;
+}
+std::map<int,std::vector<int> > Mesh_Topology::getBLlayers()
+{
+    return BLlayers;
 }
