@@ -932,7 +932,7 @@ int main(int argc, char** argv) {
         
         std::map<int,double> UauxNew = P->CommunicateAdjacentDataUS3D(Uivar,comm);
         
-        Mesh_Topology* meshTopo = new Mesh_Topology(P,us3d->ifn,UauxNew,us3d->bnd_map,us3d->bnd_face_map,us3d->nBnd,comm);
+        Mesh_Topology* meshTopo = new Mesh_Topology(P, us3d->ifn, us3d->ife,UauxNew,us3d->bnd_map,us3d->bnd_face_map,us3d->nBnd,comm);
         
         //======================================================================================
         //======================================================================================
@@ -1021,7 +1021,7 @@ int main(int argc, char** argv) {
                 bl_loc_sizes[i] = 0;
             }
         }
-        
+        /*
         MPI_Allreduce(bl_loc_sizes, bl_sizes, world_size, MPI_INT, MPI_SUM, comm);
         
         int* bl_offset = new int[world_size];
@@ -1052,8 +1052,9 @@ int main(int argc, char** argv) {
                 }
             }
             std::cout << bl_elem_root.size() << " bl_elem_root " << std::endl;
-            OutputBLElementsOnRoot(xcn_g, ien_g, bl_elem_root, comm, "bl_layers_");
-        }
+//            OutputBLElementsOnRoot(xcn_g, ien_g, bl_elem_root, comm, "bl_layers_");
+  	
+        }*/
 
         //======================================================================================
         //======================================================================================

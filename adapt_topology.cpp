@@ -1,7 +1,7 @@
 #include "adapt_topology.h"
 #include "adapt_output.h"
 
-Mesh_Topology::Mesh_Topology(Partition* Pa, Array<int>* ifn_in, std::map<int,double> U, int* bnd_map, std::map<int,std::vector<int> > bnd_face_map, int nBnd, MPI_Comm comm)
+Mesh_Topology::Mesh_Topology(Partition* Pa, Array<int>* ifn_in,  Array<int>* ife_in, std::map<int,double> U, int* bnd_map, std::map<int,std::vector<int> > bnd_face_map, int nBnd, MPI_Comm comm)
 {
     int nlocElem, start, end, offset, nloc, np, loc_vid, size, rank, lid;
     int vf0, vf1, vf2, vf3, vf4, vf5, vf6, vf7, fid;
@@ -218,7 +218,7 @@ Mesh_Topology::Mesh_Topology(Partition* Pa, Array<int>* ifn_in, std::map<int,dou
         }
     }
     
-    BLlayers = DetermineBoundaryLayerElements(Pa,10,3,c);
+    BLlayers = DetermineBoundaryLayerElements(Pa,ife_in,15,3,c);
     
 
     delete[] Pijk;
@@ -236,7 +236,7 @@ Mesh_Topology::Mesh_Topology(Partition* Pa, Array<int>* ifn_in, std::map<int,dou
     
 }
 
-std::map<int,std::vector<int> > Mesh_Topology::DetermineBoundaryLayerElements(Partition* Pa, int nLayer, int bID, MPI_Comm comm)
+std::map<int,std::vector<int> > Mesh_Topology::DetermineBoundaryLayerElements(Partition* Pa, Array<int>* ife_in, int nLayer, int bID, MPI_Comm comm)
 {
     int size;
     int rank;
@@ -294,7 +294,7 @@ std::map<int,std::vector<int> > Mesh_Topology::DetermineBoundaryLayerElements(Pa
                 {
                     gElnew = gElvec1;
                 }
-                else if(gElvec1==gEl)
+                if(gElvec1==gEl)
                 {
                     gElnew = gElvec0;
                 }
@@ -302,7 +302,15 @@ std::map<int,std::vector<int> > Mesh_Topology::DetermineBoundaryLayerElements(Pa
                 ElLayer.push_back(gElnew);
                 gEl=gElnew;
             }
+	    else
+	    {
+		 gElvec0    = gE2gF->i_inv_map[fid_new][0];
+		std::cout << "compare rank with rank of element -> " << rank << " " << gEl << " " << ife_in->getVal(fid_new,0) << " " << " " << ife_in->getVal(fid_new,1) << " " << gPart->getVal(ife_in->getVal(fid_new,0),0) << " " << gPart->getVal(ife_in->getVal(fid_new,1),0) << std::endl;
+
+	    }
         }
+	
+        /*
         if(ElLayer.size()==11)
         {
 //            for(int g=0;g<5;g++)
@@ -322,6 +330,7 @@ std::map<int,std::vector<int> > Mesh_Topology::DetermineBoundaryLayerElements(Pa
             }
             std::cout << std::endl;
         }
+	*/
         
         BLelements[fid_start] = ElLayer;
         ElLayer.clear();
