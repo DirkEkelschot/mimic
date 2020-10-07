@@ -11,8 +11,10 @@ using namespace std;
 struct Mesh_Topology_BL{
     std::map<int,std::vector<int> > BLlayers;
     std::vector<int> exteriorElIDs;
-    std::vector<int> exteriorVertIDs;
-    std::vector<double> exteriorVerts;
+    std::map<int,vector<int> > exteriorVertIDs;
+    std::map<int,vector<double> > exteriorVerts;
+    std::map<int,int> verts_g2l_ex;
+    std::map<int,std::vector<double> > local_ex_verts;
 };
 
 
@@ -51,7 +53,7 @@ class Mesh_Topology {
         std::map<int,int> Bface2Element;
         std::map<int,int> Bface2LocID;
         std::map<int,Vec3D*> Bface2Normal;
-        
+        std::map<int,std::vector<int> > BLlayers; 
         Mesh_Topology_BL* mesh_topo_bl;
         
     

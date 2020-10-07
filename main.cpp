@@ -930,7 +930,7 @@ int main(int argc, char** argv) {
         
         //Array<double>* dUdXi_v2 = ComputedUdx(P, pstate, iee_copy, iee_loc, ief_loc, ifn_copy, ief_copy, Nel, Uaux, ghost, bound, comm, ife_copy);
         
-        /*
+        
         std::map<int,double> UauxNew = P->CommunicateAdjacentDataUS3D(Uivar,comm);
         
         Mesh_Topology* meshTopo = new Mesh_Topology(P, us3d->ifn, us3d->ife,UauxNew,us3d->bnd_map,us3d->bnd_face_map,us3d->nBnd,comm);
@@ -983,30 +983,14 @@ int main(int argc, char** argv) {
         
         
         Mesh_Topology_BL* bl_layers = meshTopo->getBLMeshTopology();
-        std::vector<int> bl_elem;
-        std::set<int> un_bl_elem;
-
-        std::map<int,std::vector<int> >::iterator itt;
-
-        for(itt=bl_layers.begin();itt!=bl_layers.end();itt++)
-        {
-            for(int q=0;q<itt->second.size();q++)
-            {
-                if(un_bl_elem.find(itt->second[q])==un_bl_elem.end())
-                {
-                    un_bl_elem.insert(itt->second[q]);
-                    bl_elem.push_back(itt->second[q]);
-                }
-            }
-        }
         
         //std::cout << "bl_elem size = " << bl_elem.size() << std::endl;
         
-        if(bl_layers.size()!=0)
+        if(bl_layers->BLlayers.size()!=0)
         {
-            OutputBLElements(P, bl_elem, comm, "bl_prank_");
+            OutputBLElements(P, bl_layers, comm, "bl_prank_");
         }
-        
+        /* 
         int nBLelem = bl_elem.size();
         int* bl_sizes = new int[world_size];
         int* bl_loc_sizes = new int[world_size];
@@ -1055,12 +1039,12 @@ int main(int argc, char** argv) {
             std::cout << bl_elem_root.size() << " bl_elem_root " << std::endl;
 //            OutputBLElementsOnRoot(xcn_g, ien_g, bl_elem_root, comm, "bl_layers_");
   	
-        }*/
+        }
 
         //======================================================================================
         //======================================================================================
         //======================================================================================
-        
+        */
         
         /*
         //OutputBoundaryID(P, meshTopo, us3d, 0);

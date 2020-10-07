@@ -34,7 +34,7 @@ void OutputQuantityPartition(Partition_old* pa, Array<double>* Quan, MPI_Comm co
 
 //void OutputPartitionFaces();
 
-void OutputBLElements(Partition* part, std::vector<int> elements,  MPI_Comm comm,string fname);
+void OutputBLElements(Partition* part, Mesh_Topology_BL* mesh_topology_bl,  MPI_Comm comm,string fname);
 void OutputBLElementsOnRoot(Array<double>* xcn_root, Array<int>* ien_root, std::vector<int> elements,  MPI_Comm comm, string fname);
 void WriteBoundaryDataInSerial3(Array<double>* xcn);
 

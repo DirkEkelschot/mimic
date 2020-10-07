@@ -238,7 +238,7 @@ Mesh_Topology::Mesh_Topology(Partition* Pa, Array<int>* ifn_in,  Array<int>* ife
 
 void Mesh_Topology::DetermineBoundaryLayerElements(Partition* Pa, Array<int>* ife_in, int nLayer, int bID, MPI_Comm comm)
 {
-    int size;
+        int size;
     int rank;
     MPI_Comm_size(comm, &size);
     // Get the rank of the process
@@ -246,7 +246,7 @@ void Mesh_Topology::DetermineBoundaryLayerElements(Partition* Pa, Array<int>* if
     int fid_start,gEl,t,gElnew,min_index,lid,fid_new,lEl;
     double newf_id;
     std::vector<double> dp(6);
-    
+    std::map<int,std::vector<int> > BLelements;
     std::vector<int> gElvec;
     std::map<int,std::vector<int> > gF2gE               = Pa->getglobFace2GlobalElements();
     i_part_map* gE2gF                                   = Pa->getIEFpartmap();
@@ -254,6 +254,7 @@ void Mesh_Topology::DetermineBoundaryLayerElements(Partition* Pa, Array<int>* if
     std::vector<std::vector<int> > loc_elem2verts_loc   = Pa->getLocalElem2LocalVert();
     std::vector<Vert> LVerts                            = Pa->getLocalVerts();
     std::map<int,std::vector<int> > gE2lV               = Pa->getGlobElem2LocVerts();
+    i_part_map* ien_part_map = Pa->getIENpartmap();
     //std::map<int,std::vector<int> >::iterator it;
     Array<int>* gPart = Pa->getGlobalPartition();
     int tel = 0;
@@ -265,6 +266,7 @@ void Mesh_Topology::DetermineBoundaryLayerElements(Partition* Pa, Array<int>* if
     std::map<int,std::vector<int> > rank2req_vert;
     std::map<int,std::vector<int> > rank2req_elem;
     int ui=0;
+    mesh_topo_bl = new Mesh_Topology_BL;
     for(int i=0;i<ref2face[bID].size();i++)
     {
         fid_start = ref2face[bID][i];
@@ -313,7 +315,7 @@ void Mesh_Topology::DetermineBoundaryLayerElements(Partition* Pa, Array<int>* if
                 gElvec0 = ife_in->getVal(fid_new,0);
                 gElvec1 = ife_in->getVal(fid_new,1);
                 int rank_id0 = gPart->getVal(gElvec0,0);
-                int rank_id1 = gPart->getVal(gElvec1,0);
+		int rank_id1 = gPart->getVal(gElvec1,0);
                 if(gElvec0==gEl)
                 {
                     rank2req_elem[rank_id1].push_back(gElvec1);
@@ -322,7 +324,7 @@ void Mesh_Topology::DetermineBoundaryLayerElements(Partition* Pa, Array<int>* if
                 {
                     rank2req_elem[rank_id0].push_back(gElvec0);
                 }
-                ui++;
+  	 	ui++;
             }
         }
         mesh_topo_bl->BLlayers[fid_start] = ElLayer;
@@ -366,20 +368,24 @@ void Mesh_Topology::DetermineBoundaryLayerElements(Partition* Pa, Array<int>* if
             reqstd_E_IDs_per_rank[q] = recv_reqstd_ids;
         }
     }
+
+
+    std::cout << rank << " " << ui << " " << rank2req_elem.size() << std::endl;
     //std::cout << rank << " " << ui << " " << rank2req_elem.size() << std::endl;
     
-    /*
-    std::map<int,std::vector<int> >::iterator iter;
+    
+    //std::map<int,std::vector<int> >::iterator iter;
 
-    for(iter=rank2req_elem.begin();iter!=rank2req_elem.end();iter++)
-    {
-	std::cout << "Rank" << rank << " requests from " << iter->first << " for " << iter->second.size() << " IDs"<< std::endl;  
-    }
-    for(iter=reqstd_E_IDs_per_rank.begin();iter!=reqstd_E_IDs_per_rank.end();iter++)
-    {
-	std::cout << " Rank "<< rank << " received request from " << iter->first << " for " << iter->second.size() << std::endl;
-    }
-    */
+    //for(iter=rank2req_elem.begin();iter!=rank2req_elem.end();iter++)
+    //{
+	//std::cout << "Rank" << rank << " requests from " << iter->first << " for " << iter->second.size() << " IDs"<< std::endl;  
+    //}
+    //for(iter=reqstd_E_IDs_per_rank.begin();iter!=reqstd_E_IDs_per_rank.end();iter++)
+    //{
+//	std::cout << " Rank "<< rank << " received request from " << iter->first << " for " << iter->second.size() << std::endl;
+ //   }
+    
+    
     std::map<int,int > recv_back_Niee;
     std::map<int,int* > recv_back_el_ids;
     std::map<int,int* > recv_back_vrt_ids;
@@ -401,10 +407,11 @@ void Mesh_Topology::DetermineBoundaryLayerElements(Partition* Pa, Array<int>* if
                     for(int w=0;w<8;w++)
                     {
                         int lV = gE2lV[it->second[u]][w];
+		        iee_send_v[u*8+w] = ien_part_map->i_map[it->second[u]][w];
                         iee_send_v_crd[u*8+w+0]=LVerts[lV].x;
                         iee_send_v_crd[u*8+w+1]=LVerts[lV].y;
                         iee_send_v_crd[u*8+w+2]=LVerts[lV].z;
-	//		std::cout << lV << " " << LVerts[lV].x << " " << LVerts[lV].y << " " << LVerts[lV].z << std::endl;
+			std::cout << "rank = " << rank << " local ID " << lV << " " << LVerts[lV].x << " " << LVerts[lV].y << " " << LVerts[lV].z << std::endl;
                     }
                 }
 
@@ -430,7 +437,7 @@ void Mesh_Topology::DetermineBoundaryLayerElements(Partition* Pa, Array<int>* if
             int*    recv_back_vids_arr  = new int[n_recv_back*8];
             int*    recv_back_ids_arr   = new int[n_recv_back];
             MPI_Recv(&recv_back_ids_arr[0], n_recv_back, MPI_INT, q, 9876*7777+rank*888, comm, MPI_STATUS_IGNORE);
-             MPI_Recv(&recv_back_vids_arr[0], n_recv_back*8, MPI_INT, q, 9876*7777+rank*888, comm, MPI_STATUS_IGNORE);
+            MPI_Recv(&recv_back_vids_arr[0], n_recv_back*8, MPI_INT, q, 9876*8888+rank*888, comm, MPI_STATUS_IGNORE);
             MPI_Recv(&recv_back_vcrds_arr[0], n_recv_back*8*3, MPI_DOUBLE, q, 9876*6666+rank*8888, comm, MPI_STATUS_IGNORE);
 
             recv_back_Niee[q]     = n_recv_back;
@@ -443,6 +450,8 @@ void Mesh_Topology::DetermineBoundaryLayerElements(Partition* Pa, Array<int>* if
     
     std::map<int,int >::iterator iter;
     int ntotal=0;
+    int lid_vert = 0;
+    std::set<int> unique_vert_ex;
     for(iter=recv_back_Niee.begin();iter!=recv_back_Niee.end();iter++)
     {
         int L = iter->second;
@@ -453,11 +462,23 @@ void Mesh_Topology::DetermineBoundaryLayerElements(Partition* Pa, Array<int>* if
             
             for(int p=0;p<8;p++)
             {
-                mesh_topo_bl->exteriorVertIDs.push_back(recv_back_vrt_ids[iter->first][s*8+p]);
-                mesh_topo_bl->exteriorVerts.push_back(recv_back_vcrds[iter->first][s*8+p+0]);
-                mesh_topo_bl->exteriorVerts.push_back(recv_back_vcrds[iter->first][s*8+p+1]);
-                mesh_topo_bl->exteriorVerts.push_back(recv_back_vcrds[iter->first][s*8+p+2]);
-            }
+ //		std::cout << "rank " << rank << " " << recv_back_vrt_ids[iter->first][s*8+p] << std::endl;
+                mesh_topo_bl->exteriorVertIDs[el_id].push_back(recv_back_vrt_ids[iter->first][s*8+p]);
+		
+		if(unique_vert_ex.find(recv_back_vrt_ids[iter->first][s*8+p])==unique_vert_ex.end())
+		{
+			std::vector<double> vert(3);
+			vert[0]=recv_back_vcrds[iter->first][s*8+p+0];
+			vert[1]=recv_back_vcrds[iter->first][s*8+p+1];
+			vert[2]=recv_back_vcrds[iter->first][s*8+p+2];
+			unique_vert_ex.insert(recv_back_vrt_ids[iter->first][s*8+p]);
+			
+			mesh_topo_bl->verts_g2l_ex[recv_back_vrt_ids[iter->first][s*8+p]]=lid_vert;
+			mesh_topo_bl->local_ex_verts[lid_vert]=vert;
+			lid_vert++;
+		}
+
+	    }
         }
     }
 }
