@@ -826,6 +826,36 @@ MMG_Mesh* GetOptimizedMMG3DMeshOnRoot(Partition* P, US3D* us3d, Array<double>* H
     return mmg;
 }
 
+//ien = 6;
+//ief = 6;
+//ifn = 6*4;
+
+Vec3D* ComputeOutwardNormal(Vert* Vijk, Vert* Vface, std::vector<Vert*> face)
+{
+    Vec3D* r0 = new Vec3D;
+    r0->c0 = (Vface->x-Vijk->x);
+    r0->c1 = (Vface->y-Vijk->y);
+    r0->c2 = (Vface->z-Vijk->z);
+    
+    Vec3D* v0 = new Vec3D;
+    v0->c0 = face[1]->x-face[0]->x;
+    v0->c1 = face[1]->y-face[0]->y;
+    v0->c2 = face[1]->z-face[0]->z;
+    Vec3D* v1 = new Vec3D;
+    v1->c0 = face[3]->x-face[0]->x;
+    v1->c1 = face[3]->y-face[0]->y;
+    v1->c2 = face[3]->z-face[0]->z;
+    
+    Vec3D* n0 = ComputeSurfaceNormal(v0,v1);
+    double orient0   = DotVec3D(r0,n0);
+    
+    if(orient0<0.0)
+    {
+        NegateVec3D(n0);
+    }
+    return n0;
+}
+
 int main(int argc, char** argv) {
     
     MPI_Init(NULL, NULL);
@@ -939,26 +969,34 @@ int main(int argc, char** argv) {
         //======================================================================================
         //======================================================================================
         Array<double>* xcn_g;
+        Array<int>* ief_g;
         Array<int>* ien_g;
         if(world_rank == 0)
         {
             xcn_g = new Array<double>(us3d->xcn->getNglob(),3);
+            ief_g = new Array<int>(us3d->ief->getNglob(),6);
             ien_g = new Array<int>(us3d->ien->getNglob(),8);
         }
         else
         {
             xcn_g = new Array<double>(1,1);
+            ief_g = new Array<int>(1,1);
             ien_g = new Array<int>(1,1);
         }
 
         int* ien_nlocs      = new int[world_size];
         int* ien_offsets    = new int[world_size];
+        int* ief_nlocs      = new int[world_size];
+        int* ief_offsets    = new int[world_size];
         int* xcn_nlocs      = new int[world_size];
         int* xcn_offsets    = new int[world_size];
         for(int i=0;i<world_size;i++)
         {
             xcn_nlocs[i]   = xcn_pstate->getNlocs()[i]*3;
             xcn_offsets[i] = xcn_pstate->getOffsets()[i]*3;
+            
+            ief_nlocs[i]   = xcn_pstate->getNlocs()[i]*6;
+            ief_offsets[i] = xcn_pstate->getOffsets()[i]*6;
             
             ien_nlocs[i]   = ien_pstate->getNlocs()[i]*8;
             ien_offsets[i] = ien_pstate->getOffsets()[i]*8;
@@ -972,6 +1010,13 @@ int main(int argc, char** argv) {
                     xcn_offsets,
                     MPI_DOUBLE, 0, comm);
 
+        MPI_Gatherv(&us3d->ief->data[0],
+                    us3d->ief->getNrow()*6,
+                    MPI_INT,
+                    &ief_g->data[0],
+                    ief_nlocs,
+                    ief_offsets,
+                    MPI_INT, 0, comm);
 
         MPI_Gatherv(&us3d->ien->data[0],
                     us3d->ien->getNrow()*8,
@@ -981,15 +1026,138 @@ int main(int argc, char** argv) {
                     ien_offsets,
                     MPI_INT, 0, comm);
         
-        
-        Mesh_Topology_BL* bl_layers = meshTopo->getBLMeshTopology();
-        
-        //std::cout << "bl_elem size = " << bl_elem.size() << std::endl;
-        
-        if(bl_layers->BLlayers.size()!=0)
+                
+        if(world_rank==0)
         {
-            OutputBLElements(P, bl_layers, comm, "bl_prank_");
+            std::vector<int> dp(6);
+            std::vector<Vec3D*> dpvec(6);
+            int wall_id = 4;
+            int nLayer = 20;
+            std::vector<Vert*> face;
+            Vert* Vface = new Vert;
+            double* Pijk = new double[8*3];
+            int nb = us3d->bnd_face_map[wall_id].size();
+            int elid_cur,elid_next;
+            int t=0;
+            int loc_vid;
+            std::map<int,std::vector<int> > BLlayers;
+            for(int bf=0;bf<nb;bf++)
+            {
+                std::vector<int> layer;
+                int bfaceid = us3d->bnd_face_map[wall_id][i];
+                int faceid = bfaceid;
+                int elid0  = us3d->ife->getVal(faceid,0);
+                int elid1  = us3d->ife->getVal(faceid,1);
+                
+                if(elid0<ien_g->getNrow())
+                {
+                    elid_cur = elid0;
+                }
+                else
+                {
+                    elid_cur = elid1;
+                }
+                
+                layer.push_back(elid_cur);
+                
+                for(int k=0;k<8;k++)
+                {
+                   loc_vid     = ien_g->getVal(elid_cur,k);
+                   Pijk[k*3+0] = xcn_g->getVal(loc_vid,0);
+                   Pijk[k*3+1] = xcn_g->getVal(loc_vid,1);
+                   Pijk[k*3+2] = xcn_g->getVal(loc_vid,2);
+                }
+                Vert* Vijk     = ComputeCenterCoord(Pijk, 8);
+                for(int r=0;r<4;r++)
+                {
+                    int gvid = us3d->ifn->getVal(faceid,r);
+                    
+                    Vert* V = new Vert;
+                    V->x    = xcn_g->getVal(gvid,0);
+                    V->y    = xcn_g->getVal(gvid,1);
+                    V->z    = xcn_g->getVal(gvid,2);
+                    
+                    Vface->x = Vface->x+V->x;
+                    Vface->y = Vface->y+V->y;
+                    Vface->z = Vface->z+V->z;
+                    
+                    face.push_back(V);
+                }
+
+                Vface->x = Vface->x/4.0;
+                Vface->y = Vface->y/4.0;
+                Vface->z = Vface->z/4.0;
+                
+                Vec3D* nb = ComputeOutwardNormal(Vijk,Vface,face);
+                
+                for(int k=0;k<nLayer;k++)
+                {
+                    t = 0;
+
+                    for(int j=0;j<6;j++)
+                    {
+                        faceid = ief_g->getVal(elid_cur,j);
+                        for(int r=0;r<4;r++)
+                        {
+                            int gvid = us3d->ifn->getVal(faceid,r);
+                            
+                            Vert* V = new Vert;
+                            V->x    = xcn_g->getVal(gvid,0);
+                            V->y    = xcn_g->getVal(gvid,1);
+                            V->z    = xcn_g->getVal(gvid,2);
+                            
+                            Vface->x = Vface->x+V->x;
+                            Vface->y = Vface->y+V->y;
+                            Vface->z = Vface->z+V->z;
+                            
+                            face.push_back(V);
+                        }
+
+                        Vface->x = Vface->x/4.0;
+                        Vface->y = Vface->y/4.0;
+                        Vface->z = Vface->z/4.0;
+                        
+                        Vec3D* nt = ComputeOutwardNormal(Vijk,Vface,face);
+                        
+                        dp[j] = DotVec3D(nb,nt);
+                        dpvec[j]=nt;
+                    }
+                    
+                    int min_index       = std::min_element(dp.begin(),dp.end())-dp.begin();
+                    double min_val         = *std::min_element(dp.begin(),dp.end());
+                    int fid_new         = faceid = ief_g->getVal(elid_cur,min_index);
+                    Vec3D* nb              = dpvec[min_index];
+                    NegateVec3D(nb);
+                    
+                    int gEl0=us3d->ifn->getVal(fid_new,0);
+                    int gEl1=us3d->ifn->getVal(fid_new,1);
+                    
+                    if(gEl0==elid_cur)
+                    {
+                        elid_next = gEl1;
+                    }
+                    if(gEl1==elid_cur)
+                    {
+                        elid_next = gEl0;
+                    }
+                    
+                    for(int k=0;k<8;k++)
+                    {
+                       loc_vid     = ien_g->getVal(elid_next,k);
+                       Pijk[k*3+0] = xcn_g->getVal(loc_vid,0);
+                       Pijk[k*3+1] = xcn_g->getVal(loc_vid,1);
+                       Pijk[k*3+2] = xcn_g->getVal(loc_vid,2);
+                    }
+                    Vert* Vijk = ComputeCenterCoord(Pijk, 8);
+                    layer.push_back(elid_next);
+                    elid_cur = elid_next;
+                    
+                    dpvec.clear();
+                }
+                BLlayers[bfaceid]=layer;
+            }
         }
+        
         /* 
         int nBLelem = bl_elem.size();
         int* bl_sizes = new int[world_size];

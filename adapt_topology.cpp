@@ -98,9 +98,9 @@ Mesh_Topology::Mesh_Topology(Partition* Pa, Array<int>* ifn_in,  Array<int>* ife
             Vface->y = Vface->y/4.0;
             Vface->z = Vface->z/4.0;
             
-//            L0 = sqrt((Vface->x-Vijk->x)*(Vface->x-Vijk->x)
-//                     +(Vface->y-Vijk->y)*(Vface->y-Vijk->y)
-//                     +(Vface->z-Vijk->z)*(Vface->z-Vijk->z));
+//          L0 = sqrt((Vface->x-Vijk->x)*(Vface->x-Vijk->x)
+//                   +(Vface->y-Vijk->y)*(Vface->y-Vijk->y)
+//                   +(Vface->z-Vijk->z)*(Vface->z-Vijk->z));
             
             Vec3D* r0 = new Vec3D;
             
@@ -218,7 +218,7 @@ Mesh_Topology::Mesh_Topology(Partition* Pa, Array<int>* ifn_in,  Array<int>* ife
         }
     }
     
-    DetermineBoundaryLayerElements(Pa,ife_in,15,3,c);
+    //DetermineBoundaryLayerElements(Pa,ife_in,15,3,c);
     
 
     delete[] Pijk;
