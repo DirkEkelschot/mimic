@@ -218,7 +218,7 @@ Mesh_Topology::Mesh_Topology(Partition* Pa, Array<int>* ifn_in,  Array<int>* ife
         }
     }
     
-    BLlayers = DetermineBoundaryLayerElements(Pa,ife_in,15,3,c);
+    DetermineBoundaryLayerElements(Pa,ife_in,15,3,c);
     
 
     delete[] Pijk;
@@ -236,7 +236,7 @@ Mesh_Topology::Mesh_Topology(Partition* Pa, Array<int>* ifn_in,  Array<int>* ife
     
 }
 
-std::map<int,std::vector<int> > Mesh_Topology::DetermineBoundaryLayerElements(Partition* Pa, Array<int>* ife_in, int nLayer, int bID, MPI_Comm comm)
+void Mesh_Topology::DetermineBoundaryLayerElements(Partition* Pa, Array<int>* ife_in, int nLayer, int bID, MPI_Comm comm)
 {
     int size;
     int rank;
@@ -246,7 +246,7 @@ std::map<int,std::vector<int> > Mesh_Topology::DetermineBoundaryLayerElements(Pa
     int fid_start,gEl,t,gElnew,min_index,lid,fid_new,lEl;
     double newf_id;
     std::vector<double> dp(6);
-    std::map<int,std::vector<int> > BLelements;
+    
     std::vector<int> gElvec;
     std::map<int,std::vector<int> > gF2gE               = Pa->getglobFace2GlobalElements();
     i_part_map* gE2gF                                   = Pa->getIEFpartmap();
@@ -313,7 +313,7 @@ std::map<int,std::vector<int> > Mesh_Topology::DetermineBoundaryLayerElements(Pa
                 gElvec0 = ife_in->getVal(fid_new,0);
                 gElvec1 = ife_in->getVal(fid_new,1);
                 int rank_id0 = gPart->getVal(gElvec0,0);
-		int rank_id1 = gPart->getVal(gElvec1,0);
+                int rank_id1 = gPart->getVal(gElvec1,0);
                 if(gElvec0==gEl)
                 {
                     rank2req_elem[rank_id1].push_back(gElvec1);
@@ -322,10 +322,10 @@ std::map<int,std::vector<int> > Mesh_Topology::DetermineBoundaryLayerElements(Pa
                 {
                     rank2req_elem[rank_id0].push_back(gElvec0);
                 }
-  	 	ui++;
+                ui++;
             }
         }
-        BLelements[fid_start] = ElLayer;
+        mesh_topo_bl->BLlayers[fid_start] = ElLayer;
         ElLayer.clear();
     }
     
@@ -366,9 +366,7 @@ std::map<int,std::vector<int> > Mesh_Topology::DetermineBoundaryLayerElements(Pa
             reqstd_E_IDs_per_rank[q] = recv_reqstd_ids;
         }
     }
-
-
-    std::cout << rank << " " << ui << " " << rank2req_elem.size() << std::endl;
+    //std::cout << rank << " " << ui << " " << rank2req_elem.size() << std::endl;
     
     /*
     std::map<int,std::vector<int> >::iterator iter;
@@ -384,7 +382,8 @@ std::map<int,std::vector<int> > Mesh_Topology::DetermineBoundaryLayerElements(Pa
     */
     std::map<int,int > recv_back_Niee;
     std::map<int,int* > recv_back_el_ids;
-    std::map<int,double* > recv_back_iee;
+    std::map<int,int* > recv_back_vrt_ids;
+    std::map<int,double* > recv_back_vcrds;
     
     for(int q=0;q<size;q++)
     {
@@ -393,16 +392,18 @@ std::map<int,std::vector<int> > Mesh_Topology::DetermineBoundaryLayerElements(Pa
             for (it = reqstd_E_IDs_per_rank.begin(); it != reqstd_E_IDs_per_rank.end(); it++)
             {
                 int ne_send_el  = it->second.size();
-                int ne_send_vrt = it->second.size()*8*3;
-                double* iee_send_v = new double[ne_send_vrt];
+                int ne_send_vrt = it->second.size()*8;
+                int ne_send_vrt_coord = it->second.size()*8*3;
+                int* iee_send_v = new int[ne_send_vrt];
+                double* iee_send_v_crd = new double[ne_send_vrt_coord];
                 for(int u=0;u<it->second.size();u++)
                 {
                     for(int w=0;w<8;w++)
                     {
                         int lV = gE2lV[it->second[u]][w];
-                        iee_send_v[u*8+w+0]=LVerts[lV].x;
-                        iee_send_v[u*8+w+1]=LVerts[lV].y;
-                        iee_send_v[u*8+w+2]=LVerts[lV].z;
+                        iee_send_v_crd[u*8+w+0]=LVerts[lV].x;
+                        iee_send_v_crd[u*8+w+1]=LVerts[lV].y;
+                        iee_send_v_crd[u*8+w+2]=LVerts[lV].z;
 	//		std::cout << lV << " " << LVerts[lV].x << " " << LVerts[lV].y << " " << LVerts[lV].z << std::endl;
                     }
                 }
@@ -411,11 +412,13 @@ std::map<int,std::vector<int> > Mesh_Topology::DetermineBoundaryLayerElements(Pa
                 MPI_Send(&ne_send_el, 1, MPI_INT, dest, 9876*6666+1000*dest, comm);
                 
                 MPI_Send(&it->second[0], ne_send_el, MPI_INT, dest, 9876*7777+dest*888, comm);
-
-                MPI_Send(&iee_send_v[0], ne_send_vrt, MPI_DOUBLE, dest, 9876*6666+dest*8888, comm);
+                
+                MPI_Send(&iee_send_v[0], ne_send_vrt, MPI_INT, dest, 9876*8888+dest*888, comm);
+                
+                MPI_Send(&iee_send_v_crd[0], ne_send_vrt_coord, MPI_DOUBLE, dest, 9876*6666+dest*8888, comm);
 
                 //delete[] iee_send_e;
-		//delete[] iee_send_v;
+                //delete[] iee_send_v;
             }
         }
         if(iee_schedule->RecvRankFromRank[q].find( rank ) != iee_schedule->RecvRankFromRank[q].end())
@@ -423,39 +426,40 @@ std::map<int,std::vector<int> > Mesh_Topology::DetermineBoundaryLayerElements(Pa
 	    int n_recv_back;
             MPI_Recv(&n_recv_back, 1, MPI_INT, q, 9876*6666+1000*rank, comm, MPI_STATUS_IGNORE);
              
-            double* recv_back_iee_arr   = new double[n_recv_back*8*3];
+            double* recv_back_vcrds_arr   = new double[n_recv_back*8*3];
+            int*    recv_back_vids_arr  = new int[n_recv_back*8];
             int*    recv_back_ids_arr   = new int[n_recv_back];
             MPI_Recv(&recv_back_ids_arr[0], n_recv_back, MPI_INT, q, 9876*7777+rank*888, comm, MPI_STATUS_IGNORE);
-            MPI_Recv(&recv_back_iee_arr[0], n_recv_back*8*3, MPI_DOUBLE, q, 9876*6666+rank*8888, comm, MPI_STATUS_IGNORE);
+             MPI_Recv(&recv_back_vids_arr[0], n_recv_back*8, MPI_INT, q, 9876*7777+rank*888, comm, MPI_STATUS_IGNORE);
+            MPI_Recv(&recv_back_vcrds_arr[0], n_recv_back*8*3, MPI_DOUBLE, q, 9876*6666+rank*8888, comm, MPI_STATUS_IGNORE);
 
             recv_back_Niee[q]     = n_recv_back;
             recv_back_el_ids[q]   = recv_back_ids_arr;
-            recv_back_iee[q]      = recv_back_iee_arr;
+            recv_back_vrt_ids[q]   = recv_back_vids_arr;
+            recv_back_vcrds[q]      = recv_back_vcrds_arr;
          }
     }
 
     
     std::map<int,int >::iterator iter;
     int ntotal=0;
-    std::cout << " recv_back_Niee " << recv_back_Niee.size() << std::endl; 
     for(iter=recv_back_Niee.begin();iter!=recv_back_Niee.end();iter++)
     {
         int L = iter->second;
-        //std::cout << L << std::endl; 
         for(int s=0;s<L;s++)
         {
             int el_id = recv_back_el_ids[iter->first][s];
-            //std::cout << el_id << std::endl;
+            mesh_topo_bl->exteriorElIDs.push_back(el_id);
+            
             for(int p=0;p<8;p++)
-	    {
-		std::cout << recv_back_iee[iter->first][s*8+p+0] << " " << recv_back_iee[iter->first][s*8+p+1] << " " << recv_back_iee[iter->first][s*8+p+2] << std::endl; 
-
-	    }
-
+            {
+                mesh_topo_bl->exteriorVertIDs.push_back(recv_back_vrt_ids[iter->first][s*8+p]);
+                mesh_topo_bl->exteriorVerts.push_back(recv_back_vcrds[iter->first][s*8+p+0]);
+                mesh_topo_bl->exteriorVerts.push_back(recv_back_vcrds[iter->first][s*8+p+1]);
+                mesh_topo_bl->exteriorVerts.push_back(recv_back_vcrds[iter->first][s*8+p+2]);
+            }
         }
     }
-  
-    return BLelements;
 }
 
 
@@ -541,7 +545,7 @@ std::map<int,std::vector<int> > Mesh_Topology::getRef2Vert()
 {
     return ref2vert;
 }
-std::map<int,std::vector<int> > Mesh_Topology::getBLlayers()
+Mesh_Topology_BL* Mesh_Topology::getBLMeshTopology()
 {
-    return BLlayers;
+    return mesh_topo_bl;
 }

@@ -268,8 +268,24 @@ void OutputPartition(Partition* part, ParArray<int>* ien, Array<double>* H,  MPI
 }
 
 
-void OutputBLElements(Partition* part, std::vector<int> elements,  MPI_Comm comm, string fname)
+void OutputBLElements(Partition* part, Mesh_Topology_BL* mesh_topology_bl,  MPI_Comm comm, string fname)
 {
+    std::vector<int> bl_elem;
+    std::set<int> un_bl_elem;
+
+    std::map<int,std::vector<int> >::iterator itt;
+
+    for(itt=mesh_topology_bl->BLlayers.begin();itt!= mesh_topology_bl->BLlayers.end();itt++)
+    {
+        for(int q=0;q<itt->second.size();q++)
+        {
+            if(un_bl_elem.find(itt->second[q])==un_bl_elem.end())
+            {
+                un_bl_elem.insert(itt->second[q]);
+                bl_elem.push_back(itt->second[q]);
+            }
+        }
+    }
     
     int size;
     MPI_Comm_size(comm, &size);
@@ -279,26 +295,32 @@ void OutputBLElements(Partition* part, std::vector<int> elements,  MPI_Comm comm
     std::vector<Vert> LVerts                          =  part->getLocalVerts();
     std::vector<std::vector<int> > loc_elem2verts_loc =  part->getLocalElem2LocalVert();
     std::map<int,int> gE2lE                           =  part->getGlobalElement2LocalElement();
+    i_part_map* ien_part_map                          =  part->getIENpartmap();
     std::set<int> v_used;
     std::vector<int> LocalVerticesID;
     int vid,gEl,lEl;
+    std::set<int> gvert_used;
+    std::map<int,int> gvert2lvert;
     std::set<int> vert_used;
     std::vector<int> vert_plot;
     std::map<int,int> gv2lv;
-    Array<int>* ien_bl = new Array<int>(elements.size(),8);
+    Array<int>* ien_bl    = new Array<int>(bl_elem.size(),8);
+    Array<int>* ien_bl_ex = new Array<int>(mesh_topology_bl->exteriorElIDs.size(),8);
     int lvid = 0;
-    for(int i=0;i<elements.size();i++)
+    int gvid;
+    for(int i=0;i<bl_elem.size();i++)
     {
-        gEl = elements[i];
+        gEl = bl_elem[i];
         lEl = gE2lE[gEl];
         
         for(int j=0;j<8;j++)
         {
             vid = loc_elem2verts_loc[lEl][j];
-        
-            if(gEl==0)
+            gvid = ien_part_map->i_map[gEl][j];
+            if(gvert_used.find(gvid)==gvert_used.end())
             {
-                std::cout << " printen " << rank << " " << vid << " " << gEl << std::endl;
+                gvert_used.insert(gvid);
+                gvert2lvert[gvid]=vid;
             }
             if(vert_used.find(vid)==vert_used.end())
             {
@@ -314,25 +336,49 @@ void OutputBLElements(Partition* part, std::vector<int> elements,  MPI_Comm comm
             }
         }
     }
+    std::vector<int> vert_plot_ex;
+    for(int i=0;i<mesh_topology_bl->exteriorElIDs.size();i++)
+    {
+        for(int j=0;j<8;j++)
+        {
+            gvid = mesh_topology_bl->exteriorVertIDs[i*8+j];
+            if(gvert_used.find(gvid)==gvert_used.end())
+            {
+                gvert_used.insert(gvid);
+                vert_plot_ex.push_back(i*8+j);
+                gv2lv[vid] = lvid;
+                ien_bl->setVal(i,j,lvid);
+                lvid++;
+            }
+            else
+            {
+                vid = gvert2lvert[gvid];
+                ien_bl_ex->setVal(i,j,gv2lv[vid]);
+            }
+        }
+    }
+    
     
     string filename = fname + std::to_string(rank) + ".dat";
     ofstream myfile;
     myfile.open(filename);
     myfile << "TITLE=\"BL_part_"  + std::to_string(rank) +  ".tec\"" << std::endl;
     myfile <<"VARIABLES = \"X\", \"Y\", \"Z\"" << std::endl;
-    myfile <<"ZONE N = " << vert_plot.size() << ", E = " << elements.size() << ", DATAPACKING = POINT, ZONETYPE = FEBRICK" << std::endl;
+    myfile <<"ZONE N = " << vert_plot.size() << ", E = " << bl_elem.size() << ", DATAPACKING = POINT, ZONETYPE = FEBRICK" << std::endl;
     
     for(int i=0;i<vert_plot.size();i++)
     {
-        myfile << LVerts[vert_plot[i]].x << "   " << LVerts[vert_plot[i]].y << "   " << LVerts[vert_plot[i]].z << std::endl;
-//        if(LVerts[vert_plot[i]].y>0.08)
-//        {
-//            std::cout << LVerts[vert_plot[i]].x << " " << LVerts[vert_plot[i]].y << " " << LVerts[vert_plot[i]].z << " " << rank << " "<< " " << vert_plot[i] << " " << i << " ranho " << std::endl;
-//            
-//        }
+        myfile << LVerts[vert_plot[i]].x << " "
+               << LVerts[vert_plot[i]].y << " "
+               << LVerts[vert_plot[i]].z << std::endl;
     }
-    
-    for(int i=0;i<elements.size();i++)
+    for(int i=0;i<vert_plot_ex.size();i++)
+    {
+        myfile << mesh_topology_bl->exteriorVertIDs[vert_plot_ex[i]+0] << " "
+               << mesh_topology_bl->exteriorVertIDs[vert_plot_ex[i]+1] << " "
+               << mesh_topology_bl->exteriorVertIDs[vert_plot_ex[i]+2] << std::endl;
+    }
+    for(int i=0;i<bl_elem.size();i++)
     {
        myfile << ien_bl->getVal(i,0)+1 << "  " <<
                  ien_bl->getVal(i,1)+1 << "  " <<
@@ -342,6 +388,17 @@ void OutputBLElements(Partition* part, std::vector<int> elements,  MPI_Comm comm
                  ien_bl->getVal(i,5)+1 << "  " <<
                  ien_bl->getVal(i,6)+1 << "  " <<
                  ien_bl->getVal(i,7)+1 << std::endl;
+    }
+    for(int i=0;i<ien_bl_ex->getNrow();i++)
+    {
+       myfile << ien_bl_ex->getVal(i,0)+1 << "  " <<
+                 ien_bl_ex->getVal(i,1)+1 << "  " <<
+                 ien_bl_ex->getVal(i,2)+1 << "  " <<
+                 ien_bl_ex->getVal(i,3)+1 << "  " <<
+                 ien_bl_ex->getVal(i,4)+1 << "  " <<
+                 ien_bl_ex->getVal(i,5)+1 << "  " <<
+                 ien_bl_ex->getVal(i,6)+1 << "  " <<
+                 ien_bl_ex->getVal(i,7)+1 << std::endl;
     }
     myfile.close();
 }

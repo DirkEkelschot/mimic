@@ -32,7 +32,7 @@ Partition::Partition(ParArray<int>* ien, ParArray<int>* iee, ParArray<int>* ief,
     
     iee_part_map = getElement2EntityPerPartition(iee, comm);
     ief_part_map = getElement2EntityPerPartition(ief, comm);
-    //ien_part_map = getElement2EntityPerPartition(ien, comm); BROKEN!!! DONT KNOW WHY!!!!!
+    ien_part_map = getElement2EntityPerPartition(ien, comm);
     
     DetermineAdjacentElement2ProcMapUS3D(ien, iee_part_map->i_map, part, ien_pstate, xcn, xcn_parstate, U, comm);
 
@@ -2549,7 +2549,7 @@ i_part_map* Partition::getElement2EntityPerPartition(ParArray<int>* iee, MPI_Com
             for (it = reqstd_E_IDs_per_rank.begin(); it != reqstd_E_IDs_per_rank.end(); it++)
             {
                 int ne_send             = it->second.size();
-                double* iee_send        = new double[ne_send*6];
+                double* iee_send        = new double[ne_send*ncol];
                 int offset_iee          = ien_pstate->getOffset(rank);
                 
                 for(int u=0;u<it->second.size();u++)
@@ -2565,7 +2565,7 @@ i_part_map* Partition::getElement2EntityPerPartition(ParArray<int>* iee, MPI_Com
                 
                 MPI_Send(&it->second[0], ne_send, MPI_INT, dest, 9876*7777+dest*888, comm);
 
-                MPI_Send(&iee_send[0], ne_send*6, MPI_DOUBLE, dest, 9876*6666+dest*8888, comm);
+                MPI_Send(&iee_send[0], ne_send*ncol, MPI_DOUBLE, dest, 9876*6666+dest*8888, comm);
 
                 delete[] iee_send;
             }
@@ -2574,10 +2574,10 @@ i_part_map* Partition::getElement2EntityPerPartition(ParArray<int>* iee, MPI_Com
          {
             MPI_Recv(&n_recv_back, 1, MPI_INT, q, 9876*6666+1000*rank, comm, MPI_STATUS_IGNORE);
              
-            double* recv_back_iee_arr   = new double[n_recv_back*6];
+            double* recv_back_iee_arr   = new double[n_recv_back*ncol];
             int*    recv_back_ids_arr   = new int[n_recv_back];
             MPI_Recv(&recv_back_ids_arr[0], n_recv_back, MPI_INT, q, 9876*7777+rank*888, comm, MPI_STATUS_IGNORE);
-            MPI_Recv(&recv_back_iee_arr[0], n_recv_back*6, MPI_DOUBLE, q, 9876*6666+rank*8888, comm, MPI_STATUS_IGNORE);
+            MPI_Recv(&recv_back_iee_arr[0], n_recv_back*ncol, MPI_DOUBLE, q, 9876*6666+rank*8888, comm, MPI_STATUS_IGNORE);
 
             recv_back_Niee[q]     = n_recv_back;
             recv_back_el_ids[q]   = recv_back_ids_arr;
@@ -2586,6 +2586,7 @@ i_part_map* Partition::getElement2EntityPerPartition(ParArray<int>* iee, MPI_Com
          }
     }
 //
+    
     std::map<int,int >::iterator iter;
     int ntotal=0;
     ee.clear();

@@ -1,8 +1,6 @@
 #include "adapt_schedule.h"
 
 
-
-
 ScheduleObj* DoScheduling(std::map<int,std::vector<int> > Rank2RequestEntity, MPI_Comm comm)
 {
     int i,t;

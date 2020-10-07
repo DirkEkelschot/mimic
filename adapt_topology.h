@@ -8,11 +8,19 @@
 
 using namespace std;
 
+struct Mesh_Topology_BL{
+    std::map<int,std::vector<int> > BLlayers;
+    std::vector<int> exteriorElIDs;
+    std::vector<int> exteriorVertIDs;
+    std::vector<double> exteriorVerts;
+};
+
+
 class Mesh_Topology {
     public:
         Mesh_Topology(){};
         Mesh_Topology(Partition* Pa, Array<int>* ifn_in, Array<int>* ife_in, std::map<int,double> U, int* bnd_map, std::map<int,std::vector<int> > bnd_face_map, int nBnd, MPI_Comm comm);
-        std::map<int,std::vector<int> > DetermineBoundaryLayerElements(Partition* Pa, Array<int>* ife_in, int nLayer, int bID, MPI_Comm comm);
+        void DetermineBoundaryLayerElements(Partition* Pa, Array<int>* ife_in, int nLayer, int bID, MPI_Comm comm);
         std::map<int,vector<Vec3D*> > getNormals();
         std::map<int,vector<Vec3D*> > getRvectors();
         std::map<int,vector<Vec3D*> > getdXfXc();
@@ -25,7 +33,7 @@ class Mesh_Topology {
         std::map<int,std::vector<int> > getRef2Face();
         std::map<int,int> getVert2Ref();
         std::map<int,std::vector<int> > getRef2Vert();
-        std::map<int, std::vector<int> > getBLlayers();
+        Mesh_Topology_BL* getBLMeshTopology();
     private:
         Array<double>* cc;
         std::map<int,vector<Vec3D*> > normals;
@@ -43,7 +51,10 @@ class Mesh_Topology {
         std::map<int,int> Bface2Element;
         std::map<int,int> Bface2LocID;
         std::map<int,Vec3D*> Bface2Normal;
-        std::map<int,std::vector<int> > BLlayers;
+        
+        Mesh_Topology_BL* mesh_topo_bl;
+        
+    
         MPI_Comm c;
 };
 

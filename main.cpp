@@ -930,6 +930,7 @@ int main(int argc, char** argv) {
         
         //Array<double>* dUdXi_v2 = ComputedUdx(P, pstate, iee_copy, iee_loc, ief_loc, ifn_copy, ief_copy, Nel, Uaux, ghost, bound, comm, ife_copy);
         
+        /*
         std::map<int,double> UauxNew = P->CommunicateAdjacentDataUS3D(Uivar,comm);
         
         Mesh_Topology* meshTopo = new Mesh_Topology(P, us3d->ifn, us3d->ife,UauxNew,us3d->bnd_map,us3d->bnd_face_map,us3d->nBnd,comm);
@@ -962,7 +963,7 @@ int main(int argc, char** argv) {
             ien_nlocs[i]   = ien_pstate->getNlocs()[i]*8;
             ien_offsets[i] = ien_pstate->getOffsets()[i]*8;
         }
-
+        
         MPI_Gatherv(&us3d->xcn->data[0],
                     us3d->xcn->getNrow()*3,
                     MPI_DOUBLE,
@@ -981,7 +982,7 @@ int main(int argc, char** argv) {
                     MPI_INT, 0, comm);
         
         
-        std::map<int,std::vector<int> > bl_layers = meshTopo->getBLlayers();
+        Mesh_Topology_BL* bl_layers = meshTopo->getBLMeshTopology();
         std::vector<int> bl_elem;
         std::set<int> un_bl_elem;
 
@@ -1037,7 +1038,7 @@ int main(int argc, char** argv) {
         std::vector<int> tot_bl_elems(N_bl_elem);
         
         MPI_Gatherv(&bl_elem[0], nBLelem, MPI_INT, &tot_bl_elems[0], bl_sizes, bl_offset, MPI_INT, 0, comm);
-        /*
+       
         if(world_rank == 0)
         {
             std::set<int> u_elem;
