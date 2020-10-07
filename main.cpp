@@ -1021,7 +1021,7 @@ int main(int argc, char** argv) {
                 bl_loc_sizes[i] = 0;
             }
         }
-        /*
+        
         MPI_Allreduce(bl_loc_sizes, bl_sizes, world_size, MPI_INT, MPI_SUM, comm);
         
         int* bl_offset = new int[world_size];
@@ -1037,7 +1037,7 @@ int main(int argc, char** argv) {
         std::vector<int> tot_bl_elems(N_bl_elem);
         
         MPI_Gatherv(&bl_elem[0], nBLelem, MPI_INT, &tot_bl_elems[0], bl_sizes, bl_offset, MPI_INT, 0, comm);
-        
+        /*
         if(world_rank == 0)
         {
             std::set<int> u_elem;
