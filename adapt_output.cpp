@@ -446,10 +446,6 @@ void OutputBLElementsOnRoot(Array<double>* xcn_root, Array<int>* ien_root, std::
         for(int j=0;j<8;j++)
         {
             vid = ien_root->getVal(gEl,j);
-            if(gEl==0)
-            {
-                std::cout << " printen " << rank << " " << vid << " " << gEl << std::endl;
-            }
             if(vert_used.find(vid)==vert_used.end())
             {
                 vert_used.insert(vid);

@@ -956,15 +956,15 @@ int main(int argc, char** argv) {
         
         delete us3d->interior;
         
-        Partition* P = new Partition(us3d->ien, us3d->iee, us3d->ief, parmetis_pstate,ien_pstate, us3d->xcn,xcn_pstate,Uivar,comm);
-        
-        //Array<double>* dUdXi_v2 = ComputedUdx(P, pstate, iee_copy, iee_loc, ief_loc, ifn_copy, ief_copy, Nel, Uaux, ghost, bound, comm, ife_copy);
-        
-        
-        std::map<int,double> UauxNew = P->CommunicateAdjacentDataUS3D(Uivar,comm);
-        
-        Mesh_Topology* meshTopo = new Mesh_Topology(P, us3d->ifn, us3d->ife,UauxNew,us3d->bnd_map,us3d->bnd_face_map,us3d->nBnd,comm);
-        
+//        Partition* P = new Partition(us3d->ien, us3d->iee, us3d->ief, parmetis_pstate,ien_pstate, us3d->xcn,xcn_pstate,Uivar,comm);
+//
+//        //Array<double>* dUdXi_v2 = ComputedUdx(P, pstate, iee_copy, iee_loc, ief_loc, ifn_copy, ief_copy, Nel, Uaux, ghost, bound, comm, ife_copy);
+//
+//
+//        std::map<int,double> UauxNew = P->CommunicateAdjacentDataUS3D(Uivar,comm);
+//
+//        Mesh_Topology* meshTopo = new Mesh_Topology(P, us3d->ifn, us3d->ife,UauxNew,us3d->bnd_map,us3d->bnd_face_map,us3d->nBnd,comm);
+//
         //======================================================================================
         //======================================================================================
         //======================================================================================
@@ -995,8 +995,8 @@ int main(int argc, char** argv) {
             xcn_nlocs[i]   = xcn_pstate->getNlocs()[i]*3;
             xcn_offsets[i] = xcn_pstate->getOffsets()[i]*3;
             
-            ief_nlocs[i]   = xcn_pstate->getNlocs()[i]*6;
-            ief_offsets[i] = xcn_pstate->getOffsets()[i]*6;
+            ief_nlocs[i]   = ien_pstate->getNlocs()[i]*6;
+            ief_offsets[i] = ien_pstate->getOffsets()[i]*6;
             
             ien_nlocs[i]   = ien_pstate->getNlocs()[i]*8;
             ien_offsets[i] = ien_pstate->getOffsets()[i]*8;
@@ -1025,30 +1025,30 @@ int main(int argc, char** argv) {
                     ien_nlocs,
                     ien_offsets,
                     MPI_INT, 0, comm);
+    
         
-                
         if(world_rank==0)
         {
-            std::vector<int> dp(6);
+            std::vector<double> dp(6);
             std::vector<Vec3D*> dpvec(6);
             int wall_id = 4;
             int nLayer = 20;
-            std::vector<Vert*> face;
-            Vert* Vface = new Vert;
+
             double* Pijk = new double[8*3];
             int nb = us3d->bnd_face_map[wall_id].size();
             int elid_cur,elid_next;
             int t=0;
             int loc_vid;
             std::map<int,std::vector<int> > BLlayers;
-            for(int bf=0;bf<nb;bf++)
+            
+            for(int bf=0;bf<us3d->bnd_face_map[wall_id].size();bf++)
             {
                 std::vector<int> layer;
-                int bfaceid = us3d->bnd_face_map[wall_id][i];
-                int faceid = bfaceid;
-                int elid0  = us3d->ife->getVal(faceid,0);
-                int elid1  = us3d->ife->getVal(faceid,1);
-                
+                int bfaceid = us3d->bnd_face_map[wall_id][bf];
+                int faceid  = bfaceid;
+                int elid0   = us3d->ife->getVal(faceid,0);
+                int elid1   = us3d->ife->getVal(faceid,1);
+
                 if(elid0<ien_g->getNrow())
                 {
                     elid_cur = elid0;
@@ -1057,9 +1057,7 @@ int main(int argc, char** argv) {
                 {
                     elid_cur = elid1;
                 }
-                
                 layer.push_back(elid_cur);
-                
                 for(int k=0;k<8;k++)
                 {
                    loc_vid     = ien_g->getVal(elid_cur,k);
@@ -1067,96 +1065,150 @@ int main(int argc, char** argv) {
                    Pijk[k*3+1] = xcn_g->getVal(loc_vid,1);
                    Pijk[k*3+2] = xcn_g->getVal(loc_vid,2);
                 }
-                Vert* Vijk     = ComputeCenterCoord(Pijk, 8);
+
+                Vert* Vijk = ComputeCenterCoord(Pijk, 8);
+                
+                Vert* Vface  = new Vert;
+                std::vector<Vert*> face;
                 for(int r=0;r<4;r++)
                 {
-                    int gvid = us3d->ifn->getVal(faceid,r);
-                    
-                    Vert* V = new Vert;
-                    V->x    = xcn_g->getVal(gvid,0);
-                    V->y    = xcn_g->getVal(gvid,1);
-                    V->z    = xcn_g->getVal(gvid,2);
-                    
+                    int vid  = us3d->ifn->getVal(faceid,r);
+                    //int vid  = us3d->ifn->getVal(faceid,r);
+                    Vert* V  = new Vert;
+                    V->x     = xcn_g->getVal(vid,0);
+                    V->y     = xcn_g->getVal(vid,1);
+                    V->z     = xcn_g->getVal(vid,2);
                     Vface->x = Vface->x+V->x;
                     Vface->y = Vface->y+V->y;
                     Vface->z = Vface->z+V->z;
-                    
                     face.push_back(V);
                 }
-
+                
                 Vface->x = Vface->x/4.0;
                 Vface->y = Vface->y/4.0;
                 Vface->z = Vface->z/4.0;
+                                
+                Vec3D* r0 = new Vec3D;
+                r0->c0 = (Vface->x-Vijk->x);
+                r0->c1 = (Vface->y-Vijk->y);
+                r0->c2 = (Vface->z-Vijk->z);
+                Vec3D* v0 = new Vec3D;
+                v0->c0 = face[1]->x-face[0]->x;
+                v0->c1 = face[1]->y-face[0]->y;
+                v0->c2 = face[1]->z-face[0]->z;
+                Vec3D* v1 = new Vec3D;
+                v1->c0 = face[3]->x-face[0]->x;
+                v1->c1 = face[3]->y-face[0]->y;
+                v1->c2 = face[3]->z-face[0]->z;
                 
-                Vec3D* nb = ComputeOutwardNormal(Vijk,Vface,face);
+                Vec3D* nbf     = ComputeSurfaceNormal(v0,v1);
+                double orient0 = DotVec3D(r0,nbf);
                 
-                for(int k=0;k<nLayer;k++)
+                if(orient0<0.0)
                 {
-                    t = 0;
+                    NegateVec3D(nbf);
+                }
 
-                    for(int j=0;j<6;j++)
-                    {
-                        faceid = ief_g->getVal(elid_cur,j);
-                        for(int r=0;r<4;r++)
-                        {
-                            int gvid = us3d->ifn->getVal(faceid,r);
-                            
-                            Vert* V = new Vert;
-                            V->x    = xcn_g->getVal(gvid,0);
-                            V->y    = xcn_g->getVal(gvid,1);
-                            V->z    = xcn_g->getVal(gvid,2);
-                            
-                            Vface->x = Vface->x+V->x;
-                            Vface->y = Vface->y+V->y;
-                            Vface->z = Vface->z+V->z;
-                            
-                            face.push_back(V);
-                        }
-
-                        Vface->x = Vface->x/4.0;
-                        Vface->y = Vface->y/4.0;
-                        Vface->z = Vface->z/4.0;
-                        
-                        Vec3D* nt = ComputeOutwardNormal(Vijk,Vface,face);
-                        
-                        dp[j] = DotVec3D(nb,nt);
-                        dpvec[j]=nt;
-                    }
-                    
-                    int min_index       = std::min_element(dp.begin(),dp.end())-dp.begin();
-                    double min_val         = *std::min_element(dp.begin(),dp.end());
-                    int fid_new         = faceid = ief_g->getVal(elid_cur,min_index);
-                    Vec3D* nb              = dpvec[min_index];
-                    NegateVec3D(nb);
-                    
-                    int gEl0=us3d->ifn->getVal(fid_new,0);
-                    int gEl1=us3d->ifn->getVal(fid_new,1);
-                    
-                    if(gEl0==elid_cur)
-                    {
-                        elid_next = gEl1;
-                    }
-                    if(gEl1==elid_cur)
-                    {
-                        elid_next = gEl0;
-                    }
-                    
+                face.clear();
+                for(int c=0;c<nLayer;c++)
+                {
                     for(int k=0;k<8;k++)
                     {
-                       loc_vid     = ien_g->getVal(elid_next,k);
+                       loc_vid     = ien_g->getVal(elid_cur,k);
                        Pijk[k*3+0] = xcn_g->getVal(loc_vid,0);
                        Pijk[k*3+1] = xcn_g->getVal(loc_vid,1);
                        Pijk[k*3+2] = xcn_g->getVal(loc_vid,2);
                     }
                     Vert* Vijk = ComputeCenterCoord(Pijk, 8);
+                    
+                    for(int k=0;k<6;k++)
+                    {
+                        int fid = ief_g->getVal(elid_cur,k);
+                        Vert* Vface2  = new Vert;
+                        std::vector<Vert*> face2;
+                        for(int r=0;r<4;r++)
+                        {
+                            int vid  = us3d->ifn->getVal(fid,r);
+                            Vert* V  = new Vert;
+                            V->x     = xcn_g->getVal(vid,0);
+                            V->y     = xcn_g->getVal(vid,1);
+                            V->z     = xcn_g->getVal(vid,2);
+                            Vface2->x = Vface2->x+V->x;
+                            Vface2->y = Vface2->y+V->y;
+                            Vface2->z = Vface2->z+V->z;
+                            face2.push_back(V);
+                        }
+                        
+                        Vface2->x = Vface2->x/4.0;
+                        Vface2->y = Vface2->y/4.0;
+                        Vface2->z = Vface2->z/4.0;
+                                        
+                        Vec3D* r00 = new Vec3D;
+                        r00->c0 = (Vface2->x-Vijk->x);
+                        r00->c1 = (Vface2->y-Vijk->y);
+                        r00->c2 = (Vface2->z-Vijk->z);
+                        Vec3D* v00 = new Vec3D;
+                        v00->c0 = face2[1]->x-face2[0]->x;
+                        v00->c1 = face2[1]->y-face2[0]->y;
+                        v00->c2 = face2[1]->z-face2[0]->z;
+                        Vec3D* v11 = new Vec3D;
+                        v11->c0 = face2[3]->x-face2[0]->x;
+                        v11->c1 = face2[3]->y-face2[0]->y;
+                        v11->c2 = face2[3]->z-face2[0]->z;
+                        
+                        Vec3D* n00        = ComputeSurfaceNormal(v00,v11);
+                        double orient00   = DotVec3D(r00,n00);
+                        
+                        if(orient00<0.0)
+                        {
+                            NegateVec3D(n00);
+                        }
+                        
+                        dp[k] = DotVec3D(nbf,n00);
+                        dpvec[k]=n00;
+                        
+                        face2.clear();
+                    }
+                    int min_index  = std::min_element(dp.begin(),dp.end())-dp.begin();
+                    double min_val = *std::min_element(dp.begin(),dp.end());
+//
+                    int fid_new = ief_g->getVal(elid_cur,min_index);
+                    nbf         = dpvec[min_index];
+
+                    NegateVec3D(nbf);
+
+                    int gEl0=us3d->ife->getVal(fid_new,0);
+                    int gEl1=us3d->ife->getVal(fid_new,1);
+
+                    if(gEl0==elid_cur)
+                    {
+                        elid_next = gEl1;
+                    }
+                    else if(gEl1==elid_cur)
+                    {
+                        elid_next = gEl0;
+                    }
                     layer.push_back(elid_next);
                     elid_cur = elid_next;
                     
-                    dpvec.clear();
                 }
+                
                 BLlayers[bfaceid]=layer;
             }
+            
+            std::map<int,std::vector<int> >::iterator itt;
+            std::vector<int> elements;
+            for(itt=BLlayers.begin();itt!=BLlayers.end();itt++)
+            {
+                for(int q=0;q<itt->second.size();q++)
+                {
+                    elements.push_back(itt->second[q]);
+                }
+            }
+            OutputBLElementsOnRoot(xcn_g,ien_g,elements,comm,"BL_Root_");
         }
+        
+        
         
         /* 
         int nBLelem = bl_elem.size();

@@ -315,7 +315,7 @@ void Mesh_Topology::DetermineBoundaryLayerElements(Partition* Pa, Array<int>* if
                 gElvec0 = ife_in->getVal(fid_new,0);
                 gElvec1 = ife_in->getVal(fid_new,1);
                 int rank_id0 = gPart->getVal(gElvec0,0);
-		int rank_id1 = gPart->getVal(gElvec1,0);
+                int rank_id1 = gPart->getVal(gElvec1,0);
                 if(gElvec0==gEl)
                 {
                     rank2req_elem[rank_id1].push_back(gElvec1);
@@ -324,7 +324,7 @@ void Mesh_Topology::DetermineBoundaryLayerElements(Partition* Pa, Array<int>* if
                 {
                     rank2req_elem[rank_id0].push_back(gElvec0);
                 }
-  	 	ui++;
+                ui++;
             }
         }
         mesh_topo_bl->BLlayers[fid_start] = ElLayer;
