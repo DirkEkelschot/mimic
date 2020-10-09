@@ -1031,9 +1031,11 @@ int main(int argc, char** argv) {
         {
             std::vector<double> dp(6);
             std::vector<Vec3D*> dpvec(6);
-            int wall_id = 4;
+            int wall_id = 3;
             int nLayer = 20;
-
+	    std::cout << "Extracting BL mesh";
+            clock_t start;
+            start = std::clock();
             double* Pijk = new double[8*3];
             int nb = us3d->bnd_face_map[wall_id].size();
             int elid_cur,elid_next;
@@ -1192,10 +1194,11 @@ int main(int argc, char** argv) {
                     elid_cur = elid_next;
                     
                 }
-                
+                //std::cout << ".";
                 BLlayers[bfaceid]=layer;
             }
-            
+            double duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
+	    std::cout << " extracting BL mesh = " << duration << std::endl;
             std::map<int,std::vector<int> >::iterator itt;
             std::vector<int> elements;
             for(itt=BLlayers.begin();itt!=BLlayers.end();itt++)
