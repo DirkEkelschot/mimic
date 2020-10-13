@@ -988,8 +988,8 @@ Mesh_Topology_BL* ExtractBoundaryLayerMesh(US3D* us3d, ParallelState* xcn_pstate
     {
         std::vector<double> dp(6);
         std::vector<Vec3D*> dpvec(6);
-        int wall_id = 2;
-        int nLayer = 1;
+        int wall_id = 3;
+        int nLayer = 10;
         std::cout << "Extracting BL mesh" << std::endl;
         clock_t start;
         start = std::clock();
@@ -1300,7 +1300,7 @@ Mesh_Topology_BL* ExtractBoundaryLayerMesh(US3D* us3d, ParallelState* xcn_pstate
                 
                 prismStored0[0] = prism0[0];prismStored0[1] = prism0[1];prismStored0[2] = prism0[2];
                 prismStored0[3] = prism0[3];prismStored0[4] = prism0[4];prismStored0[5] = prism0[5];
-    
+    		
                 Element* P0 = new Element;
                 P0->GlobalNodes = prismStored0;
                 P0->LocalFace2GlobalNode[0].push_back(prismStored0[0]);
@@ -1354,27 +1354,39 @@ Mesh_Topology_BL* ExtractBoundaryLayerMesh(US3D* us3d, ParallelState* xcn_pstate
                 P1->LocalFace2GlobalNode[4].push_back(prismStored1[0]);
                 P1->LocalFace2GlobalNode[4].push_back(prismStored1[3]);
                 P1->LocalFace2GlobalNode[4].push_back(prismStored1[5]);
-                std::cout << prismStored0[0] << " " << prismStored0[1] << " " << prismStored0[2] << " " << prismStored0[3] << " " << prismStored0[4] << " " << prismStored0[5] << std::endl;
-                std::cout << prismStored1[0] << " " << prismStored1[1] << " " << prismStored1[2] << " " << prismStored1[3] << " " << prismStored1[4] << " " << prismStored1[5] << std::endl;
+            //    std::cout << prismStored0[0] << " " << prismStored0[1] << " " << prismStored0[2] << " " << prismStored0[3] << " " << prismStored0[4] << " " << prismStored0[5] << std::endl;
+             //   std::cout << prismStored1[0] << " " << prismStored1[1] << " " << prismStored1[2] << " " << prismStored1[3] << " " << prismStored1[4] << " " << prismStored1[5] << std::endl;
                 PElements[c*2+0]=P0;
                 PElements[c*2+1]=P1;
                 PPrisms[c*2+0] = prismStored0;
                 PPrisms[c*2+1] = prismStored1;
+                
                 prism0.clear();
                 prism1.clear();
             
+		prism0.push_back(opposite_tri[0]);
+                prism0.push_back(opposite_tri[1]);
+                prism0.push_back(opposite_tri[2]);
+     
+                prism1.push_back(opposite_tri[1]);
+                prism1.push_back(opposite_tri[2]);
+                prism1.push_back(local_node2opponode_face[min_index][opposite_bvid]);
+
                 local_node2node_element.clear();
                 local_node2node_face.clear();
                 local_node2opponode_face.clear();
-                
+                delete P0;
+		delete P1; 
                 elid_cur = elid_next;
             }
+            
             mesh_topology_bl->BLlayersPrisms[bfaceid]=PPrisms;
             mesh_topology_bl->BLlayersElements[bfaceid]=PElements;
             mesh_topology_bl->BLlayers[bfaceid]=layer;
             mesh_topology_bl->Nprisms = mesh_topology_bl->Nprisms+PPrisms.size();
-
+ 	    
         }
+ 	
         double duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
         std::cout << " extracting BL mesh = " << duration << std::endl;
         std::map<int,std::vector<int> >::iterator itt;
@@ -1387,6 +1399,7 @@ Mesh_Topology_BL* ExtractBoundaryLayerMesh(US3D* us3d, ParallelState* xcn_pstate
             }
         }
         OutputBLElementsOnRoot(xcn_g,ien_g,elements,comm,"BL_Root_");
+       
     }
     
     delete xcn_g;
@@ -1495,9 +1508,12 @@ int main(int argc, char** argv) {
         }
         
         delete us3d->interior;
+          
         
-        Mesh_Topology_BL* BLmesh = ExtractBoundaryLayerMesh(us3d,xcn_pstate,ien_pstate,comm);
-        std::map<int,std::vector<Element* > >::iterator iter;
+	Mesh_Topology_BL* BLmesh = ExtractBoundaryLayerMesh(us3d,xcn_pstate,ien_pstate,comm);
+        if(world_rank == 0)
+        {
+	std::map<int,std::vector<Element* > >::iterator iter;
         
         std::set<int> unique_prism_verts;
         std::vector<int> u_prism_v;
@@ -1600,8 +1616,9 @@ int main(int argc, char** argv) {
         }
         
         myfile.close();
+        }
 //
-
+//        (/
         
         
         
