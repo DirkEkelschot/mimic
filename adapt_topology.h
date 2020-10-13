@@ -8,11 +8,24 @@
 
 using namespace std;
 
+struct Element{
+    
+    std::vector<int> GlobalNodes;
+    
+    std::map<int,std::vector<int> > GlobalFace2GlobalNode;
+    std::map<int,std::vector<int> > GlobalFace2LocalNode;
+    
+    std::map<int,std::vector<int> > LocalFace2GlobalNode;
+    std::map<int,std::vector<int> > LocalFace2LocalNode;
+};
+
+
 struct Mesh_Topology_BL{
     std::map<int,std::vector<int> > BLlayers;
     
     int Nprisms;
     std::map<int,std::vector<std::vector<int> > > BLlayersPrisms;
+    std::map<int,std::vector<Element*> > BLlayersElements;
     std::vector<int> exteriorElIDs;
     std::map<int,vector<int> > exteriorVertIDs;
     std::map<int,vector<double> > exteriorVerts;

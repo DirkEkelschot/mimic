@@ -444,7 +444,6 @@ MMG_Mesh* GetOptimizedMMG3DMeshOnRoot(Partition* P, US3D* us3d, Array<double>* H
                Hids.push_back(Hv->getVal(lid,3));
                Hids.push_back(Hv->getVal(lid,4));
                Hids.push_back(Hv->getVal(lid,5));
-               
            }
        }
     }
@@ -989,7 +988,7 @@ Mesh_Topology_BL* ExtractBoundaryLayerMesh(US3D* us3d, ParallelState* xcn_pstate
     {
         std::vector<double> dp(6);
         std::vector<Vec3D*> dpvec(6);
-        int wall_id = 3;
+        int wall_id = 2;
         int nLayer = 1;
         std::cout << "Extracting BL mesh" << std::endl;
         clock_t start;
@@ -1003,6 +1002,7 @@ Mesh_Topology_BL* ExtractBoundaryLayerMesh(US3D* us3d, ParallelState* xcn_pstate
         //std::vector<Vert*> face_c;
         int local_face_id;
         std::map<int,std::vector<Vert*> > prisms;
+        
         Vec3D* cut_dir_face0 = new Vec3D;
         Vec3D* cut_dir_facet0 = new Vec3D;
         Vec3D* cut_dir_facet1 = new Vec3D;
@@ -1014,7 +1014,7 @@ Mesh_Topology_BL* ExtractBoundaryLayerMesh(US3D* us3d, ParallelState* xcn_pstate
 
         std::vector<int> prismStored0(6);
         std::vector<int> prismStored1(6);
-        
+        mesh_topology_bl->Nprisms = 0;
         for(int bf=0;bf<us3d->bnd_face_map[wall_id].size();bf++)
         {
             std::vector<int> layer;
@@ -1060,6 +1060,7 @@ Mesh_Topology_BL* ExtractBoundaryLayerMesh(US3D* us3d, ParallelState* xcn_pstate
             Vert* Vface  = new Vert;
             std::vector<Vert*> face;
             std::vector<Vert*> face_turned(4);
+            std::vector<Vert*> face_turned2(4);
             //std::cout << local_face_id << " BndFace ->";
             std::set<int> conn_bvid;
             for(int r=0;r<4;r++)
@@ -1126,16 +1127,17 @@ Mesh_Topology_BL* ExtractBoundaryLayerMesh(US3D* us3d, ParallelState* xcn_pstate
                 face_turned[3] = face[3];
             }
 
-            double Lcut_dir_face0 = sqrt((face_turned[2]->x-face_turned[0]->x)*(face_turned[2]->x-face_turned[0]->x)
-                                        +(face_turned[2]->y-face_turned[0]->y)*(face_turned[2]->y-face_turned[0]->y)
-                                        +(face_turned[2]->z-face_turned[0]->z)*(face_turned[2]->z-face_turned[0]->z));
-
-            cut_dir_face0->c0 = (face_turned[2]->x-face_turned[0]->x)/Lcut_dir_face0;
-            cut_dir_face0->c1 = (face_turned[2]->y-face_turned[0]->y)/Lcut_dir_face0;
-            cut_dir_face0->c2 = (face_turned[2]->z-face_turned[0]->z)/Lcut_dir_face0;
-            
+//            double Lcut_dir_face0 = sqrt((face_turned[2]->x-face_turned[0]->x)*(face_turned[2]->x-face_turned[0]->x)
+//                                        +(face_turned[2]->y-face_turned[0]->y)*(face_turned[2]->y-face_turned[0]->y)
+//                                        +(face_turned[2]->z-face_turned[0]->z)*(face_turned[2]->z-face_turned[0]->z));
+//
+//            cut_dir_face0->c0 = (face_turned[2]->x-face_turned[0]->x)/Lcut_dir_face0;
+//            cut_dir_face0->c1 = (face_turned[2]->y-face_turned[0]->y)/Lcut_dir_face0;
+//            cut_dir_face0->c2 = (face_turned[2]->z-face_turned[0]->z)/Lcut_dir_face0;
+//
             face.clear();
-            
+            std::vector<Element*> PElements(nLayer*2);
+            std::vector<std::vector<int> > PPrisms(nLayer*2);
             for(int c=0;c<nLayer;c++)
             {
                 for(int k=0;k<8;k++)
@@ -1220,8 +1222,21 @@ Mesh_Topology_BL* ExtractBoundaryLayerMesh(US3D* us3d, ParallelState* xcn_pstate
                     if(orient00<0.0)
                     {
                         NegateVec3D(n00);
+                        face_turned2[0] = face2[0];
+                        face_turned2[1] = face2[3];
+                        face_turned2[2] = face2[2];
+                        face_turned2[3] = face2[1];
                     }
-                    face_stored[k]      =   face2;
+                    else
+                    {
+                        face_turned2[0] = face2[0];
+                        face_turned2[1] = face2[1];
+                        face_turned2[2] = face2[2];
+                        face_turned2[3] = face2[3];
+                    }
+                    
+                    
+                    face_stored[k]      =   face_turned2;
                     dp[k]               =   DotVec3D(nbf,n00);
                     dpvec[k]            =   n00;
                     face_id_stored[k]   =   faceVert_IDs;
@@ -1285,32 +1300,80 @@ Mesh_Topology_BL* ExtractBoundaryLayerMesh(US3D* us3d, ParallelState* xcn_pstate
                 
                 prismStored0[0] = prism0[0];prismStored0[1] = prism0[1];prismStored0[2] = prism0[2];
                 prismStored0[3] = prism0[3];prismStored0[4] = prism0[4];prismStored0[5] = prism0[5];
+    
+                Element* P0 = new Element;
+                P0->GlobalNodes = prismStored0;
+                P0->LocalFace2GlobalNode[0].push_back(prismStored0[0]);
+                P0->LocalFace2GlobalNode[0].push_back(prismStored0[1]);
+                P0->LocalFace2GlobalNode[0].push_back(prismStored0[2]);
+                
+                P0->LocalFace2GlobalNode[1].push_back(prismStored0[3]);
+                P0->LocalFace2GlobalNode[1].push_back(prismStored0[4]);
+                P0->LocalFace2GlobalNode[1].push_back(prismStored0[5]);
+                
+                P0->LocalFace2GlobalNode[2].push_back(prismStored0[0]);
+                P0->LocalFace2GlobalNode[2].push_back(prismStored0[2]);
+                P0->LocalFace2GlobalNode[2].push_back(prismStored0[4]);
+                P0->LocalFace2GlobalNode[2].push_back(prismStored0[3]);
+                
+                P0->LocalFace2GlobalNode[3].push_back(prismStored0[2]);
+                P0->LocalFace2GlobalNode[3].push_back(prismStored0[1]);
+                P0->LocalFace2GlobalNode[3].push_back(prismStored0[5]);
+                P0->LocalFace2GlobalNode[3].push_back(prismStored0[4]);
+                
+                P0->LocalFace2GlobalNode[4].push_back(prismStored0[1]);
+                P0->LocalFace2GlobalNode[4].push_back(prismStored0[0]);
+                P0->LocalFace2GlobalNode[4].push_back(prismStored0[3]);
+                P0->LocalFace2GlobalNode[4].push_back(prismStored0[5]);
+                
+                
                 
                 prismStored1[0] = prism1[0];prismStored1[1] = prism1[1];prismStored1[2] = prism1[2];
                 prismStored1[3] = prism1[3];prismStored1[4] = prism1[4];prismStored1[5] = prism1[5];
+                Element* P1 = new Element;
+                P1->GlobalNodes = prismStored1;
+                P1->LocalFace2GlobalNode[0].push_back(prismStored1[0]);
+                P1->LocalFace2GlobalNode[0].push_back(prismStored1[1]);
+                P1->LocalFace2GlobalNode[0].push_back(prismStored1[2]);
                 
-                mesh_topology_bl->BLlayersPrisms[bfaceid].push_back(prismStored0);
-                mesh_topology_bl->BLlayersPrisms[bfaceid].push_back(prismStored1);
-                            
+                P1->LocalFace2GlobalNode[1].push_back(prismStored1[3]);
+                P1->LocalFace2GlobalNode[1].push_back(prismStored1[4]);
+                P1->LocalFace2GlobalNode[1].push_back(prismStored1[5]);
+                
+                P1->LocalFace2GlobalNode[2].push_back(prismStored1[0]);
+                P1->LocalFace2GlobalNode[2].push_back(prismStored1[2]);
+                P1->LocalFace2GlobalNode[2].push_back(prismStored1[4]);
+                P1->LocalFace2GlobalNode[2].push_back(prismStored1[3]);
+                
+                P1->LocalFace2GlobalNode[3].push_back(prismStored1[2]);
+                P1->LocalFace2GlobalNode[3].push_back(prismStored1[1]);
+                P1->LocalFace2GlobalNode[3].push_back(prismStored1[5]);
+                P1->LocalFace2GlobalNode[3].push_back(prismStored1[4]);
+                
+                P1->LocalFace2GlobalNode[4].push_back(prismStored1[1]);
+                P1->LocalFace2GlobalNode[4].push_back(prismStored1[0]);
+                P1->LocalFace2GlobalNode[4].push_back(prismStored1[3]);
+                P1->LocalFace2GlobalNode[4].push_back(prismStored1[5]);
+                std::cout << prismStored0[0] << " " << prismStored0[1] << " " << prismStored0[2] << " " << prismStored0[3] << " " << prismStored0[4] << " " << prismStored0[5] << std::endl;
+                std::cout << prismStored1[0] << " " << prismStored1[1] << " " << prismStored1[2] << " " << prismStored1[3] << " " << prismStored1[4] << " " << prismStored1[5] << std::endl;
+                PElements[c*2+0]=P0;
+                PElements[c*2+1]=P1;
+                PPrisms[c*2+0] = prismStored0;
+                PPrisms[c*2+1] = prismStored1;
                 prism0.clear();
                 prism1.clear();
-                
-                prism0.push_back(opposite_tri[0]);
-                prism0.push_back(opposite_tri[1]);
-                prism0.push_back(opposite_tri[2]);
-                
-                prism1.push_back(opposite_tri[1]);
-                prism1.push_back(opposite_tri[2]);
-                prism1.push_back(local_node2opponode_face[min_index][opposite_bvid]);
-                
+            
                 local_node2node_element.clear();
                 local_node2node_face.clear();
                 local_node2opponode_face.clear();
                 
                 elid_cur = elid_next;
             }
-            mesh_topology_bl->Nprisms = mesh_topology_bl->Nprisms+mesh_topology_bl->BLlayersPrisms[bfaceid].size();
+            mesh_topology_bl->BLlayersPrisms[bfaceid]=PPrisms;
+            mesh_topology_bl->BLlayersElements[bfaceid]=PElements;
             mesh_topology_bl->BLlayers[bfaceid]=layer;
+            mesh_topology_bl->Nprisms = mesh_topology_bl->Nprisms+PPrisms.size();
+
         }
         double duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
         std::cout << " extracting BL mesh = " << duration << std::endl;
@@ -1415,9 +1478,9 @@ int main(int argc, char** argv) {
         //========================================================================
         int varia = 3;
         US3D* us3d = ReadUS3DData(fn_conn,fn_grid,fn_data,comm,info);
-//
+
         //MMG5_pMesh mmgMesh = ReadMMG_pMesh(us3d,comm,info);
-//
+
         int Nel_part = us3d->ien->getNrow();
         
         ParallelState* ien_pstate = new ParallelState(us3d->ien->getNglob(),comm);
@@ -1434,21 +1497,24 @@ int main(int argc, char** argv) {
         delete us3d->interior;
         
         Mesh_Topology_BL* BLmesh = ExtractBoundaryLayerMesh(us3d,xcn_pstate,ien_pstate,comm);
-        std::map<int,std::vector<std::vector<int> > >::iterator iter;
+        std::map<int,std::vector<Element* > >::iterator iter;
         
         std::set<int> unique_prism_verts;
         std::vector<int> u_prism_v;
         
         Array<int>* local_prisms = new Array<int>(BLmesh->Nprisms,6);
-        std::cout << "BLmesh->Nprisms " << BLmesh->Nprisms << std::endl;
         std::map<int,int> gv2lv_prisms;
-        int npr=0;
+        int npr =0;
         int lvid=0;
-        for(iter=BLmesh->BLlayersPrisms.begin();iter!=BLmesh->BLlayersPrisms.end();iter++)
+        std::set<std::set<int> > unique_faces;
+        std::vector<std::vector<int> > ufaces;
+        int fc = 0;
+        for(iter=BLmesh->BLlayersElements.begin();iter!=BLmesh->BLlayersElements.end();iter++)
         {
             for(int p=0;p<iter->second.size();p++)
             {
-                std::vector<int> prism = iter->second[p];
+                std::vector<int> prism = iter->second[p]->GlobalNodes;
+
                 for(int q=0;q<prism.size();q++)
                 {
                     if(unique_prism_verts.find(prism[q])==unique_prism_verts.end())
@@ -1464,15 +1530,48 @@ int main(int argc, char** argv) {
                         local_prisms->setVal(npr,q,gv2lv_prisms[prism[q]]);
                     }
                 }
+                
+                std::map<int,std::vector<int> > LF2GN = iter->second[p]->LocalFace2GlobalNode;
+                
+                std::map<int,std::vector<int> >::iterator itm;
+                for(itm=LF2GN.begin();itm!=LF2GN.end();itm++)
+                {
+                    std::set<int> face;
+                    for(int q=0;q<itm->second.size();q++)
+                    {
+                        face.insert(itm->second[q]);
+                    }
+                    
+                    if(unique_faces.find(face)==unique_faces.end())
+                    {
+                        unique_faces.insert(face);
+                        std::set<int>::iterator its;
+                        std::vector<int> tmp;
+                        for(its=face.begin();its!=face.end();its++)
+                        {
+                            tmp.push_back(*its);
+                        }
+                        ufaces.push_back(tmp);
+                        fc++;
+                    }
+                }
                 npr++;
             }
         }
         
-        
-        for(int i=0;i<BLmesh->Nprisms;i++)
-        {
-            
-        }
+//        std::cout << "nique_faces.size() " << unique_faces.size() << std::endl;
+//        std::set<std::set<int> >::iterator itss;
+//        for(itss=unique_faces.begin();itss!=unique_faces.end();itss++)
+//        {
+//            std::set<int>::iterator itsss;
+//            std::set<int> S = *itss;
+//            for(itsss=S.begin();itsss!=S.end();itsss++)
+//            {
+//                //std::cout << *itsss << " ";
+//            }
+//           //std::cout << std::endl;
+//        }
+//        std::cout << std::endl;
         
         string filename = "BL_Prisms_" + std::to_string(world_rank) + ".dat";
         ofstream myfile;
@@ -1495,9 +1594,9 @@ int main(int argc, char** argv) {
             << " " << local_prisms->getVal(i,2)+1 << " " << local_prisms->getVal(i,3)+1
             << " " << local_prisms->getVal(i,4)+1 << " " << local_prisms->getVal(i,5)+1 << std::endl;
             
-            std::cout << local_prisms->getVal(i,0)+1 << " " << local_prisms->getVal(i,1)+1
-            << " " << local_prisms->getVal(i,2)+1 << " " << local_prisms->getVal(i,3)+1
-            << " " << local_prisms->getVal(i,4)+1 << " " << local_prisms->getVal(i,5)+1 << std::endl;
+//            std::cout << local_prisms->getVal(i,0)+1 << " " << local_prisms->getVal(i,1)+1
+//            << " " << local_prisms->getVal(i,2)+1 << " " << local_prisms->getVal(i,3)+1
+//            << " " << local_prisms->getVal(i,4)+1 << " " << local_prisms->getVal(i,5)+1 << std::endl;
         }
         
         myfile.close();
