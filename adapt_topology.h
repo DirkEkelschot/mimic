@@ -10,11 +10,15 @@ using namespace std;
 
 struct Mesh_Topology_BL{
     std::map<int,std::vector<int> > BLlayers;
+    
+    int Nprisms;
+    std::map<int,std::vector<std::vector<int> > > BLlayersPrisms;
     std::vector<int> exteriorElIDs;
     std::map<int,vector<int> > exteriorVertIDs;
     std::map<int,vector<double> > exteriorVerts;
     std::map<int,int> verts_g2l_ex;
     std::map<int,std::vector<double> > local_ex_verts;
+    std::vector<int> outer_shell_faces;
 };
 
 
