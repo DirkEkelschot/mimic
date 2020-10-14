@@ -990,7 +990,7 @@ Mesh_Topology_BL* ExtractBoundaryLayerMesh(US3D* us3d, ParallelState* xcn_pstate
         std::vector<double> dp(6);
         std::vector<Vec3D*> dpvec(6);
         int wall_id = 4;
-        int nLayer = 20;
+        int nLayer = 10;
         std::cout << "Extracting BL mesh" << std::endl;
         clock_t start;
         start = std::clock();
@@ -1017,6 +1017,7 @@ Mesh_Topology_BL* ExtractBoundaryLayerMesh(US3D* us3d, ParallelState* xcn_pstate
         std::vector<int> prismStored1(6);
         mesh_topology_bl->Nprisms = 0;
         int glob_el_id = 0;
+        
         for(int bf=0;bf<us3d->bnd_face_map[wall_id].size();bf++)
         {
             std::vector<int> layer;
@@ -1080,14 +1081,22 @@ Mesh_Topology_BL* ExtractBoundaryLayerMesh(US3D* us3d, ParallelState* xcn_pstate
                 Vface->z = Vface->z+V->z;
                 face.push_back(V);
             }
-            
+            std::vector<int> tri0(3);
+            std::vector<int> tri1(3);
             prism0.push_back(bvid);
             prism0.push_back(us3d->ifn->getVal(faceid,1));
             prism0.push_back(us3d->ifn->getVal(faceid,3));
-            
+            tri0[0] = bvid;
+            tri0[1] = us3d->ifn->getVal(faceid,1);
+            tri0[2] = us3d->ifn->getVal(faceid,3);
+            mesh_topology_bl->BndFaces.push_back(tri0);
             prism1.push_back(us3d->ifn->getVal(faceid,2));
             prism1.push_back(us3d->ifn->getVal(faceid,3));
             prism1.push_back(us3d->ifn->getVal(faceid,1));
+            tri1[0] = us3d->ifn->getVal(faceid,2);
+            tri1[1] = us3d->ifn->getVal(faceid,3);
+            tri1[2] = us3d->ifn->getVal(faceid,1);
+            mesh_topology_bl->BndFaces.push_back(tri1);
             
             conn_bvid.insert(us3d->ifn->getVal(faceid,1));
             conn_bvid.insert(us3d->ifn->getVal(faceid,3));
@@ -1606,18 +1615,12 @@ int main(int argc, char** argv) {
             int tel = 0;
             for(itmap=lhface.begin();itmap!=lhface.end();itmap++)
             {
-                if(rhface.find(itmap->first)!=rhface.end())
-                {
-                    //std::cout << tel << " " << itmap->first << " " << itmap->second << " " << rhface[itmap->first] <<  std::endl;
-                }
-                else
+                if(rhface.find(itmap->first)==rhface.end())
                 {
                     rhface[itmap->first] = 0;
-                    //std::cout << tel << " " << itmap->first << " " << itmap->second << " " << rhface[itmap->first] <<  std::endl;
                 }
                 tel++;
             }
-            std::cout << "UNIQUE FACES " << ufaces.size() << std::endl;
 //
             string filename = "BL_Prisms_" + std::to_string(world_rank) + ".dat";
             ofstream myfile;
@@ -1724,6 +1727,59 @@ int main(int argc, char** argv) {
             myfile << "#boundary connection elements" << std::endl;
             myfile << "#boundary connection zones" << std::endl;
             myfile.close();
+            
+            
+            int bndv=0;
+            Array<int>* BndFace_Output = new Array<int>(BLmesh->BndFaces.size(),3);
+            std::map<int,int> gbnd2lbnd;
+            std::set<int> U_BndNodes_Set;
+            std::vector<int> U_BndNodes_Vec;
+            for(int i=0;i<BLmesh->BndFaces.size();i++)
+            {
+                for(int j=0;j<3;j++)
+                {
+                    int gbndvert = BLmesh->BndFaces[i][j];
+
+                    if(U_BndNodes_Set.find(gbndvert)==U_BndNodes_Set.end())
+                    {
+                        U_BndNodes_Set.insert(gbndvert);
+                        U_BndNodes_Vec.push_back(gbndvert);
+                        BndFace_Output->setVal(i,j,bndv);
+                        gbnd2lbnd[gbndvert]=bndv;
+                        bndv++;
+                    }
+                    else
+                    {
+                        BndFace_Output->setVal(i,j,gbnd2lbnd[gbndvert]);
+                    }
+                }
+            }
+            
+            
+            string filename2 = "boundary_BL.dat";
+            ofstream myfile2;
+            myfile2.open(filename2);
+            myfile2 << "TITLE=\"boundary.tec\"" << std::endl;
+            myfile2 <<"VARIABLES = \"X\", \"Y\", \"Z\"" << std::endl;
+            //ZONE N = 64, E = 48, DATAPACKING = POINT, ZONETYPE = FEQUADRILATERAL
+            myfile2 <<"ZONE N = " << U_BndNodes_Vec.size() << ", E = " << BLmesh->BndFaces.size() << ", DATAPACKING = POINT, ZONETYPE = FETRIANGLE" << std::endl;
+            for(int i=0;i<U_BndNodes_Vec.size();i++)
+            {
+              myfile2 << us3d->xcn->getVal(U_BndNodes_Vec[i],0)
+                << " " << us3d->xcn->getVal(U_BndNodes_Vec[i],1)
+                << " " << us3d->xcn->getVal(U_BndNodes_Vec[i],2) << std::endl;
+            }
+
+            for(int i=0;i<BLmesh->BndFaces.size();i++)
+            {
+              myfile2 << BndFace_Output->getVal(i,0)+1
+                << " " << BndFace_Output->getVal(i,1)+1
+                << " " << BndFace_Output->getVal(i,2)+1 << std::endl;
+            }
+            myfile2.close();
+            
+            
+            
         }
         
 //

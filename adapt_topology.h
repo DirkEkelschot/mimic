@@ -23,7 +23,7 @@ struct Element{
 
 struct Mesh_Topology_BL{
     std::map<int,std::vector<int> > BLlayers;
-    
+    std::vector<std::vector<int> > BndFaces;
     int Nprisms;
     std::map<int,std::vector<std::vector<int> > > BLlayersPrisms;
     std::map<int,std::vector<Element*> > BLlayersElements;
