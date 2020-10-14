@@ -10,6 +10,7 @@ using namespace std;
 
 struct Element{
     
+    int globID;
     std::vector<int> GlobalNodes;
     
     std::map<int,std::vector<int> > GlobalFace2GlobalNode;
@@ -26,6 +27,8 @@ struct Mesh_Topology_BL{
     int Nprisms;
     std::map<int,std::vector<std::vector<int> > > BLlayersPrisms;
     std::map<int,std::vector<Element*> > BLlayersElements;
+    std::map<int,std::vector<int> > GlobalElement2GlobalNode;
+    std::map<int,std::vector<int> > LocalElement2GlobalNode;
     std::vector<int> exteriorElIDs;
     std::map<int,vector<int> > exteriorVertIDs;
     std::map<int,vector<double> > exteriorVerts;
