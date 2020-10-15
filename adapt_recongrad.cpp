@@ -702,6 +702,7 @@ Array<double>* ComputedUdx_MGG(Partition* Pa, std::map<int,double> U, Mesh_Topol
         gu_c_old->setVal(i,2,0.0);
     }
     
+    std::cout << "Computing the MGG " << std::endl;
     std::map<int,vector<Vec3D*> > normals   = meshTopo->getNormals();
     std::map<int,vector<Vec3D*> > rvector   = meshTopo->getRvectors();
     std::map<int,vector<Vec3D*> > dxfxc     = meshTopo->getdXfXc();
