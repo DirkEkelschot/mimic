@@ -3,6 +3,263 @@
 using namespace std;
 
 
+void OutputBoundaryLayerPrisms(Array<double>* xcn_g, Mesh_Topology_BL* BLmesh, MPI_Comm comm)
+{
+    int world_size;
+    MPI_Comm_size(comm, &world_size);
+    // Get the rank of the process
+    int world_rank;
+    MPI_Comm_rank(comm, &world_rank);
+    
+    std::map<int,std::vector<Element* > >::iterator iter;
+
+    std::set<int> unique_prism_verts;
+    std::vector<int> u_prism_v;
+
+    Array<int>* local_prisms = new Array<int>(BLmesh->Nprisms,6);
+    std::map<int,int> gv2lv_prisms;
+    int npr =0;
+    int lvid=0;
+    std::set<std::set<int> > unique_faces;
+    std::vector<std::vector<int> > ufaces;
+    int fc = 0;
+    std::map<int,int> lhface;
+    std::map<int,int> rhface;
+    int TotNumFaceNodes = 0;
+    int numit = 0;
+    std::map<std::set<int>,int> face2ID;
+    for(iter=BLmesh->BLlayersElements.begin();iter!=BLmesh->BLlayersElements.end();iter++)
+    {
+        numit=iter->second.size();
+        
+        for(int p=0;p<numit;p++)
+        {
+            
+            std::vector<int> prism = iter->second[p]->GlobalNodes;
+            
+            int gElID = iter->second[p]->globID;
+            
+            for(int q=0;q<prism.size();q++)
+            {
+                if(unique_prism_verts.find(prism[q])==unique_prism_verts.end())
+                {
+                    unique_prism_verts.insert(prism[q]);
+                    u_prism_v.push_back(prism[q]);
+                    local_prisms->setVal(npr,q,lvid);
+                    gv2lv_prisms[prism[q]] = lvid;
+                    lvid++;
+                }
+                else
+                {
+                    local_prisms->setVal(npr,q,gv2lv_prisms[prism[q]]);
+                }
+            }
+           
+            std::map<int,std::vector<int> > LF2GN = iter->second[p]->LocalFace2GlobalNode;
+//
+            std::map<int,std::vector<int> >::iterator itm;
+            for(itm=LF2GN.begin();itm!=LF2GN.end();itm++)
+            {
+                std::set<int> face;
+                for(int q=0;q<itm->second.size();q++)
+                {
+                    face.insert(itm->second[q]);
+                }
+                if(unique_faces.find(face)==unique_faces.end())
+                {
+                    unique_faces.insert(face);
+                    std::set<int>::iterator its;
+                    std::vector<int> tmp;
+                    face2ID[face] = fc;
+                    for(int q=0;q<itm->second.size();q++)
+                    {
+                        int local_id = gv2lv_prisms[itm->second[q]];
+                        tmp.push_back(local_id+1); //maintaining face ordering.
+                    }
+                    lhface[fc]=gElID+1;
+                    ufaces.push_back(tmp);
+                    TotNumFaceNodes=TotNumFaceNodes+tmp.size();
+                    tmp.clear();
+                    fc++;
+                }
+                else
+                {
+                    int fcid = face2ID[face];
+                    rhface[fcid]=gElID+1;
+                }
+                face.clear();
+            }
+            npr++;
+        }
+    }
+
+    std::map<int,int>::iterator itmap;
+    int tel = 0;
+    for(itmap=lhface.begin();itmap!=lhface.end();itmap++)
+    {
+        if(rhface.find(itmap->first)==rhface.end())
+        {
+            rhface[itmap->first] = 0;
+        }
+        tel++;
+    }
+//
+    string filename = "BL_Prisms_" + std::to_string(world_rank) + ".dat";
+    ofstream myfile;
+    myfile.open(filename);
+    myfile <<"VARIABLES = \"X\", \"Y\", \"Z\"" << std::endl;
+    myfile << "Zone" << std::endl;
+    myfile << "ZoneType=FEPolyhedron" << std::endl;
+    myfile <<"Nodes="<< u_prism_v.size() << std::endl;
+    myfile <<"Faces="<< ufaces.size() << std::endl;
+    myfile <<"Elements="<< npr << std::endl;
+    myfile <<"TotalNumFaceNodes="<<TotNumFaceNodes << std::endl;
+    myfile << "NumConnectedBoundaryFaces="<< 0 << std::endl;
+    myfile << "TotalNumBoundaryConnections="<< 0 << std::endl;
+    myfile << "Datapacking=BLOCK" << std::endl;
+    myfile << "Varlocation=(4=CellCentered)" << std::endl;
+    myfile << "DT=(DOUBLE DOUBLE DOUBLE)" << std::endl;
+    int Nlim = 6;
+    for(int i=0;i<u_prism_v.size();i++)
+    {
+        myfile <<setprecision(6)<< xcn_g->getVal(u_prism_v[i],0) << " ";
+        if(i>Nlim)
+        {
+            myfile << std::endl;
+            Nlim = Nlim+6;
+        }
+    }
+    myfile << std::endl;
+    Nlim = 6;
+    for(int i=0;i<u_prism_v.size();i++)
+    {
+        
+        myfile <<setprecision(6)<< xcn_g->getVal(u_prism_v[i],1) << " ";
+        if(i>Nlim)
+        {
+            myfile << std::endl;
+            Nlim = Nlim+6;
+        }
+        
+    }
+    myfile << std::endl;
+    Nlim = 6;
+    for(int i=0;i<u_prism_v.size();i++)
+    {
+        myfile <<setprecision(6)<< xcn_g->getVal(u_prism_v[i],2) << " ";
+        if(i>Nlim)
+        {
+            myfile << std::endl;
+            Nlim = Nlim+6;
+        }
+    }
+    myfile << std::endl;
+    myfile << "#node count per face"<<std::endl;
+    Nlim = 6;
+    for(int i=0;i<ufaces.size();i++)
+    {
+        myfile << ufaces[i].size()<<" ";
+        if(i>Nlim)
+        {
+            myfile << std::endl;
+            Nlim = Nlim+6;
+        }
+    }
+    myfile << std::endl;
+    myfile << "#face nodes"<<std::endl;
+    for(int i=0;i<ufaces.size();i++)
+    {
+        for(int q=0;q<ufaces[i].size();q++)
+        {
+            myfile << ufaces[i][q] << " ";
+        }
+        myfile<<std::endl;
+    }
+
+    myfile << "#left elements (negative indicates boundary connnection)" << std::endl;
+    Nlim = 6;
+    int i = 0;
+    for(itmap=lhface.begin();itmap!=lhface.end();itmap++)
+    {
+        
+        myfile <<  itmap->second << " ";
+        if(i>Nlim)
+        {
+            myfile << std::endl;
+            Nlim = Nlim+6;
+        }
+        i++;
+    }
+    myfile << std::endl;
+    myfile << "#right elements" << std::endl;
+    Nlim = 6;
+    i = 0;
+    for(itmap=rhface.begin();itmap!=rhface.end();itmap++)
+    {
+        myfile <<  itmap->second << " ";
+        if(i>Nlim)
+        {
+            myfile << std::endl;
+            Nlim = Nlim+6;
+        }
+        i++;
+    }
+    myfile << std::endl;
+    myfile << "#boundary connection counts" <<std::endl;
+    myfile << "#boundary connection elements" << std::endl;
+    myfile << "#boundary connection zones" << std::endl;
+    myfile.close();
+    
+    
+    int bndv=0;
+    Array<int>* BndFace_Output = new Array<int>(BLmesh->BndFaces.size(),3);
+    std::map<int,int> gbnd2lbnd;
+    std::set<int> U_BndNodes_Set;
+    std::vector<int> U_BndNodes_Vec;
+    for(int i=0;i<BLmesh->BndFaces.size();i++)
+    {
+        for(int j=0;j<3;j++)
+        {
+            int gbndvert = BLmesh->BndFaces[i][j];
+
+            if(U_BndNodes_Set.find(gbndvert)==U_BndNodes_Set.end())
+            {
+                U_BndNodes_Set.insert(gbndvert);
+                U_BndNodes_Vec.push_back(gbndvert);
+                BndFace_Output->setVal(i,j,bndv);
+                gbnd2lbnd[gbndvert]=bndv;
+                bndv++;
+            }
+            else
+            {
+                BndFace_Output->setVal(i,j,gbnd2lbnd[gbndvert]);
+            }
+        }
+    }
+    
+    string filename2 = "boundary_BL.dat";
+    ofstream myfile2;
+    myfile2.open(filename2);
+    myfile2 << "TITLE=\"boundary.tec\"" << std::endl;
+    myfile2 <<"VARIABLES = \"X\", \"Y\", \"Z\"" << std::endl;
+    //ZONE N = 64, E = 48, DATAPACKING = POINT, ZONETYPE = FEQUADRILATERAL
+    myfile2 <<"ZONE N = " << U_BndNodes_Vec.size() << ", E = " << BLmesh->BndFaces.size() << ", DATAPACKING = POINT, ZONETYPE = FETRIANGLE" << std::endl;
+    for(int i=0;i<U_BndNodes_Vec.size();i++)
+    {
+      myfile2 << xcn_g->getVal(U_BndNodes_Vec[i],0)
+        << " " << xcn_g->getVal(U_BndNodes_Vec[i],1)
+        << " " << xcn_g->getVal(U_BndNodes_Vec[i],2) << std::endl;
+    }
+
+    for(int i=0;i<BLmesh->BndFaces.size();i++)
+    {
+      myfile2 << BndFace_Output->getVal(i,0)+1
+        << " " << BndFace_Output->getVal(i,1)+1
+        << " " << BndFace_Output->getVal(i,2)+1 << std::endl;
+    }
+    myfile2.close();
+}
+
 void OutputMesh_MMG(MMG5_pMesh mmgMesh)
 {
     std::ofstream myfile;

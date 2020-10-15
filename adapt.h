@@ -18,6 +18,7 @@
 #include <iostream>
 #include <stdlib.h>
 #include <fstream>
+#include <iomanip>      // std::setprecision
 
 // external libraries.
 #include <mpi.h>

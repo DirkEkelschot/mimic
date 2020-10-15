@@ -12,6 +12,8 @@
 
 using namespace std;
 
+void OutputBoundaryLayerPrisms(Array<double>* xcn_g, Mesh_Topology_BL* BLmesh, MPI_Comm comm);
+
 void OutputMesh_MMG(MMG5_pMesh mmgMesh);
 
 void OutputBoundaryID_MMG(MMG5_pMesh mmgMesh, std::map<int,std::vector<int> > ref2bface, int bndID);
