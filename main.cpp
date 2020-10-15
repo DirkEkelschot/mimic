@@ -1816,8 +1816,8 @@ int main(int argc, char** argv) {
         {
             gB->setVal(i,0,us3d->ghost->getVal(i,varia));
         }
-        Array<double>* dUdXi = ComputedUdx_LSQ_US3D_v3(P,UauxNew,meshTopo,gB,comm);
-//        Array<double>* dUdXi   = ComputedUdx_MGG(P,UauxNew,meshTopo,us3d->ghost,comm);
+//        Array<double>* dUdXi = ComputedUdx_LSQ_US3D_v3(P,UauxNew,meshTopo,gB,comm);
+        Array<double>* dUdXi   = ComputedUdx_MGG(P,UauxNew,meshTopo,gB,comm);
         //Gradients* dudxObj   = new Gradients(P,meshTopo,UauxNew,us3d->ghost,"us3d","LSQ",comm);
 //        Array<double>* dUdXi = dudxObj->getdUdXi();
         
@@ -1853,13 +1853,13 @@ int main(int argc, char** argv) {
         
         delete dUdXi;
         
-        Array<double>* dU2dXi2 = ComputedUdx_LSQ_US3D_v3(P,dUdxauxNew,meshTopo,gB,comm);
-        Array<double>* dU2dYi2 = ComputedUdx_LSQ_US3D_v3(P,dUdyauxNew,meshTopo,gB,comm);
-        Array<double>* dU2dZi2 = ComputedUdx_LSQ_US3D_v3(P,dUdzauxNew,meshTopo,gB,comm);
+//        Array<double>* dU2dXi2 = ComputedUdx_LSQ_US3D_v3(P,dUdxauxNew,meshTopo,gB,comm);
+//        Array<double>* dU2dYi2 = ComputedUdx_LSQ_US3D_v3(P,dUdyauxNew,meshTopo,gB,comm);
+//        Array<double>* dU2dZi2 = ComputedUdx_LSQ_US3D_v3(P,dUdzauxNew,meshTopo,gB,comm);
 
-//        Array<double>* dU2dXi2 = ComputedUdx_MGG(P,dUdxauxNew,meshTopo,us3d->ghost,comm);
-//        Array<double>* dU2dYi2 = ComputedUdx_MGG(P,dUdyauxNew,meshTopo,us3d->ghost,comm);
-//        Array<double>* dU2dZi2 = ComputedUdx_MGG(P,dUdzauxNew,meshTopo,us3d->ghost,comm);
+        Array<double>* dU2dXi2 = ComputedUdx_MGG(P,dUdxauxNew,meshTopo,gB,comm);
+        Array<double>* dU2dYi2 = ComputedUdx_MGG(P,dUdyauxNew,meshTopo,gB,comm);
+        Array<double>* dU2dZi2 = ComputedUdx_MGG(P,dUdzauxNew,meshTopo,gB,comm);
         
         Array<double>* d2udx2 = new Array<double>(dU2dXi2->getNrow(),1);
         Array<double>* d2udxy = new Array<double>(dU2dXi2->getNrow(),1);

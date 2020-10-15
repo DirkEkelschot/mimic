@@ -465,28 +465,29 @@ Array<double>* ComputedUdx_LSQ_US3D_v2(Partition* P, ParallelState* pstate, ParA
                 t++;
                 dist.push_back(d);
             }
-            
-            double* A_cm = new double[nadj*3];
-            double sum =0.0;
-            for(int s=0;s<nadj;s++)
-            {
-                for(int j=0;j<3;j++)
-                {
-                    A_cm[j*nadj+s] = Vrt->getVal(s,j);
-                }
-            }
-            
-            Array<double>* x = SolveQR(A_cm,nadj,3,b);
-        
-            grad->setVal(i,0,x->getVal(0,0));
-            grad->setVal(i,1,x->getVal(1,0));
-            grad->setVal(i,2,x->getVal(2,0));
-            
-            delete Vrt;
-            delete Vrt_T;
-            delete[] A_cm;
-            delete x;
         }
+        
+        double* A_cm = new double[nadj*3];
+        double sum =0.0;
+        for(int s=0;s<nadj;s++)
+        {
+            for(int j=0;j<3;j++)
+            {
+                    A_cm[j*nadj+s] = Vrt->getVal(s,j);
+            }
+        }
+            
+        Array<double>* x = SolveQR(A_cm,nadj,3,b);
+        
+        grad->setVal(i,0,x->getVal(0,0));
+        grad->setVal(i,1,x->getVal(1,0));
+        grad->setVal(i,2,x->getVal(2,0));
+        
+        delete Vrt;
+        delete Vrt_T;
+        delete[] A_cm;
+        delete x;
+        
                 
         delete Vrt_T;
         delete Vrt;
@@ -566,7 +567,7 @@ Array<double>* ComputedUdx_LSQ_US3D_v3(Partition* Pa, std::map<int,double> U,Mes
        int t = 0;
        for(int j=0;j<6;j++)
        {
-             int adjID = iee_vec->i_map[elID][j];
+           int adjID = iee_vec->i_map[elID][j];
 
            if(adjID<Nel)
            {
@@ -630,30 +631,27 @@ Array<double>* ComputedUdx_LSQ_US3D_v3(Partition* Pa, std::map<int,double> U,Mes
                b->setVal(t,0,(1.0/d)*(u_po-u_ijk));
                t++;
                dist.push_back(d);
-
            }
-//
-           double* A_cm = new double[nadj*3];
-           double sum =0.0;
-           for(int s=0;s<nadj;s++)
-           {
-               for(int j=0;j<3;j++)
-               {
-                   A_cm[j*nadj+s] = Vrt->getVal(s,j);
-                   //std::cout << Vrt->getVal(s,j) << " ";
-               }
-               //std::cout << std::endl;
-           }
+      }
+       
+      double* A_cm = new double[nadj*3];
+      double sum =0.0;
+      for(int s=0;s<nadj;s++)
+      {
+          for(int j=0;j<3;j++)
+          {
+              A_cm[j*nadj+s] = Vrt->getVal(s,j);
+          }
+      }
 
-           Array<double>* x = SolveQR(A_cm,nadj,3,b);
+       Array<double>* x = SolveQR(A_cm,nadj,3,b);
 //
-           dudx->setVal(i,0,x->getVal(0,0));
-           dudx->setVal(i,1,x->getVal(1,0));
-           dudx->setVal(i,2,x->getVal(2,0));
-//
-           delete[] A_cm;
-           delete x;
-       }
+       dudx->setVal(i,0,x->getVal(0,0));
+       dudx->setVal(i,1,x->getVal(1,0));
+       dudx->setVal(i,2,x->getVal(2,0));
+    
+       delete[] A_cm;
+       delete x;
 
        delete Vrt_T;
        delete Vrt;
