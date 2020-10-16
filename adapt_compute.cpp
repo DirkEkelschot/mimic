@@ -776,7 +776,19 @@ Array<double>* ComputeMetric(std::vector<Vert> Verts, Array<double>* grad, Array
             Hmet[6] = hessian->getVal(i,2);
             Hmet[7] = hessian->getVal(i,4);
             Hmet[8] = hessian->getVal(i,5);
+/*
+	    Hmet[0] = hessian->getVal(i,0);
+            Hmet[1] = hessian->getVal(i,1);
+            Hmet[2] = 1.0e-06;
 
+            Hmet[3] = hessian->getVal(i,1);
+            Hmet[4] = hessian->getVal(i,3);
+            Hmet[5] = 1.0e-06;
+
+            Hmet[6] = 1.0e-06;
+            Hmet[7] = 1.0e-06;
+            Hmet[8] = 1.0e-06;
+*/
             double * WR = new double[3];
             double * WI = new double[3];
             double * V  = new double[3*3];
