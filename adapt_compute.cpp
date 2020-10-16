@@ -658,7 +658,7 @@ Array<double>* ComputeMetric(std::vector<Vert> Verts, Array<double>* grad, Array
     double hmin         = 0.000001;
     double hmax         = 0.01;
     
-    double f            = 0.1;
+    double f            = 1000;
     std::cout << "Metric Tensor Field gets computed..." << std::endl;
     //double d2udx2_v_max = *std::max_element(d2udx2_v.begin(), d2udx2_v.end());
     //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

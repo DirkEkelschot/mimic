@@ -776,10 +776,10 @@ Array<double>* ComputedUdx_MGG(Partition* Pa, std::map<int,double> U, Mesh_Topol
                      gu_nb_vy = gu_c_y->getVal(lid,0);
                      gu_nb_vz = gu_c_z->getVal(lid,0);
                      
-                     u_nb     = 0.0;
-                     gu_nb_vx = 0.0;
-                     gu_nb_vy = 0.0;
-                     gu_nb_vz = 0.0;
+ //                    u_nb     = 0.0;
+ //                    gu_nb_vx = 0.0;
+ //                    gu_nb_vy = 0.0;
+ //                    gu_nb_vz = 0.0;
                      
                  }
                  
