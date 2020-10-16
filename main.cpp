@@ -914,8 +914,21 @@ int ChkHexorient(double* P, int* Pid) {
   return changed;
 }
 
-std::map<int,std::set<int> > FindOuterShellBoundaryLayerMesh(int wall_id, int nLayer, US3D* us3d, Array<double>* xcn_g, Array<int>* ien_g, Array<int>* ief_g, ParallelState* xcn_pstate, ParallelState* ien_pstate, MPI_Comm comm)
+struct BLShellInfo{
+  
+    std::map<int,int> ShellFace2BFace;
+    std::map<int,int> BFace2ShellFace;
+    std::map<std::set<int>,int> ShellTri2FaceID;
+    std::map<int,int> FaceID2TopoType;
+    std::map<int,std::map<int,int> > ShellFace2ShellVert2OppositeBoundaryVerts;
+    Array<int>* ShellRef;
+};
+
+BLShellInfo* FindOuterShellBoundaryLayerMesh(int wall_id, int nLayer, US3D* us3d, Array<double>* xcn_g, Array<int>* ien_g, Array<int>* ief_g, ParallelState* xcn_pstate, ParallelState* ien_pstate, MPI_Comm comm)
 {
+    BLShellInfo* BLinfo = new BLShellInfo;
+    BLinfo->ShellRef = new Array<int>(xcn_g->getNrow(),1);
+    
     std::vector<int> outer_shell_faces;
     std::vector<std::vector<int> > outer_shell_elements;
     std::map<int,std::set<int> > outer_shell_Faces2Nodes;
@@ -940,9 +953,11 @@ std::map<int,std::set<int> > FindOuterShellBoundaryLayerMesh(int wall_id, int nL
     int local_face_id;
     
     int bvid,opposite_bvid;
-    
+    int bvid_b;
+    int fv1_b;
+    int fv2_b;
+    int fv3_b;
     int glob_el_id = 0;
-    
     for(int bf=0;bf<us3d->bnd_face_map[wall_id].size();bf++)
     {
         
@@ -1002,6 +1017,15 @@ std::map<int,std::set<int> > FindOuterShellBoundaryLayerMesh(int wall_id, int nL
             Vface->z = Vface->z+V->z;
             face.push_back(V);
         }
+        
+        conn_bvid.insert(us3d->ifn->getVal(faceid,1));
+        conn_bvid.insert(us3d->ifn->getVal(faceid,3));
+        bvid_b = bvid;
+        fv1_b = us3d->ifn->getVal(faceid,1);
+        fv2_b = us3d->ifn->getVal(faceid,2);
+        fv3_b = us3d->ifn->getVal(faceid,3);
+        
+        
         Vface->x = Vface->x/4.0;
         Vface->y = Vface->y/4.0;
         Vface->z = Vface->z/4.0;
@@ -1039,7 +1063,11 @@ std::map<int,std::set<int> > FindOuterShellBoundaryLayerMesh(int wall_id, int nL
             }
         
             Vert* Vijk = ComputeCenterCoord(Pijk, 8);
-            
+            std::vector<std::vector<int> > face_id_stored(6);
+            std::vector<std::vector<Vert*> > face_stored(6);
+            map<int,std::set<int> > local_node2node_element;
+            std::vector<map<int,std::set<int> > > local_node2node_face(6);
+            std::vector<map<int,int> > local_node2opponode_face(6);
             for(int k=0;k<6;k++)
             {
                 int fid = ief_g->getVal(elid_cur,k);
@@ -1062,6 +1090,29 @@ std::map<int,std::set<int> > FindOuterShellBoundaryLayerMesh(int wall_id, int nL
                     
                     faceVert_IDs[r] = vid;
                 }
+                
+                local_node2node_element[us3d->ifn->getVal(fid,0)].insert(us3d->ifn->getVal(fid,1));
+                local_node2node_element[us3d->ifn->getVal(fid,0)].insert(us3d->ifn->getVal(fid,3));
+                local_node2node_element[us3d->ifn->getVal(fid,1)].insert(us3d->ifn->getVal(fid,0));
+                local_node2node_element[us3d->ifn->getVal(fid,1)].insert(us3d->ifn->getVal(fid,2));
+                local_node2node_element[us3d->ifn->getVal(fid,2)].insert(us3d->ifn->getVal(fid,1));
+                local_node2node_element[us3d->ifn->getVal(fid,2)].insert(us3d->ifn->getVal(fid,3));
+                local_node2node_element[us3d->ifn->getVal(fid,3)].insert(us3d->ifn->getVal(fid,2));
+                local_node2node_element[us3d->ifn->getVal(fid,3)].insert(us3d->ifn->getVal(fid,0));
+                
+                local_node2node_face[k][us3d->ifn->getVal(fid,0)].insert(us3d->ifn->getVal(fid,1));
+                local_node2node_face[k][us3d->ifn->getVal(fid,0)].insert(us3d->ifn->getVal(fid,3));
+                local_node2node_face[k][us3d->ifn->getVal(fid,1)].insert(us3d->ifn->getVal(fid,0));
+                local_node2node_face[k][us3d->ifn->getVal(fid,1)].insert(us3d->ifn->getVal(fid,2));
+                local_node2node_face[k][us3d->ifn->getVal(fid,2)].insert(us3d->ifn->getVal(fid,1));
+                local_node2node_face[k][us3d->ifn->getVal(fid,2)].insert(us3d->ifn->getVal(fid,3));
+                local_node2node_face[k][us3d->ifn->getVal(fid,3)].insert(us3d->ifn->getVal(fid,2));
+                local_node2node_face[k][us3d->ifn->getVal(fid,3)].insert(us3d->ifn->getVal(fid,0));
+                
+                local_node2opponode_face[k][us3d->ifn->getVal(fid,0)]=us3d->ifn->getVal(fid,2);
+                local_node2opponode_face[k][us3d->ifn->getVal(fid,1)]=us3d->ifn->getVal(fid,3);
+                local_node2opponode_face[k][us3d->ifn->getVal(fid,2)]=us3d->ifn->getVal(fid,0);
+                local_node2opponode_face[k][us3d->ifn->getVal(fid,3)]=us3d->ifn->getVal(fid,1);
                 
                 Vface2->x = Vface2->x/4.0;
                 Vface2->y = Vface2->y/4.0;
@@ -1092,12 +1143,32 @@ std::map<int,std::set<int> > FindOuterShellBoundaryLayerMesh(int wall_id, int nL
                 dpvec[k]            =   n00;
                 face2.clear();
             }
+            std::set<int>::iterator its;
+            for(its=local_node2node_element[bvid].begin();its!=local_node2node_element[bvid].end();its++)
+            {
+                if(conn_bvid.find(*its)==conn_bvid.end())
+                {
+                    opposite_bvid = *its;
+                }
+            }
         
             int min_index  = std::min_element(dp.begin(),dp.end())-dp.begin();
             double min_val = *std::min_element(dp.begin(),dp.end());
-
             int fid_new    = ief_g->getVal(elid_cur,min_index);
             nbf            = dpvec[min_index];
+            
+            std::map<int,std::set<int> > node2node_face = local_node2node_face[min_index];
+            std::set<int>::iterator itu;
+            std::vector<int>opposite_tri(3);
+            opposite_tri[0] = opposite_bvid;
+            int l = 1;
+            for(itu=node2node_face[opposite_bvid].begin();itu!=node2node_face[opposite_bvid].end();itu++)
+            {
+                opposite_tri[l] = *itu;
+                l++;
+            }
+
+
 
             NegateVec3D(nbf);
 
@@ -1119,26 +1190,69 @@ std::map<int,std::set<int> > FindOuterShellBoundaryLayerMesh(int wall_id, int nL
             if(c==nLayer-1)
             {
                 outer_shell_faces.push_back(fid_new);
-                
                 outer_shell_Faces2Nodes[fid_new].insert(us3d->ifn->getVal(fid_new,0));
                 outer_shell_Faces2Nodes[fid_new].insert(us3d->ifn->getVal(fid_new,1));
                 outer_shell_Faces2Nodes[fid_new].insert(us3d->ifn->getVal(fid_new,2));
                 outer_shell_Faces2Nodes[fid_new].insert(us3d->ifn->getVal(fid_new,3));
+                BLinfo->ShellRef->setVal(us3d->ifn->getVal(fid_new,0),0,-1);
+                BLinfo->ShellRef->setVal(us3d->ifn->getVal(fid_new,1),0,-1);
+                BLinfo->ShellRef->setVal(us3d->ifn->getVal(fid_new,2),0,-1);
+                BLinfo->ShellRef->setVal(us3d->ifn->getVal(fid_new,3),0,-1);
+                std::set<int> ShellTri0;
+                ShellTri0.insert(us3d->ifn->getVal(fid_new,0));
+                ShellTri0.insert(us3d->ifn->getVal(fid_new,1));
+                ShellTri0.insert(us3d->ifn->getVal(fid_new,3));
+                BLinfo->ShellTri2FaceID[ShellTri0] = fid_new;
+                std::set<int> ShellTri1;
+                ShellTri1.insert(us3d->ifn->getVal(fid_new,1));
+                ShellTri1.insert(us3d->ifn->getVal(fid_new,2));
+                ShellTri1.insert(us3d->ifn->getVal(fid_new,3));
+                BLinfo->ShellTri2FaceID[ShellTri1] = fid_new;
+                std::set<int> ShellTri2;
+                ShellTri2.insert(us3d->ifn->getVal(fid_new,0));
+                ShellTri2.insert(us3d->ifn->getVal(fid_new,1));
+                ShellTri2.insert(us3d->ifn->getVal(fid_new,2));
+                BLinfo->ShellTri2FaceID[ShellTri2] = fid_new;
+                std::set<int> ShellTri3;
+                ShellTri3.insert(us3d->ifn->getVal(fid_new,2));
+                ShellTri3.insert(us3d->ifn->getVal(fid_new,3));
+                ShellTri3.insert(us3d->ifn->getVal(fid_new,0));
+                BLinfo->ShellTri2FaceID[ShellTri3] = fid_new;
                 
+                
+                //            bvid > opposite_bvid
+                //            fv1 > opposite_tri[1];
+                //            fv3 > opposite_tri[2];
+                //            fv2 > local_node2opponode_face[min_index][opposite_bvid]
+                std::map<int,int> opposite_verts;
+//                opposite_verts[bvid_b] = opposite_bvid;
+//                opposite_verts[fv1_b]  = opposite_tri[1];
+//                opposite_verts[fv3_b]  = opposite_tri[2];
+//                opposite_verts[fv2_b]  = local_node2opponode_face[min_index][opposite_bvid];
+                
+                
+                opposite_verts[opposite_bvid]    = bvid_b;
+                opposite_verts[opposite_tri[1]]  = fv1_b;
+                opposite_verts[opposite_tri[2]]  = fv3_b;
+                opposite_verts[local_node2opponode_face[min_index][opposite_bvid]]  = fv2_b;
+                BLinfo->ShellFace2ShellVert2OppositeBoundaryVerts[fid_new] = opposite_verts;
+
                 std::vector<int> fe(2);
                 fe[0] = elid_cur;
                 fe[1] = elid_next;
-                
                 outer_shell_elements.push_back(fe);
-                if(changed!=0)
-                {
-                    std::cout << "elid_cur " << elid_cur << std::endl;
-                }
+                opposite_verts.clear();
             }
+            
+            conn_bvid.clear();
+            bvid = opposite_tri[0];
+            conn_bvid.insert(opposite_tri[1]);
+            conn_bvid.insert(opposite_tri[2]);
             
             elid_cur = elid_next;
         }
     }
+    std::cout << "Shell quad faces = " << outer_shell_faces.size() << std::endl;
 
     double duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
     std::cout << " extracting outer shell BL mesh = " << duration << std::endl;
@@ -1152,7 +1266,7 @@ std::map<int,std::set<int> > FindOuterShellBoundaryLayerMesh(int wall_id, int nL
 //        }
 //    }
 //    OutputBLElementsOnRoot(xcn_g,ien_g,elements,comm,"BL_Root_");
-    return outer_shell_Faces2Nodes;
+    return BLinfo;
 }
 
 Mesh_Topology_BL* ExtractBoundaryLayerMesh(int wall_id, int nLayer, US3D* us3d, Array<double>* xcn_g, Array<int>* ien_g, Array<int>* ief_g, ParallelState* xcn_pstate, ParallelState* ien_pstate, MPI_Comm comm)
@@ -1421,12 +1535,12 @@ Mesh_Topology_BL* ExtractBoundaryLayerMesh(int wall_id, int nLayer, US3D* us3d, 
                 face_id_stored[k]   =   faceVert_IDs;
             }
             
-            std::set<int>::iterator its;
-            for(its=local_node2node_element[bvid].begin();its!=local_node2node_element[bvid].end();its++)
+            std::set<int>::iterator itset;
+            for(itset=local_node2node_element[bvid].begin();itset!=local_node2node_element[bvid].end();itset++)
             {
-                if(conn_bvid.find(*its)==conn_bvid.end())
+                if(conn_bvid.find(*itset)==conn_bvid.end())
                 {
-                    opposite_bvid = *its;
+                    opposite_bvid = *itset;
                 }
             }
         
@@ -1678,6 +1792,7 @@ int main(int argc, char** argv) {
 
         //MMG5_pMesh mmgMesh = ReadMMG_pMesh(us3d,comm,info);
         
+        
         int Nel_part = us3d->ien->getNrow();
         
         ParallelState* ien_pstate = new ParallelState(us3d->ien->getNglob(),comm);
@@ -1694,95 +1809,255 @@ int main(int argc, char** argv) {
         
         delete us3d->interior;
         
-//        Array<double>* xcn_g;
-//        Array<int>* ief_g;
-//        Array<int>* ien_g;
-//        if(world_rank == 0)
-//        {
-//            xcn_g = new Array<double>(us3d->xcn->getNglob(),3);
-//            ief_g = new Array<int>(us3d->ief->getNglob(),6);
-//            ien_g = new Array<int>(us3d->ien->getNglob(),8);
-//        }
-//        else
-//        {
-//            xcn_g = new Array<double>(1,1);
-//            ief_g = new Array<int>(1,1);
-//            ien_g = new Array<int>(1,1);
-//        }
-//
-//        int* ien_nlocs      = new int[world_size];
-//        int* ien_offsets    = new int[world_size];
-//        int* ief_nlocs      = new int[world_size];
-//        int* ief_offsets    = new int[world_size];
-//        int* xcn_nlocs      = new int[world_size];
-//        int* xcn_offsets    = new int[world_size];
-//        for(int i=0;i<world_size;i++)
-//        {
-//            xcn_nlocs[i]   = xcn_pstate->getNlocs()[i]*3;
-//            xcn_offsets[i] = xcn_pstate->getOffsets()[i]*3;
-//
-//            ief_nlocs[i]   = ien_pstate->getNlocs()[i]*6;
-//            ief_offsets[i] = ien_pstate->getOffsets()[i]*6;
-//
-//            ien_nlocs[i]   = ien_pstate->getNlocs()[i]*8;
-//            ien_offsets[i] = ien_pstate->getOffsets()[i]*8;
-//        }
-//
-//        MPI_Gatherv(&us3d->xcn->data[0],
-//                    us3d->xcn->getNrow()*3,
-//                    MPI_DOUBLE,
-//                    &xcn_g->data[0],
-//                    xcn_nlocs,
-//                    xcn_offsets,
-//                    MPI_DOUBLE, 0, comm);
-//
-//        MPI_Gatherv(&us3d->ief->data[0],
-//                    us3d->ief->getNrow()*6,
-//                    MPI_INT,
-//                    &ief_g->data[0],
-//                    ief_nlocs,
-//                    ief_offsets,
-//                    MPI_INT, 0, comm);
-//
-//        MPI_Gatherv(&us3d->ien->data[0],
-//                    us3d->ien->getNrow()*8,
-//                    MPI_INT,
-//                    &ien_g->data[0],
-//                    ien_nlocs,
-//                    ien_offsets,
-//                    MPI_INT, 0, comm);
-//
-//        if(world_rank == 0)
-//        {
-//            int wall_id = 4;
-//            int nLayer = 10;
-//            std::map<int,std::set<int> > shell = FindOuterShellBoundaryLayerMesh(wall_id, nLayer, us3d,xcn_g,ien_g,ief_g,xcn_pstate,ien_pstate,comm);
-//            std::map<int,std::set<int> >::iterator itt;
-//
-//            for(itt=shell.begin();itt!=shell.end();itt++)
+        Array<double>* xcn_g;
+        Array<int>* ief_g;
+        Array<int>* ien_g;
+        if(world_rank == 0)
+        {
+            xcn_g = new Array<double>(us3d->xcn->getNglob(),3);
+            ief_g = new Array<int>(us3d->ief->getNglob(),6);
+            ien_g = new Array<int>(us3d->ien->getNglob(),8);
+        }
+        else
+        {
+            xcn_g = new Array<double>(1,1);
+            ief_g = new Array<int>(1,1);
+            ien_g = new Array<int>(1,1);
+        }
+
+        int* ien_nlocs      = new int[world_size];
+        int* ien_offsets    = new int[world_size];
+        int* ief_nlocs      = new int[world_size];
+        int* ief_offsets    = new int[world_size];
+        int* xcn_nlocs      = new int[world_size];
+        int* xcn_offsets    = new int[world_size];
+        for(int i=0;i<world_size;i++)
+        {
+            xcn_nlocs[i]   = xcn_pstate->getNlocs()[i]*3;
+            xcn_offsets[i] = xcn_pstate->getOffsets()[i]*3;
+
+            ief_nlocs[i]   = ien_pstate->getNlocs()[i]*6;
+            ief_offsets[i] = ien_pstate->getOffsets()[i]*6;
+
+            ien_nlocs[i]   = ien_pstate->getNlocs()[i]*8;
+            ien_offsets[i] = ien_pstate->getOffsets()[i]*8;
+        }
+
+        MPI_Gatherv(&us3d->xcn->data[0],
+                    us3d->xcn->getNrow()*3,
+                    MPI_DOUBLE,
+                    &xcn_g->data[0],
+                    xcn_nlocs,
+                    xcn_offsets,
+                    MPI_DOUBLE, 0, comm);
+
+        MPI_Gatherv(&us3d->ief->data[0],
+                    us3d->ief->getNrow()*6,
+                    MPI_INT,
+                    &ief_g->data[0],
+                    ief_nlocs,
+                    ief_offsets,
+                    MPI_INT, 0, comm);
+
+        MPI_Gatherv(&us3d->ien->data[0],
+                    us3d->ien->getNrow()*8,
+                    MPI_INT,
+                    &ien_g->data[0],
+                    ien_nlocs,
+                    ien_offsets,
+                    MPI_INT, 0, comm);
+
+        if(world_rank == 0)
+        {
+            int wall_id = 4;
+            int nLayer = 10;
+            BLShellInfo* BLshell = FindOuterShellBoundaryLayerMesh(wall_id, nLayer, us3d,xcn_g,ien_g,ief_g,xcn_pstate,ien_pstate,comm);
+            
+            
+            MMG5_pMesh mmgMesh = NULL;
+            MMG5_pSol mmgSol   = NULL;
+            
+            MMG3D_Init_mesh(MMG5_ARG_start,
+            MMG5_ARG_ppMesh,&mmgMesh,MMG5_ARG_ppMet,&mmgSol,
+            MMG5_ARG_end);
+            
+            int nbHex      = ien_g->getNrow();
+            int nbVertices = xcn_g->getNrow();
+            if ( MMG3D_Set_meshSize(mmgMesh,nbVertices,nbHex*6,0,0,0,0) != 1 )  exit(EXIT_FAILURE);
+            
+            if ( MMG3D_Set_solSize(mmgMesh,mmgSol,MMG5_Vertex,mmgMesh->np,MMG5_Tensor) != 1 ) exit(EXIT_FAILURE);
+            
+            for(int i=0;i<nbVertices;i++)
+            {
+                mmgMesh->point[i+1].c[0] = xcn_g->getVal(i,0);
+                mmgMesh->point[i+1].c[1] = xcn_g->getVal(i,1);
+                mmgMesh->point[i+1].c[2] = xcn_g->getVal(i,2);
+                
+                mmgMesh->point[i+1].ref  = BLshell->ShellRef->getVal(i,0);
+                
+                double m11 = 1.0;
+                double m12 = 0.0;
+                double m13 = 0.0;
+                double m22 = 1.0;
+                double m23 = 0.0;
+                double m33 = 1.0;
+                
+                if ( MMG3D_Set_tensorSol(mmgSol, m11,m12,m13,m22,m23,m33,i+1) != 1 ) exit(EXIT_FAILURE);
+            }
+            
+            
+            int ref = 0;
+            int* hexTab = new int[9*(nbHex+1)];
+            for(int i=0;i<nbHex;i++)
+            {
+                int hexTabPosition = 9*(i+1);
+                for(int j=0;j<8;j++)
+                {
+                    int val = ien_g->getVal(i,j)+1;
+                    hexTab[hexTabPosition+j] = val;
+                }
+                hexTab[hexTabPosition+8] = ref;
+            }
+                 
+            int num = H2T_chkorient(mmgMesh,hexTab,nbHex);
+             
+            int* adjahex = NULL;
+            adjahex = (int*)calloc(6*nbHex+7,sizeof(int));
+            assert(adjahex);
+             
+            if(!H2T_hashHexa(hexTab,adjahex,nbHex))
+            {
+                std::cout << "Error :: setting up the new adjacency for the hexes after reorientation." << std::endl;
+            }
+            
+            Hedge        hed2;
+            hed2.size  = 6*nbHex;
+            hed2.hnxt  = 6*nbHex;
+            hed2.nhmax = (int)(16*6*nbHex);
+            hed2.item  = NULL;
+            hed2.item  = (hedge*)calloc(hed2.nhmax+1,sizeof(hedge));
+
+            for (int k=6*nbHex; k<hed2.nhmax; k++)
+            {
+                hed2.item[k].nxt = k+1;
+            }
+             
+            int ret = H2T_cuthex(mmgMesh, &hed2, hexTab, adjahex, nbHex);
+        
+            std::set<int> tria0;
+            int ref0,ref1,ref2,ref3;
+            int tel = 0;
+            std::set<std::set<int> > tria_unique;
+            int offset_NE = (int)mmgMesh->ne/2;
+            int t = 1;
+            std::set<std::set<int> > unique_shell_tris;
+            for(int i=1;i<=offset_NE;i++)
+            {
+                std::set<int> shell_tri;
+                if(mmgMesh->point[mmgMesh->tetra[offset_NE+i].v[0]].ref==-1 && mmgMesh->point[mmgMesh->tetra[offset_NE+i].v[1]].ref==-1 && mmgMesh->point[mmgMesh->tetra[offset_NE+i].v[2]].ref==-1)
+                {
+                    shell_tri.insert(mmgMesh->tetra[offset_NE+i].v[0]-1);
+                    shell_tri.insert(mmgMesh->tetra[offset_NE+i].v[1]-1);
+                    shell_tri.insert(mmgMesh->tetra[offset_NE+i].v[2]-1);
+                    unique_shell_tris.insert(shell_tri);
+                }
+                if(mmgMesh->point[mmgMesh->tetra[offset_NE+i].v[1]].ref==-1 && mmgMesh->point[mmgMesh->tetra[offset_NE+i].v[2]].ref==-1 && mmgMesh->point[mmgMesh->tetra[offset_NE+i].v[3]].ref==-1)
+                {
+                    shell_tri.insert(mmgMesh->tetra[offset_NE+i].v[1]-1);
+                    shell_tri.insert(mmgMesh->tetra[offset_NE+i].v[2]-1);
+                    shell_tri.insert(mmgMesh->tetra[offset_NE+i].v[3]-1);
+                    unique_shell_tris.insert(shell_tri);
+                }
+                if(mmgMesh->point[mmgMesh->tetra[offset_NE+i].v[2]].ref==-1 && mmgMesh->point[mmgMesh->tetra[offset_NE+i].v[3]].ref==-1 && mmgMesh->point[mmgMesh->tetra[offset_NE+i].v[0]].ref==-1)
+                {
+                    shell_tri.insert(mmgMesh->tetra[offset_NE+i].v[2]-1);
+                    shell_tri.insert(mmgMesh->tetra[offset_NE+i].v[3]-1);
+                    shell_tri.insert(mmgMesh->tetra[offset_NE+i].v[0]-1);
+                    unique_shell_tris.insert(shell_tri);
+                }
+                if(mmgMesh->point[mmgMesh->tetra[offset_NE+i].v[3]].ref==-1 && mmgMesh->point[mmgMesh->tetra[offset_NE+i].v[0]].ref==-1 && mmgMesh->point[mmgMesh->tetra[offset_NE+i].v[1]].ref==-1)
+                {
+                    shell_tri.insert(mmgMesh->tetra[offset_NE+i].v[3]-1);
+                    shell_tri.insert(mmgMesh->tetra[offset_NE+i].v[0]-1);
+                    shell_tri.insert(mmgMesh->tetra[offset_NE+i].v[1]-1);
+                    unique_shell_tris.insert(shell_tri);
+                }
+                
+                //shell_tri.clear();
+            }
+            std::cout << "unique_shell_tris " << unique_shell_tris.size() << " " << BLshell->ShellTri2FaceID.size() << std::endl;
+            
+            
+//=========================================================================================================
+//=========================================================================================================
+//            struct BLShellInfo
 //            {
-//                std::cout << itt->first << " -> ";
-//                std::set<int>::iterator itt2;
-//                for(itt2=itt->second.begin();itt2!=itt->second.end();itt2++)
+//                std::map<int,int> ShellFace2BFace;
+//                std::map<std::set<int>,int> ShellTri2FaceID;
+//                std::map<int,int> FaceID2TopoType;
+//                std::map<int,std::map<int,int> > ShellFace2ShellVert2OppositeBoundaryVerts;
+//                Array<int>* ShellRef;
+//            };
+//=========================================================================================================
+//=========================================================================================================
+            std::map<std::set<int>,int > shelltri2fid=BLshell->ShellTri2FaceID;
+            std::map<int,int> shellFace2bFace=BLshell->ShellFace2BFace;
+            std::map<int,int> bFace2shellFace=BLshell->BFace2ShellFace;
+            std::set<std::set<int> >::iterator itset;
+            std::map<int,std::vector<int> > TriID2ShellFaceID;
+            std::map<int,std::vector<int> > ShellFaceID2TriID;
+            int teller=0;
+            for(itset=unique_shell_tris.begin();itset!=unique_shell_tris.end();itset++)
+            {
+                std::set<int> shell_tri = *itset;
+                int shell_faceid = shelltri2fid[shell_tri];
+                int bface        = shellFace2bFace[shell_faceid];
+                std::map<int,int> v2v = BLshell->ShellFace2ShellVert2OppositeBoundaryVerts[shell_faceid];
+                //=================================================================
+                std::cout << " shell face " << shell_faceid << " -> " << std::endl;
+                std::map<int,int>::iterator itm;
+                for(itm=v2v.begin();itm!=v2v.end();itm++)
+                {
+                    std::cout << itm->first << " " << itm->second << std::endl;
+                }
+                std::cout << std::endl;
+                //=================================================================
+                TriID2ShellFaceID[teller].push_back(shell_faceid);
+                ShellFaceID2TriID[shell_faceid].push_back(teller);
+                teller++;
+            }
+//            std::map<std::set<int>,int>::iterator itmap;
+//            for(itmap=BLshell->ShellTri2FaceID.begin();itmap!=BLshell->ShellTri2FaceID.end();itmap++)
+//            {
+//                if(itmap->second==0)
 //                {
-//                    std::cout << *itt2 << " ";
+//                    std::cout << itmap->second << std::endl;
+//
 //                }
-//                std::cout << std::endl;
+//
+//            }
+//            for(int i=0;i<shell.size();i++)
+//            {
+//                std::cout << shell[i] << std::endl;
 //            }
 //
-////            for(int i=0;i<shell.size();i++)
-////            {
-////                std::cout << shell[i] << std::endl;
-////            }
-////
-////            Mesh_Topology_BL* BLmesh = ExtractBoundaryLayerMesh(wall_id, nLayer, us3d,xcn_g,ien_g,ief_g,xcn_pstate,ien_pstate,comm);
-////
-////            OutputBoundaryLayerPrisms(xcn_g, BLmesh, comm);
-//        }
-        
+//            Mesh_Topology_BL* BLmesh = ExtractBoundaryLayerMesh(wall_id, nLayer, us3d,xcn_g,ien_g,ief_g,xcn_pstate,ien_pstate,comm);
 //
-//        (/
+//            OutputBoundaryLayerPrisms(xcn_g, BLmesh, comm);
+        }
+
         
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        /*
         Partition* P = new Partition(us3d->ien, us3d->iee, us3d->ief, parmetis_pstate,ien_pstate, us3d->xcn,xcn_pstate,Uivar,comm);
 
         //Array<double>* dUdXi_v2 = ComputedUdx(P, pstate, iee_copy, iee_loc, ief_loc, ifn_copy, ief_copy, Nel, Uaux, ghost, bound, comm, ife_copy);
@@ -2031,7 +2306,7 @@ int main(int argc, char** argv) {
         delete ien_pstate;
         delete parmetis_pstate;
         //delete UgRoot;
-            
+        */
         MPI_Finalize();
         
     }
