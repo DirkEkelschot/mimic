@@ -3,7 +3,7 @@
 using namespace std;
 
 
-void OutputBoundaryLayerPrisms(Array<double>* xcn_g, Mesh_Topology_BL* BLmesh, MPI_Comm comm)
+void OutputBoundaryLayerPrisms(Array<double>* xcn_g, Mesh_Topology_BL* BLmesh, MPI_Comm comm,string fname)
 {
     int world_size;
     MPI_Comm_size(comm, &world_size);
@@ -104,7 +104,7 @@ void OutputBoundaryLayerPrisms(Array<double>* xcn_g, Mesh_Topology_BL* BLmesh, M
         tel++;
     }
 //
-    string filename = "BL_Prisms_" + std::to_string(world_rank) + ".dat";
+    string filename = fname + std::to_string(world_rank) + ".dat";
     ofstream myfile;
     myfile.open(filename);
     myfile <<"VARIABLES = \"X\", \"Y\", \"Z\"" << std::endl;
