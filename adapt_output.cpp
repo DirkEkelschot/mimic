@@ -2,7 +2,6 @@
 
 using namespace std;
 
-
 void OutputBoundaryLayerPrisms(Array<double>* xcn_g, Mesh_Topology_BL* BLmesh, MPI_Comm comm,string fname)
 {
     int world_size;
@@ -34,7 +33,6 @@ void OutputBoundaryLayerPrisms(Array<double>* xcn_g, Mesh_Topology_BL* BLmesh, M
         
         for(int p=0;p<numit;p++)
         {
-            
             std::vector<int> prism = iter->second[p]->GlobalNodes;
             
             int gElID = iter->second[p]->globID;
@@ -260,21 +258,21 @@ void OutputBoundaryLayerPrisms(Array<double>* xcn_g, Mesh_Topology_BL* BLmesh, M
     myfile2.close();
 }
 
-void OutputMesh_MMG(MMG5_pMesh mmgMesh)
+void OutputMesh_MMG(MMG5_pMesh mmgMesh, int offset, int Nel, string fname)
 {
     std::ofstream myfile;
-    myfile.open("mmgMesh_latest.dat");
+    myfile.open(fname);
     myfile << "TITLE=\"new_volume.tec\"" << std::endl;
     myfile <<"VARIABLES = \"X\", \"Y\", \"Z\"" << std::endl;
-    myfile <<"ZONE N = " << mmgMesh->np << ", E = " << mmgMesh->ne << ", DATAPACKING = POINT, ZONETYPE = FETETRAHEDRON" << std::endl;
+    myfile <<"ZONE N = " << mmgMesh->np << ", E = " << Nel << ", DATAPACKING = POINT, ZONETYPE = FETETRAHEDRON" << std::endl;
 
     for(int i=0;i<mmgMesh->np;i++)
     {
         myfile << mmgMesh->point[i+1].c[0] << " " <<mmgMesh->point[i+1].c[1] << " " << mmgMesh->point[i+1].c[2] <<  std::endl;
     }
-    for(int i=1;i<=mmgMesh->ne;i++)
+    for(int i=1;i<=Nel;i++)
     {
-        myfile << mmgMesh->tetra[i].v[0] << " " << mmgMesh->tetra[i].v[1] << " " << mmgMesh->tetra[i].v[2] << " " << mmgMesh->tetra[i].v[3] << std::endl;
+        myfile << mmgMesh->tetra[offset+i].v[0] << " " << mmgMesh->tetra[offset+i].v[1] << " " << mmgMesh->tetra[offset+i].v[2] << " " << mmgMesh->tetra[offset+i].v[3] << std::endl;
     }
     myfile.close();
 }

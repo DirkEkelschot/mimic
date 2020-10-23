@@ -622,7 +622,7 @@ Array<double>* ComputedUdx_LSQ_US3D_v3(Partition* Pa, std::map<int,double> U,Mes
                             (Vc->z-Vijk->z)*(Vc->z-Vijk->z));
 
                u_po = ghost->getVal(adjID-Nel,0);
-	       u_po = U[elID];
+	       //u_po = U[elID];
                //double u_fpo = bound->getVal(adjID-Nel,0);
 
                Vrt->setVal(t,0,(1.0/d)*(Vc->x-Vijk->x));

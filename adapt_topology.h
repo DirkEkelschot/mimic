@@ -35,6 +35,7 @@ struct Mesh_Topology_BL{
     std::map<int,int> verts_g2l_ex;
     std::map<int,std::vector<double> > local_ex_verts;
     std::vector<int> outer_shell_faces;
+    std::vector<int> elements;
 };
 
 
