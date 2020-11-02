@@ -14,7 +14,7 @@ struct US3D{
     Array<int>* ifn;
     Array<int>* ifn_ref;
     std::map<std::set<int>,int> tria_ref_map;
-    std::vector<int*> tria_ref;
+    std::map<std::set<int>,int> quad_ref_map;
     Array<int>* ife;
     
     ParArray<double>* interior;
