@@ -205,7 +205,7 @@ Mdata* ReadMetricData()
     }
     int L = Vmetric.size();
     std::ifstream finhex;
-    finhex.open("elements_restart.dat");
+    finhex.open("elements_restart_latest.dat");
 
     // Read the file row by row
     std::vector<int> rowHex(8);
@@ -2858,11 +2858,12 @@ int main(int argc, char** argv) {
 
         if(world_rank == 0)
         {
-            int wall_id = 4;
-            int nLayer  = 20;
+            int wall_id = 3;
+            int nLayer  = 10;
             
             if(nLayer>0)
             {
+                int counter = 0;
                 BLShellInfo* BLshell = FindOuterShellBoundaryLayerMesh(wall_id, nLayer, us3d,xcn_g,ien_g,ief_g,xcn_pstate,ien_pstate,comm);
                             
                 Mdata* Md = ReadMetricData();
@@ -2888,15 +2889,18 @@ int main(int argc, char** argv) {
                     
                     mmgMesh->point[i+1].ref  = BLshell->ShellRef->getVal(i,0);
                     
-                    double m11 = Md->Vmetric[i][3];
-                    double m12 = Md->Vmetric[i][4];
-                    double m13 = Md->Vmetric[i][5];
-                    double m22 = Md->Vmetric[i][6];
-                    double m23 = Md->Vmetric[i][7];
-                    double m33 = Md->Vmetric[i][8];
+                    double m11 = 0.0001*Md->Vmetric[i][3];
+                    double m12 = 0.0001*Md->Vmetric[i][4];
+                    double m13 = 0.0001*Md->Vmetric[i][5];
+                    double m22 = 0.0001*Md->Vmetric[i][6];
+                    double m23 = 0.0001*Md->Vmetric[i][7];
+                    double m33 = 0.0001*Md->Vmetric[i][8];
                     
                     if ( MMG3D_Set_tensorSol(mmgSol, m11,m12,m13,m22,m23,m33,i+1) != 1 ) exit(EXIT_FAILURE);
                 }
+                
+                
+                
                 
                 int ref = 0;
                 int* hexTab = new int[9*(nbHex+1)];
@@ -2910,7 +2914,17 @@ int main(int argc, char** argv) {
                     }
                     hexTab[hexTabPosition+8] = ref;
                 }
-                     
+                
+                int gcounter3 = 0;
+                for(int i=0;i<nbVertices;i++)
+                {
+                    if(mmgMesh->point[i+1].ref==-1)
+                    {
+                        gcounter3++;
+                    }
+                }
+                
+                    
                 int num = H2T_chkorient(mmgMesh,hexTab,nbHex);
                  
                 int* adjahex = NULL;
@@ -2933,9 +2947,30 @@ int main(int argc, char** argv) {
                 {
                     hed2.item[k].nxt = k+1;
                 }
+                
+                int gcounter2 = 0;
+                for(int i=0;i<nbVertices;i++)
+                {
+                    if(mmgMesh->point[i+1].ref==-1)
+                    {
+                        gcounter2++;
+                    }
+                }
                  
                 int ret = H2T_cuthex(mmgMesh, &hed2, hexTab, adjahex, nbHex);
             
+                int gcounter = 0;
+                for(int i=0;i<nbVertices;i++)
+                {
+                    if(mmgMesh->point[i+1].ref==-1)
+                    {
+                        gcounter++;
+                    }
+                }
+                
+                std::cout << "gcounter = " << gcounter  << " :: " << gcounter2 << " :: " << gcounter3 << std::endl;
+                
+                
                 std::set<int> tria0;
                 int ref0,ref1,ref2,ref3;
                 int tel = 0;
@@ -2945,61 +2980,88 @@ int main(int argc, char** argv) {
                 std::set<std::set<int> > unique_shell_tris;
                 std::map<int,std::vector<int> > unique_shell_tri_map;
                 int shell_T_id = 0;
-                for(int i=1;i<=offset_NE;i++)
+                int shell_T_id2 = 0;
+                for(int i=1;i<=mmgMesh->ne;i++)
                 {
                     std::set<int> shell_tri;
-                    if(mmgMesh->point[mmgMesh->tetra[offset_NE+i].v[0]].ref==-1 && mmgMesh->point[mmgMesh->tetra[offset_NE+i].v[1]].ref==-1 && mmgMesh->point[mmgMesh->tetra[offset_NE+i].v[2]].ref==-1)
+                    if(mmgMesh->point[mmgMesh->tetra[i].v[0]].ref==-1 && mmgMesh->point[mmgMesh->tetra[i].v[1]].ref==-1 && mmgMesh->point[mmgMesh->tetra[i].v[2]].ref==-1)
                     {
-                        shell_tri.insert(mmgMesh->tetra[offset_NE+i].v[0]-1);
-                        shell_tri.insert(mmgMesh->tetra[offset_NE+i].v[1]-1);
-                        shell_tri.insert(mmgMesh->tetra[offset_NE+i].v[2]-1);
+                        shell_tri.insert(mmgMesh->tetra[i].v[0]-1);
+                        shell_tri.insert(mmgMesh->tetra[i].v[1]-1);
+                        shell_tri.insert(mmgMesh->tetra[i].v[2]-1);
                         std::vector<int> tri(3);
-                        tri[0] = mmgMesh->tetra[offset_NE+i].v[0]-1;
-                        tri[1] = mmgMesh->tetra[offset_NE+i].v[1]-1;
-                        tri[2] = mmgMesh->tetra[offset_NE+i].v[2]-1;
-                        unique_shell_tri_map[shell_T_id]=tri;
-                        unique_shell_tris.insert(shell_tri);
-                        shell_T_id++;
+                        tri[0] = mmgMesh->tetra[i].v[0]-1;
+                        tri[1] = mmgMesh->tetra[i].v[1]-1;
+                        tri[2] = mmgMesh->tetra[i].v[2]-1;
+                        
+                        if(unique_shell_tris.find(shell_tri)==unique_shell_tris.end())
+                        {
+                            unique_shell_tri_map[shell_T_id]=tri;
+                            unique_shell_tris.insert(shell_tri);
+                            shell_T_id++;
+                        }
+                        shell_T_id2++;
+                        
                     }
-                    if(mmgMesh->point[mmgMesh->tetra[offset_NE+i].v[1]].ref==-1 && mmgMesh->point[mmgMesh->tetra[offset_NE+i].v[2]].ref==-1 && mmgMesh->point[mmgMesh->tetra[offset_NE+i].v[3]].ref==-1)
+                    if(mmgMesh->point[mmgMesh->tetra[i].v[1]].ref==-1 && mmgMesh->point[mmgMesh->tetra[i].v[2]].ref==-1 && mmgMesh->point[mmgMesh->tetra[i].v[3]].ref==-1)
                     {
-                        shell_tri.insert(mmgMesh->tetra[offset_NE+i].v[1]-1);
-                        shell_tri.insert(mmgMesh->tetra[offset_NE+i].v[2]-1);
-                        shell_tri.insert(mmgMesh->tetra[offset_NE+i].v[3]-1);
+                        shell_tri.insert(mmgMesh->tetra[i].v[1]-1);
+                        shell_tri.insert(mmgMesh->tetra[i].v[2]-1);
+                        shell_tri.insert(mmgMesh->tetra[i].v[3]-1);
                         std::vector<int> tri(3);
-                        tri[0] = mmgMesh->tetra[offset_NE+i].v[1]-1;
-                        tri[1] = mmgMesh->tetra[offset_NE+i].v[2]-1;
-                        tri[2] = mmgMesh->tetra[offset_NE+i].v[3]-1;
-                        unique_shell_tri_map[shell_T_id]=tri;
-                        unique_shell_tris.insert(shell_tri);
-                        shell_T_id++;
+                        tri[0] = mmgMesh->tetra[i].v[1]-1;
+                        tri[1] = mmgMesh->tetra[i].v[2]-1;
+                        tri[2] = mmgMesh->tetra[i].v[3]-1;
+                        if(unique_shell_tris.find(shell_tri)==unique_shell_tris.end())
+                        {
+                            unique_shell_tri_map[shell_T_id]=tri;
+                            unique_shell_tris.insert(shell_tri);
+                            shell_T_id++;
+                        }
+                        shell_T_id2++;
                     }
-                    if(mmgMesh->point[mmgMesh->tetra[offset_NE+i].v[2]].ref==-1 && mmgMesh->point[mmgMesh->tetra[offset_NE+i].v[3]].ref==-1 && mmgMesh->point[mmgMesh->tetra[offset_NE+i].v[0]].ref==-1)
+                    if(mmgMesh->point[mmgMesh->tetra[i].v[2]].ref==-1 && mmgMesh->point[mmgMesh->tetra[i].v[3]].ref==-1 && mmgMesh->point[mmgMesh->tetra[i].v[0]].ref==-1)
                     {
-                        shell_tri.insert(mmgMesh->tetra[offset_NE+i].v[2]-1);
-                        shell_tri.insert(mmgMesh->tetra[offset_NE+i].v[3]-1);
-                        shell_tri.insert(mmgMesh->tetra[offset_NE+i].v[0]-1);
+                        shell_tri.insert(mmgMesh->tetra[i].v[2]-1);
+                        shell_tri.insert(mmgMesh->tetra[i].v[3]-1);
+                        shell_tri.insert(mmgMesh->tetra[i].v[0]-1);
                         std::vector<int> tri(3);
-                        tri[0] = mmgMesh->tetra[offset_NE+i].v[2]-1;
-                        tri[1] = mmgMesh->tetra[offset_NE+i].v[3]-1;
-                        tri[2] = mmgMesh->tetra[offset_NE+i].v[0]-1;
-                        unique_shell_tri_map[shell_T_id]=tri;
-                        unique_shell_tris.insert(shell_tri);
-                        shell_T_id++;
+                        tri[0] = mmgMesh->tetra[i].v[2]-1;
+                        tri[1] = mmgMesh->tetra[i].v[3]-1;
+                        tri[2] = mmgMesh->tetra[i].v[0]-1;
+                        if(unique_shell_tris.find(shell_tri)==unique_shell_tris.end())
+                        {
+                            unique_shell_tri_map[shell_T_id]=tri;
+                            unique_shell_tris.insert(shell_tri);
+                            shell_T_id++;
+                        }
+                        shell_T_id2++;
                     }
-                    if(mmgMesh->point[mmgMesh->tetra[offset_NE+i].v[3]].ref==-1 && mmgMesh->point[mmgMesh->tetra[offset_NE+i].v[0]].ref==-1 && mmgMesh->point[mmgMesh->tetra[offset_NE+i].v[1]].ref==-1)
+                    if(mmgMesh->point[mmgMesh->tetra[i].v[3]].ref==-1 && mmgMesh->point[mmgMesh->tetra[i].v[0]].ref==-1 && mmgMesh->point[mmgMesh->tetra[i].v[1]].ref==-1)
                     {
-                        shell_tri.insert(mmgMesh->tetra[offset_NE+i].v[3]-1);
-                        shell_tri.insert(mmgMesh->tetra[offset_NE+i].v[0]-1);
-                        shell_tri.insert(mmgMesh->tetra[offset_NE+i].v[1]-1);
+                        shell_tri.insert(mmgMesh->tetra[i].v[3]-1);
+                        shell_tri.insert(mmgMesh->tetra[i].v[0]-1);
+                        shell_tri.insert(mmgMesh->tetra[i].v[1]-1);
                         std::vector<int> tri(3);
-                        tri[0] = mmgMesh->tetra[offset_NE+i].v[3]-1;
-                        tri[1] = mmgMesh->tetra[offset_NE+i].v[0]-1;
-                        tri[2] = mmgMesh->tetra[offset_NE+i].v[1]-1;
-                        unique_shell_tri_map[shell_T_id]=tri;
-                        unique_shell_tris.insert(shell_tri);
-                        shell_T_id++;
+                        tri[0] = mmgMesh->tetra[i].v[3]-1;
+                        tri[1] = mmgMesh->tetra[i].v[0]-1;
+                        tri[2] = mmgMesh->tetra[i].v[1]-1;
+                        if(unique_shell_tris.find(shell_tri)==unique_shell_tris.end())
+                        {
+                            unique_shell_tri_map[shell_T_id]=tri;
+                            unique_shell_tris.insert(shell_tri);
+                            shell_T_id++;
+                        }
+                        shell_T_id2++;
                     }
+                }
+                
+                // {1,2,3}, {0,3,2}, {0,1,3}, {0,2,1}
+                std::cout << "compare sizes " << unique_shell_tris.size() << " " << us3d->bnd_face_map[wall_id].size()*2  << " " << counter << " " << BLshell->ShellTri2FaceID.size()  << " " << shell_T_id << " " << shell_T_id2 <<  std::endl;
+                
+                if(unique_shell_tris.size()!=(us3d->bnd_face_map[wall_id].size()*2))
+                {
+                    std::cout << "Error :: shell faces do not match boundary faces" << std::endl;
                 }
                 
                 //==============================================================================

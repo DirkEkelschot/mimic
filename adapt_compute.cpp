@@ -656,9 +656,9 @@ Array<double>* ComputeMetric(std::vector<Vert> Verts, Array<double>* grad, Array
     //+++++++++++++Required Parameter set for scaling eigenvalues/eigenvectors+++++++++++++++
     double R            = 0.056;
     double hmin         = 0.00001;
-    double hmax         = 0.1;
+    double hmax         = 0.01;
     
-    double f            = 0.15;
+    double f            = 1000;
     std::cout << "Metric Tensor Field gets computed..." << std::endl;
     //double d2udx2_v_max = *std::max_element(d2udx2_v.begin(), d2udx2_v.end());
     //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
