@@ -3467,84 +3467,90 @@ int main(int argc, char** argv) {
                 
                 
                 //std::cout << nel_tets << " " << mmgMesh_hyb->ne << " " << mmgMesh_TET->ne  << std::endl;
-                
-                for(int i=1;i<=nel_tets;i++)
+                int tet = 0;
+                for(int i=1;i<=mmgMesh_TET->ne;i++)
                 {
-                    int v0 = lv2gv_tet_mesh[mmgMesh_TET->tetra[offset_el+i].v[0]-1]+1;
-                    int v1 = lv2gv_tet_mesh[mmgMesh_TET->tetra[offset_el+i].v[1]-1]+1;
-                    int v2 = lv2gv_tet_mesh[mmgMesh_TET->tetra[offset_el+i].v[2]-1]+1;
-                    int v3 = lv2gv_tet_mesh[mmgMesh_TET->tetra[offset_el+i].v[3]-1]+1;
-                    
-                    mmgMesh_hyb->tetra[i].v[0] = v0;
-                    mmgMesh_hyb->tetra[i].v[1] = v1;
-                    mmgMesh_hyb->tetra[i].v[2] = v2;
-                    mmgMesh_hyb->tetra[i].v[3] = v3;
-                    
-                    std::set<int> tria0;
-                    std::set<int> tria1;
-                    std::set<int> tria2;
-                    std::set<int> tria3;
-                    
-                    tria0.insert(v0-1);
-                    tria0.insert(v2-1);
-                    tria0.insert(v1-1);
-                    // local face2vert_map for a tet in mmg  {1,2,3}, {0,3,2}, {0,1,3}, {0,2,1}
-                    if(us3d->tria_ref_map.find(tria0)!=us3d->tria_ref_map.end())
+                    if(mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[0]].ref!=0 && mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[1]].ref!=0 &&
+                       mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[2]].ref!=0 && mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[3]].ref!=0)
                     {
-                        refer = us3d->tria_ref_map[tria0];
-                        mmgMesh_hyb->tria[tt].v[0] = v0;
-                        mmgMesh_hyb->tria[tt].v[1] = v2;
-                        mmgMesh_hyb->tria[tt].v[2] = v1;
-                        mmgMesh_hyb->tria[tt].ref  = refer;
-                        tt++;
+                        int v0 = lv2gv_tet_mesh[mmgMesh_TET->tetra[i].v[0]-1]+1;
+                        int v1 = lv2gv_tet_mesh[mmgMesh_TET->tetra[i].v[1]-1]+1;
+                        int v2 = lv2gv_tet_mesh[mmgMesh_TET->tetra[i].v[2]-1]+1;
+                        int v3 = lv2gv_tet_mesh[mmgMesh_TET->tetra[i].v[3]-1]+1;
+                        
+                        mmgMesh_hyb->tetra[tet].v[0] = v0;
+                        mmgMesh_hyb->tetra[tet].v[1] = v1;
+                        mmgMesh_hyb->tetra[tet].v[2] = v2;
+                        mmgMesh_hyb->tetra[tet].v[3] = v3;
+                        
+                        std::set<int> tria0;
+                        std::set<int> tria1;
+                        std::set<int> tria2;
+                        std::set<int> tria3;
+                        
+                        tria0.insert(v0-1);
+                        tria0.insert(v2-1);
+                        tria0.insert(v1-1);
+                        // local face2vert_map for a tet in mmg  {1,2,3}, {0,3,2}, {0,1,3}, {0,2,1}
+                        if(us3d->tria_ref_map.find(tria0)!=us3d->tria_ref_map.end())
+                        {
+                            refer = us3d->tria_ref_map[tria0];
+                            mmgMesh_hyb->tria[tt].v[0] = v0;
+                            mmgMesh_hyb->tria[tt].v[1] = v2;
+                            mmgMesh_hyb->tria[tt].v[2] = v1;
+                            mmgMesh_hyb->tria[tt].ref  = refer;
+                            tt++;
+                        }
+                        
+                        tria1.insert(v1-1);
+                        tria1.insert(v2-1);
+                        tria1.insert(v3-1);
+                        // local face2vert_map for a tet in mmg  {1,2,3}, {0,3,2}, {0,1,3}, {0,2,1}
+                        if(us3d->tria_ref_map.find(tria1)!=us3d->tria_ref_map.end())
+                        {
+                            refer = us3d->tria_ref_map[tria1];
+                            mmgMesh_hyb->tria[tt].v[0] = v1;
+                            mmgMesh_hyb->tria[tt].v[1] = v2;
+                            mmgMesh_hyb->tria[tt].v[2] = v3;
+                            mmgMesh_hyb->tria[tt].ref  = refer;
+                            tt++;
+                        }
+                        
+                        tria2.insert(v0-1);
+                        tria2.insert(v3-1);
+                        tria2.insert(v2-1);
+                        // local face2vert_map for a tet in mmg  {1,2,3}, {0,3,2}, {0,1,3}, {0,2,1}
+                        if(us3d->tria_ref_map.find(tria2)!=us3d->tria_ref_map.end())
+                        {
+                            refer = us3d->tria_ref_map[tria2];
+                            mmgMesh_hyb->tria[tt].v[0] = v0;
+                            mmgMesh_hyb->tria[tt].v[1] = v3;
+                            mmgMesh_hyb->tria[tt].v[2] = v2;
+                            mmgMesh_hyb->tria[tt].ref  = refer;
+                            tt++;
+                        }
+                        
+                        tria3.insert(v0-1);
+                        tria3.insert(v1-1);
+                        tria3.insert(v3-1);
+                        // local face2vert_map for a tet in mmg  {1,2,3}, {0,3,2}, {0,1,3}, {0,2,1}
+                        if(us3d->tria_ref_map.find(tria3)!=us3d->tria_ref_map.end())
+                        {
+                            refer = us3d->tria_ref_map[tria3];
+                            mmgMesh_hyb->tria[tt].v[0] = v0;
+                            mmgMesh_hyb->tria[tt].v[1] = v1;
+                            mmgMesh_hyb->tria[tt].v[2] = v3;
+                            mmgMesh_hyb->tria[tt].ref  = refer;
+                            tt++;
+                        }
+                        //std::cout << tt << " " << nTriangles_Vol << std::endl;
+                        tria0.clear();
+                        tria1.clear();
+                        tria2.clear();
+                        tria3.clear();
+                        
+                        tet++;
                     }
-                    
-                    tria1.insert(v1-1);
-                    tria1.insert(v2-1);
-                    tria1.insert(v3-1);
-                    // local face2vert_map for a tet in mmg  {1,2,3}, {0,3,2}, {0,1,3}, {0,2,1}
-                    if(us3d->tria_ref_map.find(tria1)!=us3d->tria_ref_map.end())
-                    {
-                        refer = us3d->tria_ref_map[tria1];
-                        mmgMesh_hyb->tria[tt].v[0] = v1;
-                        mmgMesh_hyb->tria[tt].v[1] = v2;
-                        mmgMesh_hyb->tria[tt].v[2] = v3;
-                        mmgMesh_hyb->tria[tt].ref  = refer;
-                        tt++;
-                    }
-                    
-                    tria2.insert(v0-1);
-                    tria2.insert(v3-1);
-                    tria2.insert(v2-1);
-                    // local face2vert_map for a tet in mmg  {1,2,3}, {0,3,2}, {0,1,3}, {0,2,1}
-                    if(us3d->tria_ref_map.find(tria2)!=us3d->tria_ref_map.end())
-                    {
-                        refer = us3d->tria_ref_map[tria2];
-                        mmgMesh_hyb->tria[tt].v[0] = v0;
-                        mmgMesh_hyb->tria[tt].v[1] = v3;
-                        mmgMesh_hyb->tria[tt].v[2] = v2;
-                        mmgMesh_hyb->tria[tt].ref  = refer;
-                        tt++;
-                    }
-                    
-                    tria3.insert(v0-1);
-                    tria3.insert(v1-1);
-                    tria3.insert(v3-1);
-                    // local face2vert_map for a tet in mmg  {1,2,3}, {0,3,2}, {0,1,3}, {0,2,1}
-                    if(us3d->tria_ref_map.find(tria3)!=us3d->tria_ref_map.end())
-                    {
-                        refer = us3d->tria_ref_map[tria3];
-                        mmgMesh_hyb->tria[tt].v[0] = v0;
-                        mmgMesh_hyb->tria[tt].v[1] = v1;
-                        mmgMesh_hyb->tria[tt].v[2] = v3;
-                        mmgMesh_hyb->tria[tt].ref  = refer;
-                        tt++;
-                    }
-                    //std::cout << tt << " " << nTriangles_Vol << std::endl;
-                    tria0.clear();
-                    tria1.clear();
-                    tria2.clear();
-                    tria3.clear();
                 }
             
                 //======================================================================================================
@@ -3580,7 +3586,7 @@ int main(int argc, char** argv) {
                 {
                     myfile << mmgMesh_hyb->point[i+1].c[0] << " " <<mmgMesh_hyb->point[i+1].c[1] << " " << mmgMesh_hyb->point[i+1].c[2] << " " << Md->Vmetric[i][3] << " " << Md->Vmetric[i][4] << " " << Md->Vmetric[i][5] << " " << Md->Vmetric[i][6]<< " " << Md->Vmetric[i][7] << " " << Md->Vmetric[i][8] <<  std::endl;
                 }
-                for(int i=1;i<=nel_tets;i++)
+                for(int i=1;i<=mmgMesh_hyb->ne;i++)
                 {
                     myfile << mmgMesh_hyb->tetra[i].v[0]
                     << " " << mmgMesh_hyb->tetra[i].v[1]
