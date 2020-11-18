@@ -9,6 +9,7 @@ void WriteUS3DGridFromMMG(MMG5_pMesh mmgMesh, US3D* us3d)
     std::set<set<int> > bfaces;
     std::set<set<int> > bqfaces;
     std::set<int>face;
+    std::cout << "face info 1" << mmgMesh->nt << " " << mmgMesh->nquad << std::endl;
     for(int i=1;i<=mmgMesh->nt;i++)
     {
         if(mmgMesh->tria[i].ref>0)// -1 is the tag for internal shell.
@@ -91,11 +92,15 @@ void WriteUS3DGridFromMMG(MMG5_pMesh mmgMesh, US3D* us3d)
         std::cout << itrma2->first << " " << itrma2->second.size() << std::endl;
     }
 
-    std::cout << "bnd_quad_info-> " << std::endl;
-    for(itrma2=ref2bqface.begin();itrma2!=ref2bqface.end();itrma2++)
+    if(ref2bqface.size()!=0)
     {
-        std::cout << itrma2->first << " " << itrma2->second.size() << std::endl;
+        std::cout << "bnd_quad_info-> " << std::endl;
+        for(itrma2=ref2bqface.begin();itrma2!=ref2bqface.end();itrma2++)
+        {
+            std::cout << itrma2->first << " " << itrma2->second.size() << std::endl;
+        }
     }
+    std::cout << "passed this point" << std::endl;
     Array<double>* xcn_mmg = new Array<double>(mmgMesh->np,3);
     for(int i=0;i<mmgMesh->np;i++)
     {
@@ -134,7 +139,7 @@ void WriteUS3DGridFromMMG(MMG5_pMesh mmgMesh, US3D* us3d)
         face0.insert(mmgMesh->tetra[i].v[1]);
         face0.insert(mmgMesh->tetra[i].v[2]);
         face0.insert(mmgMesh->tetra[i].v[3]);
-        
+        std::cout << "Tetra["<<i<<"] " << mmgMesh->tetra[i].v[0] << " " << mmgMesh->tetra[i].v[1] << " " << mmgMesh->tetra[i].v[2] << " " << mmgMesh->tetra[i].v[3] << std::endl;
         if(faces.count(face0) != 1 )
         {
             faces.insert(face0);
@@ -234,12 +239,13 @@ void WriteUS3DGridFromMMG(MMG5_pMesh mmgMesh, US3D* us3d)
     std::set<int> qface1;
     std::set<int> qface2;
     // local face2vert_map for a prism in mmg {0,1,2,0},{3,5,4,3},{1,4,5,2},{0,2,5,3},{0,3,4,1} };
-
+    
     for(int i=1;i<=mmgMesh->nprism;i++)
     {
         
         adapt_iet->setVal(mmgMesh->ne+i-1,0,6); // Element type = 6 since we are dealing with prisms.
-        
+               // std::cout  << "Prism ["<<i<<"]=" << mmgMesh->prism[i].v[0] << " " << mmgMesh->prism[i].v[1] << " " << mmgMesh->prism[i].v[2] << " " << mmgMesh->prism[i].v[3] << " " << mmgMesh->prism[i].v[4] << " " << mmgMesh->prism[i].v[5] << std::endl;
+  
         face0.insert(mmgMesh->prism[i].v[0]);
         face0.insert(mmgMesh->prism[i].v[2]);
         face0.insert(mmgMesh->prism[i].v[1]);
@@ -381,7 +387,7 @@ void WriteUS3DGridFromMMG(MMG5_pMesh mmgMesh, US3D* us3d)
          
     }
     
-    std::cout << "lh vs rh = " << lh.size() << " " << rh.size() << std::endl;
+    std::cout << mmgMesh->nprism << " lh vs rh = " << lh.size() << " " << rh.size() << std::endl;
     
     std::map<int,int>::iterator itm;
     int it;
@@ -502,7 +508,7 @@ void WriteUS3DGridFromMMG(MMG5_pMesh mmgMesh, US3D* us3d)
     adapt_zdefs->setVal(1,4,mmgMesh->ne+mmgMesh->nprism);
     adapt_zdefs->setVal(1,5,us3d->zdefs->getVal(1,5));
     adapt_zdefs->setVal(1,6,2);
-    
+    std::cout << " FACES	" << faces.size()+qfaces.size()-bfaces.size()-bqfaces.size() << std::endl; 
     // Collect internal face data (13) . Starting index-ending index internal face.
     adapt_zdefs->setVal(2,0,13);
     adapt_zdefs->setVal(2,1,-1);
@@ -735,9 +741,10 @@ void WriteUS3DGridFromMMG(MMG5_pMesh mmgMesh, US3D* us3d)
     //H5Sselect_hyperslab(filespace, H5S_SELECT_SET, offset, NULL, count, NULL);
     
     status = H5Dwrite(dset_znames_id, type, memspace, filespace, plist_id, us3d->znames->data);
-    /**/
+    
     
     PlotBoundaryData(us3d->znames,adapt_zdefs);
+    
 }
 
 
@@ -847,6 +854,9 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
     std::map<std::set<int>,int> tria_ref_map;
     std::map<std::set<int>,int> quad_ref_map;
 
+    std::map<int,int> vert_ref_map;
+    std::set<int> vert_ref_set;
+    
     std::set<int> tria0;
     std::set<int> tria00;
     std::set<int> tria1;
@@ -869,16 +879,40 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
             faceid = i;
             ref = FindBoundaryID(bnd_map,nBnd,i)+1;
             bnd_face_map[ref].push_back(faceid);
+            //std::cout << " Ref = " << ref << std::endl;
             ifn_ref->setVal(i,0,ref);
             //myfile20 << ref << std::endl;
         }
-        
         
         for(j=0;j<ncol_ifn;j++)
         {
             nodeid = ifn->getVal(i,j+1)-1; // This is actually node ID!!!!
             ifn_copy->setVal(i,j,ifn->getVal(i,j+1)-1);
+            if(ifn_ref->getVal(i,0)!=0)
+            {
+                if(vert_ref_set.find(nodeid)==vert_ref_set.end())
+                {
+                    vert_ref_set.insert(nodeid);
+                    vert_ref_map[nodeid] = ifn_ref->getVal(i,0);
+                }
+            }
+            else
+            {
+                vert_ref_map[nodeid] = ifn_ref->getVal(i,0);
+            }
+            
+//            if(vert_ref_set.find(nodeid)==vert_ref_set.end())
+//            {
+//                vert_ref_set.insert(nodeid);
+//                vert_ref_map[nodeid] = ifn_ref->getVal(i,0);
+//
+////                if(ifn_ref->getVal(i,0)!=0)
+////                {
+////                    std::cout << "ref not zero " << ifn_ref->getVal(i,0) << std::endl;
+////                }
+//            }
         }
+        
         
         tria0.insert(ifn->getVal(i,0+1)-1);
         tria0.insert(ifn->getVal(i,1+1)-1);
@@ -915,13 +949,25 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
             quad_ref_map[quad] = ref;
         }
         
-        
         tria0.clear();
         tria00.clear();
         tria1.clear();
         tria11.clear();
         quad.clear();
     }
+    
+//    std::map<int,int>::iterator itje;
+//    for(itje=vert_ref_map.begin();itje!=vert_ref_map.end();itje++)
+//    {
+//        if(itje->second!=0)
+//        {
+//            std::cout << itje->first << " " << itje->second << std::endl;
+//
+//        }
+//    }
+    
+    //std::cout << " vert_ref_map = " << vert_ref_map.size() << std::endl;
+    
     //myfile20.close();
     if(rank == 0)
     {
@@ -963,8 +1009,10 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
     us3d->bnd_map       = bnd_map;
     us3d->bnd_face_map  = bnd_face_map;
     us3d->nBnd          = nBnd;
+    
     us3d->tria_ref_map  = tria_ref_map;
     us3d->quad_ref_map  = quad_ref_map;
+    us3d->vert_ref_map  = vert_ref_map;
     
     return us3d;
 }
