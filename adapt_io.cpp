@@ -26,6 +26,7 @@ void WriteUS3DGridFromMMG(MMG5_pMesh mmgMesh, US3D* us3d, std::set<std::set<int>
         
     }
     
+    std::cout << "mmgMesh->nquadmmgMesh->nquad "<< mmgMesh->nquad << std::endl;
     for(int i=1;i<=mmgMesh->nquad;i++)
     {
         if(mmgMesh->quadra[i].ref>0)// -1 is the tag for internal shell.
@@ -433,7 +434,6 @@ void WriteUS3DGridFromMMG(MMG5_pMesh mmgMesh, US3D* us3d, std::set<std::set<int>
         }
         else
         {
-            std::cout << " qfacemap[qface0] " << qfacemap[qface0] << std::endl;
             rh[qfacemap[qface0]]  = mmgMesh->ne+i-1;
             Nrh[qfacemap[qface0]] = 4;
             face2element[qfacemap[qface0]].push_back(mmgMesh->ne+i-1);
@@ -464,7 +464,6 @@ void WriteUS3DGridFromMMG(MMG5_pMesh mmgMesh, US3D* us3d, std::set<std::set<int>
         }
         else
         {
-            std::cout << " qfacemap[qface1] " << qfacemap[qface1] << std::endl;
 
             rh[qfacemap[qface1]]  = mmgMesh->ne+i-1;
             Nrh[qfacemap[qface1]] = 4;
@@ -496,7 +495,6 @@ void WriteUS3DGridFromMMG(MMG5_pMesh mmgMesh, US3D* us3d, std::set<std::set<int>
         }
         else
         {
-            std::cout << " qfacemap[qface2] " << qfacemap[qface2] << " " << rh[qfacemap[qface2]] << std::endl;
 
             rh[qfacemap[qface2]] = mmgMesh->ne+i-1;
             Nlh[qfacemap[qface2]] = 4;
