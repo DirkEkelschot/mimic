@@ -192,7 +192,7 @@ struct Mdata{
 Mdata* ReadMetricData()
 {
     std::ifstream fin;
-    fin.open("metric_restart_latest_msl.dat");
+    fin.open("metric_restart_latest_cyl_100.dat");
 
     // Read the file row by row
     std::vector<double> row(9);
@@ -205,7 +205,7 @@ Mdata* ReadMetricData()
     }
     int L = Vmetric.size();
     std::ifstream finhex;
-    finhex.open("elements_restart_latest_msl.dat");
+    finhex.open("elements_restart_latest_cyl_100.dat");
 
     // Read the file row by row
     std::vector<int> rowHex(8);
@@ -1177,7 +1177,7 @@ BLShellInfo* FindOuterShellBoundaryLayerMesh(int wall_id, int nLayer, US3D* us3d
     int te3=0;
     for(int i=0;i<xcn_g->getNrow();i++)
     {
-        if(us3d->vert_ref_map[i]!=0)
+        if(us3d->vert_ref_map.find(i)!=us3d->vert_ref_map.end())
         {
             BLinfo->ShellRef->setVal(i,0,100+us3d->vert_ref_map[i]);
             //std::cout << "fqwk " << 100+us3d->vert_ref_map[i] << std::endl;
@@ -1219,10 +1219,13 @@ BLShellInfo* FindOuterShellBoundaryLayerMesh(int wall_id, int nLayer, US3D* us3d
     int glob_el_id = 0;
     for(int bf=0;bf<us3d->bnd_face_map[wall_id].size();bf++)
     {
+        
+
         std::vector<int> layer;
 
         int bfaceid = us3d->bnd_face_map[wall_id][bf];
         int faceid  = bfaceid;
+        //std::cout << bf << " " << bfaceid << " " << us3d->bnd_face_map[wall_id].size() << std::endl;
         int elid0   = us3d->ife->getVal(faceid,0);
         int elid1   = us3d->ife->getVal(faceid,1);
 
@@ -3043,7 +3046,7 @@ int main(int argc, char** argv) {
         if(world_rank == 0)
         {
             int wall_id = 3;
-            int nLayer  = 10;
+            int nLayer  = 20;
             
             if(nLayer>0)
             {
@@ -3149,6 +3152,7 @@ int main(int argc, char** argv) {
                     mmgMesh_TET->point[i+1].c[1] = xcn_g->getVal(gv,1);
                     mmgMesh_TET->point[i+1].c[2] = xcn_g->getVal(gv,2);
                     mmgMesh_TET->point[i+1].ref  = BLshell->ShellRef->getVal(gv,0);
+                    //std::cout << "Shell Ref " << BLshell->ShellRef->getVal(gv,0) << std::endl;
                     if(BLshell->ShellRef->getVal(gv,0)==0)
                     {
                         std::cout << i << " " << gv << " " << xcn_g->getNrow() << " zero here already" <<std::endl;
@@ -3225,9 +3229,9 @@ int main(int argc, char** argv) {
                 std::map<int,std::vector<int> > unique_shell_tri_map;
 
                 std::set<std::set<int> > unique_shell_tris;
-                int shell_T_id=0;
+                int shell_T_id  = 0;
                 int shell_T_id2 = 0;
-                int tellertOr = 0;
+                int tellertOr   = 0;
                 for(int i=1;i<=nel_tets;i++)
                 {
                     if(mmgMesh_TET->tetra[i].ref == 20)
@@ -3373,7 +3377,7 @@ int main(int argc, char** argv) {
                 
                 std::cout << "teller !!!" << teller << " " << BLshell->ShellFaceID2TriID.size() << " p-p "<< BLshell->ShellTri2FaceID.size() << std::endl;
                 Mesh_Topology_BL* mesh_topo_bl2 =  ExtractBoundaryLayerMeshFromShell(u_tris, BLshell, wall_id, nLayer, us3d, xcn_g, ien_g, ief_g, xcn_pstate, ien_pstate, comm);
-                
+                OutputBoundaryLayerPrisms(xcn_g, mesh_topo_bl2, comm, "InCorrect_");
                 int nTriangles_BL  = 0;
                 int nQuads_BL      = 0;
                 

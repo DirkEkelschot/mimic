@@ -9,10 +9,10 @@ void WriteUS3DGridFromMMG(MMG5_pMesh mmgMesh, US3D* us3d, std::set<std::set<int>
     std::set<set<int> > bfaces;
     std::set<set<int> > bqfaces;
     std::set<int>face;
-    std::cout << "face info 1" << mmgMesh->nt << " " << mmgMesh->nquad << std::endl;
+    std::cout << "face info 1 " << mmgMesh->nt << " " << mmgMesh->nquad << std::endl;
     for(int i=1;i<=mmgMesh->nt;i++)
     {
-        if(mmgMesh->tria[i].ref>0)// -1 is the tag for internal shell.
+        if(mmgMesh->tria[i].ref>0 && mmgMesh->tria[i].ref!=2)// -1 is the tag for internal shell.
         {
             ref2bface[mmgMesh->tria[i].ref].push_back(i);
             face.insert(mmgMesh->tria[i].v[0]);
@@ -26,10 +26,9 @@ void WriteUS3DGridFromMMG(MMG5_pMesh mmgMesh, US3D* us3d, std::set<std::set<int>
         
     }
     
-    std::cout << "mmgMesh->nquadmmgMesh->nquad "<< mmgMesh->nquad << std::endl;
     for(int i=1;i<=mmgMesh->nquad;i++)
     {
-        if(mmgMesh->quadra[i].ref>0)// -1 is the tag for internal shell.
+        if(mmgMesh->quadra[i].ref>0 && mmgMesh->tria[i].ref!=2&& mmgMesh->tria[i].ref!=2)// -1 is the tag for internal shell.
         {
             ref2bqface[mmgMesh->quadra[i].ref].push_back(i);
             face.insert(mmgMesh->quadra[i].v[0]);
@@ -577,7 +576,7 @@ void WriteUS3DGridFromMMG(MMG5_pMesh mmgMesh, US3D* us3d, std::set<std::set<int>
             t++;
         }
     }
-    std::cout << "HGAGHAGG " << gaa << " type3  " << typef3 << " type4 " << typef4 << std::endl;
+    std::cout << "HGAGHAGG " << " type3  " << typef3 << " type4 " << typef4 << std::endl;
     std::map<int,std::vector<int> >::iterator it_bref;
     int faceid;
     std::set<int> iface;
@@ -586,9 +585,10 @@ void WriteUS3DGridFromMMG(MMG5_pMesh mmgMesh, US3D* us3d, std::set<std::set<int>
     
     for(bnd_m=bnd_map.begin();bnd_m!=bnd_map.end();bnd_m++)
     {
-        int bnd_id = bnd_m->first;
-        int Ntris  = bnd_Ntri[bnd_id];
-        int Nquads = bnd_Nquad[bnd_id];
+        int bnd_id     = bnd_m->first;
+        int Nbnd_faces = bnd_m->second.size();
+        int Ntris      = bnd_Ntri[bnd_id];
+        int Nquads     = bnd_Nquad[bnd_id];
         
         for(int q=0;q<Ntris;q++)
         {
@@ -679,7 +679,7 @@ void WriteUS3DGridFromMMG(MMG5_pMesh mmgMesh, US3D* us3d, std::set<std::set<int>
         adapt_zdefs->setVal(3+nb,2,3+q);
         adapt_zdefs->setVal(3+nb,3,face_start);
         adapt_zdefs->setVal(3+nb,4,face_end);
-        adapt_zdefs->setVal(3+nb,5,us3d->zdefs->getVal(3+nb,5));
+        adapt_zdefs->setVal(3+nb,5,itr->first);
         adapt_zdefs->setVal(3+nb,6,2);
         //std::cout << "us3d->zdefs->getVal(3+nb,5) " << us3d->zdefs->getVal(3+nb,5) << std::endl;
         face_start = face_end+1;
@@ -889,10 +889,8 @@ void WriteUS3DGridFromMMG(MMG5_pMesh mmgMesh, US3D* us3d, std::set<std::set<int>
     //H5Sselect_hyperslab(filespace, H5S_SELECT_SET, offset, NULL, count, NULL);
     
     status = H5Dwrite(dset_znames_id, type, memspace, filespace, plist_id, us3d->znames->data);
-    
-    
+
     PlotBoundaryData(us3d->znames,adapt_zdefs);
-    
 }
 
 
@@ -943,12 +941,48 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
     
     int nBnd = zdefs->getNrow()-3;
     int* bnd_map = new int[zdefs->getNrow()-3];
-    for(int i=3;i<zdefs->getNrow();i++)
+    std::map<int,char*> znames_map;
+    Array<char>* znames_new = new Array<char>(znames->getNrow(),znames->getNcol());
+    for(int i=0;i<zdefs->getNrow();i++)
     {
-        bnd_map[i-3] = zdefs->getVal(i,3)-1;
-        //bnd_m.push_back(zdefs->getVal(i,3));
+        //bnd_map[i-3] = zdefs->getVal(i,3)-1;
+       
+        if(zdefs->getVal(i,5)!=1)
+        {
+            char* name = new char[znames->getNcol()];
+
+            for(int j=0;j<znames->getNcol();j++)
+            {
+               name[j]=znames->getVal(i,j);
+            }
+            znames_map[zdefs->getVal(i,5)] = name;
+        }
     }
-    int fint = bnd_map[0];
+    
+    // number of vertices
+    for(int j=0;j<znames->getNcol();j++)
+    {
+       znames_new->setVal(0,j,znames->getVal(0,j));
+    }
+    std::cout << std::endl;
+    // number of cells
+    for(int j=0;j<znames->getNcol();j++)
+    {
+       znames_new->setVal(1,j,znames->getVal(1,j));
+    }
+    
+    std::map<int,char*>::iterator itch;
+    int c=2;
+    for(itch=znames_map.begin();itch!=znames_map.end();itch++)
+    {
+        int bid = itch->first;
+        for(int j=0;j<znames->getNcol();j++)
+        {
+            znames_new->setVal(c,j,znames_map[bid][j]);
+        }
+        c++;
+    }
+    
     
     
     int i,j;
@@ -1001,7 +1035,6 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
     //myfile20.open("ifn_ref.dat");
     std::map<std::set<int>,int> tria_ref_map;
     std::map<std::set<int>,int> quad_ref_map;
-
     std::map<int,int> vert_ref_map;
     std::set<int> vert_ref_set;
     
@@ -1015,39 +1048,31 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
     int nodeid;
     for(i=0;i<nrow_ifn;i++)
     {
-        
-        if(i<fint) // identify the internal face;
+        ref = ifn->getVal(i,7);
+        ifn_ref->setVal(i,0,ref);
+        faceid = i;
+        if(ref != 2)
         {
-            ref = 0;
-            ifn_ref->setVal(i,0,ref);
-            //myfile20 << ref << std::endl;
-        }
-        else // identify the boundary interface and based on bnd_map, determine the reference value.
-        {
-            faceid = i;
-            ref = FindBoundaryID(bnd_map,nBnd,i)+1;
             bnd_face_map[ref].push_back(faceid);
-            //std::cout << " Ref = " << ref << std::endl;
-            ifn_ref->setVal(i,0,ref);
-            //myfile20 << ref << std::endl;
         }
         
         for(j=0;j<ncol_ifn;j++)
         {
             nodeid = ifn->getVal(i,j+1)-1; // This is actually node ID!!!!
             ifn_copy->setVal(i,j,ifn->getVal(i,j+1)-1);
-            if(ifn_ref->getVal(i,0)!=0)
+            
+            if(ref!=2)
             {
                 if(vert_ref_set.find(nodeid)==vert_ref_set.end())
                 {
                     vert_ref_set.insert(nodeid);
-                    vert_ref_map[nodeid] = ifn_ref->getVal(i,0);
+                    vert_ref_map[nodeid] = ifn->getVal(i,7);
                 }
             }
-            else
-            {
-                vert_ref_map[nodeid] = ifn_ref->getVal(i,0);
-            }
+//            else
+//            {
+//                vert_ref_map[nodeid] = ifn->getVal(i,7);
+//            }
             
 //            if(vert_ref_set.find(nodeid)==vert_ref_set.end())
 //            {
@@ -1081,18 +1106,18 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
         quad.insert(ifn->getVal(i,2+1)-1);
         quad.insert(ifn->getVal(i,3+1)-1);
         
-        if(tria_ref_map.find(tria0)==tria_ref_map.end() && ref!=0)
+        if(tria_ref_map.find(tria0)==tria_ref_map.end() && ref!=2)
         {
             tria_ref_map[tria0] = ref;
             tria_ref_map[tria00] = ref;
         }
-        if(tria_ref_map.find(tria1)==tria_ref_map.end() && ref!=0)
+        if(tria_ref_map.find(tria1)==tria_ref_map.end() && ref!=2)
         {
             tria_ref_map[tria1] = ref;
             tria_ref_map[tria11] = ref;
         }
         
-        if(quad_ref_map.find(quad)==quad_ref_map.end() && ref!=0)
+        if(quad_ref_map.find(quad)==quad_ref_map.end() && ref!=2)
         {
             quad_ref_map[quad] = ref;
         }
@@ -1119,9 +1144,10 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
     //myfile20.close();
     if(rank == 0)
     {
-        for(int i=0;i<nBnd;i++)
+        std::map<int,std::vector<int> >::iterator its;
+        for(its=bnd_face_map.begin();its!=bnd_face_map.end();its++)
         {
-            std::cout << "bnd_map " << i << " " << bnd_face_map[i+1].size() << std::endl;
+            std::cout << "bnd_face_map " << its->first << " " << its->second.size() << std::endl;
         }
     }
     
@@ -1151,7 +1177,7 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
     us3d->interior      = interior;
     us3d->ghost         = ghost;
     
-    us3d->znames        = znames;
+    us3d->znames        = znames_new;
     us3d->zdefs         = zdefs;
     us3d->bnd_m         = bnd_m;
     us3d->bnd_map       = bnd_map;
