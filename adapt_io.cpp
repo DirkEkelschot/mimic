@@ -411,9 +411,9 @@ void WriteUS3DGridFromMMG(MMG5_pMesh mmgMesh, US3D* us3d, std::set<std::set<int>
         
         // Quad faces //
         qface0.insert(mmgMesh->prism[i].v[0]);
-        qface0.insert(mmgMesh->prism[i].v[3]);
-        qface0.insert(mmgMesh->prism[i].v[5]);
         qface0.insert(mmgMesh->prism[i].v[2]);
+        qface0.insert(mmgMesh->prism[i].v[4]);
+        qface0.insert(mmgMesh->prism[i].v[3]);
         // local face2vert_map for a prism in mmg {0,1,2,0},{3,5,4,3},{1,4,5,2},{0,2,5,3},{0,3,4,1} };
 
         if( qfaces.count(qface0) != 1)
@@ -421,9 +421,9 @@ void WriteUS3DGridFromMMG(MMG5_pMesh mmgMesh, US3D* us3d, std::set<std::set<int>
             qfaces.insert(qface0);
             qfacemap[qface0]=fid;
             face2node[fid].push_back(mmgMesh->prism[i].v[0]);//1
-            face2node[fid].push_back(mmgMesh->prism[i].v[3]);//4
-            face2node[fid].push_back(mmgMesh->prism[i].v[5]);//6
-            face2node[fid].push_back(mmgMesh->prism[i].v[2]);//3
+            face2node[fid].push_back(mmgMesh->prism[i].v[2]);//4
+            face2node[fid].push_back(mmgMesh->prism[i].v[4]);//6
+            face2node[fid].push_back(mmgMesh->prism[i].v[3]);//3
             element2face[mmgMesh->ne+i-1].push_back(fid);
             face2element[fid].push_back(mmgMesh->ne+i-1);
             lh[fid] = mmgMesh->ne+i-1;
@@ -440,9 +440,9 @@ void WriteUS3DGridFromMMG(MMG5_pMesh mmgMesh, US3D* us3d, std::set<std::set<int>
         }
 
         qface1.insert(mmgMesh->prism[i].v[1]);
-        qface1.insert(mmgMesh->prism[i].v[2]);
         qface1.insert(mmgMesh->prism[i].v[5]);
         qface1.insert(mmgMesh->prism[i].v[4]);
+        qface1.insert(mmgMesh->prism[i].v[2]);
         // local face2vert_map for a prism in mmg {0,1,2,0},{3,5,4,3},{1,4,5,2},{0,2,5,3},{0,3,4,1} };
 
         if( qfaces.count(qface1) != 1)
@@ -450,9 +450,9 @@ void WriteUS3DGridFromMMG(MMG5_pMesh mmgMesh, US3D* us3d, std::set<std::set<int>
             qfaces.insert(qface1);
             qfacemap[qface1]=fid;
             face2node[fid].push_back(mmgMesh->prism[i].v[1]);//2
-            face2node[fid].push_back(mmgMesh->prism[i].v[2]);//3
-            face2node[fid].push_back(mmgMesh->prism[i].v[5]);//6
-            face2node[fid].push_back(mmgMesh->prism[i].v[4]);//5
+            face2node[fid].push_back(mmgMesh->prism[i].v[5]);//3
+            face2node[fid].push_back(mmgMesh->prism[i].v[4]);//6
+            face2node[fid].push_back(mmgMesh->prism[i].v[2]);//5
             
             element2face[mmgMesh->ne+i-1].push_back(fid);
             face2element[fid].push_back(mmgMesh->ne+i-1);
@@ -471,9 +471,9 @@ void WriteUS3DGridFromMMG(MMG5_pMesh mmgMesh, US3D* us3d, std::set<std::set<int>
         }
         
         qface2.insert(mmgMesh->prism[i].v[0]);//1
-        qface2.insert(mmgMesh->prism[i].v[1]);//2
-        qface2.insert(mmgMesh->prism[i].v[4]);//5
-        qface2.insert(mmgMesh->prism[i].v[3]);//4
+        qface2.insert(mmgMesh->prism[i].v[3]);//2
+        qface2.insert(mmgMesh->prism[i].v[5]);//5
+        qface2.insert(mmgMesh->prism[i].v[1]);//4
         // local face2vert_map for a prism in mmg {0,1,2,0},{3,5,4,3},{1,4,5,2},{0,2,5,3},{0,3,4,1} };
 
         if( qfaces.count(qface2) != 1)
@@ -481,9 +481,9 @@ void WriteUS3DGridFromMMG(MMG5_pMesh mmgMesh, US3D* us3d, std::set<std::set<int>
             qfaces.insert(qface2);
             qfacemap[qface2]=fid;
             face2node[fid].push_back(mmgMesh->prism[i].v[0]);//1
-            face2node[fid].push_back(mmgMesh->prism[i].v[1]);//2
-            face2node[fid].push_back(mmgMesh->prism[i].v[4]);//5
-            face2node[fid].push_back(mmgMesh->prism[i].v[3]);//4
+            face2node[fid].push_back(mmgMesh->prism[i].v[3]);//2
+            face2node[fid].push_back(mmgMesh->prism[i].v[5]);//5
+            face2node[fid].push_back(mmgMesh->prism[i].v[1]);//4
             
             element2face[mmgMesh->ne+i-1].push_back(fid);
             face2element[fid].push_back(mmgMesh->ne+i-1);
@@ -595,8 +595,8 @@ void WriteUS3DGridFromMMG(MMG5_pMesh mmgMesh, US3D* us3d, std::set<std::set<int>
             faceid = ref2bface[bnd_id][q];
             adapt_ifn->setVal(t,0,3);
             adapt_ifn->setVal(t,1,mmgMesh->tria[faceid].v[0]);
-            adapt_ifn->setVal(t,2,mmgMesh->tria[faceid].v[2]);
-            adapt_ifn->setVal(t,3,mmgMesh->tria[faceid].v[1]);
+            adapt_ifn->setVal(t,2,mmgMesh->tria[faceid].v[1]);
+            adapt_ifn->setVal(t,3,mmgMesh->tria[faceid].v[2]);
             adapt_ifn->setVal(t,4,0);
             iface.insert(mmgMesh->tria[faceid].v[0]);
             iface.insert(mmgMesh->tria[faceid].v[1]);
@@ -698,7 +698,7 @@ void WriteUS3DGridFromMMG(MMG5_pMesh mmgMesh, US3D* us3d, std::set<std::set<int>
     hid_t plist_id = H5Pcreate(H5P_FILE_ACCESS);
     plist_id               = H5P_DEFAULT;
     //H5Pset_fapl_mpio(plist_id, comm, info);
-    hid_t file_id = H5Fcreate("adapt_grid_v2.h5", H5F_ACC_TRUNC, H5P_DEFAULT, plist_id);
+    hid_t file_id = H5Fcreate("adapt_grid_new.h5", H5F_ACC_TRUNC, H5P_DEFAULT, plist_id);
     H5Pclose(plist_id);
     hid_t status;
     hid_t att_space;

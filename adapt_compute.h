@@ -24,6 +24,9 @@ inline double ComputeEdgeLength(Vert* v0, Vert* v1);
 
 double ComputeVolumeHexCell(double *P);
 
+double ComputeDeterminantJ_tet_v2(double*P);
+double* ComputeJAtCenter_tet_v2(double*P);
+
 // This function outputs J as an array of 9 values where the matrix is defined as:
 
 /*
@@ -36,11 +39,17 @@ Vert* ComputeCenterCoord(double*P, int np);
 
 double* ComputeJAtCenter(double*P, int np);
 
+double ComputeDeterminantJ_tet(double*P);
+
+double ComputeDeterminantJ(double*P, int np);
+
 double ComputeDeterminantJ(double*P, int np);
 
 Array<double>* ComputeDeterminantofJacobian(ParArray<int>* ien, Array<double>* xcn);
 
 double* ComputeVolumeCells(Array<double>* xcn, Array<int>* ien, MPI_Comm comm);
+
+double ComputeTetVolume(double *P);
 
 double* ComputeVolumeCellsReducedToVerts(Array<double>* xcn, Array<int>* ien);
 

@@ -200,6 +200,53 @@ inline double ComputeEdgeLength(Vert* v0, Vert* v1)
 }
 
 
+double ComputeTetVolume(double *P)
+{
+    Vert* a = new Vert;
+    Vert* b = new Vert;
+    Vert* c = new Vert;
+    Vert* d = new Vert;
+    
+    a->x = P[0*3+0]; b->x = P[1*3+0];
+    a->y = P[0*3+1]; b->y = P[1*3+1];
+    a->z = P[0*3+2]; b->z = P[1*3+2];
+    
+    c->x = P[2*3+0]; d->x = P[3*3+0];
+    c->y = P[2*3+1]; d->y = P[3*3+1];
+    c->z = P[2*3+2]; d->z = P[3*3+2];
+    
+    Vert* t = new Vert;
+    t->x = (a->x-d->x);
+    t->y = (a->y-d->y);
+    t->z = (a->z-d->z);
+    
+    Vec3D* s = new Vec3D;
+    s->c0 = (b->x-d->x);
+    s->c1 = (b->y-d->y);
+    s->c2 = (b->z-d->z);
+    
+    Vec3D* r= new Vec3D;
+    r->c0 = (c->x-d->x);
+    r->c1 = (c->y-d->y);
+    r->c2 = (c->z-d->z);
+    
+    
+    double cross[3];
+
+        //Cross cross formula
+    cross[0] = (s->c1 * r->c2) - (s->c2 * r->c1);
+    cross[1] = (s->c2 * r->c0) - (s->c0 * r->c2);
+    cross[2] = (s->c0 * r->c1) - (s->c1 * r->c0);
+    
+    double V = fabs(t->x*cross[0]+t->y*cross[1]+t->z*cross[2])/6.0;
+    
+    //delete t,s,r;
+    //delete[] cross;
+    
+    return V;
+    
+    
+}
 
 double ComputeVolumeHexCell(double *P)
 {
@@ -451,6 +498,176 @@ double* ComputeJAtCenter(double*P, int np)
     return J;
 }
 
+//double* ComputeJAtCenter_tet(double*P)
+//{
+//    Array<double>* ref = new Array<double>(4,4);
+//    ref->setVal(0,0,-1.0);ref->setVal(0,1, 1.0);ref->setVal(0,2,-1.0);ref->setVal(0,3,-1.0);
+//    ref->setVal(1,0,-1.0);ref->setVal(1,1,-1.0);ref->setVal(1,2, 1.0);ref->setVal(1,3,-1.0);
+//    ref->setVal(2,0,-1.0);ref->setVal(2,1,-1.0);ref->setVal(2,2,-1.0);ref->setVal(2,3, 1.0);
+//    ref->setVal(3,0, 1.0);ref->setVal(3,1, 1.0);ref->setVal(3,2, 1.0);ref->setVal(3,3, 1.0);
+//
+//    Array<double>* phys = new Array<double>(4,4);
+//    phys->setVal(0,0,P[0*3+0]);phys->setVal(0,1,P[1*3+0]);phys->setVal(0,2,P[2*3+0]);phys->setVal(0,3,P[3*3+0]);
+//    phys->setVal(1,0,P[0*3+1]);phys->setVal(1,1,P[1*3+1]);phys->setVal(1,2,P[2*3+1]);phys->setVal(1,3,P[3*3+1]);
+//    phys->setVal(2,0,P[0*3+2]);phys->setVal(2,1,P[1*3+2]);phys->setVal(2,2,P[2*3+2]);phys->setVal(2,3,P[3*3+2]);
+//    phys->setVal(3,0,    1.0); phys->setVal(3,1,     1.0);phys->setVal(3,2,     1.0);phys->setVal(3,3,     1.0);
+//
+//    Array<double>* phys_t = new Array<double>(4,4);
+//    Array<double>* ref_t = new Array<double>(4,4);
+//
+//    for(int i=0;i<4;i++)
+//    {
+//        for(int j=0;j<4;j++)
+//        {
+//            ref_t->setVal(j,i,ref->getVal(i,j));
+//            phys_t->setVal(j,i,phys->getVal(i,j));
+//        }
+//    }
+//
+//    Array<double>* iphys = MatInv(phys);
+//    Array<double>* iref  = MatInv(ref);
+//    Array<double>* M  = MatMul(ref,iphys);
+//    Array<double>* Ma = MatMul(phys,iref);
+//
+//    double* J = new double[3*3];
+//    for(int i=0;i<3;i++)
+//    {
+//        for(int j=0;j<3;j++)
+//        {
+//            J[i*3+j] = Ma->getVal(i,j);
+//        }
+//    }
+//
+//    return J;
+//}
+
+
+double* ComputeJAtCenter_tet_v2(double*P)
+{
+
+    Array<double>* a = new Array<double>(3,3);
+    a->setVal(0,0,P[1*3+0]-P[0*3+0]);
+    a->setVal(0,1,P[2*3+0]-P[0*3+0]);
+    a->setVal(0,2,P[3*3+0]-P[0*3+0]);
+    
+    a->setVal(1,0,P[1*3+0]-P[0*3+1]);
+    a->setVal(1,1,P[2*3+0]-P[0*3+1]);
+    a->setVal(1,2,P[3*3+0]-P[0*3+1]);
+    
+    a->setVal(2,0,P[1*3+0]-P[0*3+2]);
+    a->setVal(2,1,P[2*3+0]-P[0*3+2]);
+    a->setVal(2,2,P[3*3+0]-P[0*3+2]);
+    
+    Array<double>* w0 = new Array<double>(3,3);
+    w0->setVal(0,0,1.0);
+    w0->setVal(0,1,0.5);
+    w0->setVal(0,2,0.5);
+    
+    w0->setVal(1,0,0.0);
+    w0->setVal(1,1,sqrt(3.0)/2.0);
+    w0->setVal(1,2,sqrt(3.0)/6.0);
+    
+    w0->setVal(2,0,0.0);
+    w0->setVal(2,1,0.0);
+    w0->setVal(2,2,sqrt(2.0)/sqrt(3.0));
+
+    Array<double>* iw0 = MatInv(w0);
+    Array<double>* M  = MatMul(a,iw0);
+    return M->data;
+}
+double ComputeDeterminantJ_tet_v2(double*P)
+{
+    double* JP1 = ComputeJAtCenter_tet_v2(P);
+
+    double DetJ = JP1[0]*(JP1[4]*JP1[8]-JP1[7]*JP1[5])
+    -JP1[1]*(JP1[3]*JP1[8]-JP1[6]*JP1[5])
+    +JP1[2]*(JP1[3]*JP1[7]-JP1[6]*JP1[4]);
+
+    return DetJ;
+}
+
+double ComputeDeterminantJ_tet(double*P)
+{
+    double* J0=new double[9];
+    std::vector<double> dJvec;
+    J0[0] = P[1*3+0]-P[0*3+0];
+    J0[1] = P[2*3+0]-P[0*3+0];
+    J0[2] = P[3*3+0]-P[0*3+0];
+
+    J0[3] = P[1*3+1]-P[0*3+1];
+    J0[4] = P[2*3+1]-P[0*3+1];
+    J0[5] = P[3*3+1]-P[0*3+1];
+
+    J0[6] = P[1*3+2]-P[0*3+2];
+    J0[7] = P[2*3+2]-P[0*3+2];
+    J0[8] = P[3*3+2]-P[0*3+2];
+    
+    double DetJ0 =   J0[0]*(J0[4]*J0[8]-J0[7]*J0[5])
+                    -J0[1]*(J0[3]*J0[8]-J0[6]*J0[5])
+                    +J0[2]*(J0[3]*J0[7]-J0[6]*J0[4]);
+    
+    dJvec.push_back(DetJ0);
+
+    J0[0] = P[0*3+0]-P[1*3+0];
+    J0[1] = P[2*3+0]-P[1*3+0];
+    J0[2] = P[3*3+0]-P[1*3+0];
+
+    J0[3] = P[0*3+1]-P[1*3+1];
+    J0[4] = P[2*3+1]-P[1*3+1];
+    J0[5] = P[3*3+1]-P[1*3+1];
+
+    J0[6] = P[0*3+2]-P[1*3+2];
+    J0[7] = P[2*3+2]-P[1*3+2];
+    J0[8] = P[3*3+2]-P[1*3+2];
+    
+    DetJ0 =  J0[0]*(J0[4]*J0[8]-J0[7]*J0[5])
+            -J0[1]*(J0[3]*J0[8]-J0[6]*J0[5])
+            +J0[2]*(J0[3]*J0[7]-J0[6]*J0[4]);
+    
+    dJvec.push_back(-DetJ0);
+    
+    J0[0] = P[0*3+0]-P[2*3+0];
+    J0[1] = P[1*3+0]-P[2*3+0];
+    J0[2] = P[3*3+0]-P[2*3+0];
+
+    J0[3] = P[0*3+1]-P[2*3+1];
+    J0[4] = P[1*3+1]-P[2*3+1];
+    J0[5] = P[3*3+1]-P[2*3+1];
+
+    J0[6] = P[0*3+2]-P[2*3+2];
+    J0[7] = P[1*3+2]-P[2*3+2];
+    J0[8] = P[3*3+2]-P[2*3+2];
+    
+    DetJ0 =  J0[0]*(J0[4]*J0[8]-J0[7]*J0[5])
+            -J0[1]*(J0[3]*J0[8]-J0[6]*J0[5])
+            +J0[2]*(J0[3]*J0[7]-J0[6]*J0[4]);
+    
+    dJvec.push_back(DetJ0);
+    
+    J0[0] = P[0*3+0]-P[3*3+0];
+    J0[1] = P[1*3+0]-P[3*3+0];
+    J0[2] = P[2*3+0]-P[3*3+0];
+
+    J0[3] = P[0*3+1]-P[3*3+1];
+    J0[4] = P[1*3+1]-P[3*3+1];
+    J0[5] = P[2*3+1]-P[3*3+1];
+
+    J0[6] = P[0*3+2]-P[3*3+2];
+    J0[7] = P[1*3+2]-P[3*3+2];
+    J0[8] = P[2*3+2]-P[3*3+2];
+    
+    DetJ0 =  J0[0]*(J0[4]*J0[8]-J0[7]*J0[5])
+            -J0[1]*(J0[3]*J0[8]-J0[6]*J0[5])
+            +J0[2]*(J0[3]*J0[7]-J0[6]*J0[4]);
+    
+    dJvec.push_back(-DetJ0);
+    //std::cout << dJvec[0] << " " <<  dJvec[1] << " " << dJvec[2] << " " << dJvec[3] << std::endl;
+    double DetJ = *std::min_element(dJvec.begin(),dJvec.end());
+    
+    return DetJ;
+}
+
+
 double ComputeDeterminantJ(double*P, int np)
 {
     double* JP1 = ComputeJAtCenter(P, np);
@@ -655,10 +872,10 @@ Array<double>* ComputeMetric(std::vector<Vert> Verts, Array<double>* grad, Array
     //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     //+++++++++++++Required Parameter set for scaling eigenvalues/eigenvectors+++++++++++++++
     double R            = 0.056;
-    double hmin         = 0.00001;
-    double hmax         = 0.01;
+    double hmin         = 0.000005;
+    double hmax         = 0.05;
     
-    double f            = 1000;
+    double f            = 10000;
     std::cout << "Metric Tensor Field gets computed..." << std::endl;
     //double d2udx2_v_max = *std::max_element(d2udx2_v.begin(), d2udx2_v.end());
     //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
