@@ -1,4 +1,4 @@
-OBJECTS = adapt_output.cpp adapt_compute.cpp adapt_partition.cpp adapt_operations.cpp main.cpp
+OBJECTS = adapt_output.cpp adapt_compute.cpp adapt_part_func.cpp adapt_schedule.cpp adapt_operations.cpp main.cpp
 
 PARMETIS_HOME = /Users/dekelschot/Software/parmetis-4.0.3/installation
 METIS_HOME = /Users/dekelschot/Software/parmetis-4.0.3/metis/installation

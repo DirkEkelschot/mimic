@@ -45,6 +45,17 @@ template <typename T> class Array {
             dim[1] = ncol;
             return  dim;
         }
+//        Array* getColumn(int col)
+//        {
+//           Array<T>* C = new Array<T>(nrow,1);
+
+//            for(int i=0;i<nrow;i++)
+//            {
+//                C->data[i] = data[i*ncol+col];
+//            }
+
+//           return C;
+//        }
     
     private:
         int nrow;

@@ -18,10 +18,15 @@
 #include <iostream>
 #include <stdlib.h>
 #include <fstream>
+#include <iomanip>      // std::setprecision
 
 // external libraries.
 #include <mpi.h>
 #include <parmetis.h>
 #include <hdf5.h>
+
+#include "mmg/mmgs/libmmgs.h"
+#include "mmg/mmg3d/libmmg3d.h"
+#include "parmmg/libparmmg.h"
 
 #endif

@@ -7,7 +7,11 @@
 
 
 
-
+struct i_part_map
+{
+    std::map<int,std::vector<int> > i_map;
+    std::map<int,std::vector<int> > i_inv_map;
+};
 
 struct ParVar
 {
@@ -69,9 +73,9 @@ public:
 
 struct Vert
 {
-    double x;
-    double y;
-    double z;
+    double x=0.0;
+    double y=0.0;
+    double z=0.0;
 };
 
 
@@ -129,7 +133,7 @@ struct Partition_old
 
 
 
-struct Partition
+struct PartitionStruct
 {
     int ndim;
     std::vector<Vert> Verts;
@@ -139,6 +143,8 @@ struct Partition
     std::map<int,int> v_glob2loc;
     int* xadj;
     int* adjncy;
+    Array<double>* rho_elem;
+    Array<double>* rho_vert;
 };
 
 

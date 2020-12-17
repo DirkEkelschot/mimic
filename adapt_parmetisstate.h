@@ -71,7 +71,7 @@ inline ParallelState_Parmetis::ParallelState_Parmetis(ParArray<int>* e2n, MPI_Co
     
     int* elm_dist_tmp          = new int[size+1];
     int* npo_offset_tmp        = new int[size+1];
-    elmdist               = new int[size+1];
+    elmdist                    = new int[size+1];
     int* npo_offset            = new int[size+1];
     
     for(int i=0;i<size+1;i++)

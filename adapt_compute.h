@@ -1,7 +1,20 @@
 #include "adapt_datastruct.h"
 #include "adapt_partition.h"
+#include "adapt_datatype.h"
+#include "adapt_math.h"
+#include "adapt.h"
+
 #ifndef ADAPT_COMPUTE_H
 #define ADAPT_COMPUTE_H
+
+
+void NegateVec3D(Vec3D* a);
+
+double DotVec3D(Vec3D* a, Vec3D* b);
+
+Array<double>* MatInv(Array<double>* A);
+
+Array<double>* MatMul(Array<double>* A, Array<double>* B);
 
 double ComputeDetJac(double *P0,double *P1,double *P2,double *P3);
 
@@ -17,6 +30,9 @@ inline double ComputeEdgeLength(Vert* v0, Vert* v1);
 
 double ComputeVolumeHexCell(double *P);
 
+double ComputeDeterminantJ_tet_v2(double*P);
+double* ComputeJAtCenter_tet_v2(double*P);
+
 // This function outputs J as an array of 9 values where the matrix is defined as:
 
 /*
@@ -25,18 +41,33 @@ double ComputeVolumeHexCell(double *P);
         J[6], J[7], J[8]]
 */
 // J is computed using the 8-point isoparametric mapping for a hex. The 8-point rule should be sufficient since everything is linear anyways.
+Vert* ComputeCenterCoord(double*P, int np);
 
 extern "C" {
 double* ComputeJAtCenter(double*P, int np);
 }
 
+double ComputeDeterminantJ_tet(double*P);
+
 double ComputeDeterminantJ(double*P, int np);
 
-Array<double>* ComputeDeterminantofJacobian(Partition* pa);
+double ComputeDeterminantJ(double*P, int np);
+
+Array<double>* ComputeDeterminantofJacobian(ParArray<int>* ien, Array<double>* xcn);
 
 double* ComputeVolumeCells(Array<double>* xcn, Array<int>* ien, MPI_Comm comm);
 
+double ComputeTetVolume(double *P);
+
 double* ComputeVolumeCellsReducedToVerts(Array<double>* xcn, Array<int>* ien);
+
+void UnitTestJacobian();
+
+Array<double>* ComputeMetric(std::vector<Vert> Verts, Array<double>* grad, Array<double>* hessian, double max_v,std::vector<std::vector<int> > loc_elem2verts_loc, int nloc, MPI_Comm comm, int dim);
+
+Array<double>* ComputeFaceValues(Partition* P, Array<double>* U, MPI_Comm comm);
+
+Array<double>* ComputeVolumes(Partition* Pa);
 
 /*
 double* ComputeVolumeCells(Array<double>* xcn, Array<int>* ien)
