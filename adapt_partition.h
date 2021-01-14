@@ -6,14 +6,14 @@
 #include "adapt_datastruct.h"
 #include "adapt_array.h"
 
-
 #ifndef ADAPT_PARTITION_H
 #define ADAPT_PARTITION_H
 
 class Partition {
    public:
     Partition(){};
-    Partition(ParArray<int>* ien, ParArray<int>* iee, ParArray<int>* ief, ParArray<int>* ifn, ParArray<int>* ife, ParArray<int>* if_ref,  ParallelState_Parmetis* pstate_parmetis, ParallelState* ien_parstate, ParallelState* ifn_parstate, ParallelState* ife_parstate, ParArray<double>* xcn, ParallelState* xcn_parstate, Array<double>* U, MPI_Comm comm);
+    Partition(ParArray<int>* ien, ParArray<int>* iee, ParArray<int>* ief, ParArray<int>* ifn, ParArray<int>* ife, ParArray<int>* if_ref,  ParallelState_Parmetis* pstate_parmetis, ParallelState* ien_parstate, ParallelState* ifn_parstate, ParArray<double>* xcn, ParallelState* xcn_parstate, Array<double>* U, MPI_Comm comm);
+    
     void DeterminePartitionLayout(ParArray<int>* ien, ParallelState_Parmetis* pstate_parmetis, ParallelState* ien_parstate, MPI_Comm comm);
     void DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief, ParallelState* ien_parstate, ParArray<double>* xcn, ParallelState* xcn_parstate, Array<double>* U, MPI_Comm comm);
     void DetermineAdjacentElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief, ParArray<int>* part, ParallelState* ien_parstate, ParArray<double>* xcn, ParallelState* xcn_parstate, Array<double>* U, MPI_Comm comm);

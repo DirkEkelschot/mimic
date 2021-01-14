@@ -1,6 +1,6 @@
 #include "adapt_partition.h"
 
-Partition::Partition(ParArray<int>* ien, ParArray<int>* iee, ParArray<int>* ief, ParArray<int>* ifn, ParArray<int>* ife, ParArray<int>* if_ref,  ParallelState_Parmetis* pstate_parmetis, ParallelState* ien_parstate, ParallelState* ifn_parstate, ParallelState* ife_parstate, ParArray<double>* xcn, ParallelState* xcn_parstate, Array<double>* U, MPI_Comm comm)
+Partition::Partition(ParArray<int>* ien, ParArray<int>* iee, ParArray<int>* ief, ParArray<int>* ifn, ParArray<int>* ife, ParArray<int>* if_ref,  ParallelState_Parmetis* pstate_parmetis, ParallelState* ien_parstate, ParallelState* ife_parstate, ParArray<double>* xcn, ParallelState* xcn_parstate, Array<double>* U, MPI_Comm comm)
 {
     int size;
     MPI_Comm_size(comm, &size);
@@ -33,7 +33,7 @@ Partition::Partition(ParArray<int>* ien, ParArray<int>* iee, ParArray<int>* ief,
     ief_part_map    = getElement2EntityPerPartition(ief,    ien_pstate,   comm);
     ien_part_map    = getElement2EntityPerPartition(ien,    ien_pstate,   comm);
     
-    ifn_part_map    = getFace2EntityPerPartition(ifn    ,    ifn_parstate,   comm);
+    ifn_part_map    = getFace2EntityPerPartition(ifn    ,    ife_parstate,   comm);
     ife_part_map    = getFace2EntityPerPartition(ife    ,    ife_parstate,   comm);
     if_ref_part_map = getFace2EntityPerPartition(if_ref ,    ife_parstate,   comm);
     

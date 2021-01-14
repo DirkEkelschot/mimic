@@ -3048,16 +3048,17 @@ int main(int argc, char** argv) {
         //========================================================================
         //========================================================================
         int varia = 0;
-        US3D* us3d = ReadUS3DData_v2(fn_conn,fn_grid,fn_data,comm,info);
+        US3D* us3d = ReadUS3DData(fn_conn,fn_grid,fn_data,comm,info);
 
         int Nel_part = us3d->ien->getNrow();
         
-        ParallelState* ien_pstate = new ParallelState(us3d->ien->getNglob(),comm);
-        ParallelState* ifn_pstate = new ParallelState(us3d->ifn->getNglob(),comm);
-        ParallelState* ife_pstate = new ParallelState(us3d->ife->getNglob(),comm);
+        // ParallelState is an object that allows the user to get Offsets and Nlocs for that input array.
+        
+        ParallelState* ien_pstate               = new ParallelState(us3d->ien->getNglob(),comm);
+        ParallelState* ife_pstate               = new ParallelState(us3d->ifn->getNglob(),comm);
         ParallelState_Parmetis* parmetis_pstate = new ParallelState_Parmetis(us3d->ien,comm,8);
-
-        ParallelState* xcn_pstate = new ParallelState(us3d->xcn->getNglob(),comm);
+        ParallelState* xcn_pstate               = new ParallelState(us3d->xcn->getNglob(),comm);
+        
         Array<double>* Uivar = new Array<double>(Nel_part,1);
         
         for(int i=0;i<Nel_part;i++)
@@ -3065,12 +3066,25 @@ int main(int argc, char** argv) {
             Uivar->setVal(i,0,us3d->interior->getVal(i,varia));
         }
         
+        clock_t t,t1;
+        double tmax = 0.0;
+        double tn = 0.0;
+        t = clock();
+        
+        // ien -> element2node    map coming from parallel reading.
+        // iee -> element2element map coming from parallel reading.
+        // ief -> element2face    map coming from parallel reading.
+        // ifn -> face2node       map coming from parallel reading.
+        // ife -> face2element    map coming from parallel reading.
+        
         Partition* P = new Partition(us3d->ien, us3d->iee, us3d->ief,
                                      us3d->ifn, us3d->ife, us3d->if_ref,
-                                     parmetis_pstate,
-                                     ien_pstate, ifn_pstate,  ife_pstate,
-                                     us3d->xcn, xcn_pstate, Uivar,comm);
+                                     parmetis_pstate, ien_pstate, ife_pstate,
+                                     us3d->xcn, xcn_pstate, Uivar, comm);
         
+        double duration = ( std::clock() - t) / (double) CLOCKS_PER_SEC;
+        std::cout << "time partitioning: " << duration << std::endl;
+        /*
         std::map<int,double> UauxNew = P->CommunicateAdjacentDataUS3D(Uivar,comm);
         int* bnd_map;
         int nBnd = 4;
@@ -3279,8 +3293,8 @@ int main(int argc, char** argv) {
             ien_nlocs[i]   = ien_pstate->getNlocs()[i]  *8;
             ien_offsets[i] = ien_pstate->getOffsets()[i]*8;
             
-            ifn_nlocs[i]   = ifn_pstate->getNlocs()[i]  *4;
-            ifn_offsets[i] = ifn_pstate->getOffsets()[i]*4;
+            ifn_nlocs[i]   = ife_pstate->getNlocs()[i]  *4;
+            ifn_offsets[i] = ife_pstate->getOffsets()[i]*4;
             
             ife_nlocs[i]   = ife_pstate->getNlocs()[i]  *2;
             ife_offsets[i] = ife_pstate->getOffsets()[i]*2;
@@ -3325,6 +3339,8 @@ int main(int argc, char** argv) {
                     ife_nlocs,
                     ife_offsets,
                     MPI_INT, 0, comm);
+        */
+        
         
         /*
         if(world_rank == 0)
