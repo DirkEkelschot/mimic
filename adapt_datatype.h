@@ -11,12 +11,13 @@ struct US3D{
     ParArray<int>* ief;
     ParArray<int>* iee;
     
-    Array<int>* ifn;
-    Array<int>* ifn_ref;
+    ParArray<int>* ifn;
+    ParArray<int>* ife;
+    ParArray<int>* if_ref;
+    
     std::map<std::set<int>,int> tria_ref_map;
     std::map<std::set<int>,int> quad_ref_map;
     std::map<int,int> vert_ref_map;
-    Array<int>* ife;
     
     ParArray<double>* interior;
     Array<double>* ghost;

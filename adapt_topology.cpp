@@ -1,13 +1,13 @@
 #include "adapt_topology.h"
 #include "adapt_output.h"
 
-Mesh_Topology::Mesh_Topology(Partition* Pa, Array<int>* ifn_in,  Array<int>* ife_in, std::map<int,double> U, int* bnd_map, int nBnd, MPI_Comm comm)
+Mesh_Topology::Mesh_Topology(Partition* Pa, std::map<int,double> U, MPI_Comm comm)
 {
     int nlocElem, start, end, offset, nloc, np, loc_vid, size, rank, lid;
     int vf0, vf1, vf2, vf3, vf4, vf5, vf6, vf7, fid;
     double wi, ds0, ds1 ,ds2, ds3, ds4, ds5, u_po,orient0,orient1,orient2,orient3,orient4,orient5,L0,L1,L2,L3,L4,L5;
     
-    ifn = ifn_in;
+    //ifn = ifn_in;
     P = Pa;
     c = comm;
     Vec3D* v0 = new Vec3D;
@@ -31,8 +31,11 @@ Mesh_Topology::Mesh_Topology(Partition* Pa, Array<int>* ifn_in,  Array<int>* ife
     std::map<int,int> gV2lV               = Pa->getGlobalVert2LocalVert();
     
     std::vector<int> ElemPart             = Pa->getLocElem();
+    i_part_map* ifn_part_map = Pa->getIFNpartmap();
+    i_part_map* ife_part_map = Pa->getIFEpartmap();
     i_part_map* ief_part_map = Pa->getIEFpartmap();
     i_part_map* iee_part_map = Pa->getIEEpartmap();
+    i_part_map* if_ref_part_map = Pa->getIFREFpartmap();
     std::vector<int> vijkIDs;
     
     cc                     = new Array<double>(nLocElem,3);
@@ -49,7 +52,7 @@ Mesh_Topology::Mesh_Topology(Partition* Pa, Array<int>* ifn_in,  Array<int>* ife
     int ref   = 0;
     
     //bnd_m.push_back(zdefs->getVal(zdefs->getNrow()-1,4));
-    int fint = bnd_map[0];
+    //int fint = bnd_map[0];
     for(int i=0;i<nLocElem;i++)
     {
         int gEl = Loc_Elem[i];
@@ -63,7 +66,7 @@ Mesh_Topology::Mesh_Topology(Partition* Pa, Array<int>* ifn_in,  Array<int>* ife
            Pijk[k*3+1] = locVerts[loc_vid].y;
            Pijk[k*3+2] = locVerts[loc_vid].z;
         }
-
+        
         Vert* Vijk     = ComputeCenterCoord(Pijk, np);
         double volume  = ComputeVolumeHexCell(Pijk);
         Vol[gEl]       = volume;
@@ -76,24 +79,28 @@ Mesh_Topology::Mesh_Topology(Partition* Pa, Array<int>* ifn_in,  Array<int>* ife
             
             for(int r=0;r<4;r++)
             {
-                int gvid = ifn->getVal(faceid,r);
+                //int gvid = ifn->getVal(faceid,r);
+                
+                int gvid = ifn_part_map->i_map[faceid][s];
+                //std::cout << gvid << std::endl;
                 int lvid = gV2lV[gvid];
+                //std::cout << gvid << " " << lvid << std::endl;
                 
                 vert2ref[gvid] = ref;
                 ref2vert[ref].push_back(gvid);
-                
+
                 Vert* V = new Vert;
                 V->x    = locVerts[lvid].x;
                 V->y    = locVerts[lvid].y;
                 V->z    = locVerts[lvid].z;
-                
+
                 Vface->x = Vface->x+locVerts[lvid].x;
                 Vface->y = Vface->y+locVerts[lvid].y;
                 Vface->z = Vface->z+locVerts[lvid].z;
-                
+
                 face.push_back(V);
             }
-
+            
             Vface->x = Vface->x/4.0;
             Vface->y = Vface->y/4.0;
             Vface->z = Vface->z/4.0;
@@ -124,22 +131,38 @@ Mesh_Topology::Mesh_Topology(Partition* Pa, Array<int>* ifn_in,  Array<int>* ife
                 NegateVec3D(n0);
             }
             
-            //double orientaft = DotVec3D(r0,n0);
-            if(faceid<fint) // identify the internal face;
+            face2ref[faceid]        = ref;
+            ref2face[ref].push_back(faceid);
+            int ref = if_ref_part_map->i_map[faceid][0];
+            //std::cout << ref << std::endl;
+            if(ref!=2)
             {
-                ref = 0;
-                face2ref[faceid] = ref;
-                ref2face[ref].push_back(faceid);
-            }
-            else // identify the boundary interface and based on bnd_map, determine the reference value.
-            {
-                ref = FindBoundaryID(bnd_map,nBnd,faceid)+1;
-                face2ref[faceid]        = ref;
-                ref2face[ref].push_back(faceid);
                 Bface2Element[faceid]   = gEl;
                 Bface2Normal[faceid]    = n0;
                 Bface2LocID[faceid]     = s;
             }
+            
+            if(ref!=2)
+            {
+                face2ref[faceid]        = ref;
+                ref2face[ref].push_back(faceid);
+            }
+//            //double orientaft = DotVec3D(r0,n0);
+//            if(faceid<fint) // identify the internal face;
+//            {
+//                ref = 0;
+//                face2ref[faceid] = ref;
+//                ref2face[ref].push_back(faceid);
+//            }
+//            else // identify the boundary interface and based on bnd_map, determine the reference value.
+//            {
+//                ref = FindBoundaryID(bnd_map,nBnd,faceid)+1;
+//                face2ref[faceid]        = ref;
+//                ref2face[ref].push_back(faceid);
+//                //Bface2Element[faceid]   = gEl;
+//                //Bface2Normal[faceid]    = n0;
+//                //Bface2LocID[faceid]     = s;
+//            }
             
             ds0 = ComputeSurfaceArea(v0,v1);
             dS[gEl].push_back(ds0);
@@ -147,6 +170,7 @@ Mesh_Topology::Mesh_Topology(Partition* Pa, Array<int>* ifn_in,  Array<int>* ife
             dxfxc[gEl].push_back(r0);
             
             face.clear();
+            
         }
         
         tel = 0;
@@ -189,7 +213,9 @@ Mesh_Topology::Mesh_Topology(Partition* Pa, Array<int>* ifn_in,  Array<int>* ife
                Vpo->x = 0.0;Vpo->y = 0.0;Vpo->z = 0.0;
                for(int s=0;s<4;s++)
                {
-                   int gvid = ifn->getVal(fid,s);
+                   //int gvid = ifn->getVal(fid,s);
+                   int gvid = ifn_part_map->i_map[fid][s];
+
                    int lvid = gV2lV[gvid];
 
                    Vpo->x = Vpo->x+locVerts[lvid].x;
@@ -221,21 +247,23 @@ Mesh_Topology::Mesh_Topology(Partition* Pa, Array<int>* ifn_in,  Array<int>* ife
     //DetermineBoundaryLayerElements(Pa,ife_in,15,3,c);
     
 
-    delete[] Pijk;
-    delete[] Po;
-    
-    delete v0;
-    delete v1;
-    
-    delete fc0;
-    delete fc1;
-    delete fc2;
-    delete fc3;
-    delete fc4;
-    delete fc5;
+//    delete[] Pijk;
+//    delete[] Po;
+//
+//    delete v0;
+//    delete v1;
+//
+//    delete fc0;
+//    delete fc1;
+//    delete fc2;
+//    delete fc3;
+//    delete fc4;
+//    delete fc5;
     
 }
 
+
+/*
 void Mesh_Topology::DetermineBoundaryLayerElements(Partition* Pa, Array<int>* ife_in, int nLayer, int bID, MPI_Comm comm)
 {
         int size;
@@ -262,7 +290,7 @@ void Mesh_Topology::DetermineBoundaryLayerElements(Partition* Pa, Array<int>* if
     std::vector<int> ElLayer;
     int tel2 = 0;
     double min_val;
-    
+    i_part_map* ife_part_map = Pa->getIFEpartmap();
     std::map<int,std::vector<int> > rank2req_vert;
     std::map<int,std::vector<int> > rank2req_elem;
     int ui=0;
@@ -310,10 +338,11 @@ void Mesh_Topology::DetermineBoundaryLayerElements(Partition* Pa, Array<int>* if
             }
             else
             {
-                //std::cout << "compare rank with rank of element -> " << rank << " " << gEl << " " << ife_in->getVal(fid_new,0) << " " << " " << ife_in->getVal(fid_new,1) << " " << " " << gPart->getVal(ife_in->getVal(fid_new,1),0) << std::endl;
-                
-                gElvec0 = ife_in->getVal(fid_new,0);
-                gElvec1 = ife_in->getVal(fid_new,1);
+
+//                gElvec0 = ife_in->getVal(fid_new,0);
+//                gElvec1 = ife_in->getVal(fid_new,1);
+                gElvec0 = ife_part_map[fid_new][0];
+                gElvec1 = ife_part_map[fid_new][1];
                 int rank_id0 = gPart->getVal(gElvec0,0);
                 int rank_id1 = gPart->getVal(gElvec1,0);
                 if(gElvec0==gEl)
@@ -482,7 +511,7 @@ void Mesh_Topology::DetermineBoundaryLayerElements(Partition* Pa, Array<int>* if
         }
     }
 }
-
+*/
 
 std::vector<double> Mesh_Topology::ReduceUToVertices(Array<double>* Uelem)
 {
