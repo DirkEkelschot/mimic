@@ -44,7 +44,7 @@ struct Mesh_Topology_BL{
 class Mesh_Topology {
     public:
         Mesh_Topology(){};
-        Mesh_Topology(Partition* Pa, Array<int>* ifn_in, Array<int>* ife_in, std::map<int,double> U, int* bnd_map, int nBnd, MPI_Comm comm);
+        Mesh_Topology(Partition* Pa, std::map<int,double> U, MPI_Comm comm);
         void DetermineBoundaryLayerElements(Partition* Pa, Array<int>* ife_in, int nLayer, int bID, MPI_Comm comm);
         std::map<int,vector<Vec3D*> > getNormals();
         std::map<int,vector<Vec3D*> > getRvectors();

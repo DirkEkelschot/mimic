@@ -522,7 +522,10 @@ Array<double>* ComputedUdx_LSQ_US3D_v3(Partition* Pa, std::map<int,double> U,Mes
    int nLoc_Elem                         = Loc_Elem.size();
    int Nel = Pa->getGlobalPartition()->getNrow();
    Array<int>* ifn = meshTopo->getIFN();
-   i_part_map* iee_vec = Pa->getIEEpartmap();
+   i_part_map*  if_ref_vec = Pa->getIFREFpartmap();
+   i_part_map*  ifn_vec    = Pa->getIFNpartmap();
+   i_part_map* ief_part_map = Pa->getIEFpartmap();
+   i_part_map*  iee_vec    = Pa->getIEEpartmap();
    std::vector<std::vector<double> > iee_dist;
    std::vector<double> dist;
    double* Pijk = new double[8*3];
@@ -568,11 +571,11 @@ Array<double>* ComputedUdx_LSQ_US3D_v3(Partition* Pa, std::map<int,double> U,Mes
        for(int j=0;j<6;j++)
        {
            int adjID = iee_vec->i_map[elID][j];
-
+           
            if(adjID<Nel)
            {
                u_po = U[adjID];
-
+               
                for(int k=0;k<gE2lV[adjID].size();k++)
                {
                    loc_vid     = gE2lV[adjID][k];
@@ -580,7 +583,7 @@ Array<double>* ComputedUdx_LSQ_US3D_v3(Partition* Pa, std::map<int,double> U,Mes
                    Padj[k*3+1] = LocalVs[loc_vid].y;
                    Padj[k*3+2] = LocalVs[loc_vid].z;
                }
-
+               
                Vert* Vadj = ComputeCenterCoord(Padj,8);
 
                d = sqrt((Vadj->x-Vijk->x)*(Vadj->x-Vijk->x)+
@@ -590,28 +593,33 @@ Array<double>* ComputedUdx_LSQ_US3D_v3(Partition* Pa, std::map<int,double> U,Mes
                Vrt->setVal(t,0,(1.0/d)*(Vadj->x-Vijk->x));
                Vrt->setVal(t,1,(1.0/d)*(Vadj->y-Vijk->y));
                Vrt->setVal(t,2,(1.0/d)*(Vadj->z-Vijk->z));
-
+               
                b->setVal(t,0,(1.0/d)*(u_po-u_ijk));
                delete Vadj;
                dist.push_back(d);
                t++;
+               
+               /**/
            }
+           
            else
            {
-               int fid = gE2gF[elID][j];
+               
+               //int fid = gE2gF[elID][j];
+               int fid = ief_part_map->i_map[elID][j];
 
                Vc->x = 0.0;Vc->y = 0.0;Vc->z = 0.0;
 
                for(int s=0;s<4;s++)
                {
-                   int gvid = ifn->getVal(fid,s);
+                   //int gvid_o = ifn->getVal(fid,s);
+                   int gvid = ifn_vec->i_map[fid][s];
                    int lvid = gV2lV[gvid];
 
                    Vc->x = Vc->x+LocalVs[lvid].x;
                    Vc->y = Vc->y+LocalVs[lvid].y;
                    Vc->z = Vc->z+LocalVs[lvid].z;
                }
-               //std::cout << std::endl;
 
                Vc->x = Vc->x/4.0;
                Vc->y = Vc->y/4.0;
@@ -621,16 +629,18 @@ Array<double>* ComputedUdx_LSQ_US3D_v3(Partition* Pa, std::map<int,double> U,Mes
                             (Vc->y-Vijk->y)*(Vc->y-Vijk->y)+
                             (Vc->z-Vijk->z)*(Vc->z-Vijk->z));
 
-               u_po = ghost->getVal(adjID-Nel,0);
+               //u_po = ghost->getVal(adjID-Nel,0);
+               //u_po = u_ijk;
                //u_po = U[elID];
                //double u_fpo = bound->getVal(adjID-Nel,0);
 
                Vrt->setVal(t,0,(1.0/d)*(Vc->x-Vijk->x));
                Vrt->setVal(t,1,(1.0/d)*(Vc->y-Vijk->y));
                Vrt->setVal(t,2,(1.0/d)*(Vc->z-Vijk->z));
-               b->setVal(t,0,(1.0/d)*(u_po-u_ijk));
+               b->setVal(t,0,(1.0/d)*(0.0));
                t++;
                dist.push_back(d);
+               
            }
       }
        

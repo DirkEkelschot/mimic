@@ -871,11 +871,9 @@ Array<double>* ComputeMetric(std::vector<Vert> Verts, Array<double>* grad, Array
     MPI_Comm_rank(comm, &rank);
     //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     //+++++++++++++Required Parameter set for scaling eigenvalues/eigenvectors+++++++++++++++
-    double R            = 0.056;
-    double hmin         = 0.000005;
-    double hmax         = 0.05;
-    
-    double f            = 10000;
+    double hmin         = 0.00001;
+    double hmax         = 0.01;
+    double f            = 0.05e-01;
     std::cout << "Metric Tensor Field gets computed..." << std::endl;
     //double d2udx2_v_max = *std::max_element(d2udx2_v.begin(), d2udx2_v.end());
     //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -982,6 +980,7 @@ Array<double>* ComputeMetric(std::vector<Vert> Verts, Array<double>* grad, Array
         
         if(dim == 3)
         {
+            
             Hmet[0] = hessian->getVal(i,0);
             Hmet[1] = hessian->getVal(i,1);
             Hmet[2] = hessian->getVal(i,2);
@@ -1027,6 +1026,14 @@ Array<double>* ComputeMetric(std::vector<Vert> Verts, Array<double>* grad, Array
                     iV[j*3+k] = 0.0;
                 }
             }
+            
+            if(isnan(Hmet[0]) || isnan(Hmet[1]) || isnan(Hmet[2])
+               || isnan(Hmet[3]) || isnan(Hmet[4]) || isnan(Hmet[5])
+               || isnan(Hmet[6]) || isnan(Hmet[7]) || isnan(Hmet[8]))
+            {
+                std::cout << "NaN! Watch out" << std::endl;
+            }
+            
             SVD* svd = ComputeSVD(3,3,Hmet);
             Eig* eig = ComputeEigenDecomp(3, Hmet);
             

@@ -6,14 +6,14 @@
 #include "adapt_datastruct.h"
 #include "adapt_array.h"
 
-
 #ifndef ADAPT_PARTITION_H
 #define ADAPT_PARTITION_H
 
 class Partition {
    public:
     Partition(){};
-    Partition(ParArray<int>* ien, ParArray<int>* iee, ParArray<int>* ief, ParallelState_Parmetis* pstate_parmetis, ParallelState* ien_parstate, ParArray<double>* xcn, ParallelState* xcn_parstate, Array<double>* U, MPI_Comm comm);
+    Partition(ParArray<int>* ien, ParArray<int>* iee, ParArray<int>* ief, ParArray<int>* ifn, ParArray<int>* ife, ParArray<int>* if_ref,  ParallelState_Parmetis* pstate_parmetis, ParallelState* ien_parstate, ParallelState* ifn_parstate, ParArray<double>* xcn, ParallelState* xcn_parstate, Array<double>* U, MPI_Comm comm);
+    
     void DeterminePartitionLayout(ParArray<int>* ien, ParallelState_Parmetis* pstate_parmetis, ParallelState* ien_parstate, MPI_Comm comm);
     void DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief, ParallelState* ien_parstate, ParArray<double>* xcn, ParallelState* xcn_parstate, Array<double>* U, MPI_Comm comm);
     void DetermineAdjacentElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief, ParArray<int>* part, ParallelState* ien_parstate, ParArray<double>* xcn, ParallelState* xcn_parstate, Array<double>* U, MPI_Comm comm);
@@ -22,7 +22,8 @@ class Partition {
     std::map<int,double> CommunicateLocalDataUS3D(Array<double>* U, MPI_Comm comm);
     std::map<int,double> CommunicateAdjacentDataUS3D(Array<double>* U, MPI_Comm comm);
     
-    i_part_map* getElement2EntityPerPartition(ParArray<int>* iee, MPI_Comm comm);
+    i_part_map* getElement2EntityPerPartition(ParArray<int>* iee, ParallelState* ien_pstate, MPI_Comm comm);
+    i_part_map* getFace2EntityPerPartition(ParArray<int>* ife, ParallelState* ife_pstate, MPI_Comm comm);
     std::vector<int> getLocElem();
     int getnLoc_Elem();
     std::vector<int> getLocAndAdjElem();
@@ -65,9 +66,15 @@ class Partition {
     ParallelState* getIenParallelState();
     ParallelState* getParallelState();   
     ParallelState_Parmetis* getParallelStateParmetis();
+    
     i_part_map* getIEEpartmap();
     i_part_map* getIEFpartmap();
     i_part_map* getIENpartmap();
+    
+    i_part_map* getIFNpartmap();
+    i_part_map* getIFEpartmap();
+    i_part_map* getIFREFpartmap();
+    
    private:
       
       std::vector<int> Loc_Elem;
@@ -126,6 +133,10 @@ class Partition {
       std::map<int,std::vector<int> > part_tot_recv_elIDs;
       std::map<int,std::vector<int> >  reqstd_adj_ids_per_rank;
       
+      i_part_map* if_ref_part_map;
+      i_part_map* ifn_part_map;
+      i_part_map* ife_part_map;
+    
       i_part_map* iee_part_map;
       i_part_map* ief_part_map;
       i_part_map* ien_part_map;
