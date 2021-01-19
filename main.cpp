@@ -2856,7 +2856,7 @@ int main(int argc, char** argv) {
 //            }
          
             int wall_id = 3;
-            int nLayer  = 250;
+            int nLayer  = 230;
             std::cout << "refmaps " << quad_ref_map.size() << " " << tria_ref_map.size() << std::endl;
             
             if(nLayer>0)

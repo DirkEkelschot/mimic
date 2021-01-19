@@ -871,8 +871,8 @@ Array<double>* ComputeMetric(std::vector<Vert> Verts, Array<double>* grad, Array
     MPI_Comm_rank(comm, &rank);
     //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     //+++++++++++++Required Parameter set for scaling eigenvalues/eigenvectors+++++++++++++++
-    double hmin         = 0.0001;
-    double hmax         = 0.1;
+    double hmin         = 0.00001;
+    double hmax         = 0.01;
     double f            = 0.05e-01;
     std::cout << "Metric Tensor Field gets computed..." << std::endl;
     //double d2udx2_v_max = *std::max_element(d2udx2_v.begin(), d2udx2_v.end());
