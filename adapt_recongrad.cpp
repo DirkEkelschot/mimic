@@ -524,6 +524,7 @@ Array<double>* ComputedUdx_LSQ_US3D_v3(Partition* Pa, std::map<int,double> U,Mes
    Array<int>* ifn = meshTopo->getIFN();
    i_part_map*  if_ref_vec = Pa->getIFREFpartmap();
    i_part_map*  ifn_vec    = Pa->getIFNpartmap();
+   i_part_map* ief_part_map = Pa->getIEFpartmap();
    i_part_map*  iee_vec    = Pa->getIEEpartmap();
    std::vector<std::vector<double> > iee_dist;
    std::vector<double> dist;
@@ -603,8 +604,9 @@ Array<double>* ComputedUdx_LSQ_US3D_v3(Partition* Pa, std::map<int,double> U,Mes
            
            else
            {
-               /*
-               int fid = gE2gF[elID][j];
+               
+               //int fid = gE2gF[elID][j];
+               int fid = ief_part_map->i_map[elID][j];
 
                Vc->x = 0.0;Vc->y = 0.0;Vc->z = 0.0;
 
@@ -612,14 +614,12 @@ Array<double>* ComputedUdx_LSQ_US3D_v3(Partition* Pa, std::map<int,double> U,Mes
                {
                    //int gvid_o = ifn->getVal(fid,s);
                    int gvid = ifn_vec->i_map[fid][s];
-                   //std::cout << gvid_o << " " << gvid << std::endl;
                    int lvid = gV2lV[gvid];
 
                    Vc->x = Vc->x+LocalVs[lvid].x;
                    Vc->y = Vc->y+LocalVs[lvid].y;
                    Vc->z = Vc->z+LocalVs[lvid].z;
                }
-               //std::cout << std::endl;
 
                Vc->x = Vc->x/4.0;
                Vc->y = Vc->y/4.0;
@@ -629,18 +629,18 @@ Array<double>* ComputedUdx_LSQ_US3D_v3(Partition* Pa, std::map<int,double> U,Mes
                             (Vc->y-Vijk->y)*(Vc->y-Vijk->y)+
                             (Vc->z-Vijk->z)*(Vc->z-Vijk->z));
 
-               u_po = ghost->getVal(adjID-Nel,0);
-               
+               //u_po = ghost->getVal(adjID-Nel,0);
+               //u_po = u_ijk;
                //u_po = U[elID];
                //double u_fpo = bound->getVal(adjID-Nel,0);
 
                Vrt->setVal(t,0,(1.0/d)*(Vc->x-Vijk->x));
                Vrt->setVal(t,1,(1.0/d)*(Vc->y-Vijk->y));
                Vrt->setVal(t,2,(1.0/d)*(Vc->z-Vijk->z));
-               b->setVal(t,0,(1.0/d)*(u_po-u_ijk));
+               b->setVal(t,0,(1.0/d)*(0.0));
                t++;
                dist.push_back(d);
-               */
+               
            }
       }
        

@@ -2,7 +2,7 @@
 #include "adapt_output.h"
 
 
-void WriteUS3DGridFromMMG(MMG5_pMesh mmgMesh, US3D* us3d, std::set<std::set<int> > u_fset)
+void WriteUS3DGridFromMMG(MMG5_pMesh mmgMesh, US3D* us3d, std::map<int,std::vector<int> > bnd_face_map, std::set<std::set<int> > u_fset)
 {
     std::map<int,std::vector<int> > ref2bface;
     std::map<int,std::vector<int> > ref2bqface;
@@ -10,6 +10,7 @@ void WriteUS3DGridFromMMG(MMG5_pMesh mmgMesh, US3D* us3d, std::set<std::set<int>
     std::set<set<int> > bqfaces;
     std::set<int>face;
     std::cout << "face info 1 " << mmgMesh->nt << " " << mmgMesh->nquad << std::endl;
+    std::cout << "hier 0" << " " << ref2bface.size() << std::endl;
     for(int i=1;i<=mmgMesh->nt;i++)
     {
         if(mmgMesh->tria[i].ref>0 && mmgMesh->tria[i].ref!=2)// -1 is the tag for internal shell.
@@ -25,10 +26,10 @@ void WriteUS3DGridFromMMG(MMG5_pMesh mmgMesh, US3D* us3d, std::set<std::set<int>
         
         
     }
-    
+    std::cout << "hier 1" << " " << ref2bface.size() << std::endl;
     for(int i=1;i<=mmgMesh->nquad;i++)
     {
-        if(mmgMesh->quadra[i].ref>0 && mmgMesh->tria[i].ref!=2&& mmgMesh->tria[i].ref!=2)// -1 is the tag for internal shell.
+        if(mmgMesh->quadra[i].ref>0 && mmgMesh->quadra[i].ref!=2)// -1 is the tag for internal shell.
         {
             ref2bqface[mmgMesh->quadra[i].ref].push_back(i);
             face.insert(mmgMesh->quadra[i].v[0]);
@@ -45,7 +46,7 @@ void WriteUS3DGridFromMMG(MMG5_pMesh mmgMesh, US3D* us3d, std::set<std::set<int>
     std::cout << "(" << mmgMesh->nquad << " " << mmgMesh->nt << ") " << std::endl;
     std::cout << "[" << mmgMesh->nquad << " " << mmgMesh->nt << "] " << std::endl;
 
-    std::map<int,std::vector<int> > bnd_map = us3d->bnd_face_map;
+    std::map<int,std::vector<int> > bnd_map = bnd_face_map;
     std::map<int,std::vector<int> >::iterator bnd_m;
     std::map<int,int> bnd_Ntri;
     std::map<int,int> bnd_Nquad;
@@ -137,6 +138,7 @@ void WriteUS3DGridFromMMG(MMG5_pMesh mmgMesh, US3D* us3d, std::set<std::set<int>
     Array<int>* adapt_iet = new Array<int>(mmgMesh->ne+mmgMesh->nprism,1);
     // local face2vert_map for a tet in mmg  {1,2,3}, {0,3,2}, {0,1,3}, {0,2,1}
     int bf = 0;
+    std::cout << "mmgMesh->nprism nogmaals " << mmgMesh->nprism << std::endl;
     for(int i=1;i<=mmgMesh->ne;i++)
     {
         adapt_iet->setVal(i-1,0,2); // Element type = 2 since we are dealing with tetrahedra.
@@ -1331,7 +1333,7 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
     {
         if_ref_copy->setVal(i,0,ifn->getVal(i,7));
         
-        for(j=0;j<4;j++)
+        for(j=0;j<ncol_ifn;j++)
         {
             ifn_copy->setVal(i,j,ifn->getVal(i,j+1)-1);
         }
