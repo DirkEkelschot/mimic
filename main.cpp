@@ -1035,7 +1035,7 @@ BLShellInfo* FindOuterShellBoundaryLayerMesh(int wall_id, int nLayer, US3D* us3d
 
     std::vector<double> dp(6);
     std::vector<Vec3D*> dpvec(6);
-    std::cout << "Determining outer shell of BL mesh..." << std::endl;
+    //std::cout << "Determining outer shell of BL mesh..." << std::endl;
     clock_t start;
     start = std::clock();
     int* Pijk_id = new int[8];
@@ -1357,10 +1357,9 @@ BLShellInfo* FindOuterShellBoundaryLayerMesh(int wall_id, int nLayer, US3D* us3d
             //BLinfo->bFace2_locN2NEl[bfaceid]=layer_locN2NEl;
         }
     }
-    std::cout << "Shell quad faces = " << outer_shell_faces.size() << std::endl;
 
     double duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
-    std::cout << " extracting outer shell BL mesh = " << duration << std::endl;
+    std::cout << "Timing extracting outer shell BL mesh = " << duration << std::endl;
     std::map<int,std::vector<int> >::iterator itt;
     for(itt=BLinfo->BLlayers.begin();itt!=BLinfo->BLlayers.end();itt++)
     {
@@ -2323,11 +2322,9 @@ Mesh_Topology_BL* ExtractBoundaryLayerMeshFromShell(std::vector<std::vector<int>
          
     }
     
-    std::cout << "or0 = " << or0 << std::endl;
-    std::cout << "identify " << fc0 << " " << fc1 << " " << fwrong << " " << fright << std::endl;
-    std::cout << "cnt_turn " << cnt_turn << std::endl;
+    
     double duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
-    std::cout << " extracting BL mesh = " << duration << std::endl;
+    std::cout << "Timing for extracting BL mesh = " << duration << std::endl;
     std::map<int,std::vector<int> >::iterator itt;
     std::vector<int> elements;
     for(itt=mesh_topology_bl->BLlayers.begin();itt!=mesh_topology_bl->BLlayers.end();itt++)
@@ -2364,10 +2361,11 @@ int main(int argc, char** argv) {
     MPI_Comm_rank(comm, &world_rank);
     int i,j;
     
-    if(world_rank == 0)
-    {
-        UnitTestEigenDecomp();
-    }
+    int debug = 1;
+//    if(world_rank == 0)
+//    {
+//        UnitTestEigenDecomp();
+//    }
      //======================================================================================
     //====================Parsing the inputs from the command line==========================
     //======================================================================================
@@ -2467,26 +2465,55 @@ int main(int argc, char** argv) {
                                      us3d->xcn, xcn_pstate, Uivar, comm);
         
         double duration = ( std::clock() - t) / (double) CLOCKS_PER_SEC;
-        std::cout << "time partitioning: " << duration << std::endl;
-        
+        double Ptime = 0.0;
+        MPI_Allreduce(&duration, &Ptime, 1, MPI_DOUBLE, MPI_MAX, comm);
+        if(world_rank == 0)
+        {
+        std::cout << "Timing partitioning: " << duration << std::endl;
+        }
         std::map<int,double> UauxNew = P->CommunicateAdjacentDataUS3D(Uivar,comm);
         int* bnd_map;
         int nBnd = 4;
 
+        if(world_rank == 0)
+        {
+            std::cout << "Started creating mesh topology object... " << std::endl;
+        }
+
         Mesh_Topology* meshTopo = new Mesh_Topology(P,UauxNew,comm);
- 
+        
+        if(world_rank == 0)
+        {
+            std::cout << "Finished creating mesh topology object... "  << std::endl;
+        }
+        
+        if(world_rank == 0)
+        {
+            std::cout << "Setting the ghost element data... "  << std::endl;
+        }
         Array<double>* gB = new Array<double>(us3d->ghost->getNrow(),1);
         for(int i=0;i<us3d->ghost->getNrow();i++)
         {
             gB->setVal(i,0,us3d->ghost->getVal(i,varia));
         }
-       
+        t = clock();
+        if(world_rank == 0)
+        {
+            std::cout << "Started reconstructing the gradient... " << std::endl;
+        }
         Array<double>* dUdXi = ComputedUdx_LSQ_US3D_v3(P,UauxNew,meshTopo,gB,comm);
-        
+        double Gtiming = ( std::clock() - t) / (double) CLOCKS_PER_SEC;
+        double Gmax_time = 0.0;
+        MPI_Allreduce(&Gtiming, &Gmax_time, 1, MPI_DOUBLE, MPI_MAX, comm);
+        if(world_rank == 0)
+        {
+            std::cout << "Finished reconstructing the gradient... " << std::endl;
+            std::cout << "Timing gradient reconstruction... " << Gmax_time << std::endl;
+        }
         Array<double>* dUidxi = new Array<double>(dUdXi->getNrow(),1);
         Array<double>* dUidyi = new Array<double>(dUdXi->getNrow(),1);
         Array<double>* dUidzi = new Array<double>(dUdXi->getNrow(),1);
-
+        
         for(int i=0;i<dUdXi->getNrow();i++)
         {
             if(std::isnan(dUdXi->getVal(i,0)) || std::isnan(dUdXi->getVal(i,1)) || std::isnan(dUdXi->getVal(i,2)))
@@ -2523,7 +2550,7 @@ int main(int argc, char** argv) {
         Array<double>* d2udzx = new Array<double>(dU2dZi2->getNrow(),1);
         Array<double>* d2udzy = new Array<double>(dU2dZi2->getNrow(),1);
         Array<double>* d2udz2 = new Array<double>(dU2dZi2->getNrow(),1);
-
+        
         for(int i=0;i<dU2dXi2->getNrow();i++)
         {
             d2udx2->setVal(i,0,dU2dXi2->getVal(i,0));
@@ -2572,69 +2599,83 @@ int main(int argc, char** argv) {
         double max_v = *std::max_element(d2udx2_v.begin(), d2udx2_v.end());
         int dim = 3;
         
+
         Array<double>* metric = ComputeMetric(Verts,grad,hessian,max_v,loc_elem2verts_loc,us3d->ien->getNrow(),comm,dim);
         
-        MMG_Mesh* mmg = GetOptimizedMMG3DMeshOnRoot(P, us3d, hessian, metric, comm);
         
-//=================================================================
+        if(world_rank==0)
+        {
+            std::cout << "Started gathering metric data on rank 0..." <<std::endl;
+        }
+        MMG_Mesh* mmg = GetOptimizedMMG3DMeshOnRoot(P, us3d, hessian, metric, comm);
+        if(world_rank==0)
+        {
+            std::cout << "Finished gathering metric data on rank 0..." <<std::endl;
+        }
+
+        //=================================================================
         //==================Output the data in Tecplot format==============
         //=================================================================
         
-        string filename11 = "metric_rank_" + std::to_string(world_rank) + ".dat";
-        ofstream myfile11;
-        myfile11.open(filename11);
-        string filename12 = "elements_rank_" + std::to_string(world_rank) + ".dat";
-        ofstream myfile12;
-        myfile11.open(filename12);
-        string filename = "d2UdX2i_" + std::to_string(world_rank) + ".dat";
-        ofstream myfile;
-        myfile.open(filename);
-        myfile << "TITLE=\"volume_part_"  + std::to_string(world_rank) +  ".tec\"" << std::endl;
-        
-        myfile <<"VARIABLES = \"X\", \"Y\", \"Z\", \"u\", \"dx\", \"dy\", \"dz\", \"d2udx2\", \"d2udxy\", \"d2udxz\", \"d2udyx\", \"d2udy2\", \"d2udyz\", \"d2udzx\", \"d2udzy\", \"d2udz2\", \"M00\", \"M01\", \"M02\", \"M10\", \"M11\", \"M12\", \"M20\", \"M21\", \"M22\"" << std::endl;
-        int nvert = Verts.size();
-        myfile <<"ZONE N = " << nvert << ", E = " << us3d->ien->getNrow() << ", DATAPACKING = POINT, ZONETYPE = FEBRICK" << std::endl;
-        
-        std::map<int,int> gV2lV = P->getGlobalVert2LocalVert();
-        
-        for(int i=0;i<nvert;i++)
+        if(debug == 1)
         {
-            myfile << Verts[i].x << " " << Verts[i].y << " " << Verts[i].z <<
-            " " << u_v[i] << " "<< dudx_v[i] << " " << dudy_v[i] << " " << dudz_v[i] <<
-            " " << hessian->getVal(i,0) << " " << hessian->getVal(i,1) << " " << hessian->getVal(i,2) <<
-            " " << hessian->getVal(i,1) << " " << hessian->getVal(i,3) << " " << hessian->getVal(i,4) <<
-            " " << hessian->getVal(i,2) << " " << hessian->getVal(i,4) << " " << hessian->getVal(i,5) <<
-            " " << metric->getVal(i,0) << " " << metric->getVal(i,1) << " " << metric->getVal(i,2) <<
-            " " << metric->getVal(i,3) << " " << metric->getVal(i,4) << " " << metric->getVal(i,5) <<
-            " " << metric->getVal(i,6) << " " << metric->getVal(i,7) << " " << metric->getVal(i,8) << std::endl;
+            string filename11 = "metric_rank_" + std::to_string(world_rank) + ".dat";
+            ofstream myfile11;
+            myfile11.open(filename11);
+            string filename12 = "elements_rank_" + std::to_string(world_rank) + ".dat";
+            ofstream myfile12;
+            myfile11.open(filename12);
+            string filename = "d2UdX2i_" + std::to_string(world_rank) + ".dat";
+            ofstream myfile;
+            myfile.open(filename);
+            myfile << "TITLE=\"volume_part_"  + std::to_string(world_rank) +  ".tec\"" << std::endl;
             
-            myfile11 << Verts[i].x << " " << Verts[i].y << " " << Verts[i].z << " " << metric->getVal(i,0) << " " << metric->getVal(i,1) << " " << metric->getVal(i,2) << " " << metric->getVal(i,3) << " " << metric->getVal(i,4) << " " << metric->getVal(i,5) << " " << metric->getVal(i,6) << " " << metric->getVal(i,7) << " " << metric->getVal(i,8) << std::endl;
-        }
+            myfile <<"VARIABLES = \"X\", \"Y\", \"Z\", \"u\", \"dx\", \"dy\", \"dz\", \"d2udx2\", \"d2udxy\", \"d2udxz\", \"d2udyx\", \"d2udy2\", \"d2udyz\", \"d2udzx\", \"d2udzy\", \"d2udz2\", \"M00\", \"M01\", \"M02\", \"M10\", \"M11\", \"M12\", \"M20\", \"M21\", \"M22\"" << std::endl;
+            int nvert = Verts.size();
+            myfile <<"ZONE N = " << nvert << ", E = " << us3d->ien->getNrow() << ", DATAPACKING = POINT, ZONETYPE = FEBRICK" << std::endl;
+            
+            std::map<int,int> gV2lV = P->getGlobalVert2LocalVert();
+            
+            for(int i=0;i<nvert;i++)
+            {
+                myfile << Verts[i].x << " " << Verts[i].y << " " << Verts[i].z <<
+                " " << u_v[i] << " "<< dudx_v[i] << " " << dudy_v[i] << " " << dudz_v[i] <<
+                " " << hessian->getVal(i,0) << " " << hessian->getVal(i,1) << " " << hessian->getVal(i,2) <<
+                " " << hessian->getVal(i,1) << " " << hessian->getVal(i,3) << " " << hessian->getVal(i,4) <<
+                " " << hessian->getVal(i,2) << " " << hessian->getVal(i,4) << " " << hessian->getVal(i,5) <<
+                " " << metric->getVal(i,0) << " " << metric->getVal(i,1) << " " << metric->getVal(i,2) <<
+                " " << metric->getVal(i,3) << " " << metric->getVal(i,4) << " " << metric->getVal(i,5) <<
+                " " << metric->getVal(i,6) << " " << metric->getVal(i,7) << " " << metric->getVal(i,8) << std::endl;
+                
+                myfile11 << Verts[i].x << " " << Verts[i].y << " " << Verts[i].z << " " << metric->getVal(i,0) << " " << metric->getVal(i,1) << " " << metric->getVal(i,2) << " " << metric->getVal(i,3) << " " << metric->getVal(i,4) << " " << metric->getVal(i,5) << " " << metric->getVal(i,6) << " " << metric->getVal(i,7) << " " << metric->getVal(i,8) << std::endl;
+            }
 
-        for(int i=0;i<us3d->ien->getNrow();i++)
-        {
-           myfile << loc_elem2verts_loc[i][0]+1 << " " <<
-                     loc_elem2verts_loc[i][1]+1 << " " <<
-                     loc_elem2verts_loc[i][2]+1 << " " <<
-                     loc_elem2verts_loc[i][3]+1 << " " <<
-                     loc_elem2verts_loc[i][4]+1 << " " <<
-                     loc_elem2verts_loc[i][5]+1 << " " <<
-                     loc_elem2verts_loc[i][6]+1 << " " <<
-                     loc_elem2verts_loc[i][7]+1 << std::endl;
+            for(int i=0;i<us3d->ien->getNrow();i++)
+            {
+               myfile << loc_elem2verts_loc[i][0]+1 << " " <<
+                         loc_elem2verts_loc[i][1]+1 << " " <<
+                         loc_elem2verts_loc[i][2]+1 << " " <<
+                         loc_elem2verts_loc[i][3]+1 << " " <<
+                         loc_elem2verts_loc[i][4]+1 << " " <<
+                         loc_elem2verts_loc[i][5]+1 << " " <<
+                         loc_elem2verts_loc[i][6]+1 << " " <<
+                         loc_elem2verts_loc[i][7]+1 << std::endl;
+                
+               myfile12 << loc_elem2verts_loc[i][0]+1 << " " <<
+                           loc_elem2verts_loc[i][1]+1 << " " <<
+                           loc_elem2verts_loc[i][2]+1 << " " <<
+                           loc_elem2verts_loc[i][3]+1 << " " <<
+                           loc_elem2verts_loc[i][4]+1 << " " <<
+                           loc_elem2verts_loc[i][5]+1 << " " <<
+                           loc_elem2verts_loc[i][6]+1 << " " <<
+                           loc_elem2verts_loc[i][7]+1 << std::endl;
+            }
             
-           myfile12 << loc_elem2verts_loc[i][0]+1 << " " <<
-                       loc_elem2verts_loc[i][1]+1 << " " <<
-                       loc_elem2verts_loc[i][2]+1 << " " <<
-                       loc_elem2verts_loc[i][3]+1 << " " <<
-                       loc_elem2verts_loc[i][4]+1 << " " <<
-                       loc_elem2verts_loc[i][5]+1 << " " <<
-                       loc_elem2verts_loc[i][6]+1 << " " <<
-                       loc_elem2verts_loc[i][7]+1 << std::endl;
+            myfile.close();
+            myfile11.close();
+            myfile12.close();
         }
         
-        myfile.close();
-        myfile11.close();
-        myfile12.close();
         
         
         delete us3d->interior;
@@ -2781,7 +2822,7 @@ int main(int argc, char** argv) {
             std::map<int,std::vector<int> >::iterator bmit;
             
             int r2=0;int r10=0;int r36=0;int r3=0;
-            for(i=0;i<nrow_ifn;i++)
+            for(int i=0;i<nrow_ifn;i++)
             {
                 ref = if_ref_g->getVal(i,0);
                 //ifn_ref->setVal(i,0,ref);
@@ -2857,7 +2898,6 @@ int main(int argc, char** argv) {
          
             int wall_id = 3;
             int nLayer  = 230;
-            std::cout << "refmaps " << quad_ref_map.size() << " " << tria_ref_map.size() << std::endl;
             
             if(nLayer>0)
             {
@@ -2884,10 +2924,7 @@ int main(int argc, char** argv) {
                 int nbTets      = (nbHex-bnd_face_map[wall_id].size()*(nLayer))*6;
                 int nbHexsNew   = (nbHex-bnd_face_map[wall_id].size()*(nLayer));
                 
-                std::cout << " Initial number of prims " << nbPrisms << std::endl;
-                std::cout << " Initial number of tets "  << nbTets << std::endl;
-                std::cout << " Initial number of verts " << xcn_g->getNrow() << std::endl;
-                std::cout << nbHex << " ada " << bnd_face_map[wall_id].size()*20 << std::endl;
+                
 			
                 int ith = 0;
                 std::set<int> u_tet_vert;
@@ -2990,7 +3027,6 @@ int main(int argc, char** argv) {
                     
                     if ( MMG3D_Set_tensorSol(mmgSol_TET, m11,m12,m13,m22,m23,m33,i+1) != 1 ) exit(EXIT_FAILURE);
                 }
-                std::cout <<  "CSHELL = " << cshell << std::endl;
                 int ref = 20;
                 
                 int* hexTabNew = new int[9*(nbHexsNew+1)];
@@ -3004,9 +3040,8 @@ int main(int argc, char** argv) {
                     }
                     hexTabNew[hexTabPosition+8] = ref;
                 }
-                     
+                std::cout << "Check the orientation and modify when necessary so that we can cut each hex up into 6 tetrahedra..."<<std::endl;
                 int num = H2T_chkorient(mmgMesh_TET,hexTabNew,nbHexsNew);
-                std::cout << "ORIENTATION " << num << std::endl;
                 int* adjahexNew = NULL;
                 adjahexNew = (int*)calloc(6*nbHexsNew+7,sizeof(int));
                 assert(adjahexNew);
@@ -3030,11 +3065,10 @@ int main(int argc, char** argv) {
                 
                 int nPoints_before_split  = mmgMesh_TET->np;
 		
-                std::cout << "Initial number of vertices outside BL mesh: " << nPoints_before_split << std::endl;
-                
                 int nTets_before_split  = mmgMesh_TET->ne;
-                std::cout << "Estimated number of tetrahedra outside BL mesh based on the initial number of hexes: " << nTets_before_split << " = " << nbHexsNew << " x 6"  << std::endl;
                 
+                std::cout << "Cut each hexahedral up into 6 tetrahedra..."<<std::endl;
+                //we need to do this in order to determine the orientation of the triangles at the shell interface and trace back how we need to tesselate the wall boundary into triangles so that they match eachothers orientation.
                 int ret = H2T_cuthex(mmgMesh_TET, &hed22, hexTabNew, adjahexNew, nbHexsNew);
                 int nel_tets = mmgMesh_TET->ne;
                 std::map<int,std::vector<int> > unique_shell_tri_map;
@@ -3139,76 +3173,102 @@ int main(int argc, char** argv) {
                 }
                 
                 // {1,2,3}, {0,3,2}, {0,1,3}, {0,2,1}
-                std::cout << "compare sizes " << unique_shell_tris.size() << " " << bnd_face_map[wall_id].size()*2  << " " << counter << " " << BLshell->ShellTri2FaceID.size()  << " " << shell_T_id << " " << shell_T_id2 << " " << shell_T_id << std::endl;
                 
                 std::map<std::set<int>,int > shelltri2fid=BLshell->ShellTri2FaceID;
                 std::map<int,int> shellFace2bFace=BLshell->ShellFace2BFace;
                 std::map<int,int> bFace2shellFace=BLshell->BFace2ShellFace;
                 std::set<std::set<int> >::iterator itset;
                 std::map<int,std::vector<int> > TriID2ShellFaceID;
-                std::vector<std::vector<int> > u_tris(unique_shell_tris.size());
+                std::vector<std::vector<int> > u_tris;
+                std::vector<std::vector<int> > u_tris_loc;
                 int teller=0;
-                std::set<int> u_shell_verts;
+                std::set<int> unique_shell_vert;
+                std::vector<int> U_shell_vert;
+                std::map<int,int> glob2loc_shell_vert;
+                std::map<int,int> loc2glob_shell_vert;
+                int loc_s_v=0;
                 for(itset=unique_shell_tris.begin();itset!=unique_shell_tris.end();itset++)
                 {
-                    std::set<int> shell_tri2 = *itset;
+                    std::set<int> shell_tri = *itset;
                     std::set<int>::iterator itsh;
                     std::vector<int> u_tri_vec(3);
+                    std::vector<int> u_tri_vec_loc(3);
                     int bb = 0;
-                    for(itsh=shell_tri2.begin();itsh!=shell_tri2.end();itsh++)
+                    for(itsh=shell_tri.begin();itsh!=shell_tri.end();itsh++)
                     {
                         u_tri_vec[bb]=*itsh;
-                        if(u_shell_verts.find(*itsh)==u_shell_verts.end())
+                        
+                        if(unique_shell_vert.find(*itsh)==unique_shell_vert.end())
                         {
-                            u_shell_verts.insert(*itsh);
+                            //u_tri_vec_loc.push_back(loc_s_v);
+                            unique_shell_vert.insert(*itsh);
+                            U_shell_vert.push_back(*itsh);
+                            loc2glob_shell_vert[loc_s_v]=*itsh;
+                            glob2loc_shell_vert[*itsh]=loc_s_v;
+                            u_tri_vec_loc[bb]= loc_s_v;
+                            loc_s_v++;
+                        }
+                        else
+                        {
+                            int local_s_vId = glob2loc_shell_vert[*itsh];
+                            u_tri_vec_loc[bb]=local_s_vId;
                         }
                         bb++;
                     }
                     
-                    u_tris[teller] = u_tri_vec;
-                    int shell_faceid        = shelltri2fid[shell_tri2];
+                    u_tris.push_back(u_tri_vec);
+                    u_tris_loc.push_back(u_tri_vec_loc);
+                    
+                    int shell_faceid        = shelltri2fid[shell_tri];
                     int bfaceID             = shellFace2bFace[shell_faceid];
                     int shell_faceid2       = bFace2shellFace[bfaceID];
                     std::map<int,int> v2v   = BLshell->ShellFace2ShellVert2OppositeBoundaryVerts[shell_faceid];
-                    //=================================================================
-    //                std::cout << " shell face " << shell_faceid << " -> " << std::endl;
-    //                std::map<int,int>::iterator itm;
-    //                for(itm=v2v.begin();itm!=v2v.end();itm++)
-    //                {
-    //                    std::cout << itm->first << " " << itm->second << std::endl;
-    //                }
-    //                std::cout << std::endl;
-                    //=================================================================
                     TriID2ShellFaceID[teller].push_back(shell_faceid);
                     BLshell->ShellFaceID2TriID[shell_faceid].push_back(teller);
                     teller++;
                 }
                 
-                std::cout << "teller !!!" << teller << " " << BLshell->ShellFaceID2TriID.size() << " p-p "<< BLshell->ShellTri2FaceID.size() << std::endl;
-                
+                std::cout << "Extracting the prismatic boundary layer mesh..." <<std::endl;
                 Mesh_Topology_BL* mesh_topo_bl2 =  ExtractBoundaryLayerMeshFromShell(u_tris, BLshell, wall_id, nLayer, us3d, xcn_g, ien_g, ief_g, ife_g, ifn_g, xcn_pstate, ien_pstate, bnd_face_map, tria_ref_map, quad_ref_map, comm);
+                std::cout << "Outputting the prismatic boundary layer mesh in ---> BoundaryLayerMesh_0.dat" <<std::endl;
+                 OutputBoundaryLayerPrisms(xcn_g, mesh_topo_bl2, comm, "BoundaryLayerMesh_");
+
+                if(debug == 1)
+                {
+                    std::ofstream myfile_shell;
+                    myfile_shell.open("shell.dat");
+                    myfile_shell << "TITLE=\"new_volume.tec\"" << std::endl;
+                    myfile_shell <<"VARIABLES = \"X\", \"Y\", \"Z\"" << std::endl;
+                    myfile_shell <<"ZONE N = " << U_shell_vert.size() << ", E = " << teller << ", DATAPACKING = POINT, ZONETYPE = FETRIANGLE" << std::endl;
+
+                    for(int i=0;i<U_shell_vert.size();i++)
+                    {
+                        myfile_shell << xcn_g->getVal(loc2glob_shell_vert[i],0)
+                        << " " << xcn_g->getVal(loc2glob_shell_vert[i],1)
+                        << " " << xcn_g->getVal(loc2glob_shell_vert[i],2) << std::endl;
+                    }
+                    for(int i=0;i<teller;i++)
+                    {
+                        myfile_shell << u_tris_loc[i][0]+1
+                        << " " << u_tris_loc[i][1]+1
+                        << " " << u_tris_loc[i][2]+1 << std::endl;
+                    }
+                    myfile_shell.close();
+                }
                 
                 
-                 OutputBoundaryLayerPrisms(xcn_g, mesh_topo_bl2, comm, "InCorrect_");
-
-
+                // counting the number of boundary triangles and quads in the BL mesh.
                 int nTriangles_BL  = 0;
                 int nQuads_BL      = 0;
-                 
                 std::map<int,std::vector<std::vector<int> > >::iterator itrr;
                 for(itrr=mesh_topo_bl2->bcTria.begin();itrr!=mesh_topo_bl2->bcTria.end();itrr++)
                 {
                     nTriangles_BL  = nTriangles_BL+itrr->second.size();
-                    std::cout << " itrr->second.size()  tri " << itrr->first << " " << itrr->second.size() << std::endl;
 
                 }
-                
-                std::cout << "mesh_topo_bl2->bcQuad.size() " << mesh_topo_bl2->bcQuad.size() << std::endl;
-                
                 for(itrr=mesh_topo_bl2->bcQuad.begin();itrr!=mesh_topo_bl2->bcQuad.end();itrr++)
                 {
                     nQuads_BL  = nQuads_BL+itrr->second.size();
-                    std::cout << " itrr->second.size()  quad " << itrr->first << " "<< itrr->second.size() << " " << quad_ref_map.size() << std::endl;
                 }
                 
                 std::map<int,int> loc2glob_final_verts;
@@ -3267,7 +3327,6 @@ int main(int argc, char** argv) {
                 int st = 0;
                 int stt = 0;
                 int gnt = 0;
-                std::cout << "lv2gv_tet_mesh before " << lv2gv_tet_mesh.size() << " " << mmgMesh_TET->np << std::endl;
                 int yte = 0;
                 int missing = 0;
                 std::set<int> setones;
@@ -3286,6 +3345,8 @@ int main(int argc, char** argv) {
                 int neg_bc=0;
                 int pos_bc=0;
                 std::vector<double> oris;
+                
+                std::cout << "Defining the tetrahedra mesh..."<<std::endl;
                 for(int i=1;i<=nel_tets;i++)
                 {
                     if(mmgMesh_TET->tetra[i].ref != 0)
@@ -3370,7 +3431,6 @@ int main(int argc, char** argv) {
                             else
                             {
                                 tetras[s] = -(s+1);
-                                //std::cout << "mmgMesh_TET->tetra[i].v[s]-1 " << mmgMesh_TET->tetra[i].v[s]-1 << " "  << std::endl;
                             }
                         }
 
@@ -3690,50 +3750,13 @@ int main(int argc, char** argv) {
                 double min_oris = *std::min_element(oris.begin(),oris.end());
                 double max_oris = *std::max_element(oris.begin(),oris.end());
 
-                std::cout << "We have " << neg_bc << " inverted boundary faces in the volume/tetrahedra domain " << pos_bc << " " << negf0<< " " << negf1<< " " << negf2<< " " << negf3 << " " << min_oris << " " << max_oris << std::endl;
-                std::cout << "AFTER@!@@@ " << lv2gv_tet_mesh.size() << std::endl;
                 int nTriangles_Vol = 0;
                 std::map<int,std::vector< int* > >::iterator itrrb;
                 for(itrrb=bound_tet.begin();itrrb!=bound_tet.end();itrrb++)
                 {
                     nTriangles_Vol  = nTriangles_Vol+itrrb->second.size();
-                    std::cout << itrrb->first << " itrrb->second.size() " << itrrb->second.size() << std::endl;
                 }
                 
-                std::cout << "unique_new_verts " << unique_new_verts.size() << std::endl;
-                std::cout << "tellert = " << tellert << " nTets_before_split = " << nTets_before_split << std::endl;
-                std::cout << "newly introduced vertices " << unique_new_verts.size() << std::endl;
-                std::cout << "initial number of vertices outside of BL mesh " << u_tet_vert.size() << std::endl;
-                std::cout << "After number of vertices outside BL mesh " << mmgMesh_TET->np << std::endl;
-                std::cout << "initial number of estimated tetrahedra outside of BL mesh " << nbHexsNew*6 << std::endl;
-                std::cout << "After number of tetrahedra outside BL mesh " << tellert2 << std::endl;
-                std::cout << "Check:" << std::endl;
-                std::cout << "=======================================" << std::endl;
-                std::cout << "Number of newly introduced vertices are accounted for when --> " << (mmgMesh_TET->np-nPoints_before_split) << " == " << unique_new_verts.size() << std::endl;
-                std::cout << "ytel = " << ytel << " " << wtel << std::endl;
-                std::cout << nTriangles_BL<<" "<<nTriangles_Vol<<std::endl;
-                
-//
-//                if((double)(tellert-nTets_before_split)/(mmgMesh_TET->np-nPoints_before_split)!=6)
-//                {
-//                    std::cout << "ERROR :: Number of newly introduced tetrahedra are not accounted since  -->  (double)(tellert-nTets_before_split)/(mmgMesh_TET->np-nPoints_before_split) " << "!=" << 6 << std::endl;
-//                    exit(-1);
-//                }
-//                else
-//                {
-//                    std::cout << "SUCCES :: Number of newly introduced tetrahedra are accounted for! -> Number of new tetrahedra Nnt = " << (double)(tellert-nTets_before_split) << " and number of new vertices Nnv = " << (mmgMesh_TET->np-nPoints_before_split) << " which results in Nnt/Nnv " << (double)(tellert-nTets_before_split)/(mmgMesh_TET->np-nPoints_before_split) << std::endl;
-//                }
-//
-//                if((nTriangles_BL+nTriangles_Vol)/2+nQuads_BL!=Initial_nBndFaces)
-//                {
-//                    std::cout << "ERROR :: Boundary triangles are not acounted for since -->  (nTriangles_BL+nTriangles_Vol)/2+nQuads_BL != << Initial_nBndFaces " << std::endl;
-//                    exit(-1);
-//                }
-//                else
-//                {
-//                    std::cout << "SUCCES :: Boundary triangles are acounted for since -->  (nTriangles_BL+nTriangles_Vol)/2+nQuads_BL = "<<(nTriangles_BL+nTriangles_Vol)/2+nQuads_BL<< " and Initial_nBndFaces = " << Initial_nBndFaces << " and they are are matching!" << std::endl;
-//                }
-//
                 
                 std::map<int,std::set<int> >::iterator nve;
                 double m11n=0.0;double m12n=0.0;double m13n=0.0;
@@ -3791,24 +3814,19 @@ int main(int argc, char** argv) {
                 int nVertices_New  = mmgMesh_TET->np+unique_prism_verts.size()-cshell;
                 int nbTets_New     = tellert;
                 
-                std::cout << "vertices hyb = " << mmgMesh_TET->np << " " << unique_prism_verts.size() << " " << cshell << std::endl;
                 if ( MMG3D_Set_meshSize(mmgMesh_hyb,nVertices_New,nbTets_New,nbPrisms,nTriangles_BL+nTriangles_Vol,nQuads_BL,0) != 1 )  exit(EXIT_FAILURE);
                 
                 if ( MMG3D_Set_solSize(mmgMesh_hyb,mmgSol_hyb,MMG5_Vertex,mmgMesh_hyb->np,MMG5_Tensor) != 1 ) exit(EXIT_FAILURE);
-                
-//                std::cout << "nTriangles_BL+nTriangles_Vol " << nTriangles_BL+nTriangles_Vol << std::endl;
-//                std::cout << "nVert = " << nVertices_New << " nTet = " << nbTets_New << " " << " " << nbPrisms << std::endl;
-//                std::cout << "vertices hyb compare = " << mmgMesh_TET->np+unique_prism_verts.size()-cshell << " == " << xcn_g->getNrow()+(mmgMesh_TET->np-nPoints_before_split) << " " << bndtrisVol.size() << " " << nTriangles_Vol << " " << mmgMesh_hyb->nt << std::endl;
-            
-                int i   = 0;
-                int tt  = 1;
-                int qt  = 1;
-                int qt0 = 0;
-                int fnt = 0;
-                int qfid = 0;
+
+                int i     = 0;
+                int tt    = 1;
+                int qt    = 1;
+                int qt0   = 0;
+                int fnt   = 0;
+                int qfid  = 0;
                 int qfidL = 0;
                 int qfidR = 0;
-                int tfid = 0;
+                int tfid  = 0;
                 
                 std::map<std::set<int>, int> tfacesmap;
                 std::set<std::set<int> >tfaces;
@@ -3819,6 +3837,7 @@ int main(int argc, char** argv) {
                 std::set<std::set<int> >qfaces;
                 std::map<int,int> qlh;
                 std::map<int,int> qrh;
+                std::cout << "Set the prisms in the mmgMesh..."<<std::endl;
                 for(iter=mesh_topo_bl2->BLlayersElements.begin();
                    iter!=mesh_topo_bl2->BLlayersElements.end();iter++)
                 {
@@ -4130,6 +4149,9 @@ int main(int argc, char** argv) {
                     Jv->setVal(i,0,0.0);
                     Jvc->setVal(i,0,0);
                 }
+                
+                std::cout << "Set the tetrahedra in the mmgMesh..."<<std::endl;
+
                 for(int i=1;i<=nel_tets;i++)
                 {
                     if(mmgMesh_TET->tetra[i].ref == 20)
@@ -4192,10 +4214,10 @@ int main(int argc, char** argv) {
                         
                         jtet.push_back(ComputeDeterminantJ_tet(Points));
                         vtet.push_back(ComputeTetVolume(Points));
-                    Jv->setVal(tetra2[0]-1,0,Jv->getVal(tetra2[0]-1,0)+ComputeDeterminantJ_tet(Points));
-                    Jv->setVal(tetra2[1]-1,0,Jv->getVal(tetra2[1]-1,0)+ComputeDeterminantJ_tet(Points));
-                    Jv->setVal(tetra2[2]-1,0,Jv->getVal(tetra2[2]-1,0)+ComputeDeterminantJ_tet(Points));
-                    Jv->setVal(tetra2[3]-1,0,Jv->getVal(tetra2[3]-1,0)+ComputeDeterminantJ_tet(Points));
+                        Jv->setVal(tetra2[0]-1,0,Jv->getVal(tetra2[0]-1,0)+ComputeDeterminantJ_tet(Points));
+                        Jv->setVal(tetra2[1]-1,0,Jv->getVal(tetra2[1]-1,0)+ComputeDeterminantJ_tet(Points));
+                        Jv->setVal(tetra2[2]-1,0,Jv->getVal(tetra2[2]-1,0)+ComputeDeterminantJ_tet(Points));
+                        Jv->setVal(tetra2[3]-1,0,Jv->getVal(tetra2[3]-1,0)+ComputeDeterminantJ_tet(Points));
                     
                         Jvc->setVal(tetra2[0]-1,0,Jvc->getVal(tetra2[0]-1,0)+1);
                         Jvc->setVal(tetra2[1]-1,0,Jvc->getVal(tetra2[1]-1,0)+1);
@@ -4266,56 +4288,55 @@ int main(int argc, char** argv) {
                     }
                 }
                 
-                std::ofstream myfile;
-                myfile.open("added_tets.dat");
-                myfile << "TITLE=\"new_volume.tec\"" << std::endl;
-                myfile <<"VARIABLES = \"X\", \"Y\", \"Z\"" << std::endl;
-                myfile <<"ZONE N = " << un_add_vert.size() << ", E = " << added_tets.size() << ", DATAPACKING = POINT, ZONETYPE = FETETRAHEDRON" << std::endl;
-                std::map<int,int>::iterator iter_map;
+                if(debug == 1)
+                {
+                    std::ofstream myfile;
+                    myfile.open("added_tets.dat");
+                    myfile << "TITLE=\"new_volume.tec\"" << std::endl;
+                    myfile <<"VARIABLES = \"X\", \"Y\", \"Z\"" << std::endl;
+                    myfile <<"ZONE N = " << un_add_vert.size() << ", E = " << added_tets.size() << ", DATAPACKING = POINT, ZONETYPE = FETETRAHEDRON" << std::endl;
+                    std::map<int,int>::iterator iter_map;
 
-                for(int i=0;i<l2g_add.size();i++)
-                {
-                    myfile << mmgMesh_TET->point[l2g_add[i]].c[0] << " " <<   mmgMesh_TET->point[l2g_add[i]].c[1] << " " << mmgMesh_TET->point[l2g_add[i]].c[2] <<  std::endl;
-                }
-                for(int i=0;i<added_tets.size();i++)
-                {
-                    myfile << added_elements->getVal(i,0) << " " << added_elements->getVal(i,1) << " " << added_elements->getVal(i,2) << " " << added_elements->getVal(i,3) << std::endl;
-                }
-                myfile.close();
-                
-                std::ofstream myfile2;
-                myfile2.open("Jac_elements.dat");
-                myfile2 << "TITLE=\"new_volume.tec\"" << std::endl;
-                myfile2 <<"VARIABLES = \"X\", \"Y\", \"Z\", \"J\"" << std::endl;
-                myfile2 <<"ZONE N = " << mmgMesh_TET->np << ", E = " << tellert << ", DATAPACKING = POINT, ZONETYPE = FETETRAHEDRON" << std::endl;
-
-                for(int i=1;i<=mmgMesh_TET->np;i++)
-                {
-                    myfile2 << mmgMesh_TET->point[i].c[0] << " " << mmgMesh_TET->point[i].c[1] << " " << mmgMesh_TET->point[i].c[2] << " " << Jv->getVal(i-1,0)/Jvc->getVal(i-1,0) << std::endl;
-                }
-                for(int i=1;i<=mmgMesh_TET->ne;i++)
-                {
-                    if(mmgMesh_TET->tetra[i].ref==20)
+                    for(int i=0;i<l2g_add.size();i++)
                     {
-                        myfile2 << mmgMesh_TET->tetra[i].v[0] << " " << mmgMesh_TET->tetra[i].v[1] << " " << mmgMesh_TET->tetra[i].v[2] << " " << mmgMesh_TET->tetra[i].v[3] << std::endl;
+                        myfile << mmgMesh_TET->point[l2g_add[i]].c[0] << " " <<   mmgMesh_TET->point[l2g_add[i]].c[1] << " " << mmgMesh_TET->point[l2g_add[i]].c[2] <<  std::endl;
                     }
+                    for(int i=0;i<added_tets.size();i++)
+                    {
+                        myfile << added_elements->getVal(i,0) << " " << added_elements->getVal(i,1) << " " << added_elements->getVal(i,2) << " " << added_elements->getVal(i,3) << std::endl;
+                    }
+                    myfile.close();
+                    
+                    std::ofstream myfile2;
+                    myfile2.open("Jac_elements.dat");
+                    myfile2 << "TITLE=\"new_volume.tec\"" << std::endl;
+                    myfile2 <<"VARIABLES = \"X\", \"Y\", \"Z\", \"J\"" << std::endl;
+                    myfile2 <<"ZONE N = " << mmgMesh_TET->np << ", E = " << tellert << ", DATAPACKING = POINT, ZONETYPE = FETETRAHEDRON" << std::endl;
+
+                    for(int i=1;i<=mmgMesh_TET->np;i++)
+                    {
+                        myfile2 << mmgMesh_TET->point[i].c[0] << " " << mmgMesh_TET->point[i].c[1] << " " << mmgMesh_TET->point[i].c[2] << " " << Jv->getVal(i-1,0)/Jvc->getVal(i-1,0) << std::endl;
+                    }
+                    for(int i=1;i<=mmgMesh_TET->ne;i++)
+                    {
+                        if(mmgMesh_TET->tetra[i].ref==20)
+                        {
+                            myfile2 << mmgMesh_TET->tetra[i].v[0] << " " << mmgMesh_TET->tetra[i].v[1] << " " << mmgMesh_TET->tetra[i].v[2] << " " << mmgMesh_TET->tetra[i].v[3] << std::endl;
+                        }
+                    }
+                    myfile2.close();
                 }
-                myfile2.close();
                 
-                //MatchBoundaryTags(us3d,mmgMesh_hyb,0,nel_tets);
              
                 //MMG3D_Set_handGivenMesh(mmgMesh_hyb);
-                if ( MMG3D_Set_dparameter(mmgMesh_hyb,mmgSol_hyb,MMG3D_DPARAM_hgrad, 4.0) != 1 )    exit(EXIT_FAILURE);
+                if ( MMG3D_Set_dparameter(mmgMesh_hyb,mmgSol_hyb,MMG3D_DPARAM_hgrad, 2.0) != 1 )    exit(EXIT_FAILURE);
 
                 //MMG3D_Set_iparameter ( mmgMesh_hyb,  mmgSol_hyb,  MMG3D_IPARAM_nosizreq , 1 );
                 MMG3D_Set_dparameter( mmgMesh_hyb,  mmgSol_hyb,  MMG3D_DPARAM_hgradreq , -1 );
-                
+                std::cout<<"Start the adaptation of the tetrahedra..."<<std::endl;
                 int ier = MMG3D_mmg3dlib(mmgMesh_hyb,mmgSol_hyb);
+                std::cout<<"Finished the adaptation of the tetrahedra..."<<std::endl;
 
-                std::cout << " Final number of prims " << mmgMesh_hyb->nprism << std::endl;
-                std::cout << " Final number of tets "  << mmgMesh_hyb->ne << std::endl;
-                std::cout << " Final number of verts " << mmgMesh_hyb->np << std::endl;
-                
                 MMG5_pMesh mmgMesh_TETCOPY = NULL;
                 MMG5_pSol mmgSol_TETCOPY   = NULL;
                 
@@ -4345,10 +4366,15 @@ int main(int argc, char** argv) {
                     mmgMesh_TETCOPY->tetra[i+1].ref  = 0;
                 }
                 
-                //OutputMesh_MMG(mmgMesh_TETCOPY,0,mmgMesh_TETCOPY->ne,"OuterVolume.dat");
                 
+                std::cout<<"Started writing the adapted tetrahedra mesh in ---> OuterVolume.dat"<<std::endl;
+                OutputMesh_MMG(mmgMesh_TETCOPY,0,mmgMesh_TETCOPY->ne,"OuterVolume.dat");
+                std::cout<<"Finished writing the adapted tetrahedra mesh in ---> OuterVolume.dat"<<std::endl;
+
+                
+                std::cout<<"Started writing the adapted hybrid mesh in US3D format..."<<std::endl;
                 WriteUS3DGridFromMMG(mmgMesh_hyb, us3d, bnd_face_map, unique_shell_tris);
-                
+                std::cout<<"Finished writing the adapted hybrid mesh in US3D format..."<<std::endl;
                 //
             }
             else
@@ -4512,269 +4538,6 @@ int main(int argc, char** argv) {
             }
         }
         
-        
-
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        /*
-        Partition* P = new Partition(us3d->ien, us3d->iee, us3d->ief, parmetis_pstate,ien_pstate, us3d->xcn,xcn_pstate,Uivar,comm);
-
-        //Array<double>* dUdXi_v2 = ComputedUdx(P, pstate, iee_copy, iee_loc, ief_loc, ifn_copy, ief_copy, Nel, Uaux, ghost, bound, comm, ife_copy);
-
-
-        std::map<int,double> UauxNew = P->CommunicateAdjacentDataUS3D(Uivar,comm);
-
-        Mesh_Topology* meshTopo = new Mesh_Topology(P, us3d->ifn, us3d->ife,UauxNew,us3d->bnd_map,us3d->bnd_face_map,us3d->nBnd,comm);
-        
-        
-        //OutputBoundaryID(P, meshTopo, us3d, 0);
-//        OutputBoundaryID(P, meshTopo, us3d, 1);
-//        OutputBoundaryID(P, meshTopo, us3d, 2);
-//        OutputBoundaryID(P, meshTopo, us3d, 3);
-//        OutputBoundaryID(P, meshTopo, us3d, 4);
-        
-        //std::map<int,int> faceref = meshTopo->getFaceRef();
-
-        //Gradients* dudxObj = new Gradients(P,meshTopo,UauxNew,us3d->ghost,"us3d","MMG",comm);
-        
-        //Array<double>* dUdXi = dudxObj->getdUdXi();
-        //clock_t t;
-        double tmax = 0.0;
-        double tn = 0.0;
-        //t = clock();
-        Array<double>* gB = new Array<double>(us3d->ghost->getNrow(),1);
-        for(int i=0;i<us3d->ghost->getNrow();i++)
-        {
-            gB->setVal(i,0,us3d->ghost->getVal(i,varia));
-        }
-        Array<double>* dUdXi = ComputedUdx_LSQ_US3D_v3(P,UauxNew,meshTopo,gB,comm);
-//        Array<double>* dUdXi   = ComputedUdx_MGG(P,UauxNew,meshTopo,gB,comm);
-        //Gradients* dudxObj   = new Gradients(P,meshTopo,UauxNew,us3d->ghost,"us3d","LSQ",comm);
-//        Array<double>* dUdXi = dudxObj->getdUdXi();
-        
-        //Array<double>* dUdXi = dudxObj->getdUdXi();
-
-        Array<double>* dUidxi = new Array<double>(dUdXi->getNrow(),1);
-        Array<double>* dUidyi = new Array<double>(dUdXi->getNrow(),1);
-        Array<double>* dUidzi = new Array<double>(dUdXi->getNrow(),1);
-
-        for(int i=0;i<dUdXi->getNrow();i++)
-        {
-            dUidxi->setVal(i,0,dUdXi->getVal(i,0));
-            dUidyi->setVal(i,0,dUdXi->getVal(i,1));
-            dUidzi->setVal(i,0,dUdXi->getVal(i,2));
-        }
-        
-        //std::map<int,std::vector<double> > dUdxiauxNew = P->CommunicateAdjacentDataUS3DNew(dUdXi,comm);
-    //    std::map<int,std::vector<double> > dUdxauxNew  = P->CommunicateAdjacentDataUS3DNew(dUidxi,comm);
-    //    std::map<int,std::vector<double> > dUdyauxNew  = P->CommunicateAdjacentDataUS3DNew(dUidyi,comm);
-    //    std::map<int,std::vector<double> > dUdzauxNew  = P->CommunicateAdjacentDataUS3DNew(dUidzi,comm);
-        
-        std::map<int,double > dUdxauxNew  = P->CommunicateAdjacentDataUS3D(dUidxi,comm);
-        std::map<int,double > dUdyauxNew  = P->CommunicateAdjacentDataUS3D(dUidyi,comm);
-        std::map<int,double > dUdzauxNew  = P->CommunicateAdjacentDataUS3D(dUidzi,comm);
-        
-    //    std::map<int,std::vector<double> >::iterator itmv;
-    //    int t=0;
-    //    for(itmv=dUdxiauxNew.begin();itmv!=dUdxiauxNew.end();itmv++)
-    //    {
-    //        std::cout << itmv->second[0]-dUdxauxNew[itmv->first][0] << " " <<                  itmv->second[1]-dUdyauxNew[itmv->first][0]  << " " << itmv->second[2]-dUdzauxNew[itmv->first][0]  << std::endl;
-    //        t++;
-    //    }
-        
-        delete dUdXi;
-        
-        Array<double>* dU2dXi2 = ComputedUdx_LSQ_US3D_v3(P,dUdxauxNew,meshTopo,gB,comm);
-        Array<double>* dU2dYi2 = ComputedUdx_LSQ_US3D_v3(P,dUdyauxNew,meshTopo,gB,comm);
-        Array<double>* dU2dZi2 = ComputedUdx_LSQ_US3D_v3(P,dUdzauxNew,meshTopo,gB,comm);
-
-//        Array<double>* dU2dXi2 = ComputedUdx_MGG(P,dUdxauxNew,meshTopo,gB,comm);
-//        Array<double>* dU2dYi2 = ComputedUdx_MGG(P,dUdyauxNew,meshTopo,gB,comm);
-//        Array<double>* dU2dZi2 = ComputedUdx_MGG(P,dUdzauxNew,meshTopo,gB,comm);
-        
-        Array<double>* d2udx2 = new Array<double>(dU2dXi2->getNrow(),1);
-        Array<double>* d2udxy = new Array<double>(dU2dXi2->getNrow(),1);
-        Array<double>* d2udxz = new Array<double>(dU2dXi2->getNrow(),1);
-        
-        Array<double>* d2udyx = new Array<double>(dU2dYi2->getNrow(),1);
-        Array<double>* d2udy2 = new Array<double>(dU2dYi2->getNrow(),1);
-        Array<double>* d2udyz = new Array<double>(dU2dYi2->getNrow(),1);
-
-        Array<double>* d2udzx = new Array<double>(dU2dZi2->getNrow(),1);
-        Array<double>* d2udzy = new Array<double>(dU2dZi2->getNrow(),1);
-        Array<double>* d2udz2 = new Array<double>(dU2dZi2->getNrow(),1);
-
-        for(int i=0;i<dU2dXi2->getNrow();i++)
-        {
-            d2udx2->setVal(i,0,dU2dXi2->getVal(i,0));
-            d2udxy->setVal(i,0,dU2dXi2->getVal(i,1));
-            d2udxz->setVal(i,0,dU2dXi2->getVal(i,2));
-            
-            d2udyx->setVal(i,0,dU2dYi2->getVal(i,0));
-            d2udy2->setVal(i,0,dU2dYi2->getVal(i,1));
-            d2udyz->setVal(i,0,dU2dYi2->getVal(i,2));
-            
-            d2udzx->setVal(i,0,dU2dZi2->getVal(i,0));
-            d2udzy->setVal(i,0,dU2dZi2->getVal(i,1));
-            d2udz2->setVal(i,0,dU2dZi2->getVal(i,2));
-        }
-        
-        std::vector<double> u_v    = meshTopo->ReduceUToVertices(Uivar);
-        std::vector<double> dudx_v = meshTopo->ReduceUToVertices(dUidxi);
-        std::vector<double> dudy_v = meshTopo->ReduceUToVertices(dUidyi);
-        std::vector<double> dudz_v = meshTopo->ReduceUToVertices(dUidzi);
-        
-        std::vector<double> d2udx2_v = meshTopo->ReduceUToVertices(d2udx2);
-        std::vector<double> d2udxy_v = meshTopo->ReduceUToVertices(d2udxy);
-        std::vector<double> d2udxz_v = meshTopo->ReduceUToVertices(d2udxz);
-        
-        std::vector<double> d2udyx_v = meshTopo->ReduceUToVertices(d2udyx);
-        std::vector<double> d2udy2_v = meshTopo->ReduceUToVertices(d2udy2);
-        std::vector<double> d2udyz_v = meshTopo->ReduceUToVertices(d2udyz);
-        
-        std::vector<double> d2udzx_v = meshTopo->ReduceUToVertices(d2udzx);
-        std::vector<double> d2udzy_v = meshTopo->ReduceUToVertices(d2udzy);
-        std::vector<double> d2udz2_v = meshTopo->ReduceUToVertices(d2udz2);
-
-        std::vector<Vert> Verts =  P->getLocalVerts();
-        int nVerts = Verts.size();
-        Array<double>* hessian = new Array<double>(nVerts,6);
-        Array<double>* grad    = new Array<double>(nVerts,3);
-        for(int i=0;i<nVerts;i++)
-        {
-            grad->setVal(i,0,dudx_v[i]);grad->setVal(i,1,dudy_v[i]);grad->setVal(i,2,dudz_v[i]);
-            hessian->setVal(i,0,d2udx2_v[i]); hessian->setVal(i,1,d2udxy_v[i]); hessian->setVal(i,2,d2udxz_v[i]);
-            hessian->setVal(i,3,d2udy2_v[i]); hessian->setVal(i,4,d2udyz_v[i]);
-            hessian->setVal(i,5,d2udz2_v[i]);
-        }
-        
-        //Array<double>* UgRoot = GetSolutionOnRoot(P,us3d,hessian,comm);
-        
-        std::vector<std::vector<int> > loc_elem2verts_loc = P->getLocalElem2LocalVert();
-        double max_v = *std::max_element(d2udx2_v.begin(), d2udx2_v.end());
-        int dim = 3;
-        
-        Array<double>* metric = ComputeMetric(Verts,grad,hessian,max_v,loc_elem2verts_loc,us3d->ien->getNrow(),comm,dim);
-        
-//=================================================================
-        //==================Output the data in Tecplot format==============
-        //=================================================================
-        
-        string filename11 = "metric_rank_" + std::to_string(world_rank) + ".dat";
-        ofstream myfile11;
-        myfile11.open(filename11);
-        string filename12 = "elements_rank_" + std::to_string(world_rank) + ".dat";
-        ofstream myfile12;
-        myfile11.open(filename12);
-        string filename = "d2UdX2i_" + std::to_string(world_rank) + ".dat";
-        ofstream myfile;
-        myfile.open(filename);
-        myfile << "TITLE=\"volume_part_"  + std::to_string(world_rank) +  ".tec\"" << std::endl;
-        
-        myfile <<"VARIABLES = \"X\", \"Y\", \"Z\", \"u\", \"dx\", \"dy\", \"dz\", \"d2udx2\", \"d2udxy\", \"d2udxz\", \"d2udyx\", \"d2udy2\", \"d2udyz\", \"d2udzx\", \"d2udzy\", \"d2udz2\", \"M00\", \"M01\", \"M02\", \"M10\", \"M11\", \"M12\", \"M20\", \"M21\", \"M22\"" << std::endl;
-        int nvert = Verts.size();
-        myfile <<"ZONE N = " << nvert << ", E = " << us3d->ien->getNrow() << ", DATAPACKING = POINT, ZONETYPE = FEBRICK" << std::endl;
-        
-        std::map<int,int> gV2lV = P->getGlobalVert2LocalVert();
-        
-        for(int i=0;i<nvert;i++)
-        {
-            myfile << Verts[i].x << " " << Verts[i].y << " " << Verts[i].z <<
-            " " << u_v[i] << " "<< dudx_v[i] << " " << dudy_v[i] << " " << dudz_v[i] <<
-            " " << hessian->getVal(i,0) << " " << hessian->getVal(i,1) << " " << hessian->getVal(i,2) <<
-            " " << hessian->getVal(i,1) << " " << hessian->getVal(i,3) << " " << hessian->getVal(i,4) <<
-            " " << hessian->getVal(i,2) << " " << hessian->getVal(i,4) << " " << hessian->getVal(i,5) <<
-            " " << metric->getVal(i,0) << " " << metric->getVal(i,1) << " " << metric->getVal(i,2) <<
-            " " << metric->getVal(i,3) << " " << metric->getVal(i,4) << " " << metric->getVal(i,5) <<
-            " " << metric->getVal(i,6) << " " << metric->getVal(i,7) << " " << metric->getVal(i,8) << std::endl;
-            
-            myfile11 << Verts[i].x << " " << Verts[i].y << " " << Verts[i].z << " " << metric->getVal(i,0) << " " << metric->getVal(i,1) << " " << metric->getVal(i,2) << " " << metric->getVal(i,3) << " " << metric->getVal(i,4) << " " << metric->getVal(i,5) << " " << metric->getVal(i,6) << " " << metric->getVal(i,7) << " " << metric->getVal(i,8) << std::endl;
-        }
-
-        for(int i=0;i<us3d->ien->getNrow();i++)
-        {
-           myfile << loc_elem2verts_loc[i][0]+1 << " " <<
-                     loc_elem2verts_loc[i][1]+1 << " " <<
-                     loc_elem2verts_loc[i][2]+1 << " " <<
-                     loc_elem2verts_loc[i][3]+1 << " " <<
-                     loc_elem2verts_loc[i][4]+1 << " " <<
-                     loc_elem2verts_loc[i][5]+1 << " " <<
-                     loc_elem2verts_loc[i][6]+1 << " " <<
-                     loc_elem2verts_loc[i][7]+1 << std::endl;
-            
-           myfile12 << loc_elem2verts_loc[i][0]+1 << " " <<
-                       loc_elem2verts_loc[i][1]+1 << " " <<
-                       loc_elem2verts_loc[i][2]+1 << " " <<
-                       loc_elem2verts_loc[i][3]+1 << " " <<
-                       loc_elem2verts_loc[i][4]+1 << " " <<
-                       loc_elem2verts_loc[i][5]+1 << " " <<
-                       loc_elem2verts_loc[i][6]+1 << " " <<
-                       loc_elem2verts_loc[i][7]+1 << std::endl;
-        }
-        
-        myfile.close();
-        myfile11.close();
-        myfile12.close();
-        
-        MMG_Mesh* mmg = GetOptimizedMMG3DMeshOnRoot(P, us3d, hessian, metric, comm);
-        
-        if (world_rank == 0)
-        {
-            MMG3D_Set_handGivenMesh(mmg->mmgMesh);
-            if ( MMG3D_Set_dparameter(mmg->mmgMesh,mmg->mmgSol,MMG3D_DPARAM_hgrad, 2.0) != 1 )    exit(EXIT_FAILURE);
-            
-            int ier = MMG3D_mmg3dlib(mmg->mmgMesh,mmg->mmgSol);
-            
-            OutputMesh_MMG(mmg->mmgMesh);
-//            OutputBoundaryID_MMG(mmgMesh,ref2bface,1);
-//            OutputBoundaryID_MMG(mmgMesh,ref2bface,2);
-//            OutputBoundaryID_MMG(mmgMesh,ref2bface,3);
-//            OutputBoundaryID_MMG(mmgMesh,ref2bface,4);
-            WriteUS3DGridFromMMG(mmg->mmgMesh, us3d);
-        }
-        
-        delete d2udx2;
-        delete d2udxy;
-        delete d2udxz;
-
-        delete d2udyx;
-        delete d2udy2;
-        delete d2udyz;
-
-        delete d2udzx;
-        delete d2udzy;
-        delete d2udz2;
-
-        d2udx2_v.erase(d2udx2_v.begin(),d2udx2_v.end());
-        d2udxy_v.clear();
-        d2udxz_v.clear();
-
-        d2udyx_v.clear();
-        d2udy2_v.clear();
-        d2udyz_v.clear();
-
-        d2udzx_v.clear();
-        d2udzy_v.clear();
-        d2udz2_v.clear();
-        delete us3d->ifn;
-        delete us3d->ien;
-        delete us3d->iee;
-        
-        delete hessian;
-        delete grad;
-        delete ien_pstate;
-        delete parmetis_pstate;
-        //delete UgRoot;
-        */
         MPI_Finalize();
         
     }

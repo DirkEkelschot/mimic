@@ -79,12 +79,8 @@ Mesh_Topology::Mesh_Topology(Partition* Pa, std::map<int,double> U, MPI_Comm com
             
             for(int r=0;r<4;r++)
             {
-                //int gvid = ifn->getVal(faceid,r);
-                
-                int gvid = ifn_part_map->i_map[faceid][s];
-                //std::cout << gvid << std::endl;
+                int gvid = ifn_part_map->i_map[faceid][r];
                 int lvid = gV2lV[gvid];
-                //std::cout << gvid << " " << lvid << std::endl;
                 
                 vert2ref[gvid] = ref;
                 ref2vert[ref].push_back(gvid);
@@ -134,7 +130,6 @@ Mesh_Topology::Mesh_Topology(Partition* Pa, std::map<int,double> U, MPI_Comm com
             face2ref[faceid]        = ref;
             ref2face[ref].push_back(faceid);
             int ref = if_ref_part_map->i_map[faceid][0];
-            //std::cout << ref << std::endl;
             if(ref!=2)
             {
                 Bface2Element[faceid]   = gEl;
@@ -170,7 +165,7 @@ Mesh_Topology::Mesh_Topology(Partition* Pa, std::map<int,double> U, MPI_Comm com
             dxfxc[gEl].push_back(r0);
             
             face.clear();
-            
+       
         }
         
         tel = 0;

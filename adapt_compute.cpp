@@ -871,22 +871,15 @@ Array<double>* ComputeMetric(std::vector<Vert> Verts, Array<double>* grad, Array
     MPI_Comm_rank(comm, &rank);
     //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     //+++++++++++++Required Parameter set for scaling eigenvalues/eigenvectors+++++++++++++++
-    double hmin         = 0.00001;
-    double hmax         = 0.01;
-    double f            = 0.05e-01;
-    std::cout << "Metric Tensor Field gets computed..." << std::endl;
+    double hmin         = 0.0001;
+    double hmax         = 0.1;
+    double f            = 0.05;
+    //std::cout << "Metric Tensor Field gets computed..." << std::endl;
     //double d2udx2_v_max = *std::max_element(d2udx2_v.begin(), d2udx2_v.end());
     //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    double* Hmet;
-    if(dim==3)
-    {
-        Hmet = new double[9];
-    }
-    if(dim==2)
-    {
-        Hmet = new double[4];
-    }
+    double* Hmet = new double[9];;
+    
     int nVerts = Verts.size();
     int i;
     Array<double>* metric = new Array<double>(nVerts,9);
@@ -901,195 +894,102 @@ Array<double>* ComputeMetric(std::vector<Vert> Verts, Array<double>* grad, Array
     myfile <<"ZONE N = " << nVerts << ", E = " << nloc << ", DATAPACKING = POINT, ZONETYPE = FEBRICK" << std::endl;
     for(i=0;i<nVerts;i++)
     {
-        if(dim == 2)
-        {
-            Hmet[0] = hessian->getVal(i,0);
-            Hmet[1] = hessian->getVal(i,1);
-            Hmet[2] = hessian->getVal(i,1);
-            Hmet[3] = hessian->getVal(i,3);
+        Hmet[0] = hessian->getVal(i,0);
+        Hmet[1] = hessian->getVal(i,1);
+        Hmet[2] = hessian->getVal(i,2);
+
+        Hmet[3] = hessian->getVal(i,1);
+        Hmet[4] = hessian->getVal(i,3);
+        Hmet[5] = hessian->getVal(i,4);
+
+        Hmet[6] = hessian->getVal(i,2);
+        Hmet[7] = hessian->getVal(i,4);
+        Hmet[8] = hessian->getVal(i,5);
+
+        double * WR = new double[3];
+        double * WI = new double[3];
+        double * V  = new double[3*3];
+        double * iV = new double[3*3];
+        double* WRn = new double[3];
         
-            double * WR = new double[3];
-            double * WI = new double[3];
-            double * V  = new double[3*3];
-            double * iV = new double[3*3];
-            double* WRn = new double[3];
+        Array<double>* DR  = new Array<double>(3,3);
+        Array<double>* UR  = new Array<double>(3,3);
+        for(int j=0;j<3;j++)
+        {
+            WR[j]  = 0.0;
+            WRn[j] = 0.0;
+            WI[j]  = 0.0;
             
-            Array<double>* DR  = new Array<double>(3,3);
-            Array<double>* VR  = new Array<double>(3,3);
-            Array<double>* UR  = new Array<double>(3,3);
-            for(int j=0;j<3;j++)
+            for(int k=0;k<3;k++)
             {
-                WR[j]  = 0.0;
-                WRn[j] = 0.0;
-                WI[j]  = 0.0;
-                
-                for(int k=0;k<3;k++)
-                {
-                    DR->setVal(j,k,0.0);
-                    VR->setVal(j,k,0.0);
-                    //iVR->setVal(j,k,0.0);
-                    V[j*3+k] = 0.0;
-                    iV[j*3+k] = 0.0;
-                }
+                DR->setVal(j,k,0.0);
+                V[j*3+k] = 0.0;
+                iV[j*3+k] = 0.0;
             }
-            SVD* svd = ComputeSVD(2,2,Hmet);
-            Eig* eig = ComputeEigenDecomp(2, Hmet);
-            
-            WRn[0] = std::min(std::max(f*fabs(eig->Dre[0]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
-            WRn[1] = std::min(std::max(f*fabs(eig->Dre[1]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
-            WRn[2] = 1.0/(hmax*hmax);
-            
-            DR->setVal(0,0,WRn[0]);DR->setVal(0,1,0.0);DR->setVal(0,1,0.0);
-            DR->setVal(1,0,0.0);DR->setVal(1,1,WRn[1]);DR->setVal(1,2,0.0);
-            DR->setVal(2,0,0.0);DR->setVal(2,1,0.0);DR->setVal(2,2,WRn[2]);
-
-            UR->setVal(0,0,eig->V[0]);UR->setVal(0,1,eig->V[1]);UR->setVal(0,2,0.0);
-            UR->setVal(1,0,eig->V[2]);UR->setVal(1,1,eig->V[3]);UR->setVal(1,2,0.0);
-            UR->setVal(2,0,0.0);      UR->setVal(2,1,0.0);      UR->setVal(2,2,1.0);
-            
-            Array<double>* iVR = MatInv(UR);
-            Array<double>* Rs = MatMul(UR,DR);
-            Array<double>* Rf = MatMul(Rs,iVR);
-            
-            metric->setVal(i,0, Rf->getVal(0,0));
-            metric->setVal(i,1, Rf->getVal(0,1));
-            metric->setVal(i,2, Rf->getVal(0,2));
-            
-            metric->setVal(i,3, Rf->getVal(1,0));
-            metric->setVal(i,4, Rf->getVal(1,1));
-            metric->setVal(i,5, Rf->getVal(1,2));
-            
-            metric->setVal(i,6, Rf->getVal(2,0));
-            metric->setVal(i,7, Rf->getVal(2,1));
-            metric->setVal(i,8, Rf->getVal(2,2));
-            
-            myfile << Verts[i].x << " " << Verts[i].y << " " << Verts[i].z << " " << Rf->getVal(0,0) << " " << Rf->getVal(0,1) << " " << Rf->getVal(0,2) << " " << Rf->getVal(1,1) << " " << Rf->getVal(1,2) << " " << Rf->getVal(2,2) << std::endl;
-            
-            delete DR;
-            delete UR;
-            delete VR;
-            delete Rs;
-            delete Rf;
-
-            delete[] iV;
-            delete[] V;
-            delete[] WR;
-            delete[] WI;
-            delete[] WRn;
         }
         
-        if(dim == 3)
+        if(isnan(Hmet[0]) || isnan(Hmet[1]) || isnan(Hmet[2])
+           || isnan(Hmet[3]) || isnan(Hmet[4]) || isnan(Hmet[5])
+           || isnan(Hmet[6]) || isnan(Hmet[7]) || isnan(Hmet[8]))
         {
-            
-            Hmet[0] = hessian->getVal(i,0);
-            Hmet[1] = hessian->getVal(i,1);
-            Hmet[2] = hessian->getVal(i,2);
-
-            Hmet[3] = hessian->getVal(i,1);
-            Hmet[4] = hessian->getVal(i,3);
-            Hmet[5] = hessian->getVal(i,4);
-
-            Hmet[6] = hessian->getVal(i,2);
-            Hmet[7] = hessian->getVal(i,4);
-            Hmet[8] = hessian->getVal(i,5);
-/*
-	    Hmet[0] = hessian->getVal(i,0);
-            Hmet[1] = hessian->getVal(i,1);
-            Hmet[2] = 1.0e-06;
-
-            Hmet[3] = hessian->getVal(i,1);
-            Hmet[4] = hessian->getVal(i,3);
-            Hmet[5] = 1.0e-06;
-
-            Hmet[6] = 1.0e-06;
-            Hmet[7] = 1.0e-06;
-            Hmet[8] = 1.0e-06;
-*/
-            double * WR = new double[3];
-            double * WI = new double[3];
-            double * V  = new double[3*3];
-            double * iV = new double[3*3];
-            double* WRn = new double[3];
-            
-            Array<double>* DR  = new Array<double>(3,3);
-            Array<double>* UR  = new Array<double>(3,3);
-            for(int j=0;j<3;j++)
-            {
-                WR[j]  = 0.0;
-                WRn[j] = 0.0;
-                WI[j]  = 0.0;
-                
-                for(int k=0;k<3;k++)
-                {
-                    DR->setVal(j,k,0.0);
-                    V[j*3+k] = 0.0;
-                    iV[j*3+k] = 0.0;
-                }
-            }
-            
-            if(isnan(Hmet[0]) || isnan(Hmet[1]) || isnan(Hmet[2])
-               || isnan(Hmet[3]) || isnan(Hmet[4]) || isnan(Hmet[5])
-               || isnan(Hmet[6]) || isnan(Hmet[7]) || isnan(Hmet[8]))
-            {
-                std::cout << "NaN! Watch out" << std::endl;
-            }
-            
-            SVD* svd = ComputeSVD(3,3,Hmet);
-            Eig* eig = ComputeEigenDecomp(3, Hmet);
-            
+            std::cout << "NaN! Watch out" << std::endl;
+        }
+        
+        SVD* svd = ComputeSVD(3,3,Hmet);
+        Eig* eig = ComputeEigenDecomp(3, Hmet);
+        
 //            WRn[0] = std::min(std::max(f*fabs(eig->Dre[0]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
 //            WRn[1] = std::min(std::max(f*fabs(eig->Dre[1]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
 //            WRn[2] = std::min(std::max(f*fabs(eig->Dre[2]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
-            
-            WRn[0] = std::min(std::max(f*fabs(svd->s[0]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
-            WRn[1] = std::min(std::max(f*fabs(svd->s[1]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
-            WRn[2] = std::min(std::max(f*fabs(svd->s[2]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
-            
-            DR->setVal(0,0,WRn[0]);DR->setVal(0,1,0.0);DR->setVal(0,1,0.0);
-            DR->setVal(1,0,0.0);DR->setVal(1,1,WRn[1]);DR->setVal(1,2,0.0);
-            DR->setVal(2,0,0.0);DR->setVal(2,1,0.0);DR->setVal(2,2,WRn[2]);
+        
+        WRn[0] = std::min(std::max(f*fabs(svd->s[0]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
+        WRn[1] = std::min(std::max(f*fabs(svd->s[1]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
+        WRn[2] = std::min(std::max(f*fabs(svd->s[2]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
+        
+        DR->setVal(0,0,WRn[0]);DR->setVal(0,1,0.0);DR->setVal(0,1,0.0);
+        DR->setVal(1,0,0.0);DR->setVal(1,1,WRn[1]);DR->setVal(1,2,0.0);
+        DR->setVal(2,0,0.0);DR->setVal(2,1,0.0);DR->setVal(2,2,WRn[2]);
 
 //            UR->setVal(0,0,eig->V[0]);UR->setVal(0,1,eig->V[1]);UR->setVal(0,2,eig->V[2]);
 //            UR->setVal(1,0,eig->V[3]);UR->setVal(1,1,eig->V[4]);UR->setVal(1,2,eig->V[5]);
 //            UR->setVal(2,0,eig->V[6]);UR->setVal(2,1,eig->V[7]);UR->setVal(2,2,eig->V[8]);
-            
+        
 //            UR->setVal(0,0,svd->u[0]);UR->setVal(0,1,svd->u[1]);UR->setVal(0,2,svd->u[2]);
 //            UR->setVal(1,0,svd->u[3]);UR->setVal(1,1,svd->u[4]);UR->setVal(1,2,svd->u[5]);
 //            UR->setVal(2,0,svd->u[6]);UR->setVal(2,1,svd->u[7]);UR->setVal(2,2,svd->u[8]);
-            
-            UR->setVal(0,0,svd->vt[0]);UR->setVal(0,1,svd->vt[1]);UR->setVal(0,2,svd->vt[2]);
-            UR->setVal(1,0,svd->vt[3]);UR->setVal(1,1,svd->vt[4]);UR->setVal(1,2,svd->vt[5]);
-            UR->setVal(2,0,svd->vt[6]);UR->setVal(2,1,svd->vt[7]);UR->setVal(2,2,svd->vt[8]);
-            
-            Array<double>* iVR = MatInv(UR);
-            Array<double>* Rs = MatMul(UR,DR);
-            Array<double>* Rf = MatMul(Rs,iVR);
-            
-            metric->setVal(i,0, Rf->getVal(0,0));
-            metric->setVal(i,1, Rf->getVal(0,1));
-            metric->setVal(i,2, Rf->getVal(0,2));
-            
-            metric->setVal(i,3, Rf->getVal(1,0));
-            metric->setVal(i,4, Rf->getVal(1,1));
-            metric->setVal(i,5, Rf->getVal(1,2));
-            
-            metric->setVal(i,6, Rf->getVal(2,0));
-            metric->setVal(i,7, Rf->getVal(2,1));
-            metric->setVal(i,8, Rf->getVal(2,2));
-            
-            myfile << Verts[i].x << " " << Verts[i].y << " " << Verts[i].z << " " << Rf->getVal(0,0) << " " << Rf->getVal(0,1) << " " << Rf->getVal(0,2) << " " << Rf->getVal(1,1) << " " << Rf->getVal(1,2) << " " << Rf->getVal(2,2) << " " << hessian->getVal(i,0)<< " " << hessian->getVal(i,1)<< " " << hessian->getVal(i,2)<< " " << hessian->getVal(i,3)<< " " << hessian->getVal(i,4)<< " " << hessian->getVal(i,5) << std::endl;
-            
-            delete DR;
-            delete UR;
-            delete Rs;
-            delete Rf;
+        
+        UR->setVal(0,0,svd->vt[0]);UR->setVal(0,1,svd->vt[1]);UR->setVal(0,2,svd->vt[2]);
+        UR->setVal(1,0,svd->vt[3]);UR->setVal(1,1,svd->vt[4]);UR->setVal(1,2,svd->vt[5]);
+        UR->setVal(2,0,svd->vt[6]);UR->setVal(2,1,svd->vt[7]);UR->setVal(2,2,svd->vt[8]);
+        
+        Array<double>* iVR = MatInv(UR);
+        Array<double>* Rs = MatMul(UR,DR);
+        Array<double>* Rf = MatMul(Rs,iVR);
+        
+        metric->setVal(i,0, Rf->getVal(0,0));
+        metric->setVal(i,1, Rf->getVal(0,1));
+        metric->setVal(i,2, Rf->getVal(0,2));
+        
+        metric->setVal(i,3, Rf->getVal(1,0));
+        metric->setVal(i,4, Rf->getVal(1,1));
+        metric->setVal(i,5, Rf->getVal(1,2));
+        
+        metric->setVal(i,6, Rf->getVal(2,0));
+        metric->setVal(i,7, Rf->getVal(2,1));
+        metric->setVal(i,8, Rf->getVal(2,2));
+        
+        myfile << Verts[i].x << " " << Verts[i].y << " " << Verts[i].z << " " << Rf->getVal(0,0) << " " << Rf->getVal(0,1) << " " << Rf->getVal(0,2) << " " << Rf->getVal(1,1) << " " << Rf->getVal(1,2) << " " << Rf->getVal(2,2) << " " << hessian->getVal(i,0)<< " " << hessian->getVal(i,1)<< " " << hessian->getVal(i,2)<< " " << hessian->getVal(i,3)<< " " << hessian->getVal(i,4)<< " " << hessian->getVal(i,5) << std::endl;
+        
+        delete DR;
+        delete UR;
+        delete Rs;
+        delete Rf;
 
-            delete[] iV;
-            delete[] V;
-            delete[] WR;
-            delete[] WI;
-            delete[] WRn;
-        }
+        delete[] iV;
+        delete[] V;
+        delete[] WR;
+        delete[] WI;
+        delete[] WRn;
         
     }
     
