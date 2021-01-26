@@ -45,6 +45,13 @@ Partition::Partition(ParArray<int>* ien, ParArray<int>* iee, ParArray<int>* ief,
     
 }
 
+
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+
 void Partition::DeterminePartitionLayout(ParArray<int>* ien, ParallelState_Parmetis* pstate_parmetis, ParallelState* ien_parstate, MPI_Comm comm)
 {
     int size;
@@ -141,6 +148,12 @@ void Partition::DeterminePartitionLayout(ParArray<int>* ien, ParallelState_Parme
                    ien_pstate->getOffsets(),
                    MPI_INT,comm);
 }
+
+
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 
 void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief, ParallelState* ien_parstate, ParArray<double>* xcn, ParallelState* xcn_parstate, Array<double>* U, MPI_Comm comm)
@@ -731,8 +744,9 @@ void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief,
     delete[] new_offsets;
 }
 
-
-
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 void Partition::DetermineAdjacentElement2ProcMapUS3D(ParArray<int>* ien, std::map<int,std::vector<int> > iee_vec, ParArray<int>* part, ParallelState* ien_parstate, ParArray<double>* xcn, ParallelState* xcn_parstate, Array<double>* U, MPI_Comm comm)
 {
@@ -1266,725 +1280,17 @@ void Partition::DetermineAdjacentElement2ProcMapUS3D(ParArray<int>* ien, std::ma
 //        U0Vert->setVal(c,0,sum/it_rhos->second.size());
 //        c++;
 //    }
+    
+    
     delete[] part_verts_arr;
     delete[] new_offsets;
 }
 
 
 
-
-
-
-
-
-//void Partition::DetermineAdjacentElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief, ParArray<int>* part, ParallelState* ien_parstate, ParArray<double>* xcn, ParallelState* xcn_parstate, Array<double>* U, MPI_Comm comm)
-//{
-//    int floc_tmp = 0;
-//    int vloc_tmp = 0;
-//    int q=0;
-//    int i=0;
-//    int size;
-//    MPI_Comm_size(comm, &size);
-//    // Get the rank of the process
-//    int rank;
-//    MPI_Comm_rank(comm, &rank);
-//    //std::cout << xcn->getOffset(rank) << " " << xcn_pstate->getOffset(rank) << std::endl;
-//    int xcn_o = xcn_pstate->getOffset(rank);
-//    int xcn_n = xcn_pstate->getNloc(rank);
-//    int ien_o = ien_pstate->getOffset(rank);
-//    int ien_n = ien_pstate->getNloc(rank);
-//    int el_id;
-//    int p_id;
-//    int v_id;
-//    int f_id;
-//    int r;
-//    std::vector<int> faceIDs_on_rank;
-//
-//    std::vector<int> vertIDs_on_rank;
-//    std::map<int,std::vector<int> > rank2req_vert;
-//    int* new_offsets = new int[size];
-//    for(int i=0;i<size;i++)
-//    {
-//        new_offsets[i] = xcn_parstate->getOffsets()[i]-1;
-//    }
-//    //std::cout << " " << rank << " LocalVerts.size() before " << LocalVerts.size() << std::endl;
-//    std::map<int,std::vector<int> > req_elem;
-//    int itel = 0;
-//
-//    for(int i=0;i<part->getNrow();i++)
-//    {
-//        int start = xadj[i];
-//        int end   = xadj[i+1];
-//        for(int j=start;j<end;j++)
-//        {
-//            int adjEl_id = adjcny[j];
-//            p_id = part_global->getVal(adjEl_id,0);
-//            //p_id = FindRank(new_offsets2,size,adjEl_id);
-//            if(p_id!=rank && (elem_set.find(adjEl_id)==elem_set.end()))
-//            {
-//                adj_elements[p_id].push_back(adjEl_id);
-//                elem_set.insert(adjEl_id);
-//                req_elem[p_id].push_back(adjEl_id);
-//                itel++;
-//            }
-//        }
-//    }
-//
-//    adj_schedule = DoScheduling(req_elem,comm);
-//
-//    std::map<int,std::vector<int> >::iterator it;
-//
-//    int n_reqstd_adj_ids;
-//    for(q=0;q<size;q++)
-//    {
-//        if(rank==q)
-//        {
-//            int i=0;
-//            for (it = req_elem.begin(); it != req_elem.end(); it++)
-//            {
-//                int n_req_adj_el           = it->second.size();
-//                int dest                   = it->first;
-//
-//
-//                //MPI_Send(&dest, 1, MPI_INT, dest, 9876+10*dest, comm);
-//                MPI_Send(&n_req_adj_el, 1, MPI_INT, dest, 9876000+10*dest, comm);
-//                //MPI_Send(&it->second[0], n_req, MPI_INT, dest, 9876+dest*2, comm);
-//                MPI_Send(&it->second[0], n_req_adj_el, MPI_INT, dest, 9876000*2+dest*2, comm);
-//               i++;
-//            }
-//        }
-//        else if (adj_schedule->SendFromRank2Rank[q].find( rank ) != adj_schedule->SendFromRank2Rank[q].end())
-//        {
-//            MPI_Recv(&n_reqstd_adj_ids, 1, MPI_INT, q, 9876000+10*rank, comm, MPI_STATUS_IGNORE);
-//            //MPI_Recv(&TotRecvVert_IDs[RecvAlloc_offset_map_v[q]], n_reqstd_ids, MPI_INT, q, 9876+rank*2, comm, MPI_STATUS_IGNORE);
-//
-//            std::vector<int> recv_reqstd_adj_ids(n_reqstd_adj_ids);
-//            MPI_Recv(&recv_reqstd_adj_ids[0], n_reqstd_adj_ids, MPI_INT, q, 9876000*2+rank*2, comm, MPI_STATUS_IGNORE);
-//            reqstd_adj_ids_per_rank[q] = recv_reqstd_adj_ids;
-//
-//        }
-//    }
-//
-//    std::map<int,std::vector<int> >::iterator itv;
-//    std::map<int,std::vector<int> > send_adj_verts_IDs;
-//    std::map<int,std::vector<int> > send_adj_faces_IDs;
-//    int TotNelem_adj_recv = 0;
-//    std::vector<int> TotAdj_El_IDs;
-//    //std::map<int,std::vector<double> > send_adj_rhos;
-//    //std::vector<double> TotAdj_Rhos;
-//    int adj_id;
-//
-//    int offset_new = ien_pstate->getOffset(rank);
-//    int nloc_new   = ien_pstate->getNloc(rank);
-//
-//    int lelem = 0;
-//
-//    for(itv=reqstd_adj_ids_per_rank.begin();itv!=reqstd_adj_ids_per_rank.end();itv++)
-//    {
-//        int dest = itv->first;
-//        int offset_dest = ien_pstate->getOffset(dest);
-//        for(int j=0;j<itv->second.size();j++)
-//        {
-//            adj_id = itv->second[j];
-//            TotAdj_El_IDs.push_back(adj_id);
-//            //TotAdj_Rhos.push_back(U->getVal(adj_id-offset_new,0));
-//            //send_adj_rhos[dest].push_back(U->getVal(adj_id-offset_new,0));
-//            lelem = GlobalElement2LocalElement[adj_id];
-//            //send_adj_rhos[dest].push_back(U0Elem[lelem]);
-//            for(int k=0;k<8;k++)
-//            {
-//                v_id = globElem2globVerts[adj_id][k];
-//                //v_id = ien->getVal(adj_id-offset_new,k);
-//                send_adj_verts_IDs[dest].push_back(v_id);
-//            }
-//
-//            for(int k=0;k<6;k++)
-//            {
-//                int offset_new = ien_pstate->getOffset(rank);
-//                f_id = globElem2globFaces[adj_id][k];
-//                send_adj_faces_IDs[dest].push_back(f_id);
-//            }
-//        }
-//
-//        TotNelem_adj_recv = TotNelem_adj_recv + itv->second.size();
-//    }
-//
-//
-//    //std::cout << "itel = " << itel << " " << TotNelem_adj_recv << " " << TotAdj_El_IDs.size() << std::endl;
-//
-//    int offset_adj_xcn = 0;
-//    int nloc_adj_xcn = 0;
-//    std::map<int,int  > recv_adj_back_Nverts;
-//    std::map<int,int* > recv_adj_back_verts_ids;
-//    std::map<int,int  > recv_adj_back_Nfaces;
-//    std::map<int,int* > recv_adj_back_faces_ids;
-//    //std::map<int,int > recv_adj_back_Nrhos;
-//    std::map<int,double* > recv_adj_back_rhos;
-//    int n_adj_vert_recv_back;
-//    int n_adj_face_recv_back;
-//
-//    // This sends the right vertices of the requested elements to correct processor.
-//    for(q=0;q<size;q++)
-//    {
-//        if(rank == q)
-//        {
-//            for (it = send_adj_verts_IDs.begin(); it != send_adj_verts_IDs.end(); it++)
-//            {
-//                int nv_adj_send       = it->second.size();
-//                int dest = it->first;
-//                MPI_Send(&nv_adj_send, 1, MPI_INT, dest, 98760000+1000*dest, comm);
-//                MPI_Send(&it->second[0], it->second.size(), MPI_INT, dest, 19999*9876+dest*8888,comm);
-//
-//
-//                int nf_adj_send = send_adj_faces_IDs[it->first].size();
-//                MPI_Send(&nf_adj_send, 1, MPI_INT, dest, 3333*9876+dest*8888,comm);
-//                MPI_Send(&send_adj_faces_IDs[it->first][0], nf_adj_send, MPI_INT, dest, 2222*9876+dest*8888,comm);
-//                //int n_adj_rhos = send_adj_rhos[it->first].size();
-//                //MPI_Send(&n_adj_rhos, 1, MPI_INT, dest, 4444*9876+dest*8888,comm);
-//                //MPI_Send(&send_adj_rhos[it->first][0], n_adj_rhos, MPI_DOUBLE, dest, 5555*9876+dest*8888,comm);
-//
-//
-//            }
-//        }
-//        if(adj_schedule->RecvRankFromRank[q].find( rank ) != adj_schedule->RecvRankFromRank[q].end())
-//        {
-//            MPI_Recv(&n_adj_vert_recv_back, 1, MPI_INT, q, 98760000+1000*rank, comm, MPI_STATUS_IGNORE);
-//            int* recv_adj_back_arr_ids = new int[n_adj_vert_recv_back];
-//            MPI_Recv(&recv_adj_back_arr_ids[0], n_adj_vert_recv_back, MPI_INT, q, 19999*9876+rank*8888, comm, MPI_STATUS_IGNORE);
-//            int n_adj_face_recv_back;
-//            MPI_Recv(&n_adj_face_recv_back, 1, MPI_INT, q, 3333*9876+rank*8888, comm, MPI_STATUS_IGNORE);
-//            int* recv_adj_back_arr_face_ids = new int[n_adj_face_recv_back];
-//            MPI_Recv(&recv_adj_back_arr_face_ids[0], n_adj_face_recv_back, MPI_INT, q, 2222*9876+rank*8888, comm,   MPI_STATUS_IGNORE);
-//
-//            //int n_adj_rho_recv_back;
-//            //MPI_Recv(&n_adj_rho_recv_back, 1, MPI_INT, q, 4444*9876+rank*8888, comm, MPI_STATUS_IGNORE);
-//            //double* recv_adj_back_arr_rho = new double[n_adj_rho_recv_back];
-//            //MPI_Recv(&recv_adj_back_arr_rho[0], n_adj_rho_recv_back, MPI_DOUBLE, q, 5555*9876+rank*8888, comm,   MPI_STATUS_IGNORE);
-//
-//
-//            recv_adj_back_Nverts[q]     = n_adj_vert_recv_back;
-//            recv_adj_back_verts_ids[q]  = recv_adj_back_arr_ids;
-//
-//            recv_adj_back_Nfaces[q]     = n_adj_face_recv_back;
-//            recv_adj_back_faces_ids[q]  = recv_adj_back_arr_face_ids;
-//
-//            //recv_adj_back_Nrhos[q]      = n_adj_rho_recv_back;
-//            //recv_adj_back_rhos[q]       = recv_adj_back_arr_rho;
-//
-//        }
-//    }
-//
-//    int TotNvert_adj_recv = 0;
-//    int TotNface_adj_recv = 0;
-//    int TotNrho_adj_recv  = 0;
-//    std::map<int,int >::iterator itm;
-//    std::vector<int> adj_verts;
-//    for(itm=recv_adj_back_Nverts.begin();itm!=recv_adj_back_Nverts.end();itm++)
-//    {
-//        TotNvert_adj_recv = TotNvert_adj_recv+itm->second;
-//        for(int i=0;i<itm->second;i++)
-//        {
-//            adj_verts.push_back(recv_adj_back_verts_ids[itm->first][i]);
-//        }
-//    }
-//
-//    std::vector<int> adj_faces;
-//    for(itm=recv_adj_back_Nfaces.begin();itm!=recv_adj_back_Nfaces.end();itm++)
-//    {
-//        TotNface_adj_recv = TotNface_adj_recv+itm->second;
-//        for(int i=0;i<itm->second;i++)
-//        {
-//            adj_faces.push_back(recv_adj_back_faces_ids[itm->first][i]);
-//        }
-//    }
-//
-//    std::vector<double> adj_rhos;
-//    std::vector<int> adj_elements_vec;
-//    std::map<int,std::vector<int> >::iterator itm_el;
-//    for(itm_el=adj_elements.begin();itm_el!=adj_elements.end();itm_el++)
-//    {
-//        //TotNrho_adj_recv = TotNrho_adj_recv+itm->second;
-//        for(int i=0;i<itm_el->second.size();i++)
-//        {
-//            //adj_rhos.push_back(recv_adj_back_rhos[itm->first][i]);
-//
-//            adj_elements_vec.push_back(adj_elements[itm_el->first][i]);
-//
-//        }
-//    }
-//
-//    //std::cout << "TotNelem_adj_recv " << TotNelem_adj_recv << " should be equal to " << TotNrho_adj_recv << std::endl;
-//    int Nel_extra2 = itel;
-//    //std::cout << " Compare " <<  TotNelem_adj_recv << " " << itel << " " << adj_rhos.size() << std::endl;
-//    int cnt_v_adj = 0;
-//    int cnt_f_adj = 0;
-//    for(int i=0;i<itel;i++)
-//    {
-//
-//        for(int k=0;k<8;k++)
-//        {
-//            int v_id_n = adj_verts[cnt_v_adj];
-//            r = FindRank(new_offsets,size,v_id_n);
-//
-//            if(unique_vertIDs_on_rank_set.find( v_id_n ) == unique_vertIDs_on_rank_set.end()) // add the required unique vertex for current rank.
-//            {
-//                unique_vertIDs_on_rank_set.insert(v_id_n);
-//                //unique_verts_on_rank_vec.push_back(v_id_n);
-//                //part_v.push_back(r);
-//
-//                if (r!=rank)// check whether this vertex is already present on current rank. if vertex is present on other rank, add it to vertIDs_on_rank map.
-//                {
-//                    rank2req_vert[r].push_back(v_id_n); // add vertex to rank2req_vert map.
-//                }
-//                else
-//                {
-//                    vertIDs_on_rank.push_back(v_id_n); // add the vertex to list that is already available on rank.
-//                    vloc_tmp++;
-//                }
-//            }
-//            cnt_v_adj++;
-//
-//            if(k<6)
-//            {
-//                int f_id_n = adj_faces[cnt_f_adj];
-//                if(unique_faceIDs_on_rank_set.find( f_id ) == unique_faceIDs_on_rank_set.end()) // add the required unique vertex for current rank.
-//                {
-//                    unique_faceIDs_on_rank_set.insert(f_id);
-//                    faceIDs_on_rank.push_back(f_id_n); // add the vertex to list that is already available on rank.
-//                    floc_tmp++;
-//                }
-//                cnt_f_adj++;
-//            }
-//        }
-//        //part_elem2verts.push_back(elem);
-//        //elem_set.insert(TotAdj_El_IDs[i]);
-//    }
-//
-//
-//
-//    // ==========================================================================================
-//       // ==========================================================================================
-//       // ==========================================================================================
-//
-//       // At this point we have all the elements that are required on current rank and the vertex ids as well
-//       // However we are still missing the vertex coordinate data which is spread out equally over the available procs.
-//       // This rank2req_vert map essentially holds this information by mapping the rank_id from which we need to request a list/vector of vertex ids (hence the name "rank2req_vert" name.
-//
-//       // At this point the perspective changes. When we were figuring out the layout of the elements, we knew the partition ID for each element on the current rank. This means that from the current rank, we needed to send a certain element to another rank since it is more logical to reside there. For the vertices this changes since we just figured out which vertices are required on the current rank. The logic here is first to send for each the current rank a list/vector<int> of vertex IDs that is requested from another rank. The other rank assembles the list of the required coordinates and sends it back.
-//
-//       // ==========================================================================================
-//       // ==========================================================================================
-//       // ==========================================================================================
-//
-//       int n_reqstd_ids;
-//       int n_req_recv_v2;
-//
-//       // This thing needs to revised because for the verts it doesnt work.
-//       // The current rank does not have the verts_to_send_rank. Instead it has an request list.
-//
-//       part_schedule = DoScheduling(rank2req_vert,comm);
-//
-//       std::map<int,std::vector<int> >  reqstd_ids_per_rank;
-//
-//       for(q=0;q<size;q++)
-//       {
-//           if(rank==q)
-//           {
-//               int i=0;
-//               for (it = rank2req_vert.begin(); it != rank2req_vert.end(); it++)
-//               {
-//                   int n_req           = it->second.size();
-//                   int dest            = it->first;
-//
-//
-//                   //MPI_Send(&dest, 1, MPI_INT, dest, 9876+10*dest, comm);
-//                   MPI_Send(&n_req, 1, MPI_INT, dest, 6547+10*dest, comm);
-//                   //MPI_Send(&it->second[0], n_req, MPI_INT, dest, 9876+dest*2, comm);
-//                   MPI_Send(&it->second[0], n_req, MPI_INT, dest, 6547*2+dest*2, comm);
-//
-//                   i++;
-//               }
-//           }
-//           else if (part_schedule->SendFromRank2Rank[q].find( rank ) != part_schedule->SendFromRank2Rank[q].end())
-//           {
-//               MPI_Recv(&n_reqstd_ids, 1, MPI_INT, q, 6547+10*rank, comm, MPI_STATUS_IGNORE);
-//               //MPI_Recv(&TotRecvVert_IDs[RecvAlloc_offset_map_v[q]], n_reqstd_ids, MPI_INT, q, 9876+rank*2, comm, MPI_STATUS_IGNORE);
-//
-//               std::vector<int> recv_reqstd_ids(n_reqstd_ids);
-//               MPI_Recv(&recv_reqstd_ids[0], n_reqstd_ids, MPI_INT, q, 6547*2+rank*2, comm, MPI_STATUS_IGNORE);
-//               reqstd_ids_per_rank[q] = recv_reqstd_ids;
-//           }
-//       }
-//
-//       int offset_xcn = 0;
-//       int nloc_xcn = 0;
-//       std::map<int,int > recv_back_Nverts;
-//       std::map<int,double* > recv_back_verts;
-//       std::map<int,int* > recv_back_verts_ids;
-//       int n_recv_back;
-//
-//       for(q=0;q<size;q++)
-//       {
-//           if(rank == q)
-//           {
-//               for (it = reqstd_ids_per_rank.begin(); it != reqstd_ids_per_rank.end(); it++)
-//               {
-//                   int nv_send = it->second.size();
-//                   double* vert_send = new double[nv_send*3];
-//                   offset_xcn        = xcn_parstate->getOffset(rank);
-//                   nloc_xcn          = xcn_parstate->getNloc(rank);
-//                   for(int u=0;u<it->second.size();u++)
-//                   {
-//                       vert_send[u*3+0]=xcn->getVal(it->second[u]-offset_xcn,0);
-//                       vert_send[u*3+1]=xcn->getVal(it->second[u]-offset_xcn,1);
-//                       vert_send[u*3+2]=xcn->getVal(it->second[u]-offset_xcn,2);
-//                   }
-//
-//                   int dest = it->first;
-//                   MPI_Send(&nv_send, 1, MPI_INT, dest, 6547+1000*dest, comm);
-//                   // MPI_Send(&vert_send[0], nv_send, MPI_DOUBLE, dest, 9876+dest*888, comm);
-//
-//                   MPI_Send(&vert_send[0], nv_send*3, MPI_DOUBLE, dest, 6547+dest*8888, comm);
-//                   MPI_Send(&it->second[0], it->second.size(), MPI_INT, dest, 8888*6547+dest*8888,comm);
-//
-//           delete[] vert_send;
-//               }
-//           }
-//           if(part_schedule->RecvRankFromRank[q].find( rank ) != part_schedule->RecvRankFromRank[q].end())
-//            {
-//               MPI_Recv(&n_recv_back, 1, MPI_INT, q, 6547+1000*rank, comm, MPI_STATUS_IGNORE);
-//
-//               double* recv_back_arr = new double[n_recv_back*3];
-//               int* recv_back_arr_ids = new int[n_recv_back];
-//               //MPI_Recv(&recv_back_vec[0], n_recv_back, MPI_DOUBLE, q, 9876+rank*888, comm, MPI_STATUS_IGNORE);
-//               MPI_Recv(&recv_back_arr[0], n_recv_back*3, MPI_DOUBLE, q, 6547+rank*8888, comm, MPI_STATUS_IGNORE);
-//               MPI_Recv(&recv_back_arr_ids[0], n_recv_back, MPI_INT, q, 8888*6547+rank*8888, comm, MPI_STATUS_IGNORE);
-//
-//               recv_back_Nverts[q]     = n_recv_back;
-//               recv_back_verts[q]      = recv_back_arr;
-//               recv_back_verts_ids[q]  = recv_back_arr_ids;
-//
-//               }
-//       }
-//
-//       int vfor = 0;
-//       std::map<int,double* >::iterator it_f;
-//       for(it_f=recv_back_verts.begin();it_f!=recv_back_verts.end();it_f++)
-//       {
-//           int c  = 0;
-//           vfor=vfor+recv_back_Nverts[it_f->first];
-//
-//       }
-//       double* part_verts_arr = new double[3*(vloc_tmp+vfor)];
-//
-//
-//       int gvid=0;
-//       int lvid=vloc;
-//
-//       for(int m=0;m<vloc_tmp;m++)
-//       {
-//           gvid = vertIDs_on_rank[m];
-//
-//           part_verts_arr[m*3+0] = xcn->getVal(gvid-xcn_o,0);
-//           part_verts_arr[m*3+1] = xcn->getVal(gvid-xcn_o,1);
-//           part_verts_arr[m*3+2] = xcn->getVal(gvid-xcn_o,2);
-//           Vert V;
-//
-//           V.x = xcn->getVal(gvid-xcn_o,0);
-//           V.y = xcn->getVal(gvid-xcn_o,1);
-//           V.z = xcn->getVal(gvid-xcn_o,2);
-//
-//           LocalVerts.push_back(V);
-//           LocalVert2GlobalVert[lvid] = gvid;
-//           GlobalVert2LocalVert[gvid] = lvid;
-//           lvid++;
-//       }
-//
-//       int o = 3*vloc_tmp;
-//       int m = 0;
-//       for(it_f=recv_back_verts.begin();it_f!=recv_back_verts.end();it_f++)
-//       {
-//           int Nv = recv_back_Nverts[it_f->first];
-//
-//           for(int u=0;u<Nv;u++)
-//           {
-//               gvid = rank2req_vert[it_f->first][u];
-//
-//
-//               part_verts_arr[o+m*3+0] = it_f->second[u*3+0];
-//               part_verts_arr[o+m*3+1] = it_f->second[u*3+1];
-//               part_verts_arr[o+m*3+2] = it_f->second[u*3+2];
-//               Vert V;
-//
-//               V.x = it_f->second[u*3+0];
-//               V.y = it_f->second[u*3+1];
-//               V.z = it_f->second[u*3+2];
-//
-//               LocalVerts.push_back(V);
-//
-//               LocalVert2GlobalVert[lvid]=gvid;
-//               GlobalVert2LocalVert[gvid]=lvid;
-//
-//               m++;
-//               lvid++;
-//           }
-//       }
-//
-//       nLoc_Verts = LocalVerts.size();
-//    //std::cout << " " << rank << " LocalVerts.size() after " << LocalVerts.size() << std::endl;
-//
-//    //NlocElem = eloc;
-//    //std::cout << "eloc " << eloc << std::endl;
-//    // ================================== Faces on Rank =========================================
-//
-//    int lfid = floc;
-//    int gfid = 0;
-//    for(int m=0;m<floc_tmp;m++)
-//    {
-//        gfid = faceIDs_on_rank[m];
-//
-//        LocalFace2GlobalFace[lfid] = gfid;
-//        GlobalFace2LocalFace[gfid] = lfid;
-//        lfid++;
-//    }
-//
-//    o = U0Elem.size();
-//    int cnv = 0;
-//    int cnf = 0;
-//    int ofs = xcn_parstate->getOffset(rank);
-//    int nlo = xcn_parstate->getNloc(rank);
-//    int idsave = 0;
-//    //double rho_v;
-//    int loc_v;
-//    int glob_f;
-//    int loc_f;
-//    int glob_v;
-//    //std::cout << adj_verts.size() << " " << Nel_extra2 <<std::endl;
-//    std::vector<int> tmp_globv;
-//    std::vector<int> tmp_locv;
-//    std::vector<int> tmp_globf;
-//    std::vector<int> tmp_locf;
-//    for(int m=0;m<itel;m++)
-//    {
-//        el_id = adj_elements_vec[m];
-//        LocalElement2GlobalElement[eloc] = el_id;
-//        GlobalElement2LocalElement[el_id] = eloc;
-//        eloc++;
-//        //rho_v = adj_rhos[m];
-//
-//        //U0Elem.push_back(rho_v);
-//        ElemPart.push_back(el_id);
-////      U0Elem->setVal(m+o,0,rho_v);
-////      ElemPart->setVal(m+o,0,el_id);
-//
-//        for(int p=0;p<8;p++)
-//        {
-//            glob_v = adj_verts[cnv];
-//            loc_v  = GlobalVert2LocalVert[glob_v];
-//            idsave=glob_v;
-//            //LocalElem2GlobalVert->setVal(m+o,p,glob_v);
-//            //LocalElem2LocalVert->setVal(m+o,p,loc_v);
-//            tmp_globv.push_back(glob_v);
-//            tmp_locv.push_back(loc_v);
-//            globElem2globVerts[el_id].push_back(glob_v);
-//            globElem2locVerts[el_id].push_back(loc_v);
-//            //collect_var[loc_v].push_back(rho_v);
-//            cnv++;
-//            if(p<6)
-//            {
-//                glob_f = adj_faces[cnf];
-//                loc_f  = GlobalFace2LocalFace[glob_f];
-//                globElem2localFaces[el_id].push_back(loc_f);
-//                globElem2globFaces[el_id].push_back(glob_f);
-//                globFace2GlobalElements[glob_f].push_back(el_id);
-//                cnf++;
-//            }
-//        }
-//        LocalElem2GlobalVert.push_back(tmp_globv);
-//        LocalElem2LocalVert.push_back(tmp_locv);
-//        tmp_globv.clear();
-//        tmp_locv.clear();
-//    }
-//
-//    NlocElem = U0Elem.size();
-//
-////    std::map<int,std::vector<double> >::iterator it_rhos;
-////    double sum = 0;
-////    int c = 0;
-////
-////    for(it_rhos=collect_var.begin();it_rhos!=collect_var.end();it_rhos++)
-////    {
-////        sum = 0;
-////        for(int q = 0;q<it_rhos->second.size();q++)
-////        {
-////            sum = sum + it_rhos->second[q];
-////        }
-////        U0Vert->setVal(c,0,sum/it_rhos->second.size());
-////        c++;
-////    }
-//}
-
-
-
-std::map<int,double> Partition::CommunicateLocalDataUS3D(Array<double>* U, MPI_Comm comm)
-{
-    
-    int floc_tmp = 0;
-    int vloc_tmp = 0;
-    int q=0;
-    int i=0;
-    int size;
-    MPI_Comm_size(comm, &size);
-    // Get the rank of the process
-    int rank;
-    MPI_Comm_rank(comm, &rank);
-    //std::cout << xcn->getOffset(rank) << " " << xcn_pstate->getOffset(rank) << std::endl;
-    int ien_o = ien_pstate->getOffset(rank);
-    int el_id;
-    int p_id;
-    int v_id;
-    int f_id;
-    int r;
-    std::vector<int> faceIDs_on_rank;
-    std::vector<int> vertIDs_on_rank;
-    std::map<int,std::vector<int> > rank2req_Elems;
-    int* new_offsets = new int[size];
-    std::map<int,double> U_loc;
-    
-    for(int i=0;i<size;i++)
-    {
-        new_offsets[i] = ien_pstate->getOffsets()[i]-1;
-    }
-    
-    std::map<int,std::vector<int> > req_elem;
-    int itel = 0;
-    
-    std::vector<int> ee;
-
-    for(int i=0;i<Loc_Elem.size();i++)
-    {
-        int el_req = Loc_Elem[i];
-        
-        r = FindRank(new_offsets,size,el_req);
-        
-        if(r != rank)
-        {
-            rank2req_Elems[r].push_back(el_req);
-        }
-        else
-        {
-            U_loc[el_req]=U->getVal(el_req-ien_o,0);
-        }
-    }
-
-    ScheduleObj* iee_schedule = DoScheduling(rank2req_Elems,comm);
-
-    std::map<int,std::vector<int> >::iterator it;
-    std::map<int,std::vector<int> >  reqstd_E_IDs_per_rank;
-
-    for(q=0;q<size;q++)
-    {
-        if(rank==q)
-        {
-            int i=0;
-            for (it = rank2req_Elems.begin(); it != rank2req_Elems.end(); it++)
-            {
-                int n_req           = it->second.size();
-                int dest            = it->first;
-
-                MPI_Send(&n_req, 1, MPI_INT, dest, 9876*7654+20*dest, comm);
-                MPI_Send(&it->second[0], n_req, MPI_INT, dest, 9876*2*7654+dest*40, comm);
-
-                i++;
-            }
-        }
-        else if (iee_schedule->SendFromRank2Rank[q].find( rank ) != iee_schedule->SendFromRank2Rank[q].end())
-        {
-            int n_reqstd_ids;
-            MPI_Recv(&n_reqstd_ids, 1, MPI_INT, q, 9876*7654+20*rank, comm, MPI_STATUS_IGNORE);
-
-            std::vector<int> recv_reqstd_ids(n_reqstd_ids);
-            
-            MPI_Recv(&recv_reqstd_ids[0], n_reqstd_ids, MPI_INT, q, 9876*2*7654+rank*40, comm, MPI_STATUS_IGNORE);
-            
-            reqstd_E_IDs_per_rank[q] = recv_reqstd_ids;
-        }
-    }
-    
-    std::map<int,std::vector<int> >::iterator ite;
-    std::map<int,std::vector<int> > send_ghost_IDs;
-    std::map<int,std::vector<int> > send_IEE_Elem_IDs;
-    std::vector<int> TotIEE_El_IDs;
-
-    int TotNelem_IEE_recv   = 0;
-    int eIEE_id             = 0;
-    
-    int offset_xcn = 0;
-    int nloc_xcn = 0;
-    std::map<int,int > recv_back_Niee;
-    std::map<int,int* > recv_back_el_ids;
-    std::map<int,double* > recv_back_iee;
-    int n_recv_back;
-
-    for(q=0;q<size;q++)
-    {
-        if(rank == q)
-        {
-            for (it = reqstd_E_IDs_per_rank.begin(); it != reqstd_E_IDs_per_rank.end(); it++)
-            {
-                int ne_send             = it->second.size();
-                double* iee_send        = new double[ne_send];
-                int offset_iee          = ien_pstate->getOffset(rank);
-                
-                for(int u=0;u<it->second.size();u++)
-                {
-                    iee_send[u]=U->getVal(it->second[u]-offset_iee,0);
-                
-                }
-
-                int dest = it->first;
-                MPI_Send(&ne_send, 1, MPI_INT, dest, 9876*6666+1000*dest, comm);
-                
-                MPI_Send(&it->second[0], ne_send, MPI_INT, dest, 9876*7777+dest*888, comm);
-
-                MPI_Send(&iee_send[0], ne_send, MPI_DOUBLE, dest, 9876*6666+dest*8888, comm);
-
-                delete[] iee_send;
-            }
-        }
-        if(iee_schedule->RecvRankFromRank[q].find( rank ) != iee_schedule->RecvRankFromRank[q].end())
-         {
-            MPI_Recv(&n_recv_back, 1, MPI_INT, q, 9876*6666+1000*rank, comm, MPI_STATUS_IGNORE);
-             
-            double* recv_back_iee_arr   = new double[n_recv_back*6];
-            int*    recv_back_ids_arr   = new int[n_recv_back];
-            MPI_Recv(&recv_back_ids_arr[0], n_recv_back, MPI_INT, q, 9876*7777+rank*888, comm, MPI_STATUS_IGNORE);
-            MPI_Recv(&recv_back_iee_arr[0], n_recv_back, MPI_DOUBLE, q, 9876*6666+rank*8888, comm, MPI_STATUS_IGNORE);
-
-            recv_back_Niee[q]     = n_recv_back;
-            recv_back_el_ids[q]   = recv_back_ids_arr;
-            recv_back_iee[q]      = recv_back_iee_arr;
-
-         }
-    }
-//
-    std::map<int,int >::iterator iter;
-    int ntotal=0;
-    ee.clear();
-    for(iter=recv_back_Niee.begin();iter!=recv_back_Niee.end();iter++)
-    {
-        int L = iter->second;
-        
-        for(int s=0;s<L;s++)
-        {
-            el_id = recv_back_el_ids[iter->first][s];
-            U_loc[el_id] = recv_back_iee[iter->first][s];
-        }
-    }
-    delete[] new_offsets;
-    return U_loc;
-}
-
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
 std::map<int,double> Partition::CommunicateAdjacentDataUS3D(std::map<int,double> U, MPI_Comm comm)
@@ -2154,6 +1460,12 @@ std::map<int,double> Partition::CommunicateAdjacentDataUS3D(std::map<int,double>
 }
 
 
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+
 std::vector<double> Partition::PartitionAuxilaryData(Array<double>* U, MPI_Comm comm)
 {
     
@@ -2296,6 +1608,13 @@ std::vector<double> Partition::PartitionAuxilaryData(Array<double>* U, MPI_Comm 
     
     return UauxElem;
 }
+
+
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
 
 i_part_map* Partition::getElement2EntityPerPartition(ParArray<int>* iee, ParallelState* ien_pstate, MPI_Comm comm)
 {
@@ -2653,7 +1972,6 @@ i_part_map* Partition::getFace2EntityPerPartition(ParArray<int>* ife, ParallelSt
          }
     }
 //
-    
     std::map<int,int >::iterator iter;
     int ntotal=0;
     ee.clear();
@@ -2674,7 +1992,6 @@ i_part_map* Partition::getFace2EntityPerPartition(ParArray<int>* ife, ParallelSt
         ntotal=ntotal+L;
     }
     
-//
 //    for(int i=0;i<ife_loc.size();i++)
 //    {
 //        for(int j=0;j<ife_loc[0].size();j++)
@@ -2845,11 +2162,6 @@ i_part_map* Partition::getIFREFpartmap()
 {
     return if_ref_part_map;
 }
-//double Partition::getUauxatGlobalElem(int gelem)
-//{
-//    int elem = GlobalElement2LocalElement[gelem];
-//    return UauxElem[elem];
-//}
 ParallelState* Partition::getXcnParallelState()
 {
     return xcn_pstate;
