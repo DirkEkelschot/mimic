@@ -294,159 +294,15 @@ void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief,
         }
     }
     
-    int nRank_reqElems = elms_to_send_to_ranks.size();
     
-    int* reduced_nRank_reqElems = new int[size];
-    int* arr_nRank_reqElems = new int[size];
+    ScheduleObj* part_schedule_elem = DoScheduling(elms_to_send_to_ranks,comm);
     
-    for(i=0;i<size;i++)
-    {
-        reduced_nRank_reqElems[i] = 0;
-        
-        if(i==rank)
-        {
-            arr_nRank_reqElems[i] = nRank_reqElems+1;
-        }
-        else
-        {
-            arr_nRank_reqElems[i] = 0;
-        }
-    }
-
-    MPI_Allreduce(arr_nRank_reqElems, reduced_nRank_reqElems, size, MPI_INT, MPI_SUM, comm);
+    std::map<int,std::vector<int> >  part_tot_recv_elIDs_map;
+    std::map<int,std::vector<double> >  part_tot_recv_varias_map;
     
-    int* reduced_nRank_reqElems_offset = new int[size];
-    int offset = 0;
-    for(i=0;i<size;i++)
-    {
-        reduced_nRank_reqElems_offset[i] = offset;
-        offset = offset+reduced_nRank_reqElems[i];
-    }
-    int nTot_reqElements = 0;
-    int nRank_reqElems_p_one = nRank_reqElems+1; // This size is added by one since we add the rank number to the array.
-    
-    MPI_Allreduce(&nRank_reqElems_p_one, &nTot_reqElements, 1, MPI_INT, MPI_SUM, comm);
-
-    int* sendFromRank2Rank_elem_Global    = new int[nTot_reqElements];
-    int* sendNelemFromRank2Rank_Global    = new int[nTot_reqElements];
-    
-    for(i=0;i<nTot_reqElements;i++)
-    {
-        sendFromRank2Rank_elem_Global[i]  = 0;
-        sendNelemFromRank2Rank_Global[i]  = 0;
-    }
-    
-    
-    int* send2Rank_fromRank_e       = new int[nRank_reqElems+1];
-    int* sendNelem2Rank_from_rank   = new int[nRank_reqElems+1];
-    
-    send2Rank_fromRank_e[0]         = rank;
-    sendNelem2Rank_from_rank[0]     = -1;
-    int t = 1;
-    
+    std::map<int,std::vector<int> >  TotRecvElement_IDs_v_map;
+    std::map<int,std::vector<int> >  TotRecvElement_IDs_f_map;
     std::map<int,std::vector<int> >::iterator it;
-    for(it=elms_to_send_to_ranks.begin();it!=elms_to_send_to_ranks.end();it++)
-    {
-        send2Rank_fromRank_e[t]          = it->first;
-        sendNelem2Rank_from_rank[t]      = it->second.size();
-        t++;
-    }
-
-    MPI_Allgatherv(&send2Rank_fromRank_e[0],
-                   nRank_reqElems_p_one, MPI_INT,
-                   &sendFromRank2Rank_elem_Global[0],
-                   reduced_nRank_reqElems,
-                   reduced_nRank_reqElems_offset,
-                   MPI_INT,comm);
-    
-    MPI_Allgatherv(&sendNelem2Rank_from_rank[0],
-                   nRank_reqElems_p_one, MPI_INT,
-                   &sendNelemFromRank2Rank_Global[0],
-                   reduced_nRank_reqElems,
-                   reduced_nRank_reqElems_offset,
-                   MPI_INT,comm);
-    
-    
-    std::map<int, std::set<int> > sendFromRank2Rank_e;
-    std::map<int, std::vector<int> > recvRankFromRank_map_e;
-    std::map<int, std::vector<int> > recvRankFromRank_map_Nelem_e;
-    
-    //=========================================
-    for(i=0;i<size;i++)
-    {
-        int of = reduced_nRank_reqElems_offset[i];
-        int nl = reduced_nRank_reqElems[i];
-        for(int j=of+1;j<of+nl;j++)
-        {
-            sendFromRank2Rank_e[sendFromRank2Rank_elem_Global[of]].insert(sendFromRank2Rank_elem_Global[j]);
-            recvRankFromRank_map_e[sendFromRank2Rank_elem_Global[j]].push_back(sendFromRank2Rank_elem_Global[of]);
-            recvRankFromRank_map_Nelem_e[sendFromRank2Rank_elem_Global[j]].push_back(sendNelemFromRank2Rank_Global[j]);
-        }
-    }
-
-    
-    std::map<int,std::map<int,int> > RecvAlloc_map_e;
-    for(it=recvRankFromRank_map_e.begin();it!=recvRankFromRank_map_e.end();it++)
-    {
-        for(int k=0;k<it->second.size();k++)
-        {
-            RecvAlloc_map_e[it->first][recvRankFromRank_map_e[it->first][k]] = recvRankFromRank_map_Nelem_e[it->first][k];
-        }
-    }
-    
-    //============================================================================
-    //================ Print the receiving schedule for now;======================
-    //============================================================================
-//    if(rank == 0)
-//    {
-//        for(it=recvRankFromRank_map_e.begin();it!=recvRankFromRank_map_e.end();it++)
-//        {
-//            std::cout << "rank " << it->first << " receives an array of size ";
-//            for(int k=0;k<it->second.size();k++)
-//            {
-//                std::cout << recvRankFromRank_map_Nelem_e[it->first][k] << " from " << recvRankFromRank_map_e[it->first][k] << " ";
-//            }
-//            std::cout << std::endl;
-//        }
-//    }
-    //============================================================================
-    //================ Print the receiving schedule for now;======================
-    //============================================================================
-    
-    
-    std::map<int,int> alloc = RecvAlloc_map_e[rank];
-    
-    int* recv_offset = new int[RecvAlloc_map_e.size()+1];
-    recv_offset[0]   = 0;
-    int* recv_loc    = new int[RecvAlloc_map_e.size()];;
-    int TotNelem_recv    = 0;
-    
-    std::map< int, int> RecvAlloc_offset_map_e;
-    std::map< int, int>::iterator it_loc;
-    i = 0;
-    for(it_loc=alloc.begin();it_loc!=alloc.end();it_loc++)
-    {
-        recv_loc[i]      = it_loc->second;
-        recv_offset[i+1] = recv_offset[i]+recv_loc[i];
-        TotNelem_recv    = TotNelem_recv+it_loc->second;
-        RecvAlloc_offset_map_e[it_loc->first]=recv_offset[i];
-
-        i++;
-    }
-    
-    //int* TotRecvElement_IDs       = new int[TotNelem_recv];
-    //double* TotRecvElement_rhos   = new double[TotNelem_recv];
-
-    int* TotRecvElement_IDs_v     = new int[TotNelem_recv*8];
-    int* TotRecvElement_IDs_f     = new int[TotNelem_recv*6];
-    
-//    for(int i =0;i<TotNelem_recv;i++)
-//    {
-//        TotRecvElement_IDs[i] = 0;
-//        //TotRecvElement_rhos[i] = 0;
-//    }
-    
-
     int n_req_recv;
     
     int n_req_recv_v;
@@ -473,39 +329,61 @@ void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief,
                 i++;
             }
         }
-        else if (sendFromRank2Rank_e[q].find( rank ) != sendFromRank2Rank_e[q].end())
+        else if (part_schedule_elem->SendFromRank2Rank[q].find( rank ) != part_schedule_elem->SendFromRank2Rank[q].end())
         {
             MPI_Recv(&n_req_recv, 1, MPI_INT, q, rank, comm, MPI_STATUS_IGNORE);
-            //std::vector<int> part_recv_id(n_req_recv);
-            std::vector<int> part_recv_id(n_req_recv);
-            std::vector<double> part_recv_varia(n_req_recv);
-
-            //MPI_Recv(&TotRecvElement_IDs[RecvAlloc_offset_map_e[q]], n_req_recv, MPI_INT, q, 100+rank*2, comm, MPI_STATUS_IGNORE);
             
-            MPI_Recv(&part_recv_id[0], n_req_recv, MPI_INT, q, rank*66666+5555, comm, MPI_STATUS_IGNORE);
+            std::vector<double> part_recv_varia(n_req_recv);
+            std::vector<int>    part_recv_el_id(n_req_recv);
+            std::vector<int>    part_recv_vrt_id(n_req_recv*8);
+            std::vector<int>    part_recv_face_id(n_req_recv*6);
+            
+            
+            MPI_Recv(&part_recv_el_id[0], n_req_recv, MPI_INT, q, rank*66666+5555, comm, MPI_STATUS_IGNORE);
             MPI_Recv(&part_recv_varia[0], n_req_recv, MPI_DOUBLE, q, 20000+100+rank*2, comm, MPI_STATUS_IGNORE);
             
-            //MPI_Recv(&n_req_recv_v, 1, MPI_INT, q, 9000+rank, comm, MPI_STATUS_IGNORE);
+            MPI_Recv(&part_recv_vrt_id[0], n_req_recv*8, MPI_INT, q, 9000+100+rank*2, comm, MPI_STATUS_IGNORE);
+            MPI_Recv(&part_recv_face_id[0], n_req_recv*6, MPI_INT, q, 229000+100+rank*2, comm, MPI_STATUS_IGNORE);
             
-            MPI_Recv(&TotRecvElement_IDs_v[RecvAlloc_offset_map_e[q]*8], n_req_recv*8, MPI_INT, q, 9000+100+rank*2, comm, MPI_STATUS_IGNORE);
-            MPI_Recv(&TotRecvElement_IDs_f[RecvAlloc_offset_map_e[q]*6], n_req_recv*6, MPI_INT, q, 229000+100+rank*2, comm, MPI_STATUS_IGNORE);
             
-            part_tot_recv_elIDs[q] = part_recv_id;
-            part_tot_recv_varias[q] = part_recv_varia;
+            TotRecvElement_IDs_v_map[q] = part_recv_vrt_id;
+            TotRecvElement_IDs_f_map[q] = part_recv_face_id;
+            part_tot_recv_elIDs_map[q]  = part_recv_el_id;
+            part_tot_recv_varias_map[q] = part_recv_varia;
             
         }
     }
     
     std::vector<int> TotRecvElement_IDs;
+    std::vector<int> TotRecvVerts_IDs;
+    std::vector<int> TotRecvFaces_IDs;
     std::vector<double> TotRecvElement_varia;
     std::map<int,std::vector<int> >::iterator totrecv;
-    
-    for(totrecv=part_tot_recv_elIDs.begin();totrecv!=part_tot_recv_elIDs.end();totrecv++)
+    //unpack the element IDs and their corresponding variable values.
+    int TotNelem_recv = 0;
+    for(totrecv=part_tot_recv_elIDs_map.begin();totrecv!=part_tot_recv_elIDs_map.end();totrecv++)
     {
         for(int r=0;r<totrecv->second.size();r++)
         {
-            TotRecvElement_IDs.push_back(part_tot_recv_elIDs[totrecv->first][r]);
-            TotRecvElement_varia.push_back(part_tot_recv_varias[totrecv->first][r]);
+            TotRecvElement_IDs.push_back(part_tot_recv_elIDs_map[totrecv->first][r]);
+            TotRecvElement_varia.push_back(part_tot_recv_varias_map[totrecv->first][r]);
+        }
+        TotNelem_recv = TotNelem_recv + totrecv->second.size();
+    }
+    //unpack the vertex IDs and their corresponding variable values.
+    for(totrecv=TotRecvElement_IDs_v_map.begin();totrecv!=TotRecvElement_IDs_v_map.end();totrecv++)
+    {
+        for(int r=0;r<totrecv->second.size();r++)
+        {
+            TotRecvVerts_IDs.push_back(TotRecvElement_IDs_v_map[totrecv->first][r]);
+        }
+    }
+    //unpack the face IDs and their corresponding variable values.
+    for(totrecv=TotRecvElement_IDs_f_map.begin();totrecv!=TotRecvElement_IDs_f_map.end();totrecv++)
+    {
+        for(int r=0;r<totrecv->second.size();r++)
+        {
+            TotRecvFaces_IDs.push_back(TotRecvElement_IDs_f_map[totrecv->first][r]);
         }
     }
     
@@ -518,7 +396,7 @@ void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief,
         
         for(int k=0;k<8;k++)
         {
-            int v_id_n = TotRecvElement_IDs_v[cnt_v];
+            int v_id_n = TotRecvVerts_IDs[cnt_v];
             //elem.push_back(v_id_n);
             r = FindRank(new_offsets,size,v_id_n);
             
@@ -542,7 +420,7 @@ void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief,
             
             if(k<6)
             {
-                int f_id_n = TotRecvElement_IDs_f[cnt_f];
+                int f_id_n = TotRecvFaces_IDs[cnt_f];
                 if(unique_faceIDs_on_rank_set.find( f_id ) == unique_faceIDs_on_rank_set.end()) // add the required unique vertex for current rank.
                 {
                     unique_faceIDs_on_rank_set.insert(f_id);
@@ -820,7 +698,7 @@ void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief,
 
         for(int p=0;p<8;p++)
         {
-            glob_v = TotRecvElement_IDs_v[cnv];
+            glob_v = TotRecvVerts_IDs[cnv];
             loc_v = GlobalVert2LocalVert[glob_v];
             //LocalElem2GlobalVert->setVal(m+o,p,glob_v);
             //LocalElem2LocalVert->setVal(m+o,p,loc_v);
@@ -832,7 +710,7 @@ void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief,
             cnv++;
             if(p<6)
             {
-                glob_f = TotRecvElement_IDs_f[cnf];
+                glob_f = TotRecvFaces_IDs[cnf];
                 loc_f  = GlobalFace2LocalFace[glob_f];
                 globElem2localFaces[el_id].push_back(loc_f);
                 globElem2globFaces[el_id].push_back(glob_f);
