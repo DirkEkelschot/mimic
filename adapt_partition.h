@@ -20,11 +20,12 @@ class Partition {
     void DetermineAdjacentElement2ProcMapUS3D(ParArray<int>* ien, std::map<int,std::vector<int> > iee_vec, ParArray<int>* part, ParallelState* ien_parstate, ParArray<double>* xcn, ParallelState* xcn_parstate, Array<double>* U, MPI_Comm comm);
     std::vector<double> PartitionAuxilaryData(Array<double>* U, MPI_Comm comm);
     std::map<int,double> CommunicateLocalDataUS3D(Array<double>* U, MPI_Comm comm);
-    std::map<int,double> CommunicateAdjacentDataUS3D(Array<double>* U, MPI_Comm comm);
+    std::map<int,double> CommunicateAdjacentDataUS3D(std::map<int,double> U, MPI_Comm comm);
     
     i_part_map* getElement2EntityPerPartition(ParArray<int>* iee, ParallelState* ien_pstate, MPI_Comm comm);
     i_part_map* getFace2EntityPerPartition(ParArray<int>* ife, ParallelState* ife_pstate, MPI_Comm comm);
     std::vector<int> getLocElem();
+    std::vector<double> getLocElemVaria();
     int getnLoc_Elem();
     std::vector<int> getLocAndAdjElem();
     int getnLocAndAdj_Elem();
@@ -78,15 +79,19 @@ class Partition {
    private:
       
       std::vector<int> Loc_Elem;
+      std::vector<double> Loc_Elem_Varia;
       std::vector<int> LocAndAdj_Elem;
+      std::vector<int> LocAndAdj_Elem_Varia;
       int nloc;
       int eloc;
       int vloc;
       int floc;
       int* xadj;
       int* adjcny;
+    
       std::vector<int> loc_elem;
-      std::vector<double> loc_rho;
+      std::vector<double> loc_varia;
+    
       int nLoc_Elem;
       int nLocAndAdj_Elem;
       int nLoc_Verts;
@@ -131,7 +136,8 @@ class Partition {
       ScheduleObj* part_schedule;
       std::map<int,std::vector<int> > elms_to_send_to_ranks;
       std::map<int,std::vector<int> > part_tot_recv_elIDs;
-      std::map<int,std::vector<int> >  reqstd_adj_ids_per_rank;
+      std::map<int,std::vector<double> > part_tot_recv_varias;
+      std::map<int,std::vector<int> > reqstd_adj_ids_per_rank;
       
       i_part_map* if_ref_part_map;
       i_part_map* ifn_part_map;

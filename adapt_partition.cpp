@@ -161,11 +161,9 @@ void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief,
     Vert V;
     std::vector<Vert> part_verts;
     std::vector<std::vector<int> > part_elem2verts;
-
-
     std::map<int,std::vector<int> > vertIDs_to_send_to_ranks;
     std::map<int,std::vector<int> > faceIDs_to_send_to_ranks;
-    //std::map<int,std::vector<double> > rho_to_send_to_ranks;
+    std::map<int,std::vector<double> > varia_to_send_to_ranks;
 
     
     std::set<int> u_verts_part_set;
@@ -187,7 +185,7 @@ void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief,
     int xcn_o = xcn->getOffset(rank);
     
     int ien_o = part->getOffset(rank);
-    //double rho = 0.0;
+    double varia = 0.0;
     int not_on_rank=0;
     int on_rank = 0;
     std::set<int> requested_elements;
@@ -207,12 +205,12 @@ void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief,
     {
         p_id  = part->getVal(i,0);
         el_id = part->getOffset(rank)+i;
-        //rho   = U->getVal(i,0);
+        varia   = U->getVal(i,0);
         //std::cout << "rho = " << rho << std::endl;
         if(p_id!=rank) // If element is not on this rank and needs to be send to other rank (p_id), add it to rank to element map.
         {
             elms_to_send_to_ranks[p_id].push_back(el_id); // rank to element map.
-            //rho_to_send_to_ranks[p_id].push_back(rho);
+            varia_to_send_to_ranks[p_id].push_back(varia);
             
             //====================Hexes=======================
             for(int k=0;k<8;k++)//This works for hexes.
@@ -288,7 +286,7 @@ void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief,
                 }
             }
             loc_elem.push_back(el_id);
-            //loc_rho.push_back(rho);
+            loc_varia.push_back(varia);
             elem_set.insert(el_id);
             loc_elem_set.insert(el_id);
             
@@ -467,7 +465,7 @@ void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief,
                 MPI_Send(&n_req, 1, MPI_INT, dest, dest, comm);
                 //MPI_Send(&it->second[0], n_req, MPI_INT, dest, 100+dest*2, comm);
                 MPI_Send(&it->second[0], n_req, MPI_INT, dest, dest*66666+5555, comm);
-                //MPI_Send(&rho_to_send_to_ranks[it->first][0], n_req, MPI_DOUBLE, dest, 20000+100+dest*2, comm);
+                MPI_Send(&varia_to_send_to_ranks[it->first][0], n_req, MPI_DOUBLE, dest, 20000+100+dest*2, comm);
                 
                 //MPI_Send(&n_req_v, 1, MPI_INT, dest, 9000+dest, comm);
                 MPI_Send(&vertIDs_to_send_to_ranks[it->first][0], n_req_v, MPI_INT, dest, 9000+100+dest*2, comm);
@@ -480,11 +478,12 @@ void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief,
             MPI_Recv(&n_req_recv, 1, MPI_INT, q, rank, comm, MPI_STATUS_IGNORE);
             //std::vector<int> part_recv_id(n_req_recv);
             std::vector<int> part_recv_id(n_req_recv);
-            
+            std::vector<double> part_recv_varia(n_req_recv);
+
             //MPI_Recv(&TotRecvElement_IDs[RecvAlloc_offset_map_e[q]], n_req_recv, MPI_INT, q, 100+rank*2, comm, MPI_STATUS_IGNORE);
             
             MPI_Recv(&part_recv_id[0], n_req_recv, MPI_INT, q, rank*66666+5555, comm, MPI_STATUS_IGNORE);
-            //MPI_Recv(&TotRecvElement_rhos[RecvAlloc_offset_map_e[q]], n_req_recv, MPI_DOUBLE, q, 20000+100+rank*2, comm, MPI_STATUS_IGNORE);
+            MPI_Recv(&part_recv_varia[0], n_req_recv, MPI_DOUBLE, q, 20000+100+rank*2, comm, MPI_STATUS_IGNORE);
             
             //MPI_Recv(&n_req_recv_v, 1, MPI_INT, q, 9000+rank, comm, MPI_STATUS_IGNORE);
             
@@ -492,11 +491,13 @@ void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief,
             MPI_Recv(&TotRecvElement_IDs_f[RecvAlloc_offset_map_e[q]*6], n_req_recv*6, MPI_INT, q, 229000+100+rank*2, comm, MPI_STATUS_IGNORE);
             
             part_tot_recv_elIDs[q] = part_recv_id;
+            part_tot_recv_varias[q] = part_recv_varia;
             
         }
     }
     
     std::vector<int> TotRecvElement_IDs;
+    std::vector<double> TotRecvElement_varia;
     std::map<int,std::vector<int> >::iterator totrecv;
     
     for(totrecv=part_tot_recv_elIDs.begin();totrecv!=part_tot_recv_elIDs.end();totrecv++)
@@ -504,6 +505,7 @@ void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief,
         for(int r=0;r<totrecv->second.size();r++)
         {
             TotRecvElement_IDs.push_back(part_tot_recv_elIDs[totrecv->first][r]);
+            TotRecvElement_varia.push_back(part_tot_recv_varias[totrecv->first][r]);
         }
     }
     
@@ -707,7 +709,6 @@ void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief,
         {
             gvid = rank2req_vert[it_f->first][u];
             
-            
             part_verts_arr[o+m*3+0] = it_f->second[u*3+0];
             part_verts_arr[o+m*3+1] = it_f->second[u*3+1];
             part_verts_arr[o+m*3+2] = it_f->second[u*3+2];
@@ -755,18 +756,20 @@ void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief,
     int loc_v  = 0;
     int glob_f = 0;
     int loc_f  = 0;
-    //double rho_v = 0;
+    double varia_v = 0.0;
     
     std::vector<int> tmp_globv;
     std::vector<int> tmp_locv;
     
     for(m=0;m<loc_elem.size();m++)
     {
-        el_id = loc_elem[m];
-        //rho_v = loc_rho[m];
-        //U0Elem.push_back(rho_v);
+        el_id   = loc_elem[m];
+        varia_v = loc_varia[m];
+        
         Loc_Elem.push_back(el_id);
         LocAndAdj_Elem.push_back(el_id);
+        Loc_Elem_Varia.push_back(varia_v);
+        LocAndAdj_Elem_Varia.push_back(varia_v);
         //U0Elem->setVal(m,0,rho_v);
         //ElemPart->setVal(m,0,el_id);
         LocalElement2GlobalElement[eloc] = el_id;
@@ -809,12 +812,11 @@ void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief,
         LocalElement2GlobalElement[eloc] = el_id;
         GlobalElement2LocalElement[el_id] = eloc;
         eloc++;
-        //rho_v = TotRecvElement_rhos[m];
+        varia_v = TotRecvElement_varia[m];
         Loc_Elem.push_back(el_id);
-        //U0Elem.push_back(rho_v);
         LocAndAdj_Elem.push_back(el_id);
-        //U0Elem->setVal(m+o,0,rho_v);
-        //ElemPart->setVal(m+o,0,el_id);
+        Loc_Elem_Varia.push_back(varia_v);
+        LocAndAdj_Elem_Varia.push_back(varia_v);
 
         for(int p=0;p<8;p++)
         {
@@ -896,10 +898,7 @@ void Partition::DetermineAdjacentElement2ProcMapUS3D(ParArray<int>* ien, std::ma
         for(int j=0;j<6;j++)
         {
             int adjEl_id = iee_vec[elId][j];
-            //int adjEl_id  = adjcny[j];
-            //std::cout << adjEl_id << " ";
             
-            //p_id = FindRank(new_offsets2,size,adjEl_id);
             if((elem_set.find(adjEl_id)==elem_set.end()) && adjEl_id<Nel)
             {
                 p_id = part_global->getVal(adjEl_id,0);
@@ -912,7 +911,6 @@ void Partition::DetermineAdjacentElement2ProcMapUS3D(ParArray<int>* ien, std::ma
                 }
             }
         }
-        //std::cout << std::endl;
     }
     
     adj_schedule = DoScheduling(req_elem,comm);
@@ -954,11 +952,7 @@ void Partition::DetermineAdjacentElement2ProcMapUS3D(ParArray<int>* ien, std::ma
     std::map<int,std::vector<int> > send_adj_faces_IDs;
     int TotNelem_adj_recv = 0;
     std::vector<int> TotAdj_El_IDs;
-    //std::map<int,std::vector<double> > send_adj_rhos;
-    //std::vector<double> TotAdj_Rhos;
     int adj_id;
-
-    
 
     int lelem = 0;
 
@@ -989,9 +983,6 @@ void Partition::DetermineAdjacentElement2ProcMapUS3D(ParArray<int>* ien, std::ma
         TotNelem_adj_recv = TotNelem_adj_recv + itv->second.size();
     }
     
-    
-    //std::cout << "itel = " << itel << " " << TotNelem_adj_recv << " " << TotAdj_El_IDs.size() << std::endl;
-
     int offset_adj_xcn = 0;
     int nloc_adj_xcn = 0;
     std::map<int,int  > recv_adj_back_Nverts;
@@ -1338,6 +1329,7 @@ void Partition::DetermineAdjacentElement2ProcMapUS3D(ParArray<int>* ien, std::ma
     std::vector<int> tmp_locv;
     std::vector<int> tmp_globf;
     std::vector<int> tmp_locf;
+    double varia_v = 0.0;
     for(int m=0;m<itel;m++)
     {
         el_id = adj_elements_vec[m];
@@ -1348,6 +1340,7 @@ void Partition::DetermineAdjacentElement2ProcMapUS3D(ParArray<int>* ien, std::ma
 
         //U0Elem.push_back(rho_v);
         LocAndAdj_Elem.push_back(el_id);
+        //LocAndAdj_Elem_Varia.push_back(varia_v);
 //      U0Elem->setVal(m+o,0,rho_v);
 //      ElemPart->setVal(m+o,0,el_id);
 
@@ -2116,7 +2109,7 @@ std::map<int,double> Partition::CommunicateLocalDataUS3D(Array<double>* U, MPI_C
 
 
 
-std::map<int,double> Partition::CommunicateAdjacentDataUS3D(Array<double>* U, MPI_Comm comm)
+std::map<int,double> Partition::CommunicateAdjacentDataUS3D(std::map<int,double> U, MPI_Comm comm)
 {
     
     int floc_tmp = 0;
@@ -2157,15 +2150,15 @@ std::map<int,double> Partition::CommunicateAdjacentDataUS3D(Array<double>* U, MP
     {
         int el_req = LocAndAdj_Elem[i];
         
-        r = FindRank(new_offsets,size,el_req);
-        
+        r = part_global->getVal(el_req,0);
+
         if(r != rank)
         {
             rank2req_Elems[r].push_back(el_req);
         }
         else
         {
-            U_loc[el_req]=U->getVal(el_req-ien_o,0);
+            U_loc[el_req]=U[el_req];
         }
     }
 
@@ -2234,8 +2227,7 @@ std::map<int,double> Partition::CommunicateAdjacentDataUS3D(Array<double>* U, MP
                 
                 for(int u=0;u<it->second.size();u++)
                 {
-                    iee_send[u]=U->getVal(it->second[u]-offset_iee,0);
-                
+                    iee_send[u]=U[it->second[u]];
                 }
 
                 int dest = it->first;
@@ -2830,6 +2822,10 @@ i_part_map* Partition::getFace2EntityPerPartition(ParArray<int>* ife, ParallelSt
 std::vector<int> Partition::getLocElem()
 {
     return Loc_Elem;
+}
+std::vector<double> Partition::getLocElemVaria()
+{
+    return Loc_Elem_Varia;
 }
 std::vector<int> Partition::getLocAndAdjElem()
 {

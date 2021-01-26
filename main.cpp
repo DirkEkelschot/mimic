@@ -1,6 +1,5 @@
 #include "adapt_io.h"
 #include "adapt_recongrad.h"
-#include "adapt_recongrad2.h"
 #include "adapt_output.h"
 #include "adapt_geometry.h"
 #include "hex2tet.h"
@@ -83,7 +82,8 @@ void OutputAdapt_Grid()
             
             fid++;
         }
-        else{
+        else
+        {
             element2face[i-1].push_back(face2id[face1]);
             face2element[face2id[face1]].push_back(i-1);
         }
@@ -2474,7 +2474,21 @@ int main(int argc, char** argv) {
         {
         std::cout << "Timing partitioning: " << duration << std::endl;
         }
-        std::map<int,double> UauxNew = P->CommunicateAdjacentDataUS3D(Uivar,comm);
+        
+        std::vector<int> LocElem = P->getLocElem();
+        std::vector<double> Uvaria  = P->getLocElemVaria();
+        
+        std::map<int,double> Uvaria_map;
+        double UvariaV = 0.0;
+        for(int i=0;i<LocElem.size();i++)
+        {
+            int gid = LocElem[i];
+            UvariaV   = Uvaria[i];
+            Uvaria_map[gid] = UvariaV;
+        }
+        
+        std::map<int,double> UauxNew = P->CommunicateAdjacentDataUS3D(Uvaria_map,comm);
+
         int* bnd_map;
         int nBnd = 4;
 
@@ -2483,7 +2497,7 @@ int main(int argc, char** argv) {
             std::cout << "Started creating mesh topology object... " << std::endl;
         }
 
-        Mesh_Topology* meshTopo = new Mesh_Topology(P,UauxNew,comm);
+        Mesh_Topology* meshTopo = new Mesh_Topology(P,comm);
         
         if(world_rank == 0)
         {
@@ -2520,7 +2534,11 @@ int main(int argc, char** argv) {
         Array<double>* dUidxi = new Array<double>(dUdXi.size(),1);
         Array<double>* dUidyi = new Array<double>(dUdXi.size(),1);
         Array<double>* dUidzi = new Array<double>(dUdXi.size(),1);
-        std::cout << "dUdXi.size() " << dUdXi.size() << std::endl;
+        
+        std::map<int,double> dUidxi_map;
+        std::map<int,double> dUidyi_map;
+        std::map<int,double> dUidzi_map;
+        
         std::map<int,Array<double>* >::iterator grit;
         int i=0;
         for(grit=dUdXi.begin();grit!=dUdXi.end();grit++)
@@ -2529,10 +2547,14 @@ int main(int argc, char** argv) {
             dUidxi->setVal(i,0,grit->second->getVal(0,0));
             dUidyi->setVal(i,0,grit->second->getVal(1,0));
             dUidzi->setVal(i,0,grit->second->getVal(2,0));
+            dUidxi_map[grit->first]=grit->second->getVal(0,0);
+            dUidyi_map[grit->first]=grit->second->getVal(1,0);
+            dUidzi_map[grit->first]=grit->second->getVal(2,0);
+            
             i++;
         }
         
-//        std::map<int,double > dUdxauxNew  = P->CommunicateAdjacentDataUS3D(dUidxi,comm);
+        std::map<int,double > dUdxauxNew  = P->CommunicateAdjacentDataUS3D(dUidxi_map,comm);
 //        std::map<int,double > dUdyauxNew  = P->CommunicateAdjacentDataUS3D(dUidyi,comm);
 //        std::map<int,double > dUdzauxNew  = P->CommunicateAdjacentDataUS3D(dUidzi,comm);
         
@@ -2541,12 +2563,6 @@ int main(int argc, char** argv) {
         int nlElem = us3d->ien->getNrow();
         int nElem  = us3d->ien->getNglob();
         int nvg    = us3d->xcn->getNglob();
-        
-        //ParallelState* xcn_pstate = P->getXcnParallelState();
-        //ParallelState* ien_pstate = P->getIenParallelState();
-        
-        //std::map<int,int> gV2lV = P->getGlobalVert2LocalVert();
-        //Array<int>* part_Elids = P->getPart();
         
         std::vector<double> GuX_loc;
         std::vector<int> vids;
@@ -2609,16 +2625,6 @@ int main(int argc, char** argv) {
             offset = offset+red_G_nlocs[i];
         }
 
-//        if(world_rank == 0)
-//        {
-//            for(int i=0;i<world_size;i++)
-//            {
-//                std::cout << "admin " << red_G_nlocs[i] << " " << G_offsets[i] << " " << nEl_glob << std::endl;
-//            }
-//
-//        }
-        
-        //std::cout << "rank " << world_rank << " " << dUidxi->getNrow() << std::endl;
         MPI_Gatherv(&lE2gE->data[0],
                     lE2gE->getNrow(),
                     MPI_INT,

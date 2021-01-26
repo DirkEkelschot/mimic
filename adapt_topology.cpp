@@ -1,7 +1,7 @@
 #include "adapt_topology.h"
 #include "adapt_output.h"
 
-Mesh_Topology::Mesh_Topology(Partition* Pa, std::map<int,double> U, MPI_Comm comm)
+Mesh_Topology::Mesh_Topology(Partition* Pa, MPI_Comm comm)
 {
     int nlocElem, start, end, offset, nloc, np, loc_vid, size, rank, lid;
     int vf0, vf1, vf2, vf3, vf4, vf5, vf6, vf7, fid;

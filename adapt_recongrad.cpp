@@ -698,9 +698,14 @@ Array<double>* ComputedUdx_MGG(Partition* Pa, std::map<int,double> U, Mesh_Topol
     std::vector<int> Loc_Elem               = Pa->getLocElem();
     int nLoc_Elem                           = Loc_Elem.size();
     
+    std::map<int,double> gu_c_x_m;
+    std::map<int,double> gu_c_y_m;
+    std::map<int,double> gu_c_z_m;
+    
     Array<double>* gu_c_x      = new Array<double>(nLoc_Elem,1);
     Array<double>* gu_c_y      = new Array<double>(nLoc_Elem,1);
     Array<double>* gu_c_z      = new Array<double>(nLoc_Elem,1);
+    
     i_part_map* iee_vec = Pa->getIEEpartmap();
     Array<double>* gu_c_old    = new Array<double>(nLoc_Elem,3);
     
@@ -708,6 +713,12 @@ Array<double>* ComputedUdx_MGG(Partition* Pa, std::map<int,double> U, Mesh_Topol
     
     for(int i=0;i<nLoc_Elem;i++)
     {
+        int gid = Loc_Elem[i];
+        
+        gu_c_x_m[gid] = 0.0;
+        gu_c_y_m[gid] = 0.0;
+        gu_c_z_m[gid] = 0.0;
+        
         gu_c_x->setVal(i,0,0.0);
         gu_c_y->setVal(i,0,0.0);
         gu_c_z->setVal(i,0,0.0);
@@ -742,9 +753,9 @@ Array<double>* ComputedUdx_MGG(Partition* Pa, std::map<int,double> U, Mesh_Topol
         t = clock();
         //communicate grad phi!!!
         
-        std::map<int,double> dUdx_p_bnd = Pa->CommunicateAdjacentDataUS3D(gu_c_x, comm);
-        std::map<int,double> dUdy_p_bnd = Pa->CommunicateAdjacentDataUS3D(gu_c_y, comm);
-        std::map<int,double> dUdz_p_bnd = Pa->CommunicateAdjacentDataUS3D(gu_c_z, comm);
+        std::map<int,double> dUdx_p_bnd = Pa->CommunicateAdjacentDataUS3D(gu_c_x_m, comm);
+        std::map<int,double> dUdy_p_bnd = Pa->CommunicateAdjacentDataUS3D(gu_c_y_m, comm);
+        std::map<int,double> dUdz_p_bnd = Pa->CommunicateAdjacentDataUS3D(gu_c_z_m, comm);
 
         //std::map<int,std::vector<double> > dUdxi_p_bnd = Pa->CommunicateAdjacentDataUS3DNew(gu_c_old, comm);
                 
@@ -829,6 +840,10 @@ Array<double>* ComputedUdx_MGG(Partition* Pa, std::map<int,double> U, Mesh_Topol
              gu_c_x->setVal(i,0,1.0/Vol*sum_phix);
              gu_c_y->setVal(i,0,1.0/Vol*sum_phiy);
              gu_c_z->setVal(i,0,1.0/Vol*sum_phiz);
+             
+             gu_c_x_m[gEl] = 1.0/Vol*sum_phix;
+             gu_c_y_m[gEl] = 1.0/Vol*sum_phix;
+             gu_c_z_m[gEl] = 1.0/Vol*sum_phix;
              
              L2normx = L2normx+ sqrt((gu_c_x->getVal(i,0)-gu_c_old->getVal(i,0))*(gu_c_x->getVal(i,0)-gu_c_old->getVal(i,0)));
 
