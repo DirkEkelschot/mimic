@@ -12,7 +12,7 @@ Array<double>* ComputedUdx_LSQ_US3D_v1(Partition* P, ParallelState* pstate, ParA
 
 Array<double>* ComputedUdx_LSQ_US3D_v2(Partition* P, ParallelState* pstate, ParArray<int>* iee, Array<int>* ifn, Array<int>* ief, int Nel, std::vector<double> U, Array<double>* ghost, Array<double>* bound, MPI_Comm comm);
 
-Array<double>* ComputedUdx_LSQ_US3D_v3(Partition* Pa, std::map<int,double> U,Mesh_Topology* meshTopo, Array<double>* ghost, MPI_Comm comm);
+std::map<int,Array<double>* >  ComputedUdx_LSQ_US3D_v3(Partition* Pa, std::map<int,double> U,Mesh_Topology* meshTopo, Array<double>* ghost, MPI_Comm comm);
 
 Array<double>* ComputedUdx_MGG(Partition* Pa, std::map<int,double> U,
                                Mesh_Topology* meshTopo, Array<double>* ghost, MPI_Comm comm);

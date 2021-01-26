@@ -461,6 +461,7 @@ MMG_Mesh* GetOptimizedMMG3DMeshOnRoot(Partition* P, US3D* us3d, Array<double>* H
            lid = gV2lV[gid];
            int lrange = xcn_pstate->getOffsets()[world_rank];
            int hrange = xcn_pstate->getOffsets()[world_rank]+xcn_pstate->getNlocs()[world_rank];
+           
            if(vdone.find(lid)==vdone.end() && (lrange<gid<hrange))
            {
                vdone.insert(lid);
@@ -572,6 +573,8 @@ MMG_Mesh* GetOptimizedMMG3DMeshOnRoot(Partition* P, US3D* us3d, Array<double>* H
    
     Array<double>* Ug;
     Array<double>* Hg;
+    
+    
     if(world_rank == 0)
     {
         Ug = new Array<double>(us3d->xcn->getNglob(),nval);
@@ -2501,7 +2504,9 @@ int main(int argc, char** argv) {
         {
             std::cout << "Started reconstructing the gradient... " << std::endl;
         }
-        Array<double>* dUdXi = ComputedUdx_LSQ_US3D_v3(P,UauxNew,meshTopo,gB,comm);
+        
+        std::map<int,Array<double>* > dUdXi = ComputedUdx_LSQ_US3D_v3(P,UauxNew,meshTopo,gB,comm);
+        
         double Gtiming = ( std::clock() - t) / (double) CLOCKS_PER_SEC;
         double Gmax_time = 0.0;
         MPI_Allreduce(&Gtiming, &Gmax_time, 1, MPI_DOUBLE, MPI_MAX, comm);
@@ -2510,27 +2515,152 @@ int main(int argc, char** argv) {
             std::cout << "Finished reconstructing the gradient... " << std::endl;
             std::cout << "Timing gradient reconstruction... " << Gmax_time << std::endl;
         }
-        Array<double>* dUidxi = new Array<double>(dUdXi->getNrow(),1);
-        Array<double>* dUidyi = new Array<double>(dUdXi->getNrow(),1);
-        Array<double>* dUidzi = new Array<double>(dUdXi->getNrow(),1);
         
-        for(int i=0;i<dUdXi->getNrow();i++)
+        Array<int>* lE2gE     = new Array<int>(dUdXi.size(),1);
+        Array<double>* dUidxi = new Array<double>(dUdXi.size(),1);
+        Array<double>* dUidyi = new Array<double>(dUdXi.size(),1);
+        Array<double>* dUidzi = new Array<double>(dUdXi.size(),1);
+        std::cout << "dUdXi.size() " << dUdXi.size() << std::endl;
+        std::map<int,Array<double>* >::iterator grit;
+        int i=0;
+        for(grit=dUdXi.begin();grit!=dUdXi.end();grit++)
         {
-            if(std::isnan(dUdXi->getVal(i,0)) || std::isnan(dUdXi->getVal(i,1)) || std::isnan(dUdXi->getVal(i,2)))
-            {
-                std::cout << "nan" << std::endl;
-            }
-            dUidxi->setVal(i,0,dUdXi->getVal(i,0));
-            dUidyi->setVal(i,0,dUdXi->getVal(i,1));
-            dUidzi->setVal(i,0,dUdXi->getVal(i,2));
+            lE2gE->setVal(i,0,grit->first);
+            dUidxi->setVal(i,0,grit->second->getVal(0,0));
+            dUidyi->setVal(i,0,grit->second->getVal(1,0));
+            dUidzi->setVal(i,0,grit->second->getVal(2,0));
+            i++;
         }
-                
-        std::map<int,double > dUdxauxNew  = P->CommunicateAdjacentDataUS3D(dUidxi,comm);
-        std::map<int,double > dUdyauxNew  = P->CommunicateAdjacentDataUS3D(dUidyi,comm);
-        std::map<int,double > dUdzauxNew  = P->CommunicateAdjacentDataUS3D(dUidzi,comm);
         
-        delete dUdXi;
+//        std::map<int,double > dUdxauxNew  = P->CommunicateAdjacentDataUS3D(dUidxi,comm);
+//        std::map<int,double > dUdyauxNew  = P->CommunicateAdjacentDataUS3D(dUidyi,comm);
+//        std::map<int,double > dUdzauxNew  = P->CommunicateAdjacentDataUS3D(dUidzi,comm);
         
+        //std::cout << "making sure " << dUdxauxNew.size() << " " << dUdXi.size() << std::endl;
+        
+        int nlElem = us3d->ien->getNrow();
+        int nElem  = us3d->ien->getNglob();
+        int nvg    = us3d->xcn->getNglob();
+        
+        //ParallelState* xcn_pstate = P->getXcnParallelState();
+        //ParallelState* ien_pstate = P->getIenParallelState();
+        
+        //std::map<int,int> gV2lV = P->getGlobalVert2LocalVert();
+        //Array<int>* part_Elids = P->getPart();
+        
+        std::vector<double> GuX_loc;
+        std::vector<int> vids;
+        std::vector<double> Uids;
+        std::vector<double> Hids;
+        int gid,lid;
+        int nval = 6;
+        std::set<int> vdone;
+        
+//
+        Array<int>*  lE2gE_g;
+        Array<double>*  GuX_g;
+        Array<double>*  GuX_gr;
+        Array<double>*  GuY_g;
+        Array<double>*  GuZ_g;
+
+        int nEl_glob = us3d->ien->getNglob();
+
+        if(world_rank == 0)
+        {
+            lE2gE_g     = new Array<int>(nEl_glob,1);
+            GuX_g       = new Array<double>(nEl_glob,1);
+            GuX_gr      = new Array<double>(nEl_glob,1);
+            GuY_g       = new Array<double>(nEl_glob,1);
+            GuZ_g       = new Array<double>(nEl_glob,1);
+        }
+        else
+        {
+            lE2gE_g     = new Array<int>(1,1);
+            GuX_g       = new Array<double>(1,1);
+            GuX_gr      = new Array<double>(1,1);
+            GuY_g       = new Array<double>(1,1);
+            GuZ_g       = new Array<double>(1,1);
+        }
+
+        int* G_nlocs      = new int[world_size];
+        int* red_G_nlocs  = new int[world_size];
+        int* G_offsets    = new int[world_size];
+
+        for(i=0;i<world_size;i++)
+        {
+            G_nlocs[i] = 0;
+            
+            if(i==world_rank)
+            {
+                G_nlocs[i] = dUidxi->getNrow();
+            }
+            else
+            {
+                G_nlocs[i] = 0;
+            }
+        }
+
+        MPI_Allreduce(G_nlocs, red_G_nlocs, world_size, MPI_INT, MPI_SUM, comm);
+        
+        int offset = 0;
+        for(i=0;i<world_size;i++)
+        {
+            G_offsets[i] = offset;
+            offset = offset+red_G_nlocs[i];
+        }
+
+//        if(world_rank == 0)
+//        {
+//            for(int i=0;i<world_size;i++)
+//            {
+//                std::cout << "admin " << red_G_nlocs[i] << " " << G_offsets[i] << " " << nEl_glob << std::endl;
+//            }
+//
+//        }
+        
+        //std::cout << "rank " << world_rank << " " << dUidxi->getNrow() << std::endl;
+        MPI_Gatherv(&lE2gE->data[0],
+                    lE2gE->getNrow(),
+                    MPI_INT,
+                    &lE2gE_g->data[0],
+                    red_G_nlocs,
+                    G_offsets,
+                    MPI_INT, 0, comm);
+        
+        MPI_Gatherv(&dUidxi->data[0],
+                    dUidxi->getNrow(),
+                    MPI_DOUBLE,
+                    &GuX_g->data[0],
+                    red_G_nlocs,
+                    G_offsets,
+                    MPI_DOUBLE, 0, comm);
+        
+        
+        if(world_rank == 0)
+        {
+            string filename = "GuX.dat";
+            ofstream myfile;
+            myfile.open(filename);
+
+            for(int i=0;i<nEl_glob;i++)
+            {
+                int gid = lE2gE_g->getVal(i,0);
+                GuX_gr->setVal(gid,0,GuX_g->getVal(i,0));
+            }
+            
+            for(int i=0;i<nEl_glob;i++)
+            {
+                myfile << GuX_gr->getVal(i,0) << std::endl;
+            }
+
+            myfile.close();
+        }
+        
+        
+        /**/
+        
+        //delete dUdXi;
+        /*
         Array<double>* dU2dXi2 = ComputedUdx_LSQ_US3D_v3(P,dUdxauxNew,meshTopo,gB,comm);
         Array<double>* dU2dYi2 = ComputedUdx_LSQ_US3D_v3(P,dUdyauxNew,meshTopo,gB,comm);
         Array<double>* dU2dZi2 = ComputedUdx_LSQ_US3D_v3(P,dUdzauxNew,meshTopo,gB,comm);
@@ -4537,7 +4667,7 @@ int main(int argc, char** argv) {
                // WriteUS3DGridFromMMG(mmgMesh, us3d);
             }
         }
-        
+         */
         MPI_Finalize();
         
     }

@@ -506,7 +506,7 @@ Array<double>* ComputedUdx_LSQ_US3D_v2(Partition* P, ParallelState* pstate, ParA
 
 
 
-Array<double>* ComputedUdx_LSQ_US3D_v3(Partition* Pa, std::map<int,double> U,Mesh_Topology* meshTopo, Array<double>* ghost, MPI_Comm comm)
+std::map<int,Array<double>* > ComputedUdx_LSQ_US3D_v3(Partition* Pa, std::map<int,double> U,Mesh_Topology* meshTopo, Array<double>* ghost, MPI_Comm comm)
 {
    int world_size;
    MPI_Comm_size(comm, &world_size);
@@ -520,6 +520,7 @@ Array<double>* ComputedUdx_LSQ_US3D_v3(Partition* Pa, std::map<int,double> U,Mes
    std::map<int,int> gE2lE               = Pa->getGlobalElement2LocalElement();
    std::vector<int> Loc_Elem             = Pa->getLocElem();
    int nLoc_Elem                         = Loc_Elem.size();
+    
    int Nel = Pa->getGlobalPartition()->getNrow();
    Array<int>* ifn = meshTopo->getIFN();
    i_part_map*  if_ref_vec = Pa->getIFREFpartmap();
@@ -530,14 +531,14 @@ Array<double>* ComputedUdx_LSQ_US3D_v3(Partition* Pa, std::map<int,double> U,Mes
    std::vector<double> dist;
    double* Pijk = new double[8*3];
    double* Padj = new double[8*3];
-
+   std::map<int,Array<double>* > dudx_map;
    double d;
    int loc_vid,adjID,elID;
    int cou = 0;
    Vert* Vc = new Vert;
    int lid = 0;
    double u_ijk, u_po;
-   Array<double>* dudx = new Array<double>(nLoc_Elem,3);
+   //Array<double>* dudx = new Array<double>(nLoc_Elem,3);
 //
    for(int i=0;i<nLoc_Elem;i++)
    {
@@ -656,12 +657,16 @@ Array<double>* ComputedUdx_LSQ_US3D_v3(Partition* Pa, std::map<int,double> U,Mes
 
        Array<double>* x = SolveQR(A_cm,nadj,3,b);
 //
-       dudx->setVal(i,0,x->getVal(0,0));
-       dudx->setVal(i,1,x->getVal(1,0));
-       dudx->setVal(i,2,x->getVal(2,0));
-    
+       
+//       dudx->setVal(i,0,x->getVal(0,0));
+//       dudx->setVal(i,1,x->getVal(1,0));
+//       dudx->setVal(i,2,x->getVal(2,0));
+       
+       
+       dudx_map[elID] = x;
+       
        delete[] A_cm;
-       delete x;
+       //delete x;
 
        delete Vrt_T;
        delete Vrt;
@@ -675,7 +680,7 @@ Array<double>* ComputedUdx_LSQ_US3D_v3(Partition* Pa, std::map<int,double> U,Mes
    delete[] Pijk;
    delete[] Padj;
 //
-   return dudx;
+   return dudx_map;
 }
 
 

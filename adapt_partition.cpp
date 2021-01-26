@@ -140,8 +140,6 @@ void Partition::DeterminePartitionLayout(ParArray<int>* ien, ParallelState_Parme
                    ien_pstate->getNlocs(),
                    ien_pstate->getOffsets(),
                    MPI_INT,comm);
-    
-    
 }
 
 
@@ -289,13 +287,13 @@ void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief,
                     }
                 }
             }
+            loc_elem.push_back(el_id);
+            //loc_rho.push_back(rho);
+            elem_set.insert(el_id);
+            loc_elem_set.insert(el_id);
+            
             on_rank++;
         }
-        
-        loc_elem.push_back(el_id);
-        //loc_rho.push_back(rho);
-        elem_set.insert(el_id);
-        loc_elem_set.insert(el_id);
     }
     
     int nRank_reqElems = elms_to_send_to_ranks.size();
@@ -848,7 +846,6 @@ void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief,
     }
     
     nLoc_Elem = Loc_Elem.size();
-    
     vloc = LocalVerts.size();
     floc = cnf;
     delete[] new_offsets;
@@ -895,7 +892,6 @@ void Partition::DetermineAdjacentElement2ProcMapUS3D(ParArray<int>* ien, std::ma
     {
         int elId = Loc_Elem[i];
 
-        
         int k     = 0;
         for(int j=0;j<6;j++)
         {
@@ -1103,7 +1099,6 @@ void Partition::DetermineAdjacentElement2ProcMapUS3D(ParArray<int>* ien, std::ma
     int cnt_f_adj = 0;
     for(int i=0;i<itel;i++)
     {
-
         for(int k=0;k<8;k++)
         {
             int v_id_n = adj_verts[cnt_v_adj];
