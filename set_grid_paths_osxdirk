@@ -1,6 +1,0 @@
-rm -rf grids/adept/data.h5
-ln -s /Users/dekelsch/grids/adept/data_run6.h5 grids/adept/data.h5
-rm -rf grids/adept/grid.h5
-ln -s /Users/dekelsch/grids/adept/grid.h5 grids/adept/grid.h5
-rm -rf grids/adept/conn.h5
-ln -s /Users/dekelsch/grids/adept/conn.h5 grids/adept/conn.h5

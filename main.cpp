@@ -1,8 +1,8 @@
-#include "adapt_io.h"
-#include "adapt_recongrad.h"
-#include "adapt_output.h"
-#include "adapt_geometry.h"
-#include "hex2tet.h"
+#include "src/adapt_io.h"
+#include "src/adapt_recongrad.h"
+#include "src/adapt_output.h"
+#include "src/adapt_geometry.h"
+#include "src/hex2tet.h"
 
 
 int mpi_size, mpi_rank;
