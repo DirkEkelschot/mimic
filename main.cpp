@@ -3,6 +3,7 @@
 #include "src/adapt_output.h"
 #include "src/adapt_geometry.h"
 #include "src/hex2tet.h"
+#include <iomanip>
 
 
 int mpi_size, mpi_rank;
@@ -2485,6 +2486,9 @@ int main(int argc, char** argv) {
             int gid = LocElem[i];
             UvariaV   = Uvaria[i];
             Uvaria_map[gid] = UvariaV;
+            
+            std::cout << std::setprecision (15) << gid << " " << Uvaria_map[gid] << " " << UvariaV << " " << Uvaria[i] << std::endl;
+
         }
         
         std::map<int,double> UauxNew = P->CommunicateAdjacentDataUS3D(Uvaria_map,comm);
@@ -2656,7 +2660,7 @@ int main(int argc, char** argv) {
             
             for(int i=0;i<nEl_glob;i++)
             {
-                myfile << GuX_gr->getVal(i,0) << std::endl;
+                myfile << std::setprecision(16) <<  GuX_gr->getVal(i,0) << std::endl;
             }
 
             myfile.close();
