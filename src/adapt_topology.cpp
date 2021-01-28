@@ -508,41 +508,106 @@ void Mesh_Topology::DetermineBoundaryLayerElements(Partition* Pa, Array<int>* if
 }
 */
 
-std::vector<double> Mesh_Topology::ReduceUToVertices(Array<double>* Uelem)
+
+
+
+std::vector<double> Mesh_Topology::ReduceUToVertices(
+                        Domain* pDom,
+                        std::map<int,double> Uelem)
 {
-    std::vector<double> Uelem_all = P->PartitionAuxilaryData(Uelem, c);
-    std::map<int,std::vector<double> > collect_Ui;
-    std::vector<std::vector<int> > loc_elem2verts_loc = P->getLocalElem2LocalVert();
+    std::vector<double> Uv;
     
-    for(int i=0;i<Uelem_all.size();i++)
+    std::map<int,std::vector<int> > v2e = pDom->vert2elem;
+    
+    int im = 0;
+    std::map<int,std::vector<int> >::iterator itm;
+    for(itm=v2e.begin();itm!=v2e.end();itm++)
     {
-        double uinew = Uelem_all[i];
-        int loc_v;
+        double sum = 0.0;
+        double avg = 0.0;
         
-        for(int j=0;j<8;j++)
+        for(int q=0;q<itm->second.size();q++)
         {
-            loc_v = loc_elem2verts_loc[i][j];
-            collect_Ui[loc_v].push_back(uinew);
-            
-            //collect_Vi[loc_v].push_back(Vol[gEl]);
+            int gEl = itm->second[q];
+            sum = sum + Uelem[gEl];
         }
+        
+        avg = sum/itm->second.size();
+        //vval->setVal(im,0,avg);
+        Uv.push_back(avg);
+        im++;
     }
-    std::map<int,std::vector<double> >::iterator it_rhos;
-    std::vector<double> uivert;
     
-    for(it_rhos=collect_Ui.begin();it_rhos!=collect_Ui.end();it_rhos++)
+    return Uv;
+    
+    
+    /*
+    std::map<int,std::vector<double> > collect_Ui;
+    std::map<int,std::vector<double> > collect_gUi;
+
+    
+//        make two lists here one with the local partition vertex_id to plot id and the plot_id to variable value.
+    
+    std::map<int,int> gV2lV = P->getGlobalVert2LocalVert();
+
+    std::map<int,double>::iterator it;
+    std::map<int,int> lv2lpv;
+    std::map<int,int> gv2lpv;
+    std::map<int,int> lv2gpv;
+    std::set<int> lv_set;
+    std::set<int> gv_set;
+
+    int lcv = 0;
+    int gcv = 0;
+    int g_id = 0;
+    
+    i_part_map*  ien_vec     = P->getIENpartmap();
+    std::map<int,std::vector<int> >::iterator itm;
+    double uinew = 0.0;
+    
+    for(itm = ien_vec->i_map.begin();itm != ien_vec->i_map.end();itm++)
+    {
+        int glob_id  = itm->first;
+        uinew = Uelem[glob_id];
+        for(int q=0;q<itm->second.size();q++)
+        {
+            int gv = itm->second[q];
+            int lv = gV2lV[gv];
+            if(gv_set.find(gv)==gv_set.end())
+            {
+                gv_set.insert(gv);
+                collect_gUi[gv].push_back(uinew);
+                gv2lpv[gv]=lcv;
+                lv2gpv[lcv]=gv;
+                lcv=lcv+1;
+            }
+            else
+            {
+                int lcv_u = lv2lpv[gv];
+                collect_gUi[gv].push_back(uinew);
+            }
+        }
+        g_id++;
+    }
+
+    std::map<int,std::vector<double> >::iterator it_var;
+    std::vector<double> uivert(lcv);
+    
+    for(it_var=collect_gUi.begin();it_var!=collect_gUi.end();it_var++)
     {
         double sum_u = 0;
-        
-        for(int q = 0;q<it_rhos->second.size();q++)
+        int gid=it_var->first;
+        for(int q = 0;q<it_var->second.size();q++)
         {
-            sum_u    = sum_u + it_rhos->second[q];
+            sum_u    = sum_u + it_var->second[q];
         }
-        uivert.push_back(sum_u/it_rhos->second.size());
-        
+        uivert[gid]= sum_u/it_var->second.size();
     }
-        
+    
     return uivert;
+     */
+    
+
     
 }
 

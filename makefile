@@ -1,21 +1,25 @@
-SRC 	 = src
-BIN 	 = bin
-TESGRAD  = tests/test_grad
-OBJ      = $(SRC)/*.cpp
+OBJ = $(SRC)/*.cpp
+
+SRC = src
+BIN = bin
 MAIN_OBJ = main.cpp
-TES_OBJ  = $(TESGRAD)/main_test.cpp
+EXEC = adapt
+TESTBIN = tests/bin
+TEST1 = tests/test1
+TEST2 = tests/test2
 
 include module.mk
 
-all:	install tests
+all:	install test
 	
 install:makebin
 	$(CC) $(CXXFLAGS) $(OBJ) $(MAIN_OBJ) -o $(BIN)/adapt $(LDFLAGS) $(LDLIBS)
-	cp -r $(BIN)/adapt .
+	cp -r $(BIN)/$(EXEC) .
 
 makebin:
 	mkdir -p $(BIN)
-tests:
-	make -C tests/test_grad
+test:
+	make -C $(TEST1)
+	make -C $(TEST2)
 clean:	
-	rm -rf adapt $(SRC)/*.o $(SRC)/*.mod $(BIN) $(TESGRAD)/testing
+	rm -rf $(EXEC) *.dat $(SRC)/*.o $(SRC)/*.mod $(BIN) $(TESTBIN)

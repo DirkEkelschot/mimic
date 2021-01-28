@@ -506,7 +506,7 @@ Array<double>* ComputedUdx_LSQ_US3D_v2(Partition* P, ParallelState* pstate, ParA
 
 
 
-std::map<int,Array<double>* > ComputedUdx_LSQ_US3D_v3(Partition* Pa, std::map<int,double> U,Mesh_Topology* meshTopo, Array<double>* ghost, MPI_Comm comm)
+std::map<int,Array<double>* > ComputedUdx_LSQ_US3D_v3(Partition* Pa, std::map<int,double> U, Mesh_Topology* meshTopo, Array<double>* ghost, MPI_Comm comm)
 {
    int world_size;
    MPI_Comm_size(comm, &world_size);
@@ -523,10 +523,10 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_US3D_v3(Partition* Pa, std::map<in
     
    int Nel = Pa->getGlobalPartition()->getNrow();
    Array<int>* ifn = meshTopo->getIFN();
-   i_part_map*  if_ref_vec = Pa->getIFREFpartmap();
-   i_part_map*  ifn_vec    = Pa->getIFNpartmap();
+   i_part_map*  if_ref_vec  = Pa->getIFREFpartmap();
+   i_part_map*  ifn_vec     = Pa->getIFNpartmap();
    i_part_map* ief_part_map = Pa->getIEFpartmap();
-   i_part_map*  iee_vec    = Pa->getIEEpartmap();
+   i_part_map*  iee_vec     = Pa->getIEEpartmap();
    std::vector<std::vector<double> > iee_dist;
    std::vector<double> dist;
    double* Pijk = new double[8*3];
@@ -543,12 +543,11 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_US3D_v3(Partition* Pa, std::map<in
    for(int i=0;i<nLoc_Elem;i++)
    {
        int nadj = 6;
+       
        Array<double>* Vrt_T = new Array<double>(3,nadj);
        Array<double>* Vrt   = new Array<double>(nadj,3);
        Array<double>* b     = new Array<double>(nadj,1);
-//
-//       std::vector<std::vector<int> > MatVrt;
-//
+
        for(int q=0;q<nadj;q++)
        {
            for(int j=0;j<3;j++)
@@ -557,8 +556,9 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_US3D_v3(Partition* Pa, std::map<in
                Vrt->setVal(q,j,0.0);
            }
        }
-//
+
        int elID = Loc_Elem[i];
+       
        for(int k=0;k<gE2lV[elID].size();k++)
        {
            loc_vid     = gE2lV[elID][k];
@@ -605,7 +605,6 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_US3D_v3(Partition* Pa, std::map<in
            
            else
            {
-               
                //int fid = gE2gF[elID][j];
                int fid = ief_part_map->i_map[elID][j];
 
@@ -656,12 +655,10 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_US3D_v3(Partition* Pa, std::map<in
       }
 
        Array<double>* x = SolveQR(A_cm,nadj,3,b);
-//
        
 //       dudx->setVal(i,0,x->getVal(0,0));
 //       dudx->setVal(i,1,x->getVal(1,0));
 //       dudx->setVal(i,2,x->getVal(2,0));
-       
        
        dudx_map[elID] = x;
        
@@ -679,8 +676,8 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_US3D_v3(Partition* Pa, std::map<in
    delete Vc;
    delete[] Pijk;
    delete[] Padj;
-//
-   return dudx_map;
+
+    return dudx_map;
 }
 
 

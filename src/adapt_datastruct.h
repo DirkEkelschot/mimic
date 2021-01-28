@@ -5,6 +5,18 @@
 #ifndef ADAPT_DATASTRUCT_H
 #define ADAPT_DATASTRUCT_H
 
+struct Domain
+{
+    Array<int>* LocElem2LocNode;
+    std::vector<int> loc_part_verts;
+    std::vector<int> glob_part_verts;
+    std::map<int,int> gv2lpv;
+    std::map<int,int> lv2gpv;
+    
+    std::map<int,std::vector<int> > vert2elem;
+    
+};
+
 
 
 struct i_part_map

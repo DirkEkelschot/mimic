@@ -36,11 +36,11 @@ Partition::Partition(ParArray<int>* ien, ParArray<int>* iee, ParArray<int>* ief,
     ifn_part_map    = getFace2EntityPerPartition(ifn    ,    ife_parstate,   comm);
     ife_part_map    = getFace2EntityPerPartition(ife    ,    ife_parstate,   comm);
     if_ref_part_map = getFace2EntityPerPartition(if_ref ,    ife_parstate,   comm);
-    
-
-    
+        
     DetermineAdjacentElement2ProcMapUS3D(ien, iee_part_map->i_map, part, ien_pstate, xcn, xcn_parstate, U, comm);
 
+    CreatePartitionDomain();
+    
     nLocAndAdj_Elem = LocAndAdj_Elem.size();
     
 }
@@ -108,22 +108,22 @@ void Partition::DeterminePartitionLayout(ParArray<int>* ien, ParallelState_Parme
                           numflag,ncommonnodes,
                           &xadj_par,&adjncy_par,&comm);
     
-    /*
-    for(int u=0;u<nloc;u++)
-    {
-        part_arr[u] = rank;
-    }
-    */
-
-    ParMETIS_V3_AdaptiveRepart(pstate_parmetis->getElmdist(),
-                           xadj_par, adjncy_par,
-                               elmwgt, adjwgt,
-                       vsize, wgtflag,
-                   numflag, ncon, nparts,
-                   tpwgts, ubvec, itr, options,
-                   &edgecut, part_arr, &comm);
     
-    /*
+//    for(int u=0;u<nloc;u++)
+//    {
+//        part_arr[u] = rank;
+//    }
+    
+
+//    ParMETIS_V3_AdaptiveRepart(pstate_parmetis->getElmdist(),
+//                           xadj_par, adjncy_par,
+//                               elmwgt, adjwgt,
+//                       vsize, wgtflag,
+//                   numflag, ncon, nparts,
+//                   tpwgts, ubvec, itr, options,
+//                   &edgecut, part_arr, &comm);
+    
+    
     ParMETIS_V3_PartKway(pstate_parmetis->getElmdist(),
                          xadj_par,
                          adjncy_par,
@@ -132,7 +132,7 @@ void Partition::DeterminePartitionLayout(ParArray<int>* ien, ParallelState_Parme
                          tpwgts, ubvec, options,
                          &edgecut, part_arr, &comm);
     
-    */
+    
     
     part = new ParArray<int>(ien->getNglob(),1,comm);
     part_global = new Array<int>(ien->getNglob(),1);
@@ -441,9 +441,7 @@ void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief,
                     floc_tmp++;
                 }
                 cnt_f++;
-
             }
-            
         }
         //part_elem2verts.push_back(elem);
         elem_set.insert(TotRecvElement_IDs[i]);
@@ -570,7 +568,8 @@ void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief,
 
     int gvid=0;
     int lvid=0;
-    
+    //std::cout << "Determineing 0 " << rank << " " << GlobalVert2LocalVert.size() << std::endl;
+
     for(m=0;m<vloc_tmp;m++)
     {
         gvid = vertIDs_on_rank[m];
@@ -592,6 +591,7 @@ void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief,
     
     int o = 3*vloc_tmp;
     m = 0;
+    
     for(it_f=recv_back_verts.begin();it_f!=recv_back_verts.end();it_f++)
     {
         int Nv = recv_back_Nverts[it_f->first];
@@ -619,7 +619,8 @@ void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief,
         }
     }
 
-    
+    //std::cout << "Determineing 2 " << rank <<  " " << GlobalVert2LocalVert.size() << std::endl;
+
     nLoc_Verts = LocalVerts.size();
     // ================================== Faces on Rank =========================================
     
@@ -1263,7 +1264,7 @@ void Partition::DetermineAdjacentElement2ProcMapUS3D(ParArray<int>* ien, std::ma
         tmp_globv.clear();
         tmp_locv.clear();
     }
-     
+
     //nLoc_Elem = U0Elem.size();
     
 //    std::map<int,std::vector<double> >::iterator it_rhos;
@@ -2009,10 +2010,69 @@ i_part_map* Partition::getFace2EntityPerPartition(ParArray<int>* ife, ParallelSt
     return ife_p_map;
 }
 
+void Partition::CreatePartitionDomain()
+{
+    
+    pDom = new Domain;
+    
+    std::map<int,int> gv2lpv;
+    std::map<int,int> lv2gpv;
+    std::set<int> gv_set;
+    Array<int>* locelem2locnode= new Array<int>(ien_part_map->i_map.size(),8);
+
+    std::map<int,std::vector<int> >::iterator itm;
+    std::map<int,std::vector<int> > vert2elem;
+    
+    int lcv = 0;
+    int elid = 0;
+    
+    std::vector<int> loc_part_verts;
+    std::vector<int> glob_part_verts;
+    
+    for(itm = ien_part_map->i_map.begin();itm != ien_part_map->i_map.end();itm++)
+    {
+        int glob_id  = itm->first;
+        for(int q=0;q<itm->second.size();q++)
+        {
+            int gv = itm->second[q];
+            int lv = GlobalVert2LocalVert[gv];
+            
+            if(gv_set.find(gv)==gv_set.end())
+            {
+                gv_set.insert(gv);
+                glob_part_verts.push_back(gv);
+                loc_part_verts.push_back(lv);
+                //localV_2_localpartV[lcv]=lv;
+                vert2elem[lcv].push_back(glob_id);
+                gv2lpv[gv]=lcv;
+                lv2gpv[lcv]=gv;
+                locelem2locnode->setVal(elid,q,lcv);
+                lcv=lcv+1;
+            }
+            else
+            {
+                int lcv_u = gv2lpv[gv];
+                locelem2locnode->setVal(elid,q,lcv_u);
+                vert2elem[lcv_u].push_back(glob_id);
+            }
+        }
+        elid++;
+    }
+    
+    pDom->LocElem2LocNode = locelem2locnode;
+    pDom->loc_part_verts  = loc_part_verts;
+    pDom->glob_part_verts = glob_part_verts;
+    pDom->gv2lpv          = gv2lpv;
+    pDom->lv2gpv          = gv2lpv;
+    pDom->vert2elem       = vert2elem;
+    
+}
 
 
-
-
+Domain* Partition::getPartitionDomain()
+{
+    return pDom;
+}
 
 std::vector<int> Partition::getLocElem()
 {

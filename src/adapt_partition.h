@@ -18,12 +18,14 @@ class Partition {
     void DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief, ParallelState* ien_parstate, ParArray<double>* xcn, ParallelState* xcn_parstate, Array<double>* U, MPI_Comm comm);
     void DetermineAdjacentElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief, ParArray<int>* part, ParallelState* ien_parstate, ParArray<double>* xcn, ParallelState* xcn_parstate, Array<double>* U, MPI_Comm comm);
     void DetermineAdjacentElement2ProcMapUS3D(ParArray<int>* ien, std::map<int,std::vector<int> > iee_vec, ParArray<int>* part, ParallelState* ien_parstate, ParArray<double>* xcn, ParallelState* xcn_parstate, Array<double>* U, MPI_Comm comm);
+    void CreatePartitionDomain();
     std::vector<double> PartitionAuxilaryData(Array<double>* U, MPI_Comm comm);
     std::map<int,double> CommunicateLocalDataUS3D(Array<double>* U, MPI_Comm comm);
     std::map<int,double> CommunicateAdjacentDataUS3D(std::map<int,double> U, MPI_Comm comm);
     
     i_part_map* getElement2EntityPerPartition(ParArray<int>* iee, ParallelState* ien_pstate, MPI_Comm comm);
     i_part_map* getFace2EntityPerPartition(ParArray<int>* ife, ParallelState* ife_pstate, MPI_Comm comm);
+    Domain* getPartitionDomain();
     std::vector<int> getLocElem();
     std::vector<double> getLocElemVaria();
     int getnLoc_Elem();
@@ -91,7 +93,7 @@ class Partition {
     
       std::vector<int> loc_elem;
       std::vector<double> loc_varia;
-    
+      Domain* pDom;
       int nLoc_Elem;
       int nLocAndAdj_Elem;
       int nLoc_Verts;

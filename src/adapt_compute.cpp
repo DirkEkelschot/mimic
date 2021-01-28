@@ -862,13 +862,35 @@ void UnitTestJacobian()
     std::cout << DetJ << std::endl;
 }
 
-Array<double>* ComputeMetric(std::vector<Vert> Verts, Array<double>* grad, Array<double>* hessian, double max_v, std::vector<std::vector<int> > loc_elem2verts_loc, int nloc, MPI_Comm comm, int dim)
+Array<double>* ComputeMetric(Partition* Pa,
+                             std::vector<double> d2udx2_v,
+                             std::vector<double> d2udxy_v,
+                             std::vector<double> d2udxz_v,
+                             std::vector<double> d2udyx_v,
+                             std::vector<double> d2udy2_v,
+                             std::vector<double> d2udyz_v,
+                             std::vector<double> d2udzx_v,
+                             std::vector<double> d2udzy_v,
+                             std::vector<double> d2udz2_v, MPI_Comm comm)
 {
     int size;
     MPI_Comm_size(comm, &size);
     // Get the rank of the process
     int rank;
     MPI_Comm_rank(comm, &rank);
+    Domain* pDom = Pa->getPartitionDomain();
+    
+    std::vector<int> loc_part_verts = pDom->loc_part_verts;
+    
+    i_part_map* ien_part_map = Pa->getIENpartmap();
+    std::vector<Vert> Verts  = Pa->getLocalVerts();
+    std::map<int,std::vector<int> > gE2lV = Pa->getGlobElem2LocVerts();
+    std::map<int,int> gV2lV = Pa->getGlobalVert2LocalVert();
+
+    std::vector<std::vector<int> > lE2lV = Pa->getLocalElem2LocalVert();
+    std::vector<int> LocElem    = Pa->getLocElem();
+    int nloc = LocElem.size();
+    
     //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     //+++++++++++++Required Parameter set for scaling eigenvalues/eigenvectors+++++++++++++++
     double hmin         = 0.0001;
@@ -878,9 +900,9 @@ Array<double>* ComputeMetric(std::vector<Vert> Verts, Array<double>* grad, Array
     //double d2udx2_v_max = *std::max_element(d2udx2_v.begin(), d2udx2_v.end());
     //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    double* Hmet = new double[9];;
+    double* Hmet = new double[9];
     
-    int nVerts = Verts.size();
+    int nVerts = d2udx2_v.size();
     int i;
     Array<double>* metric = new Array<double>(nVerts,9);
 //    string filename11 = "metric_plane.dat";
@@ -889,121 +911,132 @@ Array<double>* ComputeMetric(std::vector<Vert> Verts, Array<double>* grad, Array
     std::ofstream myfile;
     myfile.open(filename);
     myfile << "TITLE=\"volume_part_"  + std::to_string(rank) +  ".tec\"" << std::endl;
-    //myfile <<"VARIABLES = \"X\", \"Y\", \"Z\",  \"drhodx\",  \"drhody\",  \"drhodz\"" << std::endl;
-    myfile <<"VARIABLES = \"X\", \"Y\", \"Z\", \"M00\", \"M01\", \"M02\", \"M11\", \"M12\", \"M22\", \"H00\", \"H01\", \"H02\", \"H11\", \"H12\", \"H22\"" << std::endl;
+    myfile <<"VARIABLES = \"X\", \"Y\", \"Z\", \"M00\", \"M01\", \"M02\", \"M11\", \"M12\", \"M22\"" << std::endl;
     myfile <<"ZONE N = " << nVerts << ", E = " << nloc << ", DATAPACKING = POINT, ZONETYPE = FEBRICK" << std::endl;
-    for(i=0;i<nVerts;i++)
-    {
-        Hmet[0] = hessian->getVal(i,0);
-        Hmet[1] = hessian->getVal(i,1);
-        Hmet[2] = hessian->getVal(i,2);
-
-        Hmet[3] = hessian->getVal(i,1);
-        Hmet[4] = hessian->getVal(i,3);
-        Hmet[5] = hessian->getVal(i,4);
-
-        Hmet[6] = hessian->getVal(i,2);
-        Hmet[7] = hessian->getVal(i,4);
-        Hmet[8] = hessian->getVal(i,5);
-
-        double * WR = new double[3];
-        double * WI = new double[3];
-        double * V  = new double[3*3];
-        double * iV = new double[3*3];
-        double* WRn = new double[3];
-        
-        Array<double>* DR  = new Array<double>(3,3);
-        Array<double>* UR  = new Array<double>(3,3);
-        for(int j=0;j<3;j++)
-        {
-            WR[j]  = 0.0;
-            WRn[j] = 0.0;
-            WI[j]  = 0.0;
-            
-            for(int k=0;k<3;k++)
-            {
-                DR->setVal(j,k,0.0);
-                V[j*3+k] = 0.0;
-                iV[j*3+k] = 0.0;
-            }
-        }
-        
-        if(isnan(Hmet[0]) || isnan(Hmet[1]) || isnan(Hmet[2])
-           || isnan(Hmet[3]) || isnan(Hmet[4]) || isnan(Hmet[5])
-           || isnan(Hmet[6]) || isnan(Hmet[7]) || isnan(Hmet[8]))
-        {
-            std::cout << "NaN! Watch out" << std::endl;
-        }
-        
-        SVD* svd = ComputeSVD(3,3,Hmet);
-        Eig* eig = ComputeEigenDecomp(3, Hmet);
-        
-//            WRn[0] = std::min(std::max(f*fabs(eig->Dre[0]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
-//            WRn[1] = std::min(std::max(f*fabs(eig->Dre[1]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
-//            WRn[2] = std::min(std::max(f*fabs(eig->Dre[2]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
-        
-        WRn[0] = std::min(std::max(f*fabs(svd->s[0]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
-        WRn[1] = std::min(std::max(f*fabs(svd->s[1]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
-        WRn[2] = std::min(std::max(f*fabs(svd->s[2]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
-        
-        DR->setVal(0,0,WRn[0]);DR->setVal(0,1,0.0);DR->setVal(0,1,0.0);
-        DR->setVal(1,0,0.0);DR->setVal(1,1,WRn[1]);DR->setVal(1,2,0.0);
-        DR->setVal(2,0,0.0);DR->setVal(2,1,0.0);DR->setVal(2,2,WRn[2]);
-
-//            UR->setVal(0,0,eig->V[0]);UR->setVal(0,1,eig->V[1]);UR->setVal(0,2,eig->V[2]);
-//            UR->setVal(1,0,eig->V[3]);UR->setVal(1,1,eig->V[4]);UR->setVal(1,2,eig->V[5]);
-//            UR->setVal(2,0,eig->V[6]);UR->setVal(2,1,eig->V[7]);UR->setVal(2,2,eig->V[8]);
-        
-//            UR->setVal(0,0,svd->u[0]);UR->setVal(0,1,svd->u[1]);UR->setVal(0,2,svd->u[2]);
-//            UR->setVal(1,0,svd->u[3]);UR->setVal(1,1,svd->u[4]);UR->setVal(1,2,svd->u[5]);
-//            UR->setVal(2,0,svd->u[6]);UR->setVal(2,1,svd->u[7]);UR->setVal(2,2,svd->u[8]);
-        
-        UR->setVal(0,0,svd->vt[0]);UR->setVal(0,1,svd->vt[1]);UR->setVal(0,2,svd->vt[2]);
-        UR->setVal(1,0,svd->vt[3]);UR->setVal(1,1,svd->vt[4]);UR->setVal(1,2,svd->vt[5]);
-        UR->setVal(2,0,svd->vt[6]);UR->setVal(2,1,svd->vt[7]);UR->setVal(2,2,svd->vt[8]);
-        
-        Array<double>* iVR = MatInv(UR);
-        Array<double>* Rs = MatMul(UR,DR);
-        Array<double>* Rf = MatMul(Rs,iVR);
-        
-        metric->setVal(i,0, Rf->getVal(0,0));
-        metric->setVal(i,1, Rf->getVal(0,1));
-        metric->setVal(i,2, Rf->getVal(0,2));
-        
-        metric->setVal(i,3, Rf->getVal(1,0));
-        metric->setVal(i,4, Rf->getVal(1,1));
-        metric->setVal(i,5, Rf->getVal(1,2));
-        
-        metric->setVal(i,6, Rf->getVal(2,0));
-        metric->setVal(i,7, Rf->getVal(2,1));
-        metric->setVal(i,8, Rf->getVal(2,2));
-        
-        myfile << Verts[i].x << " " << Verts[i].y << " " << Verts[i].z << " " << Rf->getVal(0,0) << " " << Rf->getVal(0,1) << " " << Rf->getVal(0,2) << " " << Rf->getVal(1,1) << " " << Rf->getVal(1,2) << " " << Rf->getVal(2,2) << " " << hessian->getVal(i,0)<< " " << hessian->getVal(i,1)<< " " << hessian->getVal(i,2)<< " " << hessian->getVal(i,3)<< " " << hessian->getVal(i,4)<< " " << hessian->getVal(i,5) << std::endl;
-        
-        delete DR;
-        delete UR;
-        delete Rs;
-        delete Rf;
-
-        delete[] iV;
-        delete[] V;
-        delete[] WR;
-        delete[] WI;
-        delete[] WRn;
-        
-    }
     
+    //std::map<int,double>::iterator gradm;
+    std::cout << "aiming for same size please " <<ien_part_map->i_map.size() << " " << LocElem.size() << " " << d2udx2_v.size() << " " << nVerts << std::endl;
+    for(int i=0;i<d2udx2_v.size();i++)
+    {
+        Hmet[0] = d2udx2_v[i];
+        Hmet[1] = d2udxy_v[i];
+        Hmet[2] = d2udxz_v[i];
+
+        Hmet[3] = d2udyx_v[i];
+        Hmet[4] = d2udy2_v[i];
+        Hmet[5] = d2udyz_v[i];
+
+        Hmet[6] = d2udzx_v[i];
+        Hmet[7] = d2udzy_v[i];
+        Hmet[8] = d2udz2_v[i];
+        
+        int loc_vid = loc_part_verts[i];
+
+//        double * WR = new double[3];
+//        double * WI = new double[3];
+//        double * V  = new double[3*3];
+//        double * iV = new double[3*3];
+//        double* WRn = new double[3];
+//
+//        Array<double>* DR  = new Array<double>(3,3);
+//        Array<double>* UR  = new Array<double>(3,3);
+//        for(int j=0;j<3;j++)
+//        {
+//            WR[j]  = 0.0;
+//            WRn[j] = 0.0;
+//            WI[j]  = 0.0;
+//
+//            for(int k=0;k<3;k++)
+//            {
+//                DR->setVal(j,k,0.0);
+//                V[j*3+k] = 0.0;
+//                iV[j*3+k] = 0.0;
+//            }
+//        }
+//
+//        if(isnan(Hmet[0]) || isnan(Hmet[1]) || isnan(Hmet[2])
+//           || isnan(Hmet[3]) || isnan(Hmet[4]) || isnan(Hmet[5])
+//           || isnan(Hmet[6]) || isnan(Hmet[7]) || isnan(Hmet[8]))
+//        {
+//            std::cout << "NaN! Watch out" << std::endl;
+//        }
+//
+//        SVD* svd = ComputeSVD(3,3,Hmet);
+//        Eig* eig = ComputeEigenDecomp(3, Hmet);
+//
+////            WRn[0] = std::min(std::max(f*fabs(eig->Dre[0]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
+////            WRn[1] = std::min(std::max(f*fabs(eig->Dre[1]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
+////            WRn[2] = std::min(std::max(f*fabs(eig->Dre[2]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
+//
+//        WRn[0] = std::min(std::max(f*fabs(svd->s[0]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
+//        WRn[1] = std::min(std::max(f*fabs(svd->s[1]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
+//        WRn[2] = std::min(std::max(f*fabs(svd->s[2]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
+//
+//        DR->setVal(0,0,WRn[0]);DR->setVal(0,1,0.0);DR->setVal(0,1,0.0);
+//        DR->setVal(1,0,0.0);DR->setVal(1,1,WRn[1]);DR->setVal(1,2,0.0);
+//        DR->setVal(2,0,0.0);DR->setVal(2,1,0.0);DR->setVal(2,2,WRn[2]);
+//
+////            UR->setVal(0,0,eig->V[0]);UR->setVal(0,1,eig->V[1]);UR->setVal(0,2,eig->V[2]);
+////            UR->setVal(1,0,eig->V[3]);UR->setVal(1,1,eig->V[4]);UR->setVal(1,2,eig->V[5]);
+////            UR->setVal(2,0,eig->V[6]);UR->setVal(2,1,eig->V[7]);UR->setVal(2,2,eig->V[8]);
+//
+////            UR->setVal(0,0,svd->u[0]);UR->setVal(0,1,svd->u[1]);UR->setVal(0,2,svd->u[2]);
+////            UR->setVal(1,0,svd->u[3]);UR->setVal(1,1,svd->u[4]);UR->setVal(1,2,svd->u[5]);
+////            UR->setVal(2,0,svd->u[6]);UR->setVal(2,1,svd->u[7]);UR->setVal(2,2,svd->u[8]);
+//
+//        UR->setVal(0,0,svd->vt[0]);UR->setVal(0,1,svd->vt[1]);UR->setVal(0,2,svd->vt[2]);
+//        UR->setVal(1,0,svd->vt[3]);UR->setVal(1,1,svd->vt[4]);UR->setVal(1,2,svd->vt[5]);
+//        UR->setVal(2,0,svd->vt[6]);UR->setVal(2,1,svd->vt[7]);UR->setVal(2,2,svd->vt[8]);
+//
+//        Array<double>* iVR = MatInv(UR);
+//        Array<double>* Rs = MatMul(UR,DR);
+//        Array<double>* Rf = MatMul(Rs,iVR);
+//
+//        metric->setVal(i,0, Rf->getVal(0,0));
+//        metric->setVal(i,1, Rf->getVal(0,1));
+//        metric->setVal(i,2, Rf->getVal(0,2));
+//
+//        metric->setVal(i,3, Rf->getVal(1,0));
+//        metric->setVal(i,4, Rf->getVal(1,1));
+//        metric->setVal(i,5, Rf->getVal(1,2));
+//
+//        metric->setVal(i,6, Rf->getVal(2,0));
+//        metric->setVal(i,7, Rf->getVal(2,1));
+//        metric->setVal(i,8, Rf->getVal(2,2));
+
+        //myfile << std::setprecision(16) << Verts[loc_vid].x << " " << Verts[loc_vid].y << " " << Verts[loc_vid].z << " " << Rf->getVal(0,0) << " " << Rf->getVal(0,1) << " " << Rf->getVal(0,2) << " " << Rf->getVal(1,1) << " " << Rf->getVal(1,2) << " " << Rf->getVal(2,2) << std::endl;
+        //myfile << Verts[loc_vid].x << " " << Verts[loc_vid].y << " " << Verts[loc_vid].z << " " << Rf->getVal(0,0) << " " << Rf->getVal(0,1) << " " << Rf->getVal(0,2) << " " << Rf->getVal(1,1) << " " << Rf->getVal(1,2) << " " << Rf->getVal(2,2) << std::endl;
+        
+        myfile << Verts[loc_vid].x << " " << Verts[loc_vid].y << " " << Verts[loc_vid].z << " " << Hmet[0] << " " << Hmet[1] << " " << Hmet[2] << " " << Hmet[4] << " " << Hmet[5] << " " << Hmet[8] << std::endl;
+        
+//        delete DR;
+//        delete UR;
+//        delete Rs;
+//        delete Rf;
+//
+//        delete[] iV;
+//        delete[] V;
+//        delete[] WR;
+//        delete[] WI;
+//        delete[] WRn;
+
+    }
+     
+    int gv0,gv1,gv2,gv3,gv4,gv5,gv6,gv7;
+    int lv0,lv1,lv2,lv3,lv4,lv5,lv6,lv7;
     
     for(int i=0;i<nloc;i++)
     {
-       myfile << loc_elem2verts_loc[i][0]+1 << "  " <<
-                 loc_elem2verts_loc[i][1]+1 << "  " <<
-                 loc_elem2verts_loc[i][2]+1 << "  " <<
-                 loc_elem2verts_loc[i][3]+1 << "  " <<
-                 loc_elem2verts_loc[i][4]+1 << "  " <<
-                 loc_elem2verts_loc[i][5]+1 << "  " <<
-                 loc_elem2verts_loc[i][6]+1 << "  " <<
-                 loc_elem2verts_loc[i][7]+1 << std::endl;
+        int glob_id = LocElem[i];
+        
+        myfile <<   pDom->LocElem2LocNode->getVal(i,0)+1 << "  " <<
+        pDom->LocElem2LocNode->getVal(i,1)+1 << "  " <<
+        pDom->LocElem2LocNode->getVal(i,2)+1 << "  " <<
+        pDom->LocElem2LocNode->getVal(i,3)+1 << "  " <<
+        pDom->LocElem2LocNode->getVal(i,4)+1 << "  " <<
+        pDom->LocElem2LocNode->getVal(i,5)+1 << "  " <<
+        pDom->LocElem2LocNode->getVal(i,6)+1 << "  " <<
+        pDom->LocElem2LocNode->getVal(i,7)+1 << std::endl;
     }
     
     myfile.close();
@@ -1098,104 +1131,3 @@ Array<double>* ComputeVolumes(Partition* Pa)
 }
 
 
-
-/*
-double* ComputeVolumeCells(Array<double>* xcn, Array<int>* ien)
-{
-    int Nelements = ien->nrow;
-    double * vol_cells = new double[Nelements];
-    int np = 8;
-    double* P = new double[np*3];
-    
-    double L01=0.0;
-    double L15=0.0;
-    double L04=0.0;
-    double L45=0.0;
-    double L37=0.0;
-    double L23=0.0;
-    double L26=0.0;
-    double L67=0.0;
-    
-    double b0,b1,b2,b3;
-    double v0,v1,v2,v3,vhex;
-    double H12,H47,H30,H56;
-    
-    int Vid;
-    for(int i=0;i<Nelements;i++)
-    {
-        for(int j=0;j<np;j++)
-        {
-            Vid = ien->getVal(i,j+1)-1;
-            P[j*3+0] = xcn->getVal(Vid,0);
-            P[j*3+1] = xcn->getVal(Vid,1);
-            P[j*3+2] = xcn->getVal(Vid,2);
-        }
-        
-        L01 = sqrt((P[0*3+0]-P[1*3+0])*(P[0*3+0]-P[1*3+0])+
-                   (P[0*3+1]-P[1*3+1])*(P[0*3+1]-P[1*3+1])+
-                   (P[0*3+2]-P[1*3+2])*(P[0*3+2]-P[1*3+2]));
-        
-        L15 = sqrt((P[1*3+0]-P[5*3+0])*(P[1*3+0]-P[5*3+0])+
-                   (P[1*3+1]-P[5*3+1])*(P[1*3+1]-P[5*3+1])+
-                   (P[1*3+2]-P[5*3+2])*(P[1*3+2]-P[5*3+2]));
-        
-        H12 = sqrt((P[1*3+0]-P[2*3+0])*(P[1*3+0]-P[2*3+0])+
-                   (P[1*3+1]-P[2*3+1])*(P[1*3+1]-P[2*3+1])+
-                   (P[1*3+2]-P[2*3+2])*(P[1*3+2]-P[2*3+2]));
-        
-        
-        b0 = 0.5*L01*L15;
-        v0 = 1.0/3.0*b0*H12;
-        
-        L04 = sqrt((P[0*3+0]-P[4*3+0])*(P[0*3+0]-P[4*3+0])+
-                   (P[0*3+1]-P[4*3+1])*(P[0*3+1]-P[4*3+1])+
-                   (P[0*3+2]-P[4*3+2])*(P[0*3+2]-P[4*3+2]));
-        
-        L45 = sqrt((P[4*3+0]-P[5*3+0])*(P[4*3+0]-P[5*3+0])+
-                   (P[4*3+1]-P[5*3+1])*(P[4*3+1]-P[5*3+1])+
-                   (P[4*3+2]-P[5*3+2])*(P[4*3+2]-P[5*3+2]));
-        
-        H47 = sqrt((P[4*3+0]-P[7*3+0])*(P[4*3+0]-P[7*3+0])+
-                   (P[4*3+1]-P[7*3+1])*(P[4*3+1]-P[7*3+1])+
-                   (P[4*3+2]-P[7*3+2])*(P[4*3+2]-P[7*3+2]));
-        
-        b1 = 0.5*L04*L45;
-        v1 = 1.0/3.0*b1*H47;
-        
-        L37 = sqrt((P[3*3+0]-P[7*3+0])*(P[3*3+0]-P[7*3+0])+
-                   (P[3*3+1]-P[7*3+1])*(P[3*3+1]-P[7*3+1])+
-                   (P[3*3+2]-P[7*3+2])*(P[3*3+2]-P[7*3+2]));
-        
-        L23 = sqrt((P[2*3+0]-P[3*3+0])*(P[2*3+0]-P[3*3+0])+
-                   (P[2*3+1]-P[3*3+1])*(P[2*3+1]-P[3*3+1])+
-                   (P[2*3+2]-P[3*3+2])*(P[2*3+2]-P[3*3+2]));
-        
-        H30 = sqrt((P[3*3+0]-P[0*3+0])*(P[3*3+0]-P[0*3+0])+
-                   (P[3*3+1]-P[0*3+1])*(P[3*3+1]-P[0*3+1])+
-                   (P[3*3+2]-P[0*3+2])*(P[3*3+2]-P[0*3+2]));
-        
-        b2 = 0.5*L37*L23;
-        v2 = 1.0/3.0*b2*H30;
-        
-        L26 = sqrt((P[2*3+0]-P[6*3+0])*(P[2*3+0]-P[6*3+0])+
-                   (P[2*3+1]-P[6*3+1])*(P[2*3+1]-P[6*3+1])+
-                   (P[2*3+2]-P[6*3+2])*(P[2*3+2]-P[6*3+2]));
-        
-        L67 = sqrt((P[6*3+0]-P[7*3+0])*(P[6*3+0]-P[7*3+0])+
-                   (P[6*3+1]-P[7*3+1])*(P[6*3+1]-P[7*3+1])+
-                   (P[6*3+2]-P[7*3+2])*(P[6*3+2]-P[7*3+2]));
-        
-        H56 = sqrt((P[5*3+0]-P[6*3+0])*(P[5*3+0]-P[6*3+0])+
-                   (P[5*3+1]-P[6*3+1])*(P[5*3+1]-P[6*3+1])+
-                   (P[5*3+2]-P[6*3+2])*(P[5*3+2]-P[6*3+2]));
-        
-        b3 = 0.5*L26*L67;
-        v3 = 1.0/3.0*b3*H56;
-        vhex = v0+v1+v2+v3;
-    
-        vol_cells[i] = vhex;
-        
-    }
-    return vol_cells;
-}
-*/
