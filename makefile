@@ -10,7 +10,7 @@ TEST2 = tests/test2
 
 include module.mk
 
-all:	install test
+all:	install
 	
 install:makebin
 	$(CC) $(CXXFLAGS) $(OBJ) $(MAIN_OBJ) -o $(BIN)/adapt $(LDFLAGS) $(LDLIBS)

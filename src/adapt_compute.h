@@ -63,7 +63,7 @@ double* ComputeVolumeCellsReducedToVerts(Array<double>* xcn, Array<int>* ien);
 
 void UnitTestJacobian();
 
-Array<double>* ComputeMetric(Partition* Pa,
+std::map<int,Array<double>*> ComputeMetric(Partition* Pa,
                              std::vector<double> d2udx2_v,
                              std::vector<double> d2udxy_v,
                              std::vector<double> d2udxz_v,

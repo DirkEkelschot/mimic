@@ -115,7 +115,7 @@ int main(int argc, char** argv) {
     }
     
     t = clock();
-    std::map<int,Array<double>* > dUdXi = ComputedUdx_LSQ_US3D_v3(P,Uadj,meshTopo,gB,comm);
+    std::map<int,Array<double>* > dUdXi = ComputedUdx_LSQ_US3D(P,Uadj,meshTopo,gB,comm);
     double Gtiming = ( std::clock() - t) / (double) CLOCKS_PER_SEC;
     double Gmax_time = 0.0;
     MPI_Allreduce(&Gtiming, &Gmax_time, 1, MPI_DOUBLE, MPI_MAX, comm);

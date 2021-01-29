@@ -862,7 +862,11 @@ void UnitTestJacobian()
     std::cout << DetJ << std::endl;
 }
 
-Array<double>* ComputeMetric(Partition* Pa,
+
+
+
+
+std::map<int,Array<double>*> ComputeMetric(Partition* Pa,
                              std::vector<double> d2udx2_v,
                              std::vector<double> d2udxy_v,
                              std::vector<double> d2udxz_v,
@@ -881,7 +885,8 @@ Array<double>* ComputeMetric(Partition* Pa,
     Domain* pDom = Pa->getPartitionDomain();
     
     std::vector<int> loc_part_verts = pDom->loc_part_verts;
-    
+    std::vector<int> glob_part_verts = pDom->glob_part_verts;
+
     i_part_map* ien_part_map = Pa->getIENpartmap();
     std::vector<Vert> Verts  = Pa->getLocalVerts();
     std::map<int,std::vector<int> > gE2lV = Pa->getGlobElem2LocVerts();
@@ -904,7 +909,7 @@ Array<double>* ComputeMetric(Partition* Pa,
     
     int nVerts = d2udx2_v.size();
     int i;
-    Array<double>* metric = new Array<double>(nVerts,9);
+    std::map<int,Array<double>*> metric;
 //    string filename11 = "metric_plane.dat";
 //    ofstream myfile11;
     std::string filename = "metricTensor_rank_" + std::to_string(rank) + ".dat";
@@ -914,8 +919,6 @@ Array<double>* ComputeMetric(Partition* Pa,
     myfile <<"VARIABLES = \"X\", \"Y\", \"Z\", \"M00\", \"M01\", \"M02\", \"M11\", \"M12\", \"M22\"" << std::endl;
     myfile <<"ZONE N = " << nVerts << ", E = " << nloc << ", DATAPACKING = POINT, ZONETYPE = FEBRICK" << std::endl;
     
-    //std::map<int,double>::iterator gradm;
-    std::cout << "aiming for same size please " <<ien_part_map->i_map.size() << " " << LocElem.size() << " " << d2udx2_v.size() << " " << nVerts << std::endl;
     for(int i=0;i<d2udx2_v.size();i++)
     {
         Hmet[0] = d2udx2_v[i];
@@ -930,8 +933,8 @@ Array<double>* ComputeMetric(Partition* Pa,
         Hmet[7] = d2udzy_v[i];
         Hmet[8] = d2udz2_v[i];
         
-        int loc_vid = loc_part_verts[i];
-
+        int loc_vid  = loc_part_verts[i];
+        int glob_vid = glob_part_verts[i];
         double * WR = new double[3];
         double * WI = new double[3];
         double * V  = new double[3*3];
@@ -954,12 +957,6 @@ Array<double>* ComputeMetric(Partition* Pa,
             }
         }
 
-        if(isnan(Hmet[0]) || isnan(Hmet[1]) || isnan(Hmet[2])
-           || isnan(Hmet[3]) || isnan(Hmet[4]) || isnan(Hmet[5])
-           || isnan(Hmet[6]) || isnan(Hmet[7]) || isnan(Hmet[8]))
-        {
-            std::cout << "NaN! Watch out" << std::endl;
-        }
 
 //        SVD* svd = ComputeSVD(3,3,Hmet);
 //        WRn[0] = std::min(std::max(f*fabs(svd->s[0]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
@@ -984,34 +981,42 @@ Array<double>* ComputeMetric(Partition* Pa,
         UR->setVal(0,0,eig->V[0]);UR->setVal(0,1,eig->V[1]);UR->setVal(0,2,eig->V[2]);
         UR->setVal(1,0,eig->V[3]);UR->setVal(1,1,eig->V[4]);UR->setVal(1,2,eig->V[5]);
         UR->setVal(2,0,eig->V[6]);UR->setVal(2,1,eig->V[7]);UR->setVal(2,2,eig->V[8]);
-        
-
 
         Array<double>* iVR = MatInv(UR);
         Array<double>* Rs = MatMul(UR,DR);
         Array<double>* Rf = MatMul(Rs,iVR);
-
-        metric->setVal(i,0, Rf->getVal(0,0));
-        metric->setVal(i,1, Rf->getVal(0,1));
-        metric->setVal(i,2, Rf->getVal(0,2));
-
-        metric->setVal(i,3, Rf->getVal(1,0));
-        metric->setVal(i,4, Rf->getVal(1,1));
-        metric->setVal(i,5, Rf->getVal(1,2));
-
-        metric->setVal(i,6, Rf->getVal(2,0));
-        metric->setVal(i,7, Rf->getVal(2,1));
-        metric->setVal(i,8, Rf->getVal(2,2));
-
-        //myfile << std::setprecision(16) << Verts[loc_vid].x << " " << Verts[loc_vid].y << " " << Verts[loc_vid].z << " " << Rf->getVal(0,0) << " " << Rf->getVal(0,1) << " " << Rf->getVal(0,2) << " " << Rf->getVal(1,1) << " " << Rf->getVal(1,2) << " " << Rf->getVal(2,2) << std::endl;
-        myfile << Verts[loc_vid].x << " " << Verts[loc_vid].y << " " << Verts[loc_vid].z << " " << Rf->getVal(0,0) << " " << Rf->getVal(0,1) << " " << Rf->getVal(0,2) << " " << Rf->getVal(1,1) << " " << Rf->getVal(1,2) << " " << Rf->getVal(2,2) << std::endl;
         
-        //myfile << Verts[loc_vid].x << " " << Verts[loc_vid].y << " " << Verts[loc_vid].z << " " << Hmet[0] << " " << Hmet[1] << " " << Hmet[2] << " " << Hmet[4] << " " << Hmet[5] << " " << Hmet[8] << std::endl;
+        metric[glob_vid] = Rf;
+
+//        double* Rfm = new double[9];
+//        Rfm[0] = Rf->getVal(0,0);
+//        Rfm[1] = Rf->getVal(0,1);
+//        Rfm[2] = Rf->getVal(0,2);
+//
+//        Rfm[3] = Rf->getVal(1,0);
+//        Rfm[4] = Rf->getVal(1,1);
+//        Rfm[5] = Rf->getVal(1,2);
+//
+//        Rfm[6] = Rf->getVal(2,0);
+//        Rfm[7] = Rf->getVal(2,1);
+//        Rfm[8] = Rf->getVal(2,2);
+        
+//        Eig* eig2 = ComputeEigenDecomp(3, Rfm);
+//
+//
+//        if(eig2->Dre[0]<0.0 || eig2->Dre[1]<0.0 || eig2->Dre[2]<0.0)
+//        {
+//            std::cout << "Error:: M is not SPD!" << std::endl;
+//        }
+        
+        myfile        << Verts[loc_vid].x << " " << Verts[loc_vid].y << " " << Verts[loc_vid].z
+               << " " << Rf->getVal(0,0) << " " << Rf->getVal(0,1) << " " << Rf->getVal(0,2)
+               << " " << Rf->getVal(1,1) << " " << Rf->getVal(1,2) << " " << Rf->getVal(2,2) << std::endl;
         
         delete DR;
         delete UR;
         delete Rs;
-        delete Rf;
+        //delete Rf;
 
         delete[] iV;
         delete[] V;
