@@ -932,93 +932,92 @@ Array<double>* ComputeMetric(Partition* Pa,
         
         int loc_vid = loc_part_verts[i];
 
-//        double * WR = new double[3];
-//        double * WI = new double[3];
-//        double * V  = new double[3*3];
-//        double * iV = new double[3*3];
-//        double* WRn = new double[3];
-//
-//        Array<double>* DR  = new Array<double>(3,3);
-//        Array<double>* UR  = new Array<double>(3,3);
-//        for(int j=0;j<3;j++)
-//        {
-//            WR[j]  = 0.0;
-//            WRn[j] = 0.0;
-//            WI[j]  = 0.0;
-//
-//            for(int k=0;k<3;k++)
-//            {
-//                DR->setVal(j,k,0.0);
-//                V[j*3+k] = 0.0;
-//                iV[j*3+k] = 0.0;
-//            }
-//        }
-//
-//        if(isnan(Hmet[0]) || isnan(Hmet[1]) || isnan(Hmet[2])
-//           || isnan(Hmet[3]) || isnan(Hmet[4]) || isnan(Hmet[5])
-//           || isnan(Hmet[6]) || isnan(Hmet[7]) || isnan(Hmet[8]))
-//        {
-//            std::cout << "NaN! Watch out" << std::endl;
-//        }
-//
+        double * WR = new double[3];
+        double * WI = new double[3];
+        double * V  = new double[3*3];
+        double * iV = new double[3*3];
+        double* WRn = new double[3];
+
+        Array<double>* DR  = new Array<double>(3,3);
+        Array<double>* UR  = new Array<double>(3,3);
+        for(int j=0;j<3;j++)
+        {
+            WR[j]  = 0.0;
+            WRn[j] = 0.0;
+            WI[j]  = 0.0;
+
+            for(int k=0;k<3;k++)
+            {
+                DR->setVal(j,k,0.0);
+                V[j*3+k] = 0.0;
+                iV[j*3+k] = 0.0;
+            }
+        }
+
+        if(isnan(Hmet[0]) || isnan(Hmet[1]) || isnan(Hmet[2])
+           || isnan(Hmet[3]) || isnan(Hmet[4]) || isnan(Hmet[5])
+           || isnan(Hmet[6]) || isnan(Hmet[7]) || isnan(Hmet[8]))
+        {
+            std::cout << "NaN! Watch out" << std::endl;
+        }
+
 //        SVD* svd = ComputeSVD(3,3,Hmet);
-//        Eig* eig = ComputeEigenDecomp(3, Hmet);
-//
-////            WRn[0] = std::min(std::max(f*fabs(eig->Dre[0]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
-////            WRn[1] = std::min(std::max(f*fabs(eig->Dre[1]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
-////            WRn[2] = std::min(std::max(f*fabs(eig->Dre[2]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
-//
 //        WRn[0] = std::min(std::max(f*fabs(svd->s[0]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
 //        WRn[1] = std::min(std::max(f*fabs(svd->s[1]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
 //        WRn[2] = std::min(std::max(f*fabs(svd->s[2]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
-//
 //        DR->setVal(0,0,WRn[0]);DR->setVal(0,1,0.0);DR->setVal(0,1,0.0);
 //        DR->setVal(1,0,0.0);DR->setVal(1,1,WRn[1]);DR->setVal(1,2,0.0);
 //        DR->setVal(2,0,0.0);DR->setVal(2,1,0.0);DR->setVal(2,2,WRn[2]);
-//
-////            UR->setVal(0,0,eig->V[0]);UR->setVal(0,1,eig->V[1]);UR->setVal(0,2,eig->V[2]);
-////            UR->setVal(1,0,eig->V[3]);UR->setVal(1,1,eig->V[4]);UR->setVal(1,2,eig->V[5]);
-////            UR->setVal(2,0,eig->V[6]);UR->setVal(2,1,eig->V[7]);UR->setVal(2,2,eig->V[8]);
-//
-////            UR->setVal(0,0,svd->u[0]);UR->setVal(0,1,svd->u[1]);UR->setVal(0,2,svd->u[2]);
-////            UR->setVal(1,0,svd->u[3]);UR->setVal(1,1,svd->u[4]);UR->setVal(1,2,svd->u[5]);
-////            UR->setVal(2,0,svd->u[6]);UR->setVal(2,1,svd->u[7]);UR->setVal(2,2,svd->u[8]);
-//
 //        UR->setVal(0,0,svd->vt[0]);UR->setVal(0,1,svd->vt[1]);UR->setVal(0,2,svd->vt[2]);
 //        UR->setVal(1,0,svd->vt[3]);UR->setVal(1,1,svd->vt[4]);UR->setVal(1,2,svd->vt[5]);
 //        UR->setVal(2,0,svd->vt[6]);UR->setVal(2,1,svd->vt[7]);UR->setVal(2,2,svd->vt[8]);
-//
-//        Array<double>* iVR = MatInv(UR);
-//        Array<double>* Rs = MatMul(UR,DR);
-//        Array<double>* Rf = MatMul(Rs,iVR);
-//
-//        metric->setVal(i,0, Rf->getVal(0,0));
-//        metric->setVal(i,1, Rf->getVal(0,1));
-//        metric->setVal(i,2, Rf->getVal(0,2));
-//
-//        metric->setVal(i,3, Rf->getVal(1,0));
-//        metric->setVal(i,4, Rf->getVal(1,1));
-//        metric->setVal(i,5, Rf->getVal(1,2));
-//
-//        metric->setVal(i,6, Rf->getVal(2,0));
-//        metric->setVal(i,7, Rf->getVal(2,1));
-//        metric->setVal(i,8, Rf->getVal(2,2));
+        
+        
+        
+        Eig* eig = ComputeEigenDecomp(3, Hmet);
+        WRn[0] = std::min(std::max(f*fabs(eig->Dre[0]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
+        WRn[1] = std::min(std::max(f*fabs(eig->Dre[1]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
+        WRn[2] = std::min(std::max(f*fabs(eig->Dre[2]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
+        DR->setVal(0,0,WRn[0]);DR->setVal(0,1,0.0);DR->setVal(0,1,0.0);
+        DR->setVal(1,0,0.0);DR->setVal(1,1,WRn[1]);DR->setVal(1,2,0.0);
+        DR->setVal(2,0,0.0);DR->setVal(2,1,0.0);DR->setVal(2,2,WRn[2]);
+        UR->setVal(0,0,eig->V[0]);UR->setVal(0,1,eig->V[1]);UR->setVal(0,2,eig->V[2]);
+        UR->setVal(1,0,eig->V[3]);UR->setVal(1,1,eig->V[4]);UR->setVal(1,2,eig->V[5]);
+        UR->setVal(2,0,eig->V[6]);UR->setVal(2,1,eig->V[7]);UR->setVal(2,2,eig->V[8]);
+        
+
+
+        Array<double>* iVR = MatInv(UR);
+        Array<double>* Rs = MatMul(UR,DR);
+        Array<double>* Rf = MatMul(Rs,iVR);
+
+        metric->setVal(i,0, Rf->getVal(0,0));
+        metric->setVal(i,1, Rf->getVal(0,1));
+        metric->setVal(i,2, Rf->getVal(0,2));
+
+        metric->setVal(i,3, Rf->getVal(1,0));
+        metric->setVal(i,4, Rf->getVal(1,1));
+        metric->setVal(i,5, Rf->getVal(1,2));
+
+        metric->setVal(i,6, Rf->getVal(2,0));
+        metric->setVal(i,7, Rf->getVal(2,1));
+        metric->setVal(i,8, Rf->getVal(2,2));
 
         //myfile << std::setprecision(16) << Verts[loc_vid].x << " " << Verts[loc_vid].y << " " << Verts[loc_vid].z << " " << Rf->getVal(0,0) << " " << Rf->getVal(0,1) << " " << Rf->getVal(0,2) << " " << Rf->getVal(1,1) << " " << Rf->getVal(1,2) << " " << Rf->getVal(2,2) << std::endl;
-        //myfile << Verts[loc_vid].x << " " << Verts[loc_vid].y << " " << Verts[loc_vid].z << " " << Rf->getVal(0,0) << " " << Rf->getVal(0,1) << " " << Rf->getVal(0,2) << " " << Rf->getVal(1,1) << " " << Rf->getVal(1,2) << " " << Rf->getVal(2,2) << std::endl;
+        myfile << Verts[loc_vid].x << " " << Verts[loc_vid].y << " " << Verts[loc_vid].z << " " << Rf->getVal(0,0) << " " << Rf->getVal(0,1) << " " << Rf->getVal(0,2) << " " << Rf->getVal(1,1) << " " << Rf->getVal(1,2) << " " << Rf->getVal(2,2) << std::endl;
         
-        myfile << Verts[loc_vid].x << " " << Verts[loc_vid].y << " " << Verts[loc_vid].z << " " << Hmet[0] << " " << Hmet[1] << " " << Hmet[2] << " " << Hmet[4] << " " << Hmet[5] << " " << Hmet[8] << std::endl;
+        //myfile << Verts[loc_vid].x << " " << Verts[loc_vid].y << " " << Verts[loc_vid].z << " " << Hmet[0] << " " << Hmet[1] << " " << Hmet[2] << " " << Hmet[4] << " " << Hmet[5] << " " << Hmet[8] << std::endl;
         
-//        delete DR;
-//        delete UR;
-//        delete Rs;
-//        delete Rf;
-//
-//        delete[] iV;
-//        delete[] V;
-//        delete[] WR;
-//        delete[] WI;
-//        delete[] WRn;
+        delete DR;
+        delete UR;
+        delete Rs;
+        delete Rf;
+
+        delete[] iV;
+        delete[] V;
+        delete[] WR;
+        delete[] WI;
+        delete[] WRn;
 
     }
      

@@ -2470,49 +2470,9 @@ int main(int argc, char** argv) {
 
         Domain* pDom = P->getPartitionDomain();
 
-        std::vector<double> u_v    = meshTopo->ReduceUToVertices(pDom,Uvaria_map);
-        
-        std::vector<Vert> Verts  = P->getLocalVerts();
 
         
-        std::string filename = "output_" + std::to_string(world_rank) + ".dat";
-        std::ofstream myfile;
-        myfile.open(filename);
-        myfile << "TITLE=\"volume_part_"  + std::to_string(world_rank) +  ".tec\"" << std::endl;
-        myfile <<"VARIABLES = \"X\", \"Y\", \"Z\", \"M00\"" << std::endl;
-        myfile <<"ZONE N = " << u_v.size() << ", E = " << LocElem.size() << ", DATAPACKING = POINT, ZONETYPE = FEBRICK" << std::endl;
-
         
-        std::vector<int> loc_part_verts = pDom->loc_part_verts;
-
-        
-        for(int i=0;i<u_v.size();i++)
-        {
-            int loc_vid = loc_part_verts[i];
-            
-            myfile << Verts[loc_vid].x << " " << Verts[loc_vid].y << " " << Verts[loc_vid].z << " " << u_v[i] << std::endl;
-            
-        }
-        int gv0,gv1,gv2,gv3,gv4,gv5,gv6,gv7;
-        int lv0,lv1,lv2,lv3,lv4,lv5,lv6,lv7;
-        
-        for(int i=0;i<LocElem.size();i++)
-        {
-            int glob_id = LocElem[i];
-            
-            myfile <<   pDom->LocElem2LocNode->getVal(i,0)+1 << "  " <<
-            pDom->LocElem2LocNode->getVal(i,1)+1 << "  " <<
-            pDom->LocElem2LocNode->getVal(i,2)+1 << "  " <<
-            pDom->LocElem2LocNode->getVal(i,3)+1 << "  " <<
-            pDom->LocElem2LocNode->getVal(i,4)+1 << "  " <<
-            pDom->LocElem2LocNode->getVal(i,5)+1 << "  " <<
-            pDom->LocElem2LocNode->getVal(i,6)+1 << "  " <<
-            pDom->LocElem2LocNode->getVal(i,7)+1 << std::endl;
-        }
-        
-        myfile.close();
-        
-        /*
         
         
         std::map<int,double> UauxNew = P->CommunicateAdjacentDataUS3D(Uvaria_map,comm);
@@ -2580,7 +2540,6 @@ int main(int argc, char** argv) {
             
             ti++;
         }
-        std::cout << "ti =  " << ti << " " << LocElem.size() << std::endl;
         std::map<int,double > dUdxauxNew  = P->CommunicateAdjacentDataUS3D(dUidxi_map,comm);
         std::map<int,double > dUdyauxNew  = P->CommunicateAdjacentDataUS3D(dUidyi_map,comm);
         std::map<int,double > dUdzauxNew  = P->CommunicateAdjacentDataUS3D(dUidzi_map,comm);
@@ -2727,7 +2686,6 @@ int main(int argc, char** argv) {
             t++;
         }
         
-        Domain* pDom = P->getPartitionDomain();
 
         std::vector<double> u_v    = meshTopo->ReduceUToVertices(pDom,Uvaria_map);
         std::vector<double> dudx_v = meshTopo->ReduceUToVertices(pDom,dUidxi_map);
@@ -2759,7 +2717,7 @@ int main(int argc, char** argv) {
         {
             std::cout << "Finished gathering metric data on rank 0..." <<std::endl;
         }
-         */
+        
          
          
          
