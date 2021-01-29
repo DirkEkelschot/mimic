@@ -898,7 +898,7 @@ std::map<int,Array<double>*> ComputeMetric(Partition* Pa,
     
     //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     //+++++++++++++Required Parameter set for scaling eigenvalues/eigenvectors+++++++++++++++
-    double hmin         = 0.0001;
+    double hmin         = 0.00005;
     double hmax         = 0.1;
     double f            = 0.05;
     //std::cout << "Metric Tensor Field gets computed..." << std::endl;
