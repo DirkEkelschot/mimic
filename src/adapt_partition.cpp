@@ -2017,6 +2017,8 @@ void Partition::CreatePartitionDomain()
     
     std::map<int,int> gv2lpv;
     std::map<int,int> lv2gpv;
+    std::map<int,int> gv2lpartv;
+    std::map<int,int> lpartv2gv;
     std::set<int> gv_set;
     Array<int>* locelem2locnode= new Array<int>(ien_part_map->i_map.size(),8);
 
@@ -2040,12 +2042,14 @@ void Partition::CreatePartitionDomain()
             if(gv_set.find(gv)==gv_set.end())
             {
                 gv_set.insert(gv);
-                glob_part_verts.push_back(gv);
+                //glob_part_verts.push_back(gv);
                 loc_part_verts.push_back(lv);
                 //localV_2_localpartV[lcv]=lv;
-                vert2elem[lcv].push_back(glob_id);
+                vert2elem[gv].push_back(glob_id);
                 gv2lpv[gv]=lcv;
                 lv2gpv[lcv]=gv;
+                gv2lpartv[gv]=lv;
+                lpartv2gv[lv]=gv;
                 locelem2locnode->setVal(elid,q,lcv);
                 lcv=lcv+1;
             }
@@ -2053,7 +2057,7 @@ void Partition::CreatePartitionDomain()
             {
                 int lcv_u = gv2lpv[gv];
                 locelem2locnode->setVal(elid,q,lcv_u);
-                vert2elem[lcv_u].push_back(glob_id);
+                vert2elem[gv].push_back(glob_id);
             }
         }
         elid++;
@@ -2063,8 +2067,10 @@ void Partition::CreatePartitionDomain()
     pDom->loc_part_verts  = loc_part_verts;
     pDom->glob_part_verts = glob_part_verts;
     pDom->gv2lpv          = gv2lpv;
-    pDom->lv2gpv          = gv2lpv;
+    pDom->lv2gpv          = lv2gpv;
     pDom->vert2elem       = vert2elem;
+    pDom->gv2lpartv       = gv2lpartv;
+    pDom->lpartv2gv       = lpartv2gv;
     
 }
 

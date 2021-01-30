@@ -2,6 +2,23 @@
 #include "adapt_output.h"
 
 
+std::vector<double> ReadMetricInputs(const char* fn_metric)
+{
+    std::ifstream fin;
+    fin.open(fn_metric);
+    double v=0.0;
+    std::vector<double> metric_inputs;
+    int t=0;
+    while(fin >> v)
+    {
+        metric_inputs.push_back(v);
+       t++;
+    }
+    return metric_inputs;
+}
+
+
+
 void WriteUS3DGridFromMMG(MMG5_pMesh mmgMesh, US3D* us3d, std::map<int,std::vector<int> > bnd_face_map, std::set<std::set<int> > u_fset)
 {
     std::map<int,std::vector<int> > ref2bface;

@@ -540,75 +540,50 @@ std::vector<double> Mesh_Topology::ReduceUToVertices(
     
     return Uv;
     
-    
-    /*
-    std::map<int,std::vector<double> > collect_Ui;
-    std::map<int,std::vector<double> > collect_gUi;
+}
 
-    
-//        make two lists here one with the local partition vertex_id to plot id and the plot_id to variable value.
-    
-    std::map<int,int> gV2lV = P->getGlobalVert2LocalVert();
-
-    std::map<int,double>::iterator it;
-    std::map<int,int> lv2lpv;
-    std::map<int,int> gv2lpv;
-    std::map<int,int> lv2gpv;
-    std::set<int> lv_set;
-    std::set<int> gv_set;
-
-    int lcv = 0;
-    int gcv = 0;
-    int g_id = 0;
-    
-    i_part_map*  ien_vec     = P->getIENpartmap();
+std::map<int,double> Mesh_Topology::ReduceFieldToVertices(
+                        Domain* pDom,
+                        std::map<int,double> Uelem)
+{
+    std::vector<double> Uv;
+    std::map<int,double> Uvm;
+    std::map<int,std::vector<int> > v2e = pDom->vert2elem;
+    std::vector<int> glob_part_verts = pDom->glob_part_verts;
+    std::map<int,int> lv2gpv = pDom->lv2gpv;
+    int im = 0;
+    int tel=0;
     std::map<int,std::vector<int> >::iterator itm;
-    double uinew = 0.0;
     
-    for(itm = ien_vec->i_map.begin();itm != ien_vec->i_map.end();itm++)
+    for(itm=pDom->vert2elem.begin();itm!=pDom->vert2elem.end();itm++)
     {
-        int glob_id  = itm->first;
-        uinew = Uelem[glob_id];
+        double sum = 0.0;
+        double avg = 0.0;
+        int gv = itm->first;
+        
         for(int q=0;q<itm->second.size();q++)
         {
-            int gv = itm->second[q];
-            int lv = gV2lV[gv];
-            if(gv_set.find(gv)==gv_set.end())
-            {
-                gv_set.insert(gv);
-                collect_gUi[gv].push_back(uinew);
-                gv2lpv[gv]=lcv;
-                lv2gpv[lcv]=gv;
-                lcv=lcv+1;
-            }
-            else
-            {
-                int lcv_u = lv2lpv[gv];
-                collect_gUi[gv].push_back(uinew);
-            }
+            int gEl = itm->second[q];
+            sum = sum + Uelem[gEl];
         }
-        g_id++;
+        
+        avg = sum/itm->second.size();
+        Uv.push_back(avg);
+        Uvm[gv]=avg;
+        //std::cout <<"hhh "<< gv << " " << gv2  << " " << avg<<std::endl;
+
+        im++;
     }
 
-    std::map<int,std::vector<double> >::iterator it_var;
-    std::vector<double> uivert(lcv);
-    
-    for(it_var=collect_gUi.begin();it_var!=collect_gUi.end();it_var++)
-    {
-        double sum_u = 0;
-        int gid=it_var->first;
-        for(int q = 0;q<it_var->second.size();q++)
-        {
-            sum_u    = sum_u + it_var->second[q];
-        }
-        uivert[gid]= sum_u/it_var->second.size();
-    }
-    
-    return uivert;
-     */
-    
+    return Uvm;
 
+}
+
+std::map<int,Array<double>*> ReduceTensorToVertices(Domain* pDom, std::map<int,Array<double>*> Uelem)
+{
+    std::map<int,Array<double>*> T;
     
+    return T;
 }
 
 std::map<int,vector<Vec3D*> > Mesh_Topology::getNormals()

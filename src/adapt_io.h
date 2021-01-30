@@ -611,6 +611,10 @@ Array<T>* ReadDataSetFromFileInParallelToAll(const char* file_name, const char* 
 }
 
 
+std::vector<double> ReadMetricInputs(const char* fn_metric);
+
+
+
 void WriteUS3DGridFromMMG(MMG5_pMesh mmgMesh, US3D* us3d,
                           std::map<int,std::vector<int> > bnd_face_map,
                           std::set<std::set<int> > u_fset);

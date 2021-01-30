@@ -7,6 +7,7 @@ EXEC = adapt
 TESTBIN = tests/bin
 TEST1 = tests/test1
 TEST2 = tests/test2
+TEST3 = tests/test3
 
 include module.mk
 
@@ -21,5 +22,6 @@ makebin:
 test:
 	make -C $(TEST1)
 	make -C $(TEST2)
+	make -C $(TEST3)
 clean:	
 	rm -rf $(EXEC) *.dat $(SRC)/*.o $(SRC)/*.mod $(BIN) $(TESTBIN)

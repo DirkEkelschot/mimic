@@ -87,7 +87,7 @@ int main(int argc, char** argv) {
 
     Domain* pDom = P->getPartitionDomain();
 
-    std::vector<double> u_v    = meshTopo->ReduceUToVertices(pDom,Ui_map);
+    std::map<int,double> u_vmap    = meshTopo->ReduceFieldToVertices(pDom,Ui_map);
     
     std::vector<Vert> Verts  = P->getLocalVerts();
     
@@ -96,18 +96,20 @@ int main(int argc, char** argv) {
     myfile.open(filename);
     myfile << "TITLE=\"volume_part_"  + std::to_string(world_rank) +  ".tec\"" << std::endl;
     myfile <<"VARIABLES = \"X\", \"Y\", \"Z\", \"M00\"" << std::endl;
-    myfile <<"ZONE N = " << u_v.size() << ", E = " << LocElem.size() << ", DATAPACKING = POINT, ZONETYPE = FEBRICK" << std::endl;
+    myfile <<"ZONE N = " << u_vmap.size() << ", E = " << LocElem.size() << ", DATAPACKING = POINT, ZONETYPE = FEBRICK" << std::endl;
 
-    
+    std::map<int,int> gv2lv_part    = P->getGlobalVert2LocalVert();
     std::vector<int> loc_part_verts = pDom->loc_part_verts;
-
-    
-    for(int i=0;i<u_v.size();i++)
+    std::map<int,int> gv2lpartv     = pDom->gv2lpartv;
+    std::map<int,int> lpartv2gv     = pDom->lpartv2gv;
+    std::map<int,int> gv2lpv        = pDom->gv2lpv;
+    i = 0;
+    std::map<int,double>::iterator itm;
+    for(int i=0;i<loc_part_verts.size();i++)
     {
         int loc_vid = loc_part_verts[i];
-        
-        myfile << Verts[loc_vid].x << " " << Verts[loc_vid].y << " " << Verts[loc_vid].z << " " << u_v[i] << std::endl;
-        
+        int glob_vid = lpartv2gv[loc_vid];
+        myfile << Verts[loc_vid].x << " " << Verts[loc_vid].y << " " << Verts[loc_vid].z << " " << u_vmap[glob_vid] << std::endl;
     }
     int gv0,gv1,gv2,gv3,gv4,gv5,gv6,gv7;
     int lv0,lv1,lv2,lv3,lv4,lv5,lv6,lv7;

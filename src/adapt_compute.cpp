@@ -867,15 +867,16 @@ void UnitTestJacobian()
 
 
 std::map<int,Array<double>*> ComputeMetric(Partition* Pa,
-                             std::vector<double> d2udx2_v,
-                             std::vector<double> d2udxy_v,
-                             std::vector<double> d2udxz_v,
-                             std::vector<double> d2udyx_v,
-                             std::vector<double> d2udy2_v,
-                             std::vector<double> d2udyz_v,
-                             std::vector<double> d2udzx_v,
-                             std::vector<double> d2udzy_v,
-                             std::vector<double> d2udz2_v, MPI_Comm comm)
+                        std::vector<double> metric_inputs,
+                        std::map<int,double> d2udx2_vm,
+                        std::map<int,double> d2udxy_vm,
+                        std::map<int,double> d2udxz_vm,
+                        std::map<int,double> d2udyx_vm,
+                        std::map<int,double> d2udy2_vm,
+                        std::map<int,double> d2udyz_vm,
+                        std::map<int,double> d2udzx_vm,
+                        std::map<int,double> d2udzy_vm,
+                        std::map<int,double> d2udz2_vm, MPI_Comm comm)
 {
     int size;
     MPI_Comm_size(comm, &size);
@@ -886,6 +887,10 @@ std::map<int,Array<double>*> ComputeMetric(Partition* Pa,
     
     std::vector<int> loc_part_verts = pDom->loc_part_verts;
     std::vector<int> glob_part_verts = pDom->glob_part_verts;
+    std::map<int,std::vector<int> > v2e = pDom->vert2elem;
+    std::map<int,int> lv2gpv = pDom->lv2gpv;
+    std::map<int,int> gv2lpv = pDom->gv2lpv;
+
 
     i_part_map* ien_part_map = Pa->getIENpartmap();
     std::vector<Vert> Verts  = Pa->getLocalVerts();
@@ -896,45 +901,37 @@ std::map<int,Array<double>*> ComputeMetric(Partition* Pa,
     std::vector<int> LocElem    = Pa->getLocElem();
     int nloc = LocElem.size();
     
-    //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    //+++++++++++++Required Parameter set for scaling eigenvalues/eigenvectors+++++++++++++++
-    double hmin         = 0.00005;
-    double hmax         = 0.1;
-    double f            = 0.05;
-    //std::cout << "Metric Tensor Field gets computed..." << std::endl;
-    //double d2udx2_v_max = *std::max_element(d2udx2_v.begin(), d2udx2_v.end());
-    //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    //+++++++++++++++++++++++++++++++++++++++++++
+    //++++  Scaling eigenvalues/eigenvectors   ++
+    double hmin         = metric_inputs[0];
+    double hmax         = metric_inputs[1];
+    double f            = metric_inputs[2];
+    //+++++++++++++++++++++++++++++++++++++++++++
+    //+++++++++++++++++++++++++++++++++++++++++++
     double* Hmet = new double[9];
     
-    int nVerts = d2udx2_v.size();
-    int i;
+    int nVerts = d2udx2_vm.size();
     std::map<int,Array<double>*> metric;
-//    string filename11 = "metric_plane.dat";
-//    ofstream myfile11;
-    std::string filename = "metricTensor_rank_" + std::to_string(rank) + ".dat";
-    std::ofstream myfile;
-    myfile.open(filename);
-    myfile << "TITLE=\"volume_part_"  + std::to_string(rank) +  ".tec\"" << std::endl;
-    myfile <<"VARIABLES = \"X\", \"Y\", \"Z\", \"M00\", \"M01\", \"M02\", \"M11\", \"M12\", \"M22\"" << std::endl;
-    myfile <<"ZONE N = " << nVerts << ", E = " << nloc << ", DATAPACKING = POINT, ZONETYPE = FEBRICK" << std::endl;
-    
-    for(int i=0;i<d2udx2_v.size();i++)
+
+    std::map<int,double>::iterator itm;
+    //std::map<int,std::vector<int> >::iterator itm;
+    int i = 0;
+    for(itm=d2udx2_vm.begin();itm!=d2udx2_vm.end();itm++)
     {
-        Hmet[0] = d2udx2_v[i];
-        Hmet[1] = d2udxy_v[i];
-        Hmet[2] = d2udxz_v[i];
-
-        Hmet[3] = d2udyx_v[i];
-        Hmet[4] = d2udy2_v[i];
-        Hmet[5] = d2udyz_v[i];
-
-        Hmet[6] = d2udzx_v[i];
-        Hmet[7] = d2udzy_v[i];
-        Hmet[8] = d2udz2_v[i];
+        int glob_vid = itm->first;
         
-        int loc_vid  = loc_part_verts[i];
-        int glob_vid = glob_part_verts[i];
+        Hmet[0] = itm->second;
+        Hmet[1] = d2udxy_vm[glob_vid];
+        Hmet[2] = d2udxz_vm[glob_vid];
+
+        Hmet[3] = d2udyx_vm[glob_vid];
+        Hmet[4] = d2udy2_vm[glob_vid];
+        Hmet[5] = d2udyz_vm[glob_vid];
+
+        Hmet[6] = d2udzx_vm[glob_vid];
+        Hmet[7] = d2udzy_vm[glob_vid];
+        Hmet[8] = d2udz2_vm[glob_vid];
+        
         double * WR = new double[3];
         double * WI = new double[3];
         double * V  = new double[3*3];
@@ -956,22 +953,9 @@ std::map<int,Array<double>*> ComputeMetric(Partition* Pa,
                 iV[j*3+k] = 0.0;
             }
         }
-
-
-//        SVD* svd = ComputeSVD(3,3,Hmet);
-//        WRn[0] = std::min(std::max(f*fabs(svd->s[0]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
-//        WRn[1] = std::min(std::max(f*fabs(svd->s[1]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
-//        WRn[2] = std::min(std::max(f*fabs(svd->s[2]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
-//        DR->setVal(0,0,WRn[0]);DR->setVal(0,1,0.0);DR->setVal(0,1,0.0);
-//        DR->setVal(1,0,0.0);DR->setVal(1,1,WRn[1]);DR->setVal(1,2,0.0);
-//        DR->setVal(2,0,0.0);DR->setVal(2,1,0.0);DR->setVal(2,2,WRn[2]);
-//        UR->setVal(0,0,svd->vt[0]);UR->setVal(0,1,svd->vt[1]);UR->setVal(0,2,svd->vt[2]);
-//        UR->setVal(1,0,svd->vt[3]);UR->setVal(1,1,svd->vt[4]);UR->setVal(1,2,svd->vt[5]);
-//        UR->setVal(2,0,svd->vt[6]);UR->setVal(2,1,svd->vt[7]);UR->setVal(2,2,svd->vt[8]);
-        
-        
         
         Eig* eig = ComputeEigenDecomp(3, Hmet);
+        
         WRn[0] = std::min(std::max(f*fabs(eig->Dre[0]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
         WRn[1] = std::min(std::max(f*fabs(eig->Dre[1]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
         WRn[2] = std::min(std::max(f*fabs(eig->Dre[2]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
@@ -1009,9 +993,9 @@ std::map<int,Array<double>*> ComputeMetric(Partition* Pa,
 //            std::cout << "Error:: M is not SPD!" << std::endl;
 //        }
         
-        myfile        << Verts[loc_vid].x << " " << Verts[loc_vid].y << " " << Verts[loc_vid].z
-               << " " << Rf->getVal(0,0) << " " << Rf->getVal(0,1) << " " << Rf->getVal(0,2)
-               << " " << Rf->getVal(1,1) << " " << Rf->getVal(1,2) << " " << Rf->getVal(2,2) << std::endl;
+//        myfile        << Verts[loc_vid].x << " " << Verts[loc_vid].y << " " << Verts[loc_vid].z
+//               << " " << Rf->getVal(0,0) << " " << Rf->getVal(0,1) << " " << Rf->getVal(0,2)
+//               << " " << Rf->getVal(1,1) << " " << Rf->getVal(1,2) << " " << Rf->getVal(2,2) << std::endl;
         
         delete DR;
         delete UR;
@@ -1023,29 +1007,8 @@ std::map<int,Array<double>*> ComputeMetric(Partition* Pa,
         delete[] WR;
         delete[] WI;
         delete[] WRn;
-
+        i++;
     }
-     
-    int gv0,gv1,gv2,gv3,gv4,gv5,gv6,gv7;
-    int lv0,lv1,lv2,lv3,lv4,lv5,lv6,lv7;
-    
-    for(int i=0;i<nloc;i++)
-    {
-        int glob_id = LocElem[i];
-        
-        myfile <<   pDom->LocElem2LocNode->getVal(i,0)+1 << "  " <<
-        pDom->LocElem2LocNode->getVal(i,1)+1 << "  " <<
-        pDom->LocElem2LocNode->getVal(i,2)+1 << "  " <<
-        pDom->LocElem2LocNode->getVal(i,3)+1 << "  " <<
-        pDom->LocElem2LocNode->getVal(i,4)+1 << "  " <<
-        pDom->LocElem2LocNode->getVal(i,5)+1 << "  " <<
-        pDom->LocElem2LocNode->getVal(i,6)+1 << "  " <<
-        pDom->LocElem2LocNode->getVal(i,7)+1 << std::endl;
-    }
-    
-    myfile.close();
-    
-    
     
     delete[] Hmet;
     return metric;

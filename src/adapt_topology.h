@@ -54,6 +54,8 @@ class Mesh_Topology {
         Array<int>* getIFN();
         std::map<int,double> getVol();
         std::vector<double> ReduceUToVertices(Domain* dom, std::map<int,double> Uelem);
+        std::map<int,double> ReduceFieldToVertices(Domain* pDom, std::map<int,double> Uelem);
+        std::map<int,Array<double>*> ReduceTensorToVertices(Domain* pDom, std::map<int,Array<double>*> Uelem);
         std::map<int,int> getFace2Ref();
         std::map<int,std::vector<int> > getRef2Face();
         std::map<int,int> getVert2Ref();

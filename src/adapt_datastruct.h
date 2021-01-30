@@ -12,12 +12,10 @@ struct Domain
     std::vector<int> glob_part_verts;
     std::map<int,int> gv2lpv;
     std::map<int,int> lv2gpv;
-    
     std::map<int,std::vector<int> > vert2elem;
-    
+    std::map<int,int> gv2lpartv;
+    std::map<int,int> lpartv2gv;
 };
-
-
 
 struct i_part_map
 {

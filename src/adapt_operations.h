@@ -1,5 +1,6 @@
 #include "adapt.h"
 #include "adapt_parstate.h"
+#include "adapt_array.h"
 
 #ifndef ADAPT_OPERATIONS_H
 #define ADAPT_OPERATIONS_H

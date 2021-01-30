@@ -1,5 +1,4 @@
 #include "adapt_datastruct.h"
-//#include "adapt_part_func.h"
 #include "adapt_partition.h"
 #include "adapt_io.h"
 #include "adapt.h"
@@ -7,6 +6,7 @@
 #include "adapt_topology.h"
 #include "mmg/mmgs/libmmgs.h"
 #include "mmg/mmg3d/libmmg3d.h"
+
 #ifndef ADAPT_OUTPUT_H
 #define ADAPT_OUTPUT_H
 
