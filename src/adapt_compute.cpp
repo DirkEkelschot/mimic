@@ -1015,6 +1015,147 @@ std::map<int,Array<double>*> ComputeMetric(Partition* Pa,
 }
 
 
+std::map<int,Array<double>*> ComputeMetric(Partition* Pa,
+                        std::vector<double> metric_inputs,
+                        std::map<int,Array<double>* > Hess_vm, MPI_Comm comm)
+{
+    int size;
+    MPI_Comm_size(comm, &size);
+    // Get the rank of the process
+    int rank;
+    MPI_Comm_rank(comm, &rank);
+    Domain* pDom = Pa->getPartitionDomain();
+    
+    std::vector<int> loc_part_verts = pDom->loc_part_verts;
+    std::vector<int> glob_part_verts = pDom->glob_part_verts;
+    std::map<int,std::vector<int> > v2e = pDom->vert2elem;
+    std::map<int,int> lv2gpv = pDom->lv2gpv;
+    std::map<int,int> gv2lpv = pDom->gv2lpv;
+
+
+    i_part_map* ien_part_map = Pa->getIENpartmap();
+    std::vector<Vert> Verts  = Pa->getLocalVerts();
+    std::map<int,std::vector<int> > gE2lV = Pa->getGlobElem2LocVerts();
+    std::map<int,int> gV2lV = Pa->getGlobalVert2LocalVert();
+
+    std::vector<std::vector<int> > lE2lV = Pa->getLocalElem2LocalVert();
+    std::vector<int> LocElem    = Pa->getLocElem();
+    int nloc = LocElem.size();
+    
+    //+++++++++++++++++++++++++++++++++++++++++++
+    //++++  Scaling eigenvalues/eigenvectors   ++
+    double hmin         = metric_inputs[0];
+    double hmax         = metric_inputs[1];
+    double f            = metric_inputs[2];
+    //+++++++++++++++++++++++++++++++++++++++++++
+    //+++++++++++++++++++++++++++++++++++++++++++
+    double* Hmet = new double[9];
+    
+    int nVerts = Hess_vm.size();
+    std::map<int,Array<double>*> metric;
+
+    std::map<int,Array<double>*>::iterator itm;
+    //std::map<int,std::vector<int> >::iterator itm;
+    int i = 0;
+    for(itm=Hess_vm.begin();itm!=Hess_vm.end();itm++)
+    {
+        int glob_vid = itm->first;
+        
+        Hmet[0] = Hess_vm[glob_vid]->getVal(0,0);
+        Hmet[1] = Hess_vm[glob_vid]->getVal(0,1);
+        Hmet[2] = Hess_vm[glob_vid]->getVal(0,2);
+
+        Hmet[3] = Hess_vm[glob_vid]->getVal(1,0);
+        Hmet[4] = Hess_vm[glob_vid]->getVal(1,1);
+        Hmet[5] = Hess_vm[glob_vid]->getVal(1,2);
+
+        Hmet[6] = Hess_vm[glob_vid]->getVal(2,0);
+        Hmet[7] = Hess_vm[glob_vid]->getVal(2,1);
+        Hmet[8] = Hess_vm[glob_vid]->getVal(2,2);
+        
+        double * WR = new double[3];
+        double * WI = new double[3];
+        double * V  = new double[3*3];
+        double * iV = new double[3*3];
+        double* WRn = new double[3];
+
+        Array<double>* DR  = new Array<double>(3,3);
+        Array<double>* UR  = new Array<double>(3,3);
+        for(int j=0;j<3;j++)
+        {
+            WR[j]  = 0.0;
+            WRn[j] = 0.0;
+            WI[j]  = 0.0;
+
+            for(int k=0;k<3;k++)
+            {
+                DR->setVal(j,k,0.0);
+                V[j*3+k] = 0.0;
+                iV[j*3+k] = 0.0;
+            }
+        }
+        
+        Eig* eig = ComputeEigenDecomp(3, Hmet);
+        
+        WRn[0] = std::min(std::max(f*fabs(eig->Dre[0]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
+        WRn[1] = std::min(std::max(f*fabs(eig->Dre[1]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
+        WRn[2] = std::min(std::max(f*fabs(eig->Dre[2]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
+        DR->setVal(0,0,WRn[0]);DR->setVal(0,1,0.0);DR->setVal(0,1,0.0);
+        DR->setVal(1,0,0.0);DR->setVal(1,1,WRn[1]);DR->setVal(1,2,0.0);
+        DR->setVal(2,0,0.0);DR->setVal(2,1,0.0);DR->setVal(2,2,WRn[2]);
+        UR->setVal(0,0,eig->V[0]);UR->setVal(0,1,eig->V[1]);UR->setVal(0,2,eig->V[2]);
+        UR->setVal(1,0,eig->V[3]);UR->setVal(1,1,eig->V[4]);UR->setVal(1,2,eig->V[5]);
+        UR->setVal(2,0,eig->V[6]);UR->setVal(2,1,eig->V[7]);UR->setVal(2,2,eig->V[8]);
+
+        Array<double>* iVR = MatInv(UR);
+        Array<double>* Rs = MatMul(UR,DR);
+        Array<double>* Rf = MatMul(Rs,iVR);
+        
+        metric[glob_vid] = Rf;
+
+//        double* Rfm = new double[9];
+//        Rfm[0] = Rf->getVal(0,0);
+//        Rfm[1] = Rf->getVal(0,1);
+//        Rfm[2] = Rf->getVal(0,2);
+//
+//        Rfm[3] = Rf->getVal(1,0);
+//        Rfm[4] = Rf->getVal(1,1);
+//        Rfm[5] = Rf->getVal(1,2);
+//
+//        Rfm[6] = Rf->getVal(2,0);
+//        Rfm[7] = Rf->getVal(2,1);
+//        Rfm[8] = Rf->getVal(2,2);
+        
+//        Eig* eig2 = ComputeEigenDecomp(3, Rfm);
+//
+//
+//        if(eig2->Dre[0]<0.0 || eig2->Dre[1]<0.0 || eig2->Dre[2]<0.0)
+//        {
+//            std::cout << "Error:: M is not SPD!" << std::endl;
+//        }
+        
+//        myfile        << Verts[loc_vid].x << " " << Verts[loc_vid].y << " " << Verts[loc_vid].z
+//               << " " << Rf->getVal(0,0) << " " << Rf->getVal(0,1) << " " << Rf->getVal(0,2)
+//               << " " << Rf->getVal(1,1) << " " << Rf->getVal(1,2) << " " << Rf->getVal(2,2) << std::endl;
+        
+        delete DR;
+        delete UR;
+        delete Rs;
+        //delete Rf;
+
+        delete[] iV;
+        delete[] V;
+        delete[] WR;
+        delete[] WI;
+        delete[] WRn;
+        i++;
+    }
+    
+    delete[] Hmet;
+    return metric;
+}
+
+
 Array<double>* ComputeFaceValues(Partition* P, Array<double>* U, MPI_Comm comm)
 {
     int nface, start, end, rank, size;

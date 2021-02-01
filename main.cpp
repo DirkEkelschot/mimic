@@ -1838,9 +1838,7 @@ int main(int argc, char** argv) {
 //      Array<double>* dU2dYi2 = ComputedUdx_MGG(P,dUdyauxNew,meshTopo,gB,comm);
 //      Array<double>* dU2dZi2 = ComputedUdx_MGG(P,dUdzauxNew,meshTopo,gB,comm);
                 
-        std::map<int,double> d2udx2_map,d2udxy_map,d2udxz_map,
-                             d2udyx_map,d2udy2_map,d2udyz_map,
-                             d2udzx_map,d2udzy_map,d2udz2_map;
+        std::map<int,Array<double>*> Hess_map;
         
         std::map<int,Array<double>* >::iterator itgg;
         int te = 0;
@@ -1849,37 +1847,28 @@ int main(int argc, char** argv) {
         {
             int gid = itgg->first;
             
-            d2udx2_map[gid] = dU2dXi2[gid]->getVal(0,0);
-            d2udxy_map[gid] = dU2dXi2[gid]->getVal(1,0);
-            d2udxz_map[gid] = dU2dXi2[gid]->getVal(2,0);
+            Array<double>* Hess = new Array<double>(3,3);
             
-            d2udyx_map[gid] = dU2dYi2[gid]->getVal(0,0);
-            d2udy2_map[gid] = dU2dYi2[gid]->getVal(1,0);
-            d2udyz_map[gid] = dU2dYi2[gid]->getVal(2,0);
+            Hess->setVal(0,0,dU2dXi2[gid]->getVal(0,0));
+            Hess->setVal(0,1,dU2dXi2[gid]->getVal(1,0));
+            Hess->setVal(0,2,dU2dXi2[gid]->getVal(2,0));
             
-            d2udzx_map[gid] = dU2dZi2[gid]->getVal(0,0);
-            d2udzy_map[gid] = dU2dZi2[gid]->getVal(1,0);
-            d2udz2_map[gid] = dU2dZi2[gid]->getVal(2,0);
+            Hess->setVal(1,0,dU2dYi2[gid]->getVal(0,0));
+            Hess->setVal(1,1,dU2dYi2[gid]->getVal(1,0));
+            Hess->setVal(1,2,dU2dYi2[gid]->getVal(2,0));
+            
+            Hess->setVal(2,0,dU2dZi2[gid]->getVal(0,0));
+            Hess->setVal(2,1,dU2dZi2[gid]->getVal(1,0));
+            Hess->setVal(2,2,dU2dZi2[gid]->getVal(2,0));
+            
+            Hess_map[gid] = Hess;
             
             t++;
         }
         
-        std::map<int,double> d2udx2_vmap = meshTopo->ReduceFieldToVertices(pDom,d2udx2_map);
-        std::map<int,double> d2udxy_vmap = meshTopo->ReduceFieldToVertices(pDom,d2udxy_map);
-        std::map<int,double> d2udxz_vmap = meshTopo->ReduceFieldToVertices(pDom,d2udxz_map);
-
-        std::map<int,double> d2udyx_vmap = meshTopo->ReduceFieldToVertices(pDom,d2udyx_map);
-        std::map<int,double> d2udy2_vmap = meshTopo->ReduceFieldToVertices(pDom,d2udy2_map);
-        std::map<int,double> d2udyz_vmap = meshTopo->ReduceFieldToVertices(pDom,d2udyz_map);
+        std::map<int,Array<double>* > Hess_vm = meshTopo->ReduceMetricToVertices(pDom,Hess_map);
         
-        std::map<int,double> d2udzx_vmap = meshTopo->ReduceFieldToVertices(pDom,d2udzx_map);
-        std::map<int,double> d2udzy_vmap = meshTopo->ReduceFieldToVertices(pDom,d2udzy_map);
-        std::map<int,double> d2udz2_vmap = meshTopo->ReduceFieldToVertices(pDom,d2udz2_map);
-        
-        std::map<int,Array<double>*> metric = ComputeMetric(P,metric_inputs,
-                                                              d2udx2_vmap,d2udxy_vmap,d2udxz_vmap,
-                                                              d2udyx_vmap,d2udy2_vmap,d2udyz_vmap,
-                                                              d2udzx_vmap,d2udzy_vmap,d2udz2_vmap,comm);
+        std::map<int,Array<double>* > metric = ComputeMetric(P,metric_inputs, Hess_vm,comm);
         
         if(world_rank==0)
         {

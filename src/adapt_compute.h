@@ -65,15 +65,7 @@ void UnitTestJacobian();
 
 std::map<int,Array<double>*> ComputeMetric(Partition* Pa,
                         std::vector<double> metric_inputs,
-                        std::map<int,double> d2udx2_vm,
-                        std::map<int,double> d2udxy_vm,
-                        std::map<int,double> d2udxz_vm,
-                        std::map<int,double> d2udyx_vm,
-                        std::map<int,double> d2udy2_vm,
-                        std::map<int,double> d2udyz_vm,
-                        std::map<int,double> d2udzx_vm,
-                        std::map<int,double> d2udzy_vm,
-                        std::map<int,double> d2udz2_vm, MPI_Comm comm);
+                        std::map<int,Array<double>* > Hess_vm, MPI_Comm comm);
 
 Array<double>* ComputeFaceValues(Partition* P, Array<double>* U, MPI_Comm comm);
 

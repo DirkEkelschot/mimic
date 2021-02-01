@@ -112,7 +112,6 @@ Eig* ComputeEigenDecomp(int n, double * A)
     return eig;
 }
 
-
 SVD* ComputeSVD(int M, int N, double * A)
 {
     SVD* svd = new SVD;
