@@ -1801,11 +1801,6 @@ int main(int argc, char** argv) {
             std::cout << "Timing gradient reconstruction... " << Gmax_time << std::endl;
         }
         
-        Array<int>* lE2gE     = new Array<int>(dUdXi.size(),1);
-        Array<double>* dUidxi = new Array<double>(dUdXi.size(),1);
-        Array<double>* dUidyi = new Array<double>(dUdXi.size(),1);
-        Array<double>* dUidzi = new Array<double>(dUdXi.size(),1);
-        
         std::map<int,double> dUidxi_map;
         std::map<int,double> dUidyi_map;
         std::map<int,double> dUidzi_map;
@@ -1814,10 +1809,6 @@ int main(int argc, char** argv) {
         int ti=0;
         for(grit=dUdXi.begin();grit!=dUdXi.end();grit++)
         {
-            lE2gE->setVal(i,0,grit->first);
-            dUidxi->setVal(i,0,grit->second->getVal(0,0));
-            dUidyi->setVal(i,0,grit->second->getVal(1,0));
-            dUidzi->setVal(i,0,grit->second->getVal(2,0));
             dUidxi_map[grit->first]=grit->second->getVal(0,0);
             dUidyi_map[grit->first]=grit->second->getVal(1,0);
             dUidzi_map[grit->first]=grit->second->getVal(2,0);
