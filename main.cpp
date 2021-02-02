@@ -2087,7 +2087,7 @@ int main(int argc, char** argv) {
             }
          
             int wall_id = 3;
-            int nLayer  = 230;
+            int nLayer  = 50;
             
             if(nLayer>0)
             {
@@ -2513,7 +2513,7 @@ int main(int argc, char** argv) {
                 std::set<int> uv_or;
                 int ytel = 0;
                 std::map<int,std::set<int> > newvert2elem;
-                std::map<int,std::set<int> > newvert2vert;
+                std::map<int,std::vector<int> > newvert2vert;
                 std::map<int,int*> bndtrisVol;
                 std::map<int,int> bndtrisVolRef;
                 int tra = 0;
@@ -2575,7 +2575,7 @@ int main(int argc, char** argv) {
                                     if(mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[t]].ref != 0
                                     && mmgMesh_TET->tetra[i].v[t]!=mmgMesh_TET->tetra[i].v[s])
                                     {
-                                        newvert2vert[mmgMesh_TET->tetra[i].v[s]].insert(mmgMesh_TET->tetra[i].v[t]);
+                                        newvert2vert[mmgMesh_TET->tetra[i].v[s]].push_back(mmgMesh_TET->tetra[i].v[t]);
                                     }
                                 }
                             }
@@ -2939,7 +2939,8 @@ int main(int argc, char** argv) {
                         tellert++;
                     }
                 }
-                
+                                std::cout << "unique_new_verts.size = > " << unique_new_verts.size() << std::endl;
+ 
                 double min_oris = *std::min_element(oris.begin(),oris.end());
                 double max_oris = *std::max_element(oris.begin(),oris.end());
 
@@ -2951,37 +2952,44 @@ int main(int argc, char** argv) {
                 }
                 
                 
-                std::map<int,std::set<int> >::iterator nve;
+                std::map<int,std::vector<int> >::iterator nve;
                 double m11n=0.0;double m12n=0.0;double m13n=0.0;
                 double m22n=0.0;double m23n=0.0;
                 double m33n=0.0;
-                
+                int vgg=0;
                 std::map<int,double*> newvert2metric;
                 for(nve=newvert2vert.begin();nve!=newvert2vert.end();nve++)
                 {
                     m11n=0.0;m12n=0.0;m13n=0.0;
                     m22n=0.0;m23n=0.0;
                     m33n=0.0;
+                    // 
+                    //std::set<int>::iterator nves;
+                    //for(nves=nve->second.begin();nves!=nve->second.end();nves++)
+                    //{
+                    //    m11n = m11n+mv_g->getVal(*nves,0);
+                    //    m12n = m12n+mv_g->getVal(*nves,1);
+                    //    m13n = m13n+mv_g->getVal(*nves,2);
+                    //    m22n = m22n+mv_g->getVal(*nves,3);
+                    //    m23n = m23n+mv_g->getVal(*nves,4);
+                    //    m33n = m33n+mv_g->getVal(*nves,5);
+                    //}
                     
-                    std::set<int>::iterator nves;
-                    for(nves=nve->second.begin();nves!=nve->second.end();nves++)
-                    {
-                        m11n = m11n+mv_g->getVal(*nves,0);
-                        m12n = m12n+mv_g->getVal(*nves,1);
-                        m13n = m13n+mv_g->getVal(*nves,2);
-                        m22n = m22n+mv_g->getVal(*nves,3);
-                        m23n = m23n+mv_g->getVal(*nves,4);
-                        m33n = m33n+mv_g->getVal(*nves,5);
-                    }
-                    
-                    m11n = m11n/nve->second.size();
-                    m12n = m12n/nve->second.size();
-                    m13n = m13n/nve->second.size();
-                    m22n = m22n/nve->second.size();
-                    m23n = m23n/nve->second.size();
-                    m33n = m33n/nve->second.size();
-                    
-                    double* newM = new double[6];
+                    //m11n = m11n/nve->second.size();
+                    //m12n = m12n/nve->second.size();
+                    //m13n = m13n/nve->second.size();
+                    //m22n = m22n/nve->second.size();
+                    //m23n = m23n/nve->second.size();
+                    //m33n = m33n/nve->second.size();
+                    vgg = lv2gv_tet_mesh[nve->second[0]-1];
+
+ 		    m11n = mv_g->getVal(vgg,0);
+		    m12n = mv_g->getVal(vgg,1);  
+		    m13n = mv_g->getVal(vgg,2);  
+		    m22n = mv_g->getVal(vgg,3);  
+  		    m23n = mv_g->getVal(vgg,4);  
+		    m33n = mv_g->getVal(vgg,5);  	
+		    double* newM = new double[6];
                     newM[0] = m11n;newM[1] = m12n;newM[2] = m13n;
                     newM[3] = m22n;newM[4] = m23n;newM[5] = m33n;
                     newvert2metric[nve->first]=newM;
