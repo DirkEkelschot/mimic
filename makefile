@@ -24,4 +24,4 @@ test:
 	make -C $(TEST2)
 	make -C $(TEST3)
 clean:	
-	rm -rf $(EXEC) *.dat $(SRC)/*.o $(SRC)/*.mod $(BIN) $(TESTBIN)
+	rm -rf $(EXEC) *.dat $(SRC)/*.o $(SRC)/*.mod $(BIN) $(TESTBIN) grid_madam.h5

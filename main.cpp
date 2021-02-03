@@ -1844,12 +1844,12 @@ int main(int argc, char** argv) {
             Hess->setVal(0,1,dU2dXi2[gid]->getVal(1,0));
             Hess->setVal(0,2,dU2dXi2[gid]->getVal(2,0));
             
-            Hess->setVal(1,0,dU2dYi2[gid]->getVal(0,0));
+            Hess->setVal(1,0,dU2dXi2[gid]->getVal(1,0));
             Hess->setVal(1,1,dU2dYi2[gid]->getVal(1,0));
             Hess->setVal(1,2,dU2dYi2[gid]->getVal(2,0));
             
-            Hess->setVal(2,0,dU2dZi2[gid]->getVal(0,0));
-            Hess->setVal(2,1,dU2dZi2[gid]->getVal(1,0));
+            Hess->setVal(2,0,dU2dXi2[gid]->getVal(2,0));
+            Hess->setVal(2,1,dU2dYi2[gid]->getVal(2,0));
             Hess->setVal(2,2,dU2dZi2[gid]->getVal(2,0));
             
             Hess_map[gid] = Hess;
@@ -3575,7 +3575,7 @@ int main(int argc, char** argv) {
 
                 
                 std::cout<<"Started writing the adapted hybrid mesh in US3D format..."<<std::endl;
-                WriteUS3DGridFromMMG(mmgMesh_hyb, us3d, bnd_face_map, unique_shell_tris);
+                WriteUS3DGridFromMMG(mmgMesh_hyb, us3d, bnd_face_map);
                 std::cout<<"Finished writing the adapted hybrid mesh in US3D format..."<<std::endl;
                 //
             }
