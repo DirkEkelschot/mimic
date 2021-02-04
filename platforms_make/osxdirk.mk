@@ -1,10 +1,3 @@
-SRC 	 = src
-BIN 	 = bin
-TESGRAD  = tests/test_grad
-OBJ      = $(SRC)/*.cpp
-MAIN_OBJ = main.cpp
-TES_OBJ  = $(TESGRAD)/main_test.cpp
-
 PARMETIS_HOME = /Users/dekelsch/Software/parmetis-4.0.3/parmetis-install
 METIS_HOME = /Users/dekelsch/Software/parmetis-4.0.3/metis/metis-install
 HDF5_HOME = /Users/dekelsch/Software/hdf5-1.12.0/hdf5-install
@@ -18,16 +11,3 @@ LDLIBS += -lmetis -lparmetis -lhdf5 -lmpi -llapack -lblas -lmmg -lparmmg
 
 CC = /Users/dekelsch/Software/mpich-3.3.1/mpich-3.1.1-install/bin/mpic++
 
-all:	makebin build
-	
-makebin:
-	mkdir -p $(BIN)
-
-build:
-	$(CC) $(CXXFLAGS) $(OBJ) $(MAIN_OBJ) -o $(BIN)/adapt $(LDFLAGS) $(LDLIBS)
-
-test_grad:
-	$(CC) $(CXXFLAGS) $(OBJ) $(TES_OBJ) -o $(TESGRAD)/testing $(LDFLAGS) $(LDLIBS)
-
-clean:	
-	rm -rf $(SRC)/*.o $(SRC)/*.mod $(BIN) $(TESGRAD)/testing

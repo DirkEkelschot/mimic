@@ -11,17 +11,17 @@ TEST3 = tests/test3
 
 include module.mk
 
-all:	install
+all:		install
 	
-install:makebin
-	$(CC) $(CXXFLAGS) $(OBJ) $(MAIN_OBJ) -o $(BIN)/adapt $(LDFLAGS) $(LDLIBS)
-	cp -r $(BIN)/$(EXEC) .
+install:	makebin
+		$(CC) $(CXXFLAGS) $(OBJ) $(MAIN_OBJ) -o $(BIN)/adapt $(LDFLAGS) $(LDLIBS)
+		cp -r $(BIN)/$(EXEC) .
 
 makebin:
-	mkdir -p $(BIN)
+		mkdir -p $(BIN)
 test:
-	make -C $(TEST1)
-	make -C $(TEST2)
-	make -C $(TEST3)
-clean:	
-	rm -rf $(EXEC) *.dat $(SRC)/*.o $(SRC)/*.mod $(BIN) $(TESTBIN) grid_madam.h5
+		make -C $(TEST1)
+		make -C $(TEST2)
+		make -C $(TEST3)
+clean:
+		rm -rf $(EXEC) *.dat $(SRC)/*.o $(SRC)/*.mod $(BIN) $(TESTBIN) grid_madam.h5

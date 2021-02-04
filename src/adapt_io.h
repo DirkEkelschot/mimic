@@ -1,5 +1,4 @@
 #include "adapt.h"
-//#include "adapt_part_func.h"
 #include "adapt_array.h"
 #include "adapt_datatype.h"
 #ifndef ADAPT_IO_H
