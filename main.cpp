@@ -486,7 +486,7 @@ int main(int argc, char** argv) {
             }
          
             int wall_id = 3;
-            int nLayer  = 50;
+            int nLayer  = 230;
             
             if(nLayer>0)
             {
