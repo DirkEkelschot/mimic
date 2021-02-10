@@ -27,7 +27,7 @@ int main(int argc, char** argv) {
     MPI_Comm_rank(comm, &world_rank);
     int i,j;
     
-    int debug = 1;
+    int debug = 0;
 //    if(world_rank == 0)
 //    {
 //        UnitTestEigenDecomp();
@@ -501,7 +501,7 @@ int main(int argc, char** argv) {
             }
          
             int wall_id = 3;
-            int nLayer  = 230;
+            int nLayer  = 120;
             
             if(nLayer>0)
             {
@@ -837,11 +837,12 @@ int main(int argc, char** argv) {
                 
                 std::cout << "Extracting the prismatic boundary layer mesh..." <<std::endl;
                 Mesh_Topology_BL* mesh_topo_bl2 =  ExtractBoundaryLayerMeshFromShell(u_tris, BLshell, wall_id, nLayer, xcn_g, ien_g, ief_g, ife_g, ifn_g, xcn_pstate, ien_pstate, bnd_face_map, tria_ref_map, quad_ref_map, comm);
-                std::cout << "Outputting the prismatic boundary layer mesh in ---> BoundaryLayerMesh_0.dat" <<std::endl;
-                 OutputBoundaryLayerPrisms(xcn_g, mesh_topo_bl2, comm, "BoundaryLayerMesh_");
+                
 
                 if(debug == 1)
                 {
+		    std::cout << "Outputting the prismatic boundary layer mesh in ---> BoundaryLayerMesh_0.dat" <<std::endl;
+		    OutputBoundaryLayerPrisms(xcn_g, mesh_topo_bl2, comm, "BoundaryLayerMesh_");
                     std::ofstream myfile_shell;
                     myfile_shell.open("shell.dat");
                     myfile_shell << "TITLE=\"new_volume.tec\"" << std::endl;
@@ -1353,7 +1354,7 @@ int main(int argc, char** argv) {
                         tellert++;
                     }
                 }
-                                std::cout << "unique_new_verts.size = > " << unique_new_verts.size() << std::endl;
+                std::cout << "unique_new_verts.size = > " << unique_new_verts.size() << std::endl;
  
                 double min_oris = *std::min_element(oris.begin(),oris.end());
                 double max_oris = *std::max_element(oris.begin(),oris.end());
@@ -1939,7 +1940,7 @@ int main(int argc, char** argv) {
                 
              
                 //MMG3D_Set_handGivenMesh(mmgMesh_hyb);
-                if ( MMG3D_Set_dparameter(mmgMesh_hyb,mmgSol_hyb,MMG3D_DPARAM_hgrad, 2.0) != 1 )    exit(EXIT_FAILURE);
+                if ( MMG3D_Set_dparameter(mmgMesh_hyb,mmgSol_hyb,MMG3D_DPARAM_hgrad, 1.3) != 1 )    exit(EXIT_FAILURE);
 
                 //MMG3D_Set_iparameter ( mmgMesh_hyb,  mmgSol_hyb,  MMG3D_IPARAM_nosizreq , 1 );
                 MMG3D_Set_dparameter( mmgMesh_hyb,  mmgSol_hyb,  MMG3D_DPARAM_hgradreq , -1 );
