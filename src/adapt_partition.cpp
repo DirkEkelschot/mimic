@@ -2042,9 +2042,7 @@ void Partition::CreatePartitionDomain()
             if(gv_set.find(gv)==gv_set.end())
             {
                 gv_set.insert(gv);
-                //glob_part_verts.push_back(gv);
                 loc_part_verts.push_back(lv);
-                //localV_2_localpartV[lcv]=lv;
                 vert2elem[gv].push_back(glob_id);
                 gv2lpv[gv]=lcv;
                 lv2gpv[lcv]=gv;

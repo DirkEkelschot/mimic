@@ -382,15 +382,30 @@ int main(int argc, char** argv) {
         
         delete P;
         
-//        delete d2udx2;
-//        delete d2udxy;
-//        delete d2udxz;
-//        delete d2udyx;
-//        delete d2udy2;
-//        delete d2udyz;
-//        delete d2udzx;
-//        delete d2udzy;
-//        delete d2udz2;
+        Hess_vm.clear();
+        Hess_map.clear();
+
+        dUdXi.clear();
+        dUidxi_map.clear();
+        dUidyi_map.clear();
+        dUidzi_map.clear();
+        dUdxauxNew.clear();
+        dUdyauxNew.clear();
+        dUdzauxNew.clear();
+
+        dU2dXi2.clear();
+        dU2dYi2.clear();
+        dU2dZi2.clear();
+        
+        delete us3d->ien;
+        delete us3d->ief;
+        delete us3d->iee;
+        delete us3d->xcn;
+
+        delete us3d->ife;
+        delete us3d->if_ref;
+        delete us3d->ifn;
+        delete us3d->ghost;
         
         if(world_rank == 0)
         {
@@ -492,7 +507,7 @@ int main(int argc, char** argv) {
             {
                 int counter = 0;
                 //Mdata* Md = ReadMetricData();
-                BLShellInfo* BLshell = FindOuterShellBoundaryLayerMesh(wall_id, nLayer, us3d,xcn_g,ien_g,ief_g,ife_g,ifn_g,xcn_pstate,ien_pstate,bnd_face_map,vert_ref_map,comm);
+                BLShellInfo* BLshell = FindOuterShellBoundaryLayerMesh(wall_id, nLayer,xcn_g,ien_g,ief_g,ife_g,ifn_g,xcn_pstate,ien_pstate,bnd_face_map,vert_ref_map,comm);
                         
                 //==============================================================================
                 //==============================================================================
@@ -821,7 +836,7 @@ int main(int argc, char** argv) {
                 }
                 
                 std::cout << "Extracting the prismatic boundary layer mesh..." <<std::endl;
-                Mesh_Topology_BL* mesh_topo_bl2 =  ExtractBoundaryLayerMeshFromShell(u_tris, BLshell, wall_id, nLayer, us3d, xcn_g, ien_g, ief_g, ife_g, ifn_g, xcn_pstate, ien_pstate, bnd_face_map, tria_ref_map, quad_ref_map, comm);
+                Mesh_Topology_BL* mesh_topo_bl2 =  ExtractBoundaryLayerMeshFromShell(u_tris, BLshell, wall_id, nLayer, xcn_g, ien_g, ief_g, ife_g, ifn_g, xcn_pstate, ien_pstate, bnd_face_map, tria_ref_map, quad_ref_map, comm);
                 std::cout << "Outputting the prismatic boundary layer mesh in ---> BoundaryLayerMesh_0.dat" <<std::endl;
                  OutputBoundaryLayerPrisms(xcn_g, mesh_topo_bl2, comm, "BoundaryLayerMesh_");
 
@@ -1362,33 +1377,27 @@ int main(int argc, char** argv) {
                     m11n=0.0;m12n=0.0;m13n=0.0;
                     m22n=0.0;m23n=0.0;
                     m33n=0.0;
-                    // 
-                    //std::set<int>::iterator nves;
-                    //for(nves=nve->second.begin();nves!=nve->second.end();nves++)
-                    //{
-                    //    m11n = m11n+mv_g->getVal(*nves,0);
-                    //    m12n = m12n+mv_g->getVal(*nves,1);
-                    //    m13n = m13n+mv_g->getVal(*nves,2);
-                    //    m22n = m22n+mv_g->getVal(*nves,3);
-                    //    m23n = m23n+mv_g->getVal(*nves,4);
-                    //    m33n = m33n+mv_g->getVal(*nves,5);
-                    //}
-                    
-                    //m11n = m11n/nve->second.size();
-                    //m12n = m12n/nve->second.size();
-                    //m13n = m13n/nve->second.size();
-                    //m22n = m22n/nve->second.size();
-                    //m23n = m23n/nve->second.size();
-                    //m33n = m33n/nve->second.size();
-                    vgg = lv2gv_tet_mesh[nve->second[0]-1];
 
- 		    m11n = mv_g->getVal(vgg,0);
-		    m12n = mv_g->getVal(vgg,1);  
-		    m13n = mv_g->getVal(vgg,2);  
-		    m22n = mv_g->getVal(vgg,3);  
-  		    m23n = mv_g->getVal(vgg,4);  
-		    m33n = mv_g->getVal(vgg,5);  	
-		    double* newM = new double[6];
+                    for(int q=0;q<nve->second.size();q++)
+                    {
+                        vgg = lv2gv_tet_mesh[nve->second[q]-1];
+
+                        m11n = m11n + mv_g->getVal(vgg,0);
+                        m12n = m12n + mv_g->getVal(vgg,1);
+                        m13n = m13n + mv_g->getVal(vgg,2);
+                        m22n = m22n + mv_g->getVal(vgg,3);
+                        m23n = m23n + mv_g->getVal(vgg,4);
+                        m33n = m33n + mv_g->getVal(vgg,5);
+                    }
+                    
+                    m11n = m11n/nve->second.size();
+                    m12n = m12n/nve->second.size();
+                    m13n = m13n/nve->second.size();
+                    m22n = m22n/nve->second.size();
+                    m23n = m23n/nve->second.size();
+                    m33n = m33n/nve->second.size();
+                    
+                    double* newM = new double[6];
                     newM[0] = m11n;newM[1] = m12n;newM[2] = m13n;
                     newM[3] = m22n;newM[4] = m23n;newM[5] = m33n;
                     newvert2metric[nve->first]=newM;
@@ -1972,6 +1981,13 @@ int main(int argc, char** argv) {
                 OutputMesh_MMG(mmgMesh_TETCOPY,0,mmgMesh_TETCOPY->ne,"OuterVolume.dat");
                 std::cout<<"Finished writing the adapted tetrahedra mesh in ---> OuterVolume.dat"<<std::endl;
 
+                MMG3D_Free_all(MMG5_ARG_start,
+                               MMG5_ARG_ppMesh,&mmgMesh_TETCOPY,MMG5_ARG_ppSols,&mmgSol_TETCOPY,
+                               MMG5_ARG_end);
+                
+                MMG3D_Free_all(MMG5_ARG_start,
+                               MMG5_ARG_ppMesh,&mmgMesh_TET,MMG5_ARG_ppSols,&mmgSol_TET,
+                               MMG5_ARG_end);
                 
                 std::cout<<"Started writing the adapted hybrid mesh in US3D format..."<<std::endl;
                 WriteUS3DGridFromMMG(mmgMesh_hyb, us3d, bnd_face_map);
