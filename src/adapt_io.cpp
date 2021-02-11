@@ -1205,7 +1205,8 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
     ParArray<int>* ien = ReadDataSetFromFileInParallel<int>(fn_conn,"ien",comm,info);
     ParArray<int>* ief = ReadDataSetFromFileInParallel<int>(fn_conn,"ief",comm,info);
     ParArray<int>* iee = ReadDataSetFromFileInParallel<int>(fn_conn,"iee",comm,info);
-    
+    ParArray<int>* iet = ReadDataSetFromFileInParallel<int>(fn_grid,"iet",comm,info);
+
     ParArray<int>* ifn = ReadDataSetFromFileInParallel<int>(fn_grid,"ifn",comm,info);
     ParArray<int>* ife = ReadDataSetFromFileInParallel<int>(fn_conn,"ife",comm,info);
 
@@ -1344,7 +1345,8 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
     us3d->ien           = ien_copy;
     us3d->ief           = ief_copy;
     us3d->iee           = iee_copy;
-    
+    us3d->iet           = iet;
+
     us3d->ifn           = ifn_copy;
     us3d->if_ref        = if_ref_copy;
     us3d->ife           = ife_copy;

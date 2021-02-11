@@ -8,7 +8,8 @@
 
 class ParallelState_Parmetis {
    public:
-    ParallelState_Parmetis(ParArray<int>* e2n, MPI_Comm comm, int type);
+    //ParallelState_Parmetis(ParArray<int>* e2n, MPI_Comm comm, int type);
+    ParallelState_Parmetis(ParArray<int>* e2n, ParArray<int>* iet, MPI_Comm comm);
     int* getNlocs( void );
     int* getElmdist( void );
     int getNloc( int rank );
@@ -28,7 +29,103 @@ class ParallelState_Parmetis {
       int* eind;
 };
 
-inline ParallelState_Parmetis::ParallelState_Parmetis(ParArray<int>* e2n, MPI_Comm comm, int type)
+//inline ParallelState_Parmetis::ParallelState_Parmetis(ParArray<int>* e2n, MPI_Comm comm, int type)
+//{
+//    int size;
+//    MPI_Comm_size(comm, &size);
+//    // Get the rank of the process;
+//    int rank;
+//    MPI_Comm_rank(comm, &rank);
+//    int Nel = e2n->getNglob();
+//    //std::cout << "number of elements = " << Nel;
+//    int nloc             = int(Nel/size) + ( rank < Nel%size );
+//    //  compute offset of rows for each proc;
+//    int offset           = rank*int(Nel/size) + MIN(rank, Nel%size);
+//
+//    int npo_loc = 0;
+//    for(int i=0;i<nloc;i++)
+//    {
+//        npo_loc += type;
+//    }
+//
+//    int* nlocs_tmp         = new int[size];
+//    nlocs             = new int[size];
+//    int* npo_locs_tmp      = new int[size];
+//    npo_locs          = new int[size];
+//
+//    for(int i=0;i<size;i++)
+//    {
+//        nlocs[i]        = 0;
+//        npo_locs[i]     = 0;
+//
+//        if(i==rank)
+//        {
+//            nlocs_tmp[i]        = nloc;
+//            npo_locs_tmp[i]     = npo_loc;
+//        }
+//        else
+//        {
+//            nlocs_tmp[i]        = 0;
+//            npo_locs_tmp[i]     = 0;
+//        }
+//    }
+//
+//    int* elm_dist_tmp          = new int[size+1];
+//    int* npo_offset_tmp        = new int[size+1];
+//    elmdist                    = new int[size+1];
+//    int* npo_offset            = new int[size+1];
+//
+//    for(int i=0;i<size+1;i++)
+//    {
+//        elmdist[i]   = 0;
+//        npo_offset[i] = 0;
+//        if(i==rank)
+//        {
+//            elm_dist_tmp[i]   = offset;
+//            npo_offset_tmp[i] = offset*type;
+//        }
+//        else
+//        {
+//            elm_dist_tmp[i]  = 0;
+//            npo_offset_tmp[i] = 0;
+//        }
+//    }
+//
+//
+//    MPI_Allreduce(nlocs_tmp,        nlocs,      size,     MPI_INT, MPI_SUM, comm);
+//    MPI_Allreduce(npo_locs_tmp,     npo_locs,   size,     MPI_INT, MPI_SUM, comm);
+//    MPI_Allreduce(elm_dist_tmp,     elmdist,    size+1,   MPI_INT, MPI_SUM, comm);
+//    MPI_Allreduce(npo_offset_tmp,   npo_offset, size+1,   MPI_INT, MPI_SUM, comm);
+//
+//    elmdist[size] = Nel;
+//    npo_offset[size] = Nel*type;
+//
+//    eptr = new int[nloc+1];
+//    eind = new int[npo_loc];
+//    eptr[0]  = 0;
+//    for(int i=0;i<nloc;i++)
+//    {
+//        eptr[i+1]  = eptr[i]+type;
+//
+//        for(int j=eptr[i];j<eptr[i+1];j++)
+//        {
+//            eind[j] = e2n->data[j];
+//        }
+//    }
+////    eind = e2n->data;
+//
+//    // The constructor builds the following arrays:
+//    // elmdist
+//    // nlocs
+//    // npo_locs
+//    // npo_offset
+//    // eptr
+//    // eind
+//
+//}// This is the constructor
+
+
+inline ParallelState_Parmetis::ParallelState_Parmetis(ParArray<int>* e2n, ParArray<int>* iet, MPI_Comm comm)
 {
     int size;
     MPI_Comm_size(comm, &size);
@@ -36,27 +133,45 @@ inline ParallelState_Parmetis::ParallelState_Parmetis(ParArray<int>* e2n, MPI_Co
     int rank;
     MPI_Comm_rank(comm, &rank);
     int Nel = e2n->getNglob();
-    //std::cout << "number of elements = " << Nel;
+
     int nloc             = int(Nel/size) + ( rank < Nel%size );
     //  compute offset of rows for each proc;
-    int offset           = rank*int(Nel/size) + MIN(rank, Nel%size);
+    int Nel_offset       = rank*int(Nel/size) + MIN(rank, Nel%size);
+
+    int npo_loc     = 0;
+    int npo_loc_tot = 0;
+    Array<int>* ienpo = new Array<int>(nloc,1);
     
-    int npo_loc = 0;
     for(int i=0;i<nloc;i++)
     {
-        npo_loc += type;
+        if(iet->getVal(i,0)==2)
+        {
+            npo_loc += 4;
+            ienpo->setVal(i,0,4);
+        }
+        if(iet->getVal(i,0)==6)
+        {
+            npo_loc += 6;
+            ienpo->setVal(i,0,6);
+        }
+        if(iet->getVal(i,0)==4)
+        {
+            npo_loc += 8;
+            ienpo->setVal(i,0,8);
+        }
     }
-    
-    int* nlocs_tmp         = new int[size];
-    nlocs             = new int[size];
-    int* npo_locs_tmp      = new int[size];
-    npo_locs          = new int[size];
+    MPI_Allreduce(&npo_loc, &npo_loc_tot, 1, MPI_INT, MPI_SUM, comm);
+
+    int* nlocs_tmp          = new int[size];
+    nlocs                   = new int[size];
+    int* npo_locs_tmp       = new int[size];
+    npo_locs                = new int[size];
 
     for(int i=0;i<size;i++)
     {
         nlocs[i]        = 0;
         npo_locs[i]     = 0;
-        
+
         if(i==rank)
         {
             nlocs_tmp[i]        = nloc;
@@ -68,51 +183,51 @@ inline ParallelState_Parmetis::ParallelState_Parmetis(ParArray<int>* e2n, MPI_Co
             npo_locs_tmp[i]     = 0;
         }
     }
-    
-    int* elm_dist_tmp          = new int[size+1];
-    int* npo_offset_tmp        = new int[size+1];
-    elmdist                    = new int[size+1];
-    int* npo_offset            = new int[size+1];
-    
-    for(int i=0;i<size+1;i++)
-    {
-        elmdist[i]   = 0;
-        npo_offset[i] = 0;
-        if(i==rank)
-        {
-            elm_dist_tmp[i]   = offset;
-            npo_offset_tmp[i] = offset*type;
-        }
-        else
-        {
-            elm_dist_tmp[i]  = 0;
-            npo_offset_tmp[i] = 0;
-        }
-    }
-    
-    
+
     MPI_Allreduce(nlocs_tmp,        nlocs,      size,     MPI_INT, MPI_SUM, comm);
     MPI_Allreduce(npo_locs_tmp,     npo_locs,   size,     MPI_INT, MPI_SUM, comm);
-    MPI_Allreduce(elm_dist_tmp,     elmdist,    size+1,   MPI_INT, MPI_SUM, comm);
-    MPI_Allreduce(npo_offset_tmp,   npo_offset, size+1,   MPI_INT, MPI_SUM, comm);
 
-    elmdist[size] = Nel;
-    npo_offset[size] = Nel*type;
+    int* npo_offset_tmp        = new int[size+1];
+    int* npo_offset            = new int[size+1];
+    int* elm_dist_tmp          = new int[size+1];
+    elmdist                    = new int[size+1];
 
-    eptr = new int[nloc+1];
-    eind = new int[npo_loc];
+    int nelOffset = 0;
+    int npoOffset = 0;
+    for(int i=0;i<size;i++)
+    {
+        elmdist[i]      = nelOffset;
+        npo_offset[i]   = npoOffset;
+
+        npoOffset       = npoOffset+npo_locs[i];
+        nelOffset       = nelOffset+nlocs[i];
+    }
+
+    elmdist[size]       = Nel;
+    npo_offset[size]    = npo_loc_tot;
+
+//    for(int i=0;i<size+1;i++)
+//    {
+//        std::cout << elmdist[i] << " " << npo_offset[i] << std::endl;
+//    }
+
+    eptr     = new int[nloc+1];
+    eind     = new int[npo_loc];
     eptr[0]  = 0;
+    int k    = 0;
     for(int i=0;i<nloc;i++)
     {
-        eptr[i+1]  = eptr[i]+type;
-        
+        eptr[i+1]  = eptr[i]+ienpo->getVal(i,0);
+        k = 0;
         for(int j=eptr[i];j<eptr[i+1];j++)
         {
-            eind[j] = e2n->data[j];
+            // eind[j]  = e2n->data[j];
+            eind[j]     = e2n->getVal(i,k);
+            k++;
         }
     }
 //    eind = e2n->data;
-    
+
     // The constructor builds the following arrays:
     // elmdist
     // nlocs
@@ -120,7 +235,7 @@ inline ParallelState_Parmetis::ParallelState_Parmetis(ParArray<int>* e2n, MPI_Co
     // npo_offset
     // eptr
     // eind
-    
+
 }// This is the constructor
 
 inline int* ParallelState_Parmetis::getElmdist( void )

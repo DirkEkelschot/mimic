@@ -127,7 +127,6 @@ int main(int argc, char** argv) {
         // ifn -> face2node       map coming from parallel reading.
         // ife -> face2element    map coming from parallel reading.
         //std::cout << "Starting to partition..."<<std::endl;
-        
         Partition* P = new Partition(us3d->ien, us3d->iee, us3d->ief,
                                      us3d->ifn, us3d->ife, us3d->if_ref,
                                      parmetis_pstate, ien_pstate, ife_pstate,
@@ -501,7 +500,7 @@ int main(int argc, char** argv) {
             }
          
             int wall_id = 3;
-            int nLayer  = 120;
+            int nLayer  = 230;
             
             if(nLayer>0)
             {
