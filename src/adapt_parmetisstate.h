@@ -125,7 +125,7 @@ class ParallelState_Parmetis {
 //}// This is the constructor
 
 
-inline ParallelState_Parmetis::ParallelState_Parmetis(ParArray<int>* e2n, ParArray<int>* iet, MPI_Comm comm)
+inline ParallelState_Parmetis::ParallelState_Parmetis(ParArray<int>* e2n, ParArray<int>* ie_Nv, MPI_Comm comm)
 {
     int size;
     MPI_Comm_size(comm, &size);
@@ -144,22 +144,9 @@ inline ParallelState_Parmetis::ParallelState_Parmetis(ParArray<int>* e2n, ParArr
     
     for(int i=0;i<nloc;i++)
     {
-        if(iet->getVal(i,0)==2)
-        {
-            npo_loc += 4;
-            ienpo->setVal(i,0,4);
-        }
-        if(iet->getVal(i,0)==6)
-        {
-            npo_loc += 6;
-            ienpo->setVal(i,0,6);
-        }
-        if(iet->getVal(i,0)==4)
-        {
-            npo_loc += 8;
-            ienpo->setVal(i,0,8);
-        }
+        npo_loc += ie_Nv->getVal(i,0);
     }
+    
     MPI_Allreduce(&npo_loc, &npo_loc_tot, 1, MPI_INT, MPI_SUM, comm);
 
     int* nlocs_tmp          = new int[size];
@@ -217,7 +204,7 @@ inline ParallelState_Parmetis::ParallelState_Parmetis(ParArray<int>* e2n, ParArr
     int k    = 0;
     for(int i=0;i<nloc;i++)
     {
-        eptr[i+1]  = eptr[i]+ienpo->getVal(i,0);
+        eptr[i+1]  = eptr[i]+ie_Nv->getVal(i,0);
         k = 0;
         for(int j=eptr[i];j<eptr[i+1];j++)
         {

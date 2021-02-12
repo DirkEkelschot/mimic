@@ -1230,7 +1230,6 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
     
     if(rank == 0)
     {
-       //std::cout << "Rank = " << rank << std::endl;
        PlotBoundaryData(znames,zdefs);
     }
     
@@ -1340,12 +1339,37 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
         }
     }
     
-    us3d->xcn = xcn;
+    ParArray<int>* ie_Nv    = new ParArray<int>(nglob,1,comm);
+    ParArray<int>* ie_Nf    = new ParArray<int>(nglob,1,comm);
+    
+    for(int i=0;i<nrow;i++)
+    {
+        if(iet->getVal(i,0)==2) // Tet
+        {
+            ie_Nv->setVal(i,0,4);
+            ie_Nf->setVal(i,0,4);
+        }
+        if(iet->getVal(i,0)==6) // Prism
+        {
+            ie_Nv->setVal(i,0,6);
+            ie_Nf->setVal(i,0,5);
+        }
+        if(iet->getVal(i,0)==4) // Hex
+        {
+            ie_Nv->setVal(i,0,8);
+            ie_Nf->setVal(i,0,6);
+        }
+    }
+    
+    
+    us3d->xcn           = xcn;
     
     us3d->ien           = ien_copy;
     us3d->ief           = ief_copy;
     us3d->iee           = iee_copy;
     us3d->iet           = iet;
+    us3d->ie_Nv         = ie_Nv;
+    us3d->ie_Nf         = ie_Nf;
 
     us3d->ifn           = ifn_copy;
     us3d->if_ref        = if_ref_copy;
