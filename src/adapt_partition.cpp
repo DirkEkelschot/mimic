@@ -41,7 +41,7 @@ Partition::Partition(ParArray<int>* ien, ParArray<int>* iee, ParArray<int>* ief,
 //
     DetermineAdjacentElement2ProcMapUS3D(ien, iee_part_map->i_map, part, xcn, U, comm);
 //
-    //CreatePartitionDomain();
+    CreatePartitionDomain();
 //
     nLocAndAdj_Elem = LocAndAdj_Elem.size();
     
@@ -868,7 +868,6 @@ void Partition::DetermineAdjacentElement2ProcMapUS3D(ParArray<int>* ien,
             }
         }
     }
-    std::cout << "hiero 0 " << std::endl;
     adj_schedule = DoScheduling(req_elem, comm);
     
     std::map<int,std::vector<int> >::iterator it;
@@ -914,7 +913,6 @@ void Partition::DetermineAdjacentElement2ProcMapUS3D(ParArray<int>* ien,
     int adj_id;
 
     int lelem = 0;
-    std::cout << "hiero 1" << std::endl;
 
     for(itv=reqstd_adj_ids_per_rank.begin();itv!=reqstd_adj_ids_per_rank.end();itv++)
     {
@@ -959,7 +957,6 @@ void Partition::DetermineAdjacentElement2ProcMapUS3D(ParArray<int>* ien,
     std::map<int,std::vector<int>  > recv_adj_NfPel;
     int n_adj_vert_recv_back;
     int n_adj_face_recv_back;
-    std::cout << "hiero 2" << std::endl;
     // This sends the right vertices of the requested elements to correct processor.
     for(q=0;q<size;q++)
     {
@@ -1029,7 +1026,6 @@ void Partition::DetermineAdjacentElement2ProcMapUS3D(ParArray<int>* ien,
 
         }
     }
-    std::cout << "hiero 3" << std::endl;
     
     int TotNvert_adj_recv = 0;
     int TotNface_adj_recv = 0;
@@ -1056,7 +1052,6 @@ void Partition::DetermineAdjacentElement2ProcMapUS3D(ParArray<int>* ien,
             adj_faces.push_back(recv_adj_back_faces_ids[itm->first][i]);
         }
     }
-    std::cout << "hiero 4" << std::endl;
 
     std::vector<double> adj_rhos;
     std::vector<int> adj_elements_vec;
@@ -1078,7 +1073,6 @@ void Partition::DetermineAdjacentElement2ProcMapUS3D(ParArray<int>* ien,
 
         }
     }
-    std::cout << "hiero 5" << std::endl;
 
     //std::cout << "TotNelem_adj_recv " << TotNelem_adj_recv << " should be equal to " << TotNrho_adj_recv << std::endl;
     //std::cout << " Compare " <<  TotNelem_adj_recv << " " << itel << " " << adj_rhos.size() << std::endl;
@@ -1087,7 +1081,6 @@ void Partition::DetermineAdjacentElement2ProcMapUS3D(ParArray<int>* ien,
     
     int offv = 0;
     int offf = 0;
-    std::cout << itel << " " << NvPEl_rb.size() << " " << NfPEl_rb.size() << " " << adj_verts.size() << " " << offvvv << std::endl;
     for(int i=0;i<itel;i++)
     {
         int Nv = NvPEl_rb[i];
@@ -1096,60 +1089,55 @@ void Partition::DetermineAdjacentElement2ProcMapUS3D(ParArray<int>* ien,
         {
             //std::cout << offv+k << " " << adj_verts.size() << std::endl;
             int v_id_n = adj_verts[offv+k];
-            if(v_id_n>xcn_pstate->getNel())
-            {
-                std::cout << "error:: " << xcn_pstate->getNel() << " " << v_id_n << std::endl;
+            
+            r = FindRank(new_V_offsets,size,v_id_n);
 
+            if(unique_vertIDs_on_rank_set.find( v_id_n ) == unique_vertIDs_on_rank_set.end()) // add the required unique vertex for current rank.
+            {
+                unique_vertIDs_on_rank_set.insert(v_id_n);
+                //unique_verts_on_rank_vec.push_back(v_id_n);
+                //part_v.push_back(r);
+
+                if (r!=rank)// check whether this vertex is already present on current rank. if vertex is present on other rank, add it to vertIDs_on_rank map.
+                {
+                    rank2req_vert[r].push_back(v_id_n); // add vertex to rank2req_vert map.
+                }
+                else
+                {
+                    vertIDs_on_rank.push_back(v_id_n); // add the vertex to list that is already available on rank.
+                    vloc_tmp++;
+                }
             }
-//            r = FindRank(new_V_offsets,size,v_id_n);
-//
-//            if(unique_vertIDs_on_rank_set.find( v_id_n ) == unique_vertIDs_on_rank_set.end()) // add the required unique vertex for current rank.
-//            {
-//                unique_vertIDs_on_rank_set.insert(v_id_n);
-//                //unique_verts_on_rank_vec.push_back(v_id_n);
-//                //part_v.push_back(r);
-//
-//                if (r!=rank)// check whether this vertex is already present on current rank. if vertex is present on other rank, add it to vertIDs_on_rank map.
-//                {
-//                    rank2req_vert[r].push_back(v_id_n); // add vertex to rank2req_vert map.
-//                }
-//                else
-//                {
-//                    vertIDs_on_rank.push_back(v_id_n); // add the vertex to list that is already available on rank.
-//                    vloc_tmp++;
-//                }
-//            }
+        }
+
+        for(int k=0;k<Nf;k++)
+        {
+            int f_id_n = adj_faces[offf+k];
+
+            if(unique_faceIDs_on_rank_set.find( f_id_n ) == unique_faceIDs_on_rank_set.end()) // add the required unique vertex for current rank.
+            {
+                unique_faceIDs_on_rank_set.insert(f_id_n);
+                faceIDs_on_rank.push_back(f_id_n); // add the vertex to list that is already available on rank.
+                floc_tmp++;
+
+                if (r!=rank)// check whether this vertex is already present on current rank. if vertex is present on other rank, add it to vertIDs_on_rank map.
+                {
+                    rank2req_face[r].push_back(f_id_n); // add vertex to rank2req_vert map.
+                }
+                else
+                {
+                    faceIDs_on_rank.push_back(f_id_n); // add the vertex to list that is already available on rank.
+                    floc_tmp++;
+                }
+            }
         }
         offv = offv+Nv;
-
-//        for(int k=0;k<Nf;k++)
-//        {
-//            int f_id_n = adj_faces[offf+k];
-//
-//            if(unique_faceIDs_on_rank_set.find( f_id_n ) == unique_faceIDs_on_rank_set.end()) // add the required unique vertex for current rank.
-//            {
-//                unique_faceIDs_on_rank_set.insert(f_id_n);
-//                faceIDs_on_rank.push_back(f_id_n); // add the vertex to list that is already available on rank.
-//                floc_tmp++;
-//
-//                if (r!=rank)// check whether this vertex is already present on current rank. if vertex is present on other rank, add it to vertIDs_on_rank map.
-//                {
-//                    rank2req_face[r].push_back(f_id_n); // add vertex to rank2req_vert map.
-//                }
-//                else
-//                {
-//                    faceIDs_on_rank.push_back(f_id_n); // add the vertex to list that is already available on rank.
-//                    floc_tmp++;
-//                }
-//            }
-//        }
-        //offv = offv+Nv;
-        //offf = offf+Nf;
+        offf = offf+Nf;
         //part_elem2verts.push_back(elem);
         //elem_set.insert(TotAdj_El_IDs[i]);
     }
     
-    /*
+    
 
     // ==========================================================================================
        // ==========================================================================================
@@ -1415,7 +1403,7 @@ void Partition::DetermineAdjacentElement2ProcMapUS3D(ParArray<int>* ien,
     delete[] new_V_offsets;
     delete[] new_F_offsets;
     
-    */
+    
 }
 
 
@@ -2215,6 +2203,99 @@ void Partition::CreatePartitionDomain()
     pDom->gv2lpartv       = gv2lpartv;
     pDom->lpartv2gv       = lpartv2gv;
     
+}
+
+
+std::map<int,double> Partition::ReduceFieldToVertices(std::map<int,double> Uelem)
+{
+    std::vector<double> Uv;
+    std::map<int,double> Uvm;
+    std::map<int,std::vector<int> > v2e = pDom->vert2elem;
+    std::vector<int> glob_part_verts = pDom->glob_part_verts;
+    std::map<int,int> lv2gpv = pDom->lv2gpv;
+    int im = 0;
+    int tel=0;
+    std::map<int,std::vector<int> >::iterator itm;
+    
+    for(itm=pDom->vert2elem.begin();itm!=pDom->vert2elem.end();itm++)
+    {
+        double sum = 0.0;
+        double avg = 0.0;
+        int gv = itm->first;
+        
+        for(int q=0;q<itm->second.size();q++)
+        {
+            int gEl = itm->second[q];
+            sum = sum + Uelem[gEl];
+        }
+        
+        avg = sum/itm->second.size();
+        Uv.push_back(avg);
+        Uvm[gv]=avg;
+        //std::cout <<"hhh "<< gv << " " << gv2  << " " << avg<<std::endl;
+
+        im++;
+    }
+
+    return Uvm;
+
+}
+
+std::map<int,Array<double>* > Partition::ReduceMetricToVertices(std::map<int,Array<double>* > Telem)
+{
+    std::map<int,Array<double>*> Tmet_v;
+    
+    std::map<int,std::vector<int> > v2e = pDom->vert2elem;
+    std::vector<int> glob_part_verts = pDom->glob_part_verts;
+    std::map<int,int> lv2gpv = pDom->lv2gpv;
+    int im = 0;
+    int tel=0;
+    std::map<int,std::vector<int> >::iterator itm;
+    double sum00 = 0.0,sum01 = 0.0,sum02 = 0.0;
+    double sum10 = 0.0,sum11 = 0.0,sum12 = 0.0;
+    double sum20 = 0.0,sum21 = 0.0,sum22 = 0.0;
+    for(itm=pDom->vert2elem.begin();itm!=pDom->vert2elem.end();itm++)
+    {
+        sum00 = 0.0,sum01 = 0.0,sum02 = 0.0;
+        sum10 = 0.0,sum11 = 0.0,sum12 = 0.0;
+        sum20 = 0.0,sum21 = 0.0,sum22 = 0.0;
+        double avg = 0.0;
+        int gv = itm->first;
+        Array<double>* Tv = new Array<double>(3,3);
+        for(int q=0;q<itm->second.size();q++)
+        {
+            int gEl = itm->second[q];
+            sum00 = sum00 + Telem[gEl]->getVal(0,0);
+            sum01 = sum01 + Telem[gEl]->getVal(0,1);
+            sum02 = sum02 + Telem[gEl]->getVal(0,2);
+            
+            sum10 = sum10 + Telem[gEl]->getVal(1,0);
+            sum11 = sum11 + Telem[gEl]->getVal(1,1);
+            sum12 = sum12 + Telem[gEl]->getVal(1,2);
+            
+            sum20 = sum20 + Telem[gEl]->getVal(2,0);
+            sum21 = sum21 + Telem[gEl]->getVal(2,1);
+            sum22 = sum22 + Telem[gEl]->getVal(2,2);
+        }
+        
+        Tv->setVal(0,0,sum00/itm->second.size());
+        Tv->setVal(0,1,sum01/itm->second.size());
+        Tv->setVal(0,2,sum02/itm->second.size());
+        
+        Tv->setVal(1,0,sum10/itm->second.size());
+        Tv->setVal(1,1,sum11/itm->second.size());
+        Tv->setVal(1,2,sum12/itm->second.size());
+        
+        Tv->setVal(2,0,sum20/itm->second.size());
+        Tv->setVal(2,1,sum21/itm->second.size());
+        Tv->setVal(2,2,sum22/itm->second.size());
+        
+        Tmet_v[gv]=Tv;
+
+        im++;
+    }
+    
+    return Tmet_v;
 }
 
 

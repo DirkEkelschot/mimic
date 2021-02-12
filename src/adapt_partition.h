@@ -26,6 +26,9 @@ class Partition {
     i_part_map* getElement2EntityPerPartition(ParArray<int>* iee, std::vector<int> Loc_Elem_Ne, MPI_Comm comm);
     i_part_map* getFace2EntityPerPartition(ParArray<int>* ife, MPI_Comm comm);
     Domain* getPartitionDomain();
+    std::map<int,double> ReduceFieldToVertices(std::map<int,double> Uelem);
+    std::map<int,Array<double>*> ReduceMetricToVertices(std::map<int,Array<double>* > Telem);
+    
     std::vector<int> getLocElem();
     std::vector<double> getLocElemVaria();
     int getnLoc_Elem();
