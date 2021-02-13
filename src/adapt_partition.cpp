@@ -16,6 +16,7 @@ Partition::Partition(ParArray<int>* ien, ParArray<int>* iee, ParArray<int>* ief,
     double t0 = MPI_Wtime();
     // This routine essentially determines based on the current element layout what the ideal layout should be.
     DeterminePartitionLayout(ien, pstate_parmetis, comm);
+    
     double t1 = MPI_Wtime();
     double time_layout = t1-t0;
     double max_time_layout = 0.0;
@@ -44,7 +45,7 @@ Partition::Partition(ParArray<int>* ien, ParArray<int>* iee, ParArray<int>* ief,
     CreatePartitionDomain();
 //
     nLocAndAdj_Elem = LocAndAdj_Elem.size();
-    
+ 
 }
 
 
@@ -148,6 +149,30 @@ void Partition::DeterminePartitionLayout(ParArray<int>* ien, ParallelState_Parme
                    ien_pstate->getNlocs(),
                    ien_pstate->getOffsets(),
                    MPI_INT,comm);
+    
+    if(rank == 0)
+    {
+
+        std::ifstream fin;
+        fin.open("part_size_4.ref");
+
+        // Read the file row by row
+        double val;
+        std::vector<double> ref_glob_part;
+        int t=0;
+        while(fin >> val)
+        {
+            ref_glob_part.push_back(val);
+        }
+
+        for(int i=0;i<part_global->getNrow();i++)
+        {
+            if(part_global->getVal(i,0)!=ref_glob_part[i])
+            {
+                std::cout << i << " " << part_global->getVal(i,0) << " " << ref_glob_part[i] << std::endl;
+            }
+        }
+    }
 }
 
 
@@ -1502,7 +1527,6 @@ std::map<int,double> Partition::CommunicateAdjacentDataUS3D(std::map<int,double>
     }
     
     std::map<int,std::vector<int> >::iterator ite;
-    std::map<int,std::vector<int> > send_ghost_IDs;
     std::map<int,std::vector<int> > send_IEE_Elem_IDs;
     std::vector<int> TotIEE_El_IDs;
 
@@ -1835,33 +1859,29 @@ i_part_map* Partition::getElement2EntityPerPartition(ParArray<int>* iee, std::ve
     }
     
     std::map<int,std::vector<int> >::iterator ite;
-    std::map<int,std::vector<int> > send_ghost_IDs;
-    std::map<int,std::vector<int> > send_IEE_Elem_IDs;
     std::vector<int> TotIEE_El_IDs;
 
     int TotNelem_IEE_recv   = 0;
     int eIEE_id             = 0;
-
-
     
-    int offset_xcn = 0;
-    int nloc_xcn   = 0;
+    int offset_xcn          = 0;
+    int nloc_xcn            = 0;
     
-    std::map<int,int > recv_back_Niee;
-    std::map<int,int > recv_back_NieNe;
-    std::map<int,int* > recv_back_el_ids;
-    std::map<int,int* > recv_back_el_NePids;
-    std::map<int,double* > recv_back_iee;
+    std::map<int,std::vector<int> > recv_back_el_ids;
+    std::map<int,std::vector<int> > recv_back_el_NePids;
+    std::map<int,std::vector<int> > recv_back_iee;
     
     int n_recv_back;
     int nNe_recv_back;
-    
+    int offs = 0;
     for(q=0;q<size;q++)
     {
         if(rank == q)
         {
             for (it = reqstd_E_IDs_per_rank.begin(); it != reqstd_E_IDs_per_rank.end(); it++)
             {
+                int dest = it->first;
+
                 int ne_send       = it->second.size();
                 int offset_iee    = ien_pstate->getOffset(rank);
                 int nePid_t       = 0;
@@ -1871,75 +1891,74 @@ i_part_map* Partition::getElement2EntityPerPartition(ParArray<int>* iee, std::ve
                     nePid_t = nePid_t+ne_p_id;
                 }
                 
-                double* iee_send  = new double[nePid_t];
-                int offs = 0;
+                int* iee_send  = new int[nePid_t];
+                offs = 0;
                 for(int u=0;u<ne_send;u++)
                 {
                     int ncol = reqstd_E_NePID_per_rank[it->first][u];
-                    
                     for(int h=0;h<ncol;h++)
                     {
                         iee_send[offs+h] = iee->getVal(it->second[u]-offset_iee,h);
-                        offs+ncol;
                     }
+                    offs=offs+ncol;
                 }
-
-                int dest = it->first;
+                
                 MPI_Send(&ne_send, 1, MPI_INT, dest, 9876*6666+1000*dest, comm);
-                //MPI_Send(&nePid_t, 1, MPI_INT, dest, 9876*2222+1000*dest, comm);
+                MPI_Send(&nePid_t, 1, MPI_INT, dest, 9876*2222+1000*dest, comm);
+                
                 MPI_Send(&it->second[0], ne_send, MPI_INT, dest, 9876*7777+dest*888, comm);
                 MPI_Send(&reqstd_E_NePID_per_rank[it->first][0], ne_send, MPI_INT, dest, 9876*2222+dest*1000, comm);
-                MPI_Send(&iee_send[0], nePid_t, MPI_DOUBLE, dest, 9876*6666+dest*8888, comm);
+                MPI_Send(&iee_send[0], nePid_t, MPI_INT, dest, 9876*6666+dest*8888, comm);
 
-                delete[] iee_send;
+                //delete[] iee_send;
             }
         }
         if(iee_schedule->RecvRankFromRank[q].find( rank ) != iee_schedule->RecvRankFromRank[q].end())
          {
             MPI_Recv(&n_recv_back, 1, MPI_INT, q, 9876*6666+1000*rank, comm, MPI_STATUS_IGNORE);
-            //MPI_Recv(&nNe_recv_back, 1, MPI_INT, q, 9876*2222+1000*rank, comm, MPI_STATUS_IGNORE);
+            MPI_Recv(&nNe_recv_back, 1, MPI_INT, q, 9876*2222+1000*rank, comm, MPI_STATUS_IGNORE);
 
-            double* recv_back_iee_arr = new double[nNe_recv_back];
-            int*    recv_back_ids_arr = new int[n_recv_back];
-            int*    recv_back_NePids_arr = new int[n_recv_back];
+            std::vector<int> recv_back_ids_arr(n_recv_back);
+            std::vector<int> recv_back_NePids_arr(n_recv_back);
+             
+            std::vector<int> recv_back_iee_arr(nNe_recv_back);
+
 
             MPI_Recv(&recv_back_ids_arr[0],     n_recv_back,      MPI_INT, q, 9876*7777+rank*888,  comm, MPI_STATUS_IGNORE);
             MPI_Recv(&recv_back_NePids_arr[0],  n_recv_back,      MPI_INT, q, 9876*2222+rank*1000, comm, MPI_STATUS_IGNORE);
-            MPI_Recv(&recv_back_iee_arr[0],     nNe_recv_back, MPI_DOUBLE, q, 9876*6666+rank*8888, comm, MPI_STATUS_IGNORE);
+             
+            MPI_Recv(&recv_back_iee_arr[0],     nNe_recv_back,    MPI_INT, q, 9876*6666+rank*8888, comm, MPI_STATUS_IGNORE);
 
-            recv_back_Niee[q]       = n_recv_back;
-            recv_back_NieNe[q]      = nNe_recv_back;
             recv_back_el_ids[q]     = recv_back_ids_arr;
             recv_back_el_NePids[q]  = recv_back_NePids_arr;
             recv_back_iee[q]        = recv_back_iee_arr;
-
          }
     }
-//
-    
-    std::map<int,int >::iterator iter;
+
+    std::map<int,std::vector<int> >::iterator iter;
     int ntotal=0;
     ee.clear();
-    for(iter=recv_back_Niee.begin();iter!=recv_back_Niee.end();iter++)
+    
+    for(iter=recv_back_el_ids.begin();iter!=recv_back_el_ids.end();iter++)
     {
-        int L = iter->second;
+        int L = iter->second.size();
         int offs = 0;
-        
         for(int s=0;s<L;s++)
         {
-            el_id = recv_back_el_ids[iter->first][s];
+            el_id = iter->second[s];
             int NePid = recv_back_el_NePids[iter->first][s];
             for(int r=0;r<NePid;r++)
             {
                 iee_loc[el_id].push_back(recv_back_iee[iter->first][offs+r]);
                 iee_loc_inv[recv_back_iee[iter->first][offs+r]].push_back(el_id);
-                
-                offs = offs+NePid;
+    
             }
+            offs = offs+NePid;
         }
+
+        
         ntotal=ntotal+L;
     }
-    
     delete[] new_offsets;
     
     iee_p_map->i_map = iee_loc;
@@ -2055,7 +2074,6 @@ i_part_map* Partition::getFace2EntityPerPartition(ParArray<int>* ife, MPI_Comm c
     }
     
     std::map<int,std::vector<int> >::iterator ite;
-    std::map<int,std::vector<int> > send_ghost_IDs;
     std::map<int,std::vector<int> > send_IFE_Face_IDs;
     std::vector<int> TotIEE_El_IDs;
 
@@ -2167,9 +2185,11 @@ void Partition::CreatePartitionDomain()
     for(itm = ien_part_map->i_map.begin();itm != ien_part_map->i_map.end();itm++)
     {
         int glob_id  = itm->first;
+        //std::cout << " ROW ien_part_map " << glob_id << " -> ";
         for(int q=0;q<itm->second.size();q++)
         {
             int gv = itm->second[q];
+            //std::cout << gv << " ";
             int lv = GlobalVert2LocalVert[gv];
             
             if(gv_set.find(gv)==gv_set.end())
@@ -2182,15 +2202,18 @@ void Partition::CreatePartitionDomain()
                 gv2lpartv[gv]=lv;
                 lpartv2gv[lv]=gv;
                 locelem2locnode->setVal(elid,q,lcv);
+                //std::cout << " ("<< lcv << " , " << gv << ") ";
                 lcv=lcv+1;
             }
             else
             {
                 int lcv_u = gv2lpv[gv];
                 locelem2locnode->setVal(elid,q,lcv_u);
+                //std::cout << " ("<< lcv_u << " , " << gv << ") ";
                 vert2elem[gv].push_back(glob_id);
             }
         }
+        //std::cout << std::endl;
         elid++;
     }
     
@@ -2307,6 +2330,10 @@ Domain* Partition::getPartitionDomain()
 std::vector<int> Partition::getLocElem()
 {
     return Loc_Elem;
+}
+std::vector<int> Partition::getLocElemNv()
+{
+    return Loc_Elem_Nv;
 }
 std::vector<double> Partition::getLocElemVaria()
 {

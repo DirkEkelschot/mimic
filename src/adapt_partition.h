@@ -30,6 +30,7 @@ class Partition {
     std::map<int,Array<double>*> ReduceMetricToVertices(std::map<int,Array<double>* > Telem);
     
     std::vector<int> getLocElem();
+    std::vector<int> getLocElemNv();
     std::vector<double> getLocElemVaria();
     int getnLoc_Elem();
     std::vector<int> getLocAndAdjElem();
