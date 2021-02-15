@@ -1341,29 +1341,38 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
     
     ParArray<int>* ie_Nv    = new ParArray<int>(nglob,1,comm);
     ParArray<int>* ie_Nf    = new ParArray<int>(nglob,1,comm);
-    
+    int check_hex = 0;
+    int check_tet = 0;
+    int check_pri = 0;
     for(int i=0;i<nrow;i++)
     {
         if(iet->getVal(i,0)==2) // Tet
         {
             ie_Nv->setVal(i,0,4);
             ie_Nf->setVal(i,0,4);
+            check_tet = 1;
         }
         if(iet->getVal(i,0)==6) // Prism
         {
             ie_Nv->setVal(i,0,6);
             ie_Nf->setVal(i,0,5);
+            check_pri = 1;
         }
         if(iet->getVal(i,0)==4) // Hex
         {
             ie_Nv->setVal(i,0,8);
             ie_Nf->setVal(i,0,6);
+            check_hex = 1;
         }
     }
     
+    int* elTypes = new int[3];
+    elTypes[0] = check_tet;
+    elTypes[1] = check_pri;
+    elTypes[2] = check_hex;
     
     us3d->xcn           = xcn;
-    
+    us3d->elTypes       = elTypes;
     us3d->ien           = ien_copy;
     us3d->ief           = ief_copy;
     us3d->iee           = iee_copy;

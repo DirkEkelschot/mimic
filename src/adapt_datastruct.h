@@ -7,6 +7,7 @@
 
 struct Domain
 {
+    std::vector<std::vector<int> > Elements;
     Array<int>* LocElem2LocNode;
     std::vector<int> loc_part_verts;
     std::vector<int> glob_part_verts;

@@ -51,7 +51,7 @@ int main(int argc, char** argv) {
     
     ParallelState* ien_pstate               = new ParallelState(us3d->ien->getNglob(),comm);
     ParallelState* ife_pstate               = new ParallelState(us3d->ifn->getNglob(),comm);
-    ParallelState_Parmetis* parmetis_pstate = new ParallelState_Parmetis(us3d->ien,us3d->ie_Nv,comm);
+    ParallelState_Parmetis* parmetis_pstate = new ParallelState_Parmetis(us3d->ien,us3d->elTypes,us3d->ie_Nv,comm);
     ParallelState* xcn_pstate               = new ParallelState(us3d->xcn->getNglob(),comm);
     
     clock_t t;
@@ -86,47 +86,105 @@ int main(int argc, char** argv) {
     }
 
     Domain* pDom = P->getPartitionDomain();
-
-    std::map<int,double> u_vmap = P->ReduceFieldToVertices(Ui_map);
-
-    std::vector<Vert> Verts  = P->getLocalVerts();
-
-    std::string filename = "output_" + std::to_string(world_rank) + ".dat";
-    std::ofstream myfile;
-    myfile.open(filename);
-    myfile << "TITLE=\"volume_part_"  + std::to_string(world_rank) +  ".tec\"" << std::endl;
-    myfile <<"VARIABLES = \"X\", \"Y\", \"Z\", \"M00\"" << std::endl;
-    myfile <<"ZONE N = " << u_vmap.size() << ", E = " << LocElem.size() << ", DATAPACKING = POINT, ZONETYPE = FEBRICK" << std::endl;
-
+    std::map<int,int> LocElem2Nv      = P->getLocElem2Nv();
     std::vector<int> loc_part_verts = pDom->loc_part_verts;
     std::map<int,int> gv2lpartv     = pDom->gv2lpartv;
     std::map<int,int> lpartv2gv     = pDom->lpartv2gv;
     std::map<int,int> gv2lpv        = pDom->gv2lpv;
-    i = 0;
-    std::map<int,double>::iterator itm;
+    std::map<int,double> u_vmap = P->ReduceFieldToVertices(Ui_map);
+
+    std::vector<Vert> Verts  = P->getLocalVerts();
+    
+    std::vector<std::vector<int> > tetras;
+    std::vector<std::vector<int> > prisms;
+    std::vector<std::vector<int> > hexes;
+    
+    std::vector<std::vector<int> > Elements = pDom->Elements;
+
+    
+    for(int i=0;i<Elements.size();i++)
+    {
+        if(Elements[i].size() == 4)
+        {
+            std::vector<int> Et(4);
+            for(int j=0;j<4;j++)
+            {
+                int nidt = Elements[i][j];
+                Et[j] = nidt;
+                
+            }
+            tetras.push_back(Et);
+            Et.clear();
+        }
+
+        if(Elements[i].size() == 6)
+        {
+            std::vector<int> Ep(6);
+            for(int j=0;j<6;j++)
+            {
+                int nidp = Elements[i][j];
+                Ep[j]   = nidp;
+            }
+            prisms.push_back(Ep);
+            Ep.clear();
+        }
+        
+        if(Elements[i].size() == 8)
+        {
+            std::vector<int> Eh(8);
+            for(int j=0;j<8;j++)
+            {
+                int nidh = Elements[i][j];
+                Eh[j]   = nidh;
+            }
+            hexes.push_back(Eh);
+            Eh.clear();
+        }
+
+    }
+
+    
+    std::ofstream myfilet;
+    myfilet.open("output_" + std::to_string(world_rank) + ".dat");
+    myfilet << "TITLE=\"new_volume.tec\"" << std::endl;
+    myfilet <<"VARIABLES = \"X\", \"Y\", \"Z\", \"U\"" << std::endl;
+    myfilet <<"ZONE N = " << loc_part_verts.size() << ", E = " << hexes.size() << ", DATAPACKING = POINT, ZONETYPE = FEBRICK" << std::endl;
+    
     for(int i=0;i<loc_part_verts.size();i++)
     {
         int loc_vid = loc_part_verts[i];
         int glob_vid = lpartv2gv[loc_vid];
-        myfile << Verts[loc_vid].x << " " << Verts[loc_vid].y << " " << Verts[loc_vid].z << " " << u_vmap[glob_vid] << std::endl;
+        myfilet << Verts[loc_vid].x << " " << Verts[loc_vid].y << " " << Verts[loc_vid].z << " " << u_vmap[glob_vid] << std::endl;
     }
-    int gv0,gv1,gv2,gv3,gv4,gv5,gv6,gv7;
-    int lv0,lv1,lv2,lv3,lv4,lv5,lv6,lv7;
-    for(int i=0;i<LocElem.size();i++)
+    
+    for(int i=0;i<hexes.size();i++)
     {
-        int glob_id = LocElem[i];
-
-        myfile <<   pDom->LocElem2LocNode->getVal(i,0)+1 << "  " <<
-        pDom->LocElem2LocNode->getVal(i,1)+1 << "  " <<
-        pDom->LocElem2LocNode->getVal(i,2)+1 << "  " <<
-        pDom->LocElem2LocNode->getVal(i,3)+1 << "  " <<
-        pDom->LocElem2LocNode->getVal(i,4)+1 << "  " <<
-        pDom->LocElem2LocNode->getVal(i,5)+1 << "  " <<
-        pDom->LocElem2LocNode->getVal(i,6)+1 << "  " <<
-        pDom->LocElem2LocNode->getVal(i,7)+1 << std::endl;
+        myfilet << hexes[i][0]+1 << " " << hexes[i][1]+1 << " "
+                << hexes[i][2]+1 << " " << hexes[i][3]+1 << " "
+                << hexes[i][4]+1 << " " << hexes[i][5]+1 << " "
+                << hexes[i][6]+1 << " " << hexes[i][7]+1 <<  std::endl;
     }
-
-    myfile.close();
+    
+    myfilet.close();
+    
+//    for(int i=0;i<xcn_g->getNrow();i++)
+//    {
+//        myfilet << xcn_g->getVal(i,0) << " " << xcn_g->getVal(i,1) << " " << xcn_g->getVal(i,2) << std::endl;
+//    }
+//
+//    for(int i=0;i<tetras.size();i++)
+//    {
+//        int g0 = lpartv2gv[tetras[i][0]];
+//        int g1 = lpartv2gv[tetras[i][1]];
+//        int g2 = lpartv2gv[tetras[i][2]];
+//        int g3 = lpartv2gv[tetras[i][3]];
+//
+//        myfilet << g0+1 << " " << g1+1 << " " << g2+1 << " " << g3+1 << std::endl;
+//    }
+    
+    
+    std::cout << "# prisms = " << prisms.size() << "  " << " # tetras = " << tetras.size() << "  " << " # hexes = " << hexes.size() <<std::endl;
+    
 
 
     

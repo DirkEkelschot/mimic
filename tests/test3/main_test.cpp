@@ -59,48 +59,12 @@ int main(int argc, char** argv) {
     ParallelState* ien_pstate                   = new ParallelState(us3d->ien->getNglob(),comm);
     ParallelState* ife_pstate                   = new ParallelState(us3d->ifn->getNglob(),comm);
     ParallelState* xcn_pstate                   = new ParallelState(us3d->xcn->getNglob(),comm);
-    ParallelState_Parmetis2* parmetis_pstate2   = new ParallelState_Parmetis2(us3d->ien,comm,8);
-    ParallelState_Parmetis* parmetis_pstate     = new ParallelState_Parmetis(us3d->ien,us3d->iet,comm);
-//
-    int* eptr1 = parmetis_pstate->getEptr();
-    int* eind1 = parmetis_pstate->getEind();
-    int npoloc1 = parmetis_pstate->getNpolocAtRank(world_rank);
-    int* eptr2 = parmetis_pstate2->getEptr();
-    int* eind2 = parmetis_pstate2->getEind();
-    int npoloc2 = parmetis_pstate2->getNpolocAtRank(world_rank);
-
-    int flip = 0;
-    if(npoloc1==npoloc2)
-    {
-        std::cout << "equal " << npoloc1 << " " << npoloc2 << std::endl;
-        for(int i=0;i<npoloc1;i++)
-        {
-            int res = fabs(eind1[i] - eind2[i]);
-            if(res>0)
-            {
-                std::cout << res << std::endl;
-                flip = 1;
-            }
-        }
-
-        if(flip != 0)
-        {
-            std::cout << "not the same " << std::endl;
-
-        }
-        else{
-            std::cout << "the same" <<std::endl;
-        }
-    }
-    
-    
-    
-    
+    ParallelState_Parmetis* parmetis_pstate = new ParallelState_Parmetis(us3d->ien,us3d->elTypes,us3d->ie_Nv,comm);
 //
     clock_t t;
     double tn = 0.0;
     t = clock();
-    Partition* P = new Partition(us3d->ien, us3d->iee, us3d->ief,
+    Partition* P = new Partition(us3d->ien, us3d->iee, us3d->ief, us3d->ie_Nv , us3d->ie_Nf,
                                  us3d->ifn, us3d->ife, us3d->if_ref,
                                  parmetis_pstate, ien_pstate, ife_pstate,
                                  us3d->xcn, xcn_pstate, Ui, comm);
@@ -130,7 +94,7 @@ int main(int argc, char** argv) {
 
     Domain* pDom = P->getPartitionDomain();
 
-    std::vector<double> u_v      = meshTopo->ReduceUToVertices(pDom,Ui_map);
+    std::map<int,double> u_v     = P->ReduceFieldToVertices(Ui_map);
 
     std::vector<Vert> Verts      = P->getLocalVerts();
 
@@ -369,7 +333,7 @@ int main(int argc, char** argv) {
 
     if(world_size == 4)
     {
-        std::map<int,Array<double>* > Hess_vmap = meshTopo->ReduceMetricToVertices(pDom,Hess_map);
+        std::map<int,Array<double>* > Hess_vmap = P->ReduceMetricToVertices(Hess_map);
         std::map<int,Array<double>* > metric_v  = ComputeMetric(P,metric_inputs, Hess_vmap, comm);
 
         Array<double>* mv_g = GetOptimizedMMG3DMeshOnRoot(P, us3d, metric_v, comm);

@@ -31,6 +31,7 @@ class Partition {
     
     std::vector<int> getLocElem();
     std::vector<int> getLocElemNv();
+    std::map<int,int> getLocElem2Nv();
     std::vector<double> getLocElemVaria();
     int getnLoc_Elem();
     std::vector<int> getLocAndAdjElem();

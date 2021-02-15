@@ -16,12 +16,12 @@ Partition::Partition(ParArray<int>* ien, ParArray<int>* iee, ParArray<int>* ief,
     double t0 = MPI_Wtime();
     // This routine essentially determines based on the current element layout what the ideal layout should be.
     DeterminePartitionLayout(ien, pstate_parmetis, comm);
-    
+
     double t1 = MPI_Wtime();
     double time_layout = t1-t0;
     double max_time_layout = 0.0;
     MPI_Allreduce(&time_layout, &max_time_layout, 1, MPI_DOUBLE, MPI_MAX, comm);
-    
+
     eloc = 0;
     vloc = 0;
     floc = 0;
@@ -74,7 +74,7 @@ void Partition::DeterminePartitionLayout(ParArray<int>* ien, ParallelState_Parme
 //
     idx_t numflag_[] = {0};
     idx_t *numflag = numflag_;
-    idx_t ncommonnodes_[] = {4};
+    idx_t ncommonnodes_[] = {pstate_parmetis->getNcommonNodes()};
     idx_t *ncommonnodes = ncommonnodes_;
     int edgecut      = 0;
     idx_t *xadj_par      = NULL;
@@ -150,29 +150,29 @@ void Partition::DeterminePartitionLayout(ParArray<int>* ien, ParallelState_Parme
                    ien_pstate->getOffsets(),
                    MPI_INT,comm);
     
-    if(rank == 0)
-    {
-
-        std::ifstream fin;
-        fin.open("part_size_4.ref");
-
-        // Read the file row by row
-        double val;
-        std::vector<double> ref_glob_part;
-        int t=0;
-        while(fin >> val)
-        {
-            ref_glob_part.push_back(val);
-        }
-
-        for(int i=0;i<part_global->getNrow();i++)
-        {
-            if(part_global->getVal(i,0)!=ref_glob_part[i])
-            {
-                std::cout << i << " " << part_global->getVal(i,0) << " " << ref_glob_part[i] << std::endl;
-            }
-        }
-    }
+//    if(rank == 0)
+//    {
+//
+//        std::ifstream fin;
+//        fin.open("part_size_4.ref");
+//
+//        // Read the file row by row
+//        double val;
+//        std::vector<double> ref_glob_part;
+//        int t=0;
+//        while(fin >> val)
+//        {
+//            ref_glob_part.push_back(val);
+//        }
+//
+//        for(int i=0;i<part_global->getNrow();i++)
+//        {
+//            if(part_global->getVal(i,0)!=ref_glob_part[i])
+//            {
+//                std::cout << i << " " << part_global->getVal(i,0) << " " << ref_glob_part[i] << std::endl;
+//            }
+//        }
+//    }
 }
 
 
@@ -2181,15 +2181,14 @@ void Partition::CreatePartitionDomain()
     
     std::vector<int> loc_part_verts;
     std::vector<int> glob_part_verts;
-    
+    std::vector<std::vector<int> > Elements;
     for(itm = ien_part_map->i_map.begin();itm != ien_part_map->i_map.end();itm++)
     {
         int glob_id  = itm->first;
-        //std::cout << " ROW ien_part_map " << glob_id << " -> ";
+        std::vector<int>El(itm->second.size());
         for(int q=0;q<itm->second.size();q++)
         {
             int gv = itm->second[q];
-            //std::cout << gv << " ";
             int lv = GlobalVert2LocalVert[gv];
             
             if(gv_set.find(gv)==gv_set.end())
@@ -2202,21 +2201,24 @@ void Partition::CreatePartitionDomain()
                 gv2lpartv[gv]=lv;
                 lpartv2gv[lv]=gv;
                 locelem2locnode->setVal(elid,q,lcv);
-                //std::cout << " ("<< lcv << " , " << gv << ") ";
+                El[q] = lcv;
                 lcv=lcv+1;
             }
             else
             {
                 int lcv_u = gv2lpv[gv];
                 locelem2locnode->setVal(elid,q,lcv_u);
-                //std::cout << " ("<< lcv_u << " , " << gv << ") ";
                 vert2elem[gv].push_back(glob_id);
+                El[q] = lcv_u;
             }
         }
+        Elements.push_back(El);
+        El.clear();
         //std::cout << std::endl;
         elid++;
     }
     
+    pDom->Elements        = Elements;
     pDom->LocElem2LocNode = locelem2locnode;
     pDom->loc_part_verts  = loc_part_verts;
     pDom->glob_part_verts = glob_part_verts;
@@ -2334,6 +2336,10 @@ std::vector<int> Partition::getLocElem()
 std::vector<int> Partition::getLocElemNv()
 {
     return Loc_Elem_Nv;
+}
+std::map<int,int> Partition::getLocElem2Nv()
+{
+    return LocElem2Nv;
 }
 std::vector<double> Partition::getLocElemVaria()
 {
