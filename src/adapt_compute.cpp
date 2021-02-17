@@ -354,6 +354,112 @@ double ComputeVolumeHexCell(double *P)
     return vol0+vol1+vol2+vol3;
 }
 
+
+
+
+double ComputeVolumeTetCell(double *P)
+{
+    Vert* a = new Vert;
+    Vert* b = new Vert;
+    Vert* c = new Vert;
+    Vert* d = new Vert;
+    
+    a->x = P[0*3+0]; b->x = P[1*3+0];
+    a->y = P[0*3+1]; b->y = P[1*3+1];
+    a->z = P[0*3+2]; b->z = P[1*3+2];
+    
+    c->x = P[2*3+0]; d->x = P[3*3+0];
+    c->y = P[2*3+1]; d->y = P[3*3+1];
+    c->z = P[2*3+2]; d->z = P[3*3+2];
+    
+    Vert* t = new Vert;
+    t->x = (a->x-d->x);
+    t->y = (a->y-d->y);
+    t->z = (a->z-d->z);
+    
+    Vec3D* s = new Vec3D;
+    s->c0 = (b->x-d->x);
+    s->c1 = (b->y-d->y);
+    s->c2 = (b->z-d->z);
+    
+    Vec3D* r= new Vec3D;
+    r->c0 = (c->x-d->x);
+    r->c1 = (c->y-d->y);
+    r->c2 = (c->z-d->z);
+    
+    
+    double cross[3];
+
+        //Cross cross formula
+    cross[0] = (s->c1 * r->c2) - (s->c2 * r->c1);
+    cross[1] = (s->c2 * r->c0) - (s->c0 * r->c2);
+    cross[2] = (s->c0 * r->c1) - (s->c1 * r->c0);
+    
+    double V = fabs(t->x*cross[0]+t->y*cross[1]+t->z*cross[2])/6.0;
+    
+    //delete t,s,r;
+    //delete[] cross;
+    
+    return V;
+}
+
+
+
+double ComputeVolumePrismCell(double *P)
+{
+    Vert* v0 = new Vert;
+    Vert* v1 = new Vert;
+    Vert* v2 = new Vert;
+    Vert* v3 = new Vert;
+    Vert* v4 = new Vert;
+    Vert* v5 = new Vert;
+    
+    v0->x = P[0*3+0]; v1->x = P[1*3+0];
+    v0->y = P[0*3+1]; v1->y = P[1*3+1];
+    v0->z = P[0*3+2]; v1->z = P[1*3+2];
+    
+    v2->x = P[2*3+0]; v3->x = P[3*3+0];
+    v2->y = P[2*3+1]; v3->y = P[3*3+1];
+    v2->z = P[2*3+2]; v3->z = P[3*3+2];
+    
+    v4->x = P[4*3+0]; v5->x = P[5*3+0];
+    v4->y = P[4*3+1]; v5->y = P[5*3+1];
+    v4->z = P[4*3+2]; v5->z = P[5*3+2];
+    
+    double La  = ComputeEdgeLength(v0,v2);
+    double Lap = ComputeEdgeLength(v3,v5);
+    
+    double Lb  = ComputeEdgeLength(v1,v2);
+    double Lbp = ComputeEdgeLength(v4,v5);
+    
+    double Lc  = ComputeEdgeLength(v0,v1);
+    double Lcp = ComputeEdgeLength(v3,v4);
+    
+    double p  = La+Lb+Lc;
+    //double pp = Lap+Lbp+Lcp;
+    
+    double A0  = sqrt(p/2.0*(p/2.0-La)*(p/2.0-Lb)*(p/2.0-Lc));
+    //double A1 = sqrt(pp/2.0*(pp/2.0-Lap)*(pp/2.0-Lbp)*(pp/2.0-Lcp));
+    
+    double ha = ComputeEdgeLength(v1,v4);
+    double hb = ComputeEdgeLength(v0,v3);
+    double hc = ComputeEdgeLength(v2,v5);
+    
+//    double A2 = La*(hb+hc)/2.0;
+//    double A3 = Lb*(ha+hc)/2.0;
+//    double A4 = Lc*(ha+hb)/2.0;
+//
+//    double A = A0+A1+A2+A3+A4;
+    double V = A0*(ha+hb+hc)/3.0;
+    
+    return V;
+    
+}
+
+
+
+
+
 // This function outputs J as an array of 9 values where the matrix is defined as:
 
 /*
@@ -408,6 +514,36 @@ Vert* ComputeCenterCoord(double*P, int np)
     
     delete[] ref;
     delete[] N;
+    return V;
+}
+
+
+Vert* ComputeCentroidCoord(double*P, int np)
+{
+    Vert* V = new Vert;
+    //V = ComputeCenterCoord(P, np);
+    if(np == 8)
+    {
+        V = ComputeCenterCoord(P, np);
+    }
+    {
+        V->x = 0.0;
+        V->y = 0.0;
+        V->z = 0.0;
+
+        for(int i = 0; i < np; i++)
+        {
+
+            V->x = V->x+P[i*3+0];
+            V->y = V->y+P[i*3+1];
+            V->z = V->z+P[i*3+2];
+        }
+
+        V->x = V->x/np;
+        V->y = V->y/np;
+        V->z = V->z/np;
+    }
+    
     return V;
 }
 

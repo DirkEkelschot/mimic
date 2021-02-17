@@ -58,7 +58,7 @@ int main(int argc, char** argv) {
     double tn = 0.0;
     t = clock();
     Partition* P = new Partition(us3d->ien, us3d->iee, us3d->ief, us3d->ie_Nv , us3d->ie_Nf,
-                                 us3d->ifn, us3d->ife, us3d->if_ref,
+                                 us3d->ifn, us3d->ife, us3d->if_ref, us3d->if_Nv,
                                  parmetis_pstate, ien_pstate, ife_pstate,
                                  us3d->xcn, xcn_pstate, Ui, comm);
     
@@ -92,7 +92,7 @@ int main(int argc, char** argv) {
         std::cout << "Started creating mesh topology object... " << std::endl;
     }
 
-    Mesh_Topology* meshTopo = new Mesh_Topology(P,comm);
+    //Mesh_Topology* meshTopo = new Mesh_Topology(P,comm);
     
     if(world_rank == 0)
     {
@@ -115,7 +115,7 @@ int main(int argc, char** argv) {
     }
     
     t = clock();
-    std::map<int,Array<double>* > dUdXi = ComputedUdx_LSQ_US3D(P,Uadj,meshTopo,gB,comm);
+    std::map<int,Array<double>* > dUdXi = ComputedUdx_LSQ_US3D(P,Uadj,gB,comm);
     double Gtiming = ( std::clock() - t) / (double) CLOCKS_PER_SEC;
     double Gmax_time = 0.0;
     MPI_Allreduce(&Gtiming, &Gmax_time, 1, MPI_DOUBLE, MPI_MAX, comm);

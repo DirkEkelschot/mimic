@@ -1324,11 +1324,13 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
     ParArray<int>* ifn_copy    = new ParArray<int>(nrow_fglob,ncol_ifn,comm);
     ParArray<int>* ife_copy    = new ParArray<int>(nrow_fglob,ncol_ife,comm);
     ParArray<int>* if_ref_copy = new ParArray<int>(nrow_fglob,1,comm);
+    ParArray<int>* if_Nv_copy = new ParArray<int>(nrow_fglob,1,comm);
 
     for(i=0;i<nrow_floc;i++)
     {
         if_ref_copy->setVal(i,0,ifn->getVal(i,7));
-        
+        if_Nv_copy->setVal(i,0,ifn->getVal(i,0));
+
         for(j=0;j<ncol_ifn;j++)
         {
             ifn_copy->setVal(i,j,ifn->getVal(i,j+1)-1);
@@ -1379,6 +1381,7 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
     us3d->iet           = iet;
     us3d->ie_Nv         = ie_Nv;
     us3d->ie_Nf         = ie_Nf;
+    us3d->if_Nv         = if_Nv_copy;
 
     us3d->ifn           = ifn_copy;
     us3d->if_ref        = if_ref_copy;

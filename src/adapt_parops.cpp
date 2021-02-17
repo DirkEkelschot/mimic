@@ -192,7 +192,7 @@ Array<double>* GetOptimizedMMG3DMeshOnRoot(Partition* P, US3D* us3d, std::map<in
         }
         for(int i=0;i<ien_g->getNrow();i++)
         {
-            myfile << ien_g->getVal(i,0)+1 << " " <<
+            myfile <<  ien_g->getVal(i,0)+1 << " " <<
                        ien_g->getVal(i,1)+1 << " " <<
                        ien_g->getVal(i,2)+1 << " " <<
                        ien_g->getVal(i,3)+1 << " " <<

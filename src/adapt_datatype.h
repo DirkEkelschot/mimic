@@ -13,6 +13,7 @@ struct US3D{
     ParArray<int>* iet;
     ParArray<int>* ie_Nv;
     ParArray<int>* ie_Nf;
+    ParArray<int>* if_Nv;
     
     ParArray<int>* ifn;
     ParArray<int>* ife;

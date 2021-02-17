@@ -29,6 +29,8 @@ double ComputeJ(double*P, int ElType);
 inline double ComputeEdgeLength(Vert* v0, Vert* v1);
 
 double ComputeVolumeHexCell(double *P);
+double ComputeVolumeTetCell(double *P);
+double ComputeVolumePrismCell(double *P);
 
 double ComputeDeterminantJ_tet_v2(double*P);
 double* ComputeJAtCenter_tet_v2(double*P);
@@ -42,6 +44,7 @@ double* ComputeJAtCenter_tet_v2(double*P);
 */
 // J is computed using the 8-point isoparametric mapping for a hex. The 8-point rule should be sufficient since everything is linear anyways.
 Vert* ComputeCenterCoord(double*P, int np);
+Vert* ComputeCentroidCoord(double*P, int np);
 
 extern "C" {
 double* ComputeJAtCenter(double*P, int np);

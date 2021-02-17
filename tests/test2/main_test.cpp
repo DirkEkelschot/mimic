@@ -58,7 +58,7 @@ int main(int argc, char** argv) {
     double tn = 0.0;
     t = clock();
     Partition* P = new Partition(us3d->ien, us3d->iee, us3d->ief, us3d->ie_Nv , us3d->ie_Nf,
-                                 us3d->ifn, us3d->ife, us3d->if_ref,
+                                 us3d->ifn, us3d->ife, us3d->if_ref, us3d->if_Nv,
                                  parmetis_pstate, ien_pstate, ife_pstate,
                                  us3d->xcn, xcn_pstate, Ui, comm);
     
