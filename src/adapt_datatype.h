@@ -3,6 +3,16 @@
 #ifndef ADAPT_DATATYPE_H
 #define ADAPT_DATATYPE_H
 
+struct Mesh{
+    Array<double>* xcn;
+    Array<int>* ief;
+    Array<int>* ien;
+    Array<int>* if_ref;
+    Array<int>* ifn;
+    Array<int>* ife;
+};
+
+
 struct US3D{
     
     ParArray<double>* xcn;

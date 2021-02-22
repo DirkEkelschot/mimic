@@ -2405,12 +2405,15 @@ void Partition::CreatePartitionDomain()
     std::map<int,std::vector<int> >::iterator itm;
     std::map<int,std::vector<int> > vert2elem;
     
-    int lcv = 0;
+    int lcv  = 0;
     int elid = 0;
     
     std::vector<int> loc_part_verts;
     std::vector<int> glob_part_verts;
     std::vector<std::vector<int> > Elements;
+    std::vector<std::vector<int> > Hexes;
+    std::vector<std::vector<int> > Prisms;
+    std::vector<std::vector<int> > Tetras;
     for(itm = ien_part_map->i_map.begin();itm != ien_part_map->i_map.end();itm++)
     {
         int glob_id  = itm->first;
@@ -2442,12 +2445,28 @@ void Partition::CreatePartitionDomain()
             }
         }
         Elements.push_back(El);
+        if(El.size()==4)
+        {
+            Tetras.push_back(El);
+        }
+        if(El.size()==6)
+        {
+            Prisms.push_back(El);
+        }
+        if(El.size()==8)
+        {
+            Hexes.push_back(El);
+        }
+        
         El.clear();
         //std::cout << std::endl;
         elid++;
     }
     
     pDom->Elements        = Elements;
+    pDom->Hexes           = Hexes;
+    pDom->Prisms          = Prisms;
+    pDom->Tetras          = Tetras;
     pDom->LocElem2LocNode = locelem2locnode;
     pDom->loc_part_verts  = loc_part_verts;
     pDom->glob_part_verts = glob_part_verts;

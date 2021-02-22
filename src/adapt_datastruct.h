@@ -8,6 +8,9 @@
 struct Domain
 {
     std::vector<std::vector<int> > Elements;
+    std::vector<std::vector<int> > Hexes;
+    std::vector<std::vector<int> > Prisms;
+    std::vector<std::vector<int> > Tetras;
     Array<int>* LocElem2LocNode;
     std::vector<int> loc_part_verts;
     std::vector<int> glob_part_verts;

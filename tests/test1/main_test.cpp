@@ -129,6 +129,7 @@ int main(int argc, char** argv) {
     Array<double>* dUidxi = new Array<double>(dUdXi.size(),1);
     Array<double>* dUidyi = new Array<double>(dUdXi.size(),1);
     Array<double>* dUidzi = new Array<double>(dUdXi.size(),1);
+    
     std::map<int,Array<double>* >::iterator grit;
 
     for(grit=dUdXi.begin();grit!=dUdXi.end();grit++)
@@ -143,7 +144,6 @@ int main(int argc, char** argv) {
     int nlElem = us3d->ien->getNrow();
     int nElem  = us3d->ien->getNglob();
     int nvg    = us3d->xcn->getNglob();
-
     
     std::vector<double> GuX_loc;
     std::vector<int> vids;
@@ -152,7 +152,6 @@ int main(int argc, char** argv) {
     int gid,lid;
     int nval = 6;
     std::set<int> vdone;
-    
 //
     Array<int>*  lE2gE_g;
     Array<double>*  GuX_g;
@@ -214,6 +213,7 @@ int main(int argc, char** argv) {
                 G_offsets,
                 MPI_INT, 0, comm);
     
+    
     MPI_Gatherv(&dUidxi->data[0],
                 dUidxi->getNrow(),
                 MPI_DOUBLE,
@@ -257,7 +257,6 @@ int main(int argc, char** argv) {
             std::cout << " --::-- Parallel gradient reconstruction test has PASSED. --::-- " << std::endl;
         }
     }
-    
     
     MPI_Finalize();
     
