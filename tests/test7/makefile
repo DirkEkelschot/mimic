@@ -2,7 +2,7 @@ TESTBIN = ../bin
 
 SRC_OBJ = ../../src/*.cpp
 TES_OBJ = main_test.cpp
-TEST    = test6
+TEST    = test7
 
 include ../../module.mk
 

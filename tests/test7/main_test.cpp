@@ -1,6 +1,7 @@
 #include "../../src/adapt_recongrad.h"
 #include "../../src/adapt_io.h"
 #include "../../src/adapt_parops.h"
+#include "../../src/adapt_output.h"
 #include <iomanip>
 
 int main(int argc, char** argv)
@@ -20,9 +21,13 @@ int main(int argc, char** argv)
 //    const char* fn_conn="../test_mesh/cyl_tess/conn.h5";
 //    const char* fn_data="../test_mesh/cyl_tess/data.h5";
     
-    const char* fn_grid="../test_mesh/cyl_a/grid.h5";
-    const char* fn_conn="../test_mesh/cyl_a/conn.h5";
-    const char* fn_data="../test_mesh/cyl_a/data.h5";
+//    const char* fn_grid="../test_mesh/cyl_a/grid.h5";
+//    const char* fn_conn="../test_mesh/cyl_a/conn.h5";
+//    const char* fn_data="../test_mesh/cyl_a/data.h5";
+    
+    const char* fn_grid="../../../Desktop/cylinder_tess/grid.h5";
+    const char* fn_conn="../../../Desktop/cylinder_tess/conn.h5";
+    const char* fn_data="../../../Desktop/cylinder_tess/data.h5";
     
     US3D* us3d    = ReadUS3DData(fn_conn,fn_grid,fn_data,comm,info);
     const char* fn_metric = "metric.inp";
@@ -127,132 +132,12 @@ int main(int argc, char** argv)
         dUidxi->setVal(ti,0,grit->second->getVal(0,0));
         dUidyi->setVal(ti,0,grit->second->getVal(1,0));
         dUidzi->setVal(ti,0,grit->second->getVal(2,0));
-//        dUidxi_map[grit->first]=grit->second->getVal(0,0);
-//        dUidyi_map[grit->first]=grit->second->getVal(1,0);
-//        dUidzi_map[grit->first]=grit->second->getVal(2,0);
+        dUidxi_map[grit->first]=grit->second->getVal(0,0);
+        dUidyi_map[grit->first]=grit->second->getVal(1,0);
+        dUidzi_map[grit->first]=grit->second->getVal(2,0);
 
         ti++;
     }
-    
-    int nlElem = us3d->ien->getNrow();
-    int nElem  = us3d->ien->getNglob();
-    int nvg    = us3d->xcn->getNglob();
-    
-    std::vector<double> GuX_loc;
-    std::vector<int> vids;
-    std::vector<double> Uids;
-    std::vector<double> Hids;
-    int gid,lid;
-    int nval = 6;
-    std::set<int> vdone;
-//
-    Array<int>*  lE2gE_g;
-    Array<double>*  GuX_g;
-    Array<double>*  GuX_gr;
-    Array<double>*  GuY_g;
-    Array<double>*  GuZ_g;
-
-    int nEl_glob = us3d->ien->getNglob();
-
-    if(world_rank == 0)
-    {
-        lE2gE_g     = new Array<int>(nEl_glob,1);
-        GuX_g       = new Array<double>(nEl_glob,1);
-        GuX_gr      = new Array<double>(nEl_glob,1);
-        GuY_g       = new Array<double>(nEl_glob,1);
-        GuZ_g       = new Array<double>(nEl_glob,1);
-    }
-    else
-    {
-        lE2gE_g     = new Array<int>(1,1);
-        GuX_g       = new Array<double>(1,1);
-        GuX_gr      = new Array<double>(1,1);
-        GuY_g       = new Array<double>(1,1);
-        GuZ_g       = new Array<double>(1,1);
-    }
-
-    int* G_nlocs      = new int[world_size];
-    int* red_G_nlocs  = new int[world_size];
-    int* G_offsets    = new int[world_size];
-
-    for(i=0;i<world_size;i++)
-    {
-        G_nlocs[i] = 0;
-        
-        if(i==world_rank)
-        {
-            G_nlocs[i] = dUidxi->getNrow();
-        }
-        else
-        {
-            G_nlocs[i] = 0;
-        }
-    }
-
-    MPI_Allreduce(G_nlocs, red_G_nlocs, world_size, MPI_INT, MPI_SUM, comm);
-    
-    int offset = 0;
-    for(i=0;i<world_size;i++)
-    {
-        G_offsets[i] = offset;
-        offset = offset+red_G_nlocs[i];
-    }
-
-    MPI_Gatherv(&lE2gE->data[0],
-                lE2gE->getNrow(),
-                MPI_INT,
-                &lE2gE_g->data[0],
-                red_G_nlocs,
-                G_offsets,
-                MPI_INT, 0, comm);
-    
-    
-    MPI_Gatherv(&dUidxi->data[0],
-                dUidxi->getNrow(),
-                MPI_DOUBLE,
-                &GuX_g->data[0],
-                red_G_nlocs,
-                G_offsets,
-                MPI_DOUBLE, 0, comm);
-    
-    
-    if(world_rank == 0)
-    {
-        
-        std::vector<double> GuX_ref = ReadReferenceData();
-        
-        for(int i=0;i<nEl_glob;i++)
-        {
-            int gid = lE2gE_g->getVal(i,0);
-            GuX_gr->setVal(gid,0,GuX_g->getVal(i,0));
-        }
-        
-        int flip = 0;
-        double err = 1.0e-08;
-        for(int i=0;i<nEl_glob;i++)
-        {
-            double diff = fabs(GuX_gr->getVal(i,0)-GuX_ref[i]);
-
-            if(diff>err)
-            {
-                std::cout << std::setprecision(16) << i << " " << diff << " " << GuX_gr->getVal(i,0) << " " << GuX_ref[i] << std::endl;
-
-                flip = 1;
-            }
-        }
-
-        if(flip == 1)
-        {
-            std::cout << " --::-- Parallel gradient reconstruction test has FAILED. --::-- " << std::endl;
-        }
-        if(flip == 0)
-        {
-            std::cout << " --::-- Parallel gradient reconstruction test has PASSED. --::-- " << std::endl;
-        }
-    }
-    
-    
-    
     
     std::map<int,double > dUdxauxNew  = P->CommunicateAdjacentDataUS3D(dUidxi_map,comm);
     std::map<int,double > dUdyauxNew  = P->CommunicateAdjacentDataUS3D(dUidyi_map,comm);
@@ -307,7 +192,7 @@ int main(int argc, char** argv)
     
     std::map<int,Array<double>* > metric = ComputeMetric(P,metric_inputs, Hess_vm, comm);
 
-    //Array<double>* mv_g = GetOptimizedMMG3DMeshOnRoot(P, us3d, metric, comm);
+    Array<double>* mv_g = GetOptimizedMMG3DMeshOnRoot(P, us3d, metric, comm);
     
     std::vector<std::vector<int> > Elements = pDom->Elements;
     std::vector<std::vector<int> > Hexes    = pDom->Hexes;
@@ -325,19 +210,25 @@ int main(int argc, char** argv)
     MPI_Allreduce(&nHexes_loc,  &nHexes_glob,  1, MPI_INT, MPI_SUM, comm);
     MPI_Allreduce(&nPrisms_loc, &nPrisms_glob, 1, MPI_INT, MPI_SUM, comm);
 
-    
-    std::cout << "tetras = " << nTetras_loc << " " << nTetras_glob << std::endl;
-    std::cout << "prisms = " << nPrisms_loc << " " << nPrisms_glob << std::endl;
-    std::cout << "hexes  = " << nHexes_loc  << " " << nHexes_glob  << std::endl;
+    if(world_rank == 3)
+    {
+        std::cout << "tetras = " << nTetras_loc << " " << nTetras_glob << std::endl;
+        std::cout << "prisms = " << nPrisms_loc << " " << nPrisms_glob << std::endl;
+        std::cout << "hexes  = " << nHexes_loc  << " " << nHexes_glob  << std::endl;
+    }
+
 
     Array<int>* Ate = new Array<int>(nTetras_loc,4);
-    std::map<int,int> lpartv2gv     = pDom->lpartv2gv;
+    std::map<int,int> lv2gpv     = pDom->lv2gpv;
     int gv = 0;
+    int lv = 0;
+    
+
     for(int i=0;i<nTetras_loc;i++)
     {
         for(int j=0;j<4;j++)
         {
-            gv = lpartv2gv[Tetras[i][j]];
+            gv = lv2gpv[Tetras[i][j]];
             Ate->setVal(i,j,gv);
         }
     }
@@ -348,8 +239,8 @@ int main(int argc, char** argv)
     {
         for(int j=0;j<6;j++)
         {
-            gv = lpartv2gv[Prisms[i][j]];
-            Apr->setVal(i,j,Prisms[i][j]);
+            gv = lv2gpv[Prisms[i][j]];
+            Apr->setVal(i,j,gv);
         }
     }
     
@@ -363,6 +254,183 @@ int main(int argc, char** argv)
                                       us3d->ife,
                                       us3d->if_ref,
                                       comm,info);
+    
+    if(world_rank == 0)
+    {
+        
+        std::ofstream myfilet;
+        myfilet.open("tetra.dat");
+        myfilet << "TITLE=\"new_volume.tec\"" << std::endl;
+        myfilet <<"VARIABLES = \"X\", \"Y\", \"Z\"" << std::endl;
+        myfilet <<"ZONE N = " << us3dRoot->xcn->getNrow() << ", E = " << gAteRoot->getNrow() << ", DATAPACKING = POINT, ZONETYPE = FETETRAHEDRON" << std::endl;
+        
+        for(int i=0;i<us3dRoot->xcn->getNrow();i++)
+        {
+            myfilet << us3dRoot->xcn->getVal(i,0)<< " " <<us3dRoot->xcn->getVal(i,1) << " " << us3dRoot->xcn->getVal(i,2) <<  std::endl;
+        }
+        
+        for(int i=0;i<gAteRoot->getNrow();i++)
+        {
+            myfilet << gAteRoot->getVal(i,0)+1 << " " << gAteRoot->getVal(i,1)+1 << " " << gAteRoot->getVal(i,2)+1 << " " << gAteRoot->getVal(i,3)+1 << std::endl;
+        }
+        myfilet.close();
+        
+        
+        
+        MMG5_pMesh mmgMesh_hyb = NULL;
+        MMG5_pSol mmgSol_hyb   = NULL;
+        
+        MMG3D_Init_mesh(MMG5_ARG_start,
+        MMG5_ARG_ppMesh,&mmgMesh_hyb,MMG5_ARG_ppMet,&mmgSol_hyb,
+        MMG5_ARG_end);
+        
+        //int nVerts    = us3dRoot->xcn->getNrow();
+        int nTets     = gAteRoot->getNrow();
+        int nPrisms   = gAprRoot->getNrow();
+        
+        std::map<int,int> l2g_tetv;
+        std::map<int,int> g2l_tetv;
+        std::set<int> uv_tet_set;
+        int lv_uv = 0;
+        for(int i=0;i<gAteRoot->getNrow();i++)
+        {
+            for(int j=0;j<gAteRoot->getNcol();j++)
+            {
+                int gv = gAteRoot->getVal(i,j);
+                if(uv_tet_set.find(gv)==uv_tet_set.end())
+                {
+                    uv_tet_set.insert(gv);
+                    l2g_tetv[lv_uv]=gv;
+                    g2l_tetv[gv]=lv_uv;
+                    lv_uv++;
+                }
+            }
+        }
+
+        
+        
+        for(int i=0;i<gAprRoot->getNrow();i++)
+        {
+            for(int j=0;j<gAprRoot->getNcol();j++)
+            {
+                int gv = gAprRoot->getVal(i,j);
+                if(uv_tet_set.find(gv)==uv_tet_set.end())
+                {
+                    uv_tet_set.insert(gv);
+                    l2g_tetv[lv_uv]=gv;
+                    g2l_tetv[gv]=lv_uv;
+                    lv_uv++;
+                }
+            }
+        }
+        
+        int nVerts  = l2g_tetv.size();
+        if ( MMG3D_Set_meshSize(mmgMesh_hyb,nVerts,nTets,nPrisms,0,0,0) != 1 )  exit(EXIT_FAILURE);
+        
+        if ( MMG3D_Set_solSize(mmgMesh_hyb,mmgSol_hyb,MMG5_Vertex,mmgMesh_hyb->np,MMG5_Tensor) != 1 ) exit(EXIT_FAILURE);
+        
+        std::cout << "local tet verts " << nVerts << " " << us3dRoot->xcn->getNrow() << " " << lv_uv << std::endl;
+        
+        for(int i=0;i<gAprRoot->getNrow();i++)
+        {
+            for(int j=0;j<gAprRoot->getNcol();j++)
+            {
+                int gv = gAprRoot->getVal(i,j);
+                mmgMesh_hyb->prism[i+1].v[j] = g2l_tetv[gv]+1;
+            }
+            mmgMesh_hyb->tetra[i+1].ref = 3;
+        }
+        
+        
+        for(int i=0;i<gAteRoot->getNrow();i++)
+        {
+            for(int j=0;j<gAteRoot->getNcol();j++)
+            {
+                int gv = gAteRoot->getVal(i,j);
+                //std::cout << g2l_tetv[gv]+1 << " ";
+                mmgMesh_hyb->tetra[i+1].v[j] = g2l_tetv[gv]+1;
+            }
+            //std::cout << std::endl;
+            mmgMesh_hyb->tetra[i+1].ref = 3;
+        }
+        
+        
+        std::map<int,int>::iterator itm;
+        
+        int i = 0;
+        for(itm=l2g_tetv.begin();itm!=l2g_tetv.end();itm++)
+        {
+            int lvv = itm->first;
+            int gvv = itm->second;
+                        
+            mmgMesh_hyb->point[i+1].c[0] = us3dRoot->xcn->getVal(gvv,0);
+            mmgMesh_hyb->point[i+1].c[1] = us3dRoot->xcn->getVal(gvv,1);
+            mmgMesh_hyb->point[i+1].c[2] = us3dRoot->xcn->getVal(gvv,2);
+            
+            mmgMesh_hyb->point[i+1].ref  = 1;
+            
+            double m11 = mv_g->getVal(gvv,0);
+            double m12 = mv_g->getVal(gvv,1);
+            double m13 = mv_g->getVal(gvv,2);
+            double m22 = mv_g->getVal(gvv,3);
+            double m23 = mv_g->getVal(gvv,4);
+            double m33 = mv_g->getVal(gvv,5);
+            
+//            double m11 = 1.0;
+//            double m12 = 0.0;
+//            double m13 = 0.0;
+//            double m22 = 1.0;
+//            double m23 = 0.0;
+//            double m33 = 1.0;
+            
+            if ( MMG3D_Set_tensorSol(mmgSol_hyb, m11,m12,m13,m22,m23,m33,i+1) != 1 ) exit(EXIT_FAILURE);
+            
+            i++;
+        }
+        
+        if ( MMG3D_Set_dparameter(mmgMesh_hyb,mmgSol_hyb,MMG3D_DPARAM_hgrad, 3.0) != 1 )    exit(EXIT_FAILURE);
+        MMG3D_Set_dparameter( mmgMesh_hyb,  mmgSol_hyb,  MMG3D_DPARAM_hgradreq , -1 );
+        std::cout<<"Start the adaptation of the tetrahedra..."<<std::endl;
+        int ier = MMG3D_mmg3dlib(mmgMesh_hyb,mmgSol_hyb);
+        std::cout<<"Finished the adaptation of the tetrahedra..."<<std::endl;
+        
+        MMG5_pMesh mmgMesh_TETCOPY = NULL;
+        MMG5_pSol mmgSol_TETCOPY   = NULL;
+        
+        MMG3D_Init_mesh(MMG5_ARG_start,
+        MMG5_ARG_ppMesh,&mmgMesh_TETCOPY,MMG5_ARG_ppMet,&mmgSol_TETCOPY,
+        MMG5_ARG_end);
+
+        if ( MMG3D_Set_meshSize(mmgMesh_TETCOPY,mmgMesh_hyb->np,mmgMesh_hyb->ne,0,0,0,0) != 1 )  exit(EXIT_FAILURE);
+        
+        //if ( MMG3D_Set_solSize(mmgMesh_TETCOPY,mmgSol_TETCOPY,MMG5_Vertex,mmgMesh_TETCOPY->np,MMG5_Tensor) != 1 ) exit(EXIT_FAILURE);
+        
+        for(int i=0;i<mmgMesh_hyb->np;i++)
+        {
+            mmgMesh_TETCOPY->point[i+1].c[0] = mmgMesh_hyb->point[i+1].c[0];
+            mmgMesh_TETCOPY->point[i+1].c[1] = mmgMesh_hyb->point[i+1].c[1];
+            mmgMesh_TETCOPY->point[i+1].c[2] = mmgMesh_hyb->point[i+1].c[2];
+            mmgMesh_TETCOPY->point[i+1].ref  = 0;
+        }
+        
+        for(int i=0;i<mmgMesh_hyb->ne;i++)
+        {
+            mmgMesh_TETCOPY->tetra[i+1].v[0] = mmgMesh_hyb->tetra[i+1].v[0];
+            mmgMesh_TETCOPY->tetra[i+1].v[1] = mmgMesh_hyb->tetra[i+1].v[1];
+            mmgMesh_TETCOPY->tetra[i+1].v[2] = mmgMesh_hyb->tetra[i+1].v[2];
+            mmgMesh_TETCOPY->tetra[i+1].v[3] = mmgMesh_hyb->tetra[i+1].v[3];
+            mmgMesh_TETCOPY->tetra[i+1].ref  = 0;
+        }
+        
+        std::cout << "tets = " << mmgMesh_TETCOPY->ne << " " << nTets << " " << nPrisms << std::endl;
+        
+        std::cout<<"Started writing the adapted tetrahedra mesh in ---> OuterVolume.dat"<<std::endl;
+        OutputMesh_MMG(mmgMesh_TETCOPY,0,mmgMesh_TETCOPY->ne,"OuterVolume.dat");
+        std::cout<<"Finished writing the adapted tetrahedra mesh in ---> OuterVolume.dat"<<std::endl;
+         
+    }
+
+    
     
 //    for(int i=0;i<nrow_ifn;i++)
 //    {
@@ -378,7 +446,7 @@ int main(int argc, char** argv)
     
     //Array<double>* xcn_g = ReadDataSetFromFile<double>(fn_grid,"xcn");
     
-    
+    /*
     std::vector<int> loc_part_verts = pDom->loc_part_verts;
     std::map<int,int> gv2lpartv     = pDom->gv2lpartv;
     //std::map<int,int> lpartv2gv   = pDom->lpartv2gv;
@@ -411,99 +479,9 @@ int main(int argc, char** argv)
     myfilet.close();
     
     std::cout << world_rank << " # prisms = " << Prisms.size() << "  " << " # tetras = " << Tetras.size() << std::endl;
-    /*
-    
-    Array<int>*  lE2gE_g;
-    Array<double>*  GuX_g;
-    Array<double>*  GuX_gr;
-    Array<double>*  GuY_g;
-    Array<double>*  GuZ_g;
+     */
 
-    int nEl_glob = us3d->ien->getNglob();
+    
 
-    if(world_rank == 0)
-    {
-        lE2gE_g     = new Array<int>(nEl_glob,1);
-        GuX_g       = new Array<double>(nEl_glob,1);
-        GuX_gr      = new Array<double>(nEl_glob,1);
-        GuY_g       = new Array<double>(nEl_glob,1);
-        GuZ_g       = new Array<double>(nEl_glob,1);
-    }
-    else
-    {
-        lE2gE_g     = new Array<int>(1,1);
-        GuX_g       = new Array<double>(1,1);
-        GuX_gr      = new Array<double>(1,1);
-        GuY_g       = new Array<double>(1,1);
-        GuZ_g       = new Array<double>(1,1);
-    }
-    
-    
-//    MMG5_pMesh mmgMesh_hyb = NULL;
-//    MMG5_pSol mmgSol_hyb   = NULL;
-//
-//    MMG3D_Init_mesh(MMG5_ARG_start,
-//    MMG5_ARG_ppMesh,&mmgMesh_hyb,MMG5_ARG_ppMet,&mmgSol_hyb,
-//    MMG5_ARG_end);
-    
-    
-    
-//    //MMG3D_Set_handGivenMesh(mmgMesh_hyb);
-//    if ( MMG3D_Set_dparameter(mmgMesh_hyb,mmgSol_hyb,MMG3D_DPARAM_hgrad, 3.0) != 1 )    exit(EXIT_FAILURE);
-//
-//    //MMG3D_Set_iparameter ( mmgMesh_hyb,  mmgSol_hyb,  MMG3D_IPARAM_nosizreq , 1 );
-//    MMG3D_Set_dparameter( mmgMesh_hyb,  mmgSol_hyb,  MMG3D_DPARAM_hgradreq , -1 );
-//    std::cout<<"Start the adaptation of the tetrahedra..."<<std::endl;
-//    int ier = MMG3D_mmg3dlib(mmgMesh_hyb,mmgSol_hyb);
-//    std::cout<<"Finished the adaptation of the tetrahedra..."<<std::endl;
-//
-//    MMG5_pMesh mmgMesh_TETCOPY = NULL;
-//    MMG5_pSol mmgSol_TETCOPY   = NULL;
-//
-//    MMG3D_Init_mesh(MMG5_ARG_start,
-//    MMG5_ARG_ppMesh,&mmgMesh_TETCOPY,MMG5_ARG_ppMet,&mmgSol_TETCOPY,
-//    MMG5_ARG_end);
-//
-//    if ( MMG3D_Set_meshSize(mmgMesh_TETCOPY,mmgMesh_hyb->np,mmgMesh_hyb->ne,0,0,0,0) != 1 )  exit(EXIT_FAILURE);
-//
-//    //if ( MMG3D_Set_solSize(mmgMesh_TETCOPY,mmgSol_TETCOPY,MMG5_Vertex,mmgMesh_TETCOPY->np,MMG5_Tensor) != 1 ) exit(EXIT_FAILURE);
-//
-//    for(int i=0;i<mmgMesh_hyb->np;i++)
-//    {
-//        mmgMesh_TETCOPY->point[i+1].c[0] = mmgMesh_hyb->point[i+1].c[0];
-//        mmgMesh_TETCOPY->point[i+1].c[1] = mmgMesh_hyb->point[i+1].c[1];
-//        mmgMesh_TETCOPY->point[i+1].c[2] = mmgMesh_hyb->point[i+1].c[2];
-//
-//        mmgMesh_TETCOPY->point[i+1].ref  = 0;
-//    }
-//
-//    for(int i=0;i<mmgMesh_hyb->ne;i++)
-//    {
-//        mmgMesh_TETCOPY->tetra[i+1].v[0] = mmgMesh_hyb->tetra[i+1].v[0];
-//        mmgMesh_TETCOPY->tetra[i+1].v[1] = mmgMesh_hyb->tetra[i+1].v[1];
-//        mmgMesh_TETCOPY->tetra[i+1].v[2] = mmgMesh_hyb->tetra[i+1].v[2];
-//        mmgMesh_TETCOPY->tetra[i+1].v[3] = mmgMesh_hyb->tetra[i+1].v[3];
-//        mmgMesh_TETCOPY->tetra[i+1].ref  = 0;
-//    }
-//
-//
-//    std::cout<<"Started writing the adapted tetrahedra mesh in ---> OuterVolume.dat"<<std::endl;
-//    OutputMesh_MMG(mmgMesh_TETCOPY,0,mmgMesh_TETCOPY->ne,"OuterVolume.dat");
-//    std::cout<<"Finished writing the adapted tetrahedra mesh in ---> OuterVolume.dat"<<std::endl;
-//
-//    MMG3D_Free_all(MMG5_ARG_start,
-//                   MMG5_ARG_ppMesh,&mmgMesh_TETCOPY,MMG5_ARG_ppSols,&mmgSol_TETCOPY,
-//                   MMG5_ARG_end);
-//
-//    MMG3D_Free_all(MMG5_ARG_start,
-//                   MMG5_ARG_ppMesh,&mmgMesh_TET,MMG5_ARG_ppSols,&mmgSol_TET,
-//                   MMG5_ARG_end);
-//
-//    std::cout<<"Started writing the adapted hybrid mesh in US3D format..."<<std::endl;
-//    WriteUS3DGridFromMMG(mmgMesh_hyb, us3d, bnd_face_map);
-//    std::cout<<"Finished writing the adapted hybrid mesh in US3D format..."<<std::endl;
-//    //
-//
-    */
     MPI_Finalize();
 }

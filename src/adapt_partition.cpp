@@ -2457,9 +2457,7 @@ void Partition::CreatePartitionDomain()
         {
             Hexes.push_back(El);
         }
-        
         El.clear();
-        //std::cout << std::endl;
         elid++;
     }
     

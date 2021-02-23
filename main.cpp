@@ -716,7 +716,7 @@ int main(int argc, char** argv) {
                         {
                             std::set<int> shell_tri;
                             shell_tri.insert(lv2gv_tet_mesh[mmgMesh_TET->tetra[i].v[1]-1]);
-                            shell_tri.insert(lv2gv_tet_mesh[mmgMesh_TET->tetra[i].v[2]-1]);
+                            shell_tri.insert(lv2gv_tet_mesh[ mmgMesh_TET->tetra[i].v[i].v[2]-1]);
                             shell_tri.insert(lv2gv_tet_mesh[mmgMesh_TET->tetra[i].v[3]-1]);
                             std::vector<int> tri(3);
                             tri[0] = lv2gv_tet_mesh[mmgMesh_TET->tetra[i].v[1]-1];
