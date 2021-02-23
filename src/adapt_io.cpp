@@ -1155,7 +1155,8 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
     ParArray<int>* ien = ReadDataSetFromFileInParallel<int>(fn_conn,"ien",comm,info);
     ParArray<int>* ief = ReadDataSetFromFileInParallel<int>(fn_conn,"ief",comm,info);
     ParArray<int>* iee = ReadDataSetFromFileInParallel<int>(fn_conn,"iee",comm,info);
-    
+    ParArray<int>* iet = ReadDataSetFromFileInParallel<int>(fn_grid,"iet",comm,info);
+
     ParArray<int>* ifn = ReadDataSetFromFileInParallel<int>(fn_grid,"ifn",comm,info);
     ParArray<int>* ife = ReadDataSetFromFileInParallel<int>(fn_conn,"ife",comm,info);
 
@@ -1179,7 +1180,6 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
     
     if(rank == 0)
     {
-       //std::cout << "Rank = " << rank << std::endl;
        PlotBoundaryData(znames,zdefs);
     }
     
@@ -1274,11 +1274,13 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
     ParArray<int>* ifn_copy    = new ParArray<int>(nrow_fglob,ncol_ifn,comm);
     ParArray<int>* ife_copy    = new ParArray<int>(nrow_fglob,ncol_ife,comm);
     ParArray<int>* if_ref_copy = new ParArray<int>(nrow_fglob,1,comm);
+    ParArray<int>* if_Nv_copy = new ParArray<int>(nrow_fglob,1,comm);
 
     for(i=0;i<nrow_floc;i++)
     {
         if_ref_copy->setVal(i,0,ifn->getVal(i,7));
-        
+        if_Nv_copy->setVal(i,0,ifn->getVal(i,0));
+
         for(j=0;j<ncol_ifn;j++)
         {
             ifn_copy->setVal(i,j,ifn->getVal(i,j+1)-1);
@@ -1289,12 +1291,48 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
         }
     }
     
-    us3d->xcn = xcn;
+    ParArray<int>* ie_Nv    = new ParArray<int>(nglob,1,comm);
+    ParArray<int>* ie_Nf    = new ParArray<int>(nglob,1,comm);
+    int check_hex = 0;
+    int check_tet = 0;
+    int check_pri = 0;
+    for(int i=0;i<nrow;i++)
+    {
+        if(iet->getVal(i,0)==2) // Tet
+        {
+            ie_Nv->setVal(i,0,4);
+            ie_Nf->setVal(i,0,4);
+            check_tet = 1;
+        }
+        if(iet->getVal(i,0)==6) // Prism
+        {
+            ie_Nv->setVal(i,0,6);
+            ie_Nf->setVal(i,0,5);
+            check_pri = 1;
+        }
+        if(iet->getVal(i,0)==4) // Hex
+        {
+            ie_Nv->setVal(i,0,8);
+            ie_Nf->setVal(i,0,6);
+            check_hex = 1;
+        }
+    }
     
+    int* elTypes = new int[3];
+    elTypes[0] = check_tet;
+    elTypes[1] = check_pri;
+    elTypes[2] = check_hex;
+    
+    us3d->xcn           = xcn;
+    us3d->elTypes       = elTypes;
     us3d->ien           = ien_copy;
     us3d->ief           = ief_copy;
     us3d->iee           = iee_copy;
-    
+    us3d->iet           = iet;
+    us3d->ie_Nv         = ie_Nv;
+    us3d->ie_Nf         = ie_Nf;
+    us3d->if_Nv         = if_Nv_copy;
+
     us3d->ifn           = ifn_copy;
     us3d->if_ref        = if_ref_copy;
     us3d->ife           = ife_copy;

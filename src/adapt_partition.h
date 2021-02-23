@@ -12,24 +12,33 @@
 class Partition {
    public:
     Partition(){};
-    Partition(ParArray<int>* ien, ParArray<int>* iee, ParArray<int>* ief, ParArray<int>* ifn, ParArray<int>* ife, ParArray<int>* if_ref,  ParallelState_Parmetis* pstate_parmetis, ParallelState* ien_parstate, ParallelState* ifn_parstate, ParArray<double>* xcn, ParallelState* xcn_parstate, Array<double>* U, MPI_Comm comm);
+    Partition(ParArray<int>* ien, ParArray<int>* iee, ParArray<int>* ief, ParArray<int>* ie_Nv, ParArray<int>* ieie_Nf, ParArray<int>* ifn, ParArray<int>* ife, ParArray<int>* if_ref, ParArray<int>* if_Nv,  ParallelState_Parmetis* pstate_parmetis, ParallelState* ien_parstate, ParallelState* ife_parstate, ParArray<double>* xcn, ParallelState* xcn_parstate, Array<double>* U, MPI_Comm comm);
     
-    void DeterminePartitionLayout(ParArray<int>* ien, ParallelState_Parmetis* pstate_parmetis, ParallelState* ien_parstate, MPI_Comm comm);
-    void DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief, ParallelState* ien_parstate, ParArray<double>* xcn, ParallelState* xcn_parstate, Array<double>* U, MPI_Comm comm);
-    void DetermineAdjacentElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief, ParArray<int>* part, ParallelState* ien_parstate, ParArray<double>* xcn, ParallelState* xcn_parstate, Array<double>* U, MPI_Comm comm);
-    void DetermineAdjacentElement2ProcMapUS3D(ParArray<int>* ien, std::map<int,std::vector<int> > iee_vec, ParArray<int>* part, ParallelState* ien_parstate, ParArray<double>* xcn, ParallelState* xcn_parstate, Array<double>* U, MPI_Comm comm);
+    void DeterminePartitionLayout(ParArray<int>* ien, ParallelState_Parmetis* pstate_parmetis, MPI_Comm comm);
+    void DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief, ParArray<int>* ie_Nv, ParArray<int>* ie_Nf, ParArray<double>* xcn, Array<double>* U, MPI_Comm comm);
+    void DetermineAdjacentElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief, ParArray<int>* part, ParArray<double>* xcn, Array<double>* U, MPI_Comm comm);
+    void DetermineAdjacentElement2ProcMapUS3D(ParArray<int>* ien, std::map<int,std::vector<int> > iee_vec, ParArray<int>* part, ParArray<double>* xcn, Array<double>* U, MPI_Comm comm);
     void CreatePartitionDomain();
     std::vector<double> PartitionAuxilaryData(Array<double>* U, MPI_Comm comm);
     std::map<int,double> CommunicateLocalDataUS3D(Array<double>* U, MPI_Comm comm);
     std::map<int,double> CommunicateAdjacentDataUS3D(std::map<int,double> U, MPI_Comm comm);
     
-    i_part_map* getElement2EntityPerPartition(ParArray<int>* iee, ParallelState* ien_pstate, MPI_Comm comm);
-    i_part_map* getFace2EntityPerPartition(ParArray<int>* ife, ParallelState* ife_pstate, MPI_Comm comm);
+    i_part_map* getElement2EntityPerPartition(ParArray<int>* iee, std::vector<int> Loc_Elem_Ne, MPI_Comm comm);
+    i_part_map* getFace2EntityPerPartition(ParArray<int>* ife, MPI_Comm comm);
+    i_part_map* getFace2NodePerPartition(ParArray<int>* ifn, MPI_Comm comm);
     Domain* getPartitionDomain();
+    std::map<int,double> ReduceFieldToVertices(std::map<int,double> Uelem);
+    std::map<int,Array<double>*> ReduceMetricToVertices(std::map<int,Array<double>* > Telem);
+    
     std::vector<int> getLocElem();
+    std::vector<int> getLocElemNv();
+    std::map<int,int> getLocElem2Nv();
+    std::map<int,int> getLocElem2Nf();
     std::vector<double> getLocElemVaria();
     int getnLoc_Elem();
     std::vector<int> getLocAndAdjElem();
+    std::vector<int> getLocAndAdjElem_Nv();
+    std::vector<int> getLocAndAdjElem_Nf();
     int getnLocAndAdj_Elem();
     int getNloc_Elem();
     int getNLocAndAdj_Elem();
@@ -37,6 +46,8 @@ class Partition {
     int* getXadj();
     int* getAdjcny();
     std::vector<int> getLocAndAdj_Elem();
+    std::vector<int> getLocAndAdj_Elem_Nv();
+    std::vector<int> getLocAndAdj_Elem_Nf();
     ParArray<int>* getLocalPartition();
     Array<int>* getGlobalPartition();
     std::vector<Vert> getLocalVerts();
@@ -73,17 +84,23 @@ class Partition {
     i_part_map* getIEEpartmap();
     i_part_map* getIEFpartmap();
     i_part_map* getIENpartmap();
-    
     i_part_map* getIFNpartmap();
+    i_part_map* getIF_Nvpartmap();
     i_part_map* getIFEpartmap();
     i_part_map* getIFREFpartmap();
     
    private:
       
       std::vector<int> Loc_Elem;
+      std::vector<int> Loc_Elem_Nv;
+      std::vector<int> Loc_Elem_Nf;
       std::vector<double> Loc_Elem_Varia;
       std::vector<int> LocAndAdj_Elem;
+      std::vector<int> LocAndAdj_Elem_Nv;
+      std::vector<int> LocAndAdj_Elem_Nf;
       std::vector<int> LocAndAdj_Elem_Varia;
+      std::map<int,int> LocElem2Nv;
+      std::map<int,int> LocElem2Nf;
       int nloc;
       int eloc;
       int vloc;
@@ -91,14 +108,17 @@ class Partition {
       int* xadj;
       int* adjcny;
     
-      std::vector<int> loc_elem;
+      std::vector<int> loc_r_elem;
+      std::vector<int> loc_r_nv_elem;
+      std::vector<int> loc_r_nf_elem;
       std::vector<double> loc_varia;
       Domain* pDom;
       int nLoc_Elem;
       int nLocAndAdj_Elem;
       int nLoc_Verts;
       std::set<int> elem_set;
-      std::set<int> loc_elem_set;
+      std::map<int,int> elem_map;
+      std::set<int> loc_r_elem_set;
       //Array<int>* LocAndAdj_Elem;
       ParArray<int>* part;
       Array<int>* part_global;
@@ -118,7 +138,7 @@ class Partition {
 
       std::map<int,int> LocalFace2GlobalFace;
       std::map<int,int> GlobalFace2LocalFace;
-    std::map<int,std::vector<int> > globElem2localFaces;
+      std::map<int,std::vector<int> > globElem2localFaces;
       std::map<int,std::vector<int> > globElem2globFaces;
       std::map<int,std::vector<int> > globFace2GlobalElements;
 
@@ -130,6 +150,7 @@ class Partition {
       std::map<int,std::vector<double> > collect_var;
       ParallelState* xcn_pstate;
       ParallelState* ien_pstate;
+      ParallelState* ife_pstate;
       ParallelState_Parmetis* pstate_parmetis;
     
     
@@ -137,10 +158,14 @@ class Partition {
       ScheduleObj* adj_schedule;
       ScheduleObj* part_schedule;
       std::map<int,std::vector<int> > elms_to_send_to_ranks;
+      std::map<int,std::vector<int> > nvPerElms_to_send_to_ranks;
+      std::map<int,std::vector<int> > nfPerElms_to_send_to_ranks;
       std::map<int,std::vector<int> > part_tot_recv_elIDs;
       std::map<int,std::vector<double> > part_tot_recv_varias;
       std::map<int,std::vector<int> > reqstd_adj_ids_per_rank;
       
+      i_part_map* if_Nv_part_map;
+      i_part_map* ifn2_part_map;
       i_part_map* if_ref_part_map;
       i_part_map* ifn_part_map;
       i_part_map* ife_part_map;

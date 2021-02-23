@@ -1,6 +1,7 @@
 #include "../../src/adapt_recongrad.h"
 #include "../../src/adapt_io.h"
 #include "../../src/adapt_parops.h"
+#include "../../src/adapt_parmetisstate2.h"
 #include <iomanip>
 
 
@@ -37,9 +38,9 @@ int main(int argc, char** argv) {
     MPI_Comm_rank(comm, &world_rank);
     int i,j;
     
-    const char* fn_grid="../test_mesh/grid.h5";
-    const char* fn_conn="../test_mesh/conn.h5";
-    const char* fn_data="../test_mesh/data.h5";
+    const char* fn_grid="../test_mesh/cylinder_hex/grid.h5";
+    const char* fn_conn="../test_mesh/cylinder_hex/conn.h5";
+    const char* fn_data="../test_mesh/cylinder_hex/data.h5";
     
     US3D* us3d    = ReadUS3DData(fn_conn,fn_grid,fn_data,comm,info);
     const char* fn_metric = "metric.inp";
@@ -55,19 +56,19 @@ int main(int argc, char** argv) {
     }
     
     
-    ParallelState* ien_pstate               = new ParallelState(us3d->ien->getNglob(),comm);
-    ParallelState* ife_pstate               = new ParallelState(us3d->ifn->getNglob(),comm);
-    ParallelState_Parmetis* parmetis_pstate = new ParallelState_Parmetis(us3d->ien,comm,8);
-    ParallelState* xcn_pstate               = new ParallelState(us3d->xcn->getNglob(),comm);
-    
+    ParallelState* ien_pstate                   = new ParallelState(us3d->ien->getNglob(),comm);
+    ParallelState* ife_pstate                   = new ParallelState(us3d->ifn->getNglob(),comm);
+    ParallelState* xcn_pstate                   = new ParallelState(us3d->xcn->getNglob(),comm);
+    ParallelState_Parmetis* parmetis_pstate = new ParallelState_Parmetis(us3d->ien,us3d->elTypes,us3d->ie_Nv,comm);
+//
     clock_t t;
     double tn = 0.0;
     t = clock();
-    Partition* P = new Partition(us3d->ien, us3d->iee, us3d->ief,
-                                 us3d->ifn, us3d->ife, us3d->if_ref,
+    Partition* P = new Partition(us3d->ien, us3d->iee, us3d->ief, us3d->ie_Nv , us3d->ie_Nf,
+                                 us3d->ifn, us3d->ife, us3d->if_ref, us3d->if_Nv,
                                  parmetis_pstate, ien_pstate, ife_pstate,
                                  us3d->xcn, xcn_pstate, Ui, comm);
-    
+//
     double duration = ( std::clock() - t) / (double) CLOCKS_PER_SEC;
     double Ptime = 0.0;
     MPI_Allreduce(&duration, &Ptime, 1, MPI_DOUBLE, MPI_MAX, comm);
@@ -75,10 +76,10 @@ int main(int argc, char** argv) {
     {
     std::cout << "Timing partitioning: " << duration << std::endl;
     }
-    
+
     std::vector<int> LocElem    = P->getLocElem();
     std::vector<double> Uvaria  = P->getLocElemVaria();
-    
+
     std::map<int,double> Ui_map;
     double UvariaV = 0.0;
     for(int i=0;i<LocElem.size();i++)
@@ -88,15 +89,15 @@ int main(int argc, char** argv) {
         Ui_map[gid] = UvariaV;
 
     }
-        
+
     Mesh_Topology* meshTopo = new Mesh_Topology(P,comm);
 
     Domain* pDom = P->getPartitionDomain();
 
-    std::vector<double> u_v      = meshTopo->ReduceUToVertices(pDom,Ui_map);
-    
+    std::map<int,double> u_v     = P->ReduceFieldToVertices(Ui_map);
+
     std::vector<Vert> Verts      = P->getLocalVerts();
-    
+
     std::map<int,double> UauxNew = P->CommunicateAdjacentDataUS3D(Ui_map,comm);
 
     Array<double>* gB = new Array<double>(us3d->ghost->getNrow(),1);
@@ -104,9 +105,9 @@ int main(int argc, char** argv) {
     {
         gB->setVal(i,0,us3d->ghost->getVal(i,varia));
     }
-    
+
     t = clock();
-    std::map<int,Array<double>* > dUdXi = ComputedUdx_LSQ_US3D(P,UauxNew,meshTopo,gB,comm);
+    std::map<int,Array<double>* > dUdXi = ComputedUdx_LSQ_US3D(P,UauxNew,gB,comm);
     double Gtiming = ( std::clock() - t) / (double) CLOCKS_PER_SEC;
     double Gmax_time = 0.0;
     MPI_Allreduce(&Gtiming, &Gmax_time, 1, MPI_DOUBLE, MPI_MAX, comm);
@@ -114,16 +115,16 @@ int main(int argc, char** argv) {
     {
         std::cout << "Timing gradient reconstruction... " << Gmax_time << std::endl;
     }
-    
+
     Array<int>* lE2gE     = new Array<int>(dUdXi.size(),1);
     Array<double>* dUidxi = new Array<double>(dUdXi.size(),1);
     Array<double>* dUidyi = new Array<double>(dUdXi.size(),1);
     Array<double>* dUidzi = new Array<double>(dUdXi.size(),1);
-    
+
     std::map<int,double> dUidxi_map;
     std::map<int,double> dUidyi_map;
     std::map<int,double> dUidzi_map;
-    
+
     std::map<int,Array<double>* >::iterator grit;
     int ti=0;
     for(grit=dUdXi.begin();grit!=dUdXi.end();grit++)
@@ -135,23 +136,23 @@ int main(int argc, char** argv) {
         dUidxi_map[grit->first]=grit->second->getVal(0,0);
         dUidyi_map[grit->first]=grit->second->getVal(1,0);
         dUidzi_map[grit->first]=grit->second->getVal(2,0);
-        
+
         ti++;
     }
     std::map<int,double > dUdxauxNew  = P->CommunicateAdjacentDataUS3D(dUidxi_map,comm);
     std::map<int,double > dUdyauxNew  = P->CommunicateAdjacentDataUS3D(dUidyi_map,comm);
     std::map<int,double > dUdzauxNew  = P->CommunicateAdjacentDataUS3D(dUidzi_map,comm);
-    
-    std::map<int,Array<double>* > dU2dXi2 = ComputedUdx_LSQ_US3D(P,dUdxauxNew,meshTopo,gB,comm);
-    std::map<int,Array<double>* > dU2dYi2 = ComputedUdx_LSQ_US3D(P,dUdyauxNew,meshTopo,gB,comm);
-    std::map<int,Array<double>* > dU2dZi2 = ComputedUdx_LSQ_US3D(P,dUdzauxNew,meshTopo,gB,comm);
-            
+
+    std::map<int,Array<double>* > dU2dXi2 = ComputedUdx_LSQ_US3D(P,dUdxauxNew,gB,comm);
+    std::map<int,Array<double>* > dU2dYi2 = ComputedUdx_LSQ_US3D(P,dUdyauxNew,gB,comm);
+    std::map<int,Array<double>* > dU2dZi2 = ComputedUdx_LSQ_US3D(P,dUdzauxNew,gB,comm);
+
     std::map<int,double> d2udx2_map,d2udxy_map,d2udxz_map,
                          d2udyx_map,d2udy2_map,d2udyz_map,
                          d2udzx_map,d2udzy_map,d2udz2_map;
-    
+
     std::map<int,Array<double>*> Hess_map;
-    
+
     std::map<int,Array<double>* >::iterator itgg;
     int te = 0;
 
@@ -159,23 +160,23 @@ int main(int argc, char** argv) {
     {
         int gid = itgg->first;
         Array<double>* Hess = new Array<double>(3,3);
-        
+
         Hess->setVal(0,0,dU2dXi2[gid]->getVal(0,0));
         Hess->setVal(0,1,dU2dXi2[gid]->getVal(1,0));
         Hess->setVal(0,2,dU2dXi2[gid]->getVal(2,0));
-        
+
         Hess->setVal(1,0,dU2dYi2[gid]->getVal(0,0));
         Hess->setVal(1,1,dU2dYi2[gid]->getVal(1,0));
         Hess->setVal(1,2,dU2dYi2[gid]->getVal(2,0));
-        
+
         Hess->setVal(2,0,dU2dZi2[gid]->getVal(0,0));
         Hess->setVal(2,1,dU2dZi2[gid]->getVal(1,0));
         Hess->setVal(2,2,dU2dZi2[gid]->getVal(2,0));
-        
+
         Hess_map[gid] = Hess;
         t++;
     }
-   
+
     std::map<int,Array<double>* > metric_e = ComputeMetric(P,metric_inputs, Hess_map, comm);
 
     Array<double>* lM2gM     = new Array<double>(metric_e.size(),6);
@@ -188,15 +189,15 @@ int main(int argc, char** argv) {
         lM2gM->setVal(i,3,grit->second->getVal(1,1));
         lM2gM->setVal(i,4,grit->second->getVal(1,2));
         lM2gM->setVal(i,5,grit->second->getVal(2,2));
-        
+
         i++;
     }
-    
+
     int nlElem = us3d->ien->getNrow();
     int nElem  = us3d->ien->getNglob();
     int nvg    = us3d->xcn->getNglob();
 
-    
+
     Array<int>*     lE2gE_g;
     Array<double>*  lM2gM_g;
     Array<double>*  M_g;
@@ -219,7 +220,7 @@ int main(int argc, char** argv) {
     int* G_nlocs      = new int[world_size];
     int* red_G_nlocs  = new int[world_size];
     int* G_offsets    = new int[world_size];
-    
+
     int* GM_nlocs      = new int[world_size];
     int* red_GM_nlocs  = new int[world_size];
     int* GM_offsets    = new int[world_size];
@@ -228,7 +229,7 @@ int main(int argc, char** argv) {
     {
         G_nlocs[i] = 0;
         GM_nlocs[i] = 0;
-        
+
         if(i==world_rank)
         {
             G_nlocs[i] = lM2gM->getNrow();
@@ -245,15 +246,16 @@ int main(int argc, char** argv) {
     MPI_Allreduce(G_nlocs, red_G_nlocs, world_size, MPI_INT, MPI_SUM, comm);
     MPI_Allreduce(GM_nlocs, red_GM_nlocs, world_size, MPI_INT, MPI_SUM, comm);
 
-    int offset = 0;
+    int offset  = 0;
     int offsetM = 0;
+
     for(i=0;i<world_size;i++)
     {
-        G_offsets[i] = offset;
-        offset = offset+red_G_nlocs[i];
-        
+        G_offsets[i]  = offset;
+        offset        = offset+red_G_nlocs[i];
+
         GM_offsets[i] = offsetM;
-        offsetM = offsetM+red_GM_nlocs[i];
+        offsetM       = offsetM+red_GM_nlocs[i];
     }
 
     MPI_Gatherv(&lE2gE->data[0],
@@ -263,7 +265,7 @@ int main(int argc, char** argv) {
                 red_G_nlocs,
                 G_offsets,
                 MPI_INT, 0, comm);
-    
+
     MPI_Gatherv(&lM2gM->data[0],
                 lM2gM->getNrow()*6,
                 MPI_DOUBLE,
@@ -271,7 +273,7 @@ int main(int argc, char** argv) {
                 red_GM_nlocs,
                 GM_offsets,
                 MPI_DOUBLE, 0, comm);
-        
+
     if(world_rank == 0)
     {
         std::vector<std::vector<double> > mv_ref = ReadRefMetricData("../test_mesh/metric_E_ref.dat");
@@ -300,7 +302,7 @@ int main(int argc, char** argv) {
 //                        M_g->getVal(i,5) << std::endl;
 //        }
 //        myfile.close();
-        
+
         int flip = 0;
         double err = 1.0e-08;
         for(int i=0;i<nEl_glob;i++)
@@ -312,12 +314,11 @@ int main(int argc, char** argv) {
                 if(diff>err)
                 {
                     std::cout << std::setprecision(16) << i << " " << diff << " " << M_g->getVal(i,j) << " " << mv_ref[i][j] << std::endl;
-
                     flip = 1;
                 }
             }
         }
-        
+
         if(flip == 1)
         {
             std::cout << " --::-- Parallel metric reconstruction test has FAILED. --::-- " << std::endl;
@@ -327,16 +328,16 @@ int main(int argc, char** argv) {
             std::cout << " --::-- Parallel metric reconstruction test has PASSED. --::-- " << std::endl;
         }
     }
-    
-    
+
+
 
     if(world_size == 4)
     {
-        std::map<int,Array<double>* > Hess_vmap = meshTopo->ReduceMetricToVertices(pDom,Hess_map);
-        std::map<int,Array<double>* > metric_v = ComputeMetric(P,metric_inputs, Hess_vmap, comm);
-        
+        std::map<int,Array<double>* > Hess_vmap = P->ReduceMetricToVertices(Hess_map);
+        std::map<int,Array<double>* > metric_v  = ComputeMetric(P,metric_inputs, Hess_vmap, comm);
+
         Array<double>* mv_g = GetOptimizedMMG3DMeshOnRoot(P, us3d, metric_v, comm);
-        
+
         if(world_rank == 0)
         {
             std::vector<std::vector<double> > mv_ref = ReadRefMetricData("../test_mesh/metric_ref.dat");
@@ -352,7 +353,7 @@ int main(int argc, char** argv) {
 
                     if(diff>err)
                     {
-                        //std::cout << std::setprecision(16)<< "("<<i<<", "<<j<<") -> error = " << diff << " computed " << mv_g->getVal(i,j) << " ref " << mv_ref[i][j] << std::endl;
+                        std::cout << std::setprecision(16)<< "("<<i<<", "<<j<<") -> error = " << diff << " computed " << mv_g->getVal(i,j) << " ref " << mv_ref[i][j] << std::endl;
                         cnt++;
                         flip = 1;
                     }
@@ -369,11 +370,11 @@ int main(int argc, char** argv) {
             }
         }
     }
-    
-    
-    
-    
-    
+//
+//
+//
+//
+//
     MPI_Finalize();
     
 }

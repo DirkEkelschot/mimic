@@ -127,7 +127,6 @@ int main(int argc, char** argv) {
         // ifn -> face2node       map coming from parallel reading.
         // ife -> face2element    map coming from parallel reading.
         //std::cout << "Starting to partition..."<<std::endl;
-        
         Partition* P = new Partition(us3d->ien, us3d->iee, us3d->ief,
                                      us3d->ifn, us3d->ife, us3d->if_ref,
                                      parmetis_pstate, ien_pstate, ife_pstate,
@@ -479,12 +478,12 @@ int main(int argc, char** argv) {
                 
                 if(tria_ref_map.find(tria0)==tria_ref_map.end() && ref!=2)
                 {
-                    tria_ref_map[tria0] = ref;
+                    tria_ref_map[tria0]  = ref;
                     tria_ref_map[tria00] = ref;
                 }
                 if(tria_ref_map.find(tria1)==tria_ref_map.end() && ref!=2)
                 {
-                    tria_ref_map[tria1] = ref;
+                    tria_ref_map[tria1]  = ref;
                     tria_ref_map[tria11] = ref;
                 }
                 
@@ -503,7 +502,7 @@ int main(int argc, char** argv) {
             int wall_id = 3;
             int nLayer  = 230;
             
-            if(nLayer>0)
+            if(it == 0 && nLayer>0)
             {
                 int counter = 0;
                 //Mdata* Md = ReadMetricData();
@@ -717,7 +716,7 @@ int main(int argc, char** argv) {
                         {
                             std::set<int> shell_tri;
                             shell_tri.insert(lv2gv_tet_mesh[mmgMesh_TET->tetra[i].v[1]-1]);
-                            shell_tri.insert(lv2gv_tet_mesh[mmgMesh_TET->tetra[i].v[2]-1]);
+                            shell_tri.insert(lv2gv_tet_mesh[ mmgMesh_TET->tetra[i].v[i].v[2]-1]);
                             shell_tri.insert(lv2gv_tet_mesh[mmgMesh_TET->tetra[i].v[3]-1]);
                             std::vector<int> tri(3);
                             tri[0] = lv2gv_tet_mesh[mmgMesh_TET->tetra[i].v[1]-1];
@@ -2151,7 +2150,7 @@ int main(int argc, char** argv) {
                 
                 OutputMesh_MMG(mmgMesh,0,mmgMesh->ne,"OuterVolumeFull.dat");
                 
-               // WriteUS3DGridFromMMG(mmgMesh, us3d);
+                // WriteUS3DGridFromMMG(mmgMesh, us3d);
             }
         }
          
