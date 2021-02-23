@@ -38,9 +38,9 @@ int main(int argc, char** argv)
 //    const char* fn_conn="../test_mesh/cyl_tess/conn.h5";
 //    const char* fn_data="../test_mesh/cyl_tess/data.h5";
     
-    const char* fn_grid="../test_mesh/cyl_a/grid.h5";
-    const char* fn_conn="../test_mesh/cyl_a/conn.h5";
-    const char* fn_data="../test_mesh/cyl_a/data.h5";
+    const char* fn_grid="../test_mesh/cylinder_hybrid/grid.h5";
+    const char* fn_conn="../test_mesh/cylinder_hybrid/conn.h5";
+    const char* fn_data="../test_mesh/cylinder_hybrid/data.h5";
     
     US3D* us3d    = ReadUS3DData(fn_conn,fn_grid,fn_data,comm,info);
     const char* fn_metric = "metric.inp";

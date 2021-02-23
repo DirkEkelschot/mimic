@@ -1015,9 +1015,9 @@ std::map<int,Array<double>*> ComputeMetric(Partition* Pa,
     MPI_Comm_rank(comm, &rank);
     //+++++++++++++++++++++++++++++++++++++++++++
     //++++  Scaling eigenvalues/eigenvectors   ++
-    double hmin         = metric_inputs[0];
-    double hmax         = metric_inputs[1];
-    double f            = metric_inputs[2];
+    double hmin         = metric_inputs[1];
+    double hmax         = metric_inputs[2];
+    double f            = metric_inputs[3];
     //+++++++++++++++++++++++++++++++++++++++++++
     //+++++++++++++++++++++++++++++++++++++++++++
     double* Hmet = new double[9];

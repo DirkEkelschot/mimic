@@ -70,11 +70,7 @@ Array<T>* GatherArrayOnRoot(Array<T>* A,MPI_Comm comm, MPI_Info info)
         nglob        = nglob+red_G_nlocs[i];
     }
     nglob = nglob/A->getNcol();
-    if(rank == 0)
-    {
-        std::cout << nglob << std::endl;
-
-    }
+    
     if(rank == 0)
     {
         gA = new Array<T>(nglob,ncol);
@@ -82,14 +78,6 @@ Array<T>* GatherArrayOnRoot(Array<T>* A,MPI_Comm comm, MPI_Info info)
     else
     {
         gA = new Array<T>(1,1);
-    }
-    
-    if(rank == 0)
-    {
-        for(int i=0;i<size;i++)
-        {
-            std::cout <<  "offsets - "<< i << "  " << red_G_nlocs[i] << " " << G_offsets[i] << std::endl;
-        }
     }
     
     MPI_Gatherv(&A->data[0],

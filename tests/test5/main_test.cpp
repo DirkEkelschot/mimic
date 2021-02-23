@@ -16,9 +16,9 @@ int main(int argc, char** argv)
     MPI_Comm_rank(comm, &world_rank);
     int i,j;
     
-    const char* fn_grid="../test_mesh/cyl_a/grid.h5";
-    const char* fn_conn="../test_mesh/cyl_a/conn.h5";
-    const char* fn_data="../test_mesh/cyl_a/data.h5";
+    const char* fn_grid="../test_mesh/cylinder_hybrid/grid.h5";
+    const char* fn_conn="../test_mesh/cylinder_hybrid/conn.h5";
+    const char* fn_data="../test_mesh/cylinder_hybrid/data.h5";
     
     US3D* us3d    = ReadUS3DData(fn_conn,fn_grid,fn_data,comm,info);
     const char* fn_metric = "metric.inp";
@@ -49,11 +49,13 @@ int main(int argc, char** argv)
 //    integer(KIND=US3D_GINT), parameter :: ET_PYR= 5      ! Pyramid
 //    integer(KIND=US3D_GINT), parameter :: ET_PRS= 6      ! Prism
 //    integer(KIND=US3D_GINT), parameter :: ET_SEG= 7      ! Line segment
-                                                                         
+                                                
+    
     Partition* P = new Partition(us3d->ien, us3d->iee, us3d->ief, us3d->ie_Nv , us3d->ie_Nf,
-                                 us3d->ifn, us3d->ife, us3d->if_ref,
+                                 us3d->ifn, us3d->ife, us3d->if_ref, us3d->if_Nv,
                                  parmetis_pstate, ien_pstate, ife_pstate,
                                  us3d->xcn, xcn_pstate, Ui, comm);
+
     
     double duration = ( std::clock() - t) / (double) CLOCKS_PER_SEC;
     double Ptime = 0.0;
@@ -151,55 +153,13 @@ int main(int argc, char** argv)
         myfilet << Verts[loc_vid].x << " " << Verts[loc_vid].y << " " << Verts[loc_vid].z << " " << u_vmap[glob_vid] <<  std::endl;
     }
     
-//        for(int i=0;i<xcn_g->getNrow();i++)
-//        {
-//            myfilet << xcn_g->getVal(i,0) << " " << xcn_g->getVal(i,1) << " " << xcn_g->getVal(i,2) << std::endl;
-//        }
     
     for(int i=0;i<tetras.size();i++)
     {
         myfilet << tetras[i][0]+1 << " " << tetras[i][1]+1 << " " << tetras[i][2]+1 << " " << tetras[i][3]+1 << std::endl;
     }
     
-//    for(int i=0;i<hexes.size();i++)
-//    {
-//        myfilet << hexes[i][0]+1 << " " << hexes[i][1]+1 << " " << hexes[i][2]+1 << " " << hexes[i][3]+1 << " " << hexes[i][4]+1 << " " << hexes[i][5]+1 << " " << hexes[i][6]+1 << " " << hexes[i][7]+1 <<  std::endl;
-//    }
-    
     myfilet.close();
-    
-//    for(int i=0;i<xcn_g->getNrow();i++)
-//    {
-//        myfilet << xcn_g->getVal(i,0) << " " << xcn_g->getVal(i,1) << " " << xcn_g->getVal(i,2) << std::endl;
-//    }
-//
-//    for(int i=0;i<tetras.size();i++)
-//    {
-//        int g0 = lpartv2gv[tetras[i][0]];
-//        int g1 = lpartv2gv[tetras[i][1]];
-//        int g2 = lpartv2gv[tetras[i][2]];
-//        int g3 = lpartv2gv[tetras[i][3]];
-//
-//        myfilet << g0+1 << " " << g1+1 << " " << g2+1 << " " << g3+1 << std::endl;
-//    }
-    
-//    if(world_rank == 0)
-//    {
-//        for(int i=0;i<LocElem.size();i++)
-//        {
-//            int glob_id = LocElem[i];
-//
-//            std::cout <<   pDom->LocElem2LocNode->getVal(i,0)+1 << "  " <<
-//            pDom->LocElem2LocNode->getVal(i,1)+1 << "  " <<
-//            pDom->LocElem2LocNode->getVal(i,2)+1 << "  " <<
-//            pDom->LocElem2LocNode->getVal(i,3)+1 << "  " <<
-//            pDom->LocElem2LocNode->getVal(i,4)+1 << "  " <<
-//            pDom->LocElem2LocNode->getVal(i,5)+1 << "  " <<
-//            pDom->LocElem2LocNode->getVal(i,6)+1 << "  " <<
-//            pDom->LocElem2LocNode->getVal(i,7)+1 << std::endl;
-//        }
-//    }
-    
     
     std::cout << world_rank << " # prisms = " << prisms.size() << "  " << " # tetras = " << tetras.size() << std::endl;
     

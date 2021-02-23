@@ -4,6 +4,48 @@
 #include "../../src/adapt_output.h"
 #include <iomanip>
 
+struct ReferenceMesh{
+    std::vector<std::vector<double> > Nodes;
+    std::vector<std::vector<double> > Elements;
+};
+
+ReferenceMesh* ReadReferenceMesh()
+{
+    
+    ReferenceMesh* refmesh = new ReferenceMesh;
+    std::ifstream fin_v;
+    fin_v.open("Nodes.ref");
+    // Read the file row by row
+    std::vector<std::vector<double> > Vref;
+    
+    std::vector<double> row_v(3);
+    while(fin_v >> row_v[0] >> row_v[1] >> row_v[2] )
+    {
+        refmesh->Nodes.push_back(row_v);
+    }
+    fin_v.close();
+    
+    
+    
+    
+    
+    std::ifstream fin_e;
+    fin_e.open("Elements.ref");
+    // Read the file row by row
+    std::vector<std::vector<double> > Eref;
+    
+    std::vector<double> row_e(4);
+    while(fin_e >> row_e[0] >> row_e[1] >> row_e[2] >> row_e[3] )
+    {
+        refmesh->Elements.push_back(row_e);
+    }
+    fin_e.close();
+    
+    return refmesh;
+    
+}
+
+
 int main(int argc, char** argv)
 {
     MPI_Init(NULL, NULL);
@@ -17,17 +59,9 @@ int main(int argc, char** argv)
     MPI_Comm_rank(comm, &world_rank);
     int i,j;
     
-//    const char* fn_grid="../test_mesh/cyl_tess/grid.h5";
-//    const char* fn_conn="../test_mesh/cyl_tess/conn.h5";
-//    const char* fn_data="../test_mesh/cyl_tess/data.h5";
-    
-//    const char* fn_grid="../test_mesh/cyl_a/grid.h5";
-//    const char* fn_conn="../test_mesh/cyl_a/conn.h5";
-//    const char* fn_data="../test_mesh/cyl_a/data.h5";
-    
-    const char* fn_grid="../../../Desktop/cylinder_tess/grid.h5";
-    const char* fn_conn="../../../Desktop/cylinder_tess/conn.h5";
-    const char* fn_data="../../../Desktop/cylinder_tess/data.h5";
+    const char* fn_grid="../test_mesh/cylinder_hybrid/grid.h5";
+    const char* fn_conn="../test_mesh/cylinder_hybrid/conn.h5";
+    const char* fn_data="../test_mesh/cylinder_hybrid/data.h5";
     
     US3D* us3d    = ReadUS3DData(fn_conn,fn_grid,fn_data,comm,info);
     const char* fn_metric = "metric.inp";
@@ -71,13 +105,10 @@ int main(int argc, char** argv)
     {
     std::cout << "Timing partitioning: " << duration << std::endl;
     }
-    //Mesh_Topology* meshTopo = new Mesh_Topology(P,comm);
-
-//
     
     std::vector<int> LocElem        = P->getLocElem();
     std::vector<int> LocElemNv      = P->getLocElemNv();
-    std::map<int,int> LocElem2Nv      = P->getLocElem2Nv();
+    std::map<int,int> LocElem2Nv    = P->getLocElem2Nv();
     std::vector<double> Uvaria      = P->getLocElemVaria();
 
     std::map<int,double> Ui_map;
@@ -172,15 +203,9 @@ int main(int argc, char** argv)
         Hess->setVal(2,0,dU2dXi2[gid]->getVal(2,0));
         Hess->setVal(2,1,dU2dYi2[gid]->getVal(2,0));
         Hess->setVal(2,2,dU2dZi2[gid]->getVal(2,0));
-//        if(world_rank == 0)
-//        {
-//            std::cout << "============="<<std::endl;
-//            std::cout << Hess->getVal(0,0) << " " << Hess->getVal(0,1) << " " << Hess->getVal(0,2) << std::endl;
-//            std::cout << Hess->getVal(1,0) << " " << Hess->getVal(1,1) << " " << Hess->getVal(1,2) << std::endl;
-//            std::cout << Hess->getVal(2,0) << " " << Hess->getVal(2,1) << " " << Hess->getVal(2,2) << std::endl;
-//            std::cout << "============="<<std::endl;
-//        }
+        
         Hess_map[gid] = Hess;
+        
         t++;
     }
     
@@ -209,14 +234,6 @@ int main(int argc, char** argv)
     MPI_Allreduce(&nTetras_loc, &nTetras_glob, 1, MPI_INT, MPI_SUM, comm);
     MPI_Allreduce(&nHexes_loc,  &nHexes_glob,  1, MPI_INT, MPI_SUM, comm);
     MPI_Allreduce(&nPrisms_loc, &nPrisms_glob, 1, MPI_INT, MPI_SUM, comm);
-
-    if(world_rank == 3)
-    {
-        std::cout << "tetras = " << nTetras_loc << " " << nTetras_glob << std::endl;
-        std::cout << "prisms = " << nPrisms_loc << " " << nPrisms_glob << std::endl;
-        std::cout << "hexes  = " << nHexes_loc  << " " << nHexes_glob  << std::endl;
-    }
-
 
     Array<int>* Ate = new Array<int>(nTetras_loc,4);
     std::map<int,int> lv2gpv     = pDom->lv2gpv;
@@ -257,26 +274,6 @@ int main(int argc, char** argv)
     
     if(world_rank == 0)
     {
-        
-        std::ofstream myfilet;
-        myfilet.open("tetra.dat");
-        myfilet << "TITLE=\"new_volume.tec\"" << std::endl;
-        myfilet <<"VARIABLES = \"X\", \"Y\", \"Z\"" << std::endl;
-        myfilet <<"ZONE N = " << us3dRoot->xcn->getNrow() << ", E = " << gAteRoot->getNrow() << ", DATAPACKING = POINT, ZONETYPE = FETETRAHEDRON" << std::endl;
-        
-        for(int i=0;i<us3dRoot->xcn->getNrow();i++)
-        {
-            myfilet << us3dRoot->xcn->getVal(i,0)<< " " <<us3dRoot->xcn->getVal(i,1) << " " << us3dRoot->xcn->getVal(i,2) <<  std::endl;
-        }
-        
-        for(int i=0;i<gAteRoot->getNrow();i++)
-        {
-            myfilet << gAteRoot->getVal(i,0)+1 << " " << gAteRoot->getVal(i,1)+1 << " " << gAteRoot->getVal(i,2)+1 << " " << gAteRoot->getVal(i,3)+1 << std::endl;
-        }
-        myfilet.close();
-        
-        
-        
         MMG5_pMesh mmgMesh_hyb = NULL;
         MMG5_pSol mmgSol_hyb   = NULL;
         
@@ -324,12 +321,14 @@ int main(int argc, char** argv)
             }
         }
         
+        
+        
+        
         int nVerts  = l2g_tetv.size();
         if ( MMG3D_Set_meshSize(mmgMesh_hyb,nVerts,nTets,nPrisms,0,0,0) != 1 )  exit(EXIT_FAILURE);
         
         if ( MMG3D_Set_solSize(mmgMesh_hyb,mmgSol_hyb,MMG5_Vertex,mmgMesh_hyb->np,MMG5_Tensor) != 1 ) exit(EXIT_FAILURE);
         
-        std::cout << "local tet verts " << nVerts << " " << us3dRoot->xcn->getNrow() << " " << lv_uv << std::endl;
         
         for(int i=0;i<gAprRoot->getNrow();i++)
         {
@@ -341,16 +340,13 @@ int main(int argc, char** argv)
             mmgMesh_hyb->tetra[i+1].ref = 3;
         }
         
-        
         for(int i=0;i<gAteRoot->getNrow();i++)
         {
             for(int j=0;j<gAteRoot->getNcol();j++)
             {
                 int gv = gAteRoot->getVal(i,j);
-                //std::cout << g2l_tetv[gv]+1 << " ";
                 mmgMesh_hyb->tetra[i+1].v[j] = g2l_tetv[gv]+1;
             }
-            //std::cout << std::endl;
             mmgMesh_hyb->tetra[i+1].ref = 3;
         }
         
@@ -366,7 +362,6 @@ int main(int argc, char** argv)
             mmgMesh_hyb->point[i+1].c[0] = us3dRoot->xcn->getVal(gvv,0);
             mmgMesh_hyb->point[i+1].c[1] = us3dRoot->xcn->getVal(gvv,1);
             mmgMesh_hyb->point[i+1].c[2] = us3dRoot->xcn->getVal(gvv,2);
-            
             mmgMesh_hyb->point[i+1].ref  = 1;
             
             double m11 = mv_g->getVal(gvv,0);
@@ -376,19 +371,12 @@ int main(int argc, char** argv)
             double m23 = mv_g->getVal(gvv,4);
             double m33 = mv_g->getVal(gvv,5);
             
-//            double m11 = 1.0;
-//            double m12 = 0.0;
-//            double m13 = 0.0;
-//            double m22 = 1.0;
-//            double m23 = 0.0;
-//            double m33 = 1.0;
-            
             if ( MMG3D_Set_tensorSol(mmgSol_hyb, m11,m12,m13,m22,m23,m33,i+1) != 1 ) exit(EXIT_FAILURE);
             
             i++;
         }
         
-        if ( MMG3D_Set_dparameter(mmgMesh_hyb,mmgSol_hyb,MMG3D_DPARAM_hgrad, 3.0) != 1 )    exit(EXIT_FAILURE);
+        if ( MMG3D_Set_dparameter(mmgMesh_hyb,mmgSol_hyb,MMG3D_DPARAM_hgrad, metric_inputs[0]) != 1 )    exit(EXIT_FAILURE);
         MMG3D_Set_dparameter( mmgMesh_hyb,  mmgSol_hyb,  MMG3D_DPARAM_hgradreq , -1 );
         std::cout<<"Start the adaptation of the tetrahedra..."<<std::endl;
         int ier = MMG3D_mmg3dlib(mmgMesh_hyb,mmgSol_hyb);
@@ -403,16 +391,31 @@ int main(int argc, char** argv)
 
         if ( MMG3D_Set_meshSize(mmgMesh_TETCOPY,mmgMesh_hyb->np,mmgMesh_hyb->ne,0,0,0,0) != 1 )  exit(EXIT_FAILURE);
         
-        //if ( MMG3D_Set_solSize(mmgMesh_TETCOPY,mmgSol_TETCOPY,MMG5_Vertex,mmgMesh_TETCOPY->np,MMG5_Tensor) != 1 ) exit(EXIT_FAILURE);
+        int flip = 0;
+        double tol = 1.0e-05;
         
+        ReferenceMesh* refmesh = ReadReferenceMesh();
+//        std::ofstream myfile_nv;
+//        myfile_nv.open("Nodes.ref");
         for(int i=0;i<mmgMesh_hyb->np;i++)
         {
             mmgMesh_TETCOPY->point[i+1].c[0] = mmgMesh_hyb->point[i+1].c[0];
             mmgMesh_TETCOPY->point[i+1].c[1] = mmgMesh_hyb->point[i+1].c[1];
             mmgMesh_TETCOPY->point[i+1].c[2] = mmgMesh_hyb->point[i+1].c[2];
             mmgMesh_TETCOPY->point[i+1].ref  = 0;
+            
+//            myfile_nv << mmgMesh_hyb->point[i+1].c[0] << " " << mmgMesh_hyb->point[i+1].c[1] << " " << mmgMesh_hyb->point[i+1].c[2] << std::endl;
+            
+            
+            if(fabs(mmgMesh_hyb->point[i+1].c[0]-refmesh->Nodes[i][0])>tol || fabs(mmgMesh_hyb->point[i+1].c[1]-refmesh->Nodes[i][1])>tol || fabs(mmgMesh_hyb->point[i+1].c[2]-refmesh->Nodes[i][2])>tol)
+            {
+                flip = 1;
+            }
         }
         
+//        myfile_nv.close();
+//        std::ofstream myfile_ne;
+//        myfile_ne.open("Elements.ref");
         for(int i=0;i<mmgMesh_hyb->ne;i++)
         {
             mmgMesh_TETCOPY->tetra[i+1].v[0] = mmgMesh_hyb->tetra[i+1].v[0];
@@ -420,68 +423,36 @@ int main(int argc, char** argv)
             mmgMesh_TETCOPY->tetra[i+1].v[2] = mmgMesh_hyb->tetra[i+1].v[2];
             mmgMesh_TETCOPY->tetra[i+1].v[3] = mmgMesh_hyb->tetra[i+1].v[3];
             mmgMesh_TETCOPY->tetra[i+1].ref  = 0;
+            
+//            myfile_ne << mmgMesh_hyb->tetra[i+1].v[0] << " " << mmgMesh_hyb->tetra[i+1].v[1] << " " << mmgMesh_hyb->tetra[i+1].v[2] << " " << mmgMesh_hyb->tetra[i+1].v[3] << std::endl;
+            
+            if( fabs(mmgMesh_hyb->tetra[i+1].v[0]-refmesh->Elements[i][0])>tol || fabs(mmgMesh_hyb->tetra[i+1].v[1]-refmesh->Elements[i][1])>tol || fabs(mmgMesh_hyb->tetra[i+1].v[2]-refmesh->Elements[i][2])>tol || fabs(mmgMesh_hyb->tetra[i+1].v[3]-refmesh->Elements[i][3])>tol)
+            {
+                std::cout << fabs(mmgMesh_hyb->tetra[i+1].v[0]-refmesh->Elements[i][0]) << " "
+                          << fabs(mmgMesh_hyb->tetra[i+1].v[1]-refmesh->Elements[i][1]) << " "
+                          << fabs(mmgMesh_hyb->tetra[i+1].v[2]-refmesh->Elements[i][2]) << " "
+                          << fabs(mmgMesh_hyb->tetra[i+1].v[3]-refmesh->Elements[i][3]) << std::endl;
+                flip = 1;
+            }
+        }
+        //myfile_ne.close();
+        
+        if(flip == 1)
+        {
+            std::cout << " --::-- Adaptation based on gradient reconstruction for a hybrid mesh has FAILED. --::-- " << std::endl;
+        }
+        if(flip == 0)
+        {
+            std::cout << " --::-- Adaptation based on gradient reconstruction for a hybrid mesh has PASSED. --::-- " << std::endl;
         }
         
-        std::cout << "tets = " << mmgMesh_TETCOPY->ne << " " << nTets << " " << nPrisms << std::endl;
+//      std::cout << "tets = " << mmgMesh_TETCOPY->ne << " " << nTets << " " << nPrisms << std::endl;
         
         std::cout<<"Started writing the adapted tetrahedra mesh in ---> OuterVolume.dat"<<std::endl;
         OutputMesh_MMG(mmgMesh_TETCOPY,0,mmgMesh_TETCOPY->ne,"OuterVolume.dat");
         std::cout<<"Finished writing the adapted tetrahedra mesh in ---> OuterVolume.dat"<<std::endl;
          
     }
-
-    
-    
-//    for(int i=0;i<nrow_ifn;i++)
-//    {
-//        ref = if_ref_g->getVal(i,0);
-//        faceid = i;
-//        if(ref != 2)
-//        {
-//            bnd_face_map[ref].push_back(faceid);
-//        }
-//    }
-
-    //std::cout << "# tets global " << gAteRoot->getNrow() << " #prisms global " << gAprRoot->getNrow() << std::endl;
-    
-    //Array<double>* xcn_g = ReadDataSetFromFile<double>(fn_grid,"xcn");
-    
-    /*
-    std::vector<int> loc_part_verts = pDom->loc_part_verts;
-    std::map<int,int> gv2lpartv     = pDom->gv2lpartv;
-    //std::map<int,int> lpartv2gv   = pDom->lpartv2gv;
-    std::map<int,int> gv2lpv        = pDom->gv2lpv;
-    
-    std::ofstream myfilet;
-    myfilet.open("parttet_" + std::to_string(world_rank) + ".dat");
-    myfilet << "TITLE=\"new_volume.tec\"" << std::endl;
-    myfilet <<"VARIABLES = \"X\", \"Y\", \"Z\", \"M00\", \"M01\", \"M02\", \"M11\", \"M12\", \"M22\"" << std::endl;
-    myfilet <<"ZONE N = " << loc_part_verts.size() << ", E = " << Tetras.size() << ", DATAPACKING = POINT, ZONETYPE = FETETRAHEDRON" << std::endl;
-    
-    for(int i=0;i<loc_part_verts.size();i++)
-    {
-        int loc_vid  = loc_part_verts[i];
-        int glob_vid = lpartv2gv[loc_vid];
-        myfilet << Verts[loc_vid].x << " " << Verts[loc_vid].y << " " << Verts[loc_vid].z
-         << " " << metric[glob_vid]->getVal(0,0)<< " " << metric[glob_vid]->getVal(0,1)<<
-            " " << metric[glob_vid]->getVal(0,2)<< " " << metric[glob_vid]->getVal(1,1)<<
-            " " << metric[glob_vid]->getVal(1,2)<< " " << metric[glob_vid]->getVal(2,2) <<  std::endl;
-//        myfilet << Verts[loc_vid].x << " " << Verts[loc_vid].y << " " << Verts[loc_vid].z
-//         << " " << u_vmap[glob_vid] << " " << dudx_vmap[glob_vid]<< " " <<  std::endl;
-    }
-    
-    for(int i=0;i<Tetras.size();i++)
-    {
-        myfilet << Tetras[i][0]+1 << " " << Tetras[i][1]+1 << " " << Tetras[i][2]+1 << " " << Tetras[i][3]+1 << std::endl;
-    }
-
-    
-    myfilet.close();
-    
-    std::cout << world_rank << " # prisms = " << Prisms.size() << "  " << " # tetras = " << Tetras.size() << std::endl;
-     */
-
-    
 
     MPI_Finalize();
 }

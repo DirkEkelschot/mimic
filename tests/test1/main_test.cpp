@@ -33,9 +33,9 @@ int main(int argc, char** argv) {
     MPI_Comm_rank(comm, &world_rank);
     int i,j;
     
-    const char* fn_grid="../test_mesh/grid.h5";
-    const char* fn_conn="../test_mesh/conn.h5";
-    const char* fn_data="../test_mesh/data.h5";
+    const char* fn_grid="../test_mesh/cylinder_hex/grid.h5";
+    const char* fn_conn="../test_mesh/cylinder_hex/conn.h5";
+    const char* fn_data="../test_mesh/cylinder_hex/data.h5";
     
     US3D* us3d = ReadUS3DData(fn_conn,fn_grid,fn_data,comm,info);
 
