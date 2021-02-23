@@ -106,8 +106,7 @@ int main(int argc, char** argv) {
         
         ParallelState* ien_pstate               = new ParallelState(us3d->ien->getNglob(),comm);
         ParallelState* ife_pstate               = new ParallelState(us3d->ifn->getNglob(),comm);
-        ParallelState_Parmetis* parmetis_pstate = new ParallelState_Parmetis(us3d->ien,comm,8);
-        ParallelState* xcn_pstate               = new ParallelState(us3d->xcn->getNglob(),comm);
+        ParallelState_Parmetis* parmetis_pstate = new ParallelState_Parmetis(us3d->ien,us3d->elTypes,us3d->ie_Nv,comm);        ParallelState* xcn_pstate               = new ParallelState(us3d->xcn->getNglob(),comm);
         
         Array<double>* Uivar = new Array<double>(Nel_part,1);
         
@@ -127,8 +126,8 @@ int main(int argc, char** argv) {
         // ifn -> face2node       map coming from parallel reading.
         // ife -> face2element    map coming from parallel reading.
         //std::cout << "Starting to partition..."<<std::endl;
-        Partition* P = new Partition(us3d->ien, us3d->iee, us3d->ief,
-                                     us3d->ifn, us3d->ife, us3d->if_ref,
+        Partition* P = new Partition(us3d->ien, us3d->iee, us3d->ief, us3d->ie_Nv , us3d->ie_Nf,
+                                     us3d->ifn, us3d->ife, us3d->if_ref, us3d->if_Nv,
                                      parmetis_pstate, ien_pstate, ife_pstate,
                                      us3d->xcn, xcn_pstate, Uivar, comm);
         
@@ -153,7 +152,7 @@ int main(int argc, char** argv) {
             Uvaria_map[gid] = UvariaV;
         }
         
-        Mesh_Topology* meshTopo = new Mesh_Topology(P,comm);
+        //Mesh_Topology* meshTopo = new Mesh_Topology(P,comm);
 
         Domain* pDom = P->getPartitionDomain();
 
@@ -188,7 +187,7 @@ int main(int argc, char** argv) {
             std::cout << "Started reconstructing the gradient... " << std::endl;
         }
         
-        std::map<int,Array<double>* > dUdXi = ComputedUdx_LSQ_US3D(P,UauxNew,meshTopo,gB,comm);
+        std::map<int,Array<double>* > dUdXi = ComputedUdx_LSQ_US3D(P,UauxNew,gB,comm);
         
         double Gtiming = ( std::clock() - t) / (double) CLOCKS_PER_SEC;
         double Gmax_time = 0.0;
@@ -219,9 +218,9 @@ int main(int argc, char** argv) {
         
         //delete dUdXi;
         
-        std::map<int,Array<double>* > dU2dXi2 = ComputedUdx_LSQ_US3D(P,dUdxauxNew,meshTopo,gB,comm);
-        std::map<int,Array<double>* > dU2dYi2 = ComputedUdx_LSQ_US3D(P,dUdyauxNew,meshTopo,gB,comm);
-        std::map<int,Array<double>* > dU2dZi2 = ComputedUdx_LSQ_US3D(P,dUdzauxNew,meshTopo,gB,comm);
+        std::map<int,Array<double>* > dU2dXi2 = ComputedUdx_LSQ_US3D(P,dUdxauxNew,gB,comm);
+        std::map<int,Array<double>* > dU2dYi2 = ComputedUdx_LSQ_US3D(P,dUdyauxNew,gB,comm);
+        std::map<int,Array<double>* > dU2dZi2 = ComputedUdx_LSQ_US3D(P,dUdzauxNew,gB,comm);
 
 //      Array<double>* dU2dXi2 = ComputedUdx_MGG(P,dUdxauxNew,meshTopo,gB,comm);
 //      Array<double>* dU2dYi2 = ComputedUdx_MGG(P,dUdyauxNew,meshTopo,gB,comm);
@@ -255,7 +254,7 @@ int main(int argc, char** argv) {
             t++;
         }
         
-        std::map<int,Array<double>* > Hess_vm = meshTopo->ReduceMetricToVertices(pDom,Hess_map);
+        std::map<int,Array<double>* > Hess_vm = P->ReduceMetricToVertices(Hess_map);
         
         std::map<int,Array<double>* > metric = ComputeMetric(P,metric_inputs, Hess_vm,comm);
         
@@ -502,7 +501,7 @@ int main(int argc, char** argv) {
             int wall_id = 3;
             int nLayer  = 230;
             
-            if(it == 0 && nLayer>0)
+            if(nLayer>0)
             {
                 int counter = 0;
                 //Mdata* Md = ReadMetricData();
@@ -716,7 +715,7 @@ int main(int argc, char** argv) {
                         {
                             std::set<int> shell_tri;
                             shell_tri.insert(lv2gv_tet_mesh[mmgMesh_TET->tetra[i].v[1]-1]);
-                            shell_tri.insert(lv2gv_tet_mesh[ mmgMesh_TET->tetra[i].v[i].v[2]-1]);
+                            shell_tri.insert(lv2gv_tet_mesh[mmgMesh_TET->tetra[i].v[2]-1]);
                             shell_tri.insert(lv2gv_tet_mesh[mmgMesh_TET->tetra[i].v[3]-1]);
                             std::vector<int> tri(3);
                             tri[0] = lv2gv_tet_mesh[mmgMesh_TET->tetra[i].v[1]-1];

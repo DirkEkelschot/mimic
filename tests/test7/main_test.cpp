@@ -78,7 +78,7 @@ int main(int argc, char** argv)
     
     ParallelState* ien_pstate               = new ParallelState(us3d->ien->getNglob(),comm);
     ParallelState* ife_pstate               = new ParallelState(us3d->ifn->getNglob(),comm);
-    ParallelState_Parmetis* parmetis_pstate = new ParallelState_Parmetis(us3d->ien,us3d->elTypes,us3d->ie_Nv,comm);
+
     ParallelState* xcn_pstate               = new ParallelState(us3d->xcn->getNglob(),comm);
     
     clock_t t;
