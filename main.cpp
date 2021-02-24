@@ -5,6 +5,7 @@
 #include "src/adapt_bltopology.h"
 #include "src/adapt_parops.h"
 #include "src/hex2tet.h"
+#include "src/adapt_boundary.h"
 #include <iomanip>
 
 
@@ -106,7 +107,8 @@ int main(int argc, char** argv) {
         
         ParallelState* ien_pstate               = new ParallelState(us3d->ien->getNglob(),comm);
         ParallelState* ife_pstate               = new ParallelState(us3d->ifn->getNglob(),comm);
-        ParallelState_Parmetis* parmetis_pstate = new ParallelState_Parmetis(us3d->ien,us3d->elTypes,us3d->ie_Nv,comm);        ParallelState* xcn_pstate               = new ParallelState(us3d->xcn->getNglob(),comm);
+        ParallelState_Parmetis* parmetis_pstate = new ParallelState_Parmetis(us3d->ien,us3d->elTypes,us3d->ie_Nv,comm);
+        ParallelState* xcn_pstate               = new ParallelState(us3d->xcn->getNglob(),comm);
         
         Array<double>* Uivar = new Array<double>(Nel_part,1);
         
@@ -407,6 +409,7 @@ int main(int argc, char** argv) {
         
         if(world_rank == 0)
         {
+            /*
             std::map<std::set<int>,int> tria_ref_map;
             std::map<std::set<int>,int> quad_ref_map;
             std::map<int,int> vert_ref_map;
@@ -497,7 +500,10 @@ int main(int argc, char** argv) {
                 tria11.clear();
                 quad.clear();
             }
-         
+            */
+            
+            BoundaryMap* bmap = new BoundaryMap(ifn_g, if_ref_g);
+            
             int wall_id = 3;
             int nLayer  = 230;
             
@@ -505,6 +511,12 @@ int main(int argc, char** argv) {
             {
                 int counter = 0;
                 //Mdata* Md = ReadMetricData();
+                
+                std::map<int,std::vector<int> > bnd_face_map = bmap->getBfaceMap();
+                std::map<std::set<int>,int> tria_ref_map = bmap->getTriaRefMap();
+                std::map<std::set<int>,int> quad_ref_map = bmap->getQuadRefMap();
+                std::map<int,int> vert_ref_map = bmap->getNodeRefMap();
+                
                 BLShellInfo* BLshell = FindOuterShellBoundaryLayerMesh(wall_id, nLayer,xcn_g,ien_g,ief_g,ife_g,ifn_g,xcn_pstate,ien_pstate,bnd_face_map,vert_ref_map,comm);
                         
                 //==============================================================================

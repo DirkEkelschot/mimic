@@ -2,6 +2,7 @@
 #include "../../src/adapt_io.h"
 #include "../../src/adapt_parops.h"
 #include "../../src/adapt_output.h"
+#include "../../src/adapt_boundary.h"
 #include <iomanip>
 
 struct ReferenceMesh{
@@ -78,7 +79,7 @@ int main(int argc, char** argv)
     
     ParallelState* ien_pstate               = new ParallelState(us3d->ien->getNglob(),comm);
     ParallelState* ife_pstate               = new ParallelState(us3d->ifn->getNglob(),comm);
-
+    ParallelState_Parmetis* parmetis_pstate = new ParallelState_Parmetis(us3d->ien,us3d->elTypes,us3d->ie_Nv,comm);
     ParallelState* xcn_pstate               = new ParallelState(us3d->xcn->getNglob(),comm);
     
     clock_t t;
@@ -285,46 +286,154 @@ int main(int argc, char** argv)
         int nTets     = gAteRoot->getNrow();
         int nPrisms   = gAprRoot->getNrow();
         
-        std::map<int,int> l2g_tetv;
-        std::map<int,int> g2l_tetv;
-        std::set<int> uv_tet_set;
-        int lv_uv = 0;
-        for(int i=0;i<gAteRoot->getNrow();i++)
-        {
-            for(int j=0;j<gAteRoot->getNcol();j++)
-            {
-                int gv = gAteRoot->getVal(i,j);
-                if(uv_tet_set.find(gv)==uv_tet_set.end())
-                {
-                    uv_tet_set.insert(gv);
-                    l2g_tetv[lv_uv]=gv;
-                    g2l_tetv[gv]=lv_uv;
-                    lv_uv++;
-                }
-            }
-        }
-
+        BoundaryMap* bmap = new BoundaryMap(us3dRoot->ifn, us3dRoot->if_ref);
+        std::map<int,std::vector<int> > bnd_face_map = bmap->getBfaceMap();
+        std::map<std::set<int>,int> tria_ref_map     = bmap->getTriaRefMap();
+        std::map<std::set<int>,int> quad_ref_map     = bmap->getQuadRefMap();
+        std::map<int,int> vert_ref_map               = bmap->getNodeRefMap();
+        std::map<int,int*> bndtrisVol;
+        std::map<int,int> bndtrisVolRef;
         
-        
+        int tra = 0;
+        int refer;
+        int tt = 0;
         for(int i=0;i<gAprRoot->getNrow();i++)
         {
-            for(int j=0;j<gAprRoot->getNcol();j++)
+            int gv0 = gAprRoot->getVal(i,0);
+//            mmgMesh_hyb->prism[i+1].v[0] = gv0+1;
+            int gv1 = gAprRoot->getVal(i,1);
+//            mmgMesh_hyb->prism[i+1].v[1] = gv1+1;
+            int gv2 = gAprRoot->getVal(i,2);
+//            mmgMesh_hyb->prism[i+1].v[2] = gv2+1;
+            int gv3 = gAprRoot->getVal(i,3);
+//            mmgMesh_hyb->prism[i+1].v[3] = gv3+1;
+            int gv4 = gAprRoot->getVal(i,4);
+//            mmgMesh_hyb->prism[i+1].v[4] = gv4+1;
+            int gv5 = gAprRoot->getVal(i,5);
+//            mmgMesh_hyb->prism[i+1].v[5] = gv5+1;
+//            mmgMesh_hyb->prism[i+1].ref = 3;
+            
+            std::set<int> tria0;
+            tria0.insert(gv0);
+            tria0.insert(gv1);
+            tria0.insert(gv2);
+            if(tria_ref_map.find(tria0)!=tria_ref_map.end())
             {
-                int gv = gAprRoot->getVal(i,j);
-                if(uv_tet_set.find(gv)==uv_tet_set.end())
-                {
-                    uv_tet_set.insert(gv);
-                    l2g_tetv[lv_uv]=gv;
-                    g2l_tetv[gv]=lv_uv;
-                    lv_uv++;
-                }
+                refer = tria_ref_map[tria0];
+                int* tria = new int[3];
+                tria[0] = gv0+1;
+                tria[1] = gv1+1;
+                tria[2] = gv2+1;
+                bndtrisVol[tt]      = tria;
+                bndtrisVolRef[tt]   = refer;
+                tt++;
+            }
+
+            std::set<int> tria1;
+            tria1.insert(gv3);
+            tria1.insert(gv4);
+            tria1.insert(gv5);
+            if(tria_ref_map.find(tria1)!=tria_ref_map.end())
+            {
+                refer = tria_ref_map[tria1];
+                int* tria = new int[3];
+                tria[0] = gv3+1;
+                tria[1] = gv4+1;
+                tria[2] = gv5+1;
+                bndtrisVol[tt]     = tria;
+                bndtrisVolRef[tt]  = refer;
+                tt++;
+            }
+        }
+        
+        for(int i=0;i<gAteRoot->getNrow();i++)
+        {
+            
+            int gv0 = gAteRoot->getVal(i,0);
+//            mmgMesh_hyb->tetra[i+1].v[0] = gv0+1;
+            int gv1 = gAteRoot->getVal(i,1);
+//            mmgMesh_hyb->tetra[i+1].v[1] = gv1+1;
+            int gv2 = gAteRoot->getVal(i,2);
+//            mmgMesh_hyb->tetra[i+1].v[2] = gv2+1;
+            int gv3 = gAteRoot->getVal(i,3);
+//            mmgMesh_hyb->tetra[i+1].v[3] = gv3+1;
+//            mmgMesh_hyb->tetra[i+1].ref = 3;
+//
+            std::set<int> tria0;
+            
+            tria0.insert(gv0);
+            tria0.insert(gv2);
+            tria0.insert(gv1);
+            
+            if(tria_ref_map.find(tria0)!=tria_ref_map.end())
+            {
+                refer = tria_ref_map[tria0];
+                int* tria = new int[3];
+                tria[0] = gv0+1;
+                tria[1] = gv2+1;
+                tria[2] = gv1+1;
+                bndtrisVol[tt] = tria;
+                bndtrisVolRef[tt]  = refer;
+                tt++;
+            }
+            std::set<int> tria1;
+                
+            tria1.insert(gv1);
+            tria1.insert(gv2);
+            tria1.insert(gv3);
+            
+            if(tria_ref_map.find(tria1)!=tria_ref_map.end())
+            {
+                refer = tria_ref_map[tria1];
+                int* tria = new int[3];
+                tria[0] = gv1+1;
+                tria[1] = gv2+1;
+                tria[2] = gv3+1;
+                bndtrisVol[tt] = tria;
+                bndtrisVolRef[tt]  = refer;
+                tt++;
+            }
+            
+            std::set<int> tria2;
+            
+            tria2.insert(gv0);
+            tria2.insert(gv3);
+            tria2.insert(gv2);
+            
+            if(tria_ref_map.find(tria2)!=tria_ref_map.end())
+            {
+                refer = tria_ref_map[tria2];
+                int* tria = new int[3];
+                tria[0] = gv0+1;
+                tria[1] = gv3+1;
+                tria[2] = gv2+1;
+                bndtrisVol[tt] = tria;
+                bndtrisVolRef[tt]  = refer;
+                tt++;
+            }
+            
+            std::set<int> tria3;
+                                       
+            tria3.insert(gv0);
+            tria3.insert(gv1);
+            tria3.insert(gv3);
+            
+            if(tria_ref_map.find(tria3)!=tria_ref_map.end())
+            {
+                refer = tria_ref_map[tria3];
+                int* tria = new int[3];
+                tria[0] = gv0+1;
+                tria[1] = gv1+1;
+                tria[2] = gv3+1;
+                bndtrisVol[tt] = tria;
+                bndtrisVolRef[tt]  = refer;
+                tt++;
             }
         }
         
         
-        
-        
-        int nVerts  = l2g_tetv.size();
+         
+        int nVerts  = us3dRoot->xcn->getNrow();//l2g_tetv.size();
         if ( MMG3D_Set_meshSize(mmgMesh_hyb,nVerts,nTets,nPrisms,0,0,0) != 1 )  exit(EXIT_FAILURE);
         
         if ( MMG3D_Set_solSize(mmgMesh_hyb,mmgSol_hyb,MMG5_Vertex,mmgMesh_hyb->np,MMG5_Tensor) != 1 ) exit(EXIT_FAILURE);
@@ -335,7 +444,8 @@ int main(int argc, char** argv)
             for(int j=0;j<gAprRoot->getNcol();j++)
             {
                 int gv = gAprRoot->getVal(i,j);
-                mmgMesh_hyb->prism[i+1].v[j] = g2l_tetv[gv]+1;
+                mmgMesh_hyb->prism[i+1].v[j] = gv+1;
+
             }
             mmgMesh_hyb->tetra[i+1].ref = 3;
         }
@@ -345,7 +455,7 @@ int main(int argc, char** argv)
             for(int j=0;j<gAteRoot->getNcol();j++)
             {
                 int gv = gAteRoot->getVal(i,j);
-                mmgMesh_hyb->tetra[i+1].v[j] = g2l_tetv[gv]+1;
+                mmgMesh_hyb->tetra[i+1].v[j] = gv+1;
             }
             mmgMesh_hyb->tetra[i+1].ref = 3;
         }
@@ -353,27 +463,25 @@ int main(int argc, char** argv)
         
         std::map<int,int>::iterator itm;
         
-        int i = 0;
-        for(itm=l2g_tetv.begin();itm!=l2g_tetv.end();itm++)
+        for(int i = 0;i < us3dRoot->xcn->getNrow();i++)
         {
-            int lvv = itm->first;
-            int gvv = itm->second;
-                        
-            mmgMesh_hyb->point[i+1].c[0] = us3dRoot->xcn->getVal(gvv,0);
-            mmgMesh_hyb->point[i+1].c[1] = us3dRoot->xcn->getVal(gvv,1);
-            mmgMesh_hyb->point[i+1].c[2] = us3dRoot->xcn->getVal(gvv,2);
+            
+            mmgMesh_hyb->point[i+1].c[0] = us3dRoot->xcn->getVal(i,0);
+            mmgMesh_hyb->point[i+1].c[1] = us3dRoot->xcn->getVal(i,1);
+            mmgMesh_hyb->point[i+1].c[2] = us3dRoot->xcn->getVal(i,2);
+            
+            
             mmgMesh_hyb->point[i+1].ref  = 1;
             
-            double m11 = mv_g->getVal(gvv,0);
-            double m12 = mv_g->getVal(gvv,1);
-            double m13 = mv_g->getVal(gvv,2);
-            double m22 = mv_g->getVal(gvv,3);
-            double m23 = mv_g->getVal(gvv,4);
-            double m33 = mv_g->getVal(gvv,5);
+            double m11 = mv_g->getVal(i,0);
+            double m12 = mv_g->getVal(i,1);
+            double m13 = mv_g->getVal(i,2);
+            double m22 = mv_g->getVal(i,3);
+            double m23 = mv_g->getVal(i,4);
+            double m33 = mv_g->getVal(i,5);
             
             if ( MMG3D_Set_tensorSol(mmgSol_hyb, m11,m12,m13,m22,m23,m33,i+1) != 1 ) exit(EXIT_FAILURE);
             
-            i++;
         }
         
         if ( MMG3D_Set_dparameter(mmgMesh_hyb,mmgSol_hyb,MMG3D_DPARAM_hgrad, metric_inputs[0]) != 1 )    exit(EXIT_FAILURE);
@@ -395,6 +503,7 @@ int main(int argc, char** argv)
         double tol = 1.0e-05;
         
         ReferenceMesh* refmesh = ReadReferenceMesh();
+        
 //        std::ofstream myfile_nv;
 //        myfile_nv.open("Nodes.ref");
         for(int i=0;i<mmgMesh_hyb->np;i++)
@@ -407,7 +516,9 @@ int main(int argc, char** argv)
 //            myfile_nv << mmgMesh_hyb->point[i+1].c[0] << " " << mmgMesh_hyb->point[i+1].c[1] << " " << mmgMesh_hyb->point[i+1].c[2] << std::endl;
             
             
-            if(fabs(mmgMesh_hyb->point[i+1].c[0]-refmesh->Nodes[i][0])>tol || fabs(mmgMesh_hyb->point[i+1].c[1]-refmesh->Nodes[i][1])>tol || fabs(mmgMesh_hyb->point[i+1].c[2]-refmesh->Nodes[i][2])>tol)
+            if(fabs(mmgMesh_hyb->point[i+1].c[0]-refmesh->Nodes[i][0])>tol ||
+               fabs(mmgMesh_hyb->point[i+1].c[1]-refmesh->Nodes[i][1])>tol ||
+               fabs(mmgMesh_hyb->point[i+1].c[2]-refmesh->Nodes[i][2])>tol)
             {
                 flip = 1;
             }
@@ -424,14 +535,13 @@ int main(int argc, char** argv)
             mmgMesh_TETCOPY->tetra[i+1].v[3] = mmgMesh_hyb->tetra[i+1].v[3];
             mmgMesh_TETCOPY->tetra[i+1].ref  = 0;
             
-//            myfile_ne << mmgMesh_hyb->tetra[i+1].v[0] << " " << mmgMesh_hyb->tetra[i+1].v[1] << " " << mmgMesh_hyb->tetra[i+1].v[2] << " " << mmgMesh_hyb->tetra[i+1].v[3] << std::endl;
+//          myfile_ne << mmgMesh_hyb->tetra[i+1].v[0] << " "
+//                        << mmgMesh_hyb->tetra[i+1].v[1] << " "
+//                        << mmgMesh_hyb->tetra[i+1].v[2] << " "
+//                        << mmgMesh_hyb->tetra[i+1].v[3] << std::endl;
             
             if( fabs(mmgMesh_hyb->tetra[i+1].v[0]-refmesh->Elements[i][0])>tol || fabs(mmgMesh_hyb->tetra[i+1].v[1]-refmesh->Elements[i][1])>tol || fabs(mmgMesh_hyb->tetra[i+1].v[2]-refmesh->Elements[i][2])>tol || fabs(mmgMesh_hyb->tetra[i+1].v[3]-refmesh->Elements[i][3])>tol)
             {
-                std::cout << fabs(mmgMesh_hyb->tetra[i+1].v[0]-refmesh->Elements[i][0]) << " "
-                          << fabs(mmgMesh_hyb->tetra[i+1].v[1]-refmesh->Elements[i][1]) << " "
-                          << fabs(mmgMesh_hyb->tetra[i+1].v[2]-refmesh->Elements[i][2]) << " "
-                          << fabs(mmgMesh_hyb->tetra[i+1].v[3]-refmesh->Elements[i][3]) << std::endl;
                 flip = 1;
             }
         }
