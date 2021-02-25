@@ -149,10 +149,12 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_US3D(Partition* Pa, std::map<int,d
                Vrt->setVal(t,1,(1.0/d)*(Vc->y-Vijk->y));
                Vrt->setVal(t,2,(1.0/d)*(Vc->z-Vijk->z));
                
-               if(isnan(Vrt->getVal(t,0)) || isnan(Vrt->getVal(t,1)) || isnan(Vrt->getVal(t,2)))
-               {
-                   std::cout << "Vc = (" << Vc->x << ", " << Vc->y << ", " << Vc->z << ") " << std::endl;
-               }
+//               if(isnan(Vrt->getVal(t,0)) || isnan(Vrt->getVal(t,1)) || isnan(Vrt->getVal(t,2)))
+//               {
+//                   std::cout << "Vc = (" << Vc->x << ", " << Vc->y << ", " << Vc->z << ") " << std::endl;
+//               }
+               
+               
                b->setVal(t,0,(1.0/d)*(0.0));
                t++;
                dist.push_back(d);
