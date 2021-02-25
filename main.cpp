@@ -409,99 +409,6 @@ int main(int argc, char** argv) {
         
         if(world_rank == 0)
         {
-            /*
-            std::map<std::set<int>,int> tria_ref_map;
-            std::map<std::set<int>,int> quad_ref_map;
-            std::map<int,int> vert_ref_map;
-            std::set<int> vert_ref_set;
-            
-            std::set<int> tria0;
-            std::set<int> tria00;
-            std::set<int> tria1;
-            std::set<int> tria11;
-            
-            std::set<int> quad;
-            int faceid;
-            int nodeid;
-            int nrow_ifn = ifn_g->getNrow();
-            //Array<int>* ifn_ref  = new Array<int>(nrow_ifn,1);
-            int ref;
-            
-            std::map<int,std::vector<int> > bnd_face_map;
-            std::map<int,std::vector<int> >::iterator bmit;
-            
-            int r2=0;int r10=0;int r36=0;int r3=0;
-            for(int i=0;i<nrow_ifn;i++)
-            {
-                ref = if_ref_g->getVal(i,0);
-                //ifn_ref->setVal(i,0,ref);
-                
-                faceid = i;
-                if(ref != 2)
-                {
-                    bnd_face_map[ref].push_back(faceid);
-                }
-                
-                for(j=0;j<4;j++)
-                {
-                    nodeid = ifn_g->getVal(i,j); // This is actually node ID!!!!
-                    //ifn_copy->setVal(i,j,ifn_g->getVal(i,j+1)-1);
-                    
-                    if(ref!=2)
-                    {
-                        if(vert_ref_set.find(nodeid)==vert_ref_set.end())
-                        {
-                            vert_ref_set.insert(nodeid);
-                            vert_ref_map[nodeid] = if_ref_g->getVal(i,0);
-                        }
-                    }
-                }
-                
-                tria0.insert(ifn_g->getVal(i,0));
-                tria0.insert(ifn_g->getVal(i,1));
-                tria0.insert(ifn_g->getVal(i,2));
-                
-                tria00.insert(ifn_g->getVal(i,0));
-                tria00.insert(ifn_g->getVal(i,2));
-                tria00.insert(ifn_g->getVal(i,3));
-                
-                tria1.insert(ifn_g->getVal(i,0));
-                tria1.insert(ifn_g->getVal(i,1));
-                tria1.insert(ifn_g->getVal(i,3));
-                
-                tria11.insert(ifn_g->getVal(i,1));
-                tria11.insert(ifn_g->getVal(i,2));
-                tria11.insert(ifn_g->getVal(i,3));
-                
-                quad.insert(ifn_g->getVal(i,0));
-                quad.insert(ifn_g->getVal(i,1));
-                quad.insert(ifn_g->getVal(i,2));
-                quad.insert(ifn_g->getVal(i,3));
-                
-                if(tria_ref_map.find(tria0)==tria_ref_map.end() && ref!=2)
-                {
-                    tria_ref_map[tria0]  = ref;
-                    tria_ref_map[tria00] = ref;
-                }
-                if(tria_ref_map.find(tria1)==tria_ref_map.end() && ref!=2)
-                {
-                    tria_ref_map[tria1]  = ref;
-                    tria_ref_map[tria11] = ref;
-                }
-                
-                if(quad_ref_map.find(quad)==quad_ref_map.end() && ref!=2)
-                {
-                    quad_ref_map[quad] = ref;
-                }
-                
-                tria0.clear();
-                tria00.clear();
-                tria1.clear();
-                tria11.clear();
-                quad.clear();
-            }
-            */
-            
             BoundaryMap* bmap = new BoundaryMap(ifn_g, if_ref_g);
             
             int wall_id = 3;
@@ -2007,7 +1914,7 @@ int main(int argc, char** argv) {
             }
             else
             {
-                
+                /*
                 MMG5_pMesh mmgMesh = NULL;
                 MMG5_pSol mmgSol   = NULL;
                 
@@ -2162,6 +2069,8 @@ int main(int argc, char** argv) {
                 OutputMesh_MMG(mmgMesh,0,mmgMesh->ne,"OuterVolumeFull.dat");
                 
                 // WriteUS3DGridFromMMG(mmgMesh, us3d);
+                 
+                */
             }
         }
          

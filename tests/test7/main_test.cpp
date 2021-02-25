@@ -60,9 +60,9 @@ int main(int argc, char** argv)
     MPI_Comm_rank(comm, &world_rank);
     int i,j;
     
-    const char* fn_grid="../test_mesh/cylinder_hybrid/grid.h5";
-    const char* fn_conn="../test_mesh/cylinder_hybrid/conn.h5";
-    const char* fn_data="../test_mesh/cylinder_hybrid/data.h5";
+    const char* fn_grid="../test_mesh/it1/grid.h5";
+    const char* fn_conn="../test_mesh/it1/conn.h5";
+    const char* fn_data="../test_mesh/it1/data.h5";
     
     US3D* us3d    = ReadUS3DData(fn_conn,fn_grid,fn_data,comm,info);
     const char* fn_metric = "metric.inp";
@@ -211,12 +211,9 @@ int main(int argc, char** argv)
     }
     
     std::map<int,Array<double>* > Hess_vm = P->ReduceMetricToVertices(Hess_map);
-
-    std::map<int,double> u_vmap = P->ReduceFieldToVertices(Ui_map);
-
-    std::map<int,double> dudx_vmap = P->ReduceFieldToVertices(dUidxi_map);
-    
-    std::map<int,Array<double>* > metric = ComputeMetric(P,metric_inputs, Hess_vm, comm);
+    std::map<int,double> u_vmap           = P->ReduceFieldToVertices(Ui_map);
+    std::map<int,double> dudx_vmap        = P->ReduceFieldToVertices(dUidxi_map);
+    std::map<int,Array<double>* > metric  = ComputeMetric(P,metric_inputs, Hess_vm, comm);
 
     Array<double>* mv_g = GetOptimizedMMG3DMeshOnRoot(P, us3d, metric, comm);
     
@@ -240,7 +237,6 @@ int main(int argc, char** argv)
     std::map<int,int> lv2gpv     = pDom->lv2gpv;
     int gv = 0;
     int lv = 0;
-    
 
     for(int i=0;i<nTetras_loc;i++)
     {
@@ -275,6 +271,7 @@ int main(int argc, char** argv)
     
     if(world_rank == 0)
     {
+        
         MMG5_pMesh mmgMesh_hyb = NULL;
         MMG5_pSol mmgSol_hyb   = NULL;
         
@@ -282,21 +279,31 @@ int main(int argc, char** argv)
         MMG5_ARG_ppMesh,&mmgMesh_hyb,MMG5_ARG_ppMet,&mmgSol_hyb,
         MMG5_ARG_end);
         
-        //int nVerts    = us3dRoot->xcn->getNrow();
-        int nTets     = gAteRoot->getNrow();
-        int nPrisms   = gAprRoot->getNrow();
-        
         BoundaryMap* bmap = new BoundaryMap(us3dRoot->ifn, us3dRoot->if_ref);
         std::map<int,std::vector<int> > bnd_face_map = bmap->getBfaceMap();
         std::map<std::set<int>,int> tria_ref_map     = bmap->getTriaRefMap();
         std::map<std::set<int>,int> quad_ref_map     = bmap->getQuadRefMap();
         std::map<int,int> vert_ref_map               = bmap->getNodeRefMap();
-        std::map<int,int*> bndtrisVol;
-        std::map<int,int> bndtrisVolRef;
+        
+        std::map<int,std::vector<int> > bndTriVol;
+        std::map<int,int> bndTriVolRef;
+        std::map<int,std::vector<int> > bndQuadVol;
+        std::map<int,int> bndQuadVolRef;
+        
+        std::map<int,std::vector<int> >::iterator itb;
+        
+        for(itb=bnd_face_map.begin();itb!=bnd_face_map.end();itb++)
+        {
+            std::cout << " bnd_map = " << itb->first << " " << itb->second.size() << std::endl;
+        }
+        
+        std::cout << "quad_ref_map.size() " << quad_ref_map.size() << std::endl;
         
         int tra = 0;
         int refer;
         int tt = 0;
+        int qt = 0;
+        int t3 = 0;
         for(int i=0;i<gAprRoot->getNrow();i++)
         {
             int gv0 = gAprRoot->getVal(i,0);
@@ -320,12 +327,16 @@ int main(int argc, char** argv)
             if(tria_ref_map.find(tria0)!=tria_ref_map.end())
             {
                 refer = tria_ref_map[tria0];
-                int* tria = new int[3];
+                std::vector<int> tria(3);
                 tria[0] = gv0+1;
                 tria[1] = gv1+1;
                 tria[2] = gv2+1;
-                bndtrisVol[tt]      = tria;
-                bndtrisVolRef[tt]   = refer;
+                bndTriVol[tt]    = tria;
+                bndTriVolRef[tt] = refer;
+                if(refer == 3)
+                {
+                    t3++;
+                }
                 tt++;
             }
 
@@ -336,16 +347,83 @@ int main(int argc, char** argv)
             if(tria_ref_map.find(tria1)!=tria_ref_map.end())
             {
                 refer = tria_ref_map[tria1];
-                int* tria = new int[3];
+                std::vector<int> tria(3);
                 tria[0] = gv3+1;
                 tria[1] = gv4+1;
                 tria[2] = gv5+1;
-                bndtrisVol[tt]     = tria;
-                bndtrisVolRef[tt]  = refer;
+                bndTriVol[tt]    = tria;
+                bndTriVolRef[tt] = refer;
+                if(refer == 3)
+                {
+                    t3++;
+                }
                 tt++;
             }
+            
+            std::set<int> quad0;
+            quad0.insert(gv0);
+            quad0.insert(gv1);
+            quad0.insert(gv4);
+            quad0.insert(gv3);
+            if(quad_ref_map.find(quad0)!=quad_ref_map.end())
+            {
+                refer = quad_ref_map[quad0];
+                std::vector<int> quad(4);
+                quad[0] = gv0+1;
+                quad[1] = gv1+1;
+                quad[2] = gv4+1;
+                quad[3] = gv3+1;
+                bndQuadVol[qt] = quad;
+                bndQuadVolRef[qt] = refer;
+                qt++;
+            }
+            
+            
+            std::set<int> quad1;
+            quad1.insert(gv1);
+            quad1.insert(gv2);
+            quad1.insert(gv5);
+            quad1.insert(gv4);
+            if(quad_ref_map.find(quad1)!=quad_ref_map.end())
+            {
+                refer = quad_ref_map[quad1];
+                std::vector<int> quad(4);
+                quad[0] = gv1+1;
+                quad[1] = gv2+1;
+                quad[2] = gv5+1;
+                quad[3] = gv4+1;
+                bndQuadVol[qt] = quad;
+                bndQuadVolRef[qt] = refer;
+                qt++;
+            }
+            
+            
+            std::set<int> quad2;
+            quad2.insert(gv0);
+            quad2.insert(gv3);
+            quad2.insert(gv5);
+            quad2.insert(gv2);
+            if(quad_ref_map.find(quad2)!=quad_ref_map.end())
+            {
+                refer = quad_ref_map[quad2];
+                std::vector<int> quad(4);
+                quad[0] = gv0+1;
+                quad[1] = gv3+1;
+                quad[2] = gv5+1;
+                quad[3] = gv2+1;
+                bndQuadVol[qt] = quad;
+                bndQuadVolRef[qt] = refer;
+                qt++;
+            }
+            
+            tria0.clear();
+            tria1.clear();
+            quad0.clear();
+            quad1.clear();
+            quad2.clear();
+
         }
-        
+        std::cout << "t3 - quadref " << t3 << " " << qt << " " << bndQuadVolRef.size()  << std::endl;
         for(int i=0;i<gAteRoot->getNrow();i++)
         {
             
@@ -368,12 +446,19 @@ int main(int argc, char** argv)
             if(tria_ref_map.find(tria0)!=tria_ref_map.end())
             {
                 refer = tria_ref_map[tria0];
-                int* tria = new int[3];
+                std::vector<int> tria(3);
                 tria[0] = gv0+1;
                 tria[1] = gv2+1;
                 tria[2] = gv1+1;
-                bndtrisVol[tt] = tria;
-                bndtrisVolRef[tt]  = refer;
+                bndTriVol[tt]    = tria;
+                bndTriVolRef[tt] = refer;
+                
+                if(refer == 3)
+                {
+                    t3++;
+                }
+                
+                
                 tt++;
             }
             std::set<int> tria1;
@@ -385,12 +470,17 @@ int main(int argc, char** argv)
             if(tria_ref_map.find(tria1)!=tria_ref_map.end())
             {
                 refer = tria_ref_map[tria1];
-                int* tria = new int[3];
+                std::vector<int> tria(3);
                 tria[0] = gv1+1;
                 tria[1] = gv2+1;
                 tria[2] = gv3+1;
-                bndtrisVol[tt] = tria;
-                bndtrisVolRef[tt]  = refer;
+                bndTriVol[tt]    = tria;
+                bndTriVolRef[tt] = refer;
+                
+                if(refer == 3)
+                {
+                    t3++;
+                }
                 tt++;
             }
             
@@ -403,12 +493,17 @@ int main(int argc, char** argv)
             if(tria_ref_map.find(tria2)!=tria_ref_map.end())
             {
                 refer = tria_ref_map[tria2];
-                int* tria = new int[3];
+                std::vector<int> tria(3);
                 tria[0] = gv0+1;
                 tria[1] = gv3+1;
                 tria[2] = gv2+1;
-                bndtrisVol[tt] = tria;
-                bndtrisVolRef[tt]  = refer;
+                bndTriVol[tt]    = tria;
+                bndTriVolRef[tt] = refer;
+                
+                if(refer == 3)
+                {
+                    t3++;
+                }
                 tt++;
             }
             
@@ -421,20 +516,37 @@ int main(int argc, char** argv)
             if(tria_ref_map.find(tria3)!=tria_ref_map.end())
             {
                 refer = tria_ref_map[tria3];
-                int* tria = new int[3];
+                std::vector<int> tria(3);
                 tria[0] = gv0+1;
                 tria[1] = gv1+1;
                 tria[2] = gv3+1;
-                bndtrisVol[tt] = tria;
-                bndtrisVolRef[tt]  = refer;
+                bndTriVol[tt]    = tria;
+                bndTriVolRef[tt] = refer;
+                
+                if(refer == 3)
+                {
+                    t3++;
+                }
                 tt++;
             }
+            
+            tria0.clear();
+            tria1.clear();
+            tria2.clear();
+            tria3.clear();
         }
         
+        std::cout << "t3 - after " << t3 << " " << qt << std::endl;
+
         
-         
-        int nVerts  = us3dRoot->xcn->getNrow();//l2g_tetv.size();
-        if ( MMG3D_Set_meshSize(mmgMesh_hyb,nVerts,nTets,nPrisms,0,0,0) != 1 )  exit(EXIT_FAILURE);
+        int nQuad     = bndQuadVolRef.size();
+        int nTri      = bndTriVolRef.size();
+        int nTets     = gAteRoot->getNrow();
+        int nPrisms   = gAprRoot->getNrow();
+        int nVerts    = us3dRoot->xcn->getNrow();
+        
+        
+        if ( MMG3D_Set_meshSize(mmgMesh_hyb,nVerts,nTets,nPrisms,nTri,nQuad,0) != 1 )  exit(EXIT_FAILURE);
         
         if ( MMG3D_Set_solSize(mmgMesh_hyb,mmgSol_hyb,MMG5_Vertex,mmgMesh_hyb->np,MMG5_Tensor) != 1 ) exit(EXIT_FAILURE);
         
@@ -447,7 +559,7 @@ int main(int argc, char** argv)
                 mmgMesh_hyb->prism[i+1].v[j] = gv+1;
 
             }
-            mmgMesh_hyb->tetra[i+1].ref = 3;
+            mmgMesh_hyb->tetra[i+1].ref = -3;
         }
         
         for(int i=0;i<gAteRoot->getNrow();i++)
@@ -457,7 +569,51 @@ int main(int argc, char** argv)
                 int gv = gAteRoot->getVal(i,j);
                 mmgMesh_hyb->tetra[i+1].v[j] = gv+1;
             }
-            mmgMesh_hyb->tetra[i+1].ref = 3;
+            mmgMesh_hyb->tetra[i+1].ref = -3;
+        }
+        
+        int st = 1;
+        
+        int t33 = 0;
+        std::map<int,std::vector<int> >::iterator itbnd;
+        for(itbnd=bndTriVol.begin();itbnd!=bndTriVol.end();itbnd++)
+        {
+            int itb = itbnd->first;
+            
+            mmgMesh_hyb->tria[st].v[0] = bndTriVol[itb][0];
+            mmgMesh_hyb->tria[st].v[1] = bndTriVol[itb][1];
+            mmgMesh_hyb->tria[st].v[2] = bndTriVol[itb][2];
+            mmgMesh_hyb->tria[st].ref  = bndTriVolRef[itb];
+            
+            if(bndTriVolRef[itb] == 3)
+            {
+                t33++;
+            }
+            st++;
+        }
+        
+        std::cout << "t33 - after " << t3 << std::endl;
+
+//        for(int i=0;i<bndTriVolRef.size();i++)
+//        {
+//            mmgMesh_hyb->tria[i+1].v[0] = bndTriVol[i][0];
+//            mmgMesh_hyb->tria[i+1].v[1] = bndTriVol[i][1];
+//            mmgMesh_hyb->tria[i+1].v[2] = bndTriVol[i][2];
+//            mmgMesh_hyb->tria[i+1].ref  = bndTriVolRef[i];
+//        }
+        
+        int sq = 1;
+        
+        for(itbnd=bndQuadVol.begin();itbnd!=bndQuadVol.end();itbnd++)
+        {
+            int itb = itbnd->first;
+
+            mmgMesh_hyb->quadra[sq].v[0] = bndQuadVol[itb][0];
+            mmgMesh_hyb->quadra[sq].v[1] = bndQuadVol[itb][1];
+            mmgMesh_hyb->quadra[sq].v[2] = bndQuadVol[itb][2];
+            mmgMesh_hyb->quadra[sq].v[3] = bndQuadVol[itb][3];
+            mmgMesh_hyb->quadra[sq].ref  = bndQuadVolRef[itb];
+            sq++;
         }
         
         
@@ -504,6 +660,9 @@ int main(int argc, char** argv)
         
         ReferenceMesh* refmesh = ReadReferenceMesh();
         
+        
+        
+        
 //        std::ofstream myfile_nv;
 //        myfile_nv.open("Nodes.ref");
         for(int i=0;i<mmgMesh_hyb->np;i++)
@@ -514,7 +673,6 @@ int main(int argc, char** argv)
             mmgMesh_TETCOPY->point[i+1].ref  = 0;
             
 //            myfile_nv << mmgMesh_hyb->point[i+1].c[0] << " " << mmgMesh_hyb->point[i+1].c[1] << " " << mmgMesh_hyb->point[i+1].c[2] << std::endl;
-            
             
             if(fabs(mmgMesh_hyb->point[i+1].c[0]-refmesh->Nodes[i][0])>tol ||
                fabs(mmgMesh_hyb->point[i+1].c[1]-refmesh->Nodes[i][1])>tol ||
@@ -556,12 +714,35 @@ int main(int argc, char** argv)
             std::cout << " --::-- Adaptation based on gradient reconstruction for a hybrid mesh has PASSED. --::-- " << std::endl;
         }
         
+        
+        
+        
+        int t333=0;
+        for(int ntt=0;ntt<mmgMesh_hyb->nt;ntt++)
+        {
+            
+            if(mmgMesh_hyb->tria[ntt+1].ref == 3)
+            {
+                t333++;
+            }
+            st++;
+        }
+        
+    
+        std::cout << "t333 - after " << t333 << std::endl;
+
+        
+        
+        WriteUS3DGridFromMMG_itN(mmgMesh_hyb, us3d, bnd_face_map);
+
+        
 //      std::cout << "tets = " << mmgMesh_TETCOPY->ne << " " << nTets << " " << nPrisms << std::endl;
         
         std::cout<<"Started writing the adapted tetrahedra mesh in ---> OuterVolume.dat"<<std::endl;
         OutputMesh_MMG(mmgMesh_TETCOPY,0,mmgMesh_TETCOPY->ne,"OuterVolume.dat");
         std::cout<<"Finished writing the adapted tetrahedra mesh in ---> OuterVolume.dat"<<std::endl;
-         
+        
+        /**/
     }
 
     MPI_Finalize();
