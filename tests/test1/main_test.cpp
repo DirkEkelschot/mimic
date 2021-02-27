@@ -131,15 +131,110 @@ int main(int argc, char** argv) {
     Array<double>* dUidzi = new Array<double>(dUdXi.size(),1);
     
     std::map<int,Array<double>* >::iterator grit;
-
+    std::map<int,double> dUidxi_map;
     for(grit=dUdXi.begin();grit!=dUdXi.end();grit++)
     {
         lE2gE->setVal(i,0,grit->first);
         dUidxi->setVal(i,0,grit->second->getVal(0,0));
         dUidyi->setVal(i,0,grit->second->getVal(1,0));
         dUidzi->setVal(i,0,grit->second->getVal(2,0));
+        dUidxi_map[grit->first]=grit->second->getVal(0,0);
+
         i++;
     }
+    
+    
+    
+    //==================================================================================
+    Domain* pDom = P->getPartitionDomain();
+    std::vector<Vert> Verts = P->getLocalVerts();
+
+    std::vector<int> loc_part_verts = pDom->loc_part_verts;
+    std::map<int,int> gv2lpartv     = pDom->gv2lpartv;
+    std::map<int,int> lpartv2gv     = pDom->lpartv2gv;
+    std::map<int,int> gv2lpv        = pDom->gv2lpv;
+    std::map<int,double> dudx_vmap = P->ReduceFieldToVertices(dUidxi_map);
+    
+    
+    std::vector<std::vector<int> > tetras;
+    std::vector<std::vector<int> > prisms;
+    std::vector<std::vector<int> > hexes;
+    
+    std::vector<std::vector<int> > Elements = pDom->Elements;
+    
+    for(int i=0;i<Elements.size();i++)
+    {
+        if(Elements[i].size() == 4)
+        {
+            std::vector<int> Et(4);
+            for(int j=0;j<4;j++)
+            {
+                int nidt = Elements[i][j];
+                Et[j] = nidt;
+                
+            }
+            tetras.push_back(Et);
+            Et.clear();
+        }
+
+        if(Elements[i].size() == 6)
+        {
+            std::vector<int> Ep(6);
+            for(int j=0;j<6;j++)
+            {
+                int nidp = Elements[i][j];
+                Ep[j]   = nidp;
+            }
+            prisms.push_back(Ep);
+            Ep.clear();
+        }
+        
+        if(Elements[i].size() == 8)
+        {
+            std::vector<int> Eh(8);
+            for(int j=0;j<8;j++)
+            {
+                int nidh = Elements[i][j];
+                Eh[j]   = nidh;
+            }
+            hexes.push_back(Eh);
+            Eh.clear();
+        }
+
+    }
+
+    
+    std::ofstream myfilet;
+    myfilet.open("output_" + std::to_string(world_rank) + ".dat");
+    myfilet << "TITLE=\"new_volume.tec\"" << std::endl;
+    myfilet <<"VARIABLES = \"X\", \"Y\", \"Z\", \"dUdx\"" << std::endl;
+    myfilet <<"ZONE N = " << loc_part_verts.size() << ", E = " << hexes.size() << ", DATAPACKING = POINT, ZONETYPE = FEBRICK" << std::endl;
+    
+    for(int i=0;i<loc_part_verts.size();i++)
+    {
+        int loc_vid = loc_part_verts[i];
+        int glob_vid = lpartv2gv[loc_vid];
+        myfilet << Verts[loc_vid].x << " " << Verts[loc_vid].y << " " << Verts[loc_vid].z << " " << dudx_vmap[glob_vid] << std::endl;
+    }
+    
+    for(int i=0;i<hexes.size();i++)
+    {
+        myfilet << hexes[i][0]+1 << " " << hexes[i][1]+1 << " "
+                << hexes[i][2]+1 << " " << hexes[i][3]+1 << " "
+                << hexes[i][4]+1 << " " << hexes[i][5]+1 << " "
+                << hexes[i][6]+1 << " " << hexes[i][7]+1 <<  std::endl;
+    }
+    
+    myfilet.close();
+    
+    
+    
+    
+    
+    //==================================================================================
+    
+    
+    
     
     int nlElem = us3d->ien->getNrow();
     int nElem  = us3d->ien->getNglob();

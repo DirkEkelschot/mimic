@@ -22,14 +22,17 @@ class Partition {
     std::vector<double> PartitionAuxilaryData(Array<double>* U, MPI_Comm comm);
     std::map<int,double> CommunicateLocalDataUS3D(Array<double>* U, MPI_Comm comm);
     std::map<int,double> CommunicateAdjacentDataUS3D(std::map<int,double> U, MPI_Comm comm);
+    void AddAdjacentVertexDataUS3D(std::map<int,double> &Uv, MPI_Comm comm);
     
     i_part_map* getElement2EntityPerPartition(ParArray<int>* iee, std::vector<int> Loc_Elem_Ne, MPI_Comm comm);
     i_part_map* getFace2EntityPerPartition(ParArray<int>* ife, MPI_Comm comm);
     i_part_map* getFace2NodePerPartition(ParArray<int>* ifn, MPI_Comm comm);
     Domain* getPartitionDomain();
     std::map<int,double> ReduceFieldToVertices(std::map<int,double> Uelem);
+    std::map<int,double> ReduceFieldToAllVertices(std::map<int,double> Uelem);
     std::map<int,Array<double>*> ReduceMetricToVertices(std::map<int,Array<double>* > Telem);
-    
+    std::map<int,int> getGlobalVert2GlobalElement();
+
     std::vector<int> getLocElem();
     std::vector<int> getLocElemNv();
     std::map<int,int> getLocElem2Nv();
@@ -70,6 +73,7 @@ class Partition {
     std::map<int,std::vector<int> > getglobFace2GlobalElements();
     std::map<int,std::vector<int> > getGlobElem2GlobVerts();
     std::map<int,std::vector<int> > getGlobElem2LocVerts();
+    std::map<int,std::vector<int> > getGlobVert2GlobElem();
     std::set<int> getElemSet();
     std::set<int> getLocElemSet();
     std::vector<double> getUelem();
@@ -128,6 +132,9 @@ class Partition {
       std::set<int> unique_vertIDs_on_rank_set;
       std::vector<int> unique_verts_on_rank_vec;
       std::set<int> unique_faceIDs_on_rank_set;
+    
+      std::map<int, std::vector<int> > globVerts2globElem;
+    
       std::map<int, std::vector<int> > globElem2globVerts;
       std::map<int, std::vector<int> > globElem2locVerts;
       std::vector<std::vector<int> > LocalElem2GlobalVert;

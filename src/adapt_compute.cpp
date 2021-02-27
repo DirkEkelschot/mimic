@@ -399,7 +399,7 @@ double ComputeVolumeTetCell(double *P)
     
     //delete t,s,r;
     //delete[] cross;
-    
+
     return V;
 }
 
@@ -522,27 +522,21 @@ Vert* ComputeCentroidCoord(double*P, int np)
 {
     Vert* V = new Vert;
     //V = ComputeCenterCoord(P, np);
-    if(np == 8)
+    V->x = 0.0;
+    V->y = 0.0;
+    V->z = 0.0;
+
+    for(int i = 0; i < np; i++)
     {
-        V = ComputeCenterCoord(P, np);
+
+        V->x = V->x+P[i*3+0];
+        V->y = V->y+P[i*3+1];
+        V->z = V->z+P[i*3+2];
     }
-    {
-        V->x = 0.0;
-        V->y = 0.0;
-        V->z = 0.0;
 
-        for(int i = 0; i < np; i++)
-        {
-
-            V->x = V->x+P[i*3+0];
-            V->y = V->y+P[i*3+1];
-            V->z = V->z+P[i*3+2];
-        }
-
-        V->x = V->x/np;
-        V->y = V->y/np;
-        V->z = V->z/np;
-    }
+    V->x = V->x/np;
+    V->y = V->y/np;
+    V->z = V->z/np;
     
     return V;
 }

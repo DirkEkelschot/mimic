@@ -26,7 +26,7 @@ extern "C" {
 double ComputeJ(double*P, int ElType);
 }
 
-inline double ComputeEdgeLength(Vert* v0, Vert* v1);
+double ComputeEdgeLength(Vert* v0, Vert* v1);
 
 double ComputeVolumeHexCell(double *P);
 double ComputeVolumeTetCell(double *P);

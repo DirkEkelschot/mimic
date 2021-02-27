@@ -1,6 +1,8 @@
 #include "../../src/adapt_recongrad.h"
 #include "../../src/adapt_io.h"
 #include "../../src/adapt_parops.h"
+#include "../../src/adapt_output.h"
+#include "../../src/adapt_boundary.h"
 #include "../../src/adapt_parmetisstate2.h"
 #include <iomanip>
 

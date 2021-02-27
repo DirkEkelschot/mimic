@@ -1862,7 +1862,7 @@ int main(int argc, char** argv) {
                 //MMG3D_Set_iparameter ( mmgMesh_hyb,  mmgSol_hyb,  MMG3D_IPARAM_nosizreq , 1 );
                 MMG3D_Set_dparameter( mmgMesh_hyb,  mmgSol_hyb,  MMG3D_DPARAM_hgradreq , -1 );
                 std::cout<<"Start the adaptation of the tetrahedra..."<<std::endl;
-                int ier = MMG3D_mmg3dlib(mmgMesh_hyb,mmgSol_hyb);
+                //int ier = MMG3D_mmg3dlib(mmgMesh_hyb,mmgSol_hyb);
                 std::cout<<"Finished the adaptation of the tetrahedra..."<<std::endl;
 
                 MMG5_pMesh mmgMesh_TETCOPY = NULL;

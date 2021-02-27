@@ -60,9 +60,9 @@ int main(int argc, char** argv)
     MPI_Comm_rank(comm, &world_rank);
     int i,j;
     
-    const char* fn_grid="../test_mesh/it1/grid.h5";
-    const char* fn_conn="../test_mesh/it1/conn.h5";
-    const char* fn_data="../test_mesh/it1/data.h5";
+    const char* fn_grid="itn1/grid.h5";
+    const char* fn_conn="itn1/conn.h5";
+    const char* fn_data="itn1/data.h5";
     
     US3D* us3d    = ReadUS3DData(fn_conn,fn_grid,fn_data,comm,info);
     const char* fn_metric = "metric.inp";
@@ -536,8 +536,6 @@ int main(int argc, char** argv)
             tria3.clear();
         }
         
-        std::cout << "t3 - after " << t3 << " " << qt << std::endl;
-
         
         int nQuad     = bndQuadVolRef.size();
         int nTri      = bndTriVolRef.size();
@@ -551,6 +549,42 @@ int main(int argc, char** argv)
         if ( MMG3D_Set_solSize(mmgMesh_hyb,mmgSol_hyb,MMG5_Vertex,mmgMesh_hyb->np,MMG5_Tensor) != 1 ) exit(EXIT_FAILURE);
         
         
+        std::ofstream myfile_met;
+        myfile_met.open("parttet_" + std::to_string(world_rank) + ".dat");
+        myfile_met << "TITLE=\"new_volume.tec\"" << std::endl;
+        myfile_met <<"VARIABLES = \"X\", \"Y\", \"Z\", \"M00\", \"M01\", \"M02\", \"M11\", \"M12\", \"M22\"" << std::endl;
+        myfile_met <<"ZONE N = " << nVerts << ", E = " << nTets << ", DATAPACKING = POINT, ZONETYPE = FETETRAHEDRON" << std::endl;
+        
+        
+        for(int i = 0;i < us3dRoot->xcn->getNrow();i++)
+        {
+            
+            mmgMesh_hyb->point[i+1].c[0] = us3dRoot->xcn->getVal(i,0);
+            mmgMesh_hyb->point[i+1].c[1] = us3dRoot->xcn->getVal(i,1);
+            mmgMesh_hyb->point[i+1].c[2] = us3dRoot->xcn->getVal(i,2);
+            
+            
+            mmgMesh_hyb->point[i+1].ref  = 1;
+            
+            double m11 = mv_g->getVal(i,0);
+            double m12 = mv_g->getVal(i,1);
+            double m13 = mv_g->getVal(i,2);
+            double m22 = mv_g->getVal(i,3);
+            double m23 = mv_g->getVal(i,4);
+            double m33 = mv_g->getVal(i,5);
+            
+            myfile_met << us3dRoot->xcn->getVal(i,0) << " "
+                       << us3dRoot->xcn->getVal(i,1) << " "
+                       << us3dRoot->xcn->getVal(i,2) << " "
+                       << m11 << " " << m12 << " " << m13 << " "
+                       << m22 << " " << m23 << " " << m33 << std::endl;
+            
+            if ( MMG3D_Set_tensorSol(mmgSol_hyb, m11,m12,m13,m22,m23,m33,i+1) != 1 ) exit(EXIT_FAILURE);
+            
+        }
+        
+        
+        
         for(int i=0;i<gAprRoot->getNrow();i++)
         {
             for(int j=0;j<gAprRoot->getNcol();j++)
@@ -559,6 +593,7 @@ int main(int argc, char** argv)
                 mmgMesh_hyb->prism[i+1].v[j] = gv+1;
 
             }
+            
             mmgMesh_hyb->tetra[i+1].ref = -3;
         }
         
@@ -569,6 +604,9 @@ int main(int argc, char** argv)
                 int gv = gAteRoot->getVal(i,j);
                 mmgMesh_hyb->tetra[i+1].v[j] = gv+1;
             }
+            
+            myfile_met << mmgMesh_hyb->tetra[i+1].v[0] << " " << mmgMesh_hyb->tetra[i+1].v[1] << " " << mmgMesh_hyb->tetra[i+1].v[2] << " " << mmgMesh_hyb->tetra[i+1].v[3] << std::endl;
+
             mmgMesh_hyb->tetra[i+1].ref = -3;
         }
         
@@ -592,8 +630,6 @@ int main(int argc, char** argv)
             st++;
         }
         
-        std::cout << "t33 - after " << t3 << std::endl;
-
 //        for(int i=0;i<bndTriVolRef.size();i++)
 //        {
 //            mmgMesh_hyb->tria[i+1].v[0] = bndTriVol[i][0];
@@ -619,26 +655,9 @@ int main(int argc, char** argv)
         
         std::map<int,int>::iterator itm;
         
-        for(int i = 0;i < us3dRoot->xcn->getNrow();i++)
-        {
-            
-            mmgMesh_hyb->point[i+1].c[0] = us3dRoot->xcn->getVal(i,0);
-            mmgMesh_hyb->point[i+1].c[1] = us3dRoot->xcn->getVal(i,1);
-            mmgMesh_hyb->point[i+1].c[2] = us3dRoot->xcn->getVal(i,2);
-            
-            
-            mmgMesh_hyb->point[i+1].ref  = 1;
-            
-            double m11 = mv_g->getVal(i,0);
-            double m12 = mv_g->getVal(i,1);
-            double m13 = mv_g->getVal(i,2);
-            double m22 = mv_g->getVal(i,3);
-            double m23 = mv_g->getVal(i,4);
-            double m33 = mv_g->getVal(i,5);
-            
-            if ( MMG3D_Set_tensorSol(mmgSol_hyb, m11,m12,m13,m22,m23,m33,i+1) != 1 ) exit(EXIT_FAILURE);
-            
-        }
+        
+        
+        myfile_met.close();
         
         if ( MMG3D_Set_dparameter(mmgMesh_hyb,mmgSol_hyb,MMG3D_DPARAM_hgrad, metric_inputs[0]) != 1 )    exit(EXIT_FAILURE);
         MMG3D_Set_dparameter( mmgMesh_hyb,  mmgSol_hyb,  MMG3D_DPARAM_hgradreq , -1 );
@@ -659,9 +678,6 @@ int main(int argc, char** argv)
         double tol = 1.0e-05;
         
         ReferenceMesh* refmesh = ReadReferenceMesh();
-        
-        
-        
         
 //        std::ofstream myfile_nv;
 //        myfile_nv.open("Nodes.ref");

@@ -2,6 +2,130 @@
 
 
 
+std::map<int,Array<double>* > ComputedUdx_LSQ_Vrt_US3D(Partition* Pa, std::map<int,double> Uv, Mesh_Topology* meshTopo, Array<double>* ghost, MPI_Comm comm)
+{
+   int world_size;
+   MPI_Comm_size(comm, &world_size);
+   // Get the rank of the process
+   int world_rank;
+   MPI_Comm_rank(comm, &world_rank);
+   std::vector<Vert> LocalVs             = Pa->getLocalVerts();
+   std::map<int,std::vector<int> > gE2lV = Pa->getGlobElem2LocVerts();
+   std::map<int,std::vector<int> > gE2gF = Pa->getglobElem2globFaces();
+   std::map<int,int> gV2lV               = Pa->getGlobalVert2LocalVert();
+   std::map<int,int> gE2lE               = Pa->getGlobalElement2LocalElement();
+   std::vector<int> Loc_Elem             = Pa->getLocElem();
+   std::map<int,std::vector<int> > scheme_E2V = meshTopo->getScheme_E2V();
+   int nLoc_Elem                         = Loc_Elem.size();
+    
+   int Nel = Pa->getGlobalPartition()->getNrow();
+   i_part_map*  if_ref_vec      = Pa->getIFREFpartmap();
+   i_part_map*  ifn_vec         = Pa->getIFNpartmap();
+   i_part_map* ief_part_map     = Pa->getIEFpartmap();
+   i_part_map*  iee_vec         = Pa->getIEEpartmap();
+   i_part_map* if_Nv_part_map   = Pa->getIF_Nvpartmap();
+
+   std::vector<std::vector<double> > iee_dist;
+   std::vector<double> dist;
+
+   std::map<int,Array<double>* > dudx_map;
+   double d;
+   int loc_vid,adjID,elID;
+   int cou = 0;
+   Vert* Vc = new Vert;
+   int lid = 0;
+   double u_ijk, u_po;
+   //Array<double>* dudx = new Array<double>(nLoc_Elem,3);
+   std::map<int,int> LocElem2Nf = Pa->getLocElem2Nf();
+   std::map<int,int> LocElem2Nv = Pa->getLocElem2Nv();
+
+   for(int i=0;i<nLoc_Elem;i++)
+   {
+       int elID  = Loc_Elem[i];
+       int NvPEl = LocElem2Nv[elID];
+       std::vector<int> vrts = scheme_E2V[elID];
+       int nadj  = vrts.size();
+       
+       Array<double>* Vrt_T = new Array<double>(3,nadj);
+       Array<double>* Vrt   = new Array<double>(nadj,3);
+       Array<double>* b     = new Array<double>(nadj,1);
+
+       for(int q=0;q<nadj;q++)
+       {
+           for(int j=0;j<3;j++)
+           {
+               Vrt_T->setVal(j,q,0.0);
+               Vrt->setVal(q,j,0.0);
+           }
+       }
+       double* Pijk = new double[NvPEl*3];
+       for(int k=0;k<gE2lV[elID].size();k++)
+       {
+           loc_vid     = gE2lV[elID][k];
+           Pijk[k*3+0] = LocalVs[loc_vid].x;
+           Pijk[k*3+1] = LocalVs[loc_vid].y;
+           Pijk[k*3+2] = LocalVs[loc_vid].z;
+       }
+       
+       Vert* Vijk   = ComputeCentroidCoord(Pijk,NvPEl);
+       
+       u_ijk        = Uv[elID];
+       int t        = 0;
+       
+       for(int j=0;j<nadj;j++)
+       {
+           int vid = vrts[j];
+           double Uvrt = Uv[vid];
+           int adjID = iee_vec->i_map[elID][j];
+           int NvPAdjEl = LocElem2Nv[adjID];
+           
+           int lvid = gV2lV[gvid];
+           
+           Vadj->x = LocalVs[loc_vid].x;
+           Vadj->y = LocalVs[loc_vid].y;
+           Vadj->z = LocalVs[loc_vid].z;
+           
+           d = sqrt((Vadj->x-Vijk->x)*(Vadj->x-Vijk->x)+
+                    (Vadj->y-Vijk->y)*(Vadj->y-Vijk->y)+
+                    (Vadj->z-Vijk->z)*(Vadj->z-Vijk->z));
+
+           Vrt->setVal(t,0,(1.0/d)*(Vadj->x-Vijk->x));
+           Vrt->setVal(t,1,(1.0/d)*(Vadj->y-Vijk->y));
+           Vrt->setVal(t,2,(1.0/d)*(Vadj->z-Vijk->z));
+           b->setVal(t,0,(1.0/d)*(Uvrt-u_ijk));
+           delete Vadj;
+           dist.push_back(d);
+           t++;
+      }
+       
+      double* A_cm = new double[nadj*3];
+      for(int s=0;s<nadj;s++)
+      {
+          for(int j=0;j<3;j++)
+          {
+              A_cm[j*nadj+s] = Vrt->getVal(s,j);
+          }
+      }
+       
+       Array<double>* x = SolveQR(A_cm,nadj,3,b);
+
+       dudx_map[elID] = x;
+       delete[] A_cm;
+       //delete x;
+       delete[] Pijk;
+       delete Vrt_T;
+       delete Vrt;
+       delete b;
+
+       iee_dist.push_back(dist);
+       dist.clear();
+   }
+
+   //delete Vc;
+
+   return dudx_map;
+}
+
 
 
 
@@ -224,17 +348,17 @@ std::map<int,Array<double>* >  ComputedUdx_MGG(Partition* Pa, std::map<int,doubl
     {
         int gid  = Loc_Elem[i];
         
-        gu_c_x_m[gid] = 0.0;
-        gu_c_y_m[gid] = 0.0;
-        gu_c_z_m[gid] = 0.0;
+        gu_c_x_m[gid] = 1.0;
+        gu_c_y_m[gid] = 1.0;
+        gu_c_z_m[gid] = 1.0;
         
-        gu_c_x->setVal(i,0,0.0);
-        gu_c_y->setVal(i,0,0.0);
-        gu_c_z->setVal(i,0,0.0);
+        gu_c_x->setVal(i,0,1.0);
+        gu_c_y->setVal(i,0,1.0);
+        gu_c_z->setVal(i,0,1.0);
         
-        gu_c_old->setVal(i,0,0.0);
-        gu_c_old->setVal(i,1,0.0);
-        gu_c_old->setVal(i,2,0.0);
+        gu_c_old->setVal(i,0,1.0);
+        gu_c_old->setVal(i,1,1.0);
+        gu_c_old->setVal(i,2,1.0);
     }
     
     std::cout << "Computing the MGG " << std::endl;
@@ -258,7 +382,7 @@ std::map<int,Array<double>* >  ComputedUdx_MGG(Partition* Pa, std::map<int,doubl
     clock_t t;
     Vec3D* nj;
     Vec3D* rj;
-    for(int it=0;it<1;it++)
+    for(int it=0;it<100;it++)
     {
         t = clock();
         //communicate grad phi!!!
@@ -276,7 +400,7 @@ std::map<int,Array<double>* >  ComputedUdx_MGG(Partition* Pa, std::map<int,doubl
         for(int i=0;i<nLoc_Elem;i++)
         {
              gEl        = Loc_Elem[i];
-             lid        = gE2lE[gEl];
+             lid        = i;
              int nadj   = LocElem2Nf[gEl];
 
              u_c = U[gEl];
@@ -288,7 +412,10 @@ std::map<int,Array<double>* >  ComputedUdx_MGG(Partition* Pa, std::map<int,doubl
              sum_phix = 0.0;
              sum_phiy = 0.0;
              sum_phiz = 0.0;
-             
+             if(rvector[gEl].size()!=nadj || dxfxc[gEl].size()!=nadj)
+             {
+                 std::cout << "Huge error " << std::endl;
+             }
              for(int j=0;j<nadj;j++)
              {
                  adjID   = iee_vec->i_map[gEl][j];
@@ -308,25 +435,25 @@ std::map<int,Array<double>* >  ComputedUdx_MGG(Partition* Pa, std::map<int,doubl
                  }
                  else
                  {
-                     //u_nb     = ghost->getVal(adjID-Nel,0);
-                     u_nb     = U[gEl];
+                     u_nb     = ghost->getVal(adjID-Nel,0);
+                     //u_nb     = U[gEl];
                      gu_nb_vx = gu_c_x->getVal(lid,0);
                      gu_nb_vy = gu_c_y->getVal(lid,0);
                      gu_nb_vz = gu_c_z->getVal(lid,0);
-                     
- //                    u_nb     = 0.0;
- //                    gu_nb_vx = 0.0;
- //                    gu_nb_vy = 0.0;
- //                    gu_nb_vz = 0.0;
+//
+//                     u_nb     = 0.0;
+//                     gu_nb_vx = 0.0;
+//                     gu_nb_vy = 0.0;
+//                     gu_nb_vz = 0.0;
                      
                  }
                  
                  nj          = normals[gEl][j];
                  rj          = rvector[gEl][j];
                  
-                 double alpha     = DotVec3D(nj,rj);
-                 
-                 Vec3D* nf_m_arf    = new Vec3D;
+                 double alpha = DotVec3D(nj,rj);
+
+                 Vec3D* nf_m_arf = new Vec3D;
 
                  nf_m_arf->c0=nj->c0-alpha*rj->c0;
                  nf_m_arf->c1=nj->c1-alpha*rj->c1;
@@ -336,7 +463,6 @@ std::map<int,Array<double>* >  ComputedUdx_MGG(Partition* Pa, std::map<int,doubl
                                                                   +  (gu_nb_vy + gu_c_vy) * nf_m_arf->c1
                                                                   +  (gu_nb_vz + gu_c_vz) * nf_m_arf->c2);
                  
-                 std::cout << " dphi_dn " << dphi_dn << " " << alpha << std::endl;
                  sum_phix = sum_phix+dphi_dn*dxfxc[gEl][j]->c0*dS[gEl][j];
                  sum_phiy = sum_phiy+dphi_dn*dxfxc[gEl][j]->c1*dS[gEl][j];
                  sum_phiz = sum_phiz+dphi_dn*dxfxc[gEl][j]->c2*dS[gEl][j];

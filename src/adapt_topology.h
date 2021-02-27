@@ -46,6 +46,7 @@ class Mesh_Topology {
         Mesh_Topology(){};
         Mesh_Topology(Partition* Pa, MPI_Comm comm);
         void DetermineBoundaryLayerElements(Partition* Pa, Array<int>* ife_in, int nLayer, int bID, MPI_Comm comm);
+        std::map<int,std::vector<int> > getScheme_E2V();
         std::map<int,vector<Vec3D*> > getNormals();
         std::map<int,vector<Vec3D*> > getRvectors();
         std::map<int,vector<Vec3D*> > getdXfXc();
@@ -53,7 +54,7 @@ class Mesh_Topology {
         std::map<int,vector<double> > getdS();
         Array<int>* getIFN();
         std::map<int,double> getVol();
-        std::vector<double> ReduceUToVertices(Domain* dom, std::map<int,double> Uelem);
+        std::map<int,std::map<int,double> > GetElement2VertexScheme();
         //std::map<int,double> ReduceFieldToVertices(Domain* pDom, std::map<int,double> Uelem);
         //std::map<int,Array<double>* > ReduceMetricToVertices(Domain* pDom, std::map<int,Array<double>* > Telem);
         std::map<int,int> getFace2Ref();
@@ -80,6 +81,7 @@ class Mesh_Topology {
         std::map<int,Vec3D*> Bface2Normal;
         std::map<int,std::vector<int> > BLlayers; 
         Mesh_Topology_BL* mesh_topo_bl;
+        std::map<int,std::vector<int> > E2V_scheme;
         
     
         MPI_Comm c;
