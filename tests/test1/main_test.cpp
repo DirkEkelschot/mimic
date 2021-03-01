@@ -54,6 +54,7 @@ int main(int argc, char** argv) {
     ParallelState_Parmetis* parmetis_pstate = new ParallelState_Parmetis(us3d->ien,us3d->elTypes,us3d->ie_Nv,comm);
     ParallelState* xcn_pstate               = new ParallelState(us3d->xcn->getNglob(),comm);
     
+    
     clock_t t;
     double tn = 0.0;
     t = clock();
@@ -116,6 +117,9 @@ int main(int argc, char** argv) {
     
     t = clock();
     std::map<int,Array<double>* > dUdXi = ComputedUdx_LSQ_US3D(P,Uadj,gB,comm);
+    
+    
+    
     double Gtiming = ( std::clock() - t) / (double) CLOCKS_PER_SEC;
     double Gmax_time = 0.0;
     MPI_Allreduce(&Gtiming, &Gmax_time, 1, MPI_DOUBLE, MPI_MAX, comm);
@@ -361,6 +365,8 @@ int main(int argc, char** argv) {
             std::cout << " --::-- Parallel gradient reconstruction test has PASSED. --::-- " << std::endl;
         }
     }
+    
+    /* */
     
     MPI_Finalize();
     

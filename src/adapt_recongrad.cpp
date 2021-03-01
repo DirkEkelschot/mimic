@@ -42,16 +42,19 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_Vrt_US3D(Partition* Pa, std::map<i
 
    for(int i=0;i<nLoc_Elem;i++)
    {
-       int elID  = Loc_Elem[i];
-       int NvPEl = LocElem2Nv[elID];
+       int elID     = Loc_Elem[i];
+       int NvPEl    = LocElem2Nv[elID];
+       int nadj_el  = LocElem2Nf[elID];
        std::vector<int> vrts = scheme_E2V[elID];
-       int nadj_vrts  = vrts.size();
        
-       Array<double>* Vrt_T = new Array<double>(3,nadj_vrts);
-       Array<double>* Vrt   = new Array<double>(nadj_vrts,3);
-       Array<double>* b     = new Array<double>(nadj_vrts,1);
+       int nadj_vrts  = vrts.size();
+       int nadj_tot   = nadj_vrts+nadj_el;
 
-       for(int q=0;q<nadj_vrts;q++)
+       Array<double>* Vrt_T = new Array<double>(3,nadj_tot);
+       Array<double>* Vrt   = new Array<double>(nadj_tot,3);
+       Array<double>* b     = new Array<double>(nadj_tot,1);
+
+       for(int q=0;q<nadj_tot;q++)
        {
            for(int j=0;j<3;j++)
            {
@@ -72,11 +75,87 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_Vrt_US3D(Partition* Pa, std::map<i
        
        u_ijk        = Ue[elID];
        int t        = 0;
-//       if(nadj<6)
-//       {
-//           std::cout << "nadj verts = " << nadj << std::endl;
-//
-//       }
+
+      
+       for(int j=0;j<nadj_el;j++)
+       {
+           int adjID = iee_vec->i_map[elID][j];
+           int NvPAdjEl = LocElem2Nv[adjID];
+           double* Padj = new double[gE2lV[adjID].size()*3];
+
+           if(adjID<Nel)
+           {
+               u_po = Ue[adjID];
+    
+               for(int k=0;k<gE2lV[adjID].size();k++)
+               {
+                   loc_vid     = gE2lV[adjID][k];
+                   Padj[k*3+0] = LocalVs[loc_vid].x;
+                   Padj[k*3+1] = LocalVs[loc_vid].y;
+                   Padj[k*3+2] = LocalVs[loc_vid].z;
+               }
+               
+               Vert* Vadj_el = ComputeCentroidCoord(Padj,gE2lV[adjID].size());
+               
+               d = sqrt((Vadj_el->x-Vijk->x)*(Vadj_el->x-Vijk->x)+
+                        (Vadj_el->y-Vijk->y)*(Vadj_el->y-Vijk->y)+
+                        (Vadj_el->z-Vijk->z)*(Vadj_el->z-Vijk->z));
+
+               Vrt->setVal(t,0,(1.0/d)*(Vadj_el->x-Vijk->x));
+               Vrt->setVal(t,1,(1.0/d)*(Vadj_el->y-Vijk->y));
+               Vrt->setVal(t,2,(1.0/d)*(Vadj_el->z-Vijk->z));
+               
+               b->setVal(t,0,(1.0/d)*(u_po-u_ijk));
+               delete Vadj_el;
+               dist.push_back(d);
+               t++;
+           }
+           else
+           {
+               //int fid = gE2gF[elID][j];
+               int fid    = ief_part_map->i_map[elID][j];
+               int NvPerF = if_Nv_part_map->i_map[fid][0];
+               //std::cout << "NvPerF " << NvPerF << std::endl;
+               Vc->x = 0.0;
+               Vc->y = 0.0;
+               Vc->z = 0.0;
+               
+               for(int s=0;s<NvPerF;s++)
+               {
+                   int gvid = ifn_vec->i_map[fid][s];
+                   int lvid = gV2lV[gvid];
+
+                   Vc->x = Vc->x+LocalVs[lvid].x;
+                   Vc->y = Vc->y+LocalVs[lvid].y;
+                   Vc->z = Vc->z+LocalVs[lvid].z;
+               }
+
+               Vc->x = Vc->x/NvPerF;
+               Vc->y = Vc->y/NvPerF;
+               Vc->z = Vc->z/NvPerF;
+
+               d = sqrt((Vc->x-Vijk->x)*(Vc->x-Vijk->x)+
+                        (Vc->y-Vijk->y)*(Vc->y-Vijk->y)+
+                        (Vc->z-Vijk->z)*(Vc->z-Vijk->z));
+
+               //u_po = ghost->getVal(adjID-Nel,0);
+               //u_po = u_ijk;
+               //u_po = U[elID];
+               double u_fpo = ghost->getVal(adjID-Nel,0);
+
+               Vrt->setVal(t,0,(1.0/d)*(Vc->x-Vijk->x));
+               Vrt->setVal(t,1,(1.0/d)*(Vc->y-Vijk->y));
+               Vrt->setVal(t,2,(1.0/d)*(Vc->z-Vijk->z));
+
+               b->setVal(t,0,(1.0/d)*(u_fpo-u_ijk));
+               t++;
+               dist.push_back(d);
+           }
+      }
+       
+       
+       
+       
        for(int j=0;j<nadj_vrts;j++)
        {
            int gvid = vrts[j];
@@ -101,13 +180,14 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_Vrt_US3D(Partition* Pa, std::map<i
            t++;
       }
 //
-      double* A_cm = new double[nadj_vrts*3];
+       
+      double* A_cm = new double[nadj_tot*3];
        //std::cout << "===================================="<<std::endl;
-      for(int s=0;s<nadj_vrts;s++)
+      for(int s=0;s<nadj_tot;s++)
       {
           for(int j=0;j<3;j++)
           {
-              A_cm[j*nadj_vrts+s] = Vrt->getVal(s,j);
+              A_cm[j*nadj_tot+s] = Vrt->getVal(s,j);
               //std::cout << Vrt->getVal(s,j) << " ";
           }
           //std::cout << std::endl;
@@ -115,7 +195,7 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_Vrt_US3D(Partition* Pa, std::map<i
       }
        //std::cout << "===================================="<<std::endl;
 
-       Array<double>* x = SolveQR(A_cm,nadj_vrts,3,b);
+       Array<double>* x = SolveQR(A_cm,nadj_tot,3,b);
        //std::cout << x->getVal(0,0) << " " << x->getVal(0,1) << " " << x->getVal(0,2) << " " << nadj_vrts << std::endl;
        dudx_map[elID] = x;
        delete[] A_cm;
