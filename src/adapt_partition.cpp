@@ -2655,13 +2655,12 @@ std::map<int,double> Partition::ReduceFieldToAllVertices(std::map<int,double> Ua
         
         int gv = itm->first;
         
-        for(int q=0;q<globElem2globVerts[gv].size();q++)
+        for(int q=0;q<globVerts2globElem[gv].size();q++)
         {
-            int gEl = globElem2globVerts[gv][q];
+            int gEl = globVerts2globElem[gv][q];
             sum     = sum + UaddAdj[gEl];
         }
-        
-        avg = sum/globElem2globVerts[gv].size();
+        avg = sum/globVerts2globElem[gv].size();
         Uv.push_back(avg);
         Uvm[gv]=avg;
 

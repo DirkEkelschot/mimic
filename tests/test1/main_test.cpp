@@ -132,6 +132,9 @@ int main(int argc, char** argv) {
     
     std::map<int,Array<double>* >::iterator grit;
     std::map<int,double> dUidxi_map;
+    std::map<int,double> dUidyi_map;
+    std::map<int,double> dUidzi_map;
+
     for(grit=dUdXi.begin();grit!=dUdXi.end();grit++)
     {
         lE2gE->setVal(i,0,grit->first);
@@ -139,6 +142,10 @@ int main(int argc, char** argv) {
         dUidyi->setVal(i,0,grit->second->getVal(1,0));
         dUidzi->setVal(i,0,grit->second->getVal(2,0));
         dUidxi_map[grit->first]=grit->second->getVal(0,0);
+        dUidyi_map[grit->first]=grit->second->getVal(1,0);
+        dUidzi_map[grit->first]=grit->second->getVal(2,0);
+        
+        //std::cout << grit->second->getVal(0,0) << " " << grit->second->getVal(1,0) << " " << grit->second->getVal(2,0) << std::endl;
 
         i++;
     }
@@ -154,7 +161,9 @@ int main(int argc, char** argv) {
     std::map<int,int> lpartv2gv     = pDom->lpartv2gv;
     std::map<int,int> gv2lpv        = pDom->gv2lpv;
     std::map<int,double> dudx_vmap = P->ReduceFieldToVertices(dUidxi_map);
-    
+    std::map<int,double> dudy_vmap = P->ReduceFieldToVertices(dUidyi_map);
+    std::map<int,double> dudz_vmap = P->ReduceFieldToVertices(dUidzi_map);
+
     
     std::vector<std::vector<int> > tetras;
     std::vector<std::vector<int> > prisms;
@@ -207,14 +216,14 @@ int main(int argc, char** argv) {
     std::ofstream myfilet;
     myfilet.open("output_" + std::to_string(world_rank) + ".dat");
     myfilet << "TITLE=\"new_volume.tec\"" << std::endl;
-    myfilet <<"VARIABLES = \"X\", \"Y\", \"Z\", \"dUdx\"" << std::endl;
+    myfilet <<"VARIABLES = \"X\", \"Y\", \"Z\", \"dUdx\", \"dUdy\", \"dUdz\"" << std::endl;
     myfilet <<"ZONE N = " << loc_part_verts.size() << ", E = " << hexes.size() << ", DATAPACKING = POINT, ZONETYPE = FEBRICK" << std::endl;
     
     for(int i=0;i<loc_part_verts.size();i++)
     {
         int loc_vid = loc_part_verts[i];
         int glob_vid = lpartv2gv[loc_vid];
-        myfilet << Verts[loc_vid].x << " " << Verts[loc_vid].y << " " << Verts[loc_vid].z << " " << dudx_vmap[glob_vid] << std::endl;
+        myfilet << Verts[loc_vid].x << " " << Verts[loc_vid].y << " " << Verts[loc_vid].z << " " << dudx_vmap[glob_vid] << " " << dudy_vmap[glob_vid]<< " " << dudz_vmap[glob_vid]<< std::endl;
     }
     
     for(int i=0;i<hexes.size();i++)
