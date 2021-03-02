@@ -105,7 +105,7 @@ int main(int argc, char** argv)
     Domain* pDom = P->getPartitionDomain();
     std::vector<Vert> Verts = P->getLocalVerts();
     
-    std::map<int,double> UauxNew = P->CommunicateAdjacentDataUS3D(Ui_map,comm);
+    std::map<int,double> UauxNew = P->CommunicateStateAdjacentElements(Ui_map,comm);
 
     Array<double>* gB = new Array<double>(us3d->ghost->getNrow(),1);
     for(int i=0;i<us3d->ghost->getNrow();i++)

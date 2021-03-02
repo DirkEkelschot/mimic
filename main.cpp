@@ -158,7 +158,7 @@ int main(int argc, char** argv) {
 
         Domain* pDom = P->getPartitionDomain();
 
-        std::map<int,double> UauxNew = P->CommunicateAdjacentDataUS3D(Uvaria_map,comm);
+        std::map<int,double> UauxNew = P->CommunicateStateAdjacentElements(Uvaria_map,comm);
 
         int* bnd_map;
         int nBnd = 4;
@@ -214,9 +214,9 @@ int main(int argc, char** argv) {
             
             ti++;
         }
-        std::map<int,double > dUdxauxNew  = P->CommunicateAdjacentDataUS3D(dUidxi_map,comm);
-        std::map<int,double > dUdyauxNew  = P->CommunicateAdjacentDataUS3D(dUidyi_map,comm);
-        std::map<int,double > dUdzauxNew  = P->CommunicateAdjacentDataUS3D(dUidzi_map,comm);
+        std::map<int,double > dUdxauxNew  = P->CommunicateStateAdjacentElements(dUidxi_map,comm);
+        std::map<int,double > dUdyauxNew  = P->CommunicateStateAdjacentElements(dUidyi_map,comm);
+        std::map<int,double > dUdzauxNew  = P->CommunicateStateAdjacentElements(dUidzi_map,comm);
         
         //delete dUdXi;
         

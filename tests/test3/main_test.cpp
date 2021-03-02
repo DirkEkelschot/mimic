@@ -100,7 +100,7 @@ int main(int argc, char** argv) {
 
     std::vector<Vert> Verts      = P->getLocalVerts();
 
-    std::map<int,double> UauxNew = P->CommunicateAdjacentDataUS3D(Ui_map,comm);
+    std::map<int,double> UauxNew = P->CommunicateStateAdjacentElements(Ui_map,comm);
 
     Array<double>* gB = new Array<double>(us3d->ghost->getNrow(),1);
     for(int i=0;i<us3d->ghost->getNrow();i++)
@@ -141,9 +141,9 @@ int main(int argc, char** argv) {
 
         ti++;
     }
-    std::map<int,double > dUdxauxNew  = P->CommunicateAdjacentDataUS3D(dUidxi_map,comm);
-    std::map<int,double > dUdyauxNew  = P->CommunicateAdjacentDataUS3D(dUidyi_map,comm);
-    std::map<int,double > dUdzauxNew  = P->CommunicateAdjacentDataUS3D(dUidzi_map,comm);
+    std::map<int,double > dUdxauxNew  = P->CommunicateStateAdjacentElements(dUidxi_map,comm);
+    std::map<int,double > dUdyauxNew  = P->CommunicateStateAdjacentElements(dUidyi_map,comm);
+    std::map<int,double > dUdzauxNew  = P->CommunicateStateAdjacentElements(dUidzi_map,comm);
 
     std::map<int,Array<double>* > dU2dXi2 = ComputedUdx_LSQ_US3D(P,dUdxauxNew,gB,comm);
     std::map<int,Array<double>* > dU2dYi2 = ComputedUdx_LSQ_US3D(P,dUdyauxNew,gB,comm);

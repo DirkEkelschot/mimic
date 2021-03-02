@@ -1,27 +1,54 @@
 #include "../../src/adapt_recongrad.h"
 #include "../../src/adapt_io.h"
+#include "../../src/adapt_parops.h"
+#include "../../src/adapt_output.h"
+#include "../../src/adapt_boundary.h"
 #include <iomanip>
 
-std::vector<double> ReadReferenceData()
+struct ReferenceMesh{
+    std::vector<std::vector<double> > Nodes;
+    std::vector<std::vector<double> > Elements;
+};
+
+ReferenceMesh* ReadReferenceMesh()
 {
-    std::ifstream fin;
-    fin.open("GuX.ref");
     
+    ReferenceMesh* refmesh = new ReferenceMesh;
+    std::ifstream fin_v;
+    fin_v.open("Nodes.ref");
     // Read the file row by row
-    double val;
-    std::vector<double> Gref;
-    int t=0;
-    while(fin >> val)
-    {
-       Gref.push_back(val);
-    }
+    std::vector<std::vector<double> > Vref;
     
-    return Gref;
+    std::vector<double> row_v(3);
+    while(fin_v >> row_v[0] >> row_v[1] >> row_v[2] )
+    {
+        refmesh->Nodes.push_back(row_v);
+    }
+    fin_v.close();
+    
+    
+    
+    
+    
+    std::ifstream fin_e;
+    fin_e.open("Elements.ref");
+    // Read the file row by row
+    std::vector<std::vector<double> > Eref;
+    
+    std::vector<double> row_e(4);
+    while(fin_e >> row_e[0] >> row_e[1] >> row_e[2] >> row_e[3] )
+    {
+        refmesh->Elements.push_back(row_e);
+    }
+    fin_e.close();
+    
+    return refmesh;
+    
 }
 
 
-int main(int argc, char** argv) {
-    
+int main(int argc, char** argv)
+{
     MPI_Init(NULL, NULL);
    
     MPI_Comm comm = MPI_COMM_WORLD;
@@ -32,13 +59,25 @@ int main(int argc, char** argv) {
     int world_rank;
     MPI_Comm_rank(comm, &world_rank);
     int i,j;
+
+    
+    
+//    const char* fn_grid="../test_mesh/cylinder_hex/grid.h5";
+//    const char* fn_conn="../test_mesh/cylinder_hex/conn.h5";
+//    const char* fn_data="../test_mesh/cylinder_hex/data.h5";
+    
+//    const char* fn_grid="itn1/grid.h5";
+//    const char* fn_conn="itn1/conn.h5";
+//    const char* fn_data="itn1/data.h5";
     
     const char* fn_grid="../test_mesh/cylinder_hex/grid.h5";
     const char* fn_conn="../test_mesh/cylinder_hex/conn.h5";
     const char* fn_data="../test_mesh/cylinder_hex/data.h5";
     
-    US3D* us3d = ReadUS3DData(fn_conn,fn_grid,fn_data,comm,info);
-
+    US3D* us3d    = ReadUS3DData(fn_conn,fn_grid,fn_data,comm,info);
+    const char* fn_metric = "metric.inp";
+    std::vector<double> metric_inputs = ReadMetricInputs(fn_metric);
+        
     int Nel_part = us3d->ien->getNrow();
 
     Array<double>* Ui = new Array<double>(Nel_part,1);
@@ -48,16 +87,23 @@ int main(int argc, char** argv) {
         Ui->setVal(i,0,us3d->interior->getVal(i,varia));
     }
     
-    
     ParallelState* ien_pstate               = new ParallelState(us3d->ien->getNglob(),comm);
     ParallelState* ife_pstate               = new ParallelState(us3d->ifn->getNglob(),comm);
     ParallelState_Parmetis* parmetis_pstate = new ParallelState_Parmetis(us3d->ien,us3d->elTypes,us3d->ie_Nv,comm);
     ParallelState* xcn_pstate               = new ParallelState(us3d->xcn->getNglob(),comm);
     
-    
     clock_t t;
     double tn = 0.0;
     t = clock();
+    
+//    integer(KIND=US3D_GINT), parameter :: ET_TRI= 1      ! Triangle
+//    integer(KIND=US3D_GINT), parameter :: ET_TET= 2      ! Tetrahedron
+//    integer(KIND=US3D_GINT), parameter :: ET_QAD= 3      ! Quadrilateral
+//    integer(KIND=US3D_GINT), parameter :: ET_HEX= 4      ! Hexahedral
+//    integer(KIND=US3D_GINT), parameter :: ET_PYR= 5      ! Pyramid
+//    integer(KIND=US3D_GINT), parameter :: ET_PRS= 6      ! Prism
+//    integer(KIND=US3D_GINT), parameter :: ET_SEG= 7      ! Line segment
+                                                                         
     Partition* P = new Partition(us3d->ien, us3d->iee, us3d->ief, us3d->ie_Nv , us3d->ie_Nf,
                                  us3d->ifn, us3d->ife, us3d->if_ref, us3d->if_Nv,
                                  parmetis_pstate, ien_pstate, ife_pstate,
@@ -71,9 +117,11 @@ int main(int argc, char** argv) {
     std::cout << "Timing partitioning: " << duration << std::endl;
     }
     
-    std::vector<int> LocElem    = P->getLocElem();
-    std::vector<double> Uvaria  = P->getLocElemVaria();
-    
+    std::vector<int> LocElem        = P->getLocElem();
+    std::vector<int> LocElemNv      = P->getLocElemNv();
+    std::map<int,int> LocElem2Nv    = P->getLocElem2Nv();
+    std::vector<double> Uvaria      = P->getLocElemVaria();
+
     std::map<int,double> Ui_map;
     double UvariaV = 0.0;
     for(int i=0;i<LocElem.size();i++)
@@ -81,43 +129,65 @@ int main(int argc, char** argv) {
         int gid     = LocElem[i];
         UvariaV     = Uvaria[i];
         Ui_map[gid] = UvariaV;
-
-    }
-    
-    std::map<int,double> Uadj = P->CommunicateStateAdjacentElements(Ui_map,comm);
-    int* bnd_map;
-    int nBnd = 4;
-
-    if(world_rank == 0)
-    {
-        std::cout << "Started creating mesh topology object... " << std::endl;
     }
 
-    //Mesh_Topology* meshTopo = new Mesh_Topology(P,comm);
+    std::vector<Vert> Verts = P->getLocalVerts();
     
-    if(world_rank == 0)
-    {
-        std::cout << "Finished creating mesh topology object... "  << std::endl;
-    }
-    
-    if(world_rank == 0)
-    {
-        std::cout << "Setting the ghost element data... "  << std::endl;
-    }
+    std::map<int,double> Uaux = P->CommunicateStateAdjacentElements(Ui_map,comm);
+
     Array<double>* gB = new Array<double>(us3d->ghost->getNrow(),1);
     for(int i=0;i<us3d->ghost->getNrow();i++)
     {
         gB->setVal(i,0,us3d->ghost->getVal(i,varia));
     }
-   
-    if(world_rank == 0)
-    {
-        std::cout << "Started reconstructing the gradient... " << std::endl;
-    }
-    
+
     t = clock();
-    std::map<int,Array<double>* > dUdXi = ComputedUdx_LSQ_US3D(P,Uadj,gB,comm);
+    Mesh_Topology* meshTopo = new Mesh_Topology(P,comm);
     
+    std::map<int,double > u_vm = P->ReduceFieldToAllVertices(Uaux);
+    
+    std::map<int,double >::iterator its;
+
+//    for(its=u_vm.begin();its!=u_vm.end();its++)
+//    {
+//        std::cout << its->first << " > " << its->second << std::endl;
+//    }
+    
+    int size_b = u_vm.size();
+    
+    P->AddAdjacentVertexDataUS3D(u_vm,comm);
+    
+    std::map<int,std::vector<int> > scheme_E2V = meshTopo->getScheme_E2V();
+
+    std::map<int,std::vector<int> >::iterator itsch;
+    
+//    for(itsch=scheme_E2V.begin();itsch!=scheme_E2V.end();itsch++)
+//    {
+//        std::cout << itsch->first << " N= " << itsch->second.size() << " :: " ;
+//        for(int q=0;q<itsch->second.size();q++)
+//        {
+//            int vid = itsch->second[q];
+//            std::cout << u_vm[vid] << " ";
+//        }
+//        std::cout << std::endl;
+//    }
+    
+    
+    
+    
+    std::map<int,std::vector<double> >::iterator itmm;
+    
+    Domain* pDom = P->getPartitionDomain();
+    
+    std::vector<int> loc_part_verts = pDom->loc_part_verts;
+    std::map<int,int> gv2lpartv     = pDom->gv2lpartv;
+    std::map<int,int> lpartv2gv     = pDom->lpartv2gv;
+    std::map<int,int> gv2lpv        = pDom->gv2lpv;
+    
+    std::map<int,Array<double>* > dUdXi = ComputedUdx_LSQ_Vrt_US3D(P,Uaux,u_vm,meshTopo,gB,comm);
+    
+//    std::map<int,Array<double>* > dUdXi = ComputedUdx_MGG(P,Uaux,meshTopo,gB,comm);
+//
     
     
     double Gtiming = ( std::clock() - t) / (double) CLOCKS_PER_SEC;
@@ -148,33 +218,30 @@ int main(int argc, char** argv) {
         dUidxi_map[grit->first]=grit->second->getVal(0,0);
         dUidyi_map[grit->first]=grit->second->getVal(1,0);
         dUidzi_map[grit->first]=grit->second->getVal(2,0);
-        
-        //std::cout << grit->second->getVal(0,0) << " " << grit->second->getVal(1,0) << " " << grit->second->getVal(2,0) << std::endl;
 
+        //std::cout << grit->second->getVal(0,0) << std::endl;
         i++;
     }
     
     
-    
-    //==================================================================================
-    Domain* pDom = P->getPartitionDomain();
-    std::vector<Vert> Verts = P->getLocalVerts();
 
-    std::vector<int> loc_part_verts = pDom->loc_part_verts;
-    std::map<int,int> gv2lpartv     = pDom->gv2lpartv;
-    std::map<int,int> lpartv2gv     = pDom->lpartv2gv;
-    std::map<int,int> gv2lpv        = pDom->gv2lpv;
+    //==================================================================================
+//    Domain* pDom = P->getPartitionDomain();
+//    std::vector<int> loc_part_verts = pDom->loc_part_verts;
+//    std::map<int,int> gv2lpartv     = pDom->gv2lpartv;
+//    std::map<int,int> lpartv2gv     = pDom->lpartv2gv;
+//    std::map<int,int> gv2lpv        = pDom->gv2lpv;
     std::map<int,double> dudx_vmap = P->ReduceFieldToVertices(dUidxi_map);
     std::map<int,double> dudy_vmap = P->ReduceFieldToVertices(dUidyi_map);
     std::map<int,double> dudz_vmap = P->ReduceFieldToVertices(dUidzi_map);
 
-    
+
     std::vector<std::vector<int> > tetras;
     std::vector<std::vector<int> > prisms;
     std::vector<std::vector<int> > hexes;
-    
+
     std::vector<std::vector<int> > Elements = pDom->Elements;
-    
+
     for(int i=0;i<Elements.size();i++)
     {
         if(Elements[i].size() == 4)
@@ -184,7 +251,7 @@ int main(int argc, char** argv) {
             {
                 int nidt = Elements[i][j];
                 Et[j] = nidt;
-                
+
             }
             tetras.push_back(Et);
             Et.clear();
@@ -201,7 +268,7 @@ int main(int argc, char** argv) {
             prisms.push_back(Ep);
             Ep.clear();
         }
-        
+
         if(Elements[i].size() == 8)
         {
             std::vector<int> Eh(8);
@@ -216,20 +283,20 @@ int main(int argc, char** argv) {
 
     }
 
-    
+
     std::ofstream myfilet;
     myfilet.open("output_" + std::to_string(world_rank) + ".dat");
     myfilet << "TITLE=\"new_volume.tec\"" << std::endl;
     myfilet <<"VARIABLES = \"X\", \"Y\", \"Z\", \"dUdx\", \"dUdy\", \"dUdz\"" << std::endl;
     myfilet <<"ZONE N = " << loc_part_verts.size() << ", E = " << hexes.size() << ", DATAPACKING = POINT, ZONETYPE = FEBRICK" << std::endl;
-    
+
     for(int i=0;i<loc_part_verts.size();i++)
     {
         int loc_vid = loc_part_verts[i];
         int glob_vid = lpartv2gv[loc_vid];
-        myfilet << Verts[loc_vid].x << " " << Verts[loc_vid].y << " " << Verts[loc_vid].z << " " << dudx_vmap[glob_vid] << " " << dudy_vmap[glob_vid]<< " " << dudz_vmap[glob_vid]<< std::endl;
+        myfilet << Verts[loc_vid].x << " " << Verts[loc_vid].y << " " << Verts[loc_vid].z << " " << dudx_vmap[glob_vid] << " " << dudy_vmap[glob_vid] << " " << dudz_vmap[glob_vid] << std::endl;
     }
-    
+
     for(int i=0;i<hexes.size();i++)
     {
         myfilet << hexes[i][0]+1 << " " << hexes[i][1]+1 << " "
@@ -237,18 +304,14 @@ int main(int argc, char** argv) {
                 << hexes[i][4]+1 << " " << hexes[i][5]+1 << " "
                 << hexes[i][6]+1 << " " << hexes[i][7]+1 <<  std::endl;
     }
-    
+
     myfilet.close();
-    
-    
-    
-    
-    
     //==================================================================================
+
+    /*
     
     
-    
-    
+     
     int nlElem = us3d->ien->getNrow();
     int nElem  = us3d->ien->getNglob();
     int nvg    = us3d->xcn->getNglob();
@@ -365,9 +428,8 @@ int main(int argc, char** argv) {
             std::cout << " --::-- Parallel gradient reconstruction test has PASSED. --::-- " << std::endl;
         }
     }
-    
-    /* */
-    
+    */
     MPI_Finalize();
     
 }
+

@@ -1008,7 +1008,7 @@ std::map<int,Array<double>*> ComputeMetric(Partition* Pa,
     int rank;
     MPI_Comm_rank(comm, &rank);
     //+++++++++++++++++++++++++++++++++++++++++++
-    //++++  Scaling eigenvalues/eigenvectors   ++
+    //++++  Scaling eigenvalues/eigenvectors ++++
     double hmin         = metric_inputs[1];
     double hmax         = metric_inputs[2];
     double f            = metric_inputs[3];
@@ -1026,16 +1026,16 @@ std::map<int,Array<double>*> ComputeMetric(Partition* Pa,
         int glob_vid = itm->first;
         
         Hmet[0] = Hess_vm[glob_vid]->getVal(0,0);
-        Hmet[1] = Hess_vm[glob_vid]->getVal(0,1);
-        Hmet[2] = Hess_vm[glob_vid]->getVal(0,2);
+        Hmet[1] = Hess_vm[glob_vid]->getVal(1,0);
+        Hmet[2] = Hess_vm[glob_vid]->getVal(2,0);
 
         Hmet[3] = Hess_vm[glob_vid]->getVal(1,0);
-        Hmet[4] = Hess_vm[glob_vid]->getVal(1,1);
-        Hmet[5] = Hess_vm[glob_vid]->getVal(1,2);
+        Hmet[4] = Hess_vm[glob_vid]->getVal(3,0);
+        Hmet[5] = Hess_vm[glob_vid]->getVal(4,0);
 
         Hmet[6] = Hess_vm[glob_vid]->getVal(2,0);
-        Hmet[7] = Hess_vm[glob_vid]->getVal(2,1);
-        Hmet[8] = Hess_vm[glob_vid]->getVal(2,2);
+        Hmet[7] = Hess_vm[glob_vid]->getVal(4,0);
+        Hmet[8] = Hess_vm[glob_vid]->getVal(5,0);
         
         double * WR = new double[3];
         double * WI = new double[3];
@@ -1064,6 +1064,7 @@ std::map<int,Array<double>*> ComputeMetric(Partition* Pa,
         WRn[0] = std::min(std::max(f*fabs(eig->Dre[0]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
         WRn[1] = std::min(std::max(f*fabs(eig->Dre[1]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
         WRn[2] = std::min(std::max(f*fabs(eig->Dre[2]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
+        
         DR->setVal(0,0,WRn[0]);DR->setVal(0,1,0.0);DR->setVal(0,1,0.0);
         DR->setVal(1,0,0.0);DR->setVal(1,1,WRn[1]);DR->setVal(1,2,0.0);
         DR->setVal(2,0,0.0);DR->setVal(2,1,0.0);DR->setVal(2,2,WRn[2]);

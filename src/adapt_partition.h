@@ -21,15 +21,17 @@ class Partition {
     void CreatePartitionDomain();
     std::vector<double> PartitionAuxilaryData(Array<double>* U, MPI_Comm comm);
     std::map<int,double> CommunicateLocalDataUS3D(Array<double>* U, MPI_Comm comm);
-    std::map<int,double> CommunicateAdjacentDataUS3D(std::map<int,double> U, MPI_Comm comm);
+    std::map<int,double> CommunicateStateAdjacentElements(std::map<int,double> U, MPI_Comm comm);
+    std::map<int,Array<double>* > CommunicateStateVecAdjacentElements(std::map<int,Array<double>* > U, int nvar, MPI_Comm comm);
     void AddAdjacentVertexDataUS3D(std::map<int,double> &Uv, MPI_Comm comm);
-    
+    void AddStateVecForAdjacentVertices(std::map<int,Array<double>* > &Uv, int nvar, MPI_Comm comm);
     i_part_map* getElement2EntityPerPartition(ParArray<int>* iee, std::vector<int> Loc_Elem_Ne, MPI_Comm comm);
     i_part_map* getFace2EntityPerPartition(ParArray<int>* ife, MPI_Comm comm);
     i_part_map* getFace2NodePerPartition(ParArray<int>* ifn, MPI_Comm comm);
     Domain* getPartitionDomain();
     std::map<int,double> ReduceFieldToVertices(std::map<int,double> Uelem);
     std::map<int,double> ReduceFieldToAllVertices(std::map<int,double> Uelem);
+    std::map<int,Array<double>* > ReduceStateVecToAllVertices(std::map<int,Array<double>* > UaddAdj, int nvar);
     std::map<int,Array<double>*> ReduceMetricToVertices(std::map<int,Array<double>* > Telem);
     std::map<int,int> getGlobalVert2GlobalElement();
 
@@ -54,6 +56,7 @@ class Partition {
     ParArray<int>* getLocalPartition();
     Array<int>* getGlobalPartition();
     std::vector<Vert> getLocalVerts();
+    std::map<int,std::map<int,double> > getNode2NodeMap();
     Vert getLocalVert(int v_loc_id);
     
     std::vector<std::vector<int> > getLocalElem2GlobalVert();
@@ -105,13 +108,14 @@ class Partition {
       std::vector<int> LocAndAdj_Elem_Varia;
       std::map<int,int> LocElem2Nv;
       std::map<int,int> LocElem2Nf;
+      int NelGlob;
       int nloc;
       int eloc;
       int vloc;
       int floc;
       int* xadj;
       int* adjcny;
-    
+      
       std::vector<int> loc_r_elem;
       std::vector<int> loc_r_nv_elem;
       std::vector<int> loc_r_nf_elem;

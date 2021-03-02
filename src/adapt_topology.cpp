@@ -102,156 +102,161 @@ Mesh_Topology::Mesh_Topology(Partition* Pa, MPI_Comm comm)
         {
             int adjID = iee_part_map->i_map[gEl][s];
             int Nvadj = LocElem2Nv[adjID];
-             
-            for(int k=0;k<Nvadj;k++)
+            if(adjID<Nel)
             {
-               int gV = gE2gV[adjID][k];
-               if(vs.find(gV)==vs.end())
-               {
-                 vs.insert(gV);
-                   vrts.push_back(gV);
-               }
-            }
-            
-            int faceid = ief_part_map->i_map[gEl][s];
-            Vert* Vface = new Vert;
-            int NvPerF = if_Nv_part_map->i_map[faceid][0];
-            double* F = new double[NvPerF*3];
-            
-            for(int r=0;r<NvPerF;r++)
-            {
-                int gvid = ifn_part_map->i_map[faceid][r];
-                int lvid = gV2lV[gvid];
-                
-                vert2ref[gvid] = ref;
-                ref2vert[ref].push_back(gvid);
-
-                Vert* V = new Vert;
-                V->x    = locVerts[lvid].x;
-                V->y    = locVerts[lvid].y;
-                V->z    = locVerts[lvid].z;
-                
-                F[r*3+0] = V->x;
-                F[r*3+1] = V->y;
-                F[r*3+2] = V->z;
-                
-                Vface->x = Vface->x+locVerts[lvid].x;
-                Vface->y = Vface->y+locVerts[lvid].y;
-                Vface->z = Vface->z+locVerts[lvid].z;
-
-                face.push_back(V);
-            }
-            
-            if(NvPerF==3) // triangle
-            {
-                Vface->x = Vface->x/NvPerF;
-                Vface->y = Vface->y/NvPerF;
-                Vface->z = Vface->z/NvPerF;
-                
-                Vec3D* r0 = new Vec3D;
-                //double Lr = ComputeEdgeLength(Vface,Vijk);
-
-                r0->c0 = (Vface->x-Vijk->x);///Lr;
-                r0->c1 = (Vface->y-Vijk->y);///Lr;
-                r0->c2 = (Vface->z-Vijk->z);///Lr;
-                
-                v0->c0 = face[1]->x-face[0]->x;
-                v0->c1 = face[1]->y-face[0]->y;
-                v0->c2 = face[1]->z-face[0]->z;
-
-                v1->c0 = face[2]->x-face[0]->x;
-                v1->c1 = face[2]->y-face[0]->y;
-                v1->c2 = face[2]->z-face[0]->z;
-                
-                Vec3D* n0 = ComputeSurfaceNormal(v0,v1);
-                orient0   = DotVec3D(r0,n0);
-                
-                if(orient0<0.0)
+                for(int k=0;k<Nvadj;k++)
                 {
-                    NegateVec3D(n0);
+                   int gV = gE2gV[adjID][k];
+                   if(vs.find(gV)==vs.end())
+                   {
+                     vs.insert(gV);
+                       vrts.push_back(gV);
+                   }
                 }
                 
-                face2ref[faceid]        = ref;
-                ref2face[ref].push_back(faceid);
-                int ref = if_ref_part_map->i_map[faceid][0];
-                if(ref!=2)
+                int faceid = ief_part_map->i_map[gEl][s];
+                Vert* Vface = new Vert;
+                int NvPerF = if_Nv_part_map->i_map[faceid][0];
+                double* F = new double[NvPerF*3];
+                
+                for(int r=0;r<NvPerF;r++)
                 {
-                    Bface2Element[faceid]   = gEl;
-                    Bface2Normal[faceid]    = n0;
-                    Bface2LocID[faceid]     = s;
+                    int gvid = ifn_part_map->i_map[faceid][r];
+                    int lvid = gV2lV[gvid];
+                    
+                    vert2ref[gvid] = ref;
+                    ref2vert[ref].push_back(gvid);
+
+                    Vert* V = new Vert;
+                    V->x    = locVerts[lvid].x;
+                    V->y    = locVerts[lvid].y;
+                    V->z    = locVerts[lvid].z;
+                    
+                    F[r*3+0] = V->x;
+                    F[r*3+1] = V->y;
+                    F[r*3+2] = V->z;
+                    
+                    Vface->x = Vface->x+locVerts[lvid].x;
+                    Vface->y = Vface->y+locVerts[lvid].y;
+                    Vface->z = Vface->z+locVerts[lvid].z;
+
+                    face.push_back(V);
                 }
                 
-                if(ref!=2)
+                if(NvPerF==3) // triangle
                 {
+                    Vface->x = Vface->x/NvPerF;
+                    Vface->y = Vface->y/NvPerF;
+                    Vface->z = Vface->z/NvPerF;
+                    
+                    Vec3D* r0 = new Vec3D;
+                    //double Lr = ComputeEdgeLength(Vface,Vijk);
+
+                    r0->c0 = (Vface->x-Vijk->x);///Lr;
+                    r0->c1 = (Vface->y-Vijk->y);///Lr;
+                    r0->c2 = (Vface->z-Vijk->z);///Lr;
+                    
+                    v0->c0 = face[1]->x-face[0]->x;
+                    v0->c1 = face[1]->y-face[0]->y;
+                    v0->c2 = face[1]->z-face[0]->z;
+
+                    v1->c0 = face[2]->x-face[0]->x;
+                    v1->c1 = face[2]->y-face[0]->y;
+                    v1->c2 = face[2]->z-face[0]->z;
+                    
+                    Vec3D* n0 = ComputeSurfaceNormal(v0,v1);
+                    orient0   = DotVec3D(r0,n0);
+                    
+                    if(orient0<0.0)
+                    {
+                        NegateVec3D(n0);
+                    }
+                    
                     face2ref[faceid]        = ref;
                     ref2face[ref].push_back(faceid);
-                }
+                    int ref = if_ref_part_map->i_map[faceid][0];
+                    if(ref!=2)
+                    {
+                        Bface2Element[faceid]   = gEl;
+                        Bface2Normal[faceid]    = n0;
+                        Bface2LocID[faceid]     = s;
+                    }
+                    
+                    if(ref!=2)
+                    {
+                        face2ref[faceid]        = ref;
+                        ref2face[ref].push_back(faceid);
+                    }
 
-                
-                ds0 = ComputeTriSurfaceArea(F);
-                dS[gEl].push_back(ds0);
-                normals[gEl].push_back(n0);
-                dxfxc[gEl].push_back(r0);
-                
-                
-            }
-            if(NvPerF==4) // quad
-            {
-                Vface->x = Vface->x/NvPerF;
-                Vface->y = Vface->y/NvPerF;
-                Vface->z = Vface->z/NvPerF;
-                
-    //          L0 = sqrt((Vface->x-Vijk->x)*(Vface->x-Vijk->x)
-    //                   +(Vface->y-Vijk->y)*(Vface->y-Vijk->y)
-    //                   +(Vface->z-Vijk->z)*(Vface->z-Vijk->z));
-                
-                Vec3D* r0 = new Vec3D;
-                //double Lr = ComputeEdgeLength(Vface,Vijk);
-                r0->c0 = (Vface->x-Vijk->x);///Lr
-                r0->c1 = (Vface->y-Vijk->y);///Lr
-                r0->c2 = (Vface->z-Vijk->z);///Lr
-                
-                v0->c0 = face[1]->x-face[0]->x;
-                v0->c1 = face[1]->y-face[0]->y;
-                v0->c2 = face[1]->z-face[0]->z;
+                    
+                    ds0 = ComputeTriSurfaceArea(F);
+                    dS[gEl].push_back(ds0);
+                    normals[gEl].push_back(n0);
+                    dxfxc[gEl].push_back(r0);
+                    
+                    
+                }
+                if(NvPerF==4) // quad
+                {
+                    Vface->x = Vface->x/NvPerF;
+                    Vface->y = Vface->y/NvPerF;
+                    Vface->z = Vface->z/NvPerF;
+                    
+        //          L0 = sqrt((Vface->x-Vijk->x)*(Vface->x-Vijk->x)
+        //                   +(Vface->y-Vijk->y)*(Vface->y-Vijk->y)
+        //                   +(Vface->z-Vijk->z)*(Vface->z-Vijk->z));
+                    
+                    Vec3D* r0 = new Vec3D;
+                    //double Lr = ComputeEdgeLength(Vface,Vijk);
+                    r0->c0 = (Vface->x-Vijk->x);///Lr
+                    r0->c1 = (Vface->y-Vijk->y);///Lr
+                    r0->c2 = (Vface->z-Vijk->z);///Lr
+                    
+                    v0->c0 = face[1]->x-face[0]->x;
+                    v0->c1 = face[1]->y-face[0]->y;
+                    v0->c2 = face[1]->z-face[0]->z;
 
-                v1->c0 = face[3]->x-face[0]->x;
-                v1->c1 = face[3]->y-face[0]->y;
-                v1->c2 = face[3]->z-face[0]->z;
-                
-                Vec3D* n0 = ComputeSurfaceNormal(v0,v1);
-                orient0   = DotVec3D(r0,n0);
-                
-                if(orient0<0.0)
-                {
-                    NegateVec3D(n0);
-                }
-                
-                face2ref[faceid]        = ref;
-                ref2face[ref].push_back(faceid);
-                int ref = if_ref_part_map->i_map[faceid][0];
-                if(ref!=2)
-                {
-                    Bface2Element[faceid]   = gEl;
-                    Bface2Normal[faceid]    = n0;
-                    Bface2LocID[faceid]     = s;
-                }
-                
-                if(ref!=2)
-                {
+                    v1->c0 = face[3]->x-face[0]->x;
+                    v1->c1 = face[3]->y-face[0]->y;
+                    v1->c2 = face[3]->z-face[0]->z;
+                    
+                    Vec3D* n0 = ComputeSurfaceNormal(v0,v1);
+                    orient0   = DotVec3D(r0,n0);
+                    
+                    if(orient0<0.0)
+                    {
+                        NegateVec3D(n0);
+                    }
+                    
                     face2ref[faceid]        = ref;
                     ref2face[ref].push_back(faceid);
-                }
+                    int ref = if_ref_part_map->i_map[faceid][0];
+                    if(ref!=2)
+                    {
+                        Bface2Element[faceid]   = gEl;
+                        Bface2Normal[faceid]    = n0;
+                        Bface2LocID[faceid]     = s;
+                    }
+                    
+                    if(ref!=2)
+                    {
+                        face2ref[faceid]        = ref;
+                        ref2face[ref].push_back(faceid);
+                    }
 
-                
-                ds0 = ComputeQuadSurfaceArea(F);
-                dS[gEl].push_back(ds0);
-                normals[gEl].push_back(n0);
-                dxfxc[gEl].push_back(r0);
-                
+                    
+                    ds0 = ComputeQuadSurfaceArea(F);
+                    dS[gEl].push_back(ds0);
+                    normals[gEl].push_back(n0);
+                    dxfxc[gEl].push_back(r0);
+                    
+                }
+                delete[] F;
+                face.clear();
             }
-            delete[] F;
-            face.clear();
+            
+            
+            
        
         }
 
