@@ -1908,7 +1908,7 @@ int main(int argc, char** argv) {
                                MMG5_ARG_end);
                 
                 std::cout<<"Started writing the adapted hybrid mesh in US3D format..."<<std::endl;
-                WriteUS3DGridFromMMG(mmgMesh_hyb, us3d, bnd_face_map);
+                WriteUS3DGridFromMMG_it0(mmgMesh_hyb, us3d, bnd_face_map);
                 std::cout<<"Finished writing the adapted hybrid mesh in US3D format..."<<std::endl;
                 //
             }

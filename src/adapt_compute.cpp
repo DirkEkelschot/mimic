@@ -192,7 +192,7 @@ double ComputeJ(double*P, int ElType){
 }
 
 
-inline double ComputeEdgeLength(Vert* v0, Vert* v1)
+double ComputeEdgeLength(Vert* v0, Vert* v1)
 {
     return sqrt((v0->x - v1->x) * (v0->x - v1->x)+
                 (v0->y - v1->y) * (v0->y - v1->y)+
