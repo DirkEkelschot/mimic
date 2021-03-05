@@ -21,8 +21,8 @@ class Partition {
     void CreatePartitionDomain();
     std::vector<double> PartitionAuxilaryData(Array<double>* U, MPI_Comm comm);
     std::map<int,double> CommunicateLocalDataUS3D(Array<double>* U, MPI_Comm comm);
-    std::map<int,double> CommunicateStateAdjacentElements(std::map<int,double> U, MPI_Comm comm);
-    std::map<int,Array<double>* > CommunicateStateVecAdjacentElements(std::map<int,Array<double>* > U, int nvar, MPI_Comm comm);
+    void AddStateForAdjacentElements(std::map<int,double> U, MPI_Comm comm);
+    void AddStateVecForAdjacentElements(std::map<int,Array<double>* > &U, int nvar, MPI_Comm comm);
     void AddAdjacentVertexDataUS3D(std::map<int,double> &Uv, MPI_Comm comm);
     void AddStateVecForAdjacentVertices(std::map<int,Array<double>* > &Uv, int nvar, MPI_Comm comm);
     i_part_map* getElement2EntityPerPartition(ParArray<int>* iee, std::vector<int> Loc_Elem_Ne, MPI_Comm comm);
@@ -55,9 +55,9 @@ class Partition {
     std::vector<int> getLocAndAdj_Elem_Nf();
     ParArray<int>* getLocalPartition();
     Array<int>* getGlobalPartition();
-    std::vector<Vert> getLocalVerts();
+    std::vector<Vert*> getLocalVerts();
     std::map<int,std::map<int,double> > getNode2NodeMap();
-    Vert getLocalVert(int v_loc_id);
+    Vert* getLocalVert(int v_loc_id);
     
     std::vector<std::vector<int> > getLocalElem2GlobalVert();
     std::vector<std::vector<int> > getLocalElem2LocalVert();
@@ -130,7 +130,7 @@ class Partition {
       //Array<int>* LocAndAdj_Elem;
       ParArray<int>* part;
       Array<int>* part_global;
-      std::vector<Vert> LocalVerts;
+      std::vector<Vert*> LocalVerts;
       
 
       std::set<int> unique_vertIDs_on_rank_set;

@@ -9,24 +9,26 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_Vrt_US3D(Partition* Pa, std::map<i
    // Get the rank of the process
    int world_rank;
    MPI_Comm_rank(comm, &world_rank);
-   std::vector<Vert> LocalVs             = Pa->getLocalVerts();
-   std::map<int,std::vector<int> > gE2lV = Pa->getGlobElem2LocVerts();
-   std::map<int,std::vector<int> > gE2gF = Pa->getglobElem2globFaces();
-   std::map<int,int> gV2lV               = Pa->getGlobalVert2LocalVert();
-   std::map<int,int> gE2lE               = Pa->getGlobalElement2LocalElement();
-   std::vector<int> Loc_Elem             = Pa->getLocElem();
+   std::vector<Vert*> LocalVs                 = Pa->getLocalVerts();
+   std::map<int,std::vector<int> > gE2lV      = Pa->getGlobElem2LocVerts();
+   std::map<int,std::vector<int> > gE2gF      = Pa->getglobElem2globFaces();
+   std::map<int,int> gV2lV                    = Pa->getGlobalVert2LocalVert();
+   std::map<int,int> gE2lE                    = Pa->getGlobalElement2LocalElement();
+   std::vector<int> Loc_Elem                  = Pa->getLocElem();
    std::map<int,std::vector<int> > scheme_E2V = meshTopo->getScheme_E2V();
-   int nLoc_Elem                         = Loc_Elem.size();
+   int nLoc_Elem                              = Loc_Elem.size();
+   
+   
     
-   int Nel = Pa->getGlobalPartition()->getNrow();
+   int Nel                      = Pa->getGlobalPartition()->getNrow();
    i_part_map*  if_ref_vec      = Pa->getIFREFpartmap();
    i_part_map*  ifn_vec         = Pa->getIFNpartmap();
    i_part_map* ief_part_map     = Pa->getIEFpartmap();
    i_part_map*  iee_vec         = Pa->getIEEpartmap();
    i_part_map* if_Nv_part_map   = Pa->getIF_Nvpartmap();
 
-   std::vector<std::vector<double> > iee_dist;
-   std::vector<double> dist;
+//   std::vector<std::vector<double> > iee_dist;
+//   std::vector<double> dist;
 
    std::map<int,Array<double>* > dudx_map;
    double d;
@@ -37,9 +39,9 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_Vrt_US3D(Partition* Pa, std::map<i
    int lid = 0;
    double u_ijk, u_po;
     
-   int el_contr = 1;
+   int el_contr = 0;
    int nadj_el = 0;
-   //Array<double>* dudx = new Array<double>(nLoc_Elem,3);
+
    std::map<int,int> LocElem2Nf = Pa->getLocElem2Nf();
    std::map<int,int> LocElem2Nv = Pa->getLocElem2Nv();
 
@@ -71,13 +73,15 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_Vrt_US3D(Partition* Pa, std::map<i
                Vrt->setVal(q,j,0.0);
            }
        }
+       
        double* Pijk = new double[NvPEl*3];
+       
        for(int k=0;k<gE2lV[elID].size();k++)
        {
            loc_vid     = gE2lV[elID][k];
-           Pijk[k*3+0] = LocalVs[loc_vid].x;
-           Pijk[k*3+1] = LocalVs[loc_vid].y;
-           Pijk[k*3+2] = LocalVs[loc_vid].z;
+           Pijk[k*3+0] = LocalVs[loc_vid]->x;
+           Pijk[k*3+1] = LocalVs[loc_vid]->y;
+           Pijk[k*3+2] = LocalVs[loc_vid]->z;
        }
        
        Vert* Vijk   = ComputeCentroidCoord(Pijk,NvPEl);
@@ -90,7 +94,6 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_Vrt_US3D(Partition* Pa, std::map<i
            for(int j=0;j<nadj_el;j++)
            {
                int adjID = iee_vec->i_map[elID][j];
-               int NvPAdjEl = LocElem2Nv[adjID];
                double* Padj = new double[gE2lV[adjID].size()*3];
 
                if(adjID<Nel)
@@ -100,9 +103,9 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_Vrt_US3D(Partition* Pa, std::map<i
                    for(int k=0;k<gE2lV[adjID].size();k++)
                    {
                        loc_vid     = gE2lV[adjID][k];
-                       Padj[k*3+0] = LocalVs[loc_vid].x;
-                       Padj[k*3+1] = LocalVs[loc_vid].y;
-                       Padj[k*3+2] = LocalVs[loc_vid].z;
+                       Padj[k*3+0] = LocalVs[loc_vid]->x;
+                       Padj[k*3+1] = LocalVs[loc_vid]->y;
+                       Padj[k*3+2] = LocalVs[loc_vid]->z;
                    }
                    
                    Vert* Vadj_el = ComputeCentroidCoord(Padj,gE2lV[adjID].size());
@@ -117,17 +120,16 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_Vrt_US3D(Partition* Pa, std::map<i
                    
                    b->setVal(t,0,(1.0/d)*(u_po-u_ijk));
                    delete Vadj_el;
-                   dist.push_back(d);
+                   //dist.push_back(d);
                    t++;
                }
                else
                {
                    bflip = 1;
 
-                   //int fid = gE2gF[elID][j];
                    int fid    = ief_part_map->i_map[elID][j];
                    int NvPerF = if_Nv_part_map->i_map[fid][0];
-                   //std::cout << "NvPerF " << NvPerF << std::endl;
+                   
                    Vc->x = 0.0;
                    Vc->y = 0.0;
                    Vc->z = 0.0;
@@ -137,9 +139,9 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_Vrt_US3D(Partition* Pa, std::map<i
                        int gvid = ifn_vec->i_map[fid][s];
                        int lvid = gV2lV[gvid];
 
-                       Vc->x = Vc->x+LocalVs[lvid].x;
-                       Vc->y = Vc->y+LocalVs[lvid].y;
-                       Vc->z = Vc->z+LocalVs[lvid].z;
+                       Vc->x = Vc->x+LocalVs[lvid]->x;
+                       Vc->y = Vc->y+LocalVs[lvid]->y;
+                       Vc->z = Vc->z+LocalVs[lvid]->z;
                    }
 
                    Vc->x = Vc->x/NvPerF;
@@ -153,6 +155,7 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_Vrt_US3D(Partition* Pa, std::map<i
                    //u_po = ghost->getVal(adjID-Nel,0);
                    //u_po = u_ijk;
                    //u_po = U[elID];
+                   
                    double u_fpo = ghost->getVal(adjID-Nel,0);
 
                    Vrt->setVal(t,0,(1.0/d)*(Vc->x-Vijk->x));
@@ -161,8 +164,11 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_Vrt_US3D(Partition* Pa, std::map<i
 
                    b->setVal(t,0,(1.0/d)*(0.0));
                    t++;
-                   dist.push_back(d);
+                   
+                   //dist.push_back(d);
                }
+               
+               delete[] Padj;
           }
        }
        
@@ -170,7 +176,7 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_Vrt_US3D(Partition* Pa, std::map<i
        if(bflip==1)
        {
            Array<double>* b_el     = new Array<double>(nadj_el,1);
-           double* A_cm_el = new double[nadj_tot*3];
+           double* A_cm_el         = new double[nadj_tot*3];
 
            for(int q=0;q<nadj_el;q++)
            {
@@ -182,23 +188,24 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_Vrt_US3D(Partition* Pa, std::map<i
                b_el->setVal(q,0,b->getVal(q,0));
            }
            
-
             Array<double>* x = SolveQR(A_cm_el,nadj_el,3,b_el);
             dudx_map[elID] = x;
             delete[] A_cm_el;
+            delete b_el;
+            //delete x;
        }
        else
        {
            for(int j=0;j<nadj_vrts;j++)
            {
-               int gvid = vrts[j];
+               int gvid    = vrts[j];
                double Uvrt = Uv[gvid];
 
                int lvid = gV2lV[gvid];
 
-               Vadj->x = LocalVs[lvid].x;
-               Vadj->y = LocalVs[lvid].y;
-               Vadj->z = LocalVs[lvid].z;
+               Vadj->x = LocalVs[lvid]->x;
+               Vadj->y = LocalVs[lvid]->y;
+               Vadj->z = LocalVs[lvid]->z;
     //
                d = sqrt((Vadj->x-Vijk->x)*(Vadj->x-Vijk->x)+
                         (Vadj->y-Vijk->y)*(Vadj->y-Vijk->y)+
@@ -208,46 +215,44 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_Vrt_US3D(Partition* Pa, std::map<i
                Vrt->setVal(t,1,(1.0/d)*(Vadj->y-Vijk->y));
                Vrt->setVal(t,2,(1.0/d)*(Vadj->z-Vijk->z));
                b->setVal(t,0,(1.0/d)*(Uvrt-u_ijk));
-               dist.push_back(d);
+               //dist.push_back(d);
                t++;
           }
            
           double* A_cm = new double[nadj_tot*3];
-           //std::cout << "===================================="<<std::endl;
           for(int s=0;s<nadj_tot;s++)
           {
               for(int j=0;j<3;j++)
               {
                   A_cm[j*nadj_tot+s] = Vrt->getVal(s,j);
-                  //std::cout << Vrt->getVal(s,j) << " ";
               }
-              //std::cout << std::endl;
-              //std::cout << b->getVal(s,0)<< std::endl;
           }
-           //std::cout << "===================================="<<std::endl;
 
            Array<double>* x = SolveQR(A_cm,nadj_tot,3,b);
-           //std::cout << x->getVal(0,0) << " " << x->getVal(0,1) << " " << x->getVal(0,2) << " " << nadj_vrts << std::endl;
            dudx_map[elID] = x;
            delete[] A_cm;
 
        }
-       
-       
-       
        
        //delete x;
        delete[] Pijk;
        delete Vrt_T;
        delete Vrt;
        delete b;
-
-       iee_dist.push_back(dist);
-       dist.clear();
+       delete Vijk;
+       //iee_dist.push_back(dist);
+       //dist.clear();
    }
-
-   //delete Vc;
-
+    
+   delete Vadj;
+   LocalVs.clear();
+   gE2lV.clear();
+   gE2lE.clear();
+   gV2lV.clear();
+   gE2gF.clear();
+   scheme_E2V.clear();
+   Loc_Elem.clear();
+    
    return dudx_map;
 }
 
@@ -261,7 +266,7 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_US3D(Partition* Pa, std::map<int,d
    // Get the rank of the process
    int world_rank;
    MPI_Comm_rank(comm, &world_rank);
-   std::vector<Vert> LocalVs             = Pa->getLocalVerts();
+   std::vector<Vert*> LocalVs             = Pa->getLocalVerts();
    std::map<int,std::vector<int> > gE2lV = Pa->getGlobElem2LocVerts();
    std::map<int,std::vector<int> > gE2gF = Pa->getglobElem2globFaces();
    std::map<int,int> gV2lV               = Pa->getGlobalVert2LocalVert();
@@ -285,6 +290,7 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_US3D(Partition* Pa, std::map<int,d
    int loc_vid,adjID,elID;
    int cou = 0;
    Vert* Vc = new Vert;
+   Vert* Vadj;
    int lid = 0;
    double u_ijk, u_po;
    //Array<double>* dudx = new Array<double>(nLoc_Elem,3);
@@ -313,9 +319,9 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_US3D(Partition* Pa, std::map<int,d
        for(int k=0;k<gE2lV[elID].size();k++)
        {
            loc_vid     = gE2lV[elID][k];
-           Pijk[k*3+0] = LocalVs[loc_vid].x;
-           Pijk[k*3+1] = LocalVs[loc_vid].y;
-           Pijk[k*3+2] = LocalVs[loc_vid].z;
+           Pijk[k*3+0] = LocalVs[loc_vid]->x;
+           Pijk[k*3+1] = LocalVs[loc_vid]->y;
+           Pijk[k*3+2] = LocalVs[loc_vid]->z;
        }
        
        Vert* Vijk   = ComputeCentroidCoord(Pijk,NvPEl);
@@ -337,12 +343,12 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_US3D(Partition* Pa, std::map<int,d
                for(int k=0;k<gE2lV[adjID].size();k++)
                {
                    loc_vid     = gE2lV[adjID][k];
-                   Padj[k*3+0] = LocalVs[loc_vid].x;
-                   Padj[k*3+1] = LocalVs[loc_vid].y;
-                   Padj[k*3+2] = LocalVs[loc_vid].z;
+                   Padj[k*3+0] = LocalVs[loc_vid]->x;
+                   Padj[k*3+1] = LocalVs[loc_vid]->y;
+                   Padj[k*3+2] = LocalVs[loc_vid]->z;
                }
                
-               Vert* Vadj = ComputeCentroidCoord(Padj,gE2lV[adjID].size());
+               Vadj = ComputeCentroidCoord(Padj,gE2lV[adjID].size());
                
                d = sqrt((Vadj->x-Vijk->x)*(Vadj->x-Vijk->x)+
                         (Vadj->y-Vijk->y)*(Vadj->y-Vijk->y)+
@@ -374,9 +380,9 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_US3D(Partition* Pa, std::map<int,d
                    int gvid = ifn_vec->i_map[fid][s];
                    int lvid = gV2lV[gvid];
 
-                   Vc->x = Vc->x+LocalVs[lvid].x;
-                   Vc->y = Vc->y+LocalVs[lvid].y;
-                   Vc->z = Vc->z+LocalVs[lvid].z;
+                   Vc->x = Vc->x+LocalVs[lvid]->x;
+                   Vc->y = Vc->y+LocalVs[lvid]->y;
+                   Vc->z = Vc->z+LocalVs[lvid]->z;
                }
 
                
@@ -406,8 +412,10 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_US3D(Partition* Pa, std::map<int,d
                
                b->setVal(t,0,(1.0/d)*(0.0));
                t++;
-               dist.push_back(d);
+               //dist.push_back(d);
            }
+           
+           delete[] Padj;
            
       }
        
@@ -432,11 +440,10 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_US3D(Partition* Pa, std::map<int,d
        delete Vrt;
        delete b;
 
-       iee_dist.push_back(dist);
-       dist.clear();
+       //iee_dist.push_back(dist);
+       //dist.clear();
    }
 
-   //delete Vc;
 
    return dudx_map;
 }
@@ -514,9 +521,12 @@ std::map<int,Array<double>* >  ComputedUdx_MGG(Partition* Pa, std::map<int,doubl
         t = clock();
         //communicate grad phi!!!
         
-        std::map<int,double> dUdx_p_bnd = Pa->CommunicateStateAdjacentElements(gu_c_x_m, comm);
-        std::map<int,double> dUdy_p_bnd = Pa->CommunicateStateAdjacentElements(gu_c_y_m, comm);
-        std::map<int,double> dUdz_p_bnd = Pa->CommunicateStateAdjacentElements(gu_c_z_m, comm);
+        Pa->AddStateForAdjacentElements(gu_c_x_m, comm);
+        Pa->AddStateForAdjacentElements(gu_c_y_m, comm);
+        Pa->AddStateForAdjacentElements(gu_c_z_m, comm);
+//        std::map<int,double> dUdx_p_bnd = Pa->CommunicateStateAdjacentElements(gu_c_x_m, comm);
+//        std::map<int,double> dUdy_p_bnd = Pa->CommunicateStateAdjacentElements(gu_c_y_m, comm);
+//        std::map<int,double> dUdz_p_bnd = Pa->CommunicateStateAdjacentElements(gu_c_z_m, comm);
 
         //std::map<int,std::vector<double> > dUdxi_p_bnd = Pa->CommunicateStateAdjacentElementsNew(gu_c_old, comm);
                 
@@ -550,9 +560,9 @@ std::map<int,Array<double>* >  ComputedUdx_MGG(Partition* Pa, std::map<int,doubl
                  if(adjID<Nel)
                  {
                      //l_adjid = gE2lE[adjID];
-                     gu_nb_vx = dUdx_p_bnd[adjID];
-                     gu_nb_vy = dUdy_p_bnd[adjID];
-                     gu_nb_vz = dUdz_p_bnd[adjID];
+                     gu_nb_vx = gu_c_x_m[adjID];
+                     gu_nb_vy = gu_c_y_m[adjID];
+                     gu_nb_vz = gu_c_z_m[adjID];
                      
 //                   gu_nb_vx = dUdxi_p_bnd[adjID][0];//dUdx_p_bnd[adjID];
 //                   gu_nb_vy = dUdxi_p_bnd[adjID][1];//dUdy_p_bnd[adjID];
@@ -623,9 +633,9 @@ std::map<int,Array<double>* >  ComputedUdx_MGG(Partition* Pa, std::map<int,doubl
             gudxi[gEl]->setVal(2,0,1.0/Vol*sum_phiz);
          }
         
-        dUdx_p_bnd.clear();
-        dUdy_p_bnd.clear();
-        dUdz_p_bnd.clear();
+//        dUdx_p_bnd.clear();
+//        dUdy_p_bnd.clear();
+//        dUdz_p_bnd.clear();
         
         MPI_Allreduce(&L2normx, &L2normx_max, 1, MPI_DOUBLE, MPI_MAX, comm);
         MPI_Allreduce(&L2normy, &L2normy_max, 1, MPI_DOUBLE, MPI_MAX, comm);

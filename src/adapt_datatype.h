@@ -7,10 +7,13 @@ struct Mesh{
     Array<double>* xcn;
     Array<int>* ief;
     Array<int>* ien;
+    Array<int>* iet;
     Array<int>* if_ref;
     Array<int>* ifn;
     Array<int>* ife;
+    Array<int>* if_Nv;
 };
+
 
 
 struct US3D{

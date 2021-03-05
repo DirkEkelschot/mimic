@@ -263,94 +263,94 @@ double ComputeVolumeHexCell(double *P)
     double b0,b1,b2,b3;
     double H12=0.0,H47=0.0,H30=0.0,H56=0.0;
     
-    Vert v0;
-    Vert v1;
+    Vert* v0 = new Vert;
+    Vert* v1 = new Vert;
     
-    v0.x = P[0*3+0]; v1.x = P[1*3+0];
-    v0.y = P[0*3+1]; v1.y = P[1*3+1];
-    v0.z = P[0*3+2]; v1.z = P[1*3+2];
+    v0->x = P[0*3+0]; v1->x = P[1*3+0];
+    v0->y = P[0*3+1]; v1->y = P[1*3+1];
+    v0->z = P[0*3+2]; v1->z = P[1*3+2];
     
-    L01 = ComputeEdgeLength(&v0,&v1);
+    L01 = ComputeEdgeLength(v0,v1);
     
-    v0.x = P[1*3+0]; v1.x = P[5*3+0];
-    v0.y = P[1*3+1]; v1.y = P[5*3+1];
-    v0.z = P[1*3+2]; v1.z = P[5*3+2];
+    v0->x = P[1*3+0]; v1->x = P[5*3+0];
+    v0->y = P[1*3+1]; v1->y = P[5*3+1];
+    v0->z = P[1*3+2]; v1->z = P[5*3+2];
     
-    L15 = ComputeEdgeLength(&v0,&v1);
+    L15 = ComputeEdgeLength(v0,v1);
     
-    v0.x = P[1*3+0]; v1.x = P[2*3+0];
-    v0.y = P[1*3+1]; v1.y = P[2*3+1];
-    v0.z = P[1*3+2]; v1.z = P[2*3+2];
+    v0->x = P[1*3+0]; v1->x = P[2*3+0];
+    v0->y = P[1*3+1]; v1->y = P[2*3+1];
+    v0->z = P[1*3+2]; v1->z = P[2*3+2];
     
-    H12 = ComputeEdgeLength(&v0,&v1);
+    H12 = ComputeEdgeLength(v0,v1);
     b0 = 0.5*L01*L15;
     double vol0 = 1.0/3.0*b0*H12;
     //==================================================
 
-    v0.x = P[0*3+0]; v1.x = P[4*3+0];
-    v0.y = P[0*3+1]; v1.y = P[4*3+1];
-    v0.z = P[0*3+2]; v1.z = P[4*3+2];
+    v0->x = P[0*3+0]; v1->x = P[4*3+0];
+    v0->y = P[0*3+1]; v1->y = P[4*3+1];
+    v0->z = P[0*3+2]; v1->z = P[4*3+2];
     
-    L04 = ComputeEdgeLength(&v0,&v1);
+    L04 = ComputeEdgeLength(v0,v1);
     
-    v0.x = P[4*3+0]; v1.x = P[5*3+0];
-    v0.y = P[4*3+1]; v1.y = P[5*3+1];
-    v0.z = P[4*3+2]; v1.z = P[5*3+2];
+    v0->x = P[4*3+0]; v1->x = P[5*3+0];
+    v0->y = P[4*3+1]; v1->y = P[5*3+1];
+    v0->z = P[4*3+2]; v1->z = P[5*3+2];
     
-    L45 = ComputeEdgeLength(&v0,&v1);
+    L45 = ComputeEdgeLength(v0,v1);
     
-    v0.x = P[4*3+0]; v1.x = P[7*3+0];
-    v0.y = P[4*3+1]; v1.y = P[7*3+1];
-    v0.z = P[4*3+2]; v1.z = P[7*3+2];
+    v0->x = P[4*3+0]; v1->x = P[7*3+0];
+    v0->y = P[4*3+1]; v1->y = P[7*3+1];
+    v0->z = P[4*3+2]; v1->z = P[7*3+2];
     
-    H47 = ComputeEdgeLength(&v0,&v1);
+    H47 = ComputeEdgeLength(v0,v1);
     b1 = 0.5*L04*L45;
     double vol1 = 1.0/3.0*b1*H47;
     
     //==================================================
     
-    v0.x = P[3*3+0]; v1.x = P[7*3+0];
-    v0.y = P[3*3+1]; v1.y = P[7*3+1];
-    v0.z = P[3*3+2]; v1.z = P[7*3+2];
+    v0->x = P[3*3+0]; v1->x = P[7*3+0];
+    v0->y = P[3*3+1]; v1->y = P[7*3+1];
+    v0->z = P[3*3+2]; v1->z = P[7*3+2];
     
-    L37 = ComputeEdgeLength(&v0,&v1);
+    L37 = ComputeEdgeLength(v0,v1);
     
-    v0.x = P[2*3+0]; v1.x = P[3*3+0];
-    v0.y = P[2*3+1]; v1.y = P[3*3+1];
-    v0.z = P[2*3+2]; v1.z = P[3*3+2];
+    v0->x = P[2*3+0]; v1->x = P[3*3+0];
+    v0->y = P[2*3+1]; v1->y = P[3*3+1];
+    v0->z = P[2*3+2]; v1->z = P[3*3+2];
     
-    L23 = ComputeEdgeLength(&v0,&v1);
+    L23 = ComputeEdgeLength(v0,v1);
     
-    v0.x = P[3*3+0]; v1.x = P[0*3+0];
-    v0.y = P[3*3+1]; v1.y = P[0*3+1];
-    v0.z = P[3*3+2]; v1.z = P[0*3+2];
+    v0->x = P[3*3+0]; v1->x = P[0*3+0];
+    v0->y = P[3*3+1]; v1->y = P[0*3+1];
+    v0->z = P[3*3+2]; v1->z = P[0*3+2];
    
-    H30 = ComputeEdgeLength(&v0,&v1);
+    H30 = ComputeEdgeLength(v0,v1);
     b2 = 0.5*L37*L23;
     double vol2 = 1.0/3.0*b2*H30;
     
     //==================================================
     
-    v0.x = P[2*3+0]; v1.x = P[6*3+0];
-    v0.y = P[2*3+1]; v1.y = P[6*3+1];
-    v0.z = P[2*3+2]; v1.z = P[6*3+2];
+    v0->x = P[2*3+0]; v1->x = P[6*3+0];
+    v0->y = P[2*3+1]; v1->y = P[6*3+1];
+    v0->z = P[2*3+2]; v1->z = P[6*3+2];
     
-    L26 = ComputeEdgeLength(&v0,&v1);
+    L26 = ComputeEdgeLength(v0,v1);
     
-    v0.x = P[6*3+0]; v1.x = P[7*3+0];
-    v0.y = P[6*3+1]; v1.y = P[7*3+1];
-    v0.z = P[6*3+2]; v1.z = P[7*3+2];
+    v0->x = P[6*3+0]; v1->x = P[7*3+0];
+    v0->y = P[6*3+1]; v1->y = P[7*3+1];
+    v0->z = P[6*3+2]; v1->z = P[7*3+2];
     
-    L67 = ComputeEdgeLength(&v0,&v1);
+    L67 = ComputeEdgeLength(v0,v1);
     
-    v0.x = P[5*3+0]; v1.x = P[6*3+0];
-    v0.y = P[5*3+1]; v1.y = P[6*3+1];
-    v0.z = P[5*3+2]; v1.z = P[6*3+2];
+    v0->x = P[5*3+0]; v1->x = P[6*3+0];
+    v0->y = P[5*3+1]; v1->y = P[6*3+1];
+    v0->z = P[5*3+2]; v1->z = P[6*3+2];
     
-    H56 = ComputeEdgeLength(&v0,&v1);
+    H56 = ComputeEdgeLength(v0,v1);
     b3 = 0.5*L26*L67;
     double vol3 = 1.0/3.0*b3*H56;
-    
+    delete v0,v1;
     return vol0+vol1+vol2+vol3;
 }
 
@@ -399,7 +399,7 @@ double ComputeVolumeTetCell(double *P)
     
     //delete t,s,r;
     //delete[] cross;
-
+    delete a,b,c,d,t,s,r;
     return V;
 }
 
@@ -427,13 +427,10 @@ double ComputeVolumePrismCell(double *P)
     v4->z = P[4*3+2]; v5->z = P[5*3+2];
     
     double La  = ComputeEdgeLength(v0,v2);
-    double Lap = ComputeEdgeLength(v3,v5);
     
     double Lb  = ComputeEdgeLength(v1,v2);
-    double Lbp = ComputeEdgeLength(v4,v5);
     
     double Lc  = ComputeEdgeLength(v0,v1);
-    double Lcp = ComputeEdgeLength(v3,v4);
     
     double p  = La+Lb+Lc;
     //double pp = Lap+Lbp+Lcp;
@@ -451,6 +448,8 @@ double ComputeVolumePrismCell(double *P)
 //
 //    double A = A0+A1+A2+A3+A4;
     double V = A0*(ha+hb+hc)/3.0;
+    
+    delete v0,v1,v2,v3,v4,v5;
     
     return V;
     
@@ -703,6 +702,8 @@ double* ComputeJAtCenter_tet_v2(double*P)
 
     Array<double>* iw0 = MatInv(w0);
     Array<double>* M  = MatMul(a,iw0);
+    delete a;
+    
     return M->data;
 }
 double ComputeDeterminantJ_tet_v2(double*P)
@@ -998,9 +999,8 @@ void UnitTestJacobian()
 
 
 
-std::map<int,Array<double>*> ComputeMetric(Partition* Pa,
-                        std::vector<double> metric_inputs,
-                        std::map<int,Array<double>* > Hess_vm, MPI_Comm comm)
+void ComputeMetric(Partition* Pa,
+                        std::vector<double> metric_inputs, MPI_Comm comm, std::map<int,Array<double>* > &Hess_vm)
 {
     int size;
     MPI_Comm_size(comm, &size);
@@ -1017,7 +1017,7 @@ std::map<int,Array<double>*> ComputeMetric(Partition* Pa,
     double* Hmet = new double[9];
     
     int nVerts = Hess_vm.size();
-    std::map<int,Array<double>*> metric;
+    //std::map<int,Array<double>*> metric;
 
     std::map<int,Array<double>*>::iterator itm;
     int i = 0;
@@ -1036,6 +1036,8 @@ std::map<int,Array<double>*> ComputeMetric(Partition* Pa,
         Hmet[6] = Hess_vm[glob_vid]->getVal(2,0);
         Hmet[7] = Hess_vm[glob_vid]->getVal(4,0);
         Hmet[8] = Hess_vm[glob_vid]->getVal(5,0);
+        
+        //delete Hess_vm[glob_vid];
         
         double * WR = new double[3];
         double * WI = new double[3];
@@ -1076,7 +1078,7 @@ std::map<int,Array<double>*> ComputeMetric(Partition* Pa,
         Array<double>* Rs = MatMul(UR,DR);
         Array<double>* Rf = MatMul(Rs,iVR);
         
-        metric[glob_vid] = Rf;
+        Hess_vm[glob_vid] = Rf;
         
         delete DR;
         delete UR;
@@ -1092,7 +1094,6 @@ std::map<int,Array<double>*> ComputeMetric(Partition* Pa,
     }
     
     delete[] Hmet;
-    return metric;
 }
 
 
@@ -1152,7 +1153,7 @@ Array<double>* ComputeVolumes(Partition* Pa)
     std::vector<int> Loc_Elem               = Pa->getLocElem();
     int nLocElem                            = Loc_Elem.size();
     std::map<int,std::vector<int> > gE2lV   = Pa->getGlobElem2LocVerts();
-    std::vector<Vert> locVerts              = Pa->getLocalVerts();
+    std::vector<Vert*> locVerts              = Pa->getLocalVerts();
     Array<double>* Volumes = new Array<double>(nLocElem,1);
     std::vector<int> vijkIDs;
     double* Pijk = new double[8*3];
@@ -1165,9 +1166,9 @@ Array<double>* ComputeVolumes(Partition* Pa)
        for(k=0;k<vijkIDs.size();k++)
        {
           loc_vid     = vijkIDs[k];
-          Pijk[k*3+0] = locVerts[loc_vid].x;
-          Pijk[k*3+1] = locVerts[loc_vid].y;
-          Pijk[k*3+2] = locVerts[loc_vid].z;
+          Pijk[k*3+0] = locVerts[loc_vid]->x;
+          Pijk[k*3+1] = locVerts[loc_vid]->y;
+          Pijk[k*3+2] = locVerts[loc_vid]->z;
        }
 
        double Vol = ComputeVolumeHexCell(Pijk);

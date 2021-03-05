@@ -19,6 +19,7 @@ Mesh_Topology::Mesh_Topology(Partition* Pa, MPI_Comm comm)
     c = comm;
     Vec3D* v0 = new Vec3D;
     Vec3D* v1 = new Vec3D;
+    
     int Nel = Pa->getGlobalPartition()->getNrow();
     
     MPI_Comm_size(comm, &size);
@@ -26,43 +27,26 @@ Mesh_Topology::Mesh_Topology(Partition* Pa, MPI_Comm comm)
     MPI_Comm_rank(comm, &rank);
     
     std::map<int,std::vector<int> > gE2lV = Pa->getGlobElem2LocVerts();
-    std::vector<Vert> locVerts            = Pa->getLocalVerts();
-    std::map<int,int> gE2lE               = Pa->getGlobalElement2LocalElement();
-    std::map<int,int> lE2gE               = Pa->getLocalElement2GlobalElement();
+    std::vector<Vert*> locVerts  = Pa->getLocalVerts();
     std::map<int,std::vector<int> > gE2gV = Pa->getGlobElem2GlobVerts();
 
-    std::map<int,std::vector<int> > gE2gF = Pa->getglobElem2globFaces();
-    
     std::vector<int> Loc_Elem             = Pa->getLocElem();
     int nLocElem                          = Loc_Elem.size();
     std::map<int,int> gV2lV               = Pa->getGlobalVert2LocalVert();
+        
+    i_part_map* ifn_part_map    = Pa->getIFNpartmap();
+    i_part_map* ief_part_map    = Pa->getIEFpartmap();
+    i_part_map* iee_part_map    = Pa->getIEEpartmap();
+    i_part_map* if_Nv_part_map  = Pa->getIF_Nvpartmap();
     
-    std::vector<int> ElemPart             = Pa->getLocElem();
-    i_part_map* ifn_part_map = Pa->getIFNpartmap();
-    i_part_map* ife_part_map = Pa->getIFEpartmap();
-    i_part_map* ief_part_map = Pa->getIEFpartmap();
-    i_part_map* iee_part_map = Pa->getIEEpartmap();
-    i_part_map* if_Nv_part_map = Pa->getIF_Nvpartmap();
-    i_part_map* if_ref_part_map = Pa->getIFREFpartmap();
-    std::vector<int> vijkIDs;
-    std::map<int,int> LocElem2Nv      = P->getLocElem2Nv();
 
-    cc                     = new Array<double>(nLocElem,3);
-    int tel     = 0;
-    Vert* fc0 = new Vert;
-    Vert* fc1 = new Vert;
-    Vert* fc2 = new Vert;
-    Vert* fc3 = new Vert;
-    Vert* fc4 = new Vert;
-    Vert* fc5 = new Vert;
-    std::vector<Vert*> face;
     
-    int ref   = 0;
-//    std::map<int,int> LocElem2Nv = Pa->getLocElem2Nv();
+    std::vector<int> vijkIDs;
+    std::map<int,int> LocElem2Nv = P->getLocElem2Nv();
+    int tel     = 0;
+    std::vector<Vert*> face;
     std::map<int,int> LocElem2Nf = Pa->getLocElem2Nf();
-    //bnd_m.push_back(zdefs->getVal(zdefs->getNrow()-1,4));
-    //int fint = bnd_map[0];
-    double volume;
+    double volume = 0.0;
     for(int i=0;i<nLocElem;i++)
     {
         int gEl = Loc_Elem[i];
@@ -70,19 +54,18 @@ Mesh_Topology::Mesh_Topology(Partition* Pa, MPI_Comm comm)
         vijkIDs = gE2lV[gEl];
         double* Pijk = new double[NvEl*3];
 
-        //std::cout << "gE2lV[gEl].size() " << gE2lV[gEl].size() << std::endl;
         for(int k=0;k<vijkIDs.size();k++)
         {
            loc_vid     = vijkIDs[k];
-           Pijk[k*3+0] = locVerts[loc_vid].x;
-           Pijk[k*3+1] = locVerts[loc_vid].y;
-           Pijk[k*3+2] = locVerts[loc_vid].z;
+           Pijk[k*3+0] = locVerts[loc_vid]->x;
+           Pijk[k*3+1] = locVerts[loc_vid]->y;
+           Pijk[k*3+2] = locVerts[loc_vid]->z;
         }
 
         Vert* Vijk     = ComputeCentroidCoord(Pijk, vijkIDs.size());
         
         int NfPEl      = LocElem2Nf[gEl];
-//
+
         if(NfPEl == 6)
         {
             volume  = ComputeVolumeHexCell(Pijk);
@@ -95,7 +78,7 @@ Mesh_Topology::Mesh_Topology(Partition* Pa, MPI_Comm comm)
         {
             volume  = ComputeVolumePrismCell(Pijk);
         }
-        Vol[gEl]       = volume;
+        Vol[gEl] = volume;
         std::set<int> vs;
         std::vector<int> vrts;
         for(int s=0;s<NfPEl;s++)
@@ -110,7 +93,7 @@ Mesh_Topology::Mesh_Topology(Partition* Pa, MPI_Comm comm)
                    if(vs.find(gV)==vs.end())
                    {
                      vs.insert(gV);
-                       vrts.push_back(gV);
+                     vrts.push_back(gV);
                    }
                 }
                 
@@ -124,21 +107,21 @@ Mesh_Topology::Mesh_Topology(Partition* Pa, MPI_Comm comm)
                     int gvid = ifn_part_map->i_map[faceid][r];
                     int lvid = gV2lV[gvid];
                     
-                    vert2ref[gvid] = ref;
-                    ref2vert[ref].push_back(gvid);
+                    //vert2ref[gvid] = ref;
+                    //ref2vert[ref].push_back(gvid);
 
                     Vert* V = new Vert;
-                    V->x    = locVerts[lvid].x;
-                    V->y    = locVerts[lvid].y;
-                    V->z    = locVerts[lvid].z;
+                    V->x    = locVerts[lvid]->x;
+                    V->y    = locVerts[lvid]->y;
+                    V->z    = locVerts[lvid]->z;
                     
                     F[r*3+0] = V->x;
                     F[r*3+1] = V->y;
                     F[r*3+2] = V->z;
                     
-                    Vface->x = Vface->x+locVerts[lvid].x;
-                    Vface->y = Vface->y+locVerts[lvid].y;
-                    Vface->z = Vface->z+locVerts[lvid].z;
+                    Vface->x = Vface->x+locVerts[lvid]->x;
+                    Vface->y = Vface->y+locVerts[lvid]->y;
+                    Vface->z = Vface->z+locVerts[lvid]->z;
 
                     face.push_back(V);
                 }
@@ -172,28 +155,10 @@ Mesh_Topology::Mesh_Topology(Partition* Pa, MPI_Comm comm)
                         NegateVec3D(n0);
                     }
                     
-                    face2ref[faceid]        = ref;
-                    ref2face[ref].push_back(faceid);
-                    int ref = if_ref_part_map->i_map[faceid][0];
-                    if(ref!=2)
-                    {
-                        Bface2Element[faceid]   = gEl;
-                        Bface2Normal[faceid]    = n0;
-                        Bface2LocID[faceid]     = s;
-                    }
-                    
-                    if(ref!=2)
-                    {
-                        face2ref[faceid]        = ref;
-                        ref2face[ref].push_back(faceid);
-                    }
-
-                    
                     ds0 = ComputeTriSurfaceArea(F);
                     dS[gEl].push_back(ds0);
                     normals[gEl].push_back(n0);
                     dxfxc[gEl].push_back(r0);
-                    
                     
                 }
                 if(NvPerF==4) // quad
@@ -202,12 +167,7 @@ Mesh_Topology::Mesh_Topology(Partition* Pa, MPI_Comm comm)
                     Vface->y = Vface->y/NvPerF;
                     Vface->z = Vface->z/NvPerF;
                     
-        //          L0 = sqrt((Vface->x-Vijk->x)*(Vface->x-Vijk->x)
-        //                   +(Vface->y-Vijk->y)*(Vface->y-Vijk->y)
-        //                   +(Vface->z-Vijk->z)*(Vface->z-Vijk->z));
-                    
                     Vec3D* r0 = new Vec3D;
-                    //double Lr = ComputeEdgeLength(Vface,Vijk);
                     r0->c0 = (Vface->x-Vijk->x);///Lr
                     r0->c1 = (Vface->y-Vijk->y);///Lr
                     r0->c2 = (Vface->z-Vijk->z);///Lr
@@ -227,30 +187,15 @@ Mesh_Topology::Mesh_Topology(Partition* Pa, MPI_Comm comm)
                     {
                         NegateVec3D(n0);
                     }
-                    
-                    face2ref[faceid]        = ref;
-                    ref2face[ref].push_back(faceid);
-                    int ref = if_ref_part_map->i_map[faceid][0];
-                    if(ref!=2)
-                    {
-                        Bface2Element[faceid]   = gEl;
-                        Bface2Normal[faceid]    = n0;
-                        Bface2LocID[faceid]     = s;
-                    }
-                    
-                    if(ref!=2)
-                    {
-                        face2ref[faceid]        = ref;
-                        ref2face[ref].push_back(faceid);
-                    }
 
-                    
                     ds0 = ComputeQuadSurfaceArea(F);
                     dS[gEl].push_back(ds0);
                     normals[gEl].push_back(n0);
                     dxfxc[gEl].push_back(r0);
                     
                 }
+                
+                delete Vface;
                 delete[] F;
                 face.clear();
             }
@@ -259,110 +204,134 @@ Mesh_Topology::Mesh_Topology(Partition* Pa, MPI_Comm comm)
             
        
         }
+        vs.clear();
+        E2V_scheme[gEl] = vrts;
+        delete[] Pijk;
+        vijkIDs.clear();
+        
+//        tel = 0;
+//
+//        for(int j=0;j<NfPEl;j++)
+//        {
+//           int adjID = iee_part_map->i_map[gEl][j];
+//           int Nvadj = LocElem2Nv[adjID];
+//
+//           if(adjID<Nel)// If internal element;
+//           {
+//               double* Po  = new double[gE2lV[adjID].size()*3];
+//
+//               for(int k=0;k<gE2lV[adjID].size();k++)
+//               {
+//                   loc_vid     = gE2lV[adjID][k];
+//                   Po[k*3+0] = locVerts[loc_vid]->x;
+//                   Po[k*3+1] = locVerts[loc_vid]->y;
+//                   Po[k*3+2] = locVerts[loc_vid]->z;
+//               }
+//
+//               Vert* Vpo = ComputeCentroidCoord(Po,gE2lV[adjID].size());
+//
+//               double d = sqrt((Vpo->x-Vijk->x)*(Vpo->x-Vijk->x)+
+//                               (Vpo->y-Vijk->y)*(Vpo->y-Vijk->y)+
+//                               (Vpo->z-Vijk->z)*(Vpo->z-Vijk->z));
+//
+//               Vec3D* rf = new Vec3D;
+//               rf->c0    = (Vpo->x-Vijk->x)/d;
+//               rf->c1    = (Vpo->y-Vijk->y)/d;
+//               rf->c2    = (Vpo->z-Vijk->z)/d;
+//
+//               rvector[gEl].push_back(rf);
+//               dr[gEl].push_back(d);
+//               delete Vpo;
+//               delete[] Po;
+//               delete rf;
+//           }
+//           else // If boundary face then search data in the correct ghost cell;
+//           {
+//               fid = ief_part_map->i_map[gEl][j];
+//               Vert* Vpo = new Vert;
+//               Vpo->x = 0.0;Vpo->y = 0.0;Vpo->z = 0.0;
+//
+//               int NvPerF = if_Nv_part_map->i_map[fid][0];
+//
+//               for(int s=0;s<NvPerF;s++)
+//               {
+//                   //int gvid = ifn->getVal(fid,s);
+//                   int gvid = ifn_part_map->i_map[fid][s];
+//
+//                   int lvid = gV2lV[gvid];
+//
+//                   Vpo->x = Vpo->x+locVerts[lvid]->x;
+//                   Vpo->y = Vpo->y+locVerts[lvid]->y;
+//                   Vpo->z = Vpo->z+locVerts[lvid]->z;
+//               }
+//
+//
+//               if(NvPerF==3)
+//               {
+//                   Vpo->x = Vpo->x/3.0;
+//                   Vpo->y = Vpo->y/3.0;
+//                   Vpo->z = Vpo->z/3.0;
+//
+//                   double d = 2.0*sqrt((Vpo->x-Vijk->x)*(Vpo->x-Vijk->x)+
+//                                (Vpo->y-Vijk->y)*(Vpo->y-Vijk->y)+
+//                                (Vpo->z-Vijk->z)*(Vpo->z-Vijk->z));
+//
+//                   Vec3D* rf = new Vec3D;
+//                   rf->c0    = (Vpo->x-Vijk->x)/d;
+//                   rf->c1    = (Vpo->y-Vijk->y)/d;
+//                   rf->c2    = (Vpo->z-Vijk->z)/d;
+//
+//                   rvector[gEl].push_back(rf);
+//                   dr[gEl].push_back(d);
+//
+//                   delete rf;
+//               }
+//
+//               if(NvPerF==4)
+//               {
+//                   Vpo->x = Vpo->x/4.0;
+//                   Vpo->y = Vpo->y/4.0;
+//                   Vpo->z = Vpo->z/4.0;
+//
+//                   double d = 2.0*sqrt((Vpo->x-Vijk->x)*(Vpo->x-Vijk->x)+
+//                                (Vpo->y-Vijk->y)*(Vpo->y-Vijk->y)+
+//                                (Vpo->z-Vijk->z)*(Vpo->z-Vijk->z));
+//
+//                   Vec3D* rf = new Vec3D;
+//                   rf->c0    = (Vpo->x-Vijk->x)/d;
+//                   rf->c1    = (Vpo->y-Vijk->y)/d;
+//                   rf->c2    = (Vpo->z-Vijk->z)/d;
+//
+//                   rvector[gEl].push_back(rf);
+//                   dr[gEl].push_back(d);
+//
+//                   delete rf;
+//
+//               }
+//
+//               delete Vpo;
+//           }
+//
+//           tel++;
+//        }
 
         
-        tel = 0;
-       
-        for(int j=0;j<NfPEl;j++)
-        {
-           int adjID = iee_part_map->i_map[gEl][j];
-           int Nvadj = LocElem2Nv[adjID];
-            
-           if(adjID<Nel)// If internal element;
-           {
-               double* Po  = new double[gE2lV[adjID].size()*3];
-
-               for(int k=0;k<gE2lV[adjID].size();k++)
-               {
-                   loc_vid     = gE2lV[adjID][k];
-                   Po[k*3+0] = locVerts[loc_vid].x;
-                   Po[k*3+1] = locVerts[loc_vid].y;
-                   Po[k*3+2] = locVerts[loc_vid].z;
-               }
-               
-               Vert* Vpo = ComputeCentroidCoord(Po,gE2lV[adjID].size());
-               
-               delete[] Po;
-               double d = sqrt((Vpo->x-Vijk->x)*(Vpo->x-Vijk->x)+
-                               (Vpo->y-Vijk->y)*(Vpo->y-Vijk->y)+
-                               (Vpo->z-Vijk->z)*(Vpo->z-Vijk->z));
-            
-               Vec3D* rf = new Vec3D;
-               rf->c0    = (Vpo->x-Vijk->x)/d;
-               rf->c1    = (Vpo->y-Vijk->y)/d;
-               rf->c2    = (Vpo->z-Vijk->z)/d;
-               
-               rvector[gEl].push_back(rf);
-               dr[gEl].push_back(d);
-           }
-           else // If boundary face then search data in the correct ghost cell;
-           {
-               fid = ief_part_map->i_map[gEl][j];
-               Vert* Vpo = new Vert;
-               Vpo->x = 0.0;Vpo->y = 0.0;Vpo->z = 0.0;
-               
-               int NvPerF = if_Nv_part_map->i_map[fid][0];
-
-               for(int s=0;s<NvPerF;s++)
-               {
-                   //int gvid = ifn->getVal(fid,s);
-                   int gvid = ifn_part_map->i_map[fid][s];
-
-                   int lvid = gV2lV[gvid];
-
-                   Vpo->x = Vpo->x+locVerts[lvid].x;
-                   Vpo->y = Vpo->y+locVerts[lvid].y;
-                   Vpo->z = Vpo->z+locVerts[lvid].z;
-               }
-               
-               
-               if(NvPerF==3)
-               {
-                   Vpo->x = Vpo->x/3.0;
-                   Vpo->y = Vpo->y/3.0;
-                   Vpo->z = Vpo->z/3.0;
-
-                   double d = 2.0*sqrt((Vpo->x-Vijk->x)*(Vpo->x-Vijk->x)+
-                                (Vpo->y-Vijk->y)*(Vpo->y-Vijk->y)+
-                                (Vpo->z-Vijk->z)*(Vpo->z-Vijk->z));
-                                  
-                   Vec3D* rf = new Vec3D;
-                   rf->c0    = (Vpo->x-Vijk->x)/d;
-                   rf->c1    = (Vpo->y-Vijk->y)/d;
-                   rf->c2    = (Vpo->z-Vijk->z)/d;
-
-                   rvector[gEl].push_back(rf);
-                   dr[gEl].push_back(d);
-               }
-
-               if(NvPerF==4)
-               {
-                   Vpo->x = Vpo->x/4.0;
-                   Vpo->y = Vpo->y/4.0;
-                   Vpo->z = Vpo->z/4.0;
-
-                   double d = 2.0*sqrt((Vpo->x-Vijk->x)*(Vpo->x-Vijk->x)+
-                                (Vpo->y-Vijk->y)*(Vpo->y-Vijk->y)+
-                                (Vpo->z-Vijk->z)*(Vpo->z-Vijk->z));
-                                  
-                   Vec3D* rf = new Vec3D;
-                   rf->c0    = (Vpo->x-Vijk->x)/d;
-                   rf->c1    = (Vpo->y-Vijk->y)/d;
-                   rf->c2    = (Vpo->z-Vijk->z)/d;
-
-                   rvector[gEl].push_back(rf);
-                   dr[gEl].push_back(d);
-               }
-               
-               delete Vpo;
-           }
-            
-           tel++;
-        }
-        E2V_scheme[gEl] = vrts;
-
-        vs.clear();
     }
+    
+//    delete ifn_part_map;
+//    delete ief_part_map;
+//    delete iee_part_map;
+//    delete if_Nv_part_map;
+//    delete if_ref_part_map;
+//    
+//    delete v0,v1,fc0,fc1,fc2,fc3,fc4,fc5;
+//    gE2lV.clear();
+//    locVerts.clear();
+//    gE2gV.clear();
+//    gV2lV.clear();
+//    Loc_Elem.clear();
+//    LocElem2Nv.clear();
+//    LocElem2Nf.clear();
 }
 
 

@@ -121,37 +121,40 @@ int main(int argc, char** argv)
     std::vector<int> LocElemNv      = P->getLocElemNv();
     std::map<int,int> LocElem2Nv    = P->getLocElem2Nv();
     std::vector<double> Uvaria      = P->getLocElemVaria();
-
+    
     std::map<int,double> Ui_map;
+    std::map<int,Array<double>*> Ui_map_arr;
     double UvariaV = 0.0;
     for(int i=0;i<LocElem.size();i++)
     {
         int gid     = LocElem[i];
         UvariaV     = Uvaria[i];
+        Array<double>* Uarr = new Array<double>(1,1);
+        
+        Uarr->setVal(0,0,UvariaV);
         Ui_map[gid] = UvariaV;
+        Ui_map_arr[gid] = Uarr;
     }
-
-    std::vector<Vert> Verts = P->getLocalVerts();
-    std::map<int,std::map<int,double> > n2n = P->getNode2NodeMap();
+    LocElem.clear();
+    LocElemNv.clear();
+    LocElem2Nv.clear();
+    Uvaria.clear();
     
-    std::map<int,double> Uaux = P->CommunicateStateAdjacentElements(Ui_map,comm);
-
+    std::vector<Vert*> Verts = P->getLocalVerts();
+    std::map<int,std::map<int,double> > n2n = P->getNode2NodeMap();
+    Mesh_Topology* meshTopo = new Mesh_Topology(P,comm);
     Array<double>* gB = new Array<double>(us3d->ghost->getNrow(),1);
     for(int i=0;i<us3d->ghost->getNrow();i++)
     {
         gB->setVal(i,0,us3d->ghost->getVal(i,varia));
     }
 
-    t = clock();
-    Mesh_Topology* meshTopo = new Mesh_Topology(P,comm);
     
-    std::map<int,double > u_vmap = P->ReduceFieldToAllVertices(Uaux);
-    P->AddAdjacentVertexDataUS3D(u_vmap, comm);
     
-    std::map<int,std::vector<int> > scheme_E2V = meshTopo->getScheme_E2V();
-    
-    std::map<int,std::vector<double> >::iterator itmm;
-    
+    P->AddStateVecForAdjacentElements(Ui_map_arr,1,comm);
+    std::map<int,Array<double>* > u_vmap = P->ReduceStateVecToAllVertices(Ui_map_arr, 1);
+    P->AddStateVecForAdjacentVertices(u_vmap, 1, comm);
+            
     Domain* pDom = P->getPartitionDomain();
     
     std::vector<int> loc_part_verts = pDom->loc_part_verts;
@@ -164,8 +167,8 @@ int main(int argc, char** argv)
     double sum_dist = 0.0;
     double di = 0.0;
     double uval = 0.0;
-
-    std::map<int,double> u_vmap_new;
+    
+    std::map<int,double > u_vmap_new;
     int vid,gvid;
     for(n2nit=n2n.begin();n2nit!=n2n.end();n2nit++)
     {
@@ -179,16 +182,13 @@ int main(int argc, char** argv)
             vid       = n2dit->first;
             di        = n2dit->second;
             sum_dist  = sum_dist+di;
-            uval      = uval+u_vmap[vid]*di;
+            uval      = uval+u_vmap[vid]->getVal(0,0)*di;
         }
         
         u_vmap_new[gvid] = uval/sum_dist;
     }
     
-    std::map<int,Array<double>* > dUdXi = ComputedUdx_LSQ_Vrt_US3D(P,Uaux,u_vmap_new,meshTopo,gB,comm);
-//    std::map<int,Array<double>* > dUdXi = ComputedUdx_MGG(P,Uaux,meshTopo,gB,comm);
-//
-    
+    std::map<int,Array<double>* > dUdXi = ComputedUdx_LSQ_Vrt_US3D(P,Ui_map,u_vmap_new,meshTopo,gB,comm);
     
     double Gtiming = ( std::clock() - t) / (double) CLOCKS_PER_SEC;
     double Gmax_time = 0.0;
@@ -199,67 +199,27 @@ int main(int argc, char** argv)
         std::cout << "Timing gradient reconstruction... " << Gmax_time << std::endl;
     }
     
-    Array<int>* lE2gE     = new Array<int>(dUdXi.size(),1);
-    Array<double>* dUidxi = new Array<double>(dUdXi.size(),1);
-    Array<double>* dUidyi = new Array<double>(dUdXi.size(),1);
-    Array<double>* dUidzi = new Array<double>(dUdXi.size(),1);
-    
-    std::map<int,Array<double>* >::iterator grit;
-    std::map<int,double> dUidxi_map;
-    std::map<int,double> dUidyi_map;
-    std::map<int,double> dUidzi_map;
-    std::map<int,Array<double>* > dUidXi_map;
-    for(grit=dUdXi.begin();grit!=dUdXi.end();grit++)
-    {
-        lE2gE->setVal(i,0,grit->first);
-        dUidxi->setVal(i,0,grit->second->getVal(0,0));
-        dUidyi->setVal(i,0,grit->second->getVal(1,0));
-        dUidzi->setVal(i,0,grit->second->getVal(2,0));
-        dUidxi_map[grit->first]=grit->second->getVal(0,0);
-        dUidyi_map[grit->first]=grit->second->getVal(1,0);
-        dUidzi_map[grit->first]=grit->second->getVal(2,0);
+    //============================================================
+    std::cout << "Rank " << world_rank << " element gradient " << dUdXi.size() << std::endl;
+    P->AddStateVecForAdjacentElements(dUdXi,3,comm);
+    std::cout << "Rank " << world_rank << " element+adj gradient " << dUdXi.size() << std::endl;
 
-        i++;
-    }
-    
-    std::map<int,Array<double>* > dUidxiAux_map  = P->CommunicateStateVecAdjacentElements(dUdXi,3,comm);
-    
-    std::map<int,double > dUdxauxNew_map  = P->CommunicateStateAdjacentElements(dUidxi_map,comm);
-    std::map<int,double > dUdyauxNew_map  = P->CommunicateStateAdjacentElements(dUidyi_map,comm);
-    std::map<int,double > dUdzauxNew_map  = P->CommunicateStateAdjacentElements(dUidzi_map,comm);
+    P->AddStateVecForAdjacentElements(dUdXi,3,comm);
+    std::map<int,Array<double>* > dUdXi_vmap = P->ReduceStateVecToAllVertices(dUdXi,3);
+    P->AddStateVecForAdjacentVertices(dUdXi_vmap,3,comm);
+
     
     
-//    std::map<int,double >::iterator itaux;
-//    for(itaux=dUdxauxNew_map.begin();itaux!=dUdxauxNew_map.end();itaux++)
-//    {
-//        if(dUidxiAux_map[itaux->first]->getVal(0,0)!=itaux->second || dUidxiAux_map[itaux->first]->getVal(1,0)!=dUdyauxNew_map[itaux->first] ||
-//           dUidxiAux_map[itaux->first]->getVal(2,0)!=dUdzauxNew_map[itaux->first])
-//        {
-//        std::cout << itaux->first << " :: dx " << itaux->second << " != " << dUidxiAux_map[itaux->first]->getVal(0,0) << " dy  " << dUdyauxNew_map[itaux->first] << " != " << dUidxiAux_map[itaux->first]->getVal(1,0) << "dz " << dUdzauxNew_map[itaux->first] << " != " <<dUdzauxNew_map[itaux->first]<< std::endl;
-//        }
-//    }
-    
-    
+    //P->AddAdjacentVertexDataUS3D(dUdXi_vmap, comm);
+
+    //============================================================
     //OOOOOOOOOOOOOOOOOOooooooooooooooOOOOOOOOOOOOOoooooooooooooOOOOOOOOOOOooooooooo
     //O             Begin reducing and smoothing data over vertices                O
     //OOOOOOOOOOOOOOOOOOooooooooooooooOOOOOOOOOOOOOoooooooooooooOOOOOOOOOOOooooooooo
-    
-    std::map<int,double> dudx_vmap = P->ReduceFieldToAllVertices(dUdxauxNew_map);
-    std::map<int,double> dudy_vmap = P->ReduceFieldToAllVertices(dUdyauxNew_map);
-    std::map<int,double> dudz_vmap = P->ReduceFieldToAllVertices(dUdzauxNew_map);
-    
-    std::map<int,Array<double>* > dUdXi_vmap = P->ReduceStateVecToAllVertices(dUidxiAux_map,3);
+
+
     std::map<int,Array<double>* >::iterator itarr;
     int size_b = dUdXi_vmap.size();
-    //P->AddStateVecForAdjacentVertices(dUdXi_vmap,3,comm);
-    
-//    for(itarr=dUdXi_vmap.begin();itarr!=dUdXi_vmap.end();itarr++)
-//    {
-//        std::cout << itarr->first << " " << itarr->second->getNrow() << std::endl;
-//    }
-    //P->AddAdjacentVertexDataUS3D(dudx_vmap,comm);
-//    P->AddAdjacentVertexDataUS3D(dudy_vmap,comm);
-//    P->AddAdjacentVertexDataUS3D(dudz_vmap,comm);
 
     sum      = 0.0;
     sum_dist = 0.0;
@@ -276,11 +236,13 @@ int main(int argc, char** argv)
     for(n2nit=n2n.begin();n2nit!=n2n.end();n2nit++)
     {
         gvid       = n2nit->first;
+        
         sum        = 0.0;
         duvalx     = 0.0;
         duvaly     = 0.0;
         duvalz     = 0.0;
         sum_dist   = 0.0;
+        
         std::map<int,double>::iterator n2dit;
         for(n2dit=n2nit->second.begin();n2dit!=n2nit->second.end();n2dit++)
         {
@@ -296,48 +258,45 @@ int main(int argc, char** argv)
         dudx_vmap_new[gvid] = duvalx/sum_dist;
         dudy_vmap_new[gvid] = duvaly/sum_dist;
         dudz_vmap_new[gvid] = duvalz/sum_dist;
+        
     }
-    
    
     //OOOOOOOOOOOOOOOOOOooooooooooooooOOOOOOOOOOOOOoooooooooooooOOOOOOOOOOOooooooooo
     //O               End reducing and smoothing data over vertices                O
     //OOOOOOOOOOOOOOOOOOooooooooooooooOOOOOOOOOOOOOoooooooooooooOOOOOOOOOOOooooooooo
     
+    std::map<int,Array<double>* >::iterator grit;
+    std::map<int,double> dUidxi_map;
+    std::map<int,double> dUidyi_map;
+    std::map<int,double> dUidzi_map;
+    std::map<int,Array<double>* > dUidXi_map;
+    for(grit=dUdXi.begin();grit!=dUdXi.end();grit++)
+    {
+        dUidxi_map[grit->first]=grit->second->getVal(0,0);
+        dUidyi_map[grit->first]=grit->second->getVal(1,0);
+        dUidzi_map[grit->first]=grit->second->getVal(2,0);
+        
+        delete grit->second;
+        
+        i++;
+    }
     
-    
-    
-    
-    std::map<int,Array<double>* > dU2dXi2 = ComputedUdx_LSQ_Vrt_US3D(P,dUdxauxNew_map,dudx_vmap_new,meshTopo,gB,comm);
-    std::map<int,Array<double>* > dU2dYi2 = ComputedUdx_LSQ_Vrt_US3D(P,dUdyauxNew_map,dudy_vmap_new,meshTopo,gB,comm);
-    std::map<int,Array<double>* > dU2dZi2 = ComputedUdx_LSQ_Vrt_US3D(P,dUdzauxNew_map,dudz_vmap_new,meshTopo,gB,comm);
-    
-    std::map<int,double> d2udx2_map,d2udxy_map,d2udxz_map,
-                         d2udy2_map,d2udyz_map,
-                         d2udz2_map;
+    std::map<int,Array<double>* > dU2dXi2 = ComputedUdx_LSQ_Vrt_US3D(P,dUidxi_map,dudx_vmap_new,meshTopo,gB,comm);
+    std::map<int,Array<double>* > dU2dYi2 = ComputedUdx_LSQ_Vrt_US3D(P,dUidyi_map,dudy_vmap_new,meshTopo,gB,comm);
+    std::map<int,Array<double>* > dU2dZi2 = ComputedUdx_LSQ_Vrt_US3D(P,dUidzi_map,dudz_vmap_new,meshTopo,gB,comm);
 
+//    dudx_vmap_new.clear();
+//    dudy_vmap_new.clear();
+//    dudz_vmap_new.clear();
+    
     std::map<int,Array<double>*> Hess_map;
 
     std::map<int,Array<double>* >::iterator itgg;
     int te = 0;
-
-    
-    std::map<int,double> du2dx2_map;
-    std::map<int,double> du2dxy_map;
-    std::map<int,double> du2dxz_map;
-    std::map<int,double> du2dy2_map;
-    std::map<int,double> du2dyz_map;
-    std::map<int,double> du2dz2_map;
     
     for(itgg=dU2dXi2.begin();itgg!=dU2dXi2.end();itgg++)
     {
         int gid = itgg->first;
-        d2udx2_map[gid]=dU2dXi2[gid]->getVal(0,0);
-        d2udxy_map[gid]=dU2dXi2[gid]->getVal(1,0);
-        d2udxz_map[gid]=dU2dXi2[gid]->getVal(2,0);
-        
-        d2udy2_map[gid]=dU2dYi2[gid]->getVal(1,0);
-        d2udyz_map[gid]=dU2dYi2[gid]->getVal(2,0);
-        d2udz2_map[gid]=dU2dZi2[gid]->getVal(2,0);
         
         Array<double>* Hess = new Array<double>(6,1);
         
@@ -351,43 +310,22 @@ int main(int argc, char** argv)
         
         Hess_map[gid] = Hess;
         
+        delete dU2dXi2[gid];
+        delete dU2dYi2[gid];
+        delete dU2dZi2[gid];
+        
         t++;
     }
     
-    std::map<int,Array<double>* > HessAux_map  = P->CommunicateStateVecAdjacentElements(Hess_map,6,comm);
+    dU2dXi2.clear();
+    dU2dYi2.clear();
+    dU2dZi2.clear();
     
-//    std::map<int,double > d2udx2Aux_map  = P->CommunicateStateAdjacentElements(d2udx2_map,comm);
-//    std::map<int,double > d2udxyAux_map  = P->CommunicateStateAdjacentElements(d2udxy_map,comm);
-//    std::map<int,double > d2udxzAux_map  = P->CommunicateStateAdjacentElements(d2udxz_map,comm);
-//    std::map<int,double > d2udy2Aux_map  = P->CommunicateStateAdjacentElements(d2udy2_map,comm);
-//    std::map<int,double > d2udyzAux_map  = P->CommunicateStateAdjacentElements(d2udyz_map,comm);
-//    std::map<int,double > d2udz2Aux_map  = P->CommunicateStateAdjacentElements(d2udz2_map,comm);
-//
-//     std::map<int,double>::iterator vit;
-//    for(vit=d2udx2_map.begin();vit!=d2udx2_map.end();vit++)
-//    {
-//        std::cout << vit->first << " " << vit->second << std::endl;
-//    }
-    
-    std::map<int,Array<double>* > hess_vmap = P->ReduceStateVecToAllVertices(HessAux_map,6);
-    
+    P->AddStateVecForAdjacentElements(Hess_map,6,comm);
+    std::map<int,Array<double>* > hess_vmap = P->ReduceStateVecToAllVertices(Hess_map,6);
     P->AddStateVecForAdjacentVertices(hess_vmap,6,comm);
-
     
-//    std::map<int,double> d2udx2_vmap = P->ReduceFieldToAllVertices(d2udx2Aux_map);
-//    std::map<int,double> d2udxy_vmap = P->ReduceFieldToAllVertices(d2udxyAux_map);
-//    std::map<int,double> d2udxz_vmap = P->ReduceFieldToAllVertices(d2udxzAux_map);
-//    std::map<int,double> d2udy2_vmap = P->ReduceFieldToAllVertices(d2udy2Aux_map);
-//    std::map<int,double> d2udyz_vmap = P->ReduceFieldToAllVertices(d2udyzAux_map);
-//    std::map<int,double> d2udz2_vmap = P->ReduceFieldToAllVertices(d2udz2Aux_map);
-    
-//    P->AddAdjacentVertexDataUS3D(d2udx2_vmap,comm);
-//    P->AddAdjacentVertexDataUS3D(d2udxy_vmap,comm);
-//    P->AddAdjacentVertexDataUS3D(d2udxz_vmap,comm);
-//    P->AddAdjacentVertexDataUS3D(d2udy2_vmap,comm);
-//    P->AddAdjacentVertexDataUS3D(d2udyz_vmap,comm);
-//    P->AddAdjacentVertexDataUS3D(d2udz2_vmap,comm);
-    
+   
     sum      = 0.0;
     sum_dist = 0.0;
     di       = 0.0;
@@ -398,14 +336,10 @@ int main(int argc, char** argv)
     double d2udy2val = 0.0;
     double d2udyzval = 0.0;
     double d2udz2val = 0.0;
-    
-    std::map<int,double> d2udx2_vmap_new;
-    std::map<int,double> d2udxy_vmap_new;
-    std::map<int,double> d2udxz_vmap_new;
-    std::map<int,double> d2udy2_vmap_new;
-    std::map<int,double> d2udyz_vmap_new;
-    std::map<int,double> d2udz2_vmap_new;
+
     std::map<int,Array<double>* > hess_vmap_new;
+    std::map<int,Array<double>* > hess2_vmap_new;
+
     for(n2nit=n2n.begin();n2nit!=n2n.end();n2nit++)
     {
         gvid          = n2nit->first;
@@ -433,13 +367,6 @@ int main(int argc, char** argv)
             d2udz2val     = d2udz2val+hess_vmap[vid]->getVal(5,0)*di;
         }
         
-        d2udx2_vmap_new[gvid] = d2udx2val/sum_dist;
-        d2udxy_vmap_new[gvid] = d2udxyval/sum_dist;
-        d2udxz_vmap_new[gvid] = d2udxzval/sum_dist;
-        d2udy2_vmap_new[gvid] = d2udy2val/sum_dist;
-        d2udyz_vmap_new[gvid] = d2udyzval/sum_dist;
-        d2udz2_vmap_new[gvid] = d2udz2val/sum_dist;
-        
         Array<double>* hess_new = new Array<double>(6,1);
         hess_new->setVal(0,0,d2udx2val/sum_dist);
         hess_new->setVal(1,0,d2udxyval/sum_dist);
@@ -449,17 +376,34 @@ int main(int argc, char** argv)
         hess_new->setVal(5,0,d2udz2val/sum_dist);
         
         hess_vmap_new[gvid] = hess_new;
+        hess2_vmap_new[gvid] = hess_new;
+
         
     }
-    //==================================================================================
     
+    hess_vmap.clear();
+    
+    // updates hess_vmap_new such that is contains the metric.
+    ComputeMetric(P,metric_inputs, comm, hess_vmap_new);
+
+    Array<double>* mv_g = GetOptimizedMMG3DMeshOnRoot(P, us3d, hess_vmap_new, comm);
+    
+//    Mesh* us3dRoot = ReduceMeshToRoot(us3d->ien,
+//                                      us3d->ief,
+//                                      us3d->xcn,
+//                                      us3d->ifn,
+//                                      us3d->ife,
+//                                      us3d->if_ref,
+//                                      comm,info);
+    
+    
+    //====================================================================
+//
     std::vector<std::vector<int> > Elements = pDom->Elements;
 
     std::vector<std::vector<int> > tetras;
     std::vector<std::vector<int> > prisms;
     std::vector<std::vector<int> > hexes;
-
-    //std::vector<std::vector<int> > Elements = pDom->Elements;
 
     for(int i=0;i<Elements.size();i++)
     {
@@ -506,14 +450,17 @@ int main(int argc, char** argv)
     std::ofstream myfilet;
     myfilet.open("output_" + std::to_string(world_rank) + ".dat");
     myfilet << "TITLE=\"new_volume.tec\"" << std::endl;
-    myfilet <<"VARIABLES = \"X\", \"Y\", \"Z\", \"dUdx\", \"dUdy\", \"dUdz\"" << std::endl;
+    myfilet <<"VARIABLES = \"X\", \"Y\", \"Z\", \"U\", \"Up\", \"dUdx\", \"dUdy\", \"dUdz\", \"dUdx_v2\", \"dUdy_v2\", \"dUdz_v2\"" << std::endl;
     myfilet <<"ZONE N = " << loc_part_verts.size() << ", E = " << tetras.size() << ", DATAPACKING = POINT, ZONETYPE = FETETRAHEDRON" << std::endl;
 
     for(int i=0;i<loc_part_verts.size();i++)
     {
         int loc_vid = loc_part_verts[i];
         int glob_vid = lpartv2gv[loc_vid];
-        myfilet << Verts[loc_vid].x << " " << Verts[loc_vid].y << " " << Verts[loc_vid].z << " " << d2udx2_vmap_new[glob_vid] << " " << d2udxy_vmap_new[glob_vid] << " " << d2udy2_vmap_new[glob_vid] << std::endl;
+        myfilet << Verts[loc_vid]->x << " " << Verts[loc_vid]->y << " " << Verts[loc_vid]->z << " " << u_vmap[glob_vid]->getVal(0,0) << " " << u_vmap_new[glob_vid] << " " << dudx_vmap_new[glob_vid] << " " << dudy_vmap_new[glob_vid] << " " << dudz_vmap_new[glob_vid] << " " <<
+            hess2_vmap_new[glob_vid]->getVal(0,0) << " " <<
+            hess2_vmap_new[glob_vid]->getVal(0,1) << " " <<
+            hess2_vmap_new[glob_vid]->getVal(0,2) <<std::endl;
     }
 
     for(int i=0;i<tetras.size();i++)
@@ -523,10 +470,9 @@ int main(int argc, char** argv)
     }
 
     myfilet.close();
-   //====================================================================
-    /**/
+  // ====================================================================
     
-    
+    /*
     //std::map<int,Array<double>* > Hess_vm = P->ReduceMetricToVertices(Hess_map);
     //std::map<int,double> u_vmap           = P->ReduceFieldToVertices(Ui_map);
     std::map<int,Array<double>* > metric  = ComputeMetric(P,metric_inputs, hess_vmap_new, comm);
@@ -584,9 +530,17 @@ int main(int argc, char** argv)
                                       us3d->if_ref,
                                       comm,info);
     
+    delete P;
+    delete us3d;
+    metric.clear();
+    delete Ate;
+    delete Apr;
+    lv2gpv.clear();
+    */
+    
     if(world_rank == 0)
     {
-        
+        /*
         MMG5_pMesh mmgMesh_hyb = NULL;
         MMG5_pSol mmgSol_hyb   = NULL;
         
@@ -1058,14 +1012,14 @@ int main(int argc, char** argv)
         
         std::cout << "t333 - after " << t333 << std::endl;
         
-        WriteUS3DGridFromMMG_itN(mmgMesh_hyb, us3d, bnd_face_map);
+       // WriteUS3DGridFromMMG_itN(mmgMesh_hyb, us3d, bnd_face_map);
         
 //      std::cout << "tets = " << mmgMesh_TETCOPY->ne << " " << nTets << " " << nPrisms << std::endl;
         
         std::cout<<"Started writing the adapted tetrahedra mesh in ---> OuterVolume.dat"<<std::endl;
-        OutputMesh_MMG(mmgMesh_TETCOPY,0,mmgMesh_TETCOPY->ne,"OuterVolume.dat");
+        //OutputMesh_MMG(mmgMesh_TETCOPY,0,mmgMesh_TETCOPY->ne,"OuterVolume.dat");
         std::cout<<"Finished writing the adapted tetrahedra mesh in ---> OuterVolume.dat"<<std::endl;
-        
+        */
     
     }
     /**/

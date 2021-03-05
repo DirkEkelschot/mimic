@@ -352,7 +352,7 @@ void OutputBoundaryID(Partition* Pa, Mesh_Topology* meshTopo, US3D* us3d, int bn
     map< int, Vert> BC_verts;
 
     std::map<int,int> gV2lV               = Pa->getGlobalVert2LocalVert();
-    std::vector<Vert> locVerts            = Pa->getLocalVerts();
+    std::vector<Vert*> locVerts            = Pa->getLocalVerts();
     std::map<int,int> face2ref            = meshTopo->getFace2Ref();
     std::map<int,std::vector<int> > ref2face            = meshTopo->getRef2Face();
     std::map<int,std::vector<int> > ref2vert            = meshTopo->getRef2Vert();
@@ -387,9 +387,9 @@ void OutputBoundaryID(Partition* Pa, Mesh_Topology* meshTopo, US3D* us3d, int bn
             {
                 Loc2GlobBound[val] = cnt;
                 Loc[tel*4+k]=cnt;
-                V.x = locVerts[lvid].x;
-                V.y = locVerts[lvid].y;
-                V.z = locVerts[lvid].z;
+                V.x = locVerts[lvid]->x;
+                V.y = locVerts[lvid]->y;
+                V.z = locVerts[lvid]->z;
                 BC_verts[cnt] = V;
                 cnt++;
             }
@@ -466,7 +466,7 @@ void OutputPartition(Partition* part, ParArray<int>* ien, Array<double>* H,  MPI
     myfile << "TITLE=\"volume_part_"  + std::to_string(rank) +  ".tec\"" << std::endl;
     //myfile <<"VARIABLES = \"X\", \"Y\", \"Z\",  \"drhodx\",  \"drhody\",  \"drhodz\"" << std::endl;
     myfile <<"VARIABLES = \"X\", \"Y\", \"Z\"" << std::endl;
-    std::vector<Vert> LVerts =  part->getLocalVerts();
+    std::vector<Vert*> LVerts =  part->getLocalVerts();
 
 
 
@@ -504,7 +504,7 @@ void OutputPartition(Partition* part, ParArray<int>* ien, Array<double>* H,  MPI
     }*/
     for(int i=0;i<nvert;i++)
     {   
-       myfile << LVerts[LocalVerticesID[i]].x << "   " << LVerts[LocalVerticesID[i]].y << "   " << LVerts[LocalVerticesID[i]].z <<  std::endl;
+       myfile << LVerts[LocalVerticesID[i]]->x << "   " << LVerts[LocalVerticesID[i]]->y << "   " << LVerts[LocalVerticesID[i]]->z <<  std::endl;
     }
     for(int i=0;i<nloc;i++)
     {
@@ -547,7 +547,7 @@ void OutputBLElements(Partition* part, Mesh_Topology_BL* mesh_topology_bl,  MPI_
     int rank;
     MPI_Comm_rank(comm, &rank);
     std::cout << "checkcheck " << rank << " " << mesh_topology_bl->exteriorVertIDs.size() <<  " " << mesh_topology_bl->exteriorElIDs.size() << std::endl;
-    std::vector<Vert> LVerts                          =  part->getLocalVerts();
+    std::vector<Vert*> LVerts                          =  part->getLocalVerts();
     std::vector<std::vector<int> > loc_elem2verts_loc =  part->getLocalElem2LocalVert();
     std::map<int,int> gE2lE                           =  part->getGlobalElement2LocalElement();
     i_part_map* ien_part_map                          =  part->getIENpartmap();
@@ -630,9 +630,9 @@ std::cout << std::endl;
 
     for(int i=0;i<vert_plot.size();i++)
     {    
-        myfile << LVerts[vert_plot[i]].x << " "
-               << LVerts[vert_plot[i]].y << " "
-               << LVerts[vert_plot[i]].z << std::endl;
+        myfile << LVerts[vert_plot[i]]->x << " "
+               << LVerts[vert_plot[i]]->y << " "
+               << LVerts[vert_plot[i]]->z << std::endl;
     }   
     for(int i=0;i<bl_elem.size();i++)
     {    
@@ -761,13 +761,13 @@ void OutputCompletePartition(Partition* part, ParArray<int>* ien, Array<double>*
     myfile << "TITLE=\"volume_part_"  + std::to_string(rank) +  ".tec\"" << std::endl;
     myfile <<"VARIABLES = \"X\", \"Y\", \"Z\",  \"drhodx\",  \"drhody\",  \"drhodz\"" << std::endl;
     //myfile <<"VARIABLES = \"X\", \"Y\", \"Z\"" << std::endl;
-    std::vector<Vert> LVerts =  part->getLocalVerts();
+    std::vector<Vert*> LVerts =  part->getLocalVerts();
     int nvert = LVerts.size();
     myfile <<"ZONE N = " << nvert << ", E = " << nloc << ", DATAPACKING = POINT, ZONETYPE = FEBRICK" << std::endl;
     //std::cout << rank << " number of nodes -> " << nvert << " " << H->getNrow() << std::endl;
     for(int i=0;i<nvert;i++)
     {
-       myfile << LVerts[i].x << "   " << LVerts[i].y << "   " << LVerts[i].z << " " << H->getVal(i,0) << " " << H->getVal(i,1) << " " << H->getVal(i,2) << std::endl;
+       myfile << LVerts[i]->x << "   " << LVerts[i]->y << "   " << LVerts[i]->z << " " << H->getVal(i,0) << " " << H->getVal(i,1) << " " << H->getVal(i,2) << std::endl;
     }
     
     
@@ -875,14 +875,14 @@ void OutputZone(Partition* part, Array<double>* H, MPI_Comm comm)
     myfile.open(filename);
     myfile << "TITLE=\"volume_part_"  + std::to_string(rank) +  ".tec\"" << std::endl;
     myfile <<"VARIABLES = \"X\", \"Y\", \"Z\", \"rho\", \"drhox\", \"drhoy\", \"drhoz\"" << std::endl;
-    std::vector<Vert> LVerts =  part->getLocalVerts();
+    std::vector<Vert*> LVerts =  part->getLocalVerts();
     int nvert = LVerts.size();
     myfile <<"ZONE N = " << nvert << ", E = " << nloc << ", DATAPACKING = POINT, ZONETYPE = FEBRICK" << std::endl;
     Array<double>* U0 = part->getUvert();
     //std::cout << rank << " number of nodes -> " << nvert << " " << H->getNrow() << std::endl;
     for(int i=0;i<nvert;i++)
     {
-       myfile << LVerts[i].x << "   " << LVerts[i].y << "   " << LVerts[i].z << "   " << U0->getVal(i,0) << " " << H->getVal(i,0) << " " << H->getVal(i,1) << " " << H->getVal(i,2) << std::endl;
+       myfile << LVerts[i]->x << "   " << LVerts[i]->y << "   " << LVerts[i]->z << "   " << U0->getVal(i,0) << " " << H->getVal(i,0) << " " << H->getVal(i,1) << " " << H->getVal(i,2) << std::endl;
     }
     
     
