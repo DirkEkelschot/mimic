@@ -19,7 +19,7 @@ struct Mesh{
 struct US3D{
     
     ParArray<double>* xcn;
-    int* elTypes;
+    Array<int>* elTypes;
     ParArray<int>* ien;
     ParArray<int>* ief;
     ParArray<int>* iee;

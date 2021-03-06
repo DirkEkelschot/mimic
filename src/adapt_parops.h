@@ -102,4 +102,6 @@ Mesh* ReduceMeshToRoot(ParArray<int>* ien,
                        ParArray<int>* ife,
                        ParArray<int>* if_ref,
                        MPI_Comm comm, MPI_Info info);
+
+std::map<int,std::vector<int> > GatherElementsOnRoot(std::map<int,std::vector<int> >Apr, std::map<int,std::vector<int> > Ate, MPI_Comm comm, MPI_Info info);
 #endif

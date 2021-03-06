@@ -2840,10 +2840,15 @@ void Partition::CreatePartitionDomain()
     std::vector<int> loc_part_verts;
     std::vector<int> glob_part_verts;
     
-    std::vector<std::vector<int> > Elements;
-    std::vector<std::vector<int> > Hexes;
-    std::vector<std::vector<int> > Prisms;
-    std::vector<std::vector<int> > Tetras;
+    std::map<int,std::vector<int> > Elements;
+    std::map<int,std::vector<int> > Hexes;
+    std::map<int,std::vector<int> > Prisms;
+    std::map<int,std::vector<int> > Tetras;
+    
+    std::map<int,std::vector<int> > GElements;
+    std::map<int,std::vector<int> > GHexes;
+    std::map<int,std::vector<int> > GPrisms;
+    std::map<int,std::vector<int> > GTetras;
     
     for(itm  = ien_part_map->i_map.begin();
         itm != ien_part_map->i_map.end();
@@ -2851,7 +2856,7 @@ void Partition::CreatePartitionDomain()
     {
         int glob_id  = itm->first;
         std::vector<int>El(itm->second.size());
-        
+        std::vector<int>Elg(itm->second.size());
         for(int q=0;q<itm->second.size();q++)
         {
             int gv = itm->second[q];
@@ -2868,6 +2873,7 @@ void Partition::CreatePartitionDomain()
                 lpartv2gv[lv]=gv;
                 locelem2locnode->setVal(elid,q,lcv);
                 El[q] = lcv;
+                Elg[q] = gv;
                 lcv=lcv+1;
             }
             else
@@ -2876,23 +2882,29 @@ void Partition::CreatePartitionDomain()
                 locelem2locnode->setVal(elid,q,lcv_u);
                 vert2elem[gv].push_back(glob_id);
                 El[q] = lcv_u;
+                Elg[q] = gv;
             }
         }
         
-        Elements.push_back(El);
+        GElements[glob_id]=El;
+        
         if(El.size()==4)
         {
-            Tetras.push_back(El);
+            Tetras[glob_id]=El;
+            GTetras[glob_id]=Elg;
         }
         if(El.size()==6)
         {
-            Prisms.push_back(El);
+            Prisms[glob_id]=El;
+            GPrisms[glob_id]=Elg;
         }
         if(El.size()==8)
         {
-            Hexes.push_back(El);
+            Hexes[glob_id]=El;
+            GHexes[glob_id]=Elg;
         }
         El.clear();
+        Elg.clear();
         elid++;
     }
     
@@ -2900,6 +2912,9 @@ void Partition::CreatePartitionDomain()
     pDom->Hexes           = Hexes;
     pDom->Prisms          = Prisms;
     pDom->Tetras          = Tetras;
+    pDom->GHexes           = GHexes;
+    pDom->GPrisms          = GPrisms;
+    pDom->GTetras          = GTetras;
     pDom->LocElem2LocNode = locelem2locnode;
     pDom->loc_part_verts  = loc_part_verts;
     pDom->glob_part_verts = glob_part_verts;
@@ -2956,40 +2971,40 @@ std::map<int,std::map<int,double> > Partition::getNode2NodeMap()
             }
             
             
-            for(int k=0;k<Nf;k++)
-            {
-                gel = iee_part_map->i_map[ieet->first][k];
-
-                if(gel<NelGlob)
-                {
-                    int Nvv  = LocElem2Nv[gel];
-
-                    for(int j=0;j<Nvv;j++)
-                    {
-                        gvidt = ien_part_map->i_map[gel][j];
-                        if(gvidt!=gvid && node2node[gvid].find(gvidt)==node2node[gvid].end())
-                        {
-                            int lvid  = GlobalVert2LocalVert[gvid];
-                            int lvidt = GlobalVert2LocalVert[gvidt];
-
-                            V0->x = LocalVerts[lvid]->x;
-                            V0->y = LocalVerts[lvid]->y;
-                            V0->z = LocalVerts[lvid]->z;
-
-                            V1->x = LocalVerts[lvidt]->x;
-                            V1->y = LocalVerts[lvidt]->y;
-                            V1->z = LocalVerts[lvidt]->z;
-
-                            //double dist = ComputeEdgeLength(V0,V1);
-                            double dist = sqrt((V0->x-V1->x)*(V0->x-V1->x)
-                                        +(V0->y-V1->y)*(V0->y-V1->y)
-                                        +(V0->z-V1->z)*(V0->z-V1->z));
-
-                            node2node[gvid].insert(std::pair<int,double>(gvidt,dist));
-                        }
-                    }
-                }
-            }
+//            for(int k=0;k<Nf;k++)
+//            {
+//                gel = iee_part_map->i_map[ieet->first][k];
+//
+//                if(gel<NelGlob)
+//                {
+//                    int Nvv  = LocElem2Nv[gel];
+//
+//                    for(int j=0;j<Nvv;j++)
+//                    {
+//                        gvidt = ien_part_map->i_map[gel][j];
+//                        if(gvidt!=gvid && node2node[gvid].find(gvidt)==node2node[gvid].end())
+//                        {
+//                            int lvid  = GlobalVert2LocalVert[gvid];
+//                            int lvidt = GlobalVert2LocalVert[gvidt];
+//
+//                            V0->x = LocalVerts[lvid]->x;
+//                            V0->y = LocalVerts[lvid]->y;
+//                            V0->z = LocalVerts[lvid]->z;
+//
+//                            V1->x = LocalVerts[lvidt]->x;
+//                            V1->y = LocalVerts[lvidt]->y;
+//                            V1->z = LocalVerts[lvidt]->z;
+//
+//                            //double dist = ComputeEdgeLength(V0,V1);
+//                            double dist = sqrt((V0->x-V1->x)*(V0->x-V1->x)
+//                                        +(V0->y-V1->y)*(V0->y-V1->y)
+//                                        +(V0->z-V1->z)*(V0->z-V1->z));
+//
+//                            node2node[gvid].insert(std::pair<int,double>(gvidt,dist));
+//                        }
+//                    }
+//                }
+//            }
         }
     }
     

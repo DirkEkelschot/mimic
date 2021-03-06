@@ -10,12 +10,17 @@ Array<double>* GetOptimizedMMG3DMeshOnRoot(Partition* P, US3D* us3d, std::map<in
     int i,j;
     MMG_Mesh* mmg = new MMG_Mesh;
     
+    Domain* pDom = P->getPartitionDomain();
+    std::map<int,std::vector<int> > v2e = pDom->vert2elem;
+
     std::map<int,Array<double>* >::iterator grit;
     Array<int>* lE2gE = new Array<int>(mv_map.size(),1);
     Array<double>* mv = new Array<double>(mv_map.size(),6);
     i = 0;
     for(grit=mv_map.begin();grit!=mv_map.end();grit++)
     {
+        //std::cout << "(rowxcol) =(" << grit->second->getNrow() << " " << grit->second->getNcol() << ") -> " << grit->second->getVal(0,0) << " " << grit->second->getVal(0,1) << " " << grit->second->getVal(0,2) << " " << grit->second->getVal(1,0) << " " << grit->second->getVal(1,1) << " " << grit->second->getVal(1,2) << " " << grit->second->getVal(2,0)  << " " << grit->second->getVal(2,1) << " " << grit->second->getVal(2,2) << std::endl;
+        
         lE2gE->setVal(i,0,grit->first);
         mv->setVal(i,0,grit->second->getVal(0,0));
         mv->setVal(i,1,grit->second->getVal(0,1));
@@ -25,7 +30,6 @@ Array<double>* GetOptimizedMMG3DMeshOnRoot(Partition* P, US3D* us3d, std::map<in
         mv->setVal(i,5,grit->second->getVal(2,2));
         i++;
     }
-//
     
     int* lid_nlocs      = new int[world_size];
     int* red_lid_nlocs  = new int[world_size];
@@ -38,7 +42,8 @@ Array<double>* GetOptimizedMMG3DMeshOnRoot(Partition* P, US3D* us3d, std::map<in
     for(i=0;i<world_size;i++)
     {
         lid_nlocs[i] = 0;
-        mv_nlocs[i] = 0;
+        mv_nlocs[i]  = 0;
+        
         if(i==world_rank)
         {
             lid_nlocs[i] = mv->getNrow();
@@ -53,8 +58,10 @@ Array<double>* GetOptimizedMMG3DMeshOnRoot(Partition* P, US3D* us3d, std::map<in
 
     MPI_Allreduce(mv_nlocs, red_mv_nlocs, world_size, MPI_INT, MPI_SUM, comm);
     MPI_Allreduce(lid_nlocs, red_lid_nlocs, world_size, MPI_INT, MPI_SUM, comm);
+    
     int offset_lid = 0;
-    int offset_mv = 0;
+    int offset_mv  = 0;
+    
     for(i=0;i<world_size;i++)
     {
         lid_offsets[i] = offset_lid;
@@ -102,6 +109,8 @@ Array<double>* GetOptimizedMMG3DMeshOnRoot(Partition* P, US3D* us3d, std::map<in
     
     Array<double>* xcn_g;
     Array<int>* ien_g;
+    Array<int>* iet_g;
+
     int nvg   = us3d->xcn->getNglob();
     int nElem = us3d->ien->getNglob();
     ParallelState* xcn_pstate = P->getXcnParallelState();
@@ -110,12 +119,18 @@ Array<double>* GetOptimizedMMG3DMeshOnRoot(Partition* P, US3D* us3d, std::map<in
     {
         xcn_g = new Array<double>(nvg,3);
         ien_g = new Array<int>(nElem,8);
+        iet_g = new Array<int>(nElem,1);
+
     }
     else
     {
         xcn_g = new Array<double>(1,1);
         ien_g = new Array<int>(1,1);
+        iet_g = new Array<int>(1,1);
     }
+    
+    int* iet_nlocs      = new int[world_size];
+    int* iet_offsets    = new int[world_size];
     int* ien_nlocs      = new int[world_size];
     int* ien_offsets    = new int[world_size];
     int* xcn_nlocs      = new int[world_size];
@@ -128,6 +143,9 @@ Array<double>* GetOptimizedMMG3DMeshOnRoot(Partition* P, US3D* us3d, std::map<in
 
         ien_nlocs[i]   = ien_pstate->getNlocs()[i]*8;
         ien_offsets[i] = ien_pstate->getOffsets()[i]*8;
+        
+        iet_nlocs[i]   = ien_pstate->getNlocs()[i]*1;
+        iet_offsets[i] = ien_pstate->getOffsets()[i]*1;
     }
 
     MPI_Gatherv(&us3d->xcn->data[0],
@@ -147,13 +165,35 @@ Array<double>* GetOptimizedMMG3DMeshOnRoot(Partition* P, US3D* us3d, std::map<in
                 ien_offsets,
                 MPI_INT, 0, comm);
     
+    MPI_Gatherv(&us3d->iet->data[0],
+                us3d->iet->getNrow()*1,
+                MPI_INT,
+                &iet_g->data[0],
+                iet_nlocs,
+                iet_offsets,
+                MPI_INT, 0, comm);
     
+    int NtetLoc = us3d->elTypes->getVal(0,0);
+//    int NprismLoc = us3d->elTypes->getVal(1,0);
+//    int NhexLoc = us3d->elTypes->getVal(2,0);
+//
+//
+    int Ntetras = 0;
+    int Nprisms = 0;
+    int Nhexes = 0;
+
     
+    MPI_Reduce(&NtetLoc,   &Ntetras,   1, MPI_INT, MPI_SUM, 0, comm);
+//    MPI_Reduce(&NprismLoc, &Nprisms,   1, MPI_INT, MPI_SUM, 0,  comm);
+//    MPI_Reduce(&NhexLoc,   &Nhexes,    1, MPI_INT, MPI_SUM, 0,  comm);
+    //std::cout << "RANK = " << NtetLoc << " " << Ntetras << std::endl;
+
     Array<double>* Mg;
     Array<int>* tel;
     if(world_rank == 0)
     {
         Mg  = new Array<double>(us3d->xcn->getNglob(),6);
+        
         for(int u=0;u<n_glob_lid;u++)
         {
             int gvid     = lE2gE_g->getVal(u,0);
@@ -171,7 +211,7 @@ Array<double>* GetOptimizedMMG3DMeshOnRoot(Partition* P, US3D* us3d, std::map<in
         myfile.open(filename);
         myfile << "TITLE=\"volume_part_"  + std::to_string(world_rank) +  ".tec\"" << std::endl;
         myfile <<"VARIABLES = \"X\", \"Y\", \"Z\", \"M00\", \"M01\", \"M02\", \"M11\", \"M12\", \"M22\"" << std::endl;
-        myfile <<"ZONE N = " << us3d->xcn->getNglob() << ", E = " << us3d->ien->getNglob() << ", DATAPACKING = POINT, ZONETYPE = FEBRICK" << std::endl;
+        myfile <<"ZONE N = " << us3d->xcn->getNglob() << ", E = " << Ntetras << ", DATAPACKING = POINT, ZONETYPE = FETETRAHEDRON" << std::endl;
         
         string filename2 = "metric.dat";
         ofstream myfile2;
@@ -180,7 +220,7 @@ Array<double>* GetOptimizedMMG3DMeshOnRoot(Partition* P, US3D* us3d, std::map<in
         string filename3 = "elements.dat";
         ofstream myfile3;
         myfile3.open(filename3);
-
+        int tel = 0;
         for(int i=0;i<us3d->xcn->getNglob();i++)
         {
             myfile <<     xcn_g->getVal(i,0) << " " << xcn_g->getVal(i,1) << " " << xcn_g->getVal(i,2)
@@ -192,14 +232,15 @@ Array<double>* GetOptimizedMMG3DMeshOnRoot(Partition* P, US3D* us3d, std::map<in
         }
         for(int i=0;i<ien_g->getNrow();i++)
         {
-            myfile <<  ien_g->getVal(i,0)+1 << " " <<
-                       ien_g->getVal(i,1)+1 << " " <<
-                       ien_g->getVal(i,2)+1 << " " <<
-                       ien_g->getVal(i,3)+1 << " " <<
-                       ien_g->getVal(i,4)+1 << " " <<
-                       ien_g->getVal(i,5)+1 << " " <<
-                       ien_g->getVal(i,6)+1 << " " <<
-                       ien_g->getVal(i,7)+1 << std::endl;
+            if(iet_g->getVal(i,0)==2)
+            {
+                myfile <<  ien_g->getVal(i,0)+1 << " " <<
+                           ien_g->getVal(i,1)+1 << " " <<
+                           ien_g->getVal(i,2)+1 << " " <<
+                           ien_g->getVal(i,3)+1 << " " << std::endl;
+                tel++;
+            }
+            
             
             myfile3 << ien_g->getVal(i,0)+1 << " " <<
                        ien_g->getVal(i,1)+1 << " " <<
@@ -213,6 +254,7 @@ Array<double>* GetOptimizedMMG3DMeshOnRoot(Partition* P, US3D* us3d, std::map<in
         myfile.close();
         myfile2.close();
         myfile3.close();
+        
     }
     else
     {
@@ -404,3 +446,210 @@ Mesh* ReduceMeshToRoot(ParArray<int>* ien,
     return us3d_root;
 }
 
+
+std::map<int,std::vector<int> > GatherElementsOnRoot(std::map<int,std::vector<int> >Apr, std::map<int,std::vector<int> > Ate, MPI_Comm comm, MPI_Info info)
+{
+    
+    std::map<int,std::vector<int> > elements;
+
+    
+    int world_size;
+    MPI_Comm_size(comm, &world_size);
+    // Get the rank of the process
+    int world_rank;
+    MPI_Comm_rank(comm, &world_rank);
+    int i,j;
+    
+    std::map<int,std::vector<int> >::iterator grit;
+    Array<int>* lE2gE_tet = new Array<int>(Ate.size(),1);
+    Array<int>* lE2gE_pri = new Array<int>(Apr.size(),1);
+
+    Array<int>* ien_tet = new Array<int>(Ate.size(),4);
+    Array<int>* ien_pri = new Array<int>(Apr.size(),6);
+    i = 0;
+    for(grit=Ate.begin();grit!=Ate.end();grit++)
+    {
+        lE2gE_tet->setVal(i,0,grit->first);
+        ien_tet->setVal(i,0,grit->second[0]);
+        ien_tet->setVal(i,1,grit->second[1]);
+        ien_tet->setVal(i,2,grit->second[2]);
+        ien_tet->setVal(i,3,grit->second[3]);
+        i++;
+    }
+    
+    i = 0;
+    for(grit=Apr.begin();grit!=Apr.end();grit++)
+    {
+        lE2gE_pri->setVal(i,0,grit->first);
+        ien_pri->setVal(i,0,grit->second[0]);
+        ien_pri->setVal(i,1,grit->second[1]);
+        ien_pri->setVal(i,2,grit->second[2]);
+        ien_pri->setVal(i,3,grit->second[3]);
+        ien_pri->setVal(i,4,grit->second[4]);
+        ien_pri->setVal(i,5,grit->second[5]);
+        //std::cout << grit->second[0] << " " << grit->second[1] << " " << grit->second[2] << " " << grit->second[3] << " " << grit->second[4] << " " << grit->second[5] << std::endl;
+        i++;
+    }
+    
+    int* lid_tet_nlocs      = new int[world_size];
+    int* lid_pri_nlocs      = new int[world_size];
+    int* ien_tet_nlocs      = new int[world_size];
+    int* ien_pri_nlocs      = new int[world_size];
+    
+    int* red_lid_tet_nlocs  = new int[world_size];
+    int* red_lid_pri_nlocs  = new int[world_size];
+    int* red_ien_tet_nlocs  = new int[world_size];
+    int* red_ien_pri_nlocs  = new int[world_size];
+    
+    int* lid_tet_offsets = new int[world_size];
+    int* lid_pri_offsets = new int[world_size];
+    int* ien_tet_offsets = new int[world_size];
+    int* ien_pri_offsets = new int[world_size];
+
+    for(i=0;i<world_size;i++)
+    {
+        lid_tet_nlocs[i] = 0;
+        lid_pri_nlocs[i] = 0;
+        ien_tet_nlocs[i] = 0;
+        ien_pri_nlocs[i] = 0;
+
+        
+        if(i==world_rank)
+        {
+            lid_tet_nlocs[i] = Ate.size();
+            lid_pri_nlocs[i] = Apr.size();
+            ien_tet_nlocs[i] = Ate.size()*4;
+            ien_pri_nlocs[i] = Apr.size()*6;
+        }
+        else
+        {
+            lid_tet_nlocs[i] = 0;
+            lid_pri_nlocs[i] = 0;
+            ien_tet_nlocs[i] = 0;
+            ien_pri_nlocs[i] = 0;
+        }
+    }
+
+    MPI_Allreduce(lid_tet_nlocs, red_lid_tet_nlocs, world_size, MPI_INT, MPI_SUM, comm);
+    MPI_Allreduce(lid_pri_nlocs, red_lid_pri_nlocs, world_size, MPI_INT, MPI_SUM, comm);
+    MPI_Allreduce(ien_tet_nlocs, red_ien_tet_nlocs, world_size, MPI_INT, MPI_SUM, comm);
+    MPI_Allreduce(ien_pri_nlocs, red_ien_pri_nlocs, world_size, MPI_INT, MPI_SUM, comm);
+    
+    int offset_lid_tet = 0;
+    int offset_lid_pri = 0;
+    int offset_ien_tet  = 0;
+    int offset_ien_pri  = 0;
+    for(i=0;i<world_size;i++)
+    {
+        lid_tet_offsets[i] = offset_lid_tet;
+        lid_pri_offsets[i] = offset_lid_pri;
+        ien_tet_offsets[i] = offset_ien_tet;
+        ien_pri_offsets[i] = offset_ien_pri;
+        
+        offset_lid_tet = offset_lid_tet+red_lid_tet_nlocs[i];
+        offset_lid_pri = offset_lid_pri+red_lid_pri_nlocs[i];
+        offset_ien_tet = offset_ien_tet+red_ien_tet_nlocs[i];
+        offset_ien_pri = offset_ien_pri+red_ien_pri_nlocs[i];
+    }
+
+    Array<int>*  lE2gE_tet_g;
+    Array<int>*  lE2gE_pri_g;
+    Array<int>*  ien_tet_g;
+    Array<int>*  ien_pri_g;
+
+    int n_glob_lid_tet = offset_lid_tet;
+    int n_glob_lid_pri = offset_lid_pri;
+    int n_glob_ien_tet = offset_ien_tet;
+    int n_glob_ien_pri = offset_ien_pri;
+    if(world_rank == 0)
+    {
+        lE2gE_tet_g   = new Array<int>(n_glob_lid_tet,1);
+        lE2gE_pri_g   = new Array<int>(n_glob_lid_pri,1);
+        ien_tet_g   = new Array<int>(n_glob_ien_tet,4);
+        ien_pri_g   = new Array<int>(n_glob_ien_pri,6);
+    }
+    else
+    {
+        lE2gE_tet_g   = new Array<int>(1,1);
+        lE2gE_pri_g   = new Array<int>(1,1);
+        ien_tet_g   = new Array<int>(1,1);
+        ien_pri_g   = new Array<int>(1,1);
+    }
+    
+    int ncol_lid = 1;
+    MPI_Gatherv(&lE2gE_tet->data[0],
+                lE2gE_tet->getNrow()*1,
+                MPI_INT,
+                &lE2gE_tet_g->data[0],
+                red_lid_tet_nlocs,
+                lid_tet_offsets,
+                MPI_INT, 0, comm);
+//
+    MPI_Gatherv(&lE2gE_pri->data[0],
+                lE2gE_pri->getNrow()*1,
+                MPI_INT,
+                &lE2gE_pri_g->data[0],
+                red_lid_pri_nlocs,
+                lid_pri_offsets,
+                MPI_INT, 0, comm);
+//
+    MPI_Gatherv(&ien_tet->data[0],
+                ien_tet->getNrow()*4,
+                MPI_INT,
+                &ien_tet_g->data[0],
+                red_ien_tet_nlocs,
+                ien_tet_offsets,
+                MPI_INT, 0, comm);
+
+    MPI_Gatherv(&ien_pri->data[0],
+                ien_pri->getNrow()*6,
+                MPI_INT,
+                &ien_pri_g->data[0],
+                red_ien_pri_nlocs,
+                ien_pri_offsets,
+                MPI_INT, 0, comm);
+
+
+
+    for(int i=0;i<lE2gE_tet_g->getNrow();i++)
+    {
+        int gEl = lE2gE_tet_g->getVal(i,0);
+        std::vector<int> tet(4);
+        tet[0] = ien_tet_g->getVal(i,0);
+        tet[1] = ien_tet_g->getVal(i,1);
+        tet[2] = ien_tet_g->getVal(i,2);
+        tet[3] = ien_tet_g->getVal(i,3);
+        elements[gEl] = tet;
+    }
+
+    for(int i=0;i<lE2gE_pri_g->getNrow();i++)
+    {
+        int gEl = lE2gE_pri_g->getVal(i,0);
+        std::vector<int> pri(6);
+        pri[0] = ien_pri_g->getVal(i,0);
+        pri[1] = ien_pri_g->getVal(i,1);
+        pri[2] = ien_pri_g->getVal(i,2);
+        pri[3] = ien_pri_g->getVal(i,3);
+        pri[4] = ien_pri_g->getVal(i,4);
+        pri[5] = ien_pri_g->getVal(i,5);
+        
+        elements[gEl] = pri;
+    }
+
+
+    delete lE2gE_tet_g;
+    delete lE2gE_pri_g;
+    delete ien_tet_g;
+    delete ien_pri_g;
+
+    delete lE2gE_tet;
+    delete lE2gE_pri;
+    delete ien_tet;
+    delete ien_pri;
+    
+    /**/
+    
+    
+    return elements;
+
+}

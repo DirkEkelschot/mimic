@@ -75,6 +75,10 @@ int main(int argc, char** argv)
     const char* fn_data="../test_mesh/it1n/data.h5";
     
     US3D* us3d    = ReadUS3DData(fn_conn,fn_grid,fn_data,comm,info);
+    
+    Array<double>* xcn_ref = ReadDataSetFromFile<double>(fn_grid,"xcn");
+    Array<int>* ien_ref = ReadDataSetFromFile<int>(fn_conn,"ien");
+
     const char* fn_metric = "metric.inp";
     std::vector<double> metric_inputs = ReadMetricInputs(fn_metric);
         
@@ -188,7 +192,9 @@ int main(int argc, char** argv)
         u_vmap_new[gvid] = uval/sum_dist;
     }
     
+    // Ui_map should be Ui_map_arr!!!
     std::map<int,Array<double>* > dUdXi = ComputedUdx_LSQ_Vrt_US3D(P,Ui_map,u_vmap_new,meshTopo,gB,comm);
+    //std::map<int,Array<double>* > dUdXi = ComputedUdx_LSQ_US3D(P,Ui_map,gB,comm);
     
     double Gtiming = ( std::clock() - t) / (double) CLOCKS_PER_SEC;
     double Gmax_time = 0.0;
@@ -284,6 +290,11 @@ int main(int argc, char** argv)
     std::map<int,Array<double>* > dU2dXi2 = ComputedUdx_LSQ_Vrt_US3D(P,dUidxi_map,dudx_vmap_new,meshTopo,gB,comm);
     std::map<int,Array<double>* > dU2dYi2 = ComputedUdx_LSQ_Vrt_US3D(P,dUidyi_map,dudy_vmap_new,meshTopo,gB,comm);
     std::map<int,Array<double>* > dU2dZi2 = ComputedUdx_LSQ_Vrt_US3D(P,dUidzi_map,dudz_vmap_new,meshTopo,gB,comm);
+    
+//    std::map<int,Array<double>* > dU2dXi2 = ComputedUdx_LSQ_US3D(P,dUidxi_map,gB,comm);
+//    std::map<int,Array<double>* > dU2dYi2 = ComputedUdx_LSQ_US3D(P,dUidyi_map,gB,comm);
+//    std::map<int,Array<double>* > dU2dZi2 = ComputedUdx_LSQ_US3D(P,dUidzi_map,gB,comm);
+    
 
 //    dudx_vmap_new.clear();
 //    dudy_vmap_new.clear();
@@ -382,7 +393,7 @@ int main(int argc, char** argv)
     }
     
     hess_vmap.clear();
-    
+    //std::map<int,Array<double>* > hess_met = P->ReduceMetricToVertices(Hess_map);
     // updates hess_vmap_new such that is contains the metric.
     ComputeMetric(P,metric_inputs, comm, hess_vmap_new);
 
@@ -399,89 +410,87 @@ int main(int argc, char** argv)
     
     //====================================================================
 //
-    std::vector<std::vector<int> > Elements = pDom->Elements;
+//    std::map<int,std::vector<int> > Elements = pDom->Elements;
 
-    std::vector<std::vector<int> > tetras;
-    std::vector<std::vector<int> > prisms;
-    std::vector<std::vector<int> > hexes;
-
-    for(int i=0;i<Elements.size();i++)
-    {
-        if(Elements[i].size() == 4)
-        {
-            std::vector<int> Et(4);
-            for(int j=0;j<4;j++)
-            {
-                int nidt = Elements[i][j];
-                Et[j] = nidt;
-
-            }
-            tetras.push_back(Et);
-            Et.clear();
-        }
-
-        if(Elements[i].size() == 6)
-        {
-            std::vector<int> Ep(6);
-            for(int j=0;j<6;j++)
-            {
-                int nidp = Elements[i][j];
-                Ep[j]   = nidp;
-            }
-            prisms.push_back(Ep);
-            Ep.clear();
-        }
-
-        if(Elements[i].size() == 8)
-        {
-            std::vector<int> Eh(8);
-            for(int j=0;j<8;j++)
-            {
-                int nidh = Elements[i][j];
-                Eh[j]   = nidh;
-            }
-            hexes.push_back(Eh);
-            Eh.clear();
-        }
-
-    }
-
-    std::cout << "Rank = " << world_rank << " N_hexes = " << hexes.size() << " N_prisms = " << prisms.size() << " N_tetras = " << tetras.size() << std::endl;
-    std::ofstream myfilet;
-    myfilet.open("output_" + std::to_string(world_rank) + ".dat");
-    myfilet << "TITLE=\"new_volume.tec\"" << std::endl;
-    myfilet <<"VARIABLES = \"X\", \"Y\", \"Z\", \"U\", \"Up\", \"dUdx\", \"dUdy\", \"dUdz\", \"dUdx_v2\", \"dUdy_v2\", \"dUdz_v2\"" << std::endl;
-    myfilet <<"ZONE N = " << loc_part_verts.size() << ", E = " << tetras.size() << ", DATAPACKING = POINT, ZONETYPE = FETETRAHEDRON" << std::endl;
-
-    for(int i=0;i<loc_part_verts.size();i++)
-    {
-        int loc_vid = loc_part_verts[i];
-        int glob_vid = lpartv2gv[loc_vid];
-        myfilet << Verts[loc_vid]->x << " " << Verts[loc_vid]->y << " " << Verts[loc_vid]->z << " " << u_vmap[glob_vid]->getVal(0,0) << " " << u_vmap_new[glob_vid] << " " << dudx_vmap_new[glob_vid] << " " << dudy_vmap_new[glob_vid] << " " << dudz_vmap_new[glob_vid] << " " <<
-            hess2_vmap_new[glob_vid]->getVal(0,0) << " " <<
-            hess2_vmap_new[glob_vid]->getVal(0,1) << " " <<
-            hess2_vmap_new[glob_vid]->getVal(0,2) <<std::endl;
-    }
-
-    for(int i=0;i<tetras.size();i++)
-    {
-        myfilet << tetras[i][0]+1 << " " << tetras[i][1]+1 << " "
-                << tetras[i][2]+1 << " " << tetras[i][3]+1 <<  std::endl;
-    }
-
-    myfilet.close();
+//    std::map<int,std::vector<int> > tetras;
+//    std::vector<std::vector<int> > prisms;
+//    std::vector<std::vector<int> > hexes;
+//
+//    for(int i=0;i<Elements.size();i++)
+//    {
+//        if(Elements[i].size() == 4)
+//        {
+//            std::vector<int> Et(4);
+//            for(int j=0;j<4;j++)
+//            {
+//                int nidt = Elements[i][j];
+//                Et[j] = nidt;
+//
+//            }
+//            tetras.push_back(Et);
+//            Et.clear();
+//        }
+//
+//        if(Elements[i].size() == 6)
+//        {
+//            std::vector<int> Ep(6);
+//            for(int j=0;j<6;j++)
+//            {
+//                int nidp = Elements[i][j];
+//                Ep[j]   = nidp;
+//            }
+//            prisms.push_back(Ep);
+//            Ep.clear();
+//        }
+//
+//        if(Elements[i].size() == 8)
+//        {
+//            std::vector<int> Eh(8);
+//            for(int j=0;j<8;j++)
+//            {
+//                int nidh = Elements[i][j];
+//                Eh[j]   = nidh;
+//            }
+//            hexes.push_back(Eh);
+//            Eh.clear();
+//        }
+//
+//    }
+//
+//    std::cout << "Rank = " << world_rank << " N_hexes = " << hexes.size() << " N_prisms = " << prisms.size() << " N_tetras = " << tetras.size() << std::endl;
+//    std::ofstream myfilet;
+//    myfilet.open("output_" + std::to_string(world_rank) + ".dat");
+//    myfilet << "TITLE=\"new_volume.tec\"" << std::endl;
+//    myfilet <<"VARIABLES = \"X\", \"Y\", \"Z\", \"U\", \"Up\", \"dUdx\", \"dUdy\", \"dUdz\", \"dUdx_v1\", \"dUdy_v1\", \"dUdz_v1\", \"dUdx_v2\", \"dUdy_v2\", \"dUdz_v2\"" << std::endl;
+//    myfilet <<"ZONE N = " << loc_part_verts.size() << ", E = " << tetras.size() << ", DATAPACKING = POINT, ZONETYPE = FETETRAHEDRON" << std::endl;
+//
+//    for(int i=0;i<loc_part_verts.size();i++)
+//    {
+//        int loc_vid = loc_part_verts[i];
+//        int glob_vid = lpartv2gv[loc_vid];
+//        myfilet << Verts[loc_vid]->x << " " << Verts[loc_vid]->y << " " << Verts[loc_vid]->z << " " << u_vmap[glob_vid]->getVal(0,0) << " " << u_vmap_new[glob_vid] << " " << dudx_vmap_new[glob_vid] << " " << dudy_vmap_new[glob_vid] << " " << dudz_vmap_new[glob_vid] << " " <<
+//        dUdXi_vmap[glob_vid]->getVal(0,0) << " " <<
+//        dUdXi_vmap[glob_vid]->getVal(1,0) << " " <<
+//        dUdXi_vmap[glob_vid]->getVal(2,0) << " " <<
+//        hess_vmap_new[glob_vid]->getVal(0,0) << " " <<
+//        hess_vmap_new[glob_vid]->getVal(0,1) << " " <<
+//        hess_vmap_new[glob_vid]->getVal(0,2) << std::endl;
+//    }
+//
+//    for(int i=0;i<tetras.size();i++)
+//    {
+//        myfilet << tetras[i][0]+1 << " " << tetras[i][1]+1 << " "
+//                << tetras[i][2]+1 << " " << tetras[i][3]+1 <<  std::endl;
+//    }
+//
+//    myfilet.close();
   // ====================================================================
-    
-    /*
-    //std::map<int,Array<double>* > Hess_vm = P->ReduceMetricToVertices(Hess_map);
-    //std::map<int,double> u_vmap           = P->ReduceFieldToVertices(Ui_map);
-    std::map<int,Array<double>* > metric  = ComputeMetric(P,metric_inputs, hess_vmap_new, comm);
 
-    Array<double>* mv_g = GetOptimizedMMG3DMeshOnRoot(P, us3d, metric, comm);
     
-    std::vector<std::vector<int> > Hexes    = pDom->Hexes;
-    std::vector<std::vector<int> > Tetras   = pDom->Tetras;
-    std::vector<std::vector<int> > Prisms   = pDom->Prisms;
+    std::map<int,std::vector<int> >::iterator ite;
+    std::map<int,std::vector<int> > Hexes    = pDom->GHexes;
+    std::map<int,std::vector<int> > Tetras   = pDom->GTetras;
+    std::map<int,std::vector<int> > Prisms   = pDom->GPrisms;
     
     int nTetras_loc   = Tetras.size();
     int nHexes_loc    = Hexes.size();
@@ -494,33 +503,11 @@ int main(int argc, char** argv)
     MPI_Allreduce(&nHexes_loc,  &nHexes_glob,  1, MPI_INT, MPI_SUM, comm);
     MPI_Allreduce(&nPrisms_loc, &nPrisms_glob, 1, MPI_INT, MPI_SUM, comm);
 
-    Array<int>* Ate = new Array<int>(nTetras_loc,4);
-    std::map<int,int> lv2gpv     = pDom->lv2gpv;
-    int gv = 0;
-    int lv = 0;
-
-    for(int i=0;i<nTetras_loc;i++)
-    {
-        for(int j=0;j<4;j++)
-        {
-            gv = lv2gpv[Tetras[i][j]];
-            Ate->setVal(i,j,gv);
-        }
-    }
-
-    Array<int>* Apr = new Array<int>(nPrisms_loc,6);
-
-    for(int i=0;i<nPrisms_loc;i++)
-    {
-        for(int j=0;j<6;j++)
-        {
-            gv = lv2gpv[Prisms[i][j]];
-            Apr->setVal(i,j,gv);
-        }
-    }
     
-    Array<int>* gAteRoot   = GatherArrayOnRoot<int>(Ate,comm,info);
-    Array<int>* gAprRoot   = GatherArrayOnRoot<int>(Apr,comm,info);
+    
+    std::map<int,std::vector<int> > ElementsRoot   = GatherElementsOnRoot(Prisms,Tetras,comm,info);
+
+   
     
     Mesh* us3dRoot = ReduceMeshToRoot(us3d->ien,
                                       us3d->ief,
@@ -529,18 +516,13 @@ int main(int argc, char** argv)
                                       us3d->ife,
                                       us3d->if_ref,
                                       comm,info);
+
     
-    delete P;
-    delete us3d;
-    metric.clear();
-    delete Ate;
-    delete Apr;
-    lv2gpv.clear();
-    */
     
     if(world_rank == 0)
     {
-        /*
+        
+        
         MMG5_pMesh mmgMesh_hyb = NULL;
         MMG5_pSol mmgSol_hyb   = NULL;
         
@@ -549,6 +531,7 @@ int main(int argc, char** argv)
         MMG5_ARG_end);
         
         BoundaryMap* bmap = new BoundaryMap(us3dRoot->ifn, us3dRoot->if_ref);
+        
         std::map<int,std::vector<int> > bnd_face_map = bmap->getBfaceMap();
         std::map<std::set<int>,int> tria_ref_map     = bmap->getTriaRefMap();
         std::map<std::set<int>,int> quad_ref_map     = bmap->getQuadRefMap();
@@ -565,257 +548,256 @@ int main(int argc, char** argv)
         {
             std::cout << " bnd_map = " << itb->first << " " << itb->second.size() << std::endl;
         }
-        
-        std::cout << "quad_ref_map.size() " << quad_ref_map.size() << std::endl;
+        std::cout << "quad_ref_map.size() " << quad_ref_map.size() << " " << tria_ref_map.size() << std::endl;
         
         int tra = 0;
         int refer;
         int tt = 0;
         int qt = 0;
         int t3 = 0;
-        for(int i=0;i<gAprRoot->getNrow();i++)
+        
+        std::map<int,std::vector<int> >::iterator ienit;
+        
+        for(ienit=ElementsRoot.begin();ienit!=ElementsRoot.end();ienit++)
         {
-            int gv0 = gAprRoot->getVal(i,0);
-//            mmgMesh_hyb->prism[i+1].v[0] = gv0+1;
-            int gv1 = gAprRoot->getVal(i,1);
-//            mmgMesh_hyb->prism[i+1].v[1] = gv1+1;
-            int gv2 = gAprRoot->getVal(i,2);
-//            mmgMesh_hyb->prism[i+1].v[2] = gv2+1;
-            int gv3 = gAprRoot->getVal(i,3);
-//            mmgMesh_hyb->prism[i+1].v[3] = gv3+1;
-            int gv4 = gAprRoot->getVal(i,4);
-//            mmgMesh_hyb->prism[i+1].v[4] = gv4+1;
-            int gv5 = gAprRoot->getVal(i,5);
-//            mmgMesh_hyb->prism[i+1].v[5] = gv5+1;
-//            mmgMesh_hyb->prism[i+1].ref = 3;
-            
-            std::set<int> tria0;
-            tria0.insert(gv0);
-            tria0.insert(gv1);
-            tria0.insert(gv2);
-            if(tria_ref_map.find(tria0)!=tria_ref_map.end())
+            int gEl = ienit->first;
+            if(ienit->second.size()==6)
             {
-                refer = tria_ref_map[tria0];
-                std::vector<int> tria(3);
-                tria[0] = gv0+1;
-                tria[1] = gv1+1;
-                tria[2] = gv2+1;
-                bndTriVol[tt]    = tria;
-                bndTriVolRef[tt] = refer;
-                if(refer == 3)
+                int gv0 = ienit->second[0];
+                int gv1 = ienit->second[1];
+                int gv2 = ienit->second[2];
+                int gv3 = ienit->second[3];
+                int gv4 = ienit->second[4];
+                int gv5 = ienit->second[5];
+                
+                std::set<int> tria0;
+                tria0.insert(gv0);
+                tria0.insert(gv1);
+                tria0.insert(gv2);
+                if(tria_ref_map.find(tria0)!=tria_ref_map.end())
                 {
-                    t3++;
+                    refer = tria_ref_map[tria0];
+                    std::vector<int> tria(3);
+                    tria[0] = gv0+1;
+                    tria[1] = gv2+1;
+                    tria[2] = gv1+1;
+                    bndTriVol[tt]    = tria;
+                    bndTriVolRef[tt] = refer;
+                    if(refer == 3)
+                    {
+                        t3++;
+                    }
+                    tt++;
                 }
-                tt++;
-            }
 
-            std::set<int> tria1;
-            tria1.insert(gv3);
-            tria1.insert(gv4);
-            tria1.insert(gv5);
-            if(tria_ref_map.find(tria1)!=tria_ref_map.end())
-            {
-                refer = tria_ref_map[tria1];
-                std::vector<int> tria(3);
-                tria[0] = gv3+1;
-                tria[1] = gv4+1;
-                tria[2] = gv5+1;
-                bndTriVol[tt]    = tria;
-                bndTriVolRef[tt] = refer;
-                if(refer == 3)
+                std::set<int> tria1;
+                tria1.insert(gv3);
+                tria1.insert(gv4);
+                tria1.insert(gv5);
+                if(tria_ref_map.find(tria1)!=tria_ref_map.end())
                 {
-                    t3++;
+                    refer = tria_ref_map[tria1];
+                    std::vector<int> tria(3);
+                    tria[0] = gv3+1;
+                    tria[1] = gv4+1;
+                    tria[2] = gv5+1;
+                    bndTriVol[tt]    = tria;
+                    bndTriVolRef[tt] = refer;
+                    if(refer == 3)
+                    {
+                        t3++;
+                    }
+                    tt++;
                 }
-                tt++;
-            }
-            
-            std::set<int> quad0;
-            quad0.insert(gv0);
-            quad0.insert(gv1);
-            quad0.insert(gv4);
-            quad0.insert(gv3);
-            if(quad_ref_map.find(quad0)!=quad_ref_map.end())
-            {
-                refer = quad_ref_map[quad0];
-                std::vector<int> quad(4);
-                quad[0] = gv0+1;
-                quad[1] = gv1+1;
-                quad[2] = gv4+1;
-                quad[3] = gv3+1;
-                bndQuadVol[qt] = quad;
-                bndQuadVolRef[qt] = refer;
-                qt++;
-            }
-            
-            
-            std::set<int> quad1;
-            quad1.insert(gv1);
-            quad1.insert(gv2);
-            quad1.insert(gv5);
-            quad1.insert(gv4);
-            if(quad_ref_map.find(quad1)!=quad_ref_map.end())
-            {
-                refer = quad_ref_map[quad1];
-                std::vector<int> quad(4);
-                quad[0] = gv1+1;
-                quad[1] = gv2+1;
-                quad[2] = gv5+1;
-                quad[3] = gv4+1;
-                bndQuadVol[qt] = quad;
-                bndQuadVolRef[qt] = refer;
-                qt++;
-            }
-            
-            
-            std::set<int> quad2;
-            quad2.insert(gv0);
-            quad2.insert(gv3);
-            quad2.insert(gv5);
-            quad2.insert(gv2);
-            if(quad_ref_map.find(quad2)!=quad_ref_map.end())
-            {
-                refer = quad_ref_map[quad2];
-                std::vector<int> quad(4);
-                quad[0] = gv0+1;
-                quad[1] = gv3+1;
-                quad[2] = gv5+1;
-                quad[3] = gv2+1;
-                bndQuadVol[qt] = quad;
-                bndQuadVolRef[qt] = refer;
-                qt++;
-            }
-            
-            tria0.clear();
-            tria1.clear();
-            quad0.clear();
-            quad1.clear();
-            quad2.clear();
+                
+                std::set<int> quad0;
+                quad0.insert(gv0);
+                quad0.insert(gv1);
+                quad0.insert(gv4);
+                quad0.insert(gv3);
+                if(quad_ref_map.find(quad0)!=quad_ref_map.end())
+                {
+                    refer = quad_ref_map[quad0];
+                    std::vector<int> quad(4);
+                    quad[0] = gv0+1;
+                    quad[1] = gv1+1;
+                    quad[2] = gv4+1;
+                    quad[3] = gv3+1;
+                    bndQuadVol[qt] = quad;
+                    bndQuadVolRef[qt] = refer;
+                    qt++;
+                }
+                
+                
+                std::set<int> quad1;
+                quad1.insert(gv1);
+                quad1.insert(gv2);
+                quad1.insert(gv5);
+                quad1.insert(gv4);
+                if(quad_ref_map.find(quad1)!=quad_ref_map.end())
+                {
+                    refer = quad_ref_map[quad1];
+                    std::vector<int> quad(4);
+                    quad[0] = gv1+1;
+                    quad[1] = gv2+1;
+                    quad[2] = gv5+1;
+                    quad[3] = gv4+1;
+                    bndQuadVol[qt] = quad;
+                    bndQuadVolRef[qt] = refer;
+                    qt++;
+                }
+                
+                
+                std::set<int> quad2;
+                quad2.insert(gv0);
+                quad2.insert(gv3);
+                quad2.insert(gv5);
+                quad2.insert(gv2);
+                if(quad_ref_map.find(quad2)!=quad_ref_map.end())
+                {
+                    refer = quad_ref_map[quad2];
+                    std::vector<int> quad(4);
+                    quad[0] = gv0+1;
+                    quad[1] = gv3+1;
+                    quad[2] = gv5+1;
+                    quad[3] = gv2+1;
+                    bndQuadVol[qt] = quad;
+                    bndQuadVolRef[qt] = refer;
+                    qt++;
+                }
+                
+                tria0.clear();
+                tria1.clear();
+                quad0.clear();
+                quad1.clear();
+                quad2.clear();
 
-        }
-        std::cout << "t3 - quadref " << t3 << " " << qt << " " << bndQuadVolRef.size()  << std::endl;
-        for(int i=0;i<gAteRoot->getNrow();i++)
-        {
-            
-            int gv0 = gAteRoot->getVal(i,0);
-//            mmgMesh_hyb->tetra[i+1].v[0] = gv0+1;
-            int gv1 = gAteRoot->getVal(i,1);
-//            mmgMesh_hyb->tetra[i+1].v[1] = gv1+1;
-            int gv2 = gAteRoot->getVal(i,2);
-//            mmgMesh_hyb->tetra[i+1].v[2] = gv2+1;
-            int gv3 = gAteRoot->getVal(i,3);
-//            mmgMesh_hyb->tetra[i+1].v[3] = gv3+1;
-//            mmgMesh_hyb->tetra[i+1].ref = 3;
-//
-            std::set<int> tria0;
-            
-            tria0.insert(gv0);
-            tria0.insert(gv2);
-            tria0.insert(gv1);
-            
-            if(tria_ref_map.find(tria0)!=tria_ref_map.end())
-            {
-                refer = tria_ref_map[tria0];
-                std::vector<int> tria(3);
-                tria[0] = gv0+1;
-                tria[1] = gv2+1;
-                tria[2] = gv1+1;
-                bndTriVol[tt]    = tria;
-                bndTriVolRef[tt] = refer;
-                
-                if(refer == 3)
-                {
-                    t3++;
-                }
-                
-                
-                tt++;
-            }
-            std::set<int> tria1;
-                
-            tria1.insert(gv1);
-            tria1.insert(gv2);
-            tria1.insert(gv3);
-            
-            if(tria_ref_map.find(tria1)!=tria_ref_map.end())
-            {
-                refer = tria_ref_map[tria1];
-                std::vector<int> tria(3);
-                tria[0] = gv1+1;
-                tria[1] = gv2+1;
-                tria[2] = gv3+1;
-                bndTriVol[tt]    = tria;
-                bndTriVolRef[tt] = refer;
-                
-                if(refer == 3)
-                {
-                    t3++;
-                }
-                tt++;
             }
             
-            std::set<int> tria2;
             
-            tria2.insert(gv0);
-            tria2.insert(gv3);
-            tria2.insert(gv2);
-            
-            if(tria_ref_map.find(tria2)!=tria_ref_map.end())
+            if(ienit->second.size()==4)
             {
-                refer = tria_ref_map[tria2];
-                std::vector<int> tria(3);
-                tria[0] = gv0+1;
-                tria[1] = gv3+1;
-                tria[2] = gv2+1;
-                bndTriVol[tt]    = tria;
-                bndTriVolRef[tt] = refer;
+                int gv0 = ienit->second[0];
+                int gv1 = ienit->second[1];
+                int gv2 = ienit->second[2];
+                int gv3 = ienit->second[3];
+   
+                std::set<int> tria0;
                 
-                if(refer == 3)
-                {
-                    t3++;
-                }
-                tt++;
-            }
-            
-            std::set<int> tria3;
-                                       
-            tria3.insert(gv0);
-            tria3.insert(gv1);
-            tria3.insert(gv3);
-            
-            if(tria_ref_map.find(tria3)!=tria_ref_map.end())
-            {
-                refer = tria_ref_map[tria3];
-                std::vector<int> tria(3);
-                tria[0] = gv0+1;
-                tria[1] = gv1+1;
-                tria[2] = gv3+1;
-                bndTriVol[tt]    = tria;
-                bndTriVolRef[tt] = refer;
+                tria0.insert(gv0);
+                tria0.insert(gv2);
+                tria0.insert(gv1);
                 
-                if(refer == 3)
+                if(tria_ref_map.find(tria0)!=tria_ref_map.end())
                 {
-                    t3++;
+                    refer = tria_ref_map[tria0];
+                    std::vector<int> tria(3);
+                    tria[0] = gv0+1;
+                    tria[1] = gv2+1;
+                    tria[2] = gv1+1;
+                    bndTriVol[tt]    = tria;
+                    bndTriVolRef[tt] = refer;
+                    
+                    if(refer == 3)
+                    {
+                        t3++;
+                    }
+                    tt++;
                 }
-                tt++;
+                std::set<int> tria1;
+                    
+                tria1.insert(gv1);
+                tria1.insert(gv2);
+                tria1.insert(gv3);
+                
+                if(tria_ref_map.find(tria1)!=tria_ref_map.end())
+                {
+                    refer = tria_ref_map[tria1];
+                    std::vector<int> tria(3);
+                    tria[0] = gv1+1;
+                    tria[1] = gv2+1;
+                    tria[2] = gv3+1;
+                    bndTriVol[tt]    = tria;
+                    bndTriVolRef[tt] = refer;
+                    
+                    if(refer == 3)
+                    {
+                        t3++;
+                    }
+                    tt++;
+                }
+                
+                std::set<int> tria2;
+                
+                tria2.insert(gv0);
+                tria2.insert(gv3);
+                tria2.insert(gv2);
+                
+                if(tria_ref_map.find(tria2)!=tria_ref_map.end())
+                {
+                    refer = tria_ref_map[tria2];
+                    std::vector<int> tria(3);
+                    tria[0] = gv0+1;
+                    tria[1] = gv3+1;
+                    tria[2] = gv2+1;
+                    bndTriVol[tt]    = tria;
+                    bndTriVolRef[tt] = refer;
+                    
+                    if(refer == 3)
+                    {
+                        t3++;
+                    }
+                    tt++;
+                }
+                
+                std::set<int> tria3;
+                                           
+                tria3.insert(gv0);
+                tria3.insert(gv1);
+                tria3.insert(gv3);
+                
+                if(tria_ref_map.find(tria3)!=tria_ref_map.end())
+                {
+                    refer = tria_ref_map[tria3];
+                    std::vector<int> tria(3);
+                    tria[0] = gv0+1;
+                    tria[1] = gv1+1;
+                    tria[2] = gv3+1;
+                    bndTriVol[tt]    = tria;
+                    bndTriVolRef[tt] = refer;
+                    
+                    if(refer == 3)
+                    {
+                        t3++;
+                    }
+                    tt++;
+                }
+                
+                tria0.clear();
+                tria1.clear();
+                tria2.clear();
+                tria3.clear();
             }
-            
-            tria0.clear();
-            tria1.clear();
-            tria2.clear();
-            tria3.clear();
         }
         
         
         int nQuad     = bndQuadVolRef.size();
         int nTri      = bndTriVolRef.size();
-        int nTets     = gAteRoot->getNrow();
-        int nPrisms   = gAprRoot->getNrow();
+        int nTets     = nTetras_glob;
+        int nPrisms   = nPrisms_glob;
         int nVerts    = us3dRoot->xcn->getNrow();
         
         
+        std::cout << "MESH STATISTICS:"<<std::endl;
+        std::cout << "nQuadrilateral = " << nQuad << std::endl;
+        std::cout << "nTriangle = " << nTri << std::endl;
+        std::cout << "nTetrahedra = " << nTets << std::endl;
+        std::cout << "nPrisms = " <<nPrisms << std::endl;
+        std::cout << "nVertices = " <<nVerts << std::endl;
         if ( MMG3D_Set_meshSize(mmgMesh_hyb,nVerts,nTets,nPrisms,nTri,nQuad,0) != 1 )  exit(EXIT_FAILURE);
         
         if ( MMG3D_Set_solSize(mmgMesh_hyb,mmgSol_hyb,MMG5_Vertex,mmgMesh_hyb->np,MMG5_Tensor) != 1 ) exit(EXIT_FAILURE);
+        
         
         
         std::ofstream myfile_met;
@@ -852,31 +834,42 @@ int main(int argc, char** argv)
             
         }
         
-        
-        
-        for(int i=0;i<gAprRoot->getNrow();i++)
+        int tet = 1;
+        int pri = 1;
+        for(ienit=ElementsRoot.begin();ienit!=ElementsRoot.end();ienit++)
         {
-            for(int j=0;j<gAprRoot->getNcol();j++)
+            int gEl = ienit->first;
+            if(ienit->second.size()==6)
             {
-                int gv = gAprRoot->getVal(i,j);
-                mmgMesh_hyb->prism[i+1].v[j] = gv+1;
-
+                int gv0 = ienit->second[0];
+                mmgMesh_hyb->prism[pri].v[0] = gv0+1;
+                int gv1 = ienit->second[1];
+                mmgMesh_hyb->prism[pri].v[1] = gv1+1;
+                int gv2 = ienit->second[2];
+                mmgMesh_hyb->prism[pri].v[2] = gv2+1;
+                int gv3 = ienit->second[3];
+                mmgMesh_hyb->prism[pri].v[3] = gv3+1;
+                int gv4 = ienit->second[4];
+                mmgMesh_hyb->prism[pri].v[4] = gv4+1;
+                int gv5 = ienit->second[5];
+                mmgMesh_hyb->prism[pri].v[5] = gv5+1;
+                mmgMesh_hyb->prism[pri].ref = 3;
+                pri++;
             }
-            
-            mmgMesh_hyb->tetra[i+1].ref = -3;
-        }
-        
-        for(int i=0;i<gAteRoot->getNrow();i++)
-        {
-            for(int j=0;j<gAteRoot->getNcol();j++)
+            if(ienit->second.size()==4)
             {
-                int gv = gAteRoot->getVal(i,j);
-                mmgMesh_hyb->tetra[i+1].v[j] = gv+1;
+                int gv0 = ienit->second[0];
+                mmgMesh_hyb->tetra[tet].v[0] = gv0+1;
+                int gv1 = ienit->second[1];
+                mmgMesh_hyb->tetra[tet].v[1] = gv1+1;
+                int gv2 = ienit->second[2];
+                mmgMesh_hyb->tetra[tet].v[2] = gv2+1;
+                int gv3 = ienit->second[3];
+                mmgMesh_hyb->tetra[tet].v[3] = gv3+1;
+                mmgMesh_hyb->tetra[tet].ref = 3;
+                
+                tet++;
             }
-            
-            myfile_met << mmgMesh_hyb->tetra[i+1].v[0] << " " << mmgMesh_hyb->tetra[i+1].v[1] << " " << mmgMesh_hyb->tetra[i+1].v[2] << " " << mmgMesh_hyb->tetra[i+1].v[3] << std::endl;
-
-            mmgMesh_hyb->tetra[i+1].ref = -3;
         }
         
         int st = 1;
@@ -887,10 +880,20 @@ int main(int argc, char** argv)
         {
             int itb = itbnd->first;
             
-            mmgMesh_hyb->tria[st].v[0] = bndTriVol[itb][0];
-            mmgMesh_hyb->tria[st].v[1] = bndTriVol[itb][1];
-            mmgMesh_hyb->tria[st].v[2] = bndTriVol[itb][2];
-            mmgMesh_hyb->tria[st].ref  = bndTriVolRef[itb];
+            if(bndTriVolRef[itb]==3)
+            {
+                mmgMesh_hyb->tria[st].v[0] = bndTriVol[itb][0];
+                mmgMesh_hyb->tria[st].v[1] = bndTriVol[itb][1];
+                mmgMesh_hyb->tria[st].v[2] = bndTriVol[itb][2];
+                mmgMesh_hyb->tria[st].ref  = bndTriVolRef[itb];
+            }
+            else{
+                mmgMesh_hyb->tria[st].v[0] = bndTriVol[itb][0];
+                mmgMesh_hyb->tria[st].v[1] = bndTriVol[itb][1];
+                mmgMesh_hyb->tria[st].v[2] = bndTriVol[itb][2];
+                mmgMesh_hyb->tria[st].ref  = bndTriVolRef[itb];
+            }
+            
             
             if(bndTriVolRef[itb] == 3)
             {
@@ -931,7 +934,7 @@ int main(int argc, char** argv)
         if ( MMG3D_Set_dparameter(mmgMesh_hyb,mmgSol_hyb,MMG3D_DPARAM_hgrad, metric_inputs[0]) != 1 )    exit(EXIT_FAILURE);
         MMG3D_Set_dparameter( mmgMesh_hyb,  mmgSol_hyb,  MMG3D_DPARAM_hgradreq , -1 );
         std::cout<<"Start the adaptation of the tetrahedra..."<<std::endl;
-        int ier = MMG3D_mmg3dlib(mmgMesh_hyb,mmgSol_hyb);
+        //int ier = MMG3D_mmg3dlib(mmgMesh_hyb,mmgSol_hyb);
         std::cout<<"Finished the adaptation of the tetrahedra..."<<std::endl;
         
         MMG5_pMesh mmgMesh_TETCOPY = NULL;
@@ -1010,17 +1013,17 @@ int main(int argc, char** argv)
             st++;
         }
         
-        std::cout << "t333 - after " << t333 << std::endl;
+        std::cout<<"Started writing the adapted tetrahedra mesh in ---> OuterVolume.dat"<<std::endl;
+        OutputMesh_MMG(mmgMesh_TETCOPY,0,mmgMesh_TETCOPY->ne,"OuterVolume.dat");
+        std::cout<<"Finished writing the adapted tetrahedra mesh in ---> OuterVolume.dat"<<std::endl;
         
-       // WriteUS3DGridFromMMG_itN(mmgMesh_hyb, us3d, bnd_face_map);
+        WriteUS3DGridFromMMG_itN(mmgMesh_hyb, us3d);
+        /**/
+        
+        
+        
         
 //      std::cout << "tets = " << mmgMesh_TETCOPY->ne << " " << nTets << " " << nPrisms << std::endl;
-        
-        std::cout<<"Started writing the adapted tetrahedra mesh in ---> OuterVolume.dat"<<std::endl;
-        //OutputMesh_MMG(mmgMesh_TETCOPY,0,mmgMesh_TETCOPY->ne,"OuterVolume.dat");
-        std::cout<<"Finished writing the adapted tetrahedra mesh in ---> OuterVolume.dat"<<std::endl;
-        */
-    
     }
     /**/
     

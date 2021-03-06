@@ -9,7 +9,7 @@
 class ParallelState_Parmetis {
    public:
     //ParallelState_Parmetis(ParArray<int>* e2n, MPI_Comm comm, int type);
-    ParallelState_Parmetis(ParArray<int>* e2n, int* elTypes, ParArray<int>* iet, MPI_Comm comm);
+    ParallelState_Parmetis(ParArray<int>* e2n, Array<int>* elTypes, ParArray<int>* iet, MPI_Comm comm);
     int* getNlocs( void );
     int* getElmdist( void );
     int getNloc( int rank );
@@ -127,7 +127,7 @@ class ParallelState_Parmetis {
 //}// This is the constructor
 
 
-inline ParallelState_Parmetis::ParallelState_Parmetis(ParArray<int>* e2n, int* elTypes, ParArray<int>* ie_Nv, MPI_Comm comm)
+inline ParallelState_Parmetis::ParallelState_Parmetis(ParArray<int>* e2n, Array<int>* elTypes, ParArray<int>* ie_Nv, MPI_Comm comm)
 {
     int size;
     MPI_Comm_size(comm, &size);
@@ -144,11 +144,11 @@ inline ParallelState_Parmetis::ParallelState_Parmetis(ParArray<int>* e2n, int* e
     int npo_loc_tot = 0;
     Array<int>* ienpo = new Array<int>(nloc,1);
 
-    if(elTypes[0] == 1 || elTypes[1] == 1)
+    if(elTypes->getVal(0,0) == 1 || elTypes->getVal(1,0) == 1)
     {
         ncommonnodes = 3;
     }
-    else if(elTypes[2] == 1)
+    else if(elTypes->getVal(2,0) == 1)
     {
         ncommonnodes = 4;
     }
