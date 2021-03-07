@@ -853,7 +853,7 @@ int main(int argc, char** argv)
                 mmgMesh_hyb->prism[pri].v[4] = gv4+1;
                 int gv5 = ienit->second[5];
                 mmgMesh_hyb->prism[pri].v[5] = gv5+1;
-                mmgMesh_hyb->prism[pri].ref = 3;
+                mmgMesh_hyb->prism[pri].ref = -3;
                 pri++;
             }
             if(ienit->second.size()==4)
@@ -866,7 +866,7 @@ int main(int argc, char** argv)
                 mmgMesh_hyb->tetra[tet].v[2] = gv2+1;
                 int gv3 = ienit->second[3];
                 mmgMesh_hyb->tetra[tet].v[3] = gv3+1;
-                mmgMesh_hyb->tetra[tet].ref = 3;
+                mmgMesh_hyb->tetra[tet].ref = -3;
                 
                 tet++;
             }
@@ -933,10 +933,11 @@ int main(int argc, char** argv)
         
         if ( MMG3D_Set_dparameter(mmgMesh_hyb,mmgSol_hyb,MMG3D_DPARAM_hgrad, metric_inputs[0]) != 1 )    exit(EXIT_FAILURE);
         MMG3D_Set_dparameter( mmgMesh_hyb,  mmgSol_hyb,  MMG3D_DPARAM_hgradreq , -1 );
+        std::cout << "face statistics before = " << mmgMesh_hyb->nt << " " << mmgMesh_hyb->nquad << std::endl;
         std::cout<<"Start the adaptation of the tetrahedra..."<<std::endl;
-        //int ier = MMG3D_mmg3dlib(mmgMesh_hyb,mmgSol_hyb);
+        int ier = MMG3D_mmg3dlib(mmgMesh_hyb,mmgSol_hyb);
         std::cout<<"Finished the adaptation of the tetrahedra..."<<std::endl;
-        
+        std::cout << "face statistics after = " << mmgMesh_hyb->nt << " " << mmgMesh_hyb->nquad << std::endl;
         MMG5_pMesh mmgMesh_TETCOPY = NULL;
         MMG5_pSol mmgSol_TETCOPY   = NULL;
         

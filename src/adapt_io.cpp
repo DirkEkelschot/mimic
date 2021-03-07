@@ -321,7 +321,7 @@ void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh, US3D* us3d)
 
     for(int i=1;i<=mmgMesh->nprism;i++)
     {
-        adapt_iet->setVal(mmgMesh->ne+i-1,0,6); // Element type = 6 since we are dealing with prisms.
+        adapt_iet->setVal(mmgMesh->ne+i-1,0,6); // Element type = 6 because prisms.
                // std::cout  << "Prism ["<<i<<"]=" << mmgMesh->prism[i].v[0] << " " << mmgMesh->prism[i].v[1] << " " << mmgMesh->prism[i].v[2] << " " << mmgMesh->prism[i].v[3] << " " << mmgMesh->prism[i].v[4] << " " << mmgMesh->prism[i].v[5] << std::endl;
   
         face0.insert(mmgMesh->prism[i].v[0]);
@@ -333,8 +333,6 @@ void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh, US3D* us3d)
         face00.insert(mmgMesh->prism[i].v[0]-1);
         face00.insert(mmgMesh->prism[i].v[2]-1);
         face00.insert(mmgMesh->prism[i].v[1]-1);
-        
-        
         
         if(faces.count(face0) != 1 )
         {
@@ -607,13 +605,12 @@ void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh, US3D* us3d)
             iface.insert(mmgMesh->tria[faceid].v[1]);
             iface.insert(mmgMesh->tria[faceid].v[2]);
             
-            //std::cout << "3 bc row = " << t << " " << mmgMesh->tria[faceid].v[0] << " " << mmgMesh->tria[faceid].v[1] << " " << mmgMesh->tria[faceid].v[2] << std::endl;
+            //std::cout << "3 bc row = " << t << " " << adapt_ifn->getNrow() << " " << mmgMesh->tria[faceid].v[0] << " " << mmgMesh->tria[faceid].v[1] << " " << mmgMesh->tria[faceid].v[2] << std::endl;
 
             fid=facemap[iface];
             
             adapt_ifn->setVal(t,5,rh[fid]);
             adapt_ifn->setVal(t,6,lh[fid]+1);
-            //adapt_ifn->setVal(t,7,us3d->zdefs->getVal(3+bnd_id-1,5));
             adapt_ifn->setVal(t,7,bnd_id);
 
             iface.clear();
@@ -632,13 +629,12 @@ void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh, US3D* us3d)
             iface.insert(mmgMesh->quadra[faceid].v[2]);
             iface.insert(mmgMesh->quadra[faceid].v[3]);
             
-            //std::cout << "4 bc row = " << t << " " << mmgMesh->quadra[faceid].v[0] << " " << mmgMesh->quadra[faceid].v[1] << " " << mmgMesh->quadra[faceid].v[2] << " " << mmgMesh->quadra[faceid].v[3] << std::endl;
+            //std::cout << "4 bc row = " << t << " " << adapt_ifn->getNrow() << " " << mmgMesh->quadra[faceid].v[0] << " " << mmgMesh->quadra[faceid].v[1] << " " << mmgMesh->quadra[faceid].v[2] << " " << mmgMesh->quadra[faceid].v[3] << std::endl;
             
             fid=qfacemap[iface];
 
             adapt_ifn->setVal(t,5,rh[fid]);
             adapt_ifn->setVal(t,6,lh[fid]+1);
-            //adapt_ifn->setVal(t,7,us3d->zdefs->getVal(3+bnd_id-1,5));
             adapt_ifn->setVal(t,7,bnd_id);
             iface.clear();
             
