@@ -25,17 +25,28 @@ void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh, US3D* us3d)
     std::map<int,std::vector<int> > ref2bqface;
     std::set<set<int> > bfaces;
     std::set<set<int> > bqfaces;
+    std::map<set<int>,int > btfaces_Ref;
+    std::map<set<int>,int > bqfaces_Ref;
     std::set<int>face;
     std::set<int> bcrefs;
-    
+    int wr = 0;
     for(int i=1;i<=mmgMesh->nt;i++)
     {
-        if(mmgMesh->tria[i].ref>0 && mmgMesh->tria[i].ref!=2)// -1 is the tag for internal shell.
+        if(mmgMesh->tria[i].ref>0 && mmgMesh->tria[i].ref!=20)// -1 is the tag for internal shell.
         {
+            
             ref2bface[mmgMesh->tria[i].ref].push_back(i);
             face.insert(mmgMesh->tria[i].v[0]);
             face.insert(mmgMesh->tria[i].v[1]);
             face.insert(mmgMesh->tria[i].v[2]);
+            
+            if(btfaces_Ref.find(face)==btfaces_Ref.end())
+            {
+                btfaces_Ref[face] = mmgMesh->tria[i].ref;
+            }
+            
+            
+            
             bfaces.insert(face);
             if(bcrefs.find(mmgMesh->tria[i].ref)==bcrefs.end())
             {
@@ -43,24 +54,46 @@ void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh, US3D* us3d)
             }
             face.clear();
         }
+        else{
+            std::cout << wr << " weird ref tri - " << mmgMesh->tria[i].ref << std::endl;
+            wr++;
+        }
         
         
     }
+    
+    
     for(int i=1;i<=mmgMesh->nquad;i++)
     {
         if(mmgMesh->quadra[i].ref>0 && mmgMesh->quadra[i].ref!=2)// -1 is the tag for internal shell.
         {
+//            if(mmgMesh->quadra[i].ref!=3 && mmgMesh->quadra[i].ref!=7 && mmgMesh->quadra[i].ref!=36 && mmgMesh->quadra[i].ref!=10)
+//            {
+//                std::cout << "quad = " << mmgMesh->quadra[i].ref << std::endl;
+//            }
+            
             ref2bqface[mmgMesh->quadra[i].ref].push_back(i);
             face.insert(mmgMesh->quadra[i].v[0]);
             face.insert(mmgMesh->quadra[i].v[1]);
             face.insert(mmgMesh->quadra[i].v[2]);
             face.insert(mmgMesh->quadra[i].v[3]);
+            
+            if(bqfaces_Ref.find(face)==bqfaces_Ref.end())
+            {
+                bqfaces_Ref[face] = mmgMesh->quadra[i].ref;
+            }
+            
+            
             bqfaces.insert(face);
             if(bcrefs.find(mmgMesh->quadra[i].ref)==bcrefs.end())
             {
                 bcrefs.insert(mmgMesh->quadra[i].ref);
             }
             face.clear();
+        }
+        else{
+            std::cout << wr << " weird ref quad - " << mmgMesh->tria[i].ref << std::endl;
+            wr++;
         }
 
     }
@@ -85,6 +118,8 @@ void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh, US3D* us3d)
         {
             bnd_Ntri[ref_inq]=ref2bface[ref_inq].size();
         }
+        
+        
         if(ref2bqface.find(ref_inq)==ref2bqface.end())
         {
             bnd_Nquad[ref_inq]=0;
@@ -117,8 +152,9 @@ void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh, US3D* us3d)
 //        i++;
 //    }
     
+    std::map<int,std::vector<std::vector<int> > > bctrias;
+    std::map<int,std::vector<std::vector<int> > > bcquads;
 
-    
     Array<double>* xcn_mmg = new Array<double>(mmgMesh->np,3);
     for(int i=0;i<mmgMesh->np;i++)
     {
@@ -155,8 +191,9 @@ void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh, US3D* us3d)
     Array<int>* adapt_iet = new Array<int>(mmgMesh->ne+mmgMesh->nprism,1);
     // local face2vert_map for a tet in mmg  {1,2,3}, {0,3,2}, {0,1,3}, {0,2,1}
     int bf = 0;
+    int bq = 0;
     std::cout << "-- Constructing the new face-2-node and face-2-element map..."<<std::endl;
-
+    int orient0;
     for(int i=1;i<=mmgMesh->ne;i++)
     {
         adapt_iet->setVal(i-1,0,2); // Element type = 2 since we are dealing with tetrahedra.
@@ -169,19 +206,99 @@ void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh, US3D* us3d)
         face00.insert(mmgMesh->tetra[i].v[2]-1);
         face00.insert(mmgMesh->tetra[i].v[3]-1);
         
+        double* tet = new double[4*3];
+        tet[0*3+0] = mmgMesh->point[mmgMesh->tetra[i].v[0]].c[0];
+        tet[0*3+1] = mmgMesh->point[mmgMesh->tetra[i].v[0]].c[1];
+        tet[0*3+2] = mmgMesh->point[mmgMesh->tetra[i].v[0]].c[2];
         
+        tet[1*3+0] = mmgMesh->point[mmgMesh->tetra[i].v[1]].c[0];
+        tet[1*3+1] = mmgMesh->point[mmgMesh->tetra[i].v[1]].c[1];
+        tet[1*3+2] = mmgMesh->point[mmgMesh->tetra[i].v[1]].c[2];
+        
+        tet[2*3+0] = mmgMesh->point[mmgMesh->tetra[i].v[2]].c[0];
+        tet[2*3+1] = mmgMesh->point[mmgMesh->tetra[i].v[2]].c[1];
+        tet[2*3+2] = mmgMesh->point[mmgMesh->tetra[i].v[2]].c[2];
+        
+        tet[3*3+0] = mmgMesh->point[mmgMesh->tetra[i].v[3]].c[0];
+        tet[3*3+1] = mmgMesh->point[mmgMesh->tetra[i].v[3]].c[1];
+        tet[3*3+2] = mmgMesh->point[mmgMesh->tetra[i].v[3]].c[2];
+        
+        Vert* Vel = ComputeCentroidCoord(tet, 4);
         //std::cout << "Tetra["<<i<<"] " << mmgMesh->tetra[i].v[0] << " " << mmgMesh->tetra[i].v[1] << " " << mmgMesh->tetra[i].v[2] << " " << mmgMesh->tetra[i].v[3] << std::endl;
         if(faces.count(face0) != 1 )
         {
             faces.insert(face0);
-            if(bfaces.find(face0)!=bfaces.end())
-            {
-                bf++;
-            }
+            
             facemap[face0]=fid;
             face2node[fid].push_back(mmgMesh->tetra[i].v[1]);//2
             face2node[fid].push_back(mmgMesh->tetra[i].v[2]);//3
             face2node[fid].push_back(mmgMesh->tetra[i].v[3]);//4
+            
+            
+            if(bfaces.find(face0)!=bfaces.end())
+            {
+                int refe = btfaces_Ref[face0];
+                std::vector<int> bctria(3);
+                bctria[0] = mmgMesh->tetra[i].v[1];
+                bctria[1] = mmgMesh->tetra[i].v[2];
+                bctria[2] = mmgMesh->tetra[i].v[3];
+                
+                bctrias[refe].push_back(bctria);
+                bf++;
+            }
+            
+            //=========================================================================
+            double* face_t0 = new double[3*3];
+            face_t0[0*3+0] = mmgMesh->point[mmgMesh->tetra[i].v[1]].c[0];
+            face_t0[0*3+1] = mmgMesh->point[mmgMesh->tetra[i].v[1]].c[1];
+            face_t0[0*3+2] = mmgMesh->point[mmgMesh->tetra[i].v[1]].c[2];
+            
+            face_t0[1*3+0] = mmgMesh->point[mmgMesh->tetra[i].v[2]].c[0];
+            face_t0[1*3+1] = mmgMesh->point[mmgMesh->tetra[i].v[2]].c[1];
+            face_t0[1*3+2] = mmgMesh->point[mmgMesh->tetra[i].v[2]].c[2];
+            
+            face_t0[2*3+0] = mmgMesh->point[mmgMesh->tetra[i].v[3]].c[0];
+            face_t0[2*3+1] = mmgMesh->point[mmgMesh->tetra[i].v[3]].c[1];
+            face_t0[2*3+2] = mmgMesh->point[mmgMesh->tetra[i].v[3]].c[2];
+            
+            Vert* Vface_t0 = ComputeCentroidCoord(face_t0, 3);
+
+            Vec3D* dir = new Vec3D;
+            
+            dir->c0 = Vface_t0->x - Vel->x;
+            dir->c1 = Vface_t0->y - Vel->y;
+            dir->c2 = Vface_t0->z - Vel->z;
+            
+            double Ldir = sqrt((dir->c0*dir->c0)+(dir->c1*dir->c1)+(dir->c2*dir->c2));
+            
+            dir->c0 = dir->c0/Ldir;
+            dir->c1 = dir->c1/Ldir;
+            dir->c2 = dir->c2/Ldir;
+            
+            Vec3D* v0 = new Vec3D;
+            Vec3D* v1 = new Vec3D;
+
+            v0->c0 = face_t0[1*3+0]-face_t0[0*3+0];
+            v0->c1 = face_t0[1*3+1]-face_t0[0*3+1];
+            v0->c2 = face_t0[1*3+2]-face_t0[0*3+2];
+
+            v1->c0 = face_t0[2*3+0]-face_t0[0*3+0];
+            v1->c1 = face_t0[2*3+1]-face_t0[0*3+1];
+            v1->c2 = face_t0[2*3+2]-face_t0[0*3+2];
+            
+            Vec3D* n0 = ComputeSurfaceNormal(v0,v1);
+            
+            orient0   = DotVec3D(dir,n0);
+
+            if(orient0<0.0)
+            {
+                std::cout << " change face direction " << orient0 <<" " << n0->c0 << " " << n0->c1 << " " << n0->c2<< " Vel = "  << Vel->x <<" " << Vel->y << " " << Vel->z << std::endl;
+            }
+            delete[] face_t0;
+            //=========================================================================
+            
+
+            
             element2face[i-1].push_back(fid);
             face2element[fid].push_back(i-1);
             lh[fid] = i-1;
@@ -208,14 +325,72 @@ void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh, US3D* us3d)
         if(faces.count(face1) != 1)
         {
             faces.insert(face1);
-            if(bfaces.find(face1)!=bfaces.end())
-            {
-                bf++;
-            }
+            
             facemap[face1]=fid;
             face2node[fid].push_back(mmgMesh->tetra[i].v[0]);//1
             face2node[fid].push_back(mmgMesh->tetra[i].v[3]);//3
             face2node[fid].push_back(mmgMesh->tetra[i].v[2]);//4
+            if(bfaces.find(face1)!=bfaces.end())
+            {
+                int refe = btfaces_Ref[face1];
+                std::vector<int> bctria(3);
+                bctria[0] = mmgMesh->tetra[i].v[0];
+                bctria[1] = mmgMesh->tetra[i].v[3];
+                bctria[2] = mmgMesh->tetra[i].v[2];
+                
+                bctrias[refe].push_back(bctria);
+                bf++;
+            }
+            //=========================================================================
+            double* face_t0 = new double[3*3];
+            face_t0[0*3+0] = mmgMesh->point[mmgMesh->tetra[i].v[0]].c[0];
+            face_t0[0*3+1] = mmgMesh->point[mmgMesh->tetra[i].v[0]].c[1];
+            face_t0[0*3+2] = mmgMesh->point[mmgMesh->tetra[i].v[0]].c[2];
+            
+            face_t0[1*3+0] = mmgMesh->point[mmgMesh->tetra[i].v[3]].c[0];
+            face_t0[1*3+1] = mmgMesh->point[mmgMesh->tetra[i].v[3]].c[1];
+            face_t0[1*3+2] = mmgMesh->point[mmgMesh->tetra[i].v[3]].c[2];
+            
+            face_t0[2*3+0] = mmgMesh->point[mmgMesh->tetra[i].v[2]].c[0];
+            face_t0[2*3+1] = mmgMesh->point[mmgMesh->tetra[i].v[2]].c[1];
+            face_t0[2*3+2] = mmgMesh->point[mmgMesh->tetra[i].v[2]].c[2];
+            
+            Vert* Vface_t0 = ComputeCentroidCoord(face_t0, 3);
+
+            Vec3D* dir = new Vec3D;
+            
+            dir->c0 = Vface_t0->x - Vel->x;
+            dir->c1 = Vface_t0->y - Vel->y;
+            dir->c2 = Vface_t0->z - Vel->z;
+            
+            double Ldir = sqrt((dir->c0*dir->c0)+(dir->c1*dir->c1)+(dir->c2*dir->c2));
+            
+            dir->c0 = dir->c0/Ldir;
+            dir->c1 = dir->c1/Ldir;
+            dir->c2 = dir->c2/Ldir;
+            
+            Vec3D* v0 = new Vec3D;
+            Vec3D* v1 = new Vec3D;
+
+            v0->c0 = face_t0[1*3+0]-face_t0[0*3+0];
+            v0->c1 = face_t0[1*3+1]-face_t0[0*3+1];
+            v0->c2 = face_t0[1*3+2]-face_t0[0*3+2];
+
+            v1->c0 = face_t0[2*3+0]-face_t0[0*3+0];
+            v1->c1 = face_t0[2*3+1]-face_t0[0*3+1];
+            v1->c2 = face_t0[2*3+2]-face_t0[0*3+2];
+            
+            Vec3D* n0 = ComputeSurfaceNormal(v0,v1);
+            
+            orient0   = DotVec3D(dir,n0);
+
+            if(orient0<0.0)
+            {
+                std::cout << " change face direction " << orient0  <<" "<< n0->c0 << " " << n0->c1 << " " << n0->c2<< " Vel = "  << Vel->x <<" " << Vel->y << " " << Vel->z << std::endl;
+            }
+            delete[] face_t0;
+            //=========================================================================
+            
             element2face[i-1].push_back(fid);
             face2element[fid].push_back(i-1);
             lh[fid] = i-1;
@@ -242,14 +417,72 @@ void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh, US3D* us3d)
         if( faces.count(face2) != 1)
         {
             faces.insert(face2);
-            if(bfaces.find(face2)!=bfaces.end())
-            {
-                bf++;
-            }
+            
             facemap[face2]=fid;
             face2node[fid].push_back(mmgMesh->tetra[i].v[0]);//1
             face2node[fid].push_back(mmgMesh->tetra[i].v[1]);//2
             face2node[fid].push_back(mmgMesh->tetra[i].v[3]);//4
+            if(bfaces.find(face2)!=bfaces.end())
+            {
+                int refe = btfaces_Ref[face2];
+                std::vector<int> bctria(3);
+                bctria[0] = mmgMesh->tetra[i].v[0];
+                bctria[1] = mmgMesh->tetra[i].v[1];
+                bctria[2] = mmgMesh->tetra[i].v[3];
+                
+                bctrias[refe].push_back(bctria);
+                bf++;
+            }
+            //=========================================================================
+            double* face_t0 = new double[3*3];
+            face_t0[0*3+0] = mmgMesh->point[mmgMesh->tetra[i].v[0]].c[0];
+            face_t0[0*3+1] = mmgMesh->point[mmgMesh->tetra[i].v[0]].c[1];
+            face_t0[0*3+2] = mmgMesh->point[mmgMesh->tetra[i].v[0]].c[2];
+            
+            face_t0[1*3+0] = mmgMesh->point[mmgMesh->tetra[i].v[1]].c[0];
+            face_t0[1*3+1] = mmgMesh->point[mmgMesh->tetra[i].v[1]].c[1];
+            face_t0[1*3+2] = mmgMesh->point[mmgMesh->tetra[i].v[1]].c[2];
+            
+            face_t0[2*3+0] = mmgMesh->point[mmgMesh->tetra[i].v[3]].c[0];
+            face_t0[2*3+1] = mmgMesh->point[mmgMesh->tetra[i].v[3]].c[1];
+            face_t0[2*3+2] = mmgMesh->point[mmgMesh->tetra[i].v[3]].c[2];
+            
+            Vert* Vface_t0 = ComputeCentroidCoord(face_t0, 3);
+
+            Vec3D* dir = new Vec3D;
+            
+            dir->c0 = Vface_t0->x - Vel->x;
+            dir->c1 = Vface_t0->y - Vel->y;
+            dir->c2 = Vface_t0->z - Vel->z;
+            
+            double Ldir = sqrt((dir->c0*dir->c0)+(dir->c1*dir->c1)+(dir->c2*dir->c2));
+            
+            dir->c0 = dir->c0/Ldir;
+            dir->c1 = dir->c1/Ldir;
+            dir->c2 = dir->c2/Ldir;
+            
+            Vec3D* v0 = new Vec3D;
+            Vec3D* v1 = new Vec3D;
+
+            v0->c0 = face_t0[1*3+0]-face_t0[0*3+0];
+            v0->c1 = face_t0[1*3+1]-face_t0[0*3+1];
+            v0->c2 = face_t0[1*3+2]-face_t0[0*3+2];
+
+            v1->c0 = face_t0[2*3+0]-face_t0[0*3+0];
+            v1->c1 = face_t0[2*3+1]-face_t0[0*3+1];
+            v1->c2 = face_t0[2*3+2]-face_t0[0*3+2];
+            
+            Vec3D* n0 = ComputeSurfaceNormal(v0,v1);
+            
+            orient0   = DotVec3D(dir,n0);
+
+            if(orient0<0.0)
+            {
+                std::cout << " change face direction " << orient0 << " "<< n0->c0 << " " << n0->c1 << " " << n0->c2<< " Vel = "  << Vel->x <<" " << Vel->y << " " << Vel->z <<std::endl;
+            }
+            delete[] face_t0;
+            //=========================================================================
+            
             element2face[i-1].push_back(fid);
             face2element[fid].push_back(i-1);
             lh[fid] = i-1;
@@ -276,14 +509,71 @@ void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh, US3D* us3d)
         if( faces.count(face3) != 1)
         {
             faces.insert(face3);
-            if(bfaces.find(face3)!=bfaces.end())
-            {
-                bf++;
-            }
             facemap[face3]=fid;
             face2node[fid].push_back(mmgMesh->tetra[i].v[0]);//1
             face2node[fid].push_back(mmgMesh->tetra[i].v[2]);//3
             face2node[fid].push_back(mmgMesh->tetra[i].v[1]);//2
+            if(bfaces.find(face3)!=bfaces.end())
+            {
+                int refe = btfaces_Ref[face3];
+                std::vector<int> bctria(3);
+                bctria[0] = mmgMesh->tetra[i].v[0];
+                bctria[1] = mmgMesh->tetra[i].v[2];
+                bctria[2] = mmgMesh->tetra[i].v[1];
+                
+                bctrias[refe].push_back(bctria);
+                bf++;
+            }
+            //=========================================================================
+            double* face_t0 = new double[3*3];
+            face_t0[0*3+0] = mmgMesh->point[mmgMesh->tetra[i].v[0]].c[0];
+            face_t0[0*3+1] = mmgMesh->point[mmgMesh->tetra[i].v[0]].c[1];
+            face_t0[0*3+2] = mmgMesh->point[mmgMesh->tetra[i].v[0]].c[2];
+            
+            face_t0[1*3+0] = mmgMesh->point[mmgMesh->tetra[i].v[2]].c[0];
+            face_t0[1*3+1] = mmgMesh->point[mmgMesh->tetra[i].v[2]].c[1];
+            face_t0[1*3+2] = mmgMesh->point[mmgMesh->tetra[i].v[2]].c[2];
+            
+            face_t0[2*3+0] = mmgMesh->point[mmgMesh->tetra[i].v[1]].c[0];
+            face_t0[2*3+1] = mmgMesh->point[mmgMesh->tetra[i].v[1]].c[1];
+            face_t0[2*3+2] = mmgMesh->point[mmgMesh->tetra[i].v[1]].c[2];
+            
+            Vert* Vface_t0 = ComputeCentroidCoord(face_t0, 3);
+
+            Vec3D* dir = new Vec3D;
+            
+            dir->c0 = Vface_t0->x - Vel->x;
+            dir->c1 = Vface_t0->y - Vel->y;
+            dir->c2 = Vface_t0->z - Vel->z;
+            
+            double Ldir = sqrt((dir->c0*dir->c0)+(dir->c1*dir->c1)+(dir->c2*dir->c2));
+            
+            dir->c0 = dir->c0/Ldir;
+            dir->c1 = dir->c1/Ldir;
+            dir->c2 = dir->c2/Ldir;
+            
+            Vec3D* v0 = new Vec3D;
+            Vec3D* v1 = new Vec3D;
+
+            v0->c0 = face_t0[1*3+0]-face_t0[0*3+0];
+            v0->c1 = face_t0[1*3+1]-face_t0[0*3+1];
+            v0->c2 = face_t0[1*3+2]-face_t0[0*3+2];
+
+            v1->c0 = face_t0[2*3+0]-face_t0[0*3+0];
+            v1->c1 = face_t0[2*3+1]-face_t0[0*3+1];
+            v1->c2 = face_t0[2*3+2]-face_t0[0*3+2];
+            
+            Vec3D* n0 = ComputeSurfaceNormal(v0,v1);
+            
+            orient0   = DotVec3D(dir,n0);
+
+            if(orient0<0.0)
+            {
+                std::cout << " change face direction " << orient0 << " " << n0->c0 << " " << n0->c1 << " " << n0->c2<< " Vel = "  << Vel->x <<" " << Vel->y << " " << Vel->z << std::endl;
+            }
+            delete[] face_t0;
+            //=========================================================================
+            
             element2face[i-1].push_back(fid);
             face2element[fid].push_back(i-1);
             lh[fid] = i-1;
@@ -307,6 +597,8 @@ void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh, US3D* us3d)
         face11.clear();
         face22.clear();
         face33.clear();
+        
+        delete[] tet;
     }
     
     
@@ -321,7 +613,36 @@ void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh, US3D* us3d)
 
     for(int i=1;i<=mmgMesh->nprism;i++)
     {
-        adapt_iet->setVal(mmgMesh->ne+i-1,0,6); // Element type = 6 because prisms.
+        
+        double* elem = new double[6*3];
+        elem[0*3+0] = mmgMesh->point[mmgMesh->prism[i].v[0]].c[0];
+        elem[0*3+1] = mmgMesh->point[mmgMesh->prism[i].v[0]].c[1];
+        elem[0*3+2] = mmgMesh->point[mmgMesh->prism[i].v[0]].c[2];
+        
+        elem[1*3+0] = mmgMesh->point[mmgMesh->prism[i].v[1]].c[0];
+        elem[1*3+1] = mmgMesh->point[mmgMesh->prism[i].v[1]].c[1];
+        elem[1*3+2] = mmgMesh->point[mmgMesh->prism[i].v[1]].c[2];
+        
+        elem[2*3+0] = mmgMesh->point[mmgMesh->prism[i].v[2]].c[0];
+        elem[2*3+1] = mmgMesh->point[mmgMesh->prism[i].v[2]].c[1];
+        elem[2*3+2] = mmgMesh->point[mmgMesh->prism[i].v[2]].c[2];
+        
+        elem[3*3+0] = mmgMesh->point[mmgMesh->prism[i].v[3]].c[0];
+        elem[3*3+1] = mmgMesh->point[mmgMesh->prism[i].v[3]].c[1];
+        elem[3*3+2] = mmgMesh->point[mmgMesh->prism[i].v[3]].c[2];
+        
+        elem[4*3+0] = mmgMesh->point[mmgMesh->prism[i].v[4]].c[0];
+        elem[4*3+1] = mmgMesh->point[mmgMesh->prism[i].v[4]].c[1];
+        elem[4*3+2] = mmgMesh->point[mmgMesh->prism[i].v[4]].c[2];
+        
+        elem[5*3+0] = mmgMesh->point[mmgMesh->prism[i].v[5]].c[0];
+        elem[5*3+1] = mmgMesh->point[mmgMesh->prism[i].v[5]].c[1];
+        elem[5*3+2] = mmgMesh->point[mmgMesh->prism[i].v[5]].c[2];
+        
+        Vert* Vel = ComputeCentroidCoord(elem, 6);
+        
+        
+        adapt_iet->setVal(mmgMesh->ne+i-1,0,6); // Element type = 6 since we are dealing with prisms.
                // std::cout  << "Prism ["<<i<<"]=" << mmgMesh->prism[i].v[0] << " " << mmgMesh->prism[i].v[1] << " " << mmgMesh->prism[i].v[2] << " " << mmgMesh->prism[i].v[3] << " " << mmgMesh->prism[i].v[4] << " " << mmgMesh->prism[i].v[5] << std::endl;
   
         face0.insert(mmgMesh->prism[i].v[0]);
@@ -334,17 +655,76 @@ void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh, US3D* us3d)
         face00.insert(mmgMesh->prism[i].v[2]-1);
         face00.insert(mmgMesh->prism[i].v[1]-1);
         
+        
+        
         if(faces.count(face0) != 1 )
         {
             faces.insert(face0);
-            if(bfaces.find(face0)!=bfaces.end())
-            {
-                bf++;
-            }
             facemap[face0]=fid;
             face2node[fid].push_back(mmgMesh->prism[i].v[0]);//1
-            face2node[fid].push_back(mmgMesh->prism[i].v[2]);//3
-            face2node[fid].push_back(mmgMesh->prism[i].v[1]);//2
+            face2node[fid].push_back(mmgMesh->prism[i].v[1]);//3
+            face2node[fid].push_back(mmgMesh->prism[i].v[2]);//2
+            
+            if(bfaces.find(face0)!=bfaces.end())
+            {
+                int refe = btfaces_Ref[face0];
+                std::vector<int> bctria(3);
+                bctria[0] = mmgMesh->prism[i].v[0];
+                bctria[1] = mmgMesh->prism[i].v[1];
+                bctria[2] = mmgMesh->prism[i].v[2];
+                
+                bctrias[refe].push_back(bctria);
+                bf++;
+            }
+            //=========================================================================
+            double* face_t0 = new double[3*3];
+            face_t0[0*3+0] = mmgMesh->point[mmgMesh->prism[i].v[0]].c[0];
+            face_t0[0*3+1] = mmgMesh->point[mmgMesh->prism[i].v[0]].c[1];
+            face_t0[0*3+2] = mmgMesh->point[mmgMesh->prism[i].v[0]].c[2];
+            
+            face_t0[1*3+0] = mmgMesh->point[mmgMesh->prism[i].v[1]].c[0];
+            face_t0[1*3+1] = mmgMesh->point[mmgMesh->prism[i].v[1]].c[1];
+            face_t0[1*3+2] = mmgMesh->point[mmgMesh->prism[i].v[1]].c[2];
+            
+            face_t0[2*3+0] = mmgMesh->point[mmgMesh->prism[i].v[2]].c[0];
+            face_t0[2*3+1] = mmgMesh->point[mmgMesh->prism[i].v[2]].c[1];
+            face_t0[2*3+2] = mmgMesh->point[mmgMesh->prism[i].v[2]].c[2];
+            
+            Vert* Vface_t0 = ComputeCentroidCoord(face_t0, 3);
+
+            Vec3D* dir = new Vec3D;
+            
+            dir->c0 = Vface_t0->x - Vel->x;
+            dir->c1 = Vface_t0->y - Vel->y;
+            dir->c2 = Vface_t0->z - Vel->z;
+            
+            double Ldir = sqrt((dir->c0*dir->c0)+(dir->c1*dir->c1)+(dir->c2*dir->c2));
+            
+            dir->c0 = dir->c0/Ldir;
+            dir->c1 = dir->c1/Ldir;
+            dir->c2 = dir->c2/Ldir;
+            
+            Vec3D* v0 = new Vec3D;
+            Vec3D* v1 = new Vec3D;
+
+            v0->c0 = face_t0[1*3+0]-face_t0[0*3+0];
+            v0->c1 = face_t0[1*3+1]-face_t0[0*3+1];
+            v0->c2 = face_t0[1*3+2]-face_t0[0*3+2];
+
+            v1->c0 = face_t0[2*3+0]-face_t0[0*3+0];
+            v1->c1 = face_t0[2*3+1]-face_t0[0*3+1];
+            v1->c2 = face_t0[2*3+2]-face_t0[0*3+2];
+            
+            Vec3D* n0 = ComputeSurfaceNormal(v0,v1);
+            
+            orient0   = DotVec3D(dir,n0);
+
+            if(orient0<0.0)
+            {
+                std::cout << " change face direction " << orient0 << " " << n0->c0 << " " << n0->c1 << " " << n0->c2<< " Vel = "  << Vel->x <<" " << Vel->y << " " << Vel->z << std::endl;
+            }
+            delete[] face_t0;
+            //=========================================================================
             element2face[mmgMesh->ne+i-1].push_back(fid);
             face2element[fid].push_back(mmgMesh->ne+i-1);
             lh[fid] = mmgMesh->ne+i-1;
@@ -376,14 +756,78 @@ void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh, US3D* us3d)
         if(faces.count(face1) != 1)
         {
             faces.insert(face1);
-            if(bfaces.find(face1)!=bfaces.end())
-            {
-                bf++;
-            }
+            
             facemap[face1]=fid;
             face2node[fid].push_back(mmgMesh->prism[i].v[3]);//4
-            face2node[fid].push_back(mmgMesh->prism[i].v[4]);//5
-            face2node[fid].push_back(mmgMesh->prism[i].v[5]);//6
+            face2node[fid].push_back(mmgMesh->prism[i].v[5]);//5
+            face2node[fid].push_back(mmgMesh->prism[i].v[4]);//6
+            if(bfaces.find(face1)!=bfaces.end())
+            {
+                int refe = btfaces_Ref[face1];
+                std::vector<int> bctria(3);
+                bctria[0] = mmgMesh->prism[i].v[3];
+                bctria[1] = mmgMesh->prism[i].v[5];
+                bctria[2] = mmgMesh->prism[i].v[4];
+                
+                bctrias[refe].push_back(bctria);
+                bf++;
+            }
+            //=========================================================================
+
+            double* face_t0 = new double[3*3];
+            face_t0[0*3+0] = mmgMesh->point[mmgMesh->prism[i].v[3]].c[0];
+            face_t0[0*3+1] = mmgMesh->point[mmgMesh->prism[i].v[3]].c[1];
+            face_t0[0*3+2] = mmgMesh->point[mmgMesh->prism[i].v[3]].c[2];
+            
+            face_t0[1*3+0] = mmgMesh->point[mmgMesh->prism[i].v[5]].c[0];
+            face_t0[1*3+1] = mmgMesh->point[mmgMesh->prism[i].v[5]].c[1];
+            face_t0[1*3+2] = mmgMesh->point[mmgMesh->prism[i].v[5]].c[2];
+            
+            face_t0[2*3+0] = mmgMesh->point[mmgMesh->prism[i].v[4]].c[0];
+            face_t0[2*3+1] = mmgMesh->point[mmgMesh->prism[i].v[4]].c[1];
+            face_t0[2*3+2] = mmgMesh->point[mmgMesh->prism[i].v[4]].c[2];
+            
+            Vert* Vface_t0 = ComputeCentroidCoord(face_t0, 3);
+
+            Vec3D* dir = new Vec3D;
+            
+            dir->c0 = Vface_t0->x - Vel->x;
+            dir->c1 = Vface_t0->y - Vel->y;
+            dir->c2 = Vface_t0->z - Vel->z;
+            
+            double Ldir = sqrt((dir->c0*dir->c0)+(dir->c1*dir->c1)+(dir->c2*dir->c2));
+            
+            dir->c0 = dir->c0/Ldir;
+            dir->c1 = dir->c1/Ldir;
+            dir->c2 = dir->c2/Ldir;
+            
+            Vec3D* v0 = new Vec3D;
+            Vec3D* v1 = new Vec3D;
+
+            v0->c0 = face_t0[1*3+0]-face_t0[0*3+0];
+            v0->c1 = face_t0[1*3+1]-face_t0[0*3+1];
+            v0->c2 = face_t0[1*3+2]-face_t0[0*3+2];
+
+            v1->c0 = face_t0[2*3+0]-face_t0[0*3+0];
+            v1->c1 = face_t0[2*3+1]-face_t0[0*3+1];
+            v1->c2 = face_t0[2*3+2]-face_t0[0*3+2];
+            
+            Vec3D* n0 = ComputeSurfaceNormal(v0,v1);
+            
+            orient0   = DotVec3D(dir,n0);
+
+            if(orient0<0.0)
+            {
+                std::cout << " change face direction " << orient0 << " " << n0->c0 << " " << n0->c1 << " " << n0->c2<< " Vel = "  << Vel->x <<" " << Vel->y << " " << Vel->z << std::endl;
+            }
+            delete[] face_t0;
+            
+            
+            //=========================================================================
+
+            
+            
+            
             element2face[mmgMesh->ne+i-1].push_back(fid);
             face2element[fid].push_back(mmgMesh->ne+i-1);
             lh[fid] = mmgMesh->ne+i-1;
@@ -402,9 +846,9 @@ void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh, US3D* us3d)
         
         // Quad faces //
         qface0.insert(mmgMesh->prism[i].v[0]);
-        qface0.insert(mmgMesh->prism[i].v[1]);
-        qface0.insert(mmgMesh->prism[i].v[4]);
         qface0.insert(mmgMesh->prism[i].v[3]);
+        qface0.insert(mmgMesh->prism[i].v[4]);
+        qface0.insert(mmgMesh->prism[i].v[1]);
         // local face2vert_map for a prism in mmg {0,1,2,0},{3,5,4,3},{1,4,5,2},{0,2,5,3},{0,3,4,1} };
 
         if( qfaces.count(qface0) != 1)
@@ -412,9 +856,21 @@ void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh, US3D* us3d)
             qfaces.insert(qface0);
             qfacemap[qface0]=fid;
             face2node[fid].push_back(mmgMesh->prism[i].v[0]);//1
-            face2node[fid].push_back(mmgMesh->prism[i].v[1]);//4
+            face2node[fid].push_back(mmgMesh->prism[i].v[3]);//4
             face2node[fid].push_back(mmgMesh->prism[i].v[4]);//6
-            face2node[fid].push_back(mmgMesh->prism[i].v[3]);//3
+            face2node[fid].push_back(mmgMesh->prism[i].v[1]);//3
+            
+            if(bqfaces.find(qface0)!=bqfaces.end())
+            {
+                int refe = bqfaces_Ref[qface0];
+                std::vector<int> bcquad(4);
+                bcquad[0] = mmgMesh->prism[i].v[0];
+                bcquad[1] = mmgMesh->prism[i].v[3];
+                bcquad[2] = mmgMesh->prism[i].v[4];
+                bcquad[3] = mmgMesh->prism[i].v[1];
+                bcquads[refe].push_back(bcquad);
+                bq++;
+            }
             element2face[mmgMesh->ne+i-1].push_back(fid);
             face2element[fid].push_back(mmgMesh->ne+i-1);
             lh[fid] = mmgMesh->ne+i-1;
@@ -431,9 +887,9 @@ void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh, US3D* us3d)
         }
 
         qface1.insert(mmgMesh->prism[i].v[1]);
-        qface1.insert(mmgMesh->prism[i].v[2]);
-        qface1.insert(mmgMesh->prism[i].v[5]);
         qface1.insert(mmgMesh->prism[i].v[4]);
+        qface1.insert(mmgMesh->prism[i].v[5]);
+        qface1.insert(mmgMesh->prism[i].v[2]);
         // local face2vert_map for a prism in mmg {0,1,2,0},{3,5,4,3},{1,4,5,2},{0,2,5,3},{0,3,4,1} };
 
         if( qfaces.count(qface1) != 1)
@@ -441,10 +897,20 @@ void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh, US3D* us3d)
             qfaces.insert(qface1);
             qfacemap[qface1]=fid;
             face2node[fid].push_back(mmgMesh->prism[i].v[1]);//2
-            face2node[fid].push_back(mmgMesh->prism[i].v[2]);//3
+            face2node[fid].push_back(mmgMesh->prism[i].v[4]);//3
             face2node[fid].push_back(mmgMesh->prism[i].v[5]);//6
-            face2node[fid].push_back(mmgMesh->prism[i].v[4]);//5
-            
+            face2node[fid].push_back(mmgMesh->prism[i].v[2]);//5
+            if(bqfaces.find(qface1)!=bqfaces.end())
+            {
+                int refe = bqfaces_Ref[qface1];
+                std::vector<int> bcquad(4);
+                bcquad[0] = mmgMesh->prism[i].v[1];
+                bcquad[1] = mmgMesh->prism[i].v[4];
+                bcquad[2] = mmgMesh->prism[i].v[5];
+                bcquad[3] = mmgMesh->prism[i].v[2];
+                bcquads[refe].push_back(bcquad);
+                bq++;
+            }
             element2face[mmgMesh->ne+i-1].push_back(fid);
             face2element[fid].push_back(mmgMesh->ne+i-1);
             lh[fid] = mmgMesh->ne+i-1;
@@ -462,9 +928,9 @@ void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh, US3D* us3d)
         }
         
         qface2.insert(mmgMesh->prism[i].v[0]);//1
-        qface2.insert(mmgMesh->prism[i].v[3]);//2
+        qface2.insert(mmgMesh->prism[i].v[2]);//2
         qface2.insert(mmgMesh->prism[i].v[5]);//5
-        qface2.insert(mmgMesh->prism[i].v[2]);//4
+        qface2.insert(mmgMesh->prism[i].v[3]);//4
         // local face2vert_map for a prism in mmg {0,1,2,0},{3,5,4,3},{1,4,5,2},{0,2,5,3},{0,3,4,1} };
 
         if( qfaces.count(qface2) != 1)
@@ -472,10 +938,20 @@ void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh, US3D* us3d)
             qfaces.insert(qface2);
             qfacemap[qface2]=fid;
             face2node[fid].push_back(mmgMesh->prism[i].v[0]);//1
-            face2node[fid].push_back(mmgMesh->prism[i].v[3]);//2
+            face2node[fid].push_back(mmgMesh->prism[i].v[2]);//2
             face2node[fid].push_back(mmgMesh->prism[i].v[5]);//5
-            face2node[fid].push_back(mmgMesh->prism[i].v[2]);//4
-            
+            face2node[fid].push_back(mmgMesh->prism[i].v[3]);//4
+            if(bqfaces.find(qface2)!=bqfaces.end())
+            {
+                int refe = bqfaces_Ref[qface2];
+                std::vector<int> bcquad(4);
+                bcquad[0] = mmgMesh->prism[i].v[0];
+                bcquad[1] = mmgMesh->prism[i].v[2];
+                bcquad[2] = mmgMesh->prism[i].v[5];
+                bcquad[3] = mmgMesh->prism[i].v[3];
+                bcquads[refe].push_back(bcquad);
+                bq++;
+            }
             element2face[mmgMesh->ne+i-1].push_back(fid);
             face2element[fid].push_back(mmgMesh->ne+i-1);
             lh[fid] = mmgMesh->ne+i-1;
@@ -585,32 +1061,42 @@ void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh, US3D* us3d)
     int nbound = 0;
     int fa=0;
     std::cout << "-- Adding the boundary faces to the new ifn array..."<<std::endl;
-    for(refit=bcrefs.begin();refit!=bcrefs.end();refit++)
+    std::map<int,std::vector<std::vector<int> > >::iterator iterbc;
+    for(iterbc=bctrias.begin();iterbc!=bctrias.end();iterbc++)
     {
-        int bnd_id     = *refit;
-        int Ntris      = bnd_Ntri[bnd_id];
-        int Nquads     = bnd_Nquad[bnd_id];
+        int bnd_id     = iterbc->first;
+        int Ntris      = iterbc->second.size();
+        int Nquads     = bcquads[bnd_id].size();
+        std::cout << "bnd ref test = " << bnd_id << " " << Ntris << " " << Nquads << std::endl;
+    }
+    
+    for(iterbc=bctrias.begin();iterbc!=bctrias.end();iterbc++)
+    {
+        int bnd_id     = iterbc->first;
+        int Ntris      = iterbc->second.size();
+        int Nquads     = bcquads[bnd_id].size();
         
-        std::cout << bnd_id << " " << Ntris << " " << Nquads << std::endl;
+        std::cout << "bnd ref = " << bnd_id << " " << Ntris << " " << Nquads << std::endl;
         
         for(int q=0;q<Ntris;q++)
         {
-            faceid = ref2bface[bnd_id][q];
+            //faceid = ref2bface[bnd_id][q];
             adapt_ifn->setVal(t,0,3);
-            adapt_ifn->setVal(t,1,mmgMesh->tria[faceid].v[0]);
-            adapt_ifn->setVal(t,2,mmgMesh->tria[faceid].v[1]);
-            adapt_ifn->setVal(t,3,mmgMesh->tria[faceid].v[2]);
+            adapt_ifn->setVal(t,1,iterbc->second[q][0]);
+            adapt_ifn->setVal(t,2,iterbc->second[q][1]);
+            adapt_ifn->setVal(t,3,iterbc->second[q][2]);
             adapt_ifn->setVal(t,4,0);
-            iface.insert(mmgMesh->tria[faceid].v[0]);
-            iface.insert(mmgMesh->tria[faceid].v[1]);
-            iface.insert(mmgMesh->tria[faceid].v[2]);
+            iface.insert(iterbc->second[q][0]);
+            iface.insert(iterbc->second[q][1]);
+            iface.insert(iterbc->second[q][2]);
             
-            //std::cout << "3 bc row = " << t << " " << adapt_ifn->getNrow() << " " << mmgMesh->tria[faceid].v[0] << " " << mmgMesh->tria[faceid].v[1] << " " << mmgMesh->tria[faceid].v[2] << std::endl;
+            //std::cout << "3 bc row = " << t << " " << mmgMesh->tria[faceid].v[0] << " " << mmgMesh->tria[faceid].v[1] << " " << mmgMesh->tria[faceid].v[2] << std::endl;
 
             fid=facemap[iface];
             
             adapt_ifn->setVal(t,5,rh[fid]);
             adapt_ifn->setVal(t,6,lh[fid]+1);
+            //adapt_ifn->setVal(t,7,us3d->zdefs->getVal(3+bnd_id-1,5));
             adapt_ifn->setVal(t,7,bnd_id);
 
             iface.clear();
@@ -618,23 +1104,24 @@ void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh, US3D* us3d)
         }
         for(int q=0;q<Nquads;q++)
         {
-            faceid = ref2bqface[bnd_id][q];
+            //faceid = ref2bqface[bnd_id][q];
             adapt_ifn->setVal(t,0,4);
-            adapt_ifn->setVal(t,1,mmgMesh->quadra[faceid].v[0]);
-            adapt_ifn->setVal(t,2,mmgMesh->quadra[faceid].v[3]);
-            adapt_ifn->setVal(t,3,mmgMesh->quadra[faceid].v[2]);
-            adapt_ifn->setVal(t,4,mmgMesh->quadra[faceid].v[1]);
-            iface.insert(mmgMesh->quadra[faceid].v[0]);
-            iface.insert(mmgMesh->quadra[faceid].v[1]);
-            iface.insert(mmgMesh->quadra[faceid].v[2]);
-            iface.insert(mmgMesh->quadra[faceid].v[3]);
+            adapt_ifn->setVal(t,1,bcquads[bnd_id][q][0]);
+            adapt_ifn->setVal(t,2,bcquads[bnd_id][q][1]);
+            adapt_ifn->setVal(t,3,bcquads[bnd_id][q][2]);
+            adapt_ifn->setVal(t,4,bcquads[bnd_id][q][3]);
+            iface.insert(bcquads[bnd_id][q][0]);
+            iface.insert(bcquads[bnd_id][q][1]);
+            iface.insert(bcquads[bnd_id][q][2]);
+            iface.insert(bcquads[bnd_id][q][3]);
             
-            //std::cout << "4 bc row = " << t << " " << adapt_ifn->getNrow() << " " << mmgMesh->quadra[faceid].v[0] << " " << mmgMesh->quadra[faceid].v[1] << " " << mmgMesh->quadra[faceid].v[2] << " " << mmgMesh->quadra[faceid].v[3] << std::endl;
+            //std::cout << "4 bc row = " << t << " " << mmgMesh->quadra[faceid].v[0] << " " << mmgMesh->quadra[faceid].v[1] << " " << mmgMesh->quadra[faceid].v[2] << " " << mmgMesh->quadra[faceid].v[3] << std::endl;
             
             fid=qfacemap[iface];
 
             adapt_ifn->setVal(t,5,rh[fid]);
             adapt_ifn->setVal(t,6,lh[fid]+1);
+            //adapt_ifn->setVal(t,7,us3d->zdefs->getVal(3+bnd_id-1,5));
             adapt_ifn->setVal(t,7,bnd_id);
             iface.clear();
             
@@ -910,6 +1397,7 @@ void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh, US3D* us3d, std::map<int,std::
     std::set<set<int> > bfaces;
     std::set<set<int> > bqfaces;
     std::set<int>face;
+    int wr = 0;
     for(int i=1;i<=mmgMesh->nt;i++)
     {
         if(mmgMesh->tria[i].ref>0 && mmgMesh->tria[i].ref!=2)// -1 is the tag for internal shell.
@@ -921,6 +1409,10 @@ void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh, US3D* us3d, std::map<int,std::
             bfaces.insert(face);
             
             face.clear();
+        }
+        else{
+            std::cout << wr << " weird ref tri - " << mmgMesh->tria[i].ref << std::endl;
+            wr++;
         }
         
         
@@ -1007,6 +1499,7 @@ void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh, US3D* us3d, std::map<int,std::
     Array<int>* adapt_iet = new Array<int>(mmgMesh->ne+mmgMesh->nprism,1);
     // local face2vert_map for a tet in mmg  {1,2,3}, {0,3,2}, {0,1,3}, {0,2,1}
     int bf = 0;
+    int bq = 0;
     std::cout << "-- Constructing the new face-2-node and face-2-element map..."<<std::endl;
 
     for(int i=1;i<=mmgMesh->ne;i++)
@@ -1450,7 +1943,7 @@ void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh, US3D* us3d, std::map<int,std::
         
         for(int q=0;q<Ntris;q++)
         {
-            faceid = ref2bface[bnd_id][q];
+            //faceid = ref2bface[bnd_id][q];
             adapt_ifn->setVal(t,0,3);
             adapt_ifn->setVal(t,1,mmgMesh->tria[faceid].v[0]);
             adapt_ifn->setVal(t,2,mmgMesh->tria[faceid].v[1]);

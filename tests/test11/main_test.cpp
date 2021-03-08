@@ -70,9 +70,13 @@ int main(int argc, char** argv)
 //    const char* fn_conn="itn1/conn.h5";
 //    const char* fn_data="itn1/data.h5";
     
-    const char* fn_grid="../test_mesh/it1n/grid.h5";
-    const char* fn_conn="../test_mesh/it1n/conn.h5";
-    const char* fn_data="../test_mesh/it1n/data.h5";
+//    const char* fn_grid="../test_mesh/it1n/grid.h5";
+//    const char* fn_conn="../test_mesh/it1n/conn.h5";
+//    const char* fn_data="../test_mesh/it1n/data.h5";
+    
+    const char* fn_grid="it3/grid.h5";
+    const char* fn_conn="it3/conn.h5";
+    const char* fn_data="it3/data.h5";
     
     US3D* us3d    = ReadUS3DData(fn_conn,fn_grid,fn_data,comm,info);
     
@@ -564,11 +568,11 @@ int main(int argc, char** argv)
             if(ienit->second.size()==6)
             {
                 int gv0 = ienit->second[0];
-                int gv1 = ienit->second[1];
-                int gv2 = ienit->second[2];
+                int gv1 = ienit->second[2];
+                int gv2 = ienit->second[1];
                 int gv3 = ienit->second[3];
-                int gv4 = ienit->second[4];
-                int gv5 = ienit->second[5];
+                int gv4 = ienit->second[5];
+                int gv5 = ienit->second[4];
                 
                 std::set<int> tria0;
                 tria0.insert(gv0);
@@ -579,50 +583,44 @@ int main(int argc, char** argv)
                     refer = tria_ref_map[tria0];
                     std::vector<int> tria(3);
                     tria[0] = gv0+1;
-                    tria[1] = gv2+1;
-                    tria[2] = gv1+1;
+                    tria[1] = gv1+1;
+                    tria[2] = gv2+1;
                     bndTriVol[tt]    = tria;
                     bndTriVolRef[tt] = refer;
-                    if(refer == 3)
-                    {
-                        t3++;
-                    }
+                    
                     tt++;
                 }
 
                 std::set<int> tria1;
                 tria1.insert(gv3);
-                tria1.insert(gv4);
                 tria1.insert(gv5);
+                tria1.insert(gv4);
                 if(tria_ref_map.find(tria1)!=tria_ref_map.end())
                 {
                     refer = tria_ref_map[tria1];
                     std::vector<int> tria(3);
                     tria[0] = gv3+1;
-                    tria[1] = gv4+1;
-                    tria[2] = gv5+1;
+                    tria[1] = gv5+1;
+                    tria[2] = gv4+1;
                     bndTriVol[tt]    = tria;
                     bndTriVolRef[tt] = refer;
-                    if(refer == 3)
-                    {
-                        t3++;
-                    }
+                    
                     tt++;
                 }
                 
                 std::set<int> quad0;
                 quad0.insert(gv0);
-                quad0.insert(gv1);
-                quad0.insert(gv4);
                 quad0.insert(gv3);
+                quad0.insert(gv4);
+                quad0.insert(gv1);
                 if(quad_ref_map.find(quad0)!=quad_ref_map.end())
                 {
                     refer = quad_ref_map[quad0];
                     std::vector<int> quad(4);
                     quad[0] = gv0+1;
-                    quad[1] = gv1+1;
+                    quad[1] = gv3+1;
                     quad[2] = gv4+1;
-                    quad[3] = gv3+1;
+                    quad[3] = gv1+1;
                     bndQuadVol[qt] = quad;
                     bndQuadVolRef[qt] = refer;
                     qt++;
@@ -631,17 +629,17 @@ int main(int argc, char** argv)
                 
                 std::set<int> quad1;
                 quad1.insert(gv1);
-                quad1.insert(gv2);
-                quad1.insert(gv5);
                 quad1.insert(gv4);
+                quad1.insert(gv5);
+                quad1.insert(gv2);
                 if(quad_ref_map.find(quad1)!=quad_ref_map.end())
                 {
                     refer = quad_ref_map[quad1];
                     std::vector<int> quad(4);
                     quad[0] = gv1+1;
-                    quad[1] = gv2+1;
+                    quad[1] = gv4+1;
                     quad[2] = gv5+1;
-                    quad[3] = gv4+1;
+                    quad[3] = gv2+1;
                     bndQuadVol[qt] = quad;
                     bndQuadVolRef[qt] = refer;
                     qt++;
@@ -650,17 +648,17 @@ int main(int argc, char** argv)
                 
                 std::set<int> quad2;
                 quad2.insert(gv0);
-                quad2.insert(gv3);
-                quad2.insert(gv5);
                 quad2.insert(gv2);
+                quad2.insert(gv5);
+                quad2.insert(gv3);
                 if(quad_ref_map.find(quad2)!=quad_ref_map.end())
                 {
                     refer = quad_ref_map[quad2];
                     std::vector<int> quad(4);
                     quad[0] = gv0+1;
-                    quad[1] = gv3+1;
+                    quad[1] = gv2+1;
                     quad[2] = gv5+1;
-                    quad[3] = gv2+1;
+                    quad[3] = gv3+1;
                     bndQuadVol[qt] = quad;
                     bndQuadVolRef[qt] = refer;
                     qt++;
@@ -841,19 +839,20 @@ int main(int argc, char** argv)
             int gEl = ienit->first;
             if(ienit->second.size()==6)
             {
+                
                 int gv0 = ienit->second[0];
-                mmgMesh_hyb->prism[pri].v[0] = gv0+1;
-                int gv1 = ienit->second[1];
-                mmgMesh_hyb->prism[pri].v[1] = gv1+1;
-                int gv2 = ienit->second[2];
-                mmgMesh_hyb->prism[pri].v[2] = gv2+1;
+                int gv1 = ienit->second[2];
+                int gv2 = ienit->second[1];
                 int gv3 = ienit->second[3];
+                int gv4 = ienit->second[5];
+                int gv5 = ienit->second[4];
+                mmgMesh_hyb->prism[pri].v[0] = gv0+1;
+                mmgMesh_hyb->prism[pri].v[1] = gv1+1;
+                mmgMesh_hyb->prism[pri].v[2] = gv2+1;
                 mmgMesh_hyb->prism[pri].v[3] = gv3+1;
-                int gv4 = ienit->second[4];
                 mmgMesh_hyb->prism[pri].v[4] = gv4+1;
-                int gv5 = ienit->second[5];
                 mmgMesh_hyb->prism[pri].v[5] = gv5+1;
-                mmgMesh_hyb->prism[pri].ref = -3;
+                mmgMesh_hyb->prism[pri].ref = 20;
                 pri++;
             }
             if(ienit->second.size()==4)
@@ -866,7 +865,7 @@ int main(int argc, char** argv)
                 mmgMesh_hyb->tetra[tet].v[2] = gv2+1;
                 int gv3 = ienit->second[3];
                 mmgMesh_hyb->tetra[tet].v[3] = gv3+1;
-                mmgMesh_hyb->tetra[tet].ref = -3;
+                mmgMesh_hyb->tetra[tet].ref = 20;
                 
                 tet++;
             }
@@ -880,24 +879,14 @@ int main(int argc, char** argv)
         {
             int itb = itbnd->first;
             
-            if(bndTriVolRef[itb]==3)
-            {
-                mmgMesh_hyb->tria[st].v[0] = bndTriVol[itb][0];
-                mmgMesh_hyb->tria[st].v[1] = bndTriVol[itb][1];
-                mmgMesh_hyb->tria[st].v[2] = bndTriVol[itb][2];
-                mmgMesh_hyb->tria[st].ref  = bndTriVolRef[itb];
-            }
-            else{
-                mmgMesh_hyb->tria[st].v[0] = bndTriVol[itb][0];
-                mmgMesh_hyb->tria[st].v[1] = bndTriVol[itb][1];
-                mmgMesh_hyb->tria[st].v[2] = bndTriVol[itb][2];
-                mmgMesh_hyb->tria[st].ref  = bndTriVolRef[itb];
-            }
             
-            
-            if(bndTriVolRef[itb] == 3)
+            mmgMesh_hyb->tria[st].v[0] = bndTriVol[itb][0];
+            mmgMesh_hyb->tria[st].v[1] = bndTriVol[itb][1];
+            mmgMesh_hyb->tria[st].v[2] = bndTriVol[itb][2];
+            mmgMesh_hyb->tria[st].ref  = bndTriVolRef[itb];
+            if(bndTriVolRef[itb]!=3 && bndTriVolRef[itb]!=7 && bndTriVolRef[itb]!=36 && bndTriVolRef[itb]!=10)
             {
-                t33++;
+                std::cout << "tri = " << bndTriVolRef[itb] << std::endl;
             }
             st++;
         }
@@ -921,6 +910,10 @@ int main(int argc, char** argv)
             mmgMesh_hyb->quadra[sq].v[2] = bndQuadVol[itb][2];
             mmgMesh_hyb->quadra[sq].v[3] = bndQuadVol[itb][3];
             mmgMesh_hyb->quadra[sq].ref  = bndQuadVolRef[itb];
+            if(bndQuadVolRef[itb]!=3 && bndQuadVolRef[itb]!=7 && bndQuadVolRef[itb]!=36 && bndQuadVolRef[itb]!=10)
+            {
+                std::cout << "quad = " << bndQuadVolRef[itb] << std::endl;
+            }
             sq++;
         }
         

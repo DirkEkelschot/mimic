@@ -168,20 +168,8 @@ def PlotSpanWall(fname,type,hoffset,nEl,Npo,n_z,fign,c,l,lab,pl):
 
 
 fnamer0 = 'qw_base.dat'
-fnamer1 = 'qw_Cgrid_f.dat'
-fnamer = 'qw_reference.dat'
-fname_a = 'qw_gmam.dat'
-fname_a2 = 'qw_gmam_fo.dat'
-
-pl10 = []
-PlotSpanWall(fnamer0,4,11,594,700,7,11,[0.0,0.0,0.11],2,'ref 0',pl10);
-PlotSpanWall(fnamer1,4,11,1194,1400,7,11,[0.00,0.11,0.00],2,'ref 1',pl10);
-PlotSpanWall(fnamer, 4,11,2394,2800,7,11,[0.11,0.00,0.00],2,'ref 2',pl10);
-
-
-pl12 = []
-PlotSpanWall(fname_a,3,11,1188,700,7,13,[0.5,0.0,0.1],2,'tess +',pl12);
-PlotSpanWall(fnamer,4,11,2394,2800,7,13,[0.01,0.01,0.01],2,'ref hex -> ',pl12);
+fname_a1 = 'qw_it1.dat'
+#fname_a2 = 'qw_it2.dat'
 
 pl13 = []
 PlotSpanWall(fname_a2,3,11,1188,700,7,14,[0.5,0.0,0.1],2,'tess +',pl13);
