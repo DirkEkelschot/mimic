@@ -227,7 +227,8 @@ int main(int argc, char** argv) {
             
             i++;
         }
-        //delete dUdXi;
+
+
         std::cout << "second gradient "<<std::endl;
         std::map<int,Array<double>* > dU2dXi2 = ComputedUdx_LSQ_US3D(P,dUidxi_map,gB,comm);
         std::map<int,Array<double>* > dU2dYi2 = ComputedUdx_LSQ_US3D(P,dUidyi_map,gB,comm);
@@ -238,7 +239,7 @@ int main(int argc, char** argv) {
 //      Array<double>* dU2dZi2 = ComputedUdx_MGG(P,dUdzauxNew,meshTopo,gB,comm);
                 
         std::map<int,Array<double>*> Hess_map;
-        std::cout << "second gradient 2"<<std::endl;
+        //std::cout << "second gradient 2"<<std::endl;
 
         std::map<int,Array<double>* >::iterator itgg;
         int te = 0;
@@ -259,12 +260,12 @@ int main(int argc, char** argv) {
             
             Hess_map[gid] = Hess;
             
-            delete dU2dXi2[gid];
-            delete dU2dYi2[gid];
-            delete dU2dZi2[gid];
-            
             t++;
         }
+        
+        dU2dXi2.clear();
+        dU2dYi2.clear();
+        dU2dZi2.clear();
         
         P->AddStateVecForAdjacentElements(Hess_map,6,comm);
 
@@ -1920,6 +1921,7 @@ int main(int argc, char** argv) {
                                MMG5_ARG_end);
                 
                 std::cout<<"Started writing the adapted hybrid mesh in US3D format..."<<std::endl;
+                //WriteUS3DGridFromMMG_it0(mmgMesh_hyb, us3d, bnd_face_map);
                 WriteUS3DGridFromMMG_itN(mmgMesh_hyb, us3d);
                 std::cout<<"Finished writing the adapted hybrid mesh in US3D format..."<<std::endl;
                 //

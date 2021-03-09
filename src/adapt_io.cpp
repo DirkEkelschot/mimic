@@ -1410,10 +1410,10 @@ void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh, US3D* us3d, std::map<int,std::
             
             face.clear();
         }
-        else{
-            std::cout << wr << " weird ref tri - " << mmgMesh->tria[i].ref << std::endl;
-            wr++;
-        }
+//        else{
+//            std::cout << wr << " weird ref tri - " << mmgMesh->tria[i].ref << std::endl;
+//            wr++;
+//        }
         
         
     }
