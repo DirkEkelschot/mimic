@@ -614,7 +614,7 @@ std::vector<double> ReadMetricInputs(const char* fn_metric);
 
 
 
-void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh, US3D* us3d, std::map<int,std::vector<int> > bnd_face_map);
+void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh, US3D* us3d);
 
 void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh, US3D* us3d);
 

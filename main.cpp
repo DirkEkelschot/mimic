@@ -425,8 +425,8 @@ int main(int argc, char** argv) {
             BoundaryMap* bmap = new BoundaryMap(ifn_g, if_ref_g);
             
             int wall_id = 3;
-            int nLayer  = 75;
-            
+            int nLayer  = metric_inputs[4];
+            std::cout << "nLayer -> " << metric_inputs[4] << std::endl;
             if(nLayer>0)
             {
                 int counter = 0;
@@ -1870,7 +1870,7 @@ int main(int argc, char** argv) {
                 
              
                 //MMG3D_Set_handGivenMesh(mmgMesh_hyb);
-                if ( MMG3D_Set_dparameter(mmgMesh_hyb,mmgSol_hyb,MMG3D_DPARAM_hgrad, 3.0) != 1 )    exit(EXIT_FAILURE);
+                if ( MMG3D_Set_dparameter(mmgMesh_hyb,mmgSol_hyb,MMG3D_DPARAM_hgrad, metric_inputs[0]) != 1 )    exit(EXIT_FAILURE);
 
                 //MMG3D_Set_iparameter ( mmgMesh_hyb,  mmgSol_hyb,  MMG3D_IPARAM_nosizreq , 1 );
                 MMG3D_Set_dparameter( mmgMesh_hyb,  mmgSol_hyb,  MMG3D_DPARAM_hgradreq , -1 );
@@ -1922,7 +1922,7 @@ int main(int argc, char** argv) {
                 
                 std::cout<<"Started writing the adapted hybrid mesh in US3D format..."<<std::endl;
                 //WriteUS3DGridFromMMG_it0(mmgMesh_hyb, us3d, bnd_face_map);
-                WriteUS3DGridFromMMG_itN(mmgMesh_hyb, us3d);
+                WriteUS3DGridFromMMG_it0(mmgMesh_hyb, us3d);
                 std::cout<<"Finished writing the adapted hybrid mesh in US3D format..."<<std::endl;
                 //
             }
