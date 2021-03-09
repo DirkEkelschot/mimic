@@ -197,7 +197,7 @@ int main(int argc, char** argv)
     }
     
     // Ui_map should be Ui_map_arr!!!
-    std::map<int,Array<double>* > dUdXi = ComputedUdx_LSQ_Vrt_US3D(P,Ui_map,u_vmap_new,meshTopo,gB,comm);
+    std::map<int,Array<double>* > dUdXi = ComputedUdx_LSQ_Vrt_US3D(P,Ui_map_arr,u_vmap_new,meshTopo,gB,comm);
     //std::map<int,Array<double>* > dUdXi = ComputedUdx_LSQ_US3D(P,Ui_map,gB,comm);
     
     double Gtiming = ( std::clock() - t) / (double) CLOCKS_PER_SEC;

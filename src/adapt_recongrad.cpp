@@ -2,7 +2,7 @@
 
 
 
-std::map<int,Array<double>* > ComputedUdx_LSQ_Vrt_US3D(Partition* Pa, std::map<int,double> Ue, std::map<int,double> Uv, Mesh_Topology* meshTopo, Array<double>* ghost, MPI_Comm comm)
+std::map<int,Array<double>* > ComputedUdx_LSQ_Vrt_US3D(Partition* Pa, std::map<int,Array<double>* > Ue, std::map<int,double> Uv, Mesh_Topology* meshTopo, Array<double>* ghost, MPI_Comm comm)
 {
    int world_size;
    MPI_Comm_size(comm, &world_size);
@@ -86,7 +86,7 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_Vrt_US3D(Partition* Pa, std::map<i
        
        Vert* Vijk   = ComputeCentroidCoord(Pijk,NvPEl);
        
-       u_ijk        = Ue[elID];
+       u_ijk        = Ue[elID]->getVal(0,0);
        int t        = 0;
 
        if(el_contr == 1)
@@ -98,7 +98,7 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_Vrt_US3D(Partition* Pa, std::map<i
 
                if(adjID<Nel)
                {
-                   u_po = Ue[adjID];
+                   u_po = Ue[adjID]->getVal(0,0);
         
                    for(int k=0;k<gE2lV[adjID].size();k++)
                    {
@@ -259,7 +259,7 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_Vrt_US3D(Partition* Pa, std::map<i
 
 
 
-std::map<int,Array<double>* > ComputedUdx_LSQ_US3D(Partition* Pa, std::map<int,double> U, Array<double>* ghost, MPI_Comm comm)
+std::map<int,Array<double>* > ComputedUdx_LSQ_US3D(Partition* Pa, std::map<int,Array<double>* > U, Array<double>* ghost, MPI_Comm comm)
 {
    int world_size;
    MPI_Comm_size(comm, &world_size);
@@ -326,7 +326,7 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_US3D(Partition* Pa, std::map<int,d
        
        Vert* Vijk   = ComputeCentroidCoord(Pijk,NvPEl);
        
-       u_ijk        = U[elID];
+       u_ijk        = U[elID]->getVal(0,0);
        int t        = 0;
        
        for(int j=0;j<nadj;j++)
@@ -338,7 +338,7 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_US3D(Partition* Pa, std::map<int,d
            if(adjID<Nel)
            {
                
-               u_po = U[adjID];
+               u_po = U[adjID]->getVal(0,0);
     
                for(int k=0;k<gE2lV[adjID].size();k++)
                {

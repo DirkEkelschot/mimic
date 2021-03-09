@@ -7,9 +7,9 @@
 #define ADAPT_RECONGRAD_H
 
 
-std::map<int,Array<double>* > ComputedUdx_LSQ_Vrt_US3D(Partition* Pa, std::map<int,double> Ue, std::map<int,double> Uv, Mesh_Topology* meshTopo, Array<double>* ghost, MPI_Comm comm);
+std::map<int,Array<double>* > ComputedUdx_LSQ_Vrt_US3D(Partition* Pa, std::map<int,Array<double>* > Ue, std::map<int,double> Uv, Mesh_Topology* meshTopo, Array<double>* ghost, MPI_Comm comm);
 
-std::map<int,Array<double>* >  ComputedUdx_LSQ_US3D(Partition* Pa, std::map<int,double> U, Array<double>* ghost, MPI_Comm comm);
+std::map<int,Array<double>* >  ComputedUdx_LSQ_US3D(Partition* Pa, std::map<int,Array<double>* > U, Array<double>* ghost, MPI_Comm comm);
 
 std::map<int,Array<double>* > ComputedUdx_MGG(Partition* Pa, std::map<int,double> U,
                                Mesh_Topology* meshTopo, Array<double>* ghost, MPI_Comm comm);

@@ -144,21 +144,23 @@ int main(int argc, char** argv) {
         
         std::vector<int> LocElem = P->getLocElem();
         std::vector<double> Uvaria  = P->getLocElemVaria();
-        
-        std::map<int,double> Uvaria_map;
+        std::map<int,Array<double>*> Uvaria_map;
         double UvariaV = 0.0;
         for(int i=0;i<LocElem.size();i++)
         {
             int gid = LocElem[i];
             UvariaV   = Uvaria[i];
-            Uvaria_map[gid] = UvariaV;
+            
+            Array<double>* Uarr = new Array<double>(1,1);
+            Uarr->setVal(0,0,UvariaV);
+            Uvaria_map[gid] = Uarr;
         }
         
         //Mesh_Topology* meshTopo = new Mesh_Topology(P,comm);
 
         Domain* pDom = P->getPartitionDomain();
 
-        std::map<int,double> UauxNew = P->CommunicateStateAdjacentElements(Uvaria_map,comm);
+        P->AddStateVecForAdjacentElements(Uvaria_map,1,comm);
 
         int* bnd_map;
         int nBnd = 4;
@@ -189,7 +191,7 @@ int main(int argc, char** argv) {
             std::cout << "Started reconstructing the gradient... " << std::endl;
         }
         
-        std::map<int,Array<double>* > dUdXi = ComputedUdx_LSQ_US3D(P,UauxNew,gB,comm);
+        std::map<int,Array<double>* > dUdXi = ComputedUdx_LSQ_US3D(P,Uvaria_map,gB,comm);
         
         double Gtiming = ( std::clock() - t) / (double) CLOCKS_PER_SEC;
         double Gmax_time = 0.0;
@@ -200,71 +202,81 @@ int main(int argc, char** argv) {
             std::cout << "Timing gradient reconstruction... " << Gmax_time << std::endl;
         }
         
-        std::map<int,double> dUidxi_map;
-        std::map<int,double> dUidyi_map;
-        std::map<int,double> dUidzi_map;
+        P->AddStateVecForAdjacentElements(dUdXi,3,comm);
         
         std::map<int,Array<double>* >::iterator grit;
-        int ti=0;
+        std::map<int,Array<double>* > dUidxi_map;
+        std::map<int,Array<double>* > dUidyi_map;
+        std::map<int,Array<double>* > dUidzi_map;
+        std::map<int,Array<double>* > dUidXi_map;
         for(grit=dUdXi.begin();grit!=dUdXi.end();grit++)
         {
-            dUidxi_map[grit->first]=grit->second->getVal(0,0);
-            dUidyi_map[grit->first]=grit->second->getVal(1,0);
-            dUidzi_map[grit->first]=grit->second->getVal(2,0);
             
-            ti++;
+            Array<double>* dUdx_E = new Array<double>(1,1);
+            dUdx_E->setVal(0,0,grit->second->getVal(0,0));
+            Array<double>* dUdy_E = new Array<double>(1,1);
+            dUdy_E->setVal(0,0,grit->second->getVal(1,0));
+            Array<double>* dUdz_E = new Array<double>(1,1);
+            dUdz_E->setVal(0,0,grit->second->getVal(2,0));
+            
+            dUidxi_map[grit->first]=dUdx_E;
+            dUidyi_map[grit->first]=dUdy_E;
+            dUidzi_map[grit->first]=dUdz_E;
+            
+            delete grit->second;
+            
+            i++;
         }
-        std::map<int,double > dUdxauxNew  = P->CommunicateStateAdjacentElements(dUidxi_map,comm);
-        std::map<int,double > dUdyauxNew  = P->CommunicateStateAdjacentElements(dUidyi_map,comm);
-        std::map<int,double > dUdzauxNew  = P->CommunicateStateAdjacentElements(dUidzi_map,comm);
-        
         //delete dUdXi;
-        
-        std::map<int,Array<double>* > dU2dXi2 = ComputedUdx_LSQ_US3D(P,dUdxauxNew,gB,comm);
-        std::map<int,Array<double>* > dU2dYi2 = ComputedUdx_LSQ_US3D(P,dUdyauxNew,gB,comm);
-        std::map<int,Array<double>* > dU2dZi2 = ComputedUdx_LSQ_US3D(P,dUdzauxNew,gB,comm);
+        std::cout << "second gradient "<<std::endl;
+        std::map<int,Array<double>* > dU2dXi2 = ComputedUdx_LSQ_US3D(P,dUidxi_map,gB,comm);
+        std::map<int,Array<double>* > dU2dYi2 = ComputedUdx_LSQ_US3D(P,dUidyi_map,gB,comm);
+        std::map<int,Array<double>* > dU2dZi2 = ComputedUdx_LSQ_US3D(P,dUidzi_map,gB,comm);
 
 //      Array<double>* dU2dXi2 = ComputedUdx_MGG(P,dUdxauxNew,meshTopo,gB,comm);
 //      Array<double>* dU2dYi2 = ComputedUdx_MGG(P,dUdyauxNew,meshTopo,gB,comm);
 //      Array<double>* dU2dZi2 = ComputedUdx_MGG(P,dUdzauxNew,meshTopo,gB,comm);
                 
         std::map<int,Array<double>*> Hess_map;
-        
+        std::cout << "second gradient 2"<<std::endl;
+
         std::map<int,Array<double>* >::iterator itgg;
         int te = 0;
-
+        
         for(itgg=dU2dXi2.begin();itgg!=dU2dXi2.end();itgg++)
         {
             int gid = itgg->first;
             
-            Array<double>* Hess = new Array<double>(3,3);
+            Array<double>* Hess = new Array<double>(6,1);
             
             Hess->setVal(0,0,dU2dXi2[gid]->getVal(0,0));
-            Hess->setVal(0,1,dU2dXi2[gid]->getVal(1,0));
-            Hess->setVal(0,2,dU2dXi2[gid]->getVal(2,0));
-            
             Hess->setVal(1,0,dU2dXi2[gid]->getVal(1,0));
-            Hess->setVal(1,1,dU2dYi2[gid]->getVal(1,0));
-            Hess->setVal(1,2,dU2dYi2[gid]->getVal(2,0));
-            
             Hess->setVal(2,0,dU2dXi2[gid]->getVal(2,0));
-            Hess->setVal(2,1,dU2dYi2[gid]->getVal(2,0));
-            Hess->setVal(2,2,dU2dZi2[gid]->getVal(2,0));
+
+            Hess->setVal(3,0,dU2dYi2[gid]->getVal(1,0));
+            Hess->setVal(4,0,dU2dYi2[gid]->getVal(2,0));
+            Hess->setVal(5,0,dU2dZi2[gid]->getVal(2,0));
             
             Hess_map[gid] = Hess;
+            
+            delete dU2dXi2[gid];
+            delete dU2dYi2[gid];
+            delete dU2dZi2[gid];
             
             t++;
         }
         
-        std::map<int,Array<double>* > Hess_vm = P->ReduceMetricToVertices(Hess_map);
+        P->AddStateVecForAdjacentElements(Hess_map,6,comm);
+
+        std::map<int,Array<double>* > hess_vmap = P->ReduceStateVecToAllVertices(Hess_map,6);
         
-        std::map<int,Array<double>* > metric = ComputeMetric(P,metric_inputs, Hess_vm,comm);
+        ComputeMetric(P,metric_inputs, comm, hess_vmap);
         
         if(world_rank==0)
         {
             std::cout << "Started gathering metric data on rank 0..." <<std::endl;
         }
-        Array<double>* mv_g = GetOptimizedMMG3DMeshOnRoot(P, us3d, metric, comm);
+        Array<double>* mv_g = GetOptimizedMMG3DMeshOnRoot(P, us3d, hess_vmap, comm);
         if(world_rank==0)
         {
             std::cout << "Finished gathering metric data on rank 0..." <<std::endl;
@@ -382,16 +394,16 @@ int main(int argc, char** argv) {
         
         delete P;
         
-        Hess_vm.clear();
-        Hess_map.clear();
+        //Hess_vm.clear();
+        //Hess_map.clear();
 
         dUdXi.clear();
         dUidxi_map.clear();
         dUidyi_map.clear();
         dUidzi_map.clear();
-        dUdxauxNew.clear();
-        dUdyauxNew.clear();
-        dUdzauxNew.clear();
+//        dUdxauxNew.clear();
+//        dUdyauxNew.clear();
+//        dUdzauxNew.clear();
 
         dU2dXi2.clear();
         dU2dYi2.clear();
@@ -412,7 +424,7 @@ int main(int argc, char** argv) {
             BoundaryMap* bmap = new BoundaryMap(ifn_g, if_ref_g);
             
             int wall_id = 3;
-            int nLayer  = 230;
+            int nLayer  = 75;
             
             if(nLayer>0)
             {
@@ -1862,7 +1874,7 @@ int main(int argc, char** argv) {
                 //MMG3D_Set_iparameter ( mmgMesh_hyb,  mmgSol_hyb,  MMG3D_IPARAM_nosizreq , 1 );
                 MMG3D_Set_dparameter( mmgMesh_hyb,  mmgSol_hyb,  MMG3D_DPARAM_hgradreq , -1 );
                 std::cout<<"Start the adaptation of the tetrahedra..."<<std::endl;
-                //int ier = MMG3D_mmg3dlib(mmgMesh_hyb,mmgSol_hyb);
+                int ier = MMG3D_mmg3dlib(mmgMesh_hyb,mmgSol_hyb);
                 std::cout<<"Finished the adaptation of the tetrahedra..."<<std::endl;
 
                 MMG5_pMesh mmgMesh_TETCOPY = NULL;
@@ -1908,173 +1920,172 @@ int main(int argc, char** argv) {
                                MMG5_ARG_end);
                 
                 std::cout<<"Started writing the adapted hybrid mesh in US3D format..."<<std::endl;
-                WriteUS3DGridFromMMG_it0(mmgMesh_hyb, us3d, bnd_face_map);
+                WriteUS3DGridFromMMG_itN(mmgMesh_hyb, us3d);
                 std::cout<<"Finished writing the adapted hybrid mesh in US3D format..."<<std::endl;
                 //
             }
             else
             {
-                /*
-                MMG5_pMesh mmgMesh = NULL;
-                MMG5_pSol mmgSol   = NULL;
-                
-                MMG3D_Init_mesh(MMG5_ARG_start,
-                MMG5_ARG_ppMesh,&mmgMesh,MMG5_ARG_ppMet,&mmgSol,
-                MMG5_ARG_end);
-                
-                int nbHex      = ien_g->getNrow();
-                int nbVertices = xcn_g->getNrow();
-                int nbTriangles = tria_ref_map.size();
-                
-                
-                if ( MMG3D_Set_meshSize(mmgMesh,nbVertices,nbHex*6,0,nbTriangles,0,0) != 1 )  exit(EXIT_FAILURE);
-                
-                if ( MMG3D_Set_solSize(mmgMesh,mmgSol,MMG5_Vertex,mmgMesh->np,MMG5_Tensor) != 1 ) exit(EXIT_FAILURE);
-                
-                for(int i=0;i<nbVertices;i++)
-                {
-                    mmgMesh->point[i+1].c[0] = xcn_g->getVal(i,0);
-                    mmgMesh->point[i+1].c[1] = xcn_g->getVal(i,1);
-                    mmgMesh->point[i+1].c[2] = xcn_g->getVal(i,2);
-                    
-                    mmgMesh->point[i+1].ref  = 0;
-                    
-                    double m11 = mv_g->getVal(i,0);
-                    double m12 = mv_g->getVal(i,1);
-                    double m13 = mv_g->getVal(i,2);
-                    double m22 = mv_g->getVal(i,3);
-                    double m23 = mv_g->getVal(i,4);
-                    double m33 = mv_g->getVal(i,5);
-                    
-                    if ( MMG3D_Set_tensorSol(mmgSol, m11,m12,m13,m22,m23,m33,i+1) != 1 ) exit(EXIT_FAILURE);
-                }
-                
-                int ref = 0;
-                int* hexTab = new int[9*(nbHex+1)];
-                for(int i=0;i<nbHex;i++)
-                {
-                    int hexTabPosition = 9*(i+1);
-                    for(int j=0;j<8;j++)
-                    {
-                        int val = ien_g->getVal(i,j)+1;
-                        hexTab[hexTabPosition+j] = val;
-                    }
-                    hexTab[hexTabPosition+8] = ref;
-                }
-                     
-                int num = H2T_chkorient(mmgMesh,hexTab,nbHex);
-                 
-                int* adjahex = NULL;
-                adjahex = (int*)calloc(6*nbHex+7,sizeof(int));
-                assert(adjahex);
-                 
-                if(!H2T_hashHexa(hexTab,adjahex,nbHex))
-                {
-                    std::cout << "Error :: setting up the new adjacency for the hexes after reorientation." << std::endl;
-                }
-                
-                Hedge        hed2;
-                hed2.size  = 6*nbHex;
-                hed2.hnxt  = 6*nbHex;
-                hed2.nhmax = (int)(16*6*nbHex);
-                hed2.item  = NULL;
-                hed2.item  = (hedge*)calloc(hed2.nhmax+1,sizeof(hedge));
-
-                for (int k=6*nbHex; k<hed2.nhmax; k++)
-                {
-                    hed2.item[k].nxt = k+1;
-                }
-                 
-                int ret = H2T_cuthex(mmgMesh, &hed2, hexTab, adjahex, nbHex);
-                std::cout << "mmgMesh->ne " << mmgMesh->nt << std::endl;
-
-                int ref0,ref1,ref2,ref3;
-                int tel = 0;
-                std::set<std::set<int> > tria_unique;
-                int offset_NE = (int)mmgMesh->ne/2;
-                int t = 1;
-                for(int i=1;i<=offset_NE;i++)
-                {
-                    std::set<int> tria0;
-                    std::set<int> tria1;
-                    std::set<int> tria2;
-                    std::set<int> tria3;
-                    tria0.insert(mmgMesh->tetra[offset_NE+i].v[0]-1);
-                    tria0.insert(mmgMesh->tetra[offset_NE+i].v[1]-1);
-                    tria0.insert(mmgMesh->tetra[offset_NE+i].v[2]-1);
-                    if(tria_ref_map.find(tria0)!=tria_ref_map.end())
-                    {
-                        ref0 = tria_ref_map[tria0];
-                        mmgMesh->tria[t].v[0] = mmgMesh->tetra[offset_NE+i].v[0];
-                        mmgMesh->tria[t].v[1] = mmgMesh->tetra[offset_NE+i].v[1];
-                        mmgMesh->tria[t].v[2] = mmgMesh->tetra[offset_NE+i].v[2];
-                        mmgMesh->tria[t].ref  = ref0;
-                        t++;
-                    }
+//                MMG5_pMesh mmgMesh = NULL;
+//                MMG5_pSol mmgSol   = NULL;
 //
-                    tria1.insert(mmgMesh->tetra[offset_NE+i].v[1]-1);
-                    tria1.insert(mmgMesh->tetra[offset_NE+i].v[2]-1);
-                    tria1.insert(mmgMesh->tetra[offset_NE+i].v[3]-1);
-                    if(tria_ref_map.find(tria1)!=tria_ref_map.end())
-                    {
-                        ref1 = tria_ref_map[tria1];
-                        mmgMesh->tria[t].v[0] = mmgMesh->tetra[offset_NE+i].v[1];
-                        mmgMesh->tria[t].v[1] = mmgMesh->tetra[offset_NE+i].v[2];
-                        mmgMesh->tria[t].v[2] = mmgMesh->tetra[offset_NE+i].v[3];
-                        mmgMesh->tria[t].ref  = ref1;
-                        t++;
-                    }
+//                MMG3D_Init_mesh(MMG5_ARG_start,
+//                MMG5_ARG_ppMesh,&mmgMesh,MMG5_ARG_ppMet,&mmgSol,
+//                MMG5_ARG_end);
 //
-                    tria2.insert(mmgMesh->tetra[offset_NE+i].v[2]-1);
-                    tria2.insert(mmgMesh->tetra[offset_NE+i].v[3]-1);
-                    tria2.insert(mmgMesh->tetra[offset_NE+i].v[0]-1);
-                    if(tria_ref_map.find(tria2)!=tria_ref_map.end())
-                    {
-                        ref2 = tria_ref_map[tria2];
-                        mmgMesh->tria[t].v[0] = mmgMesh->tetra[offset_NE+i].v[2];
-                        mmgMesh->tria[t].v[1] = mmgMesh->tetra[offset_NE+i].v[3];
-                        mmgMesh->tria[t].v[2] = mmgMesh->tetra[offset_NE+i].v[0];
-                        mmgMesh->tria[t].ref  = ref2;
-                        t++;
-                    }
-
-                    tria3.insert(mmgMesh->tetra[offset_NE+i].v[3]-1);
-                    tria3.insert(mmgMesh->tetra[offset_NE+i].v[0]-1);
-                    tria3.insert(mmgMesh->tetra[offset_NE+i].v[1]-1);
-                    if(tria_ref_map.find(tria3)!=tria_ref_map.end())
-                    {
-                        ref3 = tria_ref_map[tria3];
-                        mmgMesh->tria[t].v[0] = mmgMesh->tetra[offset_NE+i].v[3];
-                        mmgMesh->tria[t].v[1] = mmgMesh->tetra[offset_NE+i].v[0];
-                        mmgMesh->tria[t].v[2] = mmgMesh->tetra[offset_NE+i].v[1];
-                        mmgMesh->tria[t].ref  = ref3;
-                        t++;
-                    }
+//                int nbHex      = ien_g->getNrow();
+//                int nbVertices = xcn_g->getNrow();
+//                int nbTriangles = tria_ref_map.size();
 //
-                    tria0.clear();
-                    tria1.clear();
-                    tria2.clear();
-                    tria3.clear();
-                }
-                
-                MMG3D_Set_handGivenMesh(mmgMesh);
-                
-                if ( MMG3D_Set_dparameter(mmgMesh,mmgSol,MMG3D_DPARAM_hgrad, 4.0) != 1 )    exit(EXIT_FAILURE);
-
-                //MMG3D_Set_iparameter ( mmgMesh_hyb,  mmgSol_hyb,  MMG3D_IPARAM_nosizreq , 1 );
-                MMG3D_Set_dparameter( mmgMesh,  mmgSol,  MMG3D_DPARAM_hgradreq , -1 );
-                
-                int ier = MMG3D_mmg3dlib(mmgMesh,mmgSol);
-                
-                OutputMesh_MMG(mmgMesh,0,mmgMesh->ne,"OuterVolumeFull.dat");
-                
-                // WriteUS3DGridFromMMG(mmgMesh, us3d);
+//
+//                if ( MMG3D_Set_meshSize(mmgMesh,nbVertices,nbHex*6,0,nbTriangles,0,0) != 1 )  exit(EXIT_FAILURE);
+//
+//                if ( MMG3D_Set_solSize(mmgMesh,mmgSol,MMG5_Vertex,mmgMesh->np,MMG5_Tensor) != 1 ) exit(EXIT_FAILURE);
+//
+//                for(int i=0;i<nbVertices;i++)
+//                {
+//                    mmgMesh->point[i+1].c[0] = xcn_g->getVal(i,0);
+//                    mmgMesh->point[i+1].c[1] = xcn_g->getVal(i,1);
+//                    mmgMesh->point[i+1].c[2] = xcn_g->getVal(i,2);
+//
+//                    mmgMesh->point[i+1].ref  = 0;
+//
+//                    double m11 = mv_g->getVal(i,0);
+//                    double m12 = mv_g->getVal(i,1);
+//                    double m13 = mv_g->getVal(i,2);
+//                    double m22 = mv_g->getVal(i,3);
+//                    double m23 = mv_g->getVal(i,4);
+//                    double m33 = mv_g->getVal(i,5);
+//
+//                    if ( MMG3D_Set_tensorSol(mmgSol, m11,m12,m13,m22,m23,m33,i+1) != 1 ) exit(EXIT_FAILURE);
+//                }
+//
+//                int ref = 0;
+//                int* hexTab = new int[9*(nbHex+1)];
+//                for(int i=0;i<nbHex;i++)
+//                {
+//                    int hexTabPosition = 9*(i+1);
+//                    for(int j=0;j<8;j++)
+//                    {
+//                        int val = ien_g->getVal(i,j)+1;
+//                        hexTab[hexTabPosition+j] = val;
+//                    }
+//                    hexTab[hexTabPosition+8] = ref;
+//                }
+//
+//                int num = H2T_chkorient(mmgMesh,hexTab,nbHex);
+//
+//                int* adjahex = NULL;
+//                adjahex = (int*)calloc(6*nbHex+7,sizeof(int));
+//                assert(adjahex);
+//
+//                if(!H2T_hashHexa(hexTab,adjahex,nbHex))
+//                {
+//                    std::cout << "Error :: setting up the new adjacency for the hexes after reorientation." << std::endl;
+//                }
+//
+//                Hedge        hed2;
+//                hed2.size  = 6*nbHex;
+//                hed2.hnxt  = 6*nbHex;
+//                hed2.nhmax = (int)(16*6*nbHex);
+//                hed2.item  = NULL;
+//                hed2.item  = (hedge*)calloc(hed2.nhmax+1,sizeof(hedge));
+//
+//                for (int k=6*nbHex; k<hed2.nhmax; k++)
+//                {
+//                    hed2.item[k].nxt = k+1;
+//                }
+//
+//                int ret = H2T_cuthex(mmgMesh, &hed2, hexTab, adjahex, nbHex);
+//                std::cout << "mmgMesh->ne " << mmgMesh->nt << std::endl;
+//
+//                int ref0,ref1,ref2,ref3;
+//                int tel = 0;
+//                std::set<std::set<int> > tria_unique;
+//                int offset_NE = (int)mmgMesh->ne/2;
+//                int t = 1;
+//                for(int i=1;i<=offset_NE;i++)
+//                {
+//                    std::set<int> tria0;
+//                    std::set<int> tria1;
+//                    std::set<int> tria2;
+//                    std::set<int> tria3;
+//                    tria0.insert(mmgMesh->tetra[offset_NE+i].v[0]-1);
+//                    tria0.insert(mmgMesh->tetra[offset_NE+i].v[1]-1);
+//                    tria0.insert(mmgMesh->tetra[offset_NE+i].v[2]-1);
+//                    if(tria_ref_map.find(tria0)!=tria_ref_map.end())
+//                    {
+//                        ref0 = tria_ref_map[tria0];
+//                        mmgMesh->tria[t].v[0] = mmgMesh->tetra[offset_NE+i].v[0];
+//                        mmgMesh->tria[t].v[1] = mmgMesh->tetra[offset_NE+i].v[1];
+//                        mmgMesh->tria[t].v[2] = mmgMesh->tetra[offset_NE+i].v[2];
+//                        mmgMesh->tria[t].ref  = ref0;
+//                        t++;
+//                    }
+//
+//                    tria1.insert(mmgMesh->tetra[offset_NE+i].v[1]-1);
+//                    tria1.insert(mmgMesh->tetra[offset_NE+i].v[2]-1);
+//                    tria1.insert(mmgMesh->tetra[offset_NE+i].v[3]-1);
+//                    if(tria_ref_map.find(tria1)!=tria_ref_map.end())
+//                    {
+//                        ref1 = tria_ref_map[tria1];
+//                        mmgMesh->tria[t].v[0] = mmgMesh->tetra[offset_NE+i].v[1];
+//                        mmgMesh->tria[t].v[1] = mmgMesh->tetra[offset_NE+i].v[2];
+//                        mmgMesh->tria[t].v[2] = mmgMesh->tetra[offset_NE+i].v[3];
+//                        mmgMesh->tria[t].ref  = ref1;
+//                        t++;
+//                    }
+//
+//                    tria2.insert(mmgMesh->tetra[offset_NE+i].v[2]-1);
+//                    tria2.insert(mmgMesh->tetra[offset_NE+i].v[3]-1);
+//                    tria2.insert(mmgMesh->tetra[offset_NE+i].v[0]-1);
+//                    if(tria_ref_map.find(tria2)!=tria_ref_map.end())
+//                    {
+//                        ref2 = tria_ref_map[tria2];
+//                        mmgMesh->tria[t].v[0] = mmgMesh->tetra[offset_NE+i].v[2];
+//                        mmgMesh->tria[t].v[1] = mmgMesh->tetra[offset_NE+i].v[3];
+//                        mmgMesh->tria[t].v[2] = mmgMesh->tetra[offset_NE+i].v[0];
+//                        mmgMesh->tria[t].ref  = ref2;
+//                        t++;
+//                    }
+//
+//                    tria3.insert(mmgMesh->tetra[offset_NE+i].v[3]-1);
+//                    tria3.insert(mmgMesh->tetra[offset_NE+i].v[0]-1);
+//                    tria3.insert(mmgMesh->tetra[offset_NE+i].v[1]-1);
+//                    if(tria_ref_map.find(tria3)!=tria_ref_map.end())
+//                    {
+//                        ref3 = tria_ref_map[tria3];
+//                        mmgMesh->tria[t].v[0] = mmgMesh->tetra[offset_NE+i].v[3];
+//                        mmgMesh->tria[t].v[1] = mmgMesh->tetra[offset_NE+i].v[0];
+//                        mmgMesh->tria[t].v[2] = mmgMesh->tetra[offset_NE+i].v[1];
+//                        mmgMesh->tria[t].ref  = ref3;
+//                        t++;
+//                    }
+//
+//                    tria0.clear();
+//                    tria1.clear();
+//                    tria2.clear();
+//                    tria3.clear();
+//                }
+//
+//                MMG3D_Set_handGivenMesh(mmgMesh);
+//
+//                if ( MMG3D_Set_dparameter(mmgMesh,mmgSol,MMG3D_DPARAM_hgrad, 4.0) != 1 )    exit(EXIT_FAILURE);
+//
+//                MMG3D_Set_iparameter ( mmgMesh_hyb,  mmgSol_hyb,  MMG3D_IPARAM_nosizreq , 1 );
+//                MMG3D_Set_dparameter( mmgMesh,  mmgSol,  MMG3D_DPARAM_hgradreq , -1 );
+//
+//                int ier = MMG3D_mmg3dlib(mmgMesh,mmgSol);
+//
+//                OutputMesh_MMG(mmgMesh,0,mmgMesh->ne,"OuterVolumeFull.dat");
+//
+//                 WriteUS3DGridFromMMG(mmgMesh, us3d);
                  
-                */
+                
             }
         }
-         
-         
+        
+        /**/
         MPI_Finalize();
         
     }
