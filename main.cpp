@@ -191,6 +191,9 @@ int main(int argc, char** argv) {
         {
             gB->setVal(i,0,us3d->ghost->getVal(i,varia));
         }
+        
+        delete us3d->ghost;
+        
         t = clock();
         if(world_rank == 0)
         {
@@ -417,11 +420,13 @@ int main(int argc, char** argv) {
         delete us3d->ief;
         delete us3d->iee;
         delete us3d->xcn;
-
+        delete us3d->iet;
         delete us3d->ife;
         delete us3d->if_ref;
         delete us3d->ifn;
         delete us3d->ghost;
+        delete us3d->ie_Nv;
+        delete us3d->ie_Nf;
         
         if(world_rank == 0)
         {
