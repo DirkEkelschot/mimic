@@ -2683,17 +2683,16 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
     
     int Nel = ien->getNglob();
     ParArray<double>* interior;
-    Array<double>* ghost;
     if(readFromStats==1)
     {
         interior  = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_1","stats-mean",0,Nel,comm,info);
-        ghost        = ReadUS3DGhostCellsFromRun<double>(fn_data,"run_1","stats-mean",Nel);
     }
     else{
         interior  = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_1","interior",0,Nel,comm,info);
-        ghost        = ReadUS3DGhostCellsFromRun<double>(fn_data,"run_1","interior",Nel);
     }
     
+    Array<double>* ghost        = ReadUS3DGhostCellsFromRun<double>(fn_data,"run_1","interior",Nel);
+
     
     Array<int>*    zdefs        = ReadDataSetFromGroupFromFile<int>(fn_grid,"zones","zdefs");
     Array<char>*  znames        = ReadDataSetFromGroupFromFile<char>(fn_grid,"zones","znames");

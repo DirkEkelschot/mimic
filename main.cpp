@@ -125,6 +125,9 @@ int main(int argc, char** argv) {
             Uivar->setVal(i,0,us3d->interior->getVal(i,varia));
         }
         
+        delete us3d->interior;
+
+        
         clock_t t,t1;
         double tmax = 0.0;
         double tn = 0.0;
@@ -285,12 +288,14 @@ int main(int argc, char** argv) {
             std::cout << "Started gathering metric data on rank 0..." <<std::endl;
         }
         Array<double>* mv_g = GetOptimizedMMG3DMeshOnRoot(P, us3d, hess_vmap, comm);
+        
+        hess_vmap.clear();
+        
+        
         if(world_rank==0)
         {
             std::cout << "Finished gathering metric data on rank 0..." <<std::endl;
         }
-
-        delete us3d->interior;
         
         Array<double>*  xcn_g;
         Array<int>*     ief_g;
@@ -401,11 +406,9 @@ int main(int argc, char** argv) {
                     MPI_INT, 0, comm);
         
         delete P;
-        
-        //Hess_vm.clear();
-        //Hess_map.clear();
 
         dUdXi.clear();
+        
         dUidxi_map.clear();
         dUidyi_map.clear();
         dUidzi_map.clear();
