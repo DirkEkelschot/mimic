@@ -763,8 +763,8 @@ int main(int argc, char** argv) {
 
                 if(debug == 1)
                 {
-		    std::cout << "Outputting the prismatic boundary layer mesh in ---> BoundaryLayerMesh_0.dat" <<std::endl;
-		    OutputBoundaryLayerPrisms(xcn_g, mesh_topo_bl2, comm, "BoundaryLayerMesh_");
+                    std::cout << "Outputting the prismatic boundary layer mesh in ---> BoundaryLayerMesh_0.dat" <<std::endl;
+                    OutputBoundaryLayerPrisms(xcn_g, mesh_topo_bl2, comm, "BoundaryLayerMesh_");
                     std::ofstream myfile_shell;
                     myfile_shell.open("shell.dat");
                     myfile_shell << "TITLE=\"new_volume.tec\"" << std::endl;
@@ -987,45 +987,7 @@ int main(int argc, char** argv) {
                             tria[0] = v0+1;
                             tria[1] = v2+1;
                             tria[2] = v1+1;
-                            
-                            vxf=(mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[0]].c[0]
-                            +mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[2]].c[0]
-                            +mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[1]].c[0])/3;
-                            
-                            vyf=(mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[0]].c[1]
-                            +mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[2]].c[1]
-                            +mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[1]].c[1])/3;
-                            
-                            vzf=(mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[0]].c[2]
-                            +mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[2]].c[2]
-                            +mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[1]].c[2])/3;
-                            
-                            Vec3D* r0 = new Vec3D;
-                            double r0L = sqrt( (vxf-vxc)*(vxf-vxc)
-                                              +(vyf-vyc)*(vyf-vyc)
-                                              +(vzf-vzc)*(vzf-vzc));
-                            r0->c0 = (vxf-vxc)/r0L;
-                            r0->c1 = (vyf-vyc)/r0L;
-                            r0->c2 = (vzf-vzc)/r0L;
-                            Vec3D* n_f0 = new Vec3D;
-                            n_f0->c0 = mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[2]].c[0]-mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[0]].c[0];
-                            n_f0->c1 = mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[2]].c[1]-mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[0]].c[1];
-                            n_f0->c2 = mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[2]].c[2]-mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[0]].c[2];
-                            Vec3D* n_f1 = new Vec3D;
-                            n_f1->c0 = mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[1]].c[0]-mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[0]].c[0];
-                            n_f1->c1 = mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[1]].c[1]-mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[0]].c[1];
-                            n_f1->c2 = mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[1]].c[2]-mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[0]].c[2];
-                            Vec3D* n_f = ComputeSurfaceNormal(n_f0,n_f1);
-                            double orient0 = DotVec3D(r0,n_f);
-                            oris.push_back(orient0);
-                            if(orient0<0)
-                            {
-                                negf0++;
-                                neg_bc++;
-                            }
-                            else{
-                                pos_bc++;
-                            }
+                        
                             bound_tet[refer].push_back(tria);
                             bndtrisVol[tra]     = tria;
                             bndtrisVolRef[tra]  = refer;
@@ -1045,44 +1007,7 @@ int main(int argc, char** argv) {
                             tria[1] = v2+1;
                             tria[2] = v3+1;
                             
-                            vxf=(mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[1]].c[0]
-                            +mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[2]].c[0]
-                            +mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[3]].c[0])/3;
-
-                            vyf=(mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[1]].c[1]
-                            +mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[2]].c[1]
-                            +mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[3]].c[1])/3;
-
-                            vzf=(mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[1]].c[2]
-                            +mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[2]].c[2]
-                            +mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[3]].c[2])/3;
-
-                            Vec3D* r0 = new Vec3D;
-                            double r0L = sqrt( (vxf-vxc)*(vxf-vxc)
-                                              +(vyf-vyc)*(vyf-vyc)
-                                              +(vzf-vzc)*(vzf-vzc));
-                            r0->c0 = (vxf-vxc)/r0L;
-                            r0->c1 = (vyf-vyc)/r0L;
-                            r0->c2 = (vzf-vzc)/r0L;
-                            Vec3D* n_f0 = new Vec3D;
-                            n_f0->c0 = mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[2]].c[0]-mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[1]].c[0];
-                            n_f0->c1 = mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[2]].c[1]-mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[1]].c[1];
-                            n_f0->c2 = mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[2]].c[2]-mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[1]].c[2];
-                            Vec3D* n_f1 = new Vec3D;
-                            n_f1->c0 = mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[3]].c[0]-mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[1]].c[0];
-                            n_f1->c1 = mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[3]].c[1]-mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[1]].c[1];
-                            n_f1->c2 = mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[3]].c[2]-mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[1]].c[2];
-                            Vec3D* n_f = ComputeSurfaceNormal(n_f0,n_f1);
-                            double orient0 = DotVec3D(r0,n_f);
-                            oris.push_back(orient0);
-                            if(orient0<0)
-                            {
-                                negf1++;
-                                neg_bc++;
-                            }
-                            else{
-                                pos_bc++;
-                            }
+                            
                             bound_tet[refer].push_back(tria);
                             bndtrisVol[tra]     = tria;
                             bndtrisVolRef[tra]  = refer;
@@ -1103,44 +1028,7 @@ int main(int argc, char** argv) {
                             tria[1] = v3+1;
                             tria[2] = v2+1;
                             
-                            vxf=(mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[0]].c[0]
-                            +mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[3]].c[0]
-                            +mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[2]].c[0])/3;
-
-                            vyf=(mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[0]].c[1]
-                            +mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[3]].c[1]
-                            +mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[2]].c[1])/3;
-
-                            vzf=(mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[0]].c[2]
-                            +mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[3]].c[2]
-                            +mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[2]].c[2])/3;
-
-                            Vec3D* r0 = new Vec3D;
-                            double r0L = sqrt( (vxf-vxc)*(vxf-vxc)
-                                              +(vyf-vyc)*(vyf-vyc)
-                                              +(vzf-vzc)*(vzf-vzc));
-                            r0->c0 = (vxf-vxc)/r0L;
-                            r0->c1 = (vyf-vyc)/r0L;
-                            r0->c2 = (vzf-vzc)/r0L;
-                            Vec3D* n_f0 = new Vec3D;
-                            n_f0->c0 = mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[3]].c[0]-mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[0]].c[0];
-                            n_f0->c1 = mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[3]].c[1]-mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[0]].c[1];
-                            n_f0->c2 = mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[3]].c[2]-mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[0]].c[2];
-                            Vec3D* n_f1 = new Vec3D;
-                            n_f1->c0 = mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[2]].c[0]-mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[0]].c[0];
-                            n_f1->c1 = mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[2]].c[1]-mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[0]].c[1];
-                            n_f1->c2 = mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[2]].c[2]-mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[0]].c[2];
-                            Vec3D* n_f = ComputeSurfaceNormal(n_f0,n_f1);
-                            double orient0 = DotVec3D(r0,n_f);
-                            oris.push_back(orient0);
-                            if(orient0<0)
-                            {
-                                negf2++;
-                                neg_bc++;
-                            }
-                            else{
-                                pos_bc++;
-                            }
+                            
                             bound_tet[refer].push_back(tria);
                             bndtrisVol[tra] = tria;
                             bndtrisVolRef[tra] = refer;
@@ -1161,44 +1049,6 @@ int main(int argc, char** argv) {
                            tria[1] = v1+1;
                            tria[2] = v3+1;
                             
-                            vxf=(mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[0]].c[0]
-                            +mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[1]].c[0]
-                            +mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[3]].c[0])/3;
-
-                            vyf=(mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[0]].c[1]
-                            +mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[1]].c[1]
-                            +mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[3]].c[1])/3;
-
-                            vzf=(mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[0]].c[2]
-                            +mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[1]].c[2]
-                            +mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[3]].c[2])/3;
-
-                            Vec3D* r0 = new Vec3D;
-                            double r0L = sqrt( (vxf-vxc)*(vxf-vxc)
-                                              +(vyf-vyc)*(vyf-vyc)
-                                              +(vzf-vzc)*(vzf-vzc));
-                            r0->c0 = (vxf-vxc)/r0L;
-                            r0->c1 = (vyf-vyc)/r0L;
-                            r0->c2 = (vzf-vzc)/r0L;
-                            Vec3D* n_f0 = new Vec3D;
-                            n_f0->c0 = mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[1]].c[0]-mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[0]].c[0];
-                            n_f0->c1 = mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[1]].c[1]-mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[0]].c[1];
-                            n_f0->c2 = mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[1]].c[2]-mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[0]].c[2];
-                            Vec3D* n_f1 = new Vec3D;
-                            n_f1->c0 = mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[3]].c[0]-mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[0]].c[0];
-                            n_f1->c1 = mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[3]].c[1]-mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[0]].c[1];
-                            n_f1->c2 = mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[3]].c[2]-mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[0]].c[2];
-                            Vec3D* n_f = ComputeSurfaceNormal(n_f0,n_f1);
-                            double orient0 = DotVec3D(r0,n_f);
-                            oris.push_back(orient0);
-                            if(orient0<0)
-                            {
-                                negf3++;
-                                neg_bc++;
-                            }
-                            else{
-                                pos_bc++;
-                            }
                            bound_tet[refer].push_back(tria);
                            bndtrisVol[tra]      = tria;
                            bndtrisVolRef[tra]   = refer;
@@ -1326,6 +1176,7 @@ int main(int argc, char** argv) {
                     newvert2metric[nve->first]=newM;
                 }
                 
+
                 //====================================================================
                 //====================================================================
                 //====================================================================
@@ -1604,6 +1455,7 @@ int main(int argc, char** argv) {
                     }
                 }
                 
+                
                 for(int i=0;i<bndtrisVol.size();i++)
                 {
                     mmgMesh_hyb->tria[tt].v[0] = bndtrisVol[i][0];
@@ -1613,6 +1465,9 @@ int main(int argc, char** argv) {
                     mmgMesh_hyb->tria[tt].ref = bndtrisVolRef[i];
                     tt++;
                 }
+                
+                delete mesh_topo_bl2;
+                bndtrisVol.clear();
                 
                 // tets first then prisms.
                 // verts building up the tets first then the verts building up the prisms.
@@ -1666,22 +1521,7 @@ int main(int argc, char** argv) {
                     p++;
                 }
                 
-                int here=0;
-                int nel_tets4real = 0;
-                int fset_cnt = 0;
-                int sw_v = 0;
-                std::vector<int*> added_tets;
-                std::set<int> used_vert;
-                std::vector<double> jtet;
-                std::vector<double> vtet;
-                Array<double>* Jv = new Array<double>(mmgMesh_TET->np,1);
-                Array<double>* Jvc = new Array<double>(mmgMesh_TET->np,1);
-                for(int i=0;i<mmgMesh_TET->np;i++)
-                {
-                    Jv->setVal(i,0,0.0);
-                    Jvc->setVal(i,0,0);
-                }
-                
+//
                 std::cout << "Set the tetrahedra in the mmgMesh..."<<std::endl;
 
                 for(int i=1;i<=nel_tets;i++)
@@ -1695,7 +1535,6 @@ int main(int argc, char** argv) {
                         std::set<int> face11;
                         std::set<int> face22;
                         std::set<int> face33;
-                        sw_v = 0;
                         double* Points = new double[4*3];
                         
                         for(int s=0;s<4;s++)
@@ -1712,11 +1551,7 @@ int main(int argc, char** argv) {
                                 m22 = newvert2metric[mmgMesh_TET->tetra[i].v[s]][3];
                                 m23 = newvert2metric[mmgMesh_TET->tetra[i].v[s]][4];
                                 m33 = newvert2metric[mmgMesh_TET->tetra[i].v[s]][5];
-                                if(used_vert.find(mmgMesh_TET->tetra[i].v[s])==used_vert.end())
-                                {
-                                    used_vert.insert(mmgMesh_TET->tetra[i].v[s]);
-                                    sw_v = 1;
-                                }
+                                
                                 int locNew = globNew2locNew[mmgMesh_TET->tetra[i].v[s]];
                                 tetra[s]   = locNew;
                                 tetra2[s]  = mmgMesh_TET->tetra[i].v[s];
@@ -1724,7 +1559,7 @@ int main(int argc, char** argv) {
 
                                 if ( MMG3D_Set_tensorSol(mmgSol_hyb, m11,m12,m13,m22,m23,m33,locNew) != 1 ) exit(EXIT_FAILURE);
                                 
-                                here++;
+                                //here++;
                             }
                             else
                             {
@@ -1744,122 +1579,16 @@ int main(int argc, char** argv) {
                                 if ( MMG3D_Set_tensorSol(mmgSol_hyb, m11,m12,m13,m22,m23,m33,vg+1) != 1 ) exit(EXIT_FAILURE);
                             }
                         }
-                        
-                        jtet.push_back(ComputeDeterminantJ_tet(Points));
-                        vtet.push_back(ComputeTetVolume(Points));
-                        Jv->setVal(tetra2[0]-1,0,Jv->getVal(tetra2[0]-1,0)+ComputeDeterminantJ_tet(Points));
-                        Jv->setVal(tetra2[1]-1,0,Jv->getVal(tetra2[1]-1,0)+ComputeDeterminantJ_tet(Points));
-                        Jv->setVal(tetra2[2]-1,0,Jv->getVal(tetra2[2]-1,0)+ComputeDeterminantJ_tet(Points));
-                        Jv->setVal(tetra2[3]-1,0,Jv->getVal(tetra2[3]-1,0)+ComputeDeterminantJ_tet(Points));
-                    
-                        Jvc->setVal(tetra2[0]-1,0,Jvc->getVal(tetra2[0]-1,0)+1);
-                        Jvc->setVal(tetra2[1]-1,0,Jvc->getVal(tetra2[1]-1,0)+1);
-                        Jvc->setVal(tetra2[2]-1,0,Jvc->getVal(tetra2[2]-1,0)+1);
-                        Jvc->setVal(tetra2[3]-1,0,Jvc->getVal(tetra2[3]-1,0)+1);
-                        
-                        if(sw_v==1)
-                        {
-                            added_tets.push_back(tetra2);
-                        }
-                        
-                        face00.insert(tetra[1]);
-                        face00.insert(tetra[2]);
-                        face00.insert(tetra[3]);
-                        if(unique_shell_tris.find(face00)!=unique_shell_tris.end())
-                        {
-                            fset_cnt++;
-                        }
-                        face11.insert(tetra[0]);
-                        face11.insert(tetra[2]);
-                        face11.insert(tetra[3]);
-                        if(unique_shell_tris.find(face11)!=unique_shell_tris.end())
-                        {
-                            fset_cnt++;
-                        }
-                        face22.insert(tetra[0]);
-                        face22.insert(tetra[1]);
-                        face22.insert(tetra[3]);
-                        if(unique_shell_tris.find(face22)!=unique_shell_tris.end())
-                        {
-                            fset_cnt++;
-                        }
-                        face33.insert(tetra[0]);
-                        face33.insert(tetra[1]);
-                        face33.insert(tetra[2]);
-                        if(unique_shell_tris.find(face33)!=unique_shell_tris.end())
-                        {
-                            fset_cnt++;
-                        }
-                        
-                        nel_tets4real++;
                     }
                 }
                 
-                std::set<int> un_add_vert;
-                std::map<int,int> lv2gv_add;
-                std::map<int,int> gv2lv_add;
-                std::vector<int> l2g_add;
-                Array<int>* added_elements = new Array<int>(added_tets.size(),4);
-                int uadv = 1;
-                for(int el=0;el<added_tets.size();el++)
-                {
-                    for(int ve=0;ve<4;ve++)
-                    {
-                        if(un_add_vert.find(added_tets[el][ve])==un_add_vert.end())
-                        {
-                            un_add_vert.insert(added_tets[el][ve]);
-                            lv2gv_add[uadv]=added_tets[el][ve];
-                            l2g_add.push_back(added_tets[el][ve]);
-                            gv2lv_add[added_tets[el][ve]]=uadv;
-                            added_elements->setVal(el,ve,uadv);
-                            uadv++;
-                        }
-                        else
-                        {
-                            added_elements->setVal(el,ve,gv2lv_add[added_tets[el][ve]]);
-                        }
-                    }
-                }
+                newvert2elem.clear();
+                newvert2vert.clear();
+                newvert2metric.clear();
                 
-                if(debug == 1)
-                {
-                    std::ofstream myfile;
-                    myfile.open("added_tets.dat");
-                    myfile << "TITLE=\"new_volume.tec\"" << std::endl;
-                    myfile <<"VARIABLES = \"X\", \"Y\", \"Z\"" << std::endl;
-                    myfile <<"ZONE N = " << un_add_vert.size() << ", E = " << added_tets.size() << ", DATAPACKING = POINT, ZONETYPE = FETETRAHEDRON" << std::endl;
-                    std::map<int,int>::iterator iter_map;
-
-                    for(int i=0;i<l2g_add.size();i++)
-                    {
-                        myfile << mmgMesh_TET->point[l2g_add[i]].c[0] << " " <<   mmgMesh_TET->point[l2g_add[i]].c[1] << " " << mmgMesh_TET->point[l2g_add[i]].c[2] <<  std::endl;
-                    }
-                    for(int i=0;i<added_tets.size();i++)
-                    {
-                        myfile << added_elements->getVal(i,0) << " " << added_elements->getVal(i,1) << " " << added_elements->getVal(i,2) << " " << added_elements->getVal(i,3) << std::endl;
-                    }
-                    myfile.close();
-                    
-                    std::ofstream myfile2;
-                    myfile2.open("Jac_elements.dat");
-                    myfile2 << "TITLE=\"new_volume.tec\"" << std::endl;
-                    myfile2 <<"VARIABLES = \"X\", \"Y\", \"Z\", \"J\"" << std::endl;
-                    myfile2 <<"ZONE N = " << mmgMesh_TET->np << ", E = " << tellert << ", DATAPACKING = POINT, ZONETYPE = FETETRAHEDRON" << std::endl;
-
-                    for(int i=1;i<=mmgMesh_TET->np;i++)
-                    {
-                        myfile2 << mmgMesh_TET->point[i].c[0] << " " << mmgMesh_TET->point[i].c[1] << " " << mmgMesh_TET->point[i].c[2] << " " << Jv->getVal(i-1,0)/Jvc->getVal(i-1,0) << std::endl;
-                    }
-                    for(int i=1;i<=mmgMesh_TET->ne;i++)
-                    {
-                        if(mmgMesh_TET->tetra[i].ref==20)
-                        {
-                            myfile2 << mmgMesh_TET->tetra[i].v[0] << " " << mmgMesh_TET->tetra[i].v[1] << " " << mmgMesh_TET->tetra[i].v[2] << " " << mmgMesh_TET->tetra[i].v[3] << std::endl;
-                        }
-                    }
-                    myfile2.close();
-                }
-                
+                MMG3D_Free_all(MMG5_ARG_start,
+                               MMG5_ARG_ppMesh,&mmgMesh_TET,MMG5_ARG_ppSols,&mmgSol_TET,
+                               MMG5_ARG_end);
              
                 //MMG3D_Set_handGivenMesh(mmgMesh_hyb);
                 if ( MMG3D_Set_dparameter(mmgMesh_hyb,mmgSol_hyb,MMG3D_DPARAM_hgrad, metric_inputs[0]) != 1 )    exit(EXIT_FAILURE);
@@ -1908,9 +1637,9 @@ int main(int argc, char** argv) {
                                MMG5_ARG_ppMesh,&mmgMesh_TETCOPY,MMG5_ARG_ppSols,&mmgSol_TETCOPY,
                                MMG5_ARG_end);
                 
-                MMG3D_Free_all(MMG5_ARG_start,
-                               MMG5_ARG_ppMesh,&mmgMesh_TET,MMG5_ARG_ppSols,&mmgSol_TET,
-                               MMG5_ARG_end);
+//                MMG3D_Free_all(MMG5_ARG_start,
+//                               MMG5_ARG_ppMesh,&mmgMesh_TET,MMG5_ARG_ppSols,&mmgSol_TET,
+//                               MMG5_ARG_end);
                 
                 std::cout<<"Started writing the adapted hybrid mesh in US3D format..."<<std::endl;
                 //WriteUS3DGridFromMMG_it0(mmgMesh_hyb, us3d, bnd_face_map);
