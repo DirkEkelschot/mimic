@@ -332,6 +332,10 @@ Mesh_Topology::Mesh_Topology(Partition* Pa, MPI_Comm comm)
 //    Loc_Elem.clear();
 //    LocElem2Nv.clear();
 //    LocElem2Nf.clear();
+    
+    delete v0;
+    delete v1;
+    
 }
 
 

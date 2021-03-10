@@ -54,24 +54,12 @@ void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh, US3D* us3d)
             }
             face.clear();
         }
-        else{
-            std::cout << wr << " weird ref tri - " << mmgMesh->tria[i].ref << std::endl;
-            wr++;
-        }
-        
-        
     }
-    
-    std::cout <<"mmgMesh->nquad " << mmgMesh->nquad << std::endl;
     
     for(int i=1;i<=mmgMesh->nquad;i++)
     {
         if(mmgMesh->quadra[i].ref>0 && mmgMesh->quadra[i].ref!=2)// -1 is the tag for internal shell.
         {
-//            if(mmgMesh->quadra[i].ref!=3 && mmgMesh->quadra[i].ref!=7 && mmgMesh->quadra[i].ref!=36 && mmgMesh->quadra[i].ref!=10)
-//            {
-//                std::cout << "quad = " << mmgMesh->quadra[i].ref << std::endl;
-//            }
             
             ref2bqface[mmgMesh->quadra[i].ref].push_back(i);
             face.insert(mmgMesh->quadra[i].v[0]);
@@ -84,7 +72,6 @@ void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh, US3D* us3d)
                 bqfaces_Ref[face] = mmgMesh->quadra[i].ref;
             }
             
-            
             bqfaces.insert(face);
             if(bcrefs.find(mmgMesh->quadra[i].ref)==bcrefs.end())
             {
@@ -92,11 +79,6 @@ void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh, US3D* us3d)
             }
             face.clear();
         }
-        else{
-            std::cout << wr << " weird ref quad - " << mmgMesh->tria[i].ref << std::endl;
-            wr++;
-        }
-
     }
     
     
@@ -131,27 +113,7 @@ void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh, US3D* us3d)
         }
     }
     
-//    for(bnd_m=ref2bface.begin();bnd_m!=ref2bface.end();bnd_m++)
-//    {
-//        int bnd_id = bnd_m->first;
-//        if(ref2bface.find(bnd_id)==ref2bface.end())
-//        {
-//            bnd_Ntri[bnd_id]=0;
-//        }
-//        else
-//        {
-//            bnd_Ntri[bnd_id]=ref2bface[bnd_id].size();
-//        }
-//        if(ref2bqface.find(bnd_id)==ref2bqface.end())
-//        {
-//            bnd_Nquad[bnd_id]=0;
-//        }
-//        else
-//        {
-//            bnd_Nquad[bnd_id]=ref2bqface[bnd_id].size();
-//        }
-//        i++;
-//    }
+
     
     std::map<int,std::vector<std::vector<int> > > bctrias;
     std::map<int,std::vector<std::vector<int> > > bcquads;
@@ -195,6 +157,7 @@ void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh, US3D* us3d)
     int bq = 0;
     std::cout << "-- Constructing the new face-2-node and face-2-element map..."<<std::endl;
     int orient0;
+    
     for(int i=1;i<=mmgMesh->ne;i++)
     {
         adapt_iet->setVal(i-1,0,2); // Element type = 2 since we are dealing with tetrahedra.
@@ -608,7 +571,6 @@ void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh, US3D* us3d)
     std::set<int> qface2;
     // local face2vert_map for a prism in mmg {0,1,2,0},{3,5,4,3},{1,4,5,2},{0,2,5,3},{0,3,4,1} };
     int qfid  = 0;
-    fset_cnt  = 0;
     int fnew  = 0;
     int fiold = 0;
 
@@ -984,7 +946,6 @@ void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh, US3D* us3d)
 
     Array<int>* adapt_ifn = new Array<int>(face2node.size(),8);
     int t = 0;
-    Array<int>* zdefs = us3d->zdefs;
     int bc_id = 0;
     int gaa   = 0;
     int typef3 = 0;
@@ -1054,7 +1015,6 @@ void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh, US3D* us3d)
             t++;
         }
     }
-    
 
     std::map<int,std::vector<int> >::iterator it_bref;
     int faceid;
@@ -1185,7 +1145,7 @@ void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh, US3D* us3d)
         q++;
     }
     
-    std::cout << "elements = " << " " << mmgMesh->nprism << " " << mmgMesh->ne << std::endl;
+    std::cout << "elements = " << " prisms->" << mmgMesh->nprism << " tetrahedra->" << mmgMesh->ne << std::endl;
     std::cout << "lh vs rh = " << " " << lh.size() << " " << rh.size() << std::endl;
     std::cout << "-- sizingf -> " << lh.size() << " " << rh.size() << " " << t << " " << ty <<std::endl;
 
@@ -1245,6 +1205,7 @@ void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh, US3D* us3d)
     H5Sselect_hyperslab(filespace, H5S_SELECT_SET, offset, NULL, count, NULL);
 
     status = H5Dwrite(dset_id, H5T_NATIVE_INT, memspace, filespace, plist_id, adapt_iet->data);
+    delete adapt_iet;
     
     //====================================================================================
     // Add ifn map to the grid.h5 file
@@ -1266,16 +1227,8 @@ void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh, US3D* us3d)
     H5Sselect_hyperslab(filespace, H5S_SELECT_SET, offset, NULL, count, NULL);
 
     status = H5Dwrite(dset_id, H5T_NATIVE_INT, memspace, filespace, plist_id, adapt_ifn->data);
-    
-//    for(int i=0;i<adapt_ifn->getNrow();i++)
-//    {
-//        //std::cout << i << " ifn :: " << adapt_ifn->getVal(i,adapt_ifn->getNcol()-1) << std::endl;
-//
-//        if(adapt_ifn->getVal(i,adapt_ifn->getNcol()-1)!=3)
-//        {
-//            std::cout << i << " " << adapt_ifn->getNrow() - bfaces.size()+bqfaces.size() << " " << adapt_ifn->getVal(i,adapt_ifn->getNcol()-1) << std::endl;
-//        }
-//    }
+    delete adapt_ifn;
+
     
     //====================================================================================
 
@@ -1335,6 +1288,7 @@ void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh, US3D* us3d)
     status = H5Dwrite(dset_id, H5T_NATIVE_DOUBLE, memspace, filespace, plist_id, xcn_mmg->data);
     
     
+    
     // Create group;
     //====================================================================================
     hid_t group_zones_id  = H5Gcreate(file_id, "zones", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT );
@@ -1388,6 +1342,22 @@ void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh, US3D* us3d)
     status = H5Dwrite(dset_znames_id, type, memspace, filespace, plist_id, us3d->znames->data);
 
     PlotBoundaryData(us3d->znames,adapt_zdefs);
+    
+//    delete xcn_mmg;
+//    delete adapt_zdefs;
+//    qfacemap.clear();
+//    facemap.clear();
+//    faces.clear();
+//    qfaces.clear();
+//    element2face.clear();
+//    face2element.clear();
+//    face2node.clear();
+//    lh.clear();
+//    rh.clear();
+//    Nlh.clear();
+//    Nrh.clear();
+//    bctrias.clear();
+//    bcquads.clear();
 }
 
 
@@ -1417,8 +1387,6 @@ void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh, US3D* us3d)
                 btfaces_Ref[face] = mmgMesh->tria[i].ref;
             }
             
-            
-            
             bfaces.insert(face);
             if(bcrefs.find(mmgMesh->tria[i].ref)==bcrefs.end())
             {
@@ -1426,10 +1394,6 @@ void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh, US3D* us3d)
             }
             face.clear();
         }
-//        else{
-//            std::cout << wr << " weird ref tri - " << mmgMesh->tria[i].ref << std::endl;
-//            wr++;
-//        }
     }
     
     for(int i=1;i<=mmgMesh->nquad;i++)
@@ -1735,7 +1699,6 @@ void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh, US3D* us3d)
     std::set<int> qface2;
     // local face2vert_map for a prism in mmg {0,1,2,0},{3,5,4,3},{1,4,5,2},{0,2,5,3},{0,3,4,1} };
     int qfid  = 0;
-    fset_cnt  = 0;
     int fnew  = 0;
     int fiold = 0;
 
@@ -2059,6 +2022,7 @@ void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh, US3D* us3d)
     int fa=0;
     std::cout << "-- Adding the boundary faces to the new ifn array..."<<std::endl;
     std::map<int,std::vector<std::vector<int> > >::iterator iterbc;
+    
     for(iterbc=bctrias.begin();iterbc!=bctrias.end();iterbc++)
     {
         int bnd_id     = iterbc->first;
@@ -2066,14 +2030,13 @@ void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh, US3D* us3d)
         int Nquads     = bcquads[bnd_id].size();
         std::cout << "bnd ref test = " << bnd_id << " " << Ntris << " " << Nquads << std::endl;
     }
-    
     for(iterbc=bctrias.begin();iterbc!=bctrias.end();iterbc++)
     {
         int bnd_id     = iterbc->first;
         int Ntris      = iterbc->second.size();
         int Nquads     = bcquads[bnd_id].size();
         
-        std::cout << "bnd ref = " << bnd_id << " " << Ntris << " " << Nquads << std::endl;
+        //std::cout << "bnd ref = " << bnd_id << " " << Ntris << " " << Nquads << std::endl;
         
         for(int q=0;q<Ntris;q++)
         {
@@ -2111,24 +2074,18 @@ void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh, US3D* us3d)
             iface.insert(bcquads[bnd_id][q][1]);
             iface.insert(bcquads[bnd_id][q][2]);
             iface.insert(bcquads[bnd_id][q][3]);
-            
-            //std::cout << "4 bc row = " << t << " " << mmgMesh->quadra[faceid].v[0] << " " << mmgMesh->quadra[faceid].v[1] << " " << mmgMesh->quadra[faceid].v[2] << " " << mmgMesh->quadra[faceid].v[3] << std::endl;
-            
+                        
             fid=qfacemap[iface];
 
             adapt_ifn->setVal(t,5,rh[fid]);
             adapt_ifn->setVal(t,6,lh[fid]+1);
-            //adapt_ifn->setVal(t,7,us3d->zdefs->getVal(3+bnd_id-1,5));
             adapt_ifn->setVal(t,7,bnd_id);
             iface.clear();
             
             t++;
         }
     }
-    std::cout << "-- sizing2 -> " << lh.size() << " " << rh.size() << " " << t << " " << ty <<std::endl;
-
-    
-    
+    //std::cout << "-- sizing2 -> " << lh.size() << " " << rh.size() << " " << t << " " << ty <<std::endl;
     int nbo = bcrefs.size();
     std::cout << "-- Constructing the zdefs array..."<<std::endl;
     Array<int>* adapt_zdefs = new Array<int>(3+nbo,7);
@@ -2307,8 +2264,6 @@ void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh, US3D* us3d)
     status = H5Awrite(attr_id, H5T_NATIVE_INT, &value);
     H5Aclose(attr_id);
     
-    
-    
     //====================================================================================
     // Add xcn map to the grid.h5 file
     //====================================================================================
@@ -2375,15 +2330,32 @@ void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh, US3D* us3d)
     H5Sclose(filespace);
     
     hsize_t cnt = us3d->znames->getNrow();
-    //std::cout << " us3d->znames->getNrow()  " << cnt << std::endl;
     memspace  = H5Screate_simple(1, &cnt, NULL);
     filespace = H5Dget_space(dset_znames_id);
     
-    //H5Sselect_hyperslab(filespace, H5S_SELECT_SET, offset, NULL, count, NULL);
     
     status = H5Dwrite(dset_znames_id, type, memspace, filespace, plist_id, us3d->znames->data);
 
     PlotBoundaryData(us3d->znames,adapt_zdefs);
+    
+    delete xcn_mmg;
+    delete adapt_iet;
+    delete adapt_ifn;
+    delete adapt_zdefs;
+    qfacemap.clear();
+    facemap.clear();
+    faces.clear();
+    qfaces.clear();
+    element2face.clear();
+    face2element.clear();
+    face2node.clear();
+    lh.clear();
+    rh.clear();
+    Nlh.clear();
+    Nrh.clear();
+    bctrias.clear();
+    bcquads.clear();
+    
 }
 
 
@@ -2699,7 +2671,6 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
     ParArray<int>* ief = ReadDataSetFromFileInParallel<int>(fn_conn,"ief",comm,info);
     ParArray<int>* iee = ReadDataSetFromFileInParallel<int>(fn_conn,"iee",comm,info);
     ParArray<int>* iet = ReadDataSetFromFileInParallel<int>(fn_grid,"iet",comm,info);
-
     ParArray<int>* ifn = ReadDataSetFromFileInParallel<int>(fn_grid,"ifn",comm,info);
     ParArray<int>* ife = ReadDataSetFromFileInParallel<int>(fn_conn,"ife",comm,info);
 
@@ -2711,6 +2682,8 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
     
     Array<int>*    zdefs        = ReadDataSetFromGroupFromFile<int>(fn_grid,"zones","zdefs");
     Array<char>*  znames        = ReadDataSetFromGroupFromFile<char>(fn_grid,"zones","znames");
+    
+    
     std::map<int,std::vector<int> > bnd_face_map;
     // Collect boundary data;
     std::vector<int> bnd_m;
@@ -2726,14 +2699,10 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
        PlotBoundaryData(znames,zdefs);
     }
     
-    int nBnd = zdefs->getNrow()-3;
-    int* bnd_map = new int[zdefs->getNrow()-3];
     std::map<int,char*> znames_map;
     Array<char>* znames_new = new Array<char>(znames->getNrow(),znames->getNcol());
     for(int i=0;i<zdefs->getNrow();i++)
     {
-        //bnd_map[i-3] = zdefs->getVal(i,3)-1;
-       
         if(zdefs->getVal(i,5)!=1)
         {
             char* name = new char[znames->getNcol()];
@@ -2834,11 +2803,17 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
         }
     }
     
+    delete ifn;
+    delete ife;
+    
     ParArray<int>* ie_Nv    = new ParArray<int>(nglob,1,comm);
     ParArray<int>* ie_Nf    = new ParArray<int>(nglob,1,comm);
+    
     int check_hex = 0;
     int check_tet = 0;
     int check_pri = 0;
+    
+    
     for(int i=0;i<nrow;i++)
     {
         if(iet->getVal(i,0)==2) // Tet
@@ -2886,13 +2861,8 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
     us3d->znames        = znames_new;
     us3d->zdefs         = zdefs;
 
-//    us3d->bnd_m         = bnd_m;
-//    us3d->bnd_map       = bnd_map;
-//    us3d->bnd_face_map  = bnd_face_map;
-//    us3d->nBnd          = nBnd;
-//    us3d->tria_ref_map  = tria_ref_map;
-//    us3d->quad_ref_map  = quad_ref_map;
-//    us3d->vert_ref_map  = vert_ref_map;
+    //delete zdefs;
+    delete znames;
     
     return us3d;
 }

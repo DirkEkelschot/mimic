@@ -197,6 +197,9 @@ Array<double>* MatInv(Array<double>* A)
      std::cout << svd->vt[0] << " " << svd->vt[1] << " " << svd->vt[2] << std::endl;
      std::cout << svd->vt[3] << " " << svd->vt[4] << " " << svd->vt[5] << std::endl;
      std::cout << svd->vt[6] << " " << svd->vt[7] << " " << svd->vt[8] << std::endl;
+     
+     
+     delete svd;
  //    U= [[-8.48791491e-01 -5.28727723e-01  1.09121085e-14]
  //    [ 5.28727723e-01 -8.48791491e-01  1.25551127e-14]
  //        [ 2.62386865e-15  1.64262071e-14  1.00000000e+00]];

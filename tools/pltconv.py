@@ -16,7 +16,9 @@ conv = np.loadtxt('convergence.dat')
 
 
 fig, ax1 = plt.subplots()
-t = conv[:,1]
+t = conv[:,1];
+#for i in range(0,len(t)):
+#    t[i] = t[i]- t[0]
 data1=conv[:,11-3]
 color = 'tab:red'
 ax1.set_xlabel('time (s)', color=color)

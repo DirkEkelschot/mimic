@@ -239,10 +239,15 @@ double ComputeTetVolume(double *P)
     cross[2] = (s->c0 * r->c1) - (s->c1 * r->c0);
     
     double V = fabs(t->x*cross[0]+t->y*cross[1]+t->z*cross[2])/6.0;
-    
     //delete t,s,r;
+    delete t;
+    delete s;
+    delete r;
+    delete a;
+    delete b;
+    delete c;
+    delete d;
     //delete[] cross;
-    
     return V;
     
     
@@ -350,7 +355,8 @@ double ComputeVolumeHexCell(double *P)
     H56 = ComputeEdgeLength(v0,v1);
     b3 = 0.5*L26*L67;
     double vol3 = 1.0/3.0*b3*H56;
-    delete v0,v1;
+    delete v0;
+    delete v1;
     return vol0+vol1+vol2+vol3;
 }
 
@@ -397,9 +403,14 @@ double ComputeVolumeTetCell(double *P)
     
     double V = fabs(t->x*cross[0]+t->y*cross[1]+t->z*cross[2])/6.0;
     
-    //delete t,s,r;
-    //delete[] cross;
-    delete a,b,c,d,t,s,r;
+    delete a;
+    delete b;
+    delete c;
+    delete d;
+    delete t;
+    delete s;
+    delete r;
+    
     return V;
 }
 
@@ -449,7 +460,12 @@ double ComputeVolumePrismCell(double *P)
 //    double A = A0+A1+A2+A3+A4;
     double V = A0*(ha+hb+hc)/3.0;
     
-    delete v0,v1,v2,v3,v4,v5;
+    delete v0;
+    delete v1;
+    delete v2;
+    delete v3;
+    delete v4;
+    delete v5;
     
     return V;
     
@@ -671,7 +687,7 @@ double* ComputeJAtCenter(double*P, int np)
 //}
 
 
-double* ComputeJAtCenter_tet_v2(double*P)
+Array<double>* ComputeJAtCenter_tet_v2(double*P)
 {
 
     Array<double>* a = new Array<double>(3,3);
@@ -703,17 +719,30 @@ double* ComputeJAtCenter_tet_v2(double*P)
     Array<double>* iw0 = MatInv(w0);
     Array<double>* M  = MatMul(a,iw0);
     delete a;
+    delete iw0;
     
-    return M->data;
+    return M;
 }
 double ComputeDeterminantJ_tet_v2(double*P)
 {
-    double* JP1 = ComputeJAtCenter_tet_v2(P);
+    Array<double>* JP1 = ComputeJAtCenter_tet_v2(P);
 
-    double DetJ = JP1[0]*(JP1[4]*JP1[8]-JP1[7]*JP1[5])
-    -JP1[1]*(JP1[3]*JP1[8]-JP1[6]*JP1[5])
-    +JP1[2]*(JP1[3]*JP1[7]-JP1[6]*JP1[4]);
-
+    double J0 = JP1->getVal(0,0);
+    double J1 = JP1->getVal(1,0);
+    double J2 = JP1->getVal(2,0);
+    double J3 = JP1->getVal(0,1);
+    double J4 = JP1->getVal(1,1);
+    double J5 = JP1->getVal(2,1);
+    double J6 = JP1->getVal(0,2);
+    double J7 = JP1->getVal(1,2);
+    double J8 = JP1->getVal(2,2);
+    
+    double DetJ = J0*(J4*J8-J7*J5)
+    -J1*(J3*J8-J6*J5)
+    +J2*(J3*J7-J6*J4);
+    
+    delete JP1;
+    
     return DetJ;
 }
 
@@ -794,7 +823,7 @@ double ComputeDeterminantJ_tet(double*P)
     dJvec.push_back(-DetJ0);
     //std::cout << dJvec[0] << " " <<  dJvec[1] << " " << dJvec[2] << " " << dJvec[3] << std::endl;
     double DetJ = *std::min_element(dJvec.begin(),dJvec.end());
-    
+    delete[] J0;
     return DetJ;
 }
 
@@ -1016,8 +1045,6 @@ void ComputeMetric(Partition* Pa,
     //+++++++++++++++++++++++++++++++++++++++++++
     double* Hmet = new double[9];
     
-    int nVerts = Hess_vm.size();
-    //std::map<int,Array<double>*> metric;
 
     std::map<int,Array<double>*>::iterator itm;
     int i = 0;

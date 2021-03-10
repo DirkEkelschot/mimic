@@ -26,7 +26,6 @@ int main(int argc, char** argv) {
     // Get the rank of the process
     int world_rank;
     MPI_Comm_rank(comm, &world_rank);
-    int i,j;
     
     int debug = 0;
 //    if(world_rank == 0)
@@ -156,15 +155,10 @@ int main(int argc, char** argv) {
             Uvaria_map[gid] = Uarr;
         }
         
-        //Mesh_Topology* meshTopo = new Mesh_Topology(P,comm);
-
-        Domain* pDom = P->getPartitionDomain();
+        //Domain* pDom = P->getPartitionDomain();
 
         P->AddStateVecForAdjacentElements(Uvaria_map,1,comm);
-
-        int* bnd_map;
-        int nBnd = 4;
-
+        
         if(world_rank == 0)
         {
             std::cout << "Started creating mesh topology object... " << std::endl;
@@ -225,7 +219,7 @@ int main(int argc, char** argv) {
             
             delete grit->second;
             
-            i++;
+            //si++;
         }
 
 
@@ -259,6 +253,10 @@ int main(int argc, char** argv) {
             Hess->setVal(5,0,dU2dZi2[gid]->getVal(2,0));
             
             Hess_map[gid] = Hess;
+            
+            delete dU2dXi2[gid];
+            delete dU2dYi2[gid];
+            delete dU2dZi2[gid];
             
             t++;
         }
@@ -402,14 +400,7 @@ int main(int argc, char** argv) {
         dUidxi_map.clear();
         dUidyi_map.clear();
         dUidzi_map.clear();
-//        dUdxauxNew.clear();
-//        dUdyauxNew.clear();
-//        dUdzauxNew.clear();
-
-        dU2dXi2.clear();
-        dU2dYi2.clear();
-        dU2dZi2.clear();
-        
+     
         delete us3d->ien;
         delete us3d->ief;
         delete us3d->iee;
@@ -426,11 +417,9 @@ int main(int argc, char** argv) {
             
             int wall_id = 3;
             int nLayer  = metric_inputs[4];
-            std::cout << "nLayer -> " << metric_inputs[4] << std::endl;
             if(nLayer>0)
             {
                 int counter = 0;
-                //Mdata* Md = ReadMetricData();
                 
                 std::map<int,std::vector<int> > bnd_face_map = bmap->getBfaceMap();
                 std::map<std::set<int>,int> tria_ref_map = bmap->getTriaRefMap();
@@ -439,8 +428,8 @@ int main(int argc, char** argv) {
                 
                 BLShellInfo* BLshell = FindOuterShellBoundaryLayerMesh(wall_id, nLayer,xcn_g,ien_g,ief_g,ife_g,ifn_g,xcn_pstate,ien_pstate,bnd_face_map,vert_ref_map,comm);
                         
-                //==============================================================================
-                //==============================================================================
+                //========================================================================
+                //========================================================================
                 //            struct BLShellInfo
                 //            {
                 //                std::map<int,int> ShellFace2BFace;
@@ -450,12 +439,12 @@ int main(int argc, char** argv) {
                 //                std::map<int,std::map<int,int> > ShellFace2ShellVert2OppositeBoundaryVerts;
                 //                Array<int>* ShellRef;
                 //            };
-                //==============================================================================
-                //==============================================================================
+                //========================================================================
+                //========================================================================
                 
                 int nbHex       =  ien_g->getNrow();
                 int nbPrisms    =  bnd_face_map[wall_id].size()*(nLayer)*2;
-                int nbTets      = (nbHex-bnd_face_map[wall_id].size()*(nLayer))*6;
+                //int nbTets      = (nbHex-bnd_face_map[wall_id].size()*(nLayer))*6;
                 int nbHexsNew   = (nbHex-bnd_face_map[wall_id].size()*(nLayer));
                 
                 
@@ -522,15 +511,6 @@ int main(int argc, char** argv) {
                 
                 int cshell = 0;
                 int nshell = 0;
-                
-                int reffie0 = 0;
-                int reffie1 = 0;
-                int reffie2 = 0;
-                int reffie3 = 0;
-                
-                int reffiemindrie = 0;
-                int reffiemineen  = 0;
-                int reffiezeros   = 0;
                 
                 for(int i=0;i<nbVerts_TET;i++)
                 {
@@ -599,10 +579,6 @@ int main(int argc, char** argv) {
                 {
                     hed22.item[k].nxt = k+1;
                 }
-                
-                int nPoints_before_split  = mmgMesh_TET->np;
-		
-                int nTets_before_split  = mmgMesh_TET->ne;
                 
                 std::cout << "Cut each hexahedral up into 6 tetrahedra..."<<std::endl;
                 //we need to do this in order to determine the orientation of the triangles at the shell interface and trace back how we need to tesselate the wall boundary into triangles so that they match eachothers orientation.
@@ -758,7 +734,6 @@ int main(int argc, char** argv) {
                     
                     int shell_faceid        = shelltri2fid[shell_tri];
                     int bfaceID             = shellFace2bFace[shell_faceid];
-                    int shell_faceid2       = bFace2shellFace[bfaceID];
                     std::map<int,int> v2v   = BLshell->ShellFace2ShellVert2OppositeBoundaryVerts[shell_faceid];
                     TriID2ShellFaceID[teller].push_back(shell_faceid);
                     BLshell->ShellFaceID2TriID[shell_faceid].push_back(teller);
@@ -978,7 +953,7 @@ int main(int argc, char** argv) {
                         int v2=tetras[2];
                         int v3=tetras[3];
                         
-                        bndv = 0;
+                        //bndv = 0;
                         std::set<int> bface;
                         
                         std::set<int> tria0;
@@ -1286,8 +1261,8 @@ int main(int argc, char** argv) {
                 }
                 std::cout << "unique_new_verts.size = > " << unique_new_verts.size() << std::endl;
  
-                double min_oris = *std::min_element(oris.begin(),oris.end());
-                double max_oris = *std::max_element(oris.begin(),oris.end());
+                //double min_oris = *std::min_element(oris.begin(),oris.end());
+                //double max_oris = *std::max_element(oris.begin(),oris.end());
 
                 int nTriangles_Vol = 0;
                 std::map<int,std::vector< int* > >::iterator itrrb;

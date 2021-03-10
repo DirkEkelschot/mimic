@@ -108,6 +108,7 @@ void Partition::DeterminePartitionLayout(ParArray<int>* ien, ParallelState_Parme
     real_t *itr      = itr_;
     idx_t *vsize = NULL;
     idx_t *adjwgt = NULL;
+    
     ParMETIS_V3_Mesh2Dual(pstate_parmetis->getElmdist(),
                           pstate_parmetis->getEptr(),
                           pstate_parmetis->getEind(),
@@ -890,6 +891,7 @@ void Partition::DetermineAdjacentElement2ProcMapUS3D(ParArray<int>* ien,
     int* new_V_offsets = new int[size];
     int* new_F_offsets = new int[size];
     int* new_E_offsets = new int[size];
+
     for(int i=0;i<size;i++)
     {
         new_V_offsets[i] = xcn_pstate->getOffsets()[i]-1;
@@ -898,6 +900,7 @@ void Partition::DetermineAdjacentElement2ProcMapUS3D(ParArray<int>* ien,
     }
         
     std::map<int,std::vector<int> > req_elem;
+    
     int itel = 0;
     int Nel = part_global->getNrow();
     
@@ -1329,7 +1332,7 @@ void Partition::DetermineAdjacentElement2ProcMapUS3D(ParArray<int>* ien,
            lvid++;
        }
 
-       int o = 3*vloc_tmp;
+       //int o = 3*vloc_tmp;
        m = 0;
        int u = 0;
        for(it_f=recv_back_verts.begin();it_f!=recv_back_verts.end();it_f++)
@@ -1459,7 +1462,8 @@ void Partition::DetermineAdjacentElement2ProcMapUS3D(ParArray<int>* ien,
 
     delete[] new_V_offsets;
     delete[] new_F_offsets;
-    
+    delete[] new_E_offsets;
+
     reqstd_ids_per_rank.clear();
     recv_back_Nverts.clear();
     recv_back_verts.clear();
@@ -1476,6 +1480,7 @@ void Partition::DetermineAdjacentElement2ProcMapUS3D(ParArray<int>* ien,
     tmp_locv.clear();
     tmp_globf.clear();
     tmp_locf.clear();
+
 }
 
 
@@ -1499,7 +1504,7 @@ void Partition::AddStateForAdjacentElements(std::map<int,double> U, MPI_Comm com
     MPI_Comm_rank(comm, &rank);
     //std::cout << xcn->getOffset(rank) << " " << xcn_pstate->getOffset(rank) << std::endl;
     
-    int ien_o = ien_pstate->getOffset(rank);
+    //int ien_o = ien_pstate->getOffset(rank);
 
     int el_id;
     int p_id;
@@ -1595,7 +1600,7 @@ void Partition::AddStateForAdjacentElements(std::map<int,double> U, MPI_Comm com
             {
                 int ne_send             = it->second.size();
                 double* iee_send        = new double[ne_send];
-                int offset_iee          = ien_pstate->getOffset(rank);
+                //int offset_iee          = ien_pstate->getOffset(rank);
                 
                 for(int u=0;u<it->second.size();u++)
                 {
@@ -1664,7 +1669,7 @@ void Partition::AddStateVecForAdjacentElements(std::map<int,Array<double>* > &U,
     MPI_Comm_rank(comm, &rank);
     //std::cout << xcn->getOffset(rank) << " " << xcn_pstate->getOffset(rank) << std::endl;
     
-    int ien_o = ien_pstate->getOffset(rank);
+    //int ien_o = ien_pstate->getOffset(rank);
 
     int el_id;
     int p_id;
@@ -1765,7 +1770,7 @@ void Partition::AddStateVecForAdjacentElements(std::map<int,Array<double>* > &U,
             {
                 int ne_send             = it->second.size();
                 double* iee_send        = new double[ne_send*nvar];
-                int offset_iee          = ien_pstate->getOffset(rank);
+                //int offset_iee          = ien_pstate->getOffset(rank);
                 
                 for(int u=0;u<ne_send;u++)
                 {
@@ -1846,7 +1851,7 @@ void Partition::AddStateVecForAdjacentVertices(std::map<int,Array<double>* > &Uv
         for(int j=0;j<itv->second.size();j++)
         {
             int adj_id  = itv->second[j];
-            int ladj_id = elem_map[adj_id]; // private
+            //int ladj_id = elem_map[adj_id]; // private
 
             int nvPerEl = LocElem2Nv[adj_id];
             
@@ -1962,10 +1967,10 @@ void Partition::AddAdjacentVertexDataUS3D(std::map<int,double> &Uv, MPI_Comm com
         for(int j=0;j<itv->second.size();j++)
         {
             int adj_id  = itv->second[j];
-            int ladj_id = elem_map[adj_id]; // private
+            //int ladj_id = elem_map[adj_id]; // private
 
             int nvPerEl = LocElem2Nv[adj_id];
-            int nfPerEl = LocElem2Nf[adj_id];
+            //int nfPerEl = LocElem2Nf[adj_id];
             
             for(int k=0;k<nvPerEl;k++)
             {
@@ -2967,6 +2972,8 @@ std::map<int,std::map<int,double> > Partition::getNode2NodeMap()
                                 +(V0->y-V1->y)*(V0->y-V1->y)
                                 +(V0->z-V1->z)*(V0->z-V1->z));
                     node2node[gvid].insert(std::pair<int,double>(gvidt,dist));
+                    
+                    
                 }
             }
             
@@ -3007,6 +3014,8 @@ std::map<int,std::map<int,double> > Partition::getNode2NodeMap()
 //            }
         }
     }
+    delete V0;
+    delete V1;
     
     return node2node;
 }
@@ -3088,6 +3097,9 @@ std::map<int,Array<double>* > Partition::ReduceStateVecToAllVertices(std::map<in
 
         im++;
     }
+    
+    
+    delete[] sum;
     
     return Uvm;
 

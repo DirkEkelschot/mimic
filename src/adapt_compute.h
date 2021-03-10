@@ -33,7 +33,7 @@ double ComputeVolumeTetCell(double *P);
 double ComputeVolumePrismCell(double *P);
 
 double ComputeDeterminantJ_tet_v2(double*P);
-double* ComputeJAtCenter_tet_v2(double*P);
+Array<double>* ComputeJAtCenter_tet_v2(double*P);
 
 // This function outputs J as an array of 9 values where the matrix is defined as:
 

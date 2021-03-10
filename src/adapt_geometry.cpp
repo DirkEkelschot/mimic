@@ -42,7 +42,8 @@ double ComputeQuadSurfaceArea(double* P)
     cross[2] = (a->c0 * b->c1) - (a->c1 * b->c0);
     
     double R = fabs(sqrt(cross[0]*cross[0]+cross[1]*cross[1]+cross[2]*cross[2]));
-    delete a,b;
+    delete a;
+    delete b;
     return R;
 }
 

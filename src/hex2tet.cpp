@@ -129,7 +129,14 @@ int H2T_chkorient(MMG5_pMesh mmgMesh,int* hexa,int nhex) {
       hexa[iadr + 5] = ph[7];
       hexa[iadr + 7] = ph[5];
     }
+
   }
+  
+    delete[] c1;
+    delete[] c2;
+    delete[] c3;
+    delete[] c4;
+    
   return nbado;
 }
 

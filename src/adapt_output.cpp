@@ -15,7 +15,7 @@ void OutputBoundaryLayerPrisms(Array<double>* xcn_g, Mesh_Topology_BL* BLmesh, M
     std::set<int> unique_prism_verts;
     std::vector<int> u_prism_v;
 
-    Array<int>* local_prisms = new Array<int>(BLmesh->Nprisms,6);
+    //Array<int>* local_prisms = new Array<int>(BLmesh->Nprisms,6);
     std::map<int,int> gv2lv_prisms;
     int npr =0;
     int lvid=0;
@@ -43,14 +43,14 @@ void OutputBoundaryLayerPrisms(Array<double>* xcn_g, Mesh_Topology_BL* BLmesh, M
                 {
                     unique_prism_verts.insert(prism[q]);
                     u_prism_v.push_back(prism[q]);
-                    local_prisms->setVal(npr,q,lvid);
+                    //local_prisms->setVal(npr,q,lvid);
                     gv2lv_prisms[prism[q]] = lvid;
                     lvid++;
                 }
-                else
-                {
-                    local_prisms->setVal(npr,q,gv2lv_prisms[prism[q]]);
-                }
+//                else
+//                {
+//                    local_prisms->setVal(npr,q,gv2lv_prisms[prism[q]]);
+//                }
             }
            
             std::map<int,std::vector<int> > LF2GN = iter->second[p]->LocalFace2GlobalNode;
@@ -256,6 +256,13 @@ void OutputBoundaryLayerPrisms(Array<double>* xcn_g, Mesh_Topology_BL* BLmesh, M
         << " " << BndFace_Output->getVal(i,2)+1 << std::endl;
     }
     myfile2.close();
+    
+    delete BndFace_Output;
+    gbnd2lbnd.clear();
+    
+    U_BndNodes_Set.clear();
+    U_BndNodes_Vec.clear();
+    
 }
 
 void OutputMesh_MMG(MMG5_pMesh mmgMesh, int offset, int Nel, string fname)
@@ -356,7 +363,7 @@ void OutputBoundaryID(Partition* Pa, Mesh_Topology* meshTopo, US3D* us3d, int bn
     std::map<int,int> face2ref            = meshTopo->getFace2Ref();
     std::map<int,std::vector<int> > ref2face            = meshTopo->getRef2Face();
     std::map<int,std::vector<int> > ref2vert            = meshTopo->getRef2Vert();
-    int* bnd_map = us3d->bnd_map;
+    //int* bnd_map = us3d->bnd_map;
 
     std::vector<int> bfaceIDs = ref2face[bndID];
     
@@ -674,7 +681,10 @@ std::cout << std::endl;
                  ien_bl_ex->getVal(i,7)+1 << std::endl;
     	}
    	 myfile2.close();
-    }    
+    }
+    
+    delete ien_bl;
+    delete ien_bl_ex;
 }
 
 
@@ -741,6 +751,9 @@ void OutputBLElementsOnRoot(Array<double>* xcn_root, Array<int>* ien_root, std::
                  ien_bl->getVal(i,7)+1 << std::endl;
     }
     myfile.close();
+    
+    delete ien_bl;
+    
 }
 
 

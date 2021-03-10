@@ -21,7 +21,6 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_Vrt_US3D(Partition* Pa, std::map<i
    
     
    int Nel                      = Pa->getGlobalPartition()->getNrow();
-   i_part_map*  if_ref_vec      = Pa->getIFREFpartmap();
    i_part_map*  ifn_vec         = Pa->getIFNpartmap();
    i_part_map* ief_part_map     = Pa->getIEFpartmap();
    i_part_map*  iee_vec         = Pa->getIEEpartmap();
@@ -156,7 +155,7 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_Vrt_US3D(Partition* Pa, std::map<i
                    //u_po = u_ijk;
                    //u_po = U[elID];
                    
-                   double u_fpo = ghost->getVal(adjID-Nel,0);
+                   //double u_fpo = ghost->getVal(adjID-Nel,0);
 
                    Vrt->setVal(t,0,(1.0/d)*(Vc->x-Vijk->x));
                    Vrt->setVal(t,1,(1.0/d)*(Vc->y-Vijk->y));
@@ -245,6 +244,7 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_Vrt_US3D(Partition* Pa, std::map<i
    }
     
    delete Vadj;
+   delete Vc;
    LocalVs.clear();
    gE2lV.clear();
    gE2lE.clear();
@@ -276,7 +276,6 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_US3D(Partition* Pa, std::map<int,A
    int nLoc_Elem                         = Loc_Elem.size();
     
    int Nel = Pa->getGlobalPartition()->getNrow();
-   i_part_map*  if_ref_vec      = Pa->getIFREFpartmap();
    i_part_map*  ifn_vec         = Pa->getIFNpartmap();
    i_part_map* ief_part_map     = Pa->getIEFpartmap();
    i_part_map*  iee_vec         = Pa->getIEEpartmap();
@@ -332,7 +331,7 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_US3D(Partition* Pa, std::map<int,A
        for(int j=0;j<nadj;j++)
        {
            int adjID = iee_vec->i_map[elID][j];
-           int NvPAdjEl = LocElem2Nv[adjID];
+           //int NvPAdjEl = LocElem2Nv[adjID];
            double* Padj = new double[gE2lV[adjID].size()*3];
 
            if(adjID<Nel)
@@ -398,7 +397,7 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_US3D(Partition* Pa, std::map<int,A
                //u_po = ghost->getVal(adjID-Nel,0);
                //u_po = u_ijk;
                //u_po = U[elID];
-               double u_fpo = ghost->getVal(adjID-Nel,0);
+               //double u_fpo = ghost->getVal(adjID-Nel,0);
 
                Vrt->setVal(t,0,(1.0/d)*(Vc->x-Vijk->x));
                Vrt->setVal(t,1,(1.0/d)*(Vc->y-Vijk->y));
@@ -408,7 +407,6 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_US3D(Partition* Pa, std::map<int,A
 //               {
 //                   std::cout << "Vc = (" << Vc->x << ", " << Vc->y << ", " << Vc->z << ") " << std::endl;
 //               }
-               
                
                b->setVal(t,0,(1.0/d)*(0.0));
                t++;
@@ -443,8 +441,9 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_US3D(Partition* Pa, std::map<int,A
        //iee_dist.push_back(dist);
        //dist.clear();
    }
-
-
+    
+    delete Vc;
+    
    return dudx_map;
 }
 
@@ -475,7 +474,7 @@ std::map<int,Array<double>* >  ComputedUdx_MGG(Partition* Pa, std::map<int,doubl
     
     i_part_map* iee_vec = Pa->getIEEpartmap();
     Array<double>* gu_c_old    = new Array<double>(nLoc_Elem,3);
-    
+
     std::map<int,std::vector<int> > gE2gF = Pa->getglobElem2globFaces();
     
     for(int i=0;i<nLoc_Elem;i++)
@@ -657,6 +656,11 @@ std::map<int,Array<double>* >  ComputedUdx_MGG(Partition* Pa, std::map<int,doubl
         }
         
     }
+    
+    delete gu_c_old;
+    delete gu_c_x;
+    delete gu_c_y;
+    delete gu_c_z;
     
     return gudxi;
 }

@@ -8,7 +8,7 @@ Array<double>* GetOptimizedMMG3DMeshOnRoot(Partition* P, US3D* us3d, std::map<in
     int world_rank;
     MPI_Comm_rank(comm, &world_rank);
     int i,j;
-    MMG_Mesh* mmg = new MMG_Mesh;
+    //MMG_Mesh* mmg = new MMG_Mesh;
     
     Domain* pDom = P->getPartitionDomain();
     std::map<int,std::vector<int> > v2e = pDom->vert2elem;
@@ -39,6 +39,8 @@ Array<double>* GetOptimizedMMG3DMeshOnRoot(Partition* P, US3D* us3d, std::map<in
     int* red_mv_nlocs  = new int[world_size];
     int* mv_offsets    = new int[world_size];
 
+
+    
     for(i=0;i<world_size;i++)
     {
         lid_nlocs[i] = 0;
@@ -111,6 +113,8 @@ Array<double>* GetOptimizedMMG3DMeshOnRoot(Partition* P, US3D* us3d, std::map<in
     Array<int>* ien_g;
     Array<int>* iet_g;
 
+
+    
     int nvg   = us3d->xcn->getNglob();
     int nElem = us3d->ien->getNglob();
     ParallelState* xcn_pstate = P->getXcnParallelState();
@@ -136,6 +140,10 @@ Array<double>* GetOptimizedMMG3DMeshOnRoot(Partition* P, US3D* us3d, std::map<in
     int* xcn_nlocs      = new int[world_size];
     int* xcn_offsets    = new int[world_size];
 
+    
+
+    
+    
     for(int i=0;i<world_size;i++)
     {
         xcn_nlocs[i]   = xcn_pstate->getNlocs()[i]*3;
@@ -190,6 +198,7 @@ Array<double>* GetOptimizedMMG3DMeshOnRoot(Partition* P, US3D* us3d, std::map<in
 
     Array<double>* Mg;
     Array<int>* tel;
+    
     if(world_rank == 0)
     {
         Mg  = new Array<double>(us3d->xcn->getNglob(),6);
@@ -260,6 +269,25 @@ Array<double>* GetOptimizedMMG3DMeshOnRoot(Partition* P, US3D* us3d, std::map<in
     {
         Mg = new Array<double>(1,1);
     }
+
+    delete xcn_g;
+    delete ien_g;
+    delete iet_g;
+    delete pDom;
+    delete lE2gE_g;
+    delete mv_g;
+    delete lE2gE;
+    delete mv;
+    
+    delete[] iet_nlocs;
+    delete[] iet_offsets;
+    delete[] ien_nlocs;
+    delete[] ien_offsets;
+    delete[] xcn_nlocs;
+    delete[] xcn_offsets;
+    delete[] mv_nlocs;
+    delete[] red_mv_nlocs;
+    delete[] mv_offsets;
     
     return Mg;
 }

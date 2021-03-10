@@ -31,100 +31,6 @@ class ParallelState_Parmetis {
       int ncommonnodes;
 };
 
-//inline ParallelState_Parmetis::ParallelState_Parmetis(ParArray<int>* e2n, MPI_Comm comm, int type)
-//{
-//    int size;
-//    MPI_Comm_size(comm, &size);
-//    // Get the rank of the process;
-//    int rank;
-//    MPI_Comm_rank(comm, &rank);
-//    int Nel = e2n->getNglob();
-//    //std::cout << "number of elements = " << Nel;
-//    int nloc             = int(Nel/size) + ( rank < Nel%size );
-//    //  compute offset of rows for each proc;
-//    int offset           = rank*int(Nel/size) + MIN(rank, Nel%size);
-//
-//    int npo_loc = 0;
-//    for(int i=0;i<nloc;i++)
-//    {
-//        npo_loc += type;
-//    }
-//
-//    int* nlocs_tmp         = new int[size];
-//    nlocs             = new int[size];
-//    int* npo_locs_tmp      = new int[size];
-//    npo_locs          = new int[size];
-//
-//    for(int i=0;i<size;i++)
-//    {
-//        nlocs[i]        = 0;
-//        npo_locs[i]     = 0;
-//
-//        if(i==rank)
-//        {
-//            nlocs_tmp[i]        = nloc;
-//            npo_locs_tmp[i]     = npo_loc;
-//        }
-//        else
-//        {
-//            nlocs_tmp[i]        = 0;
-//            npo_locs_tmp[i]     = 0;
-//        }
-//    }
-//
-//    int* elm_dist_tmp          = new int[size+1];
-//    int* npo_offset_tmp        = new int[size+1];
-//    elmdist                    = new int[size+1];
-//    int* npo_offset            = new int[size+1];
-//
-//    for(int i=0;i<size+1;i++)
-//    {
-//        elmdist[i]   = 0;
-//        npo_offset[i] = 0;
-//        if(i==rank)
-//        {
-//            elm_dist_tmp[i]   = offset;
-//            npo_offset_tmp[i] = offset*type;
-//        }
-//        else
-//        {
-//            elm_dist_tmp[i]  = 0;
-//            npo_offset_tmp[i] = 0;
-//        }
-//    }
-//
-//
-//    MPI_Allreduce(nlocs_tmp,        nlocs,      size,     MPI_INT, MPI_SUM, comm);
-//    MPI_Allreduce(npo_locs_tmp,     npo_locs,   size,     MPI_INT, MPI_SUM, comm);
-//    MPI_Allreduce(elm_dist_tmp,     elmdist,    size+1,   MPI_INT, MPI_SUM, comm);
-//    MPI_Allreduce(npo_offset_tmp,   npo_offset, size+1,   MPI_INT, MPI_SUM, comm);
-//
-//    elmdist[size] = Nel;
-//    npo_offset[size] = Nel*type;
-//
-//    eptr = new int[nloc+1];
-//    eind = new int[npo_loc];
-//    eptr[0]  = 0;
-//    for(int i=0;i<nloc;i++)
-//    {
-//        eptr[i+1]  = eptr[i]+type;
-//
-//        for(int j=eptr[i];j<eptr[i+1];j++)
-//        {
-//            eind[j] = e2n->data[j];
-//        }
-//    }
-////    eind = e2n->data;
-//
-//    // The constructor builds the following arrays:
-//    // elmdist
-//    // nlocs
-//    // npo_locs
-//    // npo_offset
-//    // eptr
-//    // eind
-//
-//}// This is the constructor
 
 
 inline ParallelState_Parmetis::ParallelState_Parmetis(ParArray<int>* e2n, Array<int>* elTypes, ParArray<int>* ie_Nv, MPI_Comm comm)
@@ -138,11 +44,9 @@ inline ParallelState_Parmetis::ParallelState_Parmetis(ParArray<int>* e2n, Array<
 
     int nloc             = int(Nel/size) + ( rank < Nel%size );
     //  compute offset of rows for each proc;
-    int Nel_offset       = rank*int(Nel/size) + MIN(rank, Nel%size);
 
     int npo_loc     = 0;
     int npo_loc_tot = 0;
-    Array<int>* ienpo = new Array<int>(nloc,1);
 
     if(elTypes->getVal(0,0) == 1 || elTypes->getVal(1,0) == 1)
     {
@@ -187,9 +91,7 @@ inline ParallelState_Parmetis::ParallelState_Parmetis(ParArray<int>* e2n, Array<
     MPI_Allreduce(nlocs_tmp,        nlocs,      size,     MPI_INT, MPI_SUM, comm);
     MPI_Allreduce(npo_locs_tmp,     npo_locs,   size,     MPI_INT, MPI_SUM, comm);
 
-    int* npo_offset_tmp        = new int[size+1];
-    int* npo_offset            = new int[size+1];
-    int* elm_dist_tmp          = new int[size+1];
+    //int* npo_offset            = new int[size+1];
     elmdist                    = new int[size+1];
 
     int nelOffset = 0;
@@ -197,14 +99,14 @@ inline ParallelState_Parmetis::ParallelState_Parmetis(ParArray<int>* e2n, Array<
     for(int i=0;i<size;i++)
     {
         elmdist[i]      = nelOffset;
-        npo_offset[i]   = npoOffset;
+        //npo_offset[i]   = npoOffset;
 
         npoOffset       = npoOffset+npo_locs[i];
         nelOffset       = nelOffset+nlocs[i];
     }
 
     elmdist[size]       = Nel;
-    npo_offset[size]    = npo_loc_tot;
+    //npo_offset[size]    = npo_loc_tot;
 
 //    for(int i=0;i<size+1;i++)
 //    {
