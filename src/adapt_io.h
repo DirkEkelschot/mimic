@@ -230,9 +230,9 @@ ParArray<T>* ReadDataSetFromRunInFileInParallel(const char* file_name, const cha
     hid_t group_id       = H5Gopen(file_id,"solution",H5P_DEFAULT);
     hid_t run_id         = H5Gopen(group_id,run_name,H5P_DEFAULT);
     hid_t dset_id        = H5Dopen(run_id,dataset_name,H5P_DEFAULT);
+    
     hid_t dspace         = H5Dget_space(dset_id);
     int ndims            = H5Sget_simple_extent_ndims(dspace);
-    
     hsize_t dims[ndims];
     H5Sget_simple_extent_dims(dspace, dims, NULL);
     int nrow             = dims[0];
@@ -240,6 +240,20 @@ ParArray<T>* ReadDataSetFromRunInFileInParallel(const char* file_name, const cha
     int N = nrow;
     int g_offset = 0;
     if (strcmp(dataset_name, "interior") == 0)
+    {
+        if(g == 1)
+        {
+            g_offset = Nel;
+            N = nrow-Nel;
+        }
+        else{
+            g_offset = 0;
+            N = Nel;
+        }
+        
+    }
+    
+    if (strcmp(dataset_name, "stats-mean") == 0)
     {
         if(g == 1)
         {
@@ -620,7 +634,7 @@ void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh, US3D* us3d);
 
 //US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data, MPI_Comm comm, MPI_Info info);
 
-US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data, MPI_Comm comm, MPI_Info info);
+US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data, int ReadFromStats, MPI_Comm comm, MPI_Info info);
 
 
 

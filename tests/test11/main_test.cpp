@@ -62,9 +62,9 @@ int main(int argc, char** argv)
 
     
     
-//    const char* fn_grid="../test_mesh/cylinder_hex/grid.h5";
-//    const char* fn_conn="../test_mesh/cylinder_hex/conn.h5";
-//    const char* fn_data="../test_mesh/cylinder_hex/data.h5";
+    const char* fn_grid="../test_mesh/cylinder_hex/grid.h5";
+    const char* fn_conn="../test_mesh/cylinder_hex/conn.h5";
+    const char* fn_data="../test_mesh/cylinder_hex/data.h5";
     
 //    const char* fn_grid="itn1/grid.h5";
 //    const char* fn_conn="itn1/conn.h5";
@@ -74,11 +74,11 @@ int main(int argc, char** argv)
 //    const char* fn_conn="../test_mesh/it1n/conn.h5";
 //    const char* fn_data="../test_mesh/it1n/data.h5";
     
-    const char* fn_grid="it3/grid.h5";
-    const char* fn_conn="it3/conn.h5";
-    const char* fn_data="it3/data.h5";
+//    const char* fn_grid="it1/grid.h5";
+//    const char* fn_conn="it1/conn.h5";
+//    const char* fn_data="it1/data.h5";
     
-    US3D* us3d    = ReadUS3DData(fn_conn,fn_grid,fn_data,comm,info);
+    US3D* us3d    = ReadUS3DData(fn_conn,fn_grid,fn_data,0,comm,info);
     
     Array<double>* xcn_ref = ReadDataSetFromFile<double>(fn_grid,"xcn");
     Array<int>* ien_ref = ReadDataSetFromFile<int>(fn_conn,"ien");
@@ -218,8 +218,6 @@ int main(int argc, char** argv)
     std::map<int,Array<double>* > dUdXi_vmap = P->ReduceStateVecToAllVertices(dUdXi,3);
     P->AddStateVecForAdjacentVertices(dUdXi_vmap,3,comm);
 
-    
-    
     //P->AddAdjacentVertexDataUS3D(dUdXi_vmap, comm);
 
     //============================================================
@@ -276,25 +274,37 @@ int main(int argc, char** argv)
     //OOOOOOOOOOOOOOOOOOooooooooooooooOOOOOOOOOOOOOoooooooooooooOOOOOOOOOOOooooooooo
     
     std::map<int,Array<double>* >::iterator grit;
-    std::map<int,double> dUidxi_map;
-    std::map<int,double> dUidyi_map;
-    std::map<int,double> dUidzi_map;
+    std::map<int,Array<double>* > dUidxi_map;
+    std::map<int,Array<double>* > dUidyi_map;
+    std::map<int,Array<double>* > dUidzi_map;
     std::map<int,Array<double>* > dUidXi_map;
+    std::cout << "we here now 0" << std::endl;
     for(grit=dUdXi.begin();grit!=dUdXi.end();grit++)
     {
-        dUidxi_map[grit->first]=grit->second->getVal(0,0);
-        dUidyi_map[grit->first]=grit->second->getVal(1,0);
-        dUidzi_map[grit->first]=grit->second->getVal(2,0);
+        Array<double>* dUdx_E = new Array<double>(1,1);
+        dUdx_E->setVal(0,0,grit->second->getVal(0,0));
+        
+        Array<double>* dUdy_E = new Array<double>(1,1);
+        dUdy_E->setVal(0,0,grit->second->getVal(1,0));
+        
+        Array<double>* dUdz_E = new Array<double>(1,1);
+        dUdz_E->setVal(0,0,grit->second->getVal(2,0));
+
+        dUidxi_map[grit->first]=dUdx_E;
+        dUidyi_map[grit->first]=dUdy_E;
+        dUidzi_map[grit->first]=dUdz_E;
         
         delete grit->second;
         
         i++;
     }
-    
+    std::cout << "we here now 1" << std::endl;
+
     std::map<int,Array<double>* > dU2dXi2 = ComputedUdx_LSQ_Vrt_US3D(P,dUidxi_map,dudx_vmap_new,meshTopo,gB,comm);
     std::map<int,Array<double>* > dU2dYi2 = ComputedUdx_LSQ_Vrt_US3D(P,dUidyi_map,dudy_vmap_new,meshTopo,gB,comm);
     std::map<int,Array<double>* > dU2dZi2 = ComputedUdx_LSQ_Vrt_US3D(P,dUidzi_map,dudz_vmap_new,meshTopo,gB,comm);
-    
+    std::cout << "we here now 2" << std::endl;
+
 //    std::map<int,Array<double>* > dU2dXi2 = ComputedUdx_LSQ_US3D(P,dUidxi_map,gB,comm);
 //    std::map<int,Array<double>* > dU2dYi2 = ComputedUdx_LSQ_US3D(P,dUidyi_map,gB,comm);
 //    std::map<int,Array<double>* > dU2dZi2 = ComputedUdx_LSQ_US3D(P,dUidzi_map,gB,comm);
@@ -335,12 +345,14 @@ int main(int argc, char** argv)
     dU2dXi2.clear();
     dU2dYi2.clear();
     dU2dZi2.clear();
-    
+    std::cout << "we here now 3" << std::endl;
+
     P->AddStateVecForAdjacentElements(Hess_map,6,comm);
     std::map<int,Array<double>* > hess_vmap = P->ReduceStateVecToAllVertices(Hess_map,6);
     P->AddStateVecForAdjacentVertices(hess_vmap,6,comm);
     
-   
+    std::cout << "we here now 4" << std::endl;
+
     sum      = 0.0;
     sum_dist = 0.0;
     di       = 0.0;
@@ -395,7 +407,8 @@ int main(int argc, char** argv)
 
         
     }
-    
+    std::cout << "we here now 5" << std::endl;
+
     hess_vmap.clear();
     //std::map<int,Array<double>* > hess_met = P->ReduceMetricToVertices(Hess_map);
     // updates hess_vmap_new such that is contains the metric.
@@ -490,7 +503,8 @@ int main(int argc, char** argv)
 //    myfilet.close();
   // ====================================================================
 
-    
+    std::cout << "we here now 6" << std::endl;
+
     std::map<int,std::vector<int> >::iterator ite;
     std::map<int,std::vector<int> > Hexes    = pDom->GHexes;
     std::map<int,std::vector<int> > Tetras   = pDom->GTetras;
@@ -522,7 +536,8 @@ int main(int argc, char** argv)
                                       comm,info);
 
     
-    
+    std::cout << "we here now 7" << std::endl;
+
     if(world_rank == 0)
     {
         

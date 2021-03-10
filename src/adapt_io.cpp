@@ -6,6 +6,12 @@ std::vector<double> ReadMetricInputs(const char* fn_metric)
 {
     std::ifstream fin;
     fin.open(fn_metric);
+    if(!fin.is_open())
+    {
+        std::cout << "Error:: Make sure there is a metric.inp file in the directory where main.cpp resides. "<<std::endl;
+        exit(0);
+    }
+    
     double v=0.0;
     std::vector<double> metric_inputs;
     int t=0;
@@ -2657,7 +2663,7 @@ void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh, US3D* us3d)
 //}
 
 
-US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data, MPI_Comm comm, MPI_Info info)
+US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data, int readFromStats, MPI_Comm comm, MPI_Info info)
 {
     int size;
     MPI_Comm_size(comm, &size);
@@ -2666,7 +2672,7 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
     MPI_Comm_rank(comm, &rank);
     US3D* us3d = new US3D;
     ParArray<double>* xcn = ReadDataSetFromFileInParallel<double>(fn_grid,"xcn",comm,info);
-
+    std::cout << "Reading from :: " << fn_conn << std::endl;
     ParArray<int>* ien = ReadDataSetFromFileInParallel<int>(fn_conn,"ien",comm,info);
     ParArray<int>* ief = ReadDataSetFromFileInParallel<int>(fn_conn,"ief",comm,info);
     ParArray<int>* iee = ReadDataSetFromFileInParallel<int>(fn_conn,"iee",comm,info);
@@ -2676,9 +2682,18 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
 
     
     int Nel = ien->getNglob();
+    ParArray<double>* interior;
+    Array<double>* ghost;
+    if(readFromStats==1)
+    {
+        interior  = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_1","stats-mean",0,Nel,comm,info);
+        ghost        = ReadUS3DGhostCellsFromRun<double>(fn_data,"run_1","stats-mean",Nel);
+    }
+    else{
+        interior  = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_1","interior",0,Nel,comm,info);
+        ghost        = ReadUS3DGhostCellsFromRun<double>(fn_data,"run_1","interior",Nel);
+    }
     
-    ParArray<double>* interior  = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_1","interior",0,Nel,comm,info);
-    Array<double>* ghost        = ReadUS3DGhostCellsFromRun<double>(fn_data,"run_1","interior",Nel);
     
     Array<int>*    zdefs        = ReadDataSetFromGroupFromFile<int>(fn_grid,"zones","zdefs");
     Array<char>*  znames        = ReadDataSetFromGroupFromFile<char>(fn_grid,"zones","znames");
@@ -2864,6 +2879,7 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
     //delete zdefs;
     delete znames;
     
+    std::cout << interior->getNrow() << " " << interior->getNcol() << std::endl;
     return us3d;
 }
 

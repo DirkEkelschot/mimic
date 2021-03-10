@@ -95,10 +95,19 @@ int main(int argc, char** argv) {
         //========================================================================
         //========================================================================
         //========================================================================
-        int varia = 4;
-        US3D* us3d = ReadUS3DData(fn_conn,fn_grid,fn_data,comm,info);
+        
         const char* fn_metric = "metric.inp";
         std::vector<double> metric_inputs = ReadMetricInputs(fn_metric);
+        int varia = 4;
+        
+        int ReadFromStats = 0;
+        if(metric_inputs.size()==6)
+        {
+            ReadFromStats=metric_inputs[5];
+        }
+        
+        US3D* us3d = ReadUS3DData(fn_conn,fn_grid,fn_data,ReadFromStats,comm,info);
+        
         
         int Nel_part = us3d->ien->getNrow();
         
