@@ -1474,11 +1474,7 @@ int main(int argc, char** argv) {
                  
                 int tet = 0;
                 int off_v=0;
-                int cntr0 = 0;
-                int cntr1 = 0;
-                std::set<int> cntr00set;
-                std::set<int> cntr0set;
-                std::set<int> cntr1set;
+
                 int www = 0;
                 int nbVertices = xcn_g->getNrow();
                 for(int i=0;i<nbVertices;i++)
@@ -1530,11 +1526,6 @@ int main(int argc, char** argv) {
                     {
                         tet++;
                         
-                        std::set<int> face00;
-                        std::set<int> face11;
-                        std::set<int> face22;
-                        std::set<int> face33;
-                       
                         
                         for(int s=0;s<4;s++)
                         {
@@ -1561,8 +1552,6 @@ int main(int argc, char** argv) {
                                 int vg = lv2gv_tet_mesh[mmgMesh_TET->tetra[i].v[s]-1];
                                 mmgMesh_hyb->tetra[tet].v[s] = vg+1;
 
-                                cntr1++;
-                                cntr1set.insert(mmgMesh_TET->tetra[i].v[s]);
                                 m11 = mv_g->getVal(vg,0);
                                 m12 = mv_g->getVal(vg,1);
                                 m13 = mv_g->getVal(vg,2);
