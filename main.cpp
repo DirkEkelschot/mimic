@@ -1529,20 +1529,16 @@ int main(int argc, char** argv) {
                     if(mmgMesh_TET->tetra[i].ref == 20)
                     {
                         tet++;
-                        int* tetra = new int[4];
-                        int* tetra2 = new int[4];
+                        
                         std::set<int> face00;
                         std::set<int> face11;
                         std::set<int> face22;
                         std::set<int> face33;
-                        double* Points = new double[4*3];
+                       
                         
                         for(int s=0;s<4;s++)
                         {
-                            Points[s*3+0] =mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[s]].c[0];
-                            Points[s*3+1] =mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[s]].c[1];
-                            Points[s*3+2] =mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[s]].c[2];
-                            
+                                                       
                             if(mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[s]].ref == 0)
                             {
                                 m11 = newvert2metric[mmgMesh_TET->tetra[i].v[s]][0];
@@ -1553,8 +1549,7 @@ int main(int argc, char** argv) {
                                 m33 = newvert2metric[mmgMesh_TET->tetra[i].v[s]][5];
                                 
                                 int locNew = globNew2locNew[mmgMesh_TET->tetra[i].v[s]];
-                                tetra[s]   = locNew;
-                                tetra2[s]  = mmgMesh_TET->tetra[i].v[s];
+
                                 mmgMesh_hyb->tetra[tet].v[s] = locNew;
 
                                 if ( MMG3D_Set_tensorSol(mmgSol_hyb, m11,m12,m13,m22,m23,m33,locNew) != 1 ) exit(EXIT_FAILURE);
@@ -1565,8 +1560,7 @@ int main(int argc, char** argv) {
                             {
                                 int vg = lv2gv_tet_mesh[mmgMesh_TET->tetra[i].v[s]-1];
                                 mmgMesh_hyb->tetra[tet].v[s] = vg+1;
-                                tetra[s]   = vg;
-                                tetra2[s]  = mmgMesh_TET->tetra[i].v[s];
+
                                 cntr1++;
                                 cntr1set.insert(mmgMesh_TET->tetra[i].v[s]);
                                 m11 = mv_g->getVal(vg,0);
