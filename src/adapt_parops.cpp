@@ -215,54 +215,54 @@ Array<double>* GetOptimizedMMG3DMeshOnRoot(Partition* P, US3D* us3d, std::map<in
         }
         
         
-        std::string filename = "MetricRoot.dat";
-        std::ofstream myfile;
-        myfile.open(filename);
-        myfile << "TITLE=\"volume_part_"  + std::to_string(world_rank) +  ".tec\"" << std::endl;
-        myfile <<"VARIABLES = \"X\", \"Y\", \"Z\", \"M00\", \"M01\", \"M02\", \"M11\", \"M12\", \"M22\"" << std::endl;
-        myfile <<"ZONE N = " << us3d->xcn->getNglob() << ", E = " << Ntetras << ", DATAPACKING = POINT, ZONETYPE = FETETRAHEDRON" << std::endl;
-        
-        string filename2 = "metric.dat";
-        ofstream myfile2;
-        myfile2.open(filename2);
-
-        string filename3 = "elements.dat";
-        ofstream myfile3;
-        myfile3.open(filename3);
-        int tel = 0;
-        for(int i=0;i<us3d->xcn->getNglob();i++)
-        {
-            myfile <<     xcn_g->getVal(i,0) << " " << xcn_g->getVal(i,1) << " " << xcn_g->getVal(i,2)
-                    << " " << Mg->getVal(i,0) << " " <<    Mg->getVal(i,1) << " " << Mg->getVal(i,2)
-                    << " " << Mg->getVal(i,3) << " " <<    Mg->getVal(i,4) << " " << Mg->getVal(i,5) << std::endl;
-            
-            myfile2 <<std::setprecision(16)<< Mg->getVal(i,0) << " " <<    Mg->getVal(i,1) << " " << Mg->getVal(i,2)
-                    << " " << Mg->getVal(i,3) << " " <<    Mg->getVal(i,4) << " " << Mg->getVal(i,5) << std::endl;
-        }
-        for(int i=0;i<ien_g->getNrow();i++)
-        {
-            if(iet_g->getVal(i,0)==2)
-            {
-                myfile <<  ien_g->getVal(i,0)+1 << " " <<
-                           ien_g->getVal(i,1)+1 << " " <<
-                           ien_g->getVal(i,2)+1 << " " <<
-                           ien_g->getVal(i,3)+1 << " " << std::endl;
-                tel++;
-            }
-            
-            
-            myfile3 << ien_g->getVal(i,0)+1 << " " <<
-                       ien_g->getVal(i,1)+1 << " " <<
-                       ien_g->getVal(i,2)+1 << " " <<
-                       ien_g->getVal(i,3)+1 << " " <<
-                       ien_g->getVal(i,4)+1 << " " <<
-                       ien_g->getVal(i,5)+1 << " " <<
-                       ien_g->getVal(i,6)+1 << " " <<
-                       ien_g->getVal(i,7)+1 << std::endl;
-        }
-        myfile.close();
-        myfile2.close();
-        myfile3.close();
+//        std::string filename = "MetricRoot.dat";
+//        std::ofstream myfile;
+//        myfile.open(filename);
+//        myfile << "TITLE=\"volume_part_"  + std::to_string(world_rank) +  ".tec\"" << std::endl;
+//        myfile <<"VARIABLES = \"X\", \"Y\", \"Z\", \"M00\", \"M01\", \"M02\", \"M11\", \"M12\", \"M22\"" << std::endl;
+//        myfile <<"ZONE N = " << us3d->xcn->getNglob() << ", E = " << Ntetras << ", DATAPACKING = POINT, ZONETYPE = FETETRAHEDRON" << std::endl;
+//        
+//        string filename2 = "metric.dat";
+//        ofstream myfile2;
+//        myfile2.open(filename2);
+//
+//        string filename3 = "elements.dat";
+//        ofstream myfile3;
+//        myfile3.open(filename3);
+//        int tel = 0;
+//        for(int i=0;i<us3d->xcn->getNglob();i++)
+//        {
+//            myfile <<     xcn_g->getVal(i,0) << " " << xcn_g->getVal(i,1) << " " << xcn_g->getVal(i,2)
+//                    << " " << Mg->getVal(i,0) << " " <<    Mg->getVal(i,1) << " " << Mg->getVal(i,2)
+//                    << " " << Mg->getVal(i,3) << " " <<    Mg->getVal(i,4) << " " << Mg->getVal(i,5) << std::endl;
+//            
+//            myfile2 <<std::setprecision(16)<< Mg->getVal(i,0) << " " <<    Mg->getVal(i,1) << " " << Mg->getVal(i,2)
+//                    << " " << Mg->getVal(i,3) << " " <<    Mg->getVal(i,4) << " " << Mg->getVal(i,5) << std::endl;
+//        }
+//        for(int i=0;i<ien_g->getNrow();i++)
+//        {
+//            if(iet_g->getVal(i,0)==2)
+//            {
+//                myfile <<  ien_g->getVal(i,0)+1 << " " <<
+//                           ien_g->getVal(i,1)+1 << " " <<
+//                           ien_g->getVal(i,2)+1 << " " <<
+//                           ien_g->getVal(i,3)+1 << " " << std::endl;
+//                tel++;
+//            }
+//            
+//            
+//            myfile3 << ien_g->getVal(i,0)+1 << " " <<
+//                       ien_g->getVal(i,1)+1 << " " <<
+//                       ien_g->getVal(i,2)+1 << " " <<
+//                       ien_g->getVal(i,3)+1 << " " <<
+//                       ien_g->getVal(i,4)+1 << " " <<
+//                       ien_g->getVal(i,5)+1 << " " <<
+//                       ien_g->getVal(i,6)+1 << " " <<
+//                       ien_g->getVal(i,7)+1 << std::endl;
+//        }
+//        myfile.close();
+//        myfile2.close();
+//        myfile3.close();
         
     }
     else

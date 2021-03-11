@@ -431,7 +431,6 @@ int main(int argc, char** argv) {
         if(world_rank == 0)
         {
             BoundaryMap* bmap = new BoundaryMap(ifn_g, if_ref_g);
-            
             int wall_id = 3;
             int nLayer  = metric_inputs[4];
             if(nLayer>0)
@@ -759,34 +758,7 @@ int main(int argc, char** argv) {
                 
                 std::cout << "Extracting the prismatic boundary layer mesh..." <<std::endl;
                 Mesh_Topology_BL* mesh_topo_bl2 =  ExtractBoundaryLayerMeshFromShell(u_tris, BLshell, wall_id, nLayer, xcn_g, ien_g, ief_g, ife_g, ifn_g, xcn_pstate, ien_pstate, bnd_face_map, tria_ref_map, quad_ref_map, comm);
-                
-
-                if(debug == 1)
-                {
-                    std::cout << "Outputting the prismatic boundary layer mesh in ---> BoundaryLayerMesh_0.dat" <<std::endl;
-                    OutputBoundaryLayerPrisms(xcn_g, mesh_topo_bl2, comm, "BoundaryLayerMesh_");
-                    std::ofstream myfile_shell;
-                    myfile_shell.open("shell.dat");
-                    myfile_shell << "TITLE=\"new_volume.tec\"" << std::endl;
-                    myfile_shell <<"VARIABLES = \"X\", \"Y\", \"Z\"" << std::endl;
-                    myfile_shell <<"ZONE N = " << U_shell_vert.size() << ", E = " << teller << ", DATAPACKING = POINT, ZONETYPE = FETRIANGLE" << std::endl;
-
-                    for(int i=0;i<U_shell_vert.size();i++)
-                    {
-                        myfile_shell << xcn_g->getVal(loc2glob_shell_vert[i],0)
-                        << " " << xcn_g->getVal(loc2glob_shell_vert[i],1)
-                        << " " << xcn_g->getVal(loc2glob_shell_vert[i],2) << std::endl;
-                    }
-                    for(int i=0;i<teller;i++)
-                    {
-                        myfile_shell << u_tris_loc[i][0]+1
-                        << " " << u_tris_loc[i][1]+1
-                        << " " << u_tris_loc[i][2]+1 << std::endl;
-                    }
-                    myfile_shell.close();
-                }
-                
-                
+            
                 // counting the number of boundary triangles and quads in the BL mesh.
                 int nTriangles_BL  = 0;
                 int nQuads_BL      = 0;
@@ -836,19 +808,11 @@ int main(int argc, char** argv) {
                 int tellert2 = 0;
                 std::map<int,std::vector< int* > > bound_tet;
                 double m11,m12,m13,m22,m23,m33;
-                std::set<int> unique_new_verts;
-                std::map<int,int> newVID2locID;
-                std::map<int,int> locID2newVID;
                 int ut = 0;
                 int wtel = 0;
                 std::map<int,int> loc2glob_hyb;
                 std::map<int,int> glob2loc_hyb;
                 
-                int bndv = 0;
-                int tellie = 0;
-                int weight = 0;
-                std::set<int> uv_or;
-                int ytel = 0;
                 std::map<int,std::set<int> > newvert2elem;
                 std::map<int,std::vector<int> > newvert2vert;
                 std::map<int,int*> bndtrisVol;
@@ -859,7 +823,6 @@ int main(int argc, char** argv) {
                 int gnt = 0;
                 int yte = 0;
                 int missing = 0;
-                std::set<int> setones;
 
                 double vxc = 0;
                 double vyc = 0;
@@ -868,12 +831,7 @@ int main(int argc, char** argv) {
                 double vxf = 0;
                 double vyf = 0;
                 double vzf = 0;
-                int negf0=0;
-                int negf1=0;
-                int negf2=0;
-                int negf3=0;
-                int neg_bc=0;
-                int pos_bc=0;
+
                 std::vector<double> oris;
                 
                 std::cout << "Defining the tetrahedra mesh..."<<std::endl;
@@ -882,9 +840,8 @@ int main(int argc, char** argv) {
                     if(mmgMesh_TET->tetra[i].ref != 0)
                     {
                         // Determine the vertices that are newly introduced by the tesselation of the hexes into tets.
-                        int weight = 0;
-                        std::vector<int> which;
-                        std::vector<int> indexes;
+                        //std::vector<int> which;
+                        //std::vector<int> indexes;
                         vxc=0;vyc=0;vzc=0;
                         for(int s=0;s<4;s++)
                         {
@@ -894,17 +851,6 @@ int main(int argc, char** argv) {
                             
                             if(mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[s]].ref == 0)
                             {
-                                if (unique_new_verts.find(mmgMesh_TET->tetra[i].v[s])==unique_new_verts.end())
-                                {
-                                    unique_new_verts.insert(mmgMesh_TET->tetra[i].v[s]);
-                                    locID2newVID[mmgMesh_TET->tetra[i].v[s]] = ut;
-                                    newVID2locID[ut] = mmgMesh_TET->tetra[i].v[s];
-                                    
-                                    ut++;
-                                    weight++;
-                                    indexes.push_back(s);
-                                }
-                                
                                 newvert2elem[mmgMesh_TET->tetra[i].v[s]].insert(i);
                                 
                                 for(int t=0;t<4;t++)
@@ -916,25 +862,9 @@ int main(int argc, char** argv) {
                                     }
                                 }
                             }
-                            else
-                            {
-                                which.push_back(s);
-                            }
                             
-                            
-                            
-                            if(mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[s]].ref == -1)
-                            {
-                                if(setones.find(mmgMesh_TET->tetra[i].v[s])==setones.end())
-                                {
-                                    setones.insert(mmgMesh_TET->tetra[i].v[s]);
-                                }
-                            }
                         }
-                        if(weight != 0)
-                        {
-                            wtel++;
-                        }
+                        
                         
                         vxc = vxc/4;
                         vyc = vyc/4;
@@ -951,6 +881,8 @@ int main(int argc, char** argv) {
 //                        tetras_or[1] = lv2gv_tet_mesh[mmgMesh_TET->tetra[i].v[1]-1];
 //                        tetras_or[2] = lv2gv_tet_mesh[mmgMesh_TET->tetra[i].v[2]-1];
 //                        tetras_or[3] = lv2gv_tet_mesh[mmgMesh_TET->tetra[i].v[3]-1];
+                        //===========================================================================
+
                         int* tetras= new int[4];
                         for(int s=0;s<4;s++)
                         {
@@ -970,7 +902,6 @@ int main(int argc, char** argv) {
                         int v2=tetras[2];
                         int v3=tetras[3];
                         
-                        //bndv = 0;
                         std::set<int> bface;
                         
                         std::set<int> tria0;
@@ -1055,78 +986,14 @@ int main(int argc, char** argv) {
                            tra++;
                         }
                         
-                        if(   mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[0]].ref==-1
-                           && mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[1]].ref==-1
-                           && mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[2]].ref==-1 )
-                        {
-                            std::set<int> tria00;
-                            tria00.insert(lv2gv_tet_mesh[mmgMesh_TET->tetra[i].v[0]-1]);
-                            tria00.insert(lv2gv_tet_mesh[mmgMesh_TET->tetra[i].v[1]-1]);
-                            tria00.insert(lv2gv_tet_mesh[mmgMesh_TET->tetra[i].v[2]-1]);
-                            if(unique_shell_tris.find(tria00)!=unique_shell_tris.end())
-                            {
-                                ytel++;
-                            }
-                            tria00.clear();
-                            gnt++;
-                        }
-                        if(   mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[1]].ref==-1
-                           && mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[2]].ref==-1
-                           && mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[3]].ref==-1)
-                        {
-                            std::set<int> tria11;
-                            tria11.insert(lv2gv_tet_mesh[mmgMesh_TET->tetra[i].v[1]-1]);
-                            tria11.insert(lv2gv_tet_mesh[mmgMesh_TET->tetra[i].v[2]-1]);
-                            tria11.insert(lv2gv_tet_mesh[mmgMesh_TET->tetra[i].v[3]-1]);
-                            
-                            if(unique_shell_tris.find(tria11)!=unique_shell_tris.end())
-                            {
-                                ytel++;
-                            }
-                            gnt++;
-                        }
-                        if(   mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[0]].ref==-1
-                           && mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[3]].ref==-1
-                           && mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[2]].ref==-1)
-                        {
-                            std::set<int> tria22;
-                            tria22.insert(lv2gv_tet_mesh[mmgMesh_TET->tetra[i].v[0]-1]);
-                            tria22.insert(lv2gv_tet_mesh[mmgMesh_TET->tetra[i].v[3]-1]);
-                            tria22.insert(lv2gv_tet_mesh[mmgMesh_TET->tetra[i].v[2]-1]);
-                            
-                            if(unique_shell_tris.find(tria22)!=unique_shell_tris.end())
-                            {
-                                ytel++;
-                            }
-                            gnt++;
-                        }
-                        if(   mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[0]].ref==-1
-                           && mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[1]].ref==-1
-                           && mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[3]].ref==-1)
-                        {
-                            std::set<int> tria33;
-                            tria33.insert(lv2gv_tet_mesh[mmgMesh_TET->tetra[i].v[0]-1]);
-                            tria33.insert(lv2gv_tet_mesh[mmgMesh_TET->tetra[i].v[1]-1]);
-                            tria33.insert(lv2gv_tet_mesh[mmgMesh_TET->tetra[i].v[3]-1]);
-                            
-                            if(unique_shell_tris.find(tria33)!=unique_shell_tris.end())
-                            {
-                                ytel++;
-                            }
-                            tria33.clear();
-                            gnt++;
-                        }
-                        
                         tria0.clear();
                         tria1.clear();
                         tria2.clear();
                         tria3.clear();
-                                            
-                        indexes.clear();
+                        delete[] tetras;
                         tellert++;
                     }
                 }
-                std::cout << "unique_new_verts.size = > " << unique_new_verts.size() << std::endl;
  
                 //double min_oris = *std::min_element(oris.begin(),oris.end());
                 //double max_oris = *std::max_element(oris.begin(),oris.end());
@@ -1204,22 +1071,7 @@ int main(int argc, char** argv) {
                 int i     = 0;
                 int tt    = 1;
                 int qt    = 1;
-                int qt0   = 0;
-                int fnt   = 0;
-                int qfid  = 0;
-                int qfidL = 0;
-                int qfidR = 0;
-                int tfid  = 0;
                 
-                std::map<std::set<int>, int> tfacesmap;
-                std::set<std::set<int> >tfaces;
-                std::map<int,int> tlh;
-                std::map<int,int> trh;
-                
-                std::map<std::set<int>, int> qfacesmap;
-                std::set<std::set<int> >qfaces;
-                std::map<int,int> qlh;
-                std::map<int,int> qrh;
                 std::cout << "Set the prisms in the mmgMesh..."<<std::endl;
                 for(iter=mesh_topo_bl2->BLlayersElements.begin();
                    iter!=mesh_topo_bl2->BLlayersElements.end();iter++)
@@ -1285,7 +1137,7 @@ int main(int argc, char** argv) {
                         if ( MMG3D_Set_tensorSol(mmgSol_hyb, m11,m12,m13,m22,m23,m33,prism[5]+1) != 1 ) exit(EXIT_FAILURE);
                         
                         mmgMesh_hyb->prism[i+1].ref  = 0;
-                        // std::cout << prism[0] << " " << prism[1] << " " << prism[2] << " " << prism[3] << " " << prism[4] << " " << prism[5] << std::endl;
+
                         std::set<int> tria0;
                         std::set<int> tria1;
                         std::set<int> quad0;
@@ -1295,23 +1147,6 @@ int main(int argc, char** argv) {
                         tria0.insert(prism[0]);
                         tria0.insert(prism[1]);
                         tria0.insert(prism[2]);
-                        
-                        if(tfaces.find(tria0)==tfaces.end())
-                        {
-                            tfaces.insert(tria0);
-                            tfacesmap[tria0] = tfid;
-                            tlh[tfid]=i;
-                            tfid++;
-                        }
-                        else
-                        {
-                            trh[tfacesmap[tria0]]=i;
-                        }
-                        
-                        if(unique_shell_tris.find(tria0)!=unique_shell_tris.end())
-                        {
-                            fnt++;
-                        }
                         
                         // local face2vert_map for a prism in mmg {0,1,2,0},{3,5,4,3},{1,4,5,2},{0,2,5,3},{0,3,4,1} };
                         if(tria_ref_map.find(tria0)!=tria_ref_map.end())
@@ -1326,21 +1161,7 @@ int main(int argc, char** argv) {
                         tria1.insert(prism[3]);
                         tria1.insert(prism[4]);
                         tria1.insert(prism[5]);
-                        if(tfaces.find(tria1)==tfaces.end())
-                        {
-                            tfaces.insert(tria1);
-                            tfacesmap[tria1] = tfid;
-                            tlh[tfid]=i;
-                            tfid++;
-                        }
-                        else
-                        {
-                            trh[tfacesmap[tria0]]=i;
-                        }
-                        if(unique_shell_tris.find(tria1)!=unique_shell_tris.end())
-                        {
-                            fnt++;
-                        }
+
                         // local face2vert_map for a prism in mmg {0,1,2,0},{3,5,4,3},{1,4,5,2},{0,2,5,3},{0,3,4,1} };
                         if(tria_ref_map.find(tria1)!=tria_ref_map.end())
                         {
@@ -1352,28 +1173,11 @@ int main(int argc, char** argv) {
                             tt++;
                         }
                         
-                        
-                        
                         quad0.insert(prism[0]);
                         quad0.insert(prism[2]);
                         quad0.insert(prism[4]);
                         quad0.insert(prism[3]);
-                        
-                        if(qfaces.find(quad0)==qfaces.end())
-                        {
-                            qfaces.insert(quad0);
-//                            qfacesmap[quad0] = qfid;
-//                            qlh[qfid]=i;
-//                            qfid++;
-                            qfidL++;
-                        }
-                        else
-                        {
-                            //qrh[qfacesmap[quad0]]=i;
-                            qfidR++;
-                        }
-                        
-                        
+                       
                         // local face2vert_map for a prism in mmg {0,1,2,0},{3,5,4,3},{1,4,5,2},{0,2,5,3},{0,3,4,1} };
                         if(quad_ref_map.find(quad0)!=quad_ref_map.end())
                         {
@@ -1384,26 +1188,12 @@ int main(int argc, char** argv) {
                             mmgMesh_hyb->quadra[qt].v[3] = prism[3]+1;
                             mmgMesh_hyb->quadra[qt].ref  = refer;
                             qt++;
-                            qt0++;
                         }
                         quad1.insert(prism[1]);
                         quad1.insert(prism[5]);
                         quad1.insert(prism[4]);
                         quad1.insert(prism[2]);
                         
-                        if(qfaces.find(quad1)==qfaces.end())
-                        {
-                            qfaces.insert(quad1);
-//                            qfacesmap[quad1] = qfid;
-//                            qlh[qfid]=i;
-//                            qfid++;
-                            qfidL++;
-                        }
-                        else
-                        {
-                            //qrh[qfacesmap[quad1]]=i;
-                            qfidR++;
-                        }
                         // local face2vert_map for a prism in mmg {0,1,2,0},{3,5,4,3},{1,4,5,2},{0,2,5,3},{0,3,4,1} };
                         if(quad_ref_map.find(quad1)!=quad_ref_map.end())
                         {
@@ -1414,24 +1204,12 @@ int main(int argc, char** argv) {
                             mmgMesh_hyb->quadra[qt].v[3] = prism[2]+1;
                             mmgMesh_hyb->quadra[qt].ref  = refer;
                             qt++;
-                            qt0++;
                         }
                         quad2.insert(prism[0]);
                         quad2.insert(prism[3]);
                         quad2.insert(prism[5]);
                         quad2.insert(prism[1]);
-                        if(qfaces.find(quad2)==qfaces.end())
-                        {
-                            qfaces.insert(quad2);
-                            //qfacesmap[quad2] = qfid;
-                            //qlh[qfid]=i;
-                            qfidL++;
-                        }
-                        else
-                        {
-                            //qrh[qfacesmap[quad2]]=i;
-                            qfidR++;
-                        }
+                        
                         // local face2vert_map for a prism in mmg {0,1,2,0},{3,5,4,3},{1,4,5,2},{0,2,5,3},{0,3,4,1} };
                         if(quad_ref_map.find(quad2)!=quad_ref_map.end())
                         {
@@ -1442,8 +1220,6 @@ int main(int argc, char** argv) {
                             mmgMesh_hyb->quadra[qt].v[3] = prism[1]+1;
                             mmgMesh_hyb->quadra[qt].ref  = refer;
                             qt++;
-                            qt0++;
-
                         }
                        
                         tria0.clear();
@@ -1454,7 +1230,6 @@ int main(int argc, char** argv) {
                         i++;
                     }
                 }
-                
                 
                 for(int i=0;i<bndtrisVol.size();i++)
                 {
@@ -1472,10 +1247,9 @@ int main(int argc, char** argv) {
                 // tets first then prisms.
                 // verts building up the tets first then the verts building up the prisms.
                  
-                int tet = 0;
-                int off_v=0;
-
-                int www = 0;
+                int tet   = 0;
+                int off_v = 0;
+                int www   = 0;
                 int nbVertices = xcn_g->getNrow();
                 for(int i=0;i<nbVertices;i++)
                 {
@@ -1494,7 +1268,7 @@ int main(int argc, char** argv) {
                 }
                 
                 std::map<int,double*>::iterator v2m;
-                std::map<int,int> locNew2globNew;
+                //std::map<int,int> locNew2globNew;
                 std::map<int,int> globNew2locNew;
                 int p = 0;
                 for(v2m=newvert2metric.begin();v2m!=newvert2metric.end();v2m++)
@@ -1510,7 +1284,7 @@ int main(int argc, char** argv) {
                     m23 = v2m->second[4];
                     m33 = v2m->second[5];
                     
-                    locNew2globNew[nbVertices+p+1] = v2m->first;
+                    //locNew2globNew[nbVertices+p+1] = v2m->first;
                     globNew2locNew[v2m->first]     = nbVertices+p+1;
                     if ( MMG3D_Set_tensorSol(mmgSol_hyb, m11,m12,m13,m22,m23,m33,nbVertices+p+1) != 1 ) exit(EXIT_FAILURE);
 
@@ -1526,10 +1300,8 @@ int main(int argc, char** argv) {
                     {
                         tet++;
                         
-                        
                         for(int s=0;s<4;s++)
                         {
-                                                       
                             if(mmgMesh_TET->point[mmgMesh_TET->tetra[i].v[s]].ref == 0)
                             {
                                 m11 = newvert2metric[mmgMesh_TET->tetra[i].v[s]][0];
@@ -1565,6 +1337,7 @@ int main(int argc, char** argv) {
                     }
                 }
                 
+                globNew2locNew.clear();
                 newvert2elem.clear();
                 newvert2vert.clear();
                 newvert2metric.clear();
@@ -1615,6 +1388,8 @@ int main(int argc, char** argv) {
                 std::cout<<"Started writing the adapted tetrahedra mesh in ---> OuterVolume.dat"<<std::endl;
                 OutputMesh_MMG(mmgMesh_TETCOPY,0,mmgMesh_TETCOPY->ne,"OuterVolume.dat");
                 std::cout<<"Finished writing the adapted tetrahedra mesh in ---> OuterVolume.dat"<<std::endl;
+                
+                delete bmap;
 
                 MMG3D_Free_all(MMG5_ARG_start,
                                MMG5_ARG_ppMesh,&mmgMesh_TETCOPY,MMG5_ARG_ppSols,&mmgSol_TETCOPY,
