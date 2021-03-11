@@ -2163,7 +2163,7 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
     MPI_Comm_rank(comm, &rank);
     US3D* us3d = new US3D;
     ParArray<double>* xcn = ReadDataSetFromFileInParallel<double>(fn_grid,"xcn",comm,info);
-    std::cout << "Reading from :: " << fn_conn << std::endl;
+    //std::cout << "Reading from :: " << fn_conn << std::endl;
     ParArray<int>* ien = ReadDataSetFromFileInParallel<int>(fn_conn,"ien",comm,info);
     ParArray<int>* ief = ReadDataSetFromFileInParallel<int>(fn_conn,"ief",comm,info);
     ParArray<int>* iee = ReadDataSetFromFileInParallel<int>(fn_conn,"iee",comm,info);
@@ -2369,7 +2369,7 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
     //delete zdefs;
     delete znames;
     
-    std::cout << interior->getNrow() << " " << interior->getNcol() << std::endl;
+    //std::cout << interior->getNrow() << " " << interior->getNcol() << std::endl;
     return us3d;
 }
 

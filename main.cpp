@@ -238,7 +238,7 @@ int main(int argc, char** argv) {
         }
 
 
-        std::cout << "second gradient "<<std::endl;
+        //std::cout << "second gradient "<<std::endl;
         std::map<int,Array<double>* > dU2dXi2 = ComputedUdx_LSQ_US3D(P,dUidxi_map,gB,comm);
         std::map<int,Array<double>* > dU2dYi2 = ComputedUdx_LSQ_US3D(P,dUidyi_map,gB,comm);
         std::map<int,Array<double>* > dU2dZi2 = ComputedUdx_LSQ_US3D(P,dUidzi_map,gB,comm);
@@ -409,13 +409,13 @@ int main(int argc, char** argv) {
                     MPI_INT, 0, comm);
         
         delete P;
-
+        
         dUdXi.clear();
         
         dUidxi_map.clear();
         dUidyi_map.clear();
         dUidzi_map.clear();
-     
+        
         delete us3d->ien;
         delete us3d->ief;
         delete us3d->iee;
@@ -424,10 +424,11 @@ int main(int argc, char** argv) {
         delete us3d->ife;
         delete us3d->if_ref;
         delete us3d->ifn;
-        delete us3d->ghost;
+        //delete us3d->ghost;
         delete us3d->ie_Nv;
         delete us3d->ie_Nf;
         
+         
         if(world_rank == 0)
         {
             BoundaryMap* bmap = new BoundaryMap(ifn_g, if_ref_g);
@@ -1337,6 +1338,15 @@ int main(int argc, char** argv) {
                     }
                 }
                 
+		delete xcn_g;
+                delete ien_g;
+                delete ifn_g;
+                delete ife_g;
+                delete if_ref_g;
+                delete ief_g;
+                delete mv_g;
+                  
+                lv2gv_tet_mesh.clear(); 
                 globNew2locNew.clear();
                 newvert2elem.clear();
                 newvert2vert.clear();

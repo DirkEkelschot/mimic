@@ -8,12 +8,14 @@ template <typename T> class Array {
     public:
         T *data;
         Array(){}
-    
+        
         Array(int r, int c)
         {
             spanArray(r,c);
         }
-    
+        virtual ~Array(){
+            delete[] data;
+        }
     
         void setVal(int i, int j, T val)
         {
@@ -81,6 +83,9 @@ template <typename T> class ParArray : public Array<T>
             this->spanArray(nloc,c);
             
             nglob = N;
+        }
+        virtual ~ParArray(){
+            
         }
         int getNglob( void )
         {

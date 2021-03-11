@@ -56,6 +56,136 @@ Partition::Partition(ParArray<int>* ien, ParArray<int>* iee, ParArray<int>* ief,
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+Partition::~Partition()
+{
+    Loc_Elem.clear();
+    Loc_Elem_Nv.clear();
+    Loc_Elem_Nf.clear();
+    Loc_Elem_Varia.clear();
+    LocAndAdj_Elem.clear();
+    LocAndAdj_Elem_Nv.clear();
+    LocAndAdj_Elem_Nf.clear();
+    LocAndAdj_Elem_Varia.clear();
+    LocElem2Nv.clear();
+    LocElem2Nf.clear();
+//    delete[] xadj;
+//    delete[] adjcny;
+    
+    loc_r_elem.clear();
+    loc_r_nv_elem.clear();
+    loc_r_nf_elem.clear();
+    loc_varia.clear();
+    
+    //++++++++++++++++++++ Detroy Domain struct++++++++++++++++++++++++
+    // Clearly move Domain into its seperate class!!!
+//    pDom->Elements.clear();
+//    pDom->Hexes.clear();
+//    pDom->Prisms.clear();
+//    pDom->Tetras.clear();
+//    pDom->GHexes.clear();
+//    pDom->GPrisms.clear();
+//    pDom->GTetras.clear();
+//
+//    //delete pDom->LocElem2LocNode;
+//    pDom->loc_part_verts.clear();
+//    pDom->glob_part_verts.clear();
+//    pDom->gv2lpv.clear();
+//    pDom->lv2gpv.clear();
+//    pDom->vert2elem.clear();
+//    pDom->gv2lpartv.clear();
+//    pDom->lpartv2gv.clear();
+//
+//    delete pDom;
+    //++++++++++++++++++++ Detroy Domain struct++++++++++++++++++++++++
+
+    elem_set.clear();
+    elem_map.clear();
+    loc_r_elem_set.clear();
+    delete part;
+    delete part_global;
+    LocalVerts.clear();
+    unique_vertIDs_on_rank_set.clear();
+    unique_faceIDs_on_rank_set.clear();
+    globVerts2globElem.clear();
+    globElem2globVerts.clear();
+    globElem2locVerts.clear();
+    LocalElem2GlobalVert.clear();
+    LocalElem2LocalVert.clear();
+    LocalVert2GlobalVert.clear();
+    GlobalVert2LocalVert.clear();
+    LocalFace2GlobalFace.clear();
+    GlobalFace2LocalFace.clear();
+    globElem2localFaces.clear();
+    globElem2globFaces.clear();
+    globFace2GlobalElements.clear();
+    LocalElement2GlobalElement.clear();
+    GlobalElement2LocalElement.clear();
+    //delete U0Vert;
+    //collect_var.clear();
+    //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+//    delete xcn_pstate;
+//    delete ien_pstate;
+//    delete ife_pstate;
+//    delete pstate_parmetis;
+    //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+    adj_elements.clear();
+    
+    //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//    adj_schedule->SendFromRank2Rank.clear();
+//    adj_schedule->RecvRankFromRank.clear();
+//    delete adj_schedule;
+//
+//    part_schedule->SendFromRank2Rank.clear();
+//    part_schedule->RecvRankFromRank.clear();
+//    delete part_schedule;
+    //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+//    elms_to_send_to_ranks.clear();
+//    nvPerElms_to_send_to_ranks.clear();
+//    nfPerElms_to_send_to_ranks.clear();
+//    part_tot_recv_elIDs.clear();
+//    part_tot_recv_varias.clear();
+//    reqstd_adj_ids_per_rank.clear();
+    
+    //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//    if_Nv_part_map->i_map.clear();
+//    if_Nv_part_map->i_inv_map.clear();
+//    delete if_Nv_part_map;
+//
+//    if_ref_part_map->i_map.clear();
+//    if_ref_part_map->i_inv_map.clear();
+//    delete if_ref_part_map;
+//
+//    ifn2_part_map->i_map.clear();
+//    ifn2_part_map->i_inv_map.clear();
+//    delete ifn2_part_map;
+//
+//    ifn_part_map->i_map.clear();
+//    ifn_part_map->i_inv_map.clear();
+//    delete ifn_part_map;
+//
+//    ife_part_map->i_map.clear();
+//    ife_part_map->i_inv_map.clear();
+//    delete ife_part_map;
+//
+//    iee_part_map->i_map.clear();
+//    iee_part_map->i_inv_map.clear();
+//    delete iee_part_map;
+//
+//    ief_part_map->i_map.clear();
+//    ief_part_map->i_inv_map.clear();
+//    delete ief_part_map;
+//
+//    ien_part_map->i_map.clear();
+//    ien_part_map->i_inv_map.clear();
+//    delete ien_part_map;
+    
+    //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+    
+}
 
 
 void Partition::DeterminePartitionLayout(ParArray<int>* ien, ParallelState_Parmetis* pstate_parmetis, MPI_Comm comm)
