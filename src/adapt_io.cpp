@@ -139,10 +139,6 @@ void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh, US3D* us3d)
     std::set<int> face1;
     std::set<int> face2;
     std::set<int> face3;
-    std::set<int> face00;
-    std::set<int> face11;
-    std::set<int> face22;
-    std::set<int> face33;
     int fid = 0;
     int vid0,vid1,vid2,vid3;
     std::map<int,int> lh;
@@ -168,9 +164,6 @@ void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh, US3D* us3d)
         face0.insert(mmgMesh->tetra[i].v[2]);
         face0.insert(mmgMesh->tetra[i].v[3]);
         
-        face00.insert(mmgMesh->tetra[i].v[1]-1);
-        face00.insert(mmgMesh->tetra[i].v[2]-1);
-        face00.insert(mmgMesh->tetra[i].v[3]-1);
         
         if(faces.count(face0) != 1 )
         {
@@ -208,9 +201,7 @@ void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh, US3D* us3d)
         face1.insert(mmgMesh->tetra[i].v[2]);
         face1.insert(mmgMesh->tetra[i].v[3]);
         
-        face11.insert(mmgMesh->tetra[i].v[0]-1);
-        face11.insert(mmgMesh->tetra[i].v[2]-1);
-        face11.insert(mmgMesh->tetra[i].v[3]-1);
+        
         
         
         if(faces.count(face1) != 1)
@@ -247,9 +238,7 @@ void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh, US3D* us3d)
         face2.insert(mmgMesh->tetra[i].v[3]);
         face2.insert(mmgMesh->tetra[i].v[1]);
         
-        face22.insert(mmgMesh->tetra[i].v[0]-1);
-        face22.insert(mmgMesh->tetra[i].v[3]-1);
-        face22.insert(mmgMesh->tetra[i].v[1]-1);
+       
         
         
         if( faces.count(face2) != 1)
@@ -286,9 +275,6 @@ void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh, US3D* us3d)
         face3.insert(mmgMesh->tetra[i].v[2]);
         face3.insert(mmgMesh->tetra[i].v[1]);
         
-        face33.insert(mmgMesh->tetra[i].v[0]-1);
-        face33.insert(mmgMesh->tetra[i].v[2]-1);
-        face33.insert(mmgMesh->tetra[i].v[1]-1);
         
         
         if( faces.count(face3) != 1)
@@ -326,10 +312,6 @@ void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh, US3D* us3d)
         face2.clear();
         face3.clear();
         
-        face00.clear();
-        face11.clear();
-        face22.clear();
-        face33.clear();
     }
     
     
@@ -351,9 +333,6 @@ void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh, US3D* us3d)
         
         // local face2vert_map for a prism in mmg {0,1,2,0},{3,5,4,3},{1,4,5,2},{0,2,5,3},{0,3,4,1} };
         
-        face00.insert(mmgMesh->prism[i].v[0]-1);
-        face00.insert(mmgMesh->prism[i].v[2]-1);
-        face00.insert(mmgMesh->prism[i].v[1]-1);
         
         if(faces.count(face0) != 1 )
         {
@@ -394,9 +373,6 @@ void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh, US3D* us3d)
         face1.insert(mmgMesh->prism[i].v[5]);
         // local face2vert_map for a prism in mmg {0,1,2,0},{3,5,4,3},{1,4,5,2},{0,2,5,3},{0,3,4,1} };
         
-        face11.insert(mmgMesh->prism[i].v[3]-1);
-        face11.insert(mmgMesh->prism[i].v[4]-1);
-        face11.insert(mmgMesh->prism[i].v[5]-1);
         
         
         if(faces.count(face1) != 1)
@@ -548,8 +524,6 @@ void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh, US3D* us3d)
         qface0.clear();
         qface1.clear();
         qface2.clear();
-        face00.clear();
-        face11.clear();
          
     }
     
@@ -582,6 +556,7 @@ void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh, US3D* us3d)
                 adapt_ifn->setVal(t,2,face2node[it][1]);
                 adapt_ifn->setVal(t,3,face2node[it][2]);
                 adapt_ifn->setVal(t,4,0);
+                face2node[it].clear();
                 //std::cout << "3 int row = " << t << " " << face2node[it][0] << " " << face2node[it][1] << " " << face2node[it][2] << std::endl;
             }
             if(Nlh[itm->first]==4)
@@ -591,6 +566,7 @@ void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh, US3D* us3d)
                 adapt_ifn->setVal(t,2,face2node[it][1]);
                 adapt_ifn->setVal(t,3,face2node[it][2]);
                 adapt_ifn->setVal(t,4,face2node[it][3]);
+                face2node[it].clear();
                 //std::cout << "4 int row = " << t << " " << face2node[it][0] << " " << face2node[it][1] << " " << face2node[it][2] << std::endl;
 
             }
@@ -772,6 +748,8 @@ void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh, US3D* us3d)
     
     //====================================================================================
     hsize_t     dimsf[2];
+    hsize_t    count[2];              // hyperslab selection parameters
+    hsize_t    offset[2];
     dimsf[0] = adapt_iet->getNrow();
     dimsf[1] = adapt_iet->getNcol();
     hid_t filespace = H5Screate_simple(2, dimsf, NULL);
@@ -779,8 +757,7 @@ void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh, US3D* us3d)
     hid_t dset_id = H5Dcreate(file_id, "iet", H5T_NATIVE_INT, filespace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
     H5Sclose(filespace);
 
-    hsize_t    count[2];              // hyperslab selection parameters
-    hsize_t    offset[2];
+
     count[0] = dimsf[0];
     count[1] = dimsf[1];
     offset[0] = 0;
@@ -945,7 +922,7 @@ void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh, US3D* us3d)
 }
 
 
-void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh, US3D* us3d)
+void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh,MMG5_pSol mmgSol, US3D* us3d)
 {
     std::map<int,std::vector<int> > ref2bface;
     std::map<int,std::vector<int> > ref2bqface;
@@ -956,6 +933,11 @@ void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh, US3D* us3d)
     std::set<int> face;
     std::set<int> bcrefs;
     int wr = 0;
+    
+    int nVerts = mmgMesh->np;
+    int nTet = mmgMesh->ne;
+    int nPrism = mmgMesh->nprism;
+    
     for(int i=1;i<=mmgMesh->nt;i++)
     {
         if(mmgMesh->tria[i].ref>0 && mmgMesh->tria[i].ref!=20)// -1 is the tag for internal shell.
@@ -983,7 +965,6 @@ void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh, US3D* us3d)
     {
         if(mmgMesh->quadra[i].ref>0 && mmgMesh->quadra[i].ref!=2)// -1 is the tag for internal shell.
         {
-            
             ref2bqface[mmgMesh->quadra[i].ref].push_back(i);
             
             face.insert(mmgMesh->quadra[i].v[0]);
@@ -1047,6 +1028,66 @@ void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh, US3D* us3d)
         xcn_mmg->setVal(i,2,mmgMesh->point[i+1].c[2]);
     }
     
+    std::cout<<"-- Writing in HDF5 format..."<<std::endl;
+    hid_t ret;
+    //Output the new grid.h5 which has the new vertices and ifn map.
+    //===================================================================
+    //===================================================================
+    //===================================================================
+    hid_t plist_id = H5Pcreate(H5P_FILE_ACCESS);
+    plist_id               = H5P_DEFAULT;
+    //H5Pset_fapl_mpio(plist_id, comm, info);
+    hid_t file_id = H5Fcreate("grid_madam.h5", H5F_ACC_TRUNC, H5P_DEFAULT, plist_id);
+    H5Pclose(plist_id);
+    hid_t status;
+    hid_t att_space;
+    hid_t attr_id;
+    
+    hsize_t dimsf_att = 1;
+    att_space = H5Screate_simple(1, &dimsf_att, NULL);
+    hid_t type =  H5Tcopy (H5T_C_S1);
+    ret = H5Tset_size (type, 14);
+    ret = H5Tset_strpad(type,H5T_STR_SPACEPAD);
+    attr_id   = H5Acreate (file_id, "filetype", type, att_space, H5P_DEFAULT, H5P_DEFAULT);
+    char stri[] = "US3D Grid File";
+    status = H5Awrite(attr_id, type, &stri);
+    H5Aclose(attr_id);
+    
+    hsize_t dimsf_att2 = 1;
+    att_space = H5Screate_simple(1, &dimsf_att2, NULL);
+    hid_t type2 =  H5Tcopy (H5T_C_S1);
+    ret = H5Tset_size (type2, 5);
+    ret = H5Tset_strpad(type2,H5T_STR_SPACEPAD);
+    attr_id   = H5Acreate (file_id, "filevers", type2, att_space, H5P_DEFAULT, H5P_DEFAULT);
+    char stri2[] = "1.1.8";
+    status = H5Awrite(attr_id, type2, &stri2);
+    H5Aclose(attr_id);
+    
+    //====================================================================================
+    // Add xcn map to the grid.h5 file
+    //====================================================================================
+    hsize_t     dimsf[2];
+    hsize_t    count[2];              // hyperslab selection parameters
+    hsize_t    offset[2];
+    dimsf[0] = xcn_mmg->getNrow();
+    dimsf[1] = xcn_mmg->getNcol();
+    hid_t filespace = H5Screate_simple(2, dimsf, NULL);
+
+    hid_t dset_id = H5Dcreate(file_id, "xcn", H5T_NATIVE_DOUBLE, filespace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    H5Sclose(filespace);
+    count[0] = dimsf[0];
+    count[1] = dimsf[1];
+    offset[0] = 0;
+    offset[1] = 0;
+    hid_t memspace = H5Screate_simple(2, count, NULL);
+
+    filespace = H5Dget_space(dset_id);
+    H5Sselect_hyperslab(filespace, H5S_SELECT_SET, offset, NULL, count, NULL);
+
+    status = H5Dwrite(dset_id, H5T_NATIVE_DOUBLE, memspace, filespace, plist_id, xcn_mmg->data);
+    delete xcn_mmg;
+    //====================================================================================
+    
     std::map<std::set<int>, int> qfacemap;
     std::map<std::set<int>, int>  facemap;
     std::set<std::set<int> > faces;
@@ -1056,10 +1097,6 @@ void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh, US3D* us3d)
     std::set<int> face1;
     std::set<int> face2;
     std::set<int> face3;
-    std::set<int> face00;
-    std::set<int> face11;
-    std::set<int> face22;
-    std::set<int> face33;
     int fid = 0;
     int vid0,vid1,vid2,vid3;
     std::map<int,int> lh;
@@ -1070,7 +1107,7 @@ void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh, US3D* us3d)
     
     int of = 0;
     int fset_cnt = 0;
-    Array<int>* adapt_iet = new Array<int>(mmgMesh->ne+mmgMesh->nprism,1);
+    Array<int>* adapt_iet = new Array<int>(nTet+nPrism,1);
     // local face2vert_map for a tet in mmg  {1,2,3}, {0,3,2}, {0,1,3}, {0,2,1}
     int bf = 0;
     int bq = 0;
@@ -1083,11 +1120,6 @@ void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh, US3D* us3d)
         face0.insert(mmgMesh->tetra[i].v[1]);
         face0.insert(mmgMesh->tetra[i].v[2]);
         face0.insert(mmgMesh->tetra[i].v[3]);
-        
-        face00.insert(mmgMesh->tetra[i].v[1]-1);
-        face00.insert(mmgMesh->tetra[i].v[2]-1);
-        face00.insert(mmgMesh->tetra[i].v[3]-1);
-        
         
         if(faces.count(face0) != 1 )
         {
@@ -1120,11 +1152,6 @@ void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh, US3D* us3d)
         face1.insert(mmgMesh->tetra[i].v[0]);
         face1.insert(mmgMesh->tetra[i].v[2]);
         face1.insert(mmgMesh->tetra[i].v[3]);
-        
-        face11.insert(mmgMesh->tetra[i].v[0]-1);
-        face11.insert(mmgMesh->tetra[i].v[2]-1);
-        face11.insert(mmgMesh->tetra[i].v[3]-1);
-        
         
         if(faces.count(face1) != 1)
         {
@@ -1159,9 +1186,7 @@ void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh, US3D* us3d)
         face2.insert(mmgMesh->tetra[i].v[3]);
         face2.insert(mmgMesh->tetra[i].v[1]);
         
-        face22.insert(mmgMesh->tetra[i].v[0]-1);
-        face22.insert(mmgMesh->tetra[i].v[3]-1);
-        face22.insert(mmgMesh->tetra[i].v[1]-1);
+        
         
         
         if( faces.count(face2) != 1)
@@ -1199,9 +1224,6 @@ void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh, US3D* us3d)
         face3.insert(mmgMesh->tetra[i].v[2]);
         face3.insert(mmgMesh->tetra[i].v[1]);
         
-        face33.insert(mmgMesh->tetra[i].v[0]-1);
-        face33.insert(mmgMesh->tetra[i].v[2]-1);
-        face33.insert(mmgMesh->tetra[i].v[1]-1);
         
         if( faces.count(face3) != 1)
         {
@@ -1239,10 +1261,6 @@ void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh, US3D* us3d)
         face2.clear();
         face3.clear();
         
-        face00.clear();
-        face11.clear();
-        face22.clear();
-        face33.clear();
     }
     
     
@@ -1264,11 +1282,7 @@ void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh, US3D* us3d)
         face0.insert(mmgMesh->prism[i].v[1]);
         
         // local face2vert_map for a prism in mmg {0,1,2,0},{3,5,4,3},{1,4,5,2},{0,2,5,3},{0,3,4,1} };
-        
-        face00.insert(mmgMesh->prism[i].v[0]-1);
-        face00.insert(mmgMesh->prism[i].v[2]-1);
-        face00.insert(mmgMesh->prism[i].v[1]-1);
-        
+    
         if(faces.count(face0) != 1 )
         {
             faces.insert(face0);
@@ -1306,9 +1320,6 @@ void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh, US3D* us3d)
         face1.insert(mmgMesh->prism[i].v[5]);
         // local face2vert_map for a prism in mmg {0,1,2,0},{3,5,4,3},{1,4,5,2},{0,2,5,3},{0,3,4,1} };
         
-        face11.insert(mmgMesh->prism[i].v[3]-1);
-        face11.insert(mmgMesh->prism[i].v[4]-1);
-        face11.insert(mmgMesh->prism[i].v[5]-1);
         
         if(faces.count(face1) != 1)
         {
@@ -1458,14 +1469,37 @@ void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh, US3D* us3d)
         qface0.clear();
         qface1.clear();
         qface2.clear();
-        face00.clear();
-        face11.clear();
          
     }
-    
+    //====================================================================================
+    //====================================================================================
+    dimsf[0] = adapt_iet->getNrow();
+    dimsf[1] = adapt_iet->getNcol();
+    filespace = H5Screate_simple(2, dimsf, NULL);
+
+    dset_id = H5Dcreate(file_id, "iet", H5T_NATIVE_INT, filespace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    H5Sclose(filespace);
+    count[0] = dimsf[0];
+    count[1] = dimsf[1];
+    offset[0] = 0;
+    offset[1] = 0;
+    memspace = H5Screate_simple(2, count, NULL);
+
+    filespace = H5Dget_space(dset_id);
+    H5Sselect_hyperslab(filespace, H5S_SELECT_SET, offset, NULL, count, NULL);
+
+    status = H5Dwrite(dset_id, H5T_NATIVE_INT, memspace, filespace, plist_id, adapt_iet->data);
+    delete adapt_iet;
+    //====================================================================================
+    //====================================================================================
+    //MMG3D_Free_allSols(mmgMesh,&mmgSol);
+    MMG3D_Free_all(MMG5_ARG_start,
+                   MMG5_ARG_ppMesh,&mmgMesh,MMG5_ARG_ppSols,&mmgSol,
+                   MMG5_ARG_end);
+    //====================================================================================
+    //====================================================================================
     std::map<int,int>::iterator itm;
     int it;
-
     Array<int>* adapt_ifn = new Array<int>(face2node.size(),8);
     int t = 0;
     Array<int>* zdefs = us3d->zdefs;
@@ -1513,6 +1547,7 @@ void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh, US3D* us3d)
         }
     }
     
+    face2node.clear();
 
     std::map<int,std::vector<int> >::iterator it_bref;
     int faceid;
@@ -1584,7 +1619,10 @@ void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh, US3D* us3d)
             t++;
         }
     }
+    
     //std::cout << "-- sizing2 -> " << lh.size() << " " << rh.size() << " " << t << " " << ty <<std::endl;
+    
+
     int nbo = bcrefs.size();
     std::cout << "-- Constructing the zdefs array..."<<std::endl;
     Array<int>* adapt_zdefs = new Array<int>(3+nbo,7);
@@ -1594,7 +1632,7 @@ void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh, US3D* us3d)
     adapt_zdefs->setVal(0,1,-1);
     adapt_zdefs->setVal(0,2,1);
     adapt_zdefs->setVal(0,3,1);
-    adapt_zdefs->setVal(0,4,mmgMesh->np);
+    adapt_zdefs->setVal(0,4,nVerts);
     adapt_zdefs->setVal(0,5,us3d->zdefs->getVal(0,5));
     adapt_zdefs->setVal(0,6,us3d->zdefs->getVal(0,6));
     // Collect element data (12) . Starting index-ending index Element
@@ -1602,7 +1640,7 @@ void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh, US3D* us3d)
     adapt_zdefs->setVal(1,1,-1);
     adapt_zdefs->setVal(1,2,2);
     adapt_zdefs->setVal(1,3,1);
-    adapt_zdefs->setVal(1,4,mmgMesh->ne+mmgMesh->nprism);
+    adapt_zdefs->setVal(1,4,nTet+nPrism);
     adapt_zdefs->setVal(1,5,us3d->zdefs->getVal(1,5));
     adapt_zdefs->setVal(1,6,2);
     // Collect internal face data (13) . Starting index-ending index internal face.
@@ -1637,66 +1675,11 @@ void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh, US3D* us3d)
         q++;
     }
     
-    std::cout << "elements = " << " " << mmgMesh->nprism << " " << mmgMesh->ne << std::endl;
+    //std::cout << "elements = " << " " << mmgMesh->nprism << " " << mmgMesh->ne << std::endl;
     std::cout << "lh vs rh = " << " " << lh.size() << " " << rh.size() << std::endl;
-    std::cout << "-- sizingf -> " << lh.size() << " " << rh.size() << " " << t << " " << ty <<std::endl;
+    //std::cout << "-- sizingf -> " << lh.size() << " " << rh.size() << " " << t << " " << ty <<std::endl;
 
-    std::cout<<"-- Writing in HDF5 format..."<<std::endl;
-    hid_t ret;
-    //Output the new grid.h5 which has the new vertices and ifn map.
-    //===================================================================
-    //===================================================================
-    //===================================================================
-    hid_t plist_id = H5Pcreate(H5P_FILE_ACCESS);
-    plist_id               = H5P_DEFAULT;
-    //H5Pset_fapl_mpio(plist_id, comm, info);
-    hid_t file_id = H5Fcreate("grid_madam.h5", H5F_ACC_TRUNC, H5P_DEFAULT, plist_id);
-    H5Pclose(plist_id);
-    hid_t status;
-    hid_t att_space;
-    hid_t attr_id;
     
-    hsize_t dimsf_att = 1;
-    att_space = H5Screate_simple(1, &dimsf_att, NULL);
-    hid_t type =  H5Tcopy (H5T_C_S1);
-    ret = H5Tset_size (type, 14);
-    ret = H5Tset_strpad(type,H5T_STR_SPACEPAD);
-    attr_id   = H5Acreate (file_id, "filetype", type, att_space, H5P_DEFAULT, H5P_DEFAULT);
-    char stri[] = "US3D Grid File";
-    status = H5Awrite(attr_id, type, &stri);
-    H5Aclose(attr_id);
-    
-    hsize_t dimsf_att2 = 1;
-    att_space = H5Screate_simple(1, &dimsf_att2, NULL);
-    hid_t type2 =  H5Tcopy (H5T_C_S1);
-    ret = H5Tset_size (type2, 5);
-    ret = H5Tset_strpad(type2,H5T_STR_SPACEPAD);
-    attr_id   = H5Acreate (file_id, "filevers", type2, att_space, H5P_DEFAULT, H5P_DEFAULT);
-    char stri2[] = "1.1.8";
-    status = H5Awrite(attr_id, type2, &stri2);
-    H5Aclose(attr_id);
-    
-    //====================================================================================
-    hsize_t     dimsf[2];
-    dimsf[0] = adapt_iet->getNrow();
-    dimsf[1] = adapt_iet->getNcol();
-    hid_t filespace = H5Screate_simple(2, dimsf, NULL);
-
-    hid_t dset_id = H5Dcreate(file_id, "iet", H5T_NATIVE_INT, filespace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-    H5Sclose(filespace);
-
-    hsize_t    count[2];              // hyperslab selection parameters
-    hsize_t    offset[2];
-    count[0] = dimsf[0];
-    count[1] = dimsf[1];
-    offset[0] = 0;
-    offset[1] = 0;
-    hid_t memspace = H5Screate_simple(2, count, NULL);
-
-    filespace = H5Dget_space(dset_id);
-    H5Sselect_hyperslab(filespace, H5S_SELECT_SET, offset, NULL, count, NULL);
-
-    status = H5Dwrite(dset_id, H5T_NATIVE_INT, memspace, filespace, plist_id, adapt_iet->data);
     
     //====================================================================================
     // Add ifn map to the grid.h5 file
@@ -1719,15 +1702,7 @@ void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh, US3D* us3d)
 
     status = H5Dwrite(dset_id, H5T_NATIVE_INT, memspace, filespace, plist_id, adapt_ifn->data);
     
-//    for(int i=0;i<adapt_ifn->getNrow();i++)
-//    {
-//        //std::cout << i << " ifn :: " << adapt_ifn->getVal(i,adapt_ifn->getNcol()-1) << std::endl;
-//
-//        if(adapt_ifn->getVal(i,adapt_ifn->getNcol()-1)!=3)
-//        {
-//            std::cout << i << " " << adapt_ifn->getNrow() - bfaces.size()+bqfaces.size() << " " << adapt_ifn->getVal(i,adapt_ifn->getNcol()-1) << std::endl;
-//        }
-//    }
+    delete adapt_ifn;
     
     //====================================================================================
 
@@ -1747,7 +1722,7 @@ void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh, US3D* us3d)
     dimsf_att = 1;
     att_space = H5Screate_simple(1, &dimsf_att, NULL);
     attr_id   = H5Acreate (group_grid_id, "nc", H5T_STD_I32BE, att_space, H5P_DEFAULT, H5P_DEFAULT);
-    int value = mmgMesh->ne+mmgMesh->nprism;
+    int value = nTet+nPrism;
     status = H5Awrite(attr_id, H5T_NATIVE_INT, &value);
     H5Aclose(attr_id);
     attr_id   = H5Acreate (group_grid_id, "nf", H5T_STD_I32BE, att_space, H5P_DEFAULT, H5P_DEFAULT);
@@ -1759,30 +1734,11 @@ void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh, US3D* us3d)
     status = H5Awrite(attr_id, H5T_NATIVE_INT, &value);
     H5Aclose(attr_id);
     attr_id   = H5Acreate (group_grid_id, "nn", H5T_STD_I32BE, att_space, H5P_DEFAULT, H5P_DEFAULT);
-    value = mmgMesh->np;
+    value = nVerts;
     status = H5Awrite(attr_id, H5T_NATIVE_INT, &value);
     H5Aclose(attr_id);
     
-    //====================================================================================
-    // Add xcn map to the grid.h5 file
-    //====================================================================================
     
-    dimsf[0] = xcn_mmg->getNrow();
-    dimsf[1] = xcn_mmg->getNcol();
-    filespace = H5Screate_simple(2, dimsf, NULL);
-
-    dset_id = H5Dcreate(file_id, "xcn", H5T_NATIVE_DOUBLE, filespace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-    H5Sclose(filespace);
-    count[0] = dimsf[0];
-    count[1] = dimsf[1];
-    offset[0] = 0;
-    offset[1] = 0;
-    memspace = H5Screate_simple(2, count, NULL);
-
-    filespace = H5Dget_space(dset_id);
-    H5Sselect_hyperslab(filespace, H5S_SELECT_SET, offset, NULL, count, NULL);
-
-    status = H5Dwrite(dset_id, H5T_NATIVE_DOUBLE, memspace, filespace, plist_id, xcn_mmg->data);
     
     
     // Create group;
@@ -1837,9 +1793,6 @@ void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh, US3D* us3d)
 
     PlotBoundaryData(us3d->znames,adapt_zdefs);
     
-    delete xcn_mmg;
-    delete adapt_iet;
-    delete adapt_ifn;
     delete adapt_zdefs;
     qfacemap.clear();
     facemap.clear();

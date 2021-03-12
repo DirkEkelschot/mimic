@@ -16,9 +16,7 @@ struct BLShellInfo{
     std::map<int,std::map<int,int> > ShellFace2ShellVert2OppositeBoundaryVerts;
     Array<int>* ShellRef;
     std::map<int,std::vector<int> > BLlayers;
-    std::map<int, std::vector<std::map<int,std::set<int> > > > bFace2_locN2NEl;
     std::set<int> elements_set;
-    std::set<int> verts_set;
 };
 
 

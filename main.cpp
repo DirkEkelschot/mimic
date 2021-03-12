@@ -6,6 +6,7 @@
 #include "src/adapt_parops.h"
 #include "src/hex2tet.h"
 #include "src/adapt_boundary.h"
+#include "src/adapt_blshell.h"
 #include <iomanip>
 
 
@@ -444,7 +445,11 @@ int main(int argc, char** argv) {
                 std::map<int,int> vert_ref_map = bmap->getNodeRefMap();
                 
                 BLShellInfo* BLshell = FindOuterShellBoundaryLayerMesh(wall_id, nLayer,xcn_g,ien_g,ief_g,ife_g,ifn_g,xcn_pstate,ien_pstate,bnd_face_map,vert_ref_map,comm);
-                        
+                
+//                BLShell* bl_shell = new BLShell(wall_id, nLayer,xcn_g,ien_g,ief_g,ife_g,ifn_g,xcn_pstate,ien_pstate,bnd_face_map,vert_ref_map,comm);
+//                
+//                delete bl_shell;
+                
                 //========================================================================
                 //========================================================================
                 //            struct BLShellInfo
@@ -706,7 +711,6 @@ int main(int argc, char** argv) {
                 
                 std::map<std::set<int>,int > shelltri2fid=BLshell->ShellTri2FaceID;
                 std::map<int,int> shellFace2bFace=BLshell->ShellFace2BFace;
-                std::map<int,int> bFace2shellFace=BLshell->BFace2ShellFace;
                 std::set<std::set<int> >::iterator itset;
                 std::map<int,std::vector<int> > TriID2ShellFaceID;
                 std::vector<std::vector<int> > u_tris;
@@ -776,17 +780,17 @@ int main(int argc, char** argv) {
                 
                 std::map<int,int> loc2glob_final_verts;
                 std::map<int,int> glob2loc_final_verts;
-                std::map<int,std::vector<Element* > >::iterator iter;
+                std::map<int,std::vector<std::vector<int> > >::iterator iter;
                 std::set<int> unique_prism_verts;
                 int locp = 0;
-                for(iter=mesh_topo_bl2->BLlayersElements.begin();
-                   iter!=mesh_topo_bl2->BLlayersElements.end();iter++)
+                for(iter=mesh_topo_bl2->BLlayersPrisms.begin();
+                   iter!=mesh_topo_bl2->BLlayersPrisms.end();iter++)
                 {
                     int numit=iter->second.size();
                     
                     for(int p=0;p<numit;p++)
                     {
-                        std::vector<int> prism = iter->second[p]->GlobalNodes;
+                        std::vector<int> prism = iter->second[p];
                         for(int q=0;q<prism.size();q++)
                         {
                             int pp = prism[q];
@@ -1074,14 +1078,14 @@ int main(int argc, char** argv) {
                 int qt    = 1;
                 
                 std::cout << "Set the prisms in the mmgMesh..."<<std::endl;
-                for(iter=mesh_topo_bl2->BLlayersElements.begin();
-                   iter!=mesh_topo_bl2->BLlayersElements.end();iter++)
+                for(iter=mesh_topo_bl2->BLlayersPrisms.begin();
+                   iter!=mesh_topo_bl2->BLlayersPrisms.end();iter++)
                 {
                     int numit=iter->second.size();
                     
                     for(int p=0;p<numit;p++)
                     {
-                        std::vector<int> prism = iter->second[p]->GlobalNodes;
+                        std::vector<int> prism = iter->second[p];
 
                         mmgMesh_hyb->prism[i+1].v[0] = prism[0]+1;
                         m11 = mv_g->getVal(prism[0],0);
@@ -1338,7 +1342,7 @@ int main(int argc, char** argv) {
                     }
                 }
                 
-		delete xcn_g;
+                delete xcn_g;
                 delete ien_g;
                 delete ifn_g;
                 delete ife_g;
@@ -1405,13 +1409,14 @@ int main(int argc, char** argv) {
                                MMG5_ARG_ppMesh,&mmgMesh_TETCOPY,MMG5_ARG_ppSols,&mmgSol_TETCOPY,
                                MMG5_ARG_end);
                 
+                //MMG3D_Free_solutions(mmgMesh_hyb, mmgSol_hyb);
 //                MMG3D_Free_all(MMG5_ARG_start,
 //                               MMG5_ARG_ppMesh,&mmgMesh_TET,MMG5_ARG_ppSols,&mmgSol_TET,
 //                               MMG5_ARG_end);
                 
                 std::cout<<"Started writing the adapted hybrid mesh in US3D format..."<<std::endl;
                 //WriteUS3DGridFromMMG_it0(mmgMesh_hyb, us3d, bnd_face_map);
-                WriteUS3DGridFromMMG_it0(mmgMesh_hyb, us3d);
+                WriteUS3DGridFromMMG_it0(mmgMesh_hyb, mmgSol_hyb, us3d);
                 std::cout<<"Finished writing the adapted hybrid mesh in US3D format..."<<std::endl;
                 //
             }
