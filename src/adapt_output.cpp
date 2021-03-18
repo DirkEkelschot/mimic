@@ -266,7 +266,41 @@ void OutputBoundaryLayerPrisms(Array<double>* xcn_g, Mesh_Topology_BL* BLmesh, M
     
 }
 */
+void OutputMesh_MMG_Slice(MMG5_pMesh mmgMesh, int offset, int Nel, string fname)
+{
+    int cnt = 0;
+    for(int i=1;i<=Nel;i++)
+    {
+        if(mmgMesh->point[mmgMesh->tetra[offset+i].v[0]].c[1]>0.0 && mmgMesh->point[mmgMesh->tetra[offset+i].v[1]].c[1]>0.0 &&
+           mmgMesh->point[mmgMesh->tetra[offset+i].v[2]].c[1]>0.0 &&
+           mmgMesh->point[mmgMesh->tetra[offset+i].v[3]].c[1]>0.0)
+        {
+            cnt++;
+        }
+    }
+    
+    std::ofstream myfile;
+    myfile.open(fname);
+    myfile << "TITLE=\"new_volume.tec\"" << std::endl;
+    myfile <<"VARIABLES = \"X\", \"Y\", \"Z\"" << std::endl;
+    myfile <<"ZONE N = " << mmgMesh->np << ", E = " << cnt << ", DATAPACKING = POINT, ZONETYPE = FETETRAHEDRON" << std::endl;
 
+    for(int i=0;i<mmgMesh->np;i++)
+    {
+        myfile << mmgMesh->point[i+1].c[0] << " " <<mmgMesh->point[i+1].c[1] << " " << mmgMesh->point[i+1].c[2] <<  std::endl;
+    }
+    for(int i=1;i<=Nel;i++)
+    {
+        if(mmgMesh->point[mmgMesh->tetra[offset+i].v[0]].c[1]>0.0 && mmgMesh->point[mmgMesh->tetra[offset+i].v[1]].c[1]>0.0 &&
+           mmgMesh->point[mmgMesh->tetra[offset+i].v[2]].c[1]>0.0 &&
+           mmgMesh->point[mmgMesh->tetra[offset+i].v[3]].c[1]>0.0)
+        {
+            myfile << mmgMesh->tetra[offset+i].v[0] << " " << mmgMesh->tetra[offset+i].v[1] << " " << mmgMesh->tetra[offset+i].v[2] << " " << mmgMesh->tetra[offset+i].v[3] << std::endl;
+        }
+        
+    }
+    myfile.close();
+}
 void OutputMesh_MMG(MMG5_pMesh mmgMesh, int offset, int Nel, string fname)
 {
     std::ofstream myfile;
