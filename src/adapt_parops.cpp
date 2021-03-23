@@ -273,7 +273,7 @@ Array<double>* GetOptimizedMMG3DMeshOnRoot(Partition* P, US3D* us3d, std::map<in
     delete xcn_g;
     delete ien_g;
     delete iet_g;
-    delete pDom;
+    //delete pDom;
     delete lE2gE_g;
     delete mv_g;
     delete lE2gE;

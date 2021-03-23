@@ -120,10 +120,18 @@ int main(int argc, char** argv) {
         ParallelState* xcn_pstate               = new ParallelState(us3d->xcn->getNglob(),comm);
         
         Array<double>* Uivar = new Array<double>(Nel_part,1);
-        
+        double rhoState,uState,vState,wState,TState,VtotState,aState,MState;
         for(int i=0;i<Nel_part;i++)
         {
-            Uivar->setVal(i,0,us3d->interior->getVal(i,varia));
+            rhoState = us3d->interior->getVal(i,0);
+            uState   = us3d->interior->getVal(i,1);
+            vState   = us3d->interior->getVal(i,2);
+            wState   = us3d->interior->getVal(i,3);
+            TState   = us3d->interior->getVal(i,4);
+            VtotState = sqrt(uState*uState+vState*vState+wState*wState);
+            aState   = sqrt(1.4*287.05*TState);
+            MState = VtotState/aState;
+            Uivar->setVal(i,0,MState);
         }
         
         delete us3d->interior;

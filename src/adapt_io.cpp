@@ -25,7 +25,10 @@ std::vector<double> ReadMetricInputs(const char* fn_metric)
 
 
 
-void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh, US3D* us3d)
+
+
+
+void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh, MMG5_pSol mmgSol, US3D* us3d)
 {
     std::map<int,std::vector<int> > ref2bface;
     std::map<int,std::vector<int> > ref2bqface;
@@ -36,6 +39,11 @@ void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh, US3D* us3d)
     std::set<int>face;
     std::set<int> bcrefs;
     int wr = 0;
+    
+    int nVerts = mmgMesh->np;
+    int nTet = mmgMesh->ne;
+    int nPrism = mmgMesh->nprism;
+    
     for(int i=1;i<=mmgMesh->nt;i++)
     {
         if(mmgMesh->tria[i].ref>0 && mmgMesh->tria[i].ref!=20)// -1 is the tag for internal shell.
@@ -50,8 +58,6 @@ void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh, US3D* us3d)
             {
                 btfaces_Ref[face] = mmgMesh->tria[i].ref;
             }
-            
-            
             
             bfaces.insert(face);
             if(bcrefs.find(mmgMesh->tria[i].ref)==bcrefs.end())
@@ -130,587 +136,6 @@ void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh, US3D* us3d)
         xcn_mmg->setVal(i,2,mmgMesh->point[i+1].c[2]);
     }
     
-    std::map<std::set<int>, int> qfacemap;
-    std::map<std::set<int>, int>  facemap;
-    std::set<std::set<int> > faces;
-    std::set<std::set<int> > qfaces;
-    std::map<int,std::vector<int> > face2node;
-    std::set<int> face0;
-    std::set<int> face1;
-    std::set<int> face2;
-    std::set<int> face3;
-    int fid = 0;
-    int vid0,vid1,vid2,vid3;
-    std::map<int,int> lh;
-    std::map<int,int> rh;
-    
-    std::map<int,int> Nlh;
-    std::map<int,int> Nrh;
-    
-    int of = 0;
-    int fset_cnt = 0;
-    Array<int>* adapt_iet = new Array<int>(mmgMesh->ne+mmgMesh->nprism,1);
-    // local face2vert_map for a tet in mmg  {1,2,3}, {0,3,2}, {0,1,3}, {0,2,1}
-    int bf = 0;
-    int bq = 0;
-    std::cout << "-- Constructing the new face-2-node and face-2-element map..."<<std::endl;
-    int orient0;
-    
-    for(int i=1;i<=mmgMesh->ne;i++)
-    {
-        adapt_iet->setVal(i-1,0,2); // Element type = 2 since we are dealing with tetrahedra.
-        
-        face0.insert(mmgMesh->tetra[i].v[1]);
-        face0.insert(mmgMesh->tetra[i].v[2]);
-        face0.insert(mmgMesh->tetra[i].v[3]);
-        
-        
-        if(faces.count(face0) != 1 )
-        {
-            faces.insert(face0);
-            
-            facemap[face0]=fid;
-            face2node[fid].push_back(mmgMesh->tetra[i].v[1]);//2
-            face2node[fid].push_back(mmgMesh->tetra[i].v[2]);//3
-            face2node[fid].push_back(mmgMesh->tetra[i].v[3]);//4
-            
-            
-            if(bfaces.find(face0)!=bfaces.end())
-            {
-                int refe = btfaces_Ref[face0];
-                std::vector<int> bctria(3);
-                bctria[0] = mmgMesh->tetra[i].v[1];
-                bctria[1] = mmgMesh->tetra[i].v[2];
-                bctria[2] = mmgMesh->tetra[i].v[3];
-                
-                bctrias[refe].push_back(bctria);
-                bf++;
-            }
-            
-            lh[fid] = i-1;
-            Nlh[fid] = 3;
-            fid++;
-        }
-        else
-        {
-            rh[facemap[face0]] = i-1;
-            Nrh[facemap[face0]] = 3;
-        }
-        
-        face1.insert(mmgMesh->tetra[i].v[0]);
-        face1.insert(mmgMesh->tetra[i].v[2]);
-        face1.insert(mmgMesh->tetra[i].v[3]);
-        
-        
-        
-        
-        if(faces.count(face1) != 1)
-        {
-            faces.insert(face1);
-            
-            facemap[face1]=fid;
-            face2node[fid].push_back(mmgMesh->tetra[i].v[0]);//1
-            face2node[fid].push_back(mmgMesh->tetra[i].v[3]);//3
-            face2node[fid].push_back(mmgMesh->tetra[i].v[2]);//4
-            if(bfaces.find(face1)!=bfaces.end())
-            {
-                int refe = btfaces_Ref[face1];
-                std::vector<int> bctria(3);
-                bctria[0] = mmgMesh->tetra[i].v[0];
-                bctria[1] = mmgMesh->tetra[i].v[3];
-                bctria[2] = mmgMesh->tetra[i].v[2];
-                
-                bctrias[refe].push_back(bctria);
-                bf++;
-            }
-            
-            lh[fid] = i-1;
-            Nlh[fid] = 3;
-            fid++;
-        }
-        else
-        {
-            rh[facemap[face1]] = i-1;
-            Nrh[facemap[face2]] = 3;
-        }
-        
-        face2.insert(mmgMesh->tetra[i].v[0]);
-        face2.insert(mmgMesh->tetra[i].v[3]);
-        face2.insert(mmgMesh->tetra[i].v[1]);
-        
-       
-        
-        
-        if( faces.count(face2) != 1)
-        {
-            faces.insert(face2);
-            
-            facemap[face2]=fid;
-            face2node[fid].push_back(mmgMesh->tetra[i].v[0]);//1
-            face2node[fid].push_back(mmgMesh->tetra[i].v[1]);//2
-            face2node[fid].push_back(mmgMesh->tetra[i].v[3]);//4
-            if(bfaces.find(face2)!=bfaces.end())
-            {
-                int refe = btfaces_Ref[face2];
-                std::vector<int> bctria(3);
-                bctria[0] = mmgMesh->tetra[i].v[0];
-                bctria[1] = mmgMesh->tetra[i].v[1];
-                bctria[2] = mmgMesh->tetra[i].v[3];
-                
-                bctrias[refe].push_back(bctria);
-                bf++;
-            }
-            
-            lh[fid] = i-1;
-            Nlh[fid] = 3;
-            fid++;
-        }
-        else
-        {
-            rh[facemap[face2]] = i-1;
-            Nrh[facemap[face2]] = 3;
-        }
-
-        face3.insert(mmgMesh->tetra[i].v[0]);
-        face3.insert(mmgMesh->tetra[i].v[2]);
-        face3.insert(mmgMesh->tetra[i].v[1]);
-        
-        
-        
-        if( faces.count(face3) != 1)
-        {
-            faces.insert(face3);
-            facemap[face3]=fid;
-            face2node[fid].push_back(mmgMesh->tetra[i].v[0]);//1
-            face2node[fid].push_back(mmgMesh->tetra[i].v[2]);//3
-            face2node[fid].push_back(mmgMesh->tetra[i].v[1]);//2
-            
-            if(bfaces.find(face3)!=bfaces.end())
-            {
-                int refe = btfaces_Ref[face3];
-                std::vector<int> bctria(3);
-                bctria[0] = mmgMesh->tetra[i].v[0];
-                bctria[1] = mmgMesh->tetra[i].v[2];
-                bctria[2] = mmgMesh->tetra[i].v[1];
-                
-                bctrias[refe].push_back(bctria);
-                bf++;
-            }
-            
-            lh[fid] = i-1;
-            Nlh[fid] = 3;
-            fid++;
-        }
-        else
-        {
-            rh[facemap[face3]] = i-1;
-            Nrh[facemap[face3]] = 3;
-        }
-    
-        face0.clear();
-        face1.clear();
-        face2.clear();
-        face3.clear();
-        
-    }
-    
-    
-    std::set<int> qface0;
-    std::set<int> qface1;
-    std::set<int> qface2;
-    // local face2vert_map for a prism in mmg {0,1,2,0},{3,5,4,3},{1,4,5,2},{0,2,5,3},{0,3,4,1} };
-    int qfid  = 0;
-    int fnew  = 0;
-    int fiold = 0;
-
-    for(int i=1;i<=mmgMesh->nprism;i++)
-    {
-        adapt_iet->setVal(mmgMesh->ne+i-1,0,6); // Element type = 6 since we are dealing with prisms.
-  
-        face0.insert(mmgMesh->prism[i].v[0]);
-        face0.insert(mmgMesh->prism[i].v[2]);
-        face0.insert(mmgMesh->prism[i].v[1]);
-        
-        // local face2vert_map for a prism in mmg {0,1,2,0},{3,5,4,3},{1,4,5,2},{0,2,5,3},{0,3,4,1} };
-        
-        
-        if(faces.count(face0) != 1 )
-        {
-            faces.insert(face0);
-            facemap[face0]=fid;
-            face2node[fid].push_back(mmgMesh->prism[i].v[0]);//1
-            face2node[fid].push_back(mmgMesh->prism[i].v[1]);//3
-            face2node[fid].push_back(mmgMesh->prism[i].v[2]);//2
-            
-            if(bfaces.find(face0)!=bfaces.end())
-            {
-                int refe = btfaces_Ref[face0];
-                std::vector<int> bctria(3);
-                bctria[0] = mmgMesh->prism[i].v[0];
-                bctria[1] = mmgMesh->prism[i].v[1];
-                bctria[2] = mmgMesh->prism[i].v[2];
-                
-                bctrias[refe].push_back(bctria);
-                bf++;
-            }
-            
-            lh[fid] = mmgMesh->ne+i-1;
-            Nlh[fid] = 3;
-            fid++;
-            fnew++;
-
-        }
-        else
-        {
-            rh[facemap[face0]] = mmgMesh->ne+i-1;
-            Nrh[facemap[face0]] = 3;
-            
-        }
-        
-        
-        face1.insert(mmgMesh->prism[i].v[3]);
-        face1.insert(mmgMesh->prism[i].v[4]);
-        face1.insert(mmgMesh->prism[i].v[5]);
-        // local face2vert_map for a prism in mmg {0,1,2,0},{3,5,4,3},{1,4,5,2},{0,2,5,3},{0,3,4,1} };
-        
-        
-        
-        if(faces.count(face1) != 1)
-        {
-            faces.insert(face1);
-            
-            facemap[face1]=fid;
-            face2node[fid].push_back(mmgMesh->prism[i].v[3]);//4
-            face2node[fid].push_back(mmgMesh->prism[i].v[5]);//5
-            face2node[fid].push_back(mmgMesh->prism[i].v[4]);//6
-            if(bfaces.find(face1)!=bfaces.end())
-            {
-                int refe = btfaces_Ref[face1];
-                std::vector<int> bctria(3);
-                bctria[0] = mmgMesh->prism[i].v[3];
-                bctria[1] = mmgMesh->prism[i].v[5];
-                bctria[2] = mmgMesh->prism[i].v[4];
-                
-                bctrias[refe].push_back(bctria);
-                bf++;
-            }
-            
-            lh[fid] = mmgMesh->ne+i-1;
-            Nlh[fid] = 3;
-            fid++;
-            fnew++;
-        }
-        else
-        {
-            rh[facemap[face1]]  = mmgMesh->ne+i-1;
-            Nrh[facemap[face1]] = 3;
-        }
-        
-        // Quad faces //
-        qface0.insert(mmgMesh->prism[i].v[0]);
-        qface0.insert(mmgMesh->prism[i].v[3]);
-        qface0.insert(mmgMesh->prism[i].v[4]);
-        qface0.insert(mmgMesh->prism[i].v[1]);
-        // local face2vert_map for a prism in mmg {0,1,2,0},{3,5,4,3},{1,4,5,2},{0,2,5,3},{0,3,4,1} };
-
-        if( qfaces.count(qface0) != 1)
-        {
-            qfaces.insert(qface0);
-            qfacemap[qface0]=fid;
-            face2node[fid].push_back(mmgMesh->prism[i].v[0]);//1
-            face2node[fid].push_back(mmgMesh->prism[i].v[3]);//4
-            face2node[fid].push_back(mmgMesh->prism[i].v[4]);//6
-            face2node[fid].push_back(mmgMesh->prism[i].v[1]);//3
-            
-            if(bqfaces.find(qface0)!=bqfaces.end())
-            {
-                int refe = bqfaces_Ref[qface0];
-                std::vector<int> bcquad(4);
-                bcquad[0] = mmgMesh->prism[i].v[0];
-                bcquad[1] = mmgMesh->prism[i].v[3];
-                bcquad[2] = mmgMesh->prism[i].v[4];
-                bcquad[3] = mmgMesh->prism[i].v[1];
-                bcquads[refe].push_back(bcquad);
-                bq++;
-            }
-            
-            lh[fid] = mmgMesh->ne+i-1;
-            Nlh[fid] = 4;
-            fid++;
-            qfid++;
-        }
-        else
-        {
-            rh[qfacemap[qface0]]  = mmgMesh->ne+i-1;
-            Nrh[qfacemap[qface0]] = 4;
-        }
-
-        qface1.insert(mmgMesh->prism[i].v[1]);
-        qface1.insert(mmgMesh->prism[i].v[4]);
-        qface1.insert(mmgMesh->prism[i].v[5]);
-        qface1.insert(mmgMesh->prism[i].v[2]);
-        // local face2vert_map for a prism in mmg {0,1,2,0},{3,5,4,3},{1,4,5,2},{0,2,5,3},{0,3,4,1} };
-
-        if( qfaces.count(qface1) != 1)
-        {
-            qfaces.insert(qface1);
-            qfacemap[qface1]=fid;
-            face2node[fid].push_back(mmgMesh->prism[i].v[1]);//2
-            face2node[fid].push_back(mmgMesh->prism[i].v[4]);//3
-            face2node[fid].push_back(mmgMesh->prism[i].v[5]);//6
-            face2node[fid].push_back(mmgMesh->prism[i].v[2]);//5
-            if(bqfaces.find(qface1)!=bqfaces.end())
-            {
-                int refe = bqfaces_Ref[qface1];
-                std::vector<int> bcquad(4);
-                bcquad[0] = mmgMesh->prism[i].v[1];
-                bcquad[1] = mmgMesh->prism[i].v[4];
-                bcquad[2] = mmgMesh->prism[i].v[5];
-                bcquad[3] = mmgMesh->prism[i].v[2];
-                bcquads[refe].push_back(bcquad);
-                bq++;
-            }
-           
-            lh[fid] = mmgMesh->ne+i-1;
-            Nlh[fid] = 4;
-            fid++;
-            qfid++;
-        }
-        else
-        {
-            rh[qfacemap[qface1]]  = mmgMesh->ne+i-1;
-            Nrh[qfacemap[qface1]] = 4;
-        }
-        
-        qface2.insert(mmgMesh->prism[i].v[0]);//1
-        qface2.insert(mmgMesh->prism[i].v[2]);//2
-        qface2.insert(mmgMesh->prism[i].v[5]);//5
-        qface2.insert(mmgMesh->prism[i].v[3]);//4
-        // local face2vert_map for a prism in mmg {0,1,2,0},{3,5,4,3},{1,4,5,2},{0,2,5,3},{0,3,4,1} };
-
-        if( qfaces.count(qface2) != 1)
-        {
-            qfaces.insert(qface2);
-            qfacemap[qface2]=fid;
-            face2node[fid].push_back(mmgMesh->prism[i].v[0]);//1
-            face2node[fid].push_back(mmgMesh->prism[i].v[2]);//2
-            face2node[fid].push_back(mmgMesh->prism[i].v[5]);//5
-            face2node[fid].push_back(mmgMesh->prism[i].v[3]);//4
-            if(bqfaces.find(qface2)!=bqfaces.end())
-            {
-                int refe = bqfaces_Ref[qface2];
-                std::vector<int> bcquad(4);
-                bcquad[0] = mmgMesh->prism[i].v[0];
-                bcquad[1] = mmgMesh->prism[i].v[2];
-                bcquad[2] = mmgMesh->prism[i].v[5];
-                bcquad[3] = mmgMesh->prism[i].v[3];
-                bcquads[refe].push_back(bcquad);
-                bq++;
-            }
-            
-            lh[fid] = mmgMesh->ne+i-1;
-            Nlh[fid] = 4;
-            fid++;
-            qfid++;
-        }
-        else
-        {
-            rh[qfacemap[qface2]] = mmgMesh->ne+i-1;
-            Nlh[qfacemap[qface2]] = 4;
-        }
-        
-        face0.clear();
-        face1.clear();
-        qface0.clear();
-        qface1.clear();
-        qface2.clear();
-         
-    }
-    
-    std::map<int,int>::iterator itm;
-    int it;
-
-    Array<int>* adapt_ifn = new Array<int>(face2node.size(),8);
-    int t = 0;
-    int bc_id = 0;
-    int gaa   = 0;
-    int typef3 = 0;
-    int typef4 = 0;
-    
-    std::cout << "-- Adding the interior faces to the new ifn array... face2node.size() -> " << face2node.size() << " " << lh.size() << " " << rh.size() <<std::endl;
-    int ty=0;
-    for(itm=lh.begin();itm!=lh.end();itm++)
-    {
-        it = itm->first;
-        
-        if(rh.find(it)==rh.end())
-        {
-            rh[it] = 0;
-        }
-        else
-        {
-            if(Nlh[itm->first]==3)
-            {
-                adapt_ifn->setVal(t,0,3);
-                adapt_ifn->setVal(t,1,face2node[it][0]);
-                adapt_ifn->setVal(t,2,face2node[it][1]);
-                adapt_ifn->setVal(t,3,face2node[it][2]);
-                adapt_ifn->setVal(t,4,0);
-                face2node[it].clear();
-                //std::cout << "3 int row = " << t << " " << face2node[it][0] << " " << face2node[it][1] << " " << face2node[it][2] << std::endl;
-            }
-            if(Nlh[itm->first]==4)
-            {
-                adapt_ifn->setVal(t,0,4);
-                adapt_ifn->setVal(t,1,face2node[it][0]);
-                adapt_ifn->setVal(t,2,face2node[it][1]);
-                adapt_ifn->setVal(t,3,face2node[it][2]);
-                adapt_ifn->setVal(t,4,face2node[it][3]);
-                face2node[it].clear();
-                //std::cout << "4 int row = " << t << " " << face2node[it][0] << " " << face2node[it][1] << " " << face2node[it][2] << std::endl;
-
-            }
-            
-            adapt_ifn->setVal(t,5,rh[it]+1);
-            adapt_ifn->setVal(t,6,itm->second+1);
-            adapt_ifn->setVal(t,7,us3d->zdefs->getVal(3+bc_id-1,5));
-            t++;
-        }
-    }
-
-    std::map<int,std::vector<int> >::iterator it_bref;
-    int faceid;
-    std::set<int> iface;
-    int nbound = 0;
-    int fa=0;
-    std::cout << "-- Adding the boundary faces to the new ifn array..."<<std::endl;
-    std::map<int,std::vector<std::vector<int> > >::iterator iterbc;
-    for(iterbc=bctrias.begin();iterbc!=bctrias.end();iterbc++)
-    {
-        int bnd_id     = iterbc->first;
-        int Ntris      = iterbc->second.size();
-        int Nquads     = bcquads[bnd_id].size();
-        std::cout << "bnd ref test = " << bnd_id << " " << Ntris << " " << Nquads << std::endl;
-    }
-    
-    for(iterbc=bctrias.begin();iterbc!=bctrias.end();iterbc++)
-    {
-        int bnd_id     = iterbc->first;
-        int Ntris      = iterbc->second.size();
-        int Nquads     = bcquads[bnd_id].size();
-        
-        std::cout << "bnd ref = " << bnd_id << " " << Ntris << " " << Nquads << std::endl;
-        
-        for(int q=0;q<Ntris;q++)
-        {
-            //faceid = ref2bface[bnd_id][q];
-            adapt_ifn->setVal(t,0,3);
-            adapt_ifn->setVal(t,1,iterbc->second[q][0]);
-            adapt_ifn->setVal(t,2,iterbc->second[q][1]);
-            adapt_ifn->setVal(t,3,iterbc->second[q][2]);
-            adapt_ifn->setVal(t,4,0);
-            iface.insert(iterbc->second[q][0]);
-            iface.insert(iterbc->second[q][1]);
-            iface.insert(iterbc->second[q][2]);
-            
-            //std::cout << "3 bc row = " << t << " " << mmgMesh->tria[faceid].v[0] << " " << mmgMesh->tria[faceid].v[1] << " " << mmgMesh->tria[faceid].v[2] << std::endl;
-
-            fid=facemap[iface];
-            
-            adapt_ifn->setVal(t,5,rh[fid]);
-            adapt_ifn->setVal(t,6,lh[fid]+1);
-            //adapt_ifn->setVal(t,7,us3d->zdefs->getVal(3+bnd_id-1,5));
-            adapt_ifn->setVal(t,7,bnd_id);
-
-            iface.clear();
-            t++;
-        }
-        for(int q=0;q<Nquads;q++)
-        {
-            //faceid = ref2bqface[bnd_id][q];
-            adapt_ifn->setVal(t,0,4);
-            adapt_ifn->setVal(t,1,bcquads[bnd_id][q][0]);
-            adapt_ifn->setVal(t,2,bcquads[bnd_id][q][1]);
-            adapt_ifn->setVal(t,3,bcquads[bnd_id][q][2]);
-            adapt_ifn->setVal(t,4,bcquads[bnd_id][q][3]);
-            iface.insert(bcquads[bnd_id][q][0]);
-            iface.insert(bcquads[bnd_id][q][1]);
-            iface.insert(bcquads[bnd_id][q][2]);
-            iface.insert(bcquads[bnd_id][q][3]);
-            
-            //std::cout << "4 bc row = " << t << " " << mmgMesh->quadra[faceid].v[0] << " " << mmgMesh->quadra[faceid].v[1] << " " << mmgMesh->quadra[faceid].v[2] << " " << mmgMesh->quadra[faceid].v[3] << std::endl;
-            
-            fid=qfacemap[iface];
-
-            adapt_ifn->setVal(t,5,rh[fid]);
-            adapt_ifn->setVal(t,6,lh[fid]+1);
-            //adapt_ifn->setVal(t,7,us3d->zdefs->getVal(3+bnd_id-1,5));
-            adapt_ifn->setVal(t,7,bnd_id);
-            iface.clear();
-            
-            t++;
-        }
-    }
-    std::cout << "-- sizing2 -> " << lh.size() << " " << rh.size() << " " << t << " " << ty <<std::endl;
-
-    
-    
-    int nbo = bcrefs.size();
-    std::cout << "-- Constructing the zdefs array..."<<std::endl;
-    Array<int>* adapt_zdefs = new Array<int>(3+nbo,7);
-    std::cout << "faces.size()+qfaces.size()-bfaces.size()-bqfaces.size() " << faces.size() << " " << qfaces.size() << " " << bfaces.size() << " " << bqfaces.size() << std::endl;
-    // Collect node data (10) . Starting index-ending index Nodes
-    adapt_zdefs->setVal(0,0,10);
-    adapt_zdefs->setVal(0,1,-1);
-    adapt_zdefs->setVal(0,2,1);
-    adapt_zdefs->setVal(0,3,1);
-    adapt_zdefs->setVal(0,4,mmgMesh->np);
-    adapt_zdefs->setVal(0,5,us3d->zdefs->getVal(0,5));
-    adapt_zdefs->setVal(0,6,us3d->zdefs->getVal(0,6));
-    // Collect element data (12) . Starting index-ending index Element
-    adapt_zdefs->setVal(1,0,12);
-    adapt_zdefs->setVal(1,1,-1);
-    adapt_zdefs->setVal(1,2,2);
-    adapt_zdefs->setVal(1,3,1);
-    adapt_zdefs->setVal(1,4,mmgMesh->ne+mmgMesh->nprism);
-    adapt_zdefs->setVal(1,5,us3d->zdefs->getVal(1,5));
-    adapt_zdefs->setVal(1,6,2);
-    // Collect internal face data (13) . Starting index-ending index internal face.
-    adapt_zdefs->setVal(2,0,13);
-    adapt_zdefs->setVal(2,1,-1);
-    adapt_zdefs->setVal(2,2, 3);
-    adapt_zdefs->setVal(2,3, 1);
-    adapt_zdefs->setVal(2,4,faces.size()+qfaces.size()-bfaces.size()-bqfaces.size());
-    adapt_zdefs->setVal(2,5,us3d->zdefs->getVal(2,5));
-    adapt_zdefs->setVal(2,6,2);
-    // Collect boundary face data (13) . Starting index-ending index boundary face for each boundary ID.
-    int q  = 1;
-    int nb = 0;
-    int face_start = faces.size()+qfaces.size()-bfaces.size()-bqfaces.size()+1;
-    int face_end;
-    std::set<int>::iterator itr;
-    for(itr=bcrefs.begin();itr!=bcrefs.end();itr++)
-    {
-        int bnd_ref = *itr;
-        face_end = face_start+bnd_Ntri[bnd_ref]+bnd_Nquad[bnd_ref]-1;
-        adapt_zdefs->setVal(3+nb,0,13);
-        adapt_zdefs->setVal(3+nb,1,-1);
-        adapt_zdefs->setVal(3+nb,2,3+q);
-        adapt_zdefs->setVal(3+nb,3,face_start);
-        adapt_zdefs->setVal(3+nb,4,face_end);
-        adapt_zdefs->setVal(3+nb,5,bnd_ref);
-        adapt_zdefs->setVal(3+nb,6,2);
-        //std::cout << "us3d->zdefs->getVal(3+nb,5) " << us3d->zdefs->getVal(3+nb,5) << std::endl;
-        face_start = face_end+1;
-        //std::cout << "nb  = " << nb << " " << ref2bface.size() << " " << ref2bqface.size() << std::endl;
-        nb++;
-        q++;
-    }
-    
-    std::cout << "elements = " << " prisms->" << mmgMesh->nprism << " tetrahedra->" << mmgMesh->ne << std::endl;
-    std::cout << "lh vs rh = " << " " << lh.size() << " " << rh.size() << std::endl;
-    std::cout << "-- sizingf -> " << lh.size() << " " << rh.size() << " " << t << " " << ty <<std::endl;
-
     std::cout<<"-- Writing in HDF5 format..."<<std::endl;
     hid_t ret;
     //Output the new grid.h5 which has the new vertices and ifn map.
@@ -747,17 +172,17 @@ void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh, US3D* us3d)
     H5Aclose(attr_id);
     
     //====================================================================================
+    // Add xcn map to the grid.h5 file
+    //====================================================================================
     hsize_t     dimsf[2];
     hsize_t    count[2];              // hyperslab selection parameters
     hsize_t    offset[2];
-    dimsf[0] = adapt_iet->getNrow();
-    dimsf[1] = adapt_iet->getNcol();
+    dimsf[0] = xcn_mmg->getNrow();
+    dimsf[1] = xcn_mmg->getNcol();
     hid_t filespace = H5Screate_simple(2, dimsf, NULL);
 
-    hid_t dset_id = H5Dcreate(file_id, "iet", H5T_NATIVE_INT, filespace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    hid_t dset_id = H5Dcreate(file_id, "xcn", H5T_NATIVE_DOUBLE, filespace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
     H5Sclose(filespace);
-
-
     count[0] = dimsf[0];
     count[1] = dimsf[1];
     offset[0] = 0;
@@ -767,8 +192,859 @@ void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh, US3D* us3d)
     filespace = H5Dget_space(dset_id);
     H5Sselect_hyperslab(filespace, H5S_SELECT_SET, offset, NULL, count, NULL);
 
+    status = H5Dwrite(dset_id, H5T_NATIVE_DOUBLE, memspace, filespace, plist_id, xcn_mmg->data);
+    delete xcn_mmg;
+    //====================================================================================
+    
+    std::map<std::set<int>, int> qfacemap;
+    std::map<std::set<int>, int>  facemap;
+    std::set<std::set<int> > faces;
+    std::set<std::set<int> > qfaces;
+    std::map<int,std::vector<int> > face2node;
+    std::set<int> face0;
+    std::set<int> face1;
+    std::set<int> face2;
+    std::set<int> face3;
+    std::set<int> qface0;
+    std::set<int> qface1;
+    std::set<int> qface2;
+    
+    
+    int fid = 0;
+    int vid0,vid1,vid2,vid3;
+    std::map<int,int> lh;
+    std::map<int,int> rh;
+    
+    std::map<int,int> Nlh;
+    std::map<int,int> Nrh;
+    
+    int of = 0;
+    int fset_cnt = 0;
+    Array<int>* adapt_iet = new Array<int>(mmgMesh->ne+mmgMesh->nprism,1);
+    // local face2vert_map for a tet in mmg  {1,2,3}, {0,3,2}, {0,1,3}, {0,2,1}
+    int bf = 0;
+    int bq = 0;
+    std::cout << "-- Constructing the new face-2-node and face-2-element map..."<<std::endl;
+    int orient0;
+    
+    for(int i=1;i<=mmgMesh->ne;i++)
+    {
+        adapt_iet->setVal(i-1,0,2); // Element type = 2 since we are dealing with tetrahedra.
+        
+        face0.insert(mmgMesh->tetra[i].v[1]);
+        face0.insert(mmgMesh->tetra[i].v[2]);
+        face0.insert(mmgMesh->tetra[i].v[3]);
+        if(faces.count(face0) != 1 )
+        {
+            faces.insert(face0);
+            facemap[face0]=fid;
+            lh[fid] = i-1;
+            fid++;
+        }
+        else
+        {
+            rh[facemap[face0]] = i-1;
+            faces.erase(face0);
+            facemap.erase(face0);
+        }
+        
+        face1.insert(mmgMesh->tetra[i].v[0]);
+        face1.insert(mmgMesh->tetra[i].v[2]);
+        face1.insert(mmgMesh->tetra[i].v[3]);
+        if(faces.count(face1) != 1)
+        {
+            faces.insert(face1);
+            facemap[face1]=fid;
+            lh[fid] = i-1;
+            fid++;
+        }
+        else
+        {
+            rh[facemap[face1]] = i-1;
+            faces.erase(face1);
+            facemap.erase(face1);
+        }
+        
+        
+        
+        
+        face2.insert(mmgMesh->tetra[i].v[0]);
+        face2.insert(mmgMesh->tetra[i].v[3]);
+        face2.insert(mmgMesh->tetra[i].v[1]);
+        if( faces.count(face2) != 1)
+        {
+            faces.insert(face2);
+            facemap[face2]=fid;
+            lh[fid] = i-1;
+            fid++;
+        }
+        else
+        {
+            rh[facemap[face2]] = i-1;
+            faces.erase(face2);
+            facemap.erase(face2);
+        }
+
+        
+        
+        face3.insert(mmgMesh->tetra[i].v[0]);
+        face3.insert(mmgMesh->tetra[i].v[2]);
+        face3.insert(mmgMesh->tetra[i].v[1]);
+        if( faces.count(face3) != 1)
+        {
+            faces.insert(face3);
+            facemap[face3]=fid;
+            lh[fid] = i-1;
+            fid++;
+        }
+        else
+        {
+            rh[facemap[face3]] = i-1;
+            faces.erase(face3);
+            facemap.erase(face3);
+        }
+    
+        face0.clear();
+        face1.clear();
+        face2.clear();
+        face3.clear();
+        
+    }
+    
+
+    // local face2vert_map for a prism in mmg {0,1,2,0},{3,5,4,3},{1,4,5,2},{0,2,5,3},{0,3,4,1} };
+    int qfid  = 0;
+    int fnew  = 0;
+    int fiold = 0;
+
+    for(int i=1;i<=mmgMesh->nprism;i++)
+    {
+        adapt_iet->setVal(mmgMesh->ne+i-1,0,6); // Element type = 6 since we are dealing with prisms.
+  
+        face0.insert(mmgMesh->prism[i].v[0]);
+        face0.insert(mmgMesh->prism[i].v[2]);
+        face0.insert(mmgMesh->prism[i].v[1]);
+        if(faces.count(face0) != 1 )
+        {
+            faces.insert(face0);
+            facemap[face0]=fid;
+            lh[fid] = mmgMesh->ne+i-1;
+            fid++;
+        }
+        else
+        {
+            rh[facemap[face0]] = mmgMesh->ne+i-1;
+            faces.erase(face0);
+            facemap.erase(face0);
+        }
+        
+        
+        face1.insert(mmgMesh->prism[i].v[3]);
+        face1.insert(mmgMesh->prism[i].v[4]);
+        face1.insert(mmgMesh->prism[i].v[5]);
+        if(faces.count(face1) != 1)
+        {
+            faces.insert(face1);
+            facemap[face1]=fid;
+            lh[fid] = mmgMesh->ne+i-1;
+            fid++;
+        }
+        else
+        {
+            rh[facemap[face1]]  = mmgMesh->ne+i-1;
+            faces.erase(face1);
+            facemap.erase(face1);
+        }
+        
+        
+        
+        // Quad faces //
+        qface0.insert(mmgMesh->prism[i].v[0]);
+        qface0.insert(mmgMesh->prism[i].v[3]);
+        qface0.insert(mmgMesh->prism[i].v[4]);
+        qface0.insert(mmgMesh->prism[i].v[1]);
+        if( qfaces.count(qface0) != 1)
+        {
+            qfaces.insert(qface0);
+            qfacemap[qface0]=fid;
+            lh[fid] = mmgMesh->ne+i-1;
+            fid++;
+        }
+        else
+        {
+            rh[qfacemap[qface0]]  = mmgMesh->ne+i-1;
+            qfaces.erase(qface0);
+            qfacemap.erase(qface0);
+        }
+
+        
+        
+        
+        qface1.insert(mmgMesh->prism[i].v[1]);
+        qface1.insert(mmgMesh->prism[i].v[4]);
+        qface1.insert(mmgMesh->prism[i].v[5]);
+        qface1.insert(mmgMesh->prism[i].v[2]);
+        if( qfaces.count(qface1) != 1)
+        {
+            qfaces.insert(qface1);
+            qfacemap[qface1]=fid;
+            lh[fid] = mmgMesh->ne+i-1;
+            fid++;
+        }
+        else
+        {
+            rh[qfacemap[qface1]]  = mmgMesh->ne+i-1;
+            qfaces.erase(qface1);
+            qfacemap.erase(qface1);
+        }
+        
+        qface2.insert(mmgMesh->prism[i].v[0]);//1
+        qface2.insert(mmgMesh->prism[i].v[2]);//2
+        qface2.insert(mmgMesh->prism[i].v[5]);//5
+        qface2.insert(mmgMesh->prism[i].v[3]);//4
+        // local face2vert_map for a prism in mmg {0,1,2,0},{3,5,4,3},{1,4,5,2},{0,2,5,3},{0,3,4,1} };
+
+        if( qfaces.count(qface2) != 1)
+        {
+            qfaces.insert(qface2);
+            qfacemap[qface2]=fid;
+            lh[fid] = mmgMesh->ne+i-1;
+            fid++;
+        }
+        else
+        {
+            rh[qfacemap[qface2]] = mmgMesh->ne+i-1;
+            qfaces.erase(qface2);
+            qfacemap.erase(qface2);
+        }
+        
+        face0.clear();
+        face1.clear();
+        qface0.clear();
+        qface1.clear();
+        qface2.clear();
+         
+    }
+    
+    //====================================================================================
+    //====================================================================================
+    dimsf[0] = adapt_iet->getNrow();
+    dimsf[1] = adapt_iet->getNcol();
+    filespace = H5Screate_simple(2, dimsf, NULL);
+
+    dset_id = H5Dcreate(file_id, "iet", H5T_NATIVE_INT, filespace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    H5Sclose(filespace);
+    count[0] = dimsf[0];
+    count[1] = dimsf[1];
+    offset[0] = 0;
+    offset[1] = 0;
+    memspace = H5Screate_simple(2, count, NULL);
+
+    filespace = H5Dget_space(dset_id);
+    H5Sselect_hyperslab(filespace, H5S_SELECT_SET, offset, NULL, count, NULL);
+
     status = H5Dwrite(dset_id, H5T_NATIVE_INT, memspace, filespace, plist_id, adapt_iet->data);
     delete adapt_iet;
+    //====================================================================================
+    //====================================================================================
+
+    std::cout << "AND WE ARE DONE COUNTING " << std::endl;
+    
+    int ftot = 0;
+    std::map<int,int> new2old;
+//
+    std::map<int,int>::iterator itm;
+    int it;
+    for(itm=lh.begin();itm!=lh.end();itm++)
+    {
+        it = itm->first;
+        if(rh.find(it)!=rh.end())
+        {
+            new2old[it] = ftot;
+            ftot++;
+        }
+    }
+    
+    std::cout << "AND WE ARE DONE DETERMINING THE ORDER" << std::endl;
+    std::cout << "Starting creating massive array" << std::endl;
+
+    Array<int>* adapt_ifn = new Array<int>(fid,8);
+    std::cout << "Finished creating massive array" << std::endl;
+
+    faces.clear();
+    qfaces.clear();
+    facemap.clear();
+    qfacemap.clear();
+    
+    fid = 0;
+    int idx = 0;
+    std::map<std::set<int>,int> bctFace2lh;
+    std::map<std::set<int>,int> bcqFace2lh;
+
+    for(int i=1;i<=mmgMesh->ne;i++)
+    {
+        //adapt_iet->setVal(i-1,0,2); // Element type = 2 since we are dealing with tetrahedra.
+        
+        face0.insert(mmgMesh->tetra[i].v[1]);
+        face0.insert(mmgMesh->tetra[i].v[2]);
+        face0.insert(mmgMesh->tetra[i].v[3]);
+        if(faces.count(face0) != 1 )
+        {
+            faces.insert(face0);
+                    
+            if(bfaces.find(face0)!=bfaces.end())
+            {
+                int refe = btfaces_Ref[face0];
+                std::vector<int> bctria(3);
+                bctria[0] = mmgMesh->tetra[i].v[1];
+                bctria[1] = mmgMesh->tetra[i].v[2];
+                bctria[2] = mmgMesh->tetra[i].v[3];
+                bctrias[refe].push_back(bctria);
+                bctFace2lh[face0]=lh[fid];
+                bf++;
+            }
+            else
+            {
+                idx = new2old[fid];
+                adapt_ifn->setVal(idx,0,3);
+                adapt_ifn->setVal(idx,1,mmgMesh->tetra[i].v[1]);
+                adapt_ifn->setVal(idx,2,mmgMesh->tetra[i].v[2]);
+                adapt_ifn->setVal(idx,3,mmgMesh->tetra[i].v[3]);
+                adapt_ifn->setVal(idx,4,0);
+                adapt_ifn->setVal(idx,5,rh[fid]+1);
+                adapt_ifn->setVal(idx,6,lh[fid]+1);
+                adapt_ifn->setVal(idx,7,2);
+                //idx++;
+            }
+            
+            fid++;
+        }
+        else
+        {
+            faces.erase(face0);
+        }
+        
+        
+        
+        
+        face1.insert(mmgMesh->tetra[i].v[0]);
+        face1.insert(mmgMesh->tetra[i].v[2]);
+        face1.insert(mmgMesh->tetra[i].v[3]);
+        if(faces.count(face1) != 1)
+        {
+            faces.insert(face1);
+            if(bfaces.find(face1)!=bfaces.end())
+            {
+                int refe = btfaces_Ref[face1];
+                std::vector<int> bctria(3);
+                bctria[0] = mmgMesh->tetra[i].v[0];
+                bctria[1] = mmgMesh->tetra[i].v[3];
+                bctria[2] = mmgMesh->tetra[i].v[2];
+                bctrias[refe].push_back(bctria);
+                bctFace2lh[face1]=lh[fid];
+                bf++;
+            }
+            else
+            {
+                idx = new2old[fid];
+                adapt_ifn->setVal(idx,0,3);
+                adapt_ifn->setVal(idx,1,mmgMesh->tetra[i].v[0]);
+                adapt_ifn->setVal(idx,2,mmgMesh->tetra[i].v[3]);
+                adapt_ifn->setVal(idx,3,mmgMesh->tetra[i].v[2]);
+                adapt_ifn->setVal(idx,4,0);
+                adapt_ifn->setVal(idx,5,rh[fid]+1);
+                adapt_ifn->setVal(idx,6,lh[fid]+1);
+                adapt_ifn->setVal(idx,7,2);
+                //idx++;
+            }
+            
+            fid++;
+        }
+        else
+        {
+            faces.erase(face1);
+        }
+        
+        
+        
+        
+        
+        face2.insert(mmgMesh->tetra[i].v[0]);
+        face2.insert(mmgMesh->tetra[i].v[3]);
+        face2.insert(mmgMesh->tetra[i].v[1]);
+        if( faces.count(face2) != 1)
+        {
+            faces.insert(face2);
+        
+            if(bfaces.find(face2)!=bfaces.end())
+            {
+                int refe = btfaces_Ref[face2];
+                std::vector<int> bctria(3);
+                bctria[0] = mmgMesh->tetra[i].v[0];
+                bctria[1] = mmgMesh->tetra[i].v[1];
+                bctria[2] = mmgMesh->tetra[i].v[3];
+                bctrias[refe].push_back(bctria);
+                bctFace2lh[face2]=lh[fid];
+
+                bf++;
+            }
+            else
+            {
+                idx = new2old[fid];
+                adapt_ifn->setVal(idx,0,3);
+                adapt_ifn->setVal(idx,1,mmgMesh->tetra[i].v[0]);
+                adapt_ifn->setVal(idx,2,mmgMesh->tetra[i].v[1]);
+                adapt_ifn->setVal(idx,3,mmgMesh->tetra[i].v[3]);
+                adapt_ifn->setVal(idx,4,0);
+                adapt_ifn->setVal(idx,5,rh[fid]+1);
+                adapt_ifn->setVal(idx,6,lh[fid]+1);
+                adapt_ifn->setVal(idx,7,2);
+                //idx++;
+            }
+            
+            fid++;
+        }
+        else
+        {
+            faces.erase(face2);
+        }
+        
+        
+        
+        
+        
+
+        face3.insert(mmgMesh->tetra[i].v[0]);
+        face3.insert(mmgMesh->tetra[i].v[2]);
+        face3.insert(mmgMesh->tetra[i].v[1]);
+        
+        if( faces.count(face3) != 1)
+        {
+            faces.insert(face3);
+            
+            if(bfaces.find(face3)!=bfaces.end())
+            {
+                int refe = btfaces_Ref[face3];
+                std::vector<int> bctria(3);
+                bctria[0] = mmgMesh->tetra[i].v[0];
+                bctria[1] = mmgMesh->tetra[i].v[2];
+                bctria[2] = mmgMesh->tetra[i].v[1];
+                bctrias[refe].push_back(bctria);
+                bctFace2lh[face3]=lh[fid];
+
+                bf++;
+            }
+            else
+            {
+                idx = new2old[fid];
+                adapt_ifn->setVal(idx,0,3);
+                adapt_ifn->setVal(idx,1,mmgMesh->tetra[i].v[0]);
+                adapt_ifn->setVal(idx,2,mmgMesh->tetra[i].v[2]);
+                adapt_ifn->setVal(idx,3,mmgMesh->tetra[i].v[1]);
+                adapt_ifn->setVal(idx,4,0);
+                adapt_ifn->setVal(idx,5,rh[fid]+1);
+                adapt_ifn->setVal(idx,6,lh[fid]+1);
+                adapt_ifn->setVal(idx,7,2);
+                //idx++;
+            }
+            fid++;
+        }
+        else
+        {
+            faces.erase(face3);
+        }
+    
+        face0.clear();
+        face1.clear();
+        face2.clear();
+        face3.clear();
+        
+    }
+    
+    
+    // local face2vert_map for a prism in mmg {0,1,2,0},{3,5,4,3},{1,4,5,2},{0,2,5,3},{0,3,4,1} };
+    for(int i=1;i<=mmgMesh->nprism;i++)
+    {
+        //adapt_iet->setVal(mmgMesh->ne+i-1,0,6); // Element type = 6 since we are dealing with prisms.
+  
+        face0.insert(mmgMesh->prism[i].v[0]);
+        face0.insert(mmgMesh->prism[i].v[2]);
+        face0.insert(mmgMesh->prism[i].v[1]);
+        // local face2vert_map for a prism in mmg {0,1,2,0},{3,5,4,3},{1,4,5,2},{0,2,5,3},{0,3,4,1} };
+        if(faces.count(face0) != 1 )
+        {
+            faces.insert(face0);
+            facemap[face0]=fid;
+            
+            if(bfaces.find(face0)!=bfaces.end())
+            {
+                int refe = btfaces_Ref[face0];
+                std::vector<int> bctria(3);
+                bctria[0] = mmgMesh->prism[i].v[0];
+                bctria[1] = mmgMesh->prism[i].v[1];
+                bctria[2] = mmgMesh->prism[i].v[2];
+                bctrias[refe].push_back(bctria);
+                bctFace2lh[face0]=lh[fid];
+                bf++;
+            }
+            else
+            {
+                idx = new2old[fid];
+                adapt_ifn->setVal(idx,0,3);
+                adapt_ifn->setVal(idx,1,mmgMesh->prism[i].v[0]);
+                adapt_ifn->setVal(idx,2,mmgMesh->prism[i].v[1]);
+                adapt_ifn->setVal(idx,3,mmgMesh->prism[i].v[2]);
+                adapt_ifn->setVal(idx,4,0);
+                adapt_ifn->setVal(idx,5,rh[fid]+1);
+                adapt_ifn->setVal(idx,6,lh[fid]+1);
+                adapt_ifn->setVal(idx,7,2);
+                //idx++;
+            }
+            
+            fid++;
+            
+        }
+        else
+        {
+            faces.erase(face0);
+        }
+        
+        
+        
+        
+        
+        face1.insert(mmgMesh->prism[i].v[3]);
+        face1.insert(mmgMesh->prism[i].v[4]);
+        face1.insert(mmgMesh->prism[i].v[5]);
+        if(faces.count(face1) != 1)
+        {
+            faces.insert(face1);
+            
+            facemap[face1]=fid;
+            if(bfaces.find(face1)!=bfaces.end())
+            {
+                int refe = btfaces_Ref[face1];
+                std::vector<int> bctria(3);
+                bctria[0] = mmgMesh->prism[i].v[3];
+                bctria[1] = mmgMesh->prism[i].v[5];
+                bctria[2] = mmgMesh->prism[i].v[4];
+                bctrias[refe].push_back(bctria);
+                bctFace2lh[face1]=lh[fid];
+                bf++;
+            }
+            else
+            {
+                idx = new2old[fid];
+                adapt_ifn->setVal(idx,0,3);
+                adapt_ifn->setVal(idx,1,mmgMesh->prism[i].v[3]);
+                adapt_ifn->setVal(idx,2,mmgMesh->prism[i].v[5]);
+                adapt_ifn->setVal(idx,3,mmgMesh->prism[i].v[4]);
+                adapt_ifn->setVal(idx,4,0);
+                adapt_ifn->setVal(idx,5,rh[fid]+1);
+                adapt_ifn->setVal(idx,6,lh[fid]+1);
+                adapt_ifn->setVal(idx,7,2);
+                //idx++;
+            }
+            fid++;
+        }
+        else
+        {
+            faces.erase(face1);
+        }
+        
+        
+        
+        
+        
+        // Quad faces //
+        qface0.insert(mmgMesh->prism[i].v[0]);
+        qface0.insert(mmgMesh->prism[i].v[3]);
+        qface0.insert(mmgMesh->prism[i].v[4]);
+        qface0.insert(mmgMesh->prism[i].v[1]);
+        // local face2vert_map for a prism in mmg {0,1,2,0},{3,5,4,3},{1,4,5,2},{0,2,5,3},{0,3,4,1} };
+        if( qfaces.count(qface0) != 1)
+        {
+            qfaces.insert(qface0);
+            
+            if(bqfaces.find(qface0)!=bqfaces.end())
+            {
+                int refe = bqfaces_Ref[qface0];
+                std::vector<int> bcquad(4);
+                bcquad[0] = mmgMesh->prism[i].v[0];
+                bcquad[1] = mmgMesh->prism[i].v[3];
+                bcquad[2] = mmgMesh->prism[i].v[4];
+                bcquad[3] = mmgMesh->prism[i].v[1];
+                bcquads[refe].push_back(bcquad);
+                bcqFace2lh[qface0]=lh[fid];
+                bq++;
+            }
+            else
+            {
+                idx = new2old[fid];
+                adapt_ifn->setVal(idx,0,4);
+                adapt_ifn->setVal(idx,1,mmgMesh->prism[i].v[0]);
+                adapt_ifn->setVal(idx,2,mmgMesh->prism[i].v[3]);
+                adapt_ifn->setVal(idx,3,mmgMesh->prism[i].v[4]);
+                adapt_ifn->setVal(idx,4,mmgMesh->prism[i].v[1]);
+                adapt_ifn->setVal(idx,5,rh[fid]+1);
+                adapt_ifn->setVal(idx,6,lh[fid]+1);
+                adapt_ifn->setVal(idx,7,2);
+                //idx++;
+            }
+            
+            fid++;
+            
+        }
+        else
+        {
+            qfaces.erase(qface0);
+        }
+
+        
+        
+        
+        qface1.insert(mmgMesh->prism[i].v[1]);
+        qface1.insert(mmgMesh->prism[i].v[4]);
+        qface1.insert(mmgMesh->prism[i].v[5]);
+        qface1.insert(mmgMesh->prism[i].v[2]);
+        // local face2vert_map for a prism in mmg {0,1,2,0},{3,5,4,3},{1,4,5,2},{0,2,5,3},{0,3,4,1} };
+
+        if( qfaces.count(qface1) != 1)
+        {
+            qfaces.insert(qface1);
+            
+            if(bqfaces.find(qface1)!=bqfaces.end())
+            {
+                int refe = bqfaces_Ref[qface1];
+                std::vector<int> bcquad(4);
+                bcquad[0] = mmgMesh->prism[i].v[1];
+                bcquad[1] = mmgMesh->prism[i].v[4];
+                bcquad[2] = mmgMesh->prism[i].v[5];
+                bcquad[3] = mmgMesh->prism[i].v[2];
+                bcquads[refe].push_back(bcquad);
+                bcqFace2lh[qface1]=lh[fid];
+                bq++;
+            }
+            else
+            {
+                idx = new2old[fid];
+                adapt_ifn->setVal(idx,0,4);
+                adapt_ifn->setVal(idx,1,mmgMesh->prism[i].v[1]);
+                adapt_ifn->setVal(idx,2,mmgMesh->prism[i].v[4]);
+                adapt_ifn->setVal(idx,3,mmgMesh->prism[i].v[5]);
+                adapt_ifn->setVal(idx,4,mmgMesh->prism[i].v[2]);
+                adapt_ifn->setVal(idx,5,rh[fid]+1);
+                adapt_ifn->setVal(idx,6,lh[fid]+1);
+                adapt_ifn->setVal(idx,7,2);
+                //idx++;
+            }
+           
+            fid++;
+           
+        }
+        else
+        {
+            qfaces.erase(qface1);
+        }
+        
+        qface2.insert(mmgMesh->prism[i].v[0]);//1
+        qface2.insert(mmgMesh->prism[i].v[2]);//2
+        qface2.insert(mmgMesh->prism[i].v[5]);//5
+        qface2.insert(mmgMesh->prism[i].v[3]);//4
+        // local face2vert_map for a prism in mmg {0,1,2,0},{3,5,4,3},{1,4,5,2},{0,2,5,3},{0,3,4,1} };
+
+        if( qfaces.count(qface2) != 1)
+        {
+            qfaces.insert(qface2);
+            qfacemap[qface2]=fid;
+            if(bqfaces.find(qface2)!=bqfaces.end())
+            {
+                int refe = bqfaces_Ref[qface2];
+                std::vector<int> bcquad(4);
+                bcquad[0] = mmgMesh->prism[i].v[0];
+                bcquad[1] = mmgMesh->prism[i].v[2];
+                bcquad[2] = mmgMesh->prism[i].v[5];
+                bcquad[3] = mmgMesh->prism[i].v[3];
+                bcquads[refe].push_back(bcquad);
+                bcqFace2lh[qface2]=lh[fid];
+                bq++;
+            }
+            else
+            {
+                idx = new2old[fid];
+                adapt_ifn->setVal(idx,0,4);
+                adapt_ifn->setVal(idx,1,mmgMesh->prism[i].v[0]);
+                adapt_ifn->setVal(idx,2,mmgMesh->prism[i].v[2]);
+                adapt_ifn->setVal(idx,3,mmgMesh->prism[i].v[5]);
+                adapt_ifn->setVal(idx,4,mmgMesh->prism[i].v[3]);
+                adapt_ifn->setVal(idx,5,rh[fid]+1);
+                adapt_ifn->setVal(idx,6,lh[fid]+1);
+                adapt_ifn->setVal(idx,7,2);
+                //idx++;
+            }
+            fid++;
+        }
+        else
+        {
+            qfaces.erase(qface2);
+        }
+        
+        face0.clear();
+        face1.clear();
+        qface0.clear();
+        qface1.clear();
+        qface2.clear();
+         
+    }
+    
+    
+    
+    faces.clear();
+    qfaces.clear();
+    
+    
+    
+    //====================================================================================
+    //====================================================================================
+    //MMG3D_Free_allSols(mmgMesh,&mmgSol);
+    MMG3D_Free_all(MMG5_ARG_start,
+                   MMG5_ARG_ppMesh,&mmgMesh,MMG5_ARG_ppSols,&mmgSol,
+                   MMG5_ARG_end);
+    //====================================================================================
+    //====================================================================================
+    
+    
+    
+    int bc_id = 0;
+    int gaa   = 0;
+    int typef3 = 0;
+    int typef4 = 0;
+    
+    std::cout << "-- Adding the interior faces to the new ifn array... face2node.size() -> " << face2node.size() << " " << lh.size() << " " << rh.size() <<std::endl;
+    int ty=0;
+    
+
+    std::map<int,std::vector<int> >::iterator it_bref;
+    int faceid;
+    std::set<int> iface;
+    int nbound = 0;
+    int fa=0;
+    std::cout << "-- Adding the boundary faces to the new ifn array..."<<std::endl;
+    std::map<int,std::vector<std::vector<int> > >::iterator iterbc;
+    int t = ftot;
+    int lhi;
+    for(iterbc=bctrias.begin();iterbc!=bctrias.end();iterbc++)
+    {
+        int bnd_id     = iterbc->first;
+        int Ntris      = iterbc->second.size();
+        int Nquads     = bcquads[bnd_id].size();
+        std::cout << "bnd ref test = " << bnd_id << " " << Ntris << " " << Nquads << std::endl;
+    }
+    
+    for(iterbc=bctrias.begin();iterbc!=bctrias.end();iterbc++)
+    {
+        int bnd_id     = iterbc->first;
+        int Ntris      = iterbc->second.size();
+        int Nquads     = bcquads[bnd_id].size();
+                
+        for(int q=0;q<Ntris;q++)
+        {
+            //faceid = ref2bface[bnd_id][q];
+            adapt_ifn->setVal(t,0,3);
+            adapt_ifn->setVal(t,1,iterbc->second[q][0]);
+            adapt_ifn->setVal(t,2,iterbc->second[q][1]);
+            adapt_ifn->setVal(t,3,iterbc->second[q][2]);
+            adapt_ifn->setVal(t,4,0);
+            iface.insert(iterbc->second[q][0]);
+            iface.insert(iterbc->second[q][1]);
+            iface.insert(iterbc->second[q][2]);
+            lhi = bctFace2lh[iface];
+            adapt_ifn->setVal(t,5,0);
+            adapt_ifn->setVal(t,6,lhi+1);
+            adapt_ifn->setVal(t,7,bnd_id);
+            iface.clear();
+            t++;
+        }
+        for(int q=0;q<Nquads;q++)
+        {
+            //faceid = ref2bqface[bnd_id][q];
+            adapt_ifn->setVal(t,0,4);
+            adapt_ifn->setVal(t,1,bcquads[bnd_id][q][0]);
+            adapt_ifn->setVal(t,2,bcquads[bnd_id][q][1]);
+            adapt_ifn->setVal(t,3,bcquads[bnd_id][q][2]);
+            adapt_ifn->setVal(t,4,bcquads[bnd_id][q][3]);
+            iface.insert(bcquads[bnd_id][q][0]);
+            iface.insert(bcquads[bnd_id][q][1]);
+            iface.insert(bcquads[bnd_id][q][2]);
+            iface.insert(bcquads[bnd_id][q][3]);
+            lhi = bcqFace2lh[iface];
+            adapt_ifn->setVal(t,5,0);
+            adapt_ifn->setVal(t,6,lhi+1);
+            adapt_ifn->setVal(t,7,bnd_id);
+            iface.clear();
+            t++;
+        }
+    }
+    
+    
+    
+    int nbo = bcrefs.size();
+    std::cout << "-- Constructing the zdefs array..."<<std::endl;
+    Array<int>* adapt_zdefs = new Array<int>(3+nbo,7);
+    std::cout << "faces.size()+qfaces.size()-bfaces.size()-bqfaces.size() " << faces.size() << " " << qfaces.size() << " " << bfaces.size() << " " << bqfaces.size() << std::endl;
+    // Collect node data (10) . Starting index-ending index Nodes
+    adapt_zdefs->setVal(0,0,10);
+    adapt_zdefs->setVal(0,1,-1);
+    adapt_zdefs->setVal(0,2,1);
+    adapt_zdefs->setVal(0,3,1);
+    adapt_zdefs->setVal(0,4,nVerts);
+    adapt_zdefs->setVal(0,5,us3d->zdefs->getVal(0,5));
+    adapt_zdefs->setVal(0,6,us3d->zdefs->getVal(0,6));
+    // Collect element data (12) . Starting index-ending index Element
+    adapt_zdefs->setVal(1,0,12);
+    adapt_zdefs->setVal(1,1,-1);
+    adapt_zdefs->setVal(1,2,2);
+    adapt_zdefs->setVal(1,3,1);
+    adapt_zdefs->setVal(1,4,nTet+nPrism);
+    adapt_zdefs->setVal(1,5,us3d->zdefs->getVal(1,5));
+    adapt_zdefs->setVal(1,6,2);
+    // Collect internal face data (13) . Starting index-ending index internal face.
+    adapt_zdefs->setVal(2,0,13);
+    adapt_zdefs->setVal(2,1,-1);
+    adapt_zdefs->setVal(2,2, 3);
+    adapt_zdefs->setVal(2,3, 1);
+    adapt_zdefs->setVal(2,4,lh.size()-bfaces.size()-bqfaces.size());
+    adapt_zdefs->setVal(2,5,us3d->zdefs->getVal(2,5));
+    adapt_zdefs->setVal(2,6,2);
+    // Collect boundary face data (13) . Starting index-ending index boundary face for each boundary ID.
+    int q  = 1;
+    int nb = 0;
+    int face_start = lh.size()-bfaces.size()-bqfaces.size()+1;
+    int face_end;
+    std::set<int>::iterator itr;
+    for(itr=bcrefs.begin();itr!=bcrefs.end();itr++)
+    {
+        int bnd_ref = *itr;
+        face_end = face_start+bnd_Ntri[bnd_ref]+bnd_Nquad[bnd_ref]-1;
+        adapt_zdefs->setVal(3+nb,0,13);
+        adapt_zdefs->setVal(3+nb,1,-1);
+        adapt_zdefs->setVal(3+nb,2,3+q);
+        adapt_zdefs->setVal(3+nb,3,face_start);
+        adapt_zdefs->setVal(3+nb,4,face_end);
+        adapt_zdefs->setVal(3+nb,5,bnd_ref);
+        adapt_zdefs->setVal(3+nb,6,2);
+        //std::cout << "us3d->zdefs->getVal(3+nb,5) " << us3d->zdefs->getVal(3+nb,5) << std::endl;
+        face_start = face_end+1;
+        //std::cout << "nb  = " << nb << " " << ref2bface.size() << " " << ref2bqface.size() << std::endl;
+        nb++;
+        q++;
+    }
+    
+    //std::cout << "elements = " << " prisms->" << mmgMesh->nprism << " tetrahedra->" << mmgMesh->ne << std::endl;
+    std::cout << "lh vs rh = " << " " << lh.size() << " " << rh.size() << std::endl;
+    //std::cout << "-- sizingf -> " << lh.size() << " " << rh.size() << " " << t << " " << ty <<std::endl;
+
+    
     
     //====================================================================================
     // Add ifn map to the grid.h5 file
@@ -811,11 +1087,11 @@ void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh, US3D* us3d)
     dimsf_att = 1;
     att_space = H5Screate_simple(1, &dimsf_att, NULL);
     attr_id   = H5Acreate (group_grid_id, "nc", H5T_STD_I32BE, att_space, H5P_DEFAULT, H5P_DEFAULT);
-    int value = mmgMesh->ne+mmgMesh->nprism;
+    int value = nTet+nPrism;
     status = H5Awrite(attr_id, H5T_NATIVE_INT, &value);
     H5Aclose(attr_id);
     attr_id   = H5Acreate (group_grid_id, "nf", H5T_STD_I32BE, att_space, H5P_DEFAULT, H5P_DEFAULT);
-    value = faces.size()+qfaces.size();
+    value = lh.size();
     status = H5Awrite(attr_id, H5T_NATIVE_INT, &value);
     H5Aclose(attr_id);
     attr_id   = H5Acreate (group_grid_id, "ng", H5T_STD_I32BE, att_space, H5P_DEFAULT, H5P_DEFAULT);
@@ -823,32 +1099,9 @@ void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh, US3D* us3d)
     status = H5Awrite(attr_id, H5T_NATIVE_INT, &value);
     H5Aclose(attr_id);
     attr_id   = H5Acreate (group_grid_id, "nn", H5T_STD_I32BE, att_space, H5P_DEFAULT, H5P_DEFAULT);
-    value = mmgMesh->np;
+    value = nVerts;
     status = H5Awrite(attr_id, H5T_NATIVE_INT, &value);
     H5Aclose(attr_id);
-    
-    
-    
-    //====================================================================================
-    // Add xcn map to the grid.h5 file
-    //====================================================================================
-    
-    dimsf[0] = xcn_mmg->getNrow();
-    dimsf[1] = xcn_mmg->getNcol();
-    filespace = H5Screate_simple(2, dimsf, NULL);
-
-    dset_id = H5Dcreate(file_id, "xcn", H5T_NATIVE_DOUBLE, filespace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-    H5Sclose(filespace);
-    count[0] = dimsf[0];
-    count[1] = dimsf[1];
-    offset[0] = 0;
-    offset[1] = 0;
-    memspace = H5Screate_simple(2, count, NULL);
-
-    filespace = H5Dget_space(dset_id);
-    H5Sselect_hyperslab(filespace, H5S_SELECT_SET, offset, NULL, count, NULL);
-
-    status = H5Dwrite(dset_id, H5T_NATIVE_DOUBLE, memspace, filespace, plist_id, xcn_mmg->data);
     
     
     
@@ -1092,11 +1345,13 @@ void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh,MMG5_pSol mmgSol, US3D* us3d)
     std::map<std::set<int>, int>  facemap;
     std::set<std::set<int> > faces;
     std::set<std::set<int> > qfaces;
-    std::map<int,std::vector<int> > face2node;
     std::set<int> face0;
     std::set<int> face1;
     std::set<int> face2;
     std::set<int> face3;
+    std::set<int> qface0;
+    std::set<int> qface1;
+    std::set<int> qface2;
     int fid = 0;
     int vid0,vid1,vid2,vid3;
     std::map<int,int> lh;
@@ -1125,28 +1380,14 @@ void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh,MMG5_pSol mmgSol, US3D* us3d)
         {
             faces.insert(face0);
             facemap[face0]=fid;
-            face2node[fid].push_back(mmgMesh->tetra[i].v[1]);//2
-            face2node[fid].push_back(mmgMesh->tetra[i].v[2]);//3
-            face2node[fid].push_back(mmgMesh->tetra[i].v[3]);//4
-            if(bfaces.find(face0)!=bfaces.end())
-            {
-                int refe = btfaces_Ref[face0];
-                std::vector<int> bctria(3);
-                bctria[0] = mmgMesh->tetra[i].v[1];
-                bctria[1] = mmgMesh->tetra[i].v[2];
-                bctria[2] = mmgMesh->tetra[i].v[3];
-                
-                bctrias[refe].push_back(bctria);
-                bf++;
-            }
             lh[fid] = i-1;
-            Nlh[fid] = 3;
             fid++;
         }
         else
         {
             rh[facemap[face0]] = i-1;
-            Nrh[facemap[face0]] = 3;
+            faces.erase(face0);
+            facemap.erase(face0);
         }
         
         face1.insert(mmgMesh->tetra[i].v[0]);
@@ -1156,30 +1397,15 @@ void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh,MMG5_pSol mmgSol, US3D* us3d)
         if(faces.count(face1) != 1)
         {
             faces.insert(face1);
-            
             facemap[face1]=fid;
-            face2node[fid].push_back(mmgMesh->tetra[i].v[0]);//1
-            face2node[fid].push_back(mmgMesh->tetra[i].v[3]);//3
-            face2node[fid].push_back(mmgMesh->tetra[i].v[2]);//4
-            if(bfaces.find(face1)!=bfaces.end())
-            {
-                int refe = btfaces_Ref[face1];
-                std::vector<int> bctria(3);
-                bctria[0] = mmgMesh->tetra[i].v[0];
-                bctria[1] = mmgMesh->tetra[i].v[3];
-                bctria[2] = mmgMesh->tetra[i].v[2];
-                
-                bctrias[refe].push_back(bctria);
-                bf++;
-            }
             lh[fid] = i-1;
-            Nlh[fid] = 3;
             fid++;
         }
         else
         {
             rh[facemap[face1]] = i-1;
-            Nrh[facemap[face2]] = 3;
+            faces.erase(face1);
+            facemap.erase(face1);
         }
         
         face2.insert(mmgMesh->tetra[i].v[0]);
@@ -1192,32 +1418,15 @@ void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh,MMG5_pSol mmgSol, US3D* us3d)
         if( faces.count(face2) != 1)
         {
             faces.insert(face2);
-            
             facemap[face2]=fid;
-            face2node[fid].push_back(mmgMesh->tetra[i].v[0]);//1
-            face2node[fid].push_back(mmgMesh->tetra[i].v[1]);//2
-            face2node[fid].push_back(mmgMesh->tetra[i].v[3]);//4
-            
-            if(bfaces.find(face2)!=bfaces.end())
-            {
-                int refe = btfaces_Ref[face2];
-                std::vector<int> bctria(3);
-                bctria[0] = mmgMesh->tetra[i].v[0];
-                bctria[1] = mmgMesh->tetra[i].v[1];
-                bctria[2] = mmgMesh->tetra[i].v[3];
-                
-                bctrias[refe].push_back(bctria);
-                bf++;
-            }
-                        
             lh[fid] = i-1;
-            Nlh[fid] = 3;
             fid++;
         }
         else
         {
             rh[facemap[face2]] = i-1;
-            Nrh[facemap[face2]] = 3;
+            faces.erase(face2);
+            facemap.erase(face2);
         }
 
         face3.insert(mmgMesh->tetra[i].v[0]);
@@ -1228,32 +1437,15 @@ void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh,MMG5_pSol mmgSol, US3D* us3d)
         if( faces.count(face3) != 1)
         {
             faces.insert(face3);
-            
             facemap[face3]=fid;
-            face2node[fid].push_back(mmgMesh->tetra[i].v[0]);//1
-            face2node[fid].push_back(mmgMesh->tetra[i].v[2]);//3
-            face2node[fid].push_back(mmgMesh->tetra[i].v[1]);//2
-            
-            if(bfaces.find(face3)!=bfaces.end())
-            {
-                int refe = btfaces_Ref[face3];
-                std::vector<int> bctria(3);
-                bctria[0] = mmgMesh->tetra[i].v[0];
-                bctria[1] = mmgMesh->tetra[i].v[2];
-                bctria[2] = mmgMesh->tetra[i].v[1];
-                
-                bctrias[refe].push_back(bctria);
-                bf++;
-            }
-
             lh[fid] = i-1;
-            Nlh[fid] = 3;
             fid++;
         }
         else
         {
             rh[facemap[face3]] = i-1;
-            Nrh[facemap[face3]] = 3;
+            faces.erase(face3);
+            facemap.erase(face3);
         }
     
         face0.clear();
@@ -1264,13 +1456,9 @@ void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh,MMG5_pSol mmgSol, US3D* us3d)
     }
     
     
-    std::set<int> qface0;
-    std::set<int> qface1;
-    std::set<int> qface2;
+
     // local face2vert_map for a prism in mmg {0,1,2,0},{3,5,4,3},{1,4,5,2},{0,2,5,3},{0,3,4,1} };
-    int qfid  = 0;
-    int fnew  = 0;
-    int fiold = 0;
+
 
     for(int i=1;i<=mmgMesh->nprism;i++)
     {
@@ -1286,32 +1474,15 @@ void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh,MMG5_pSol mmgSol, US3D* us3d)
         if(faces.count(face0) != 1 )
         {
             faces.insert(face0);
-            
             facemap[face0]=fid;
-            face2node[fid].push_back(mmgMesh->prism[i].v[0]);//1
-            face2node[fid].push_back(mmgMesh->prism[i].v[1]);//3
-            face2node[fid].push_back(mmgMesh->prism[i].v[2]);//2
-            if(bfaces.find(face0)!=bfaces.end())
-            {
-                int refe = btfaces_Ref[face0];
-                std::vector<int> bctria(3);
-                bctria[0] = mmgMesh->prism[i].v[0];
-                bctria[1] = mmgMesh->prism[i].v[1];
-                bctria[2] = mmgMesh->prism[i].v[2];
-                bctrias[refe].push_back(bctria);
-                bf++;
-            }
-            
             lh[fid] = mmgMesh->ne+i-1;
-            Nlh[fid] = 3;
             fid++;
-            fnew++;
-
         }
         else
         {
             rh[facemap[face0]] = mmgMesh->ne+i-1;
-            Nrh[facemap[face0]] = 3;
+            faces.erase(face0);
+            facemap.erase(face0);
         }
         
         
@@ -1324,33 +1495,15 @@ void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh,MMG5_pSol mmgSol, US3D* us3d)
         if(faces.count(face1) != 1)
         {
             faces.insert(face1);
-            if(bfaces.find(face1)!=bfaces.end())
-            {
-                bf++;
-            }
             facemap[face1]=fid;
-            face2node[fid].push_back(mmgMesh->prism[i].v[3]);//4
-            face2node[fid].push_back(mmgMesh->prism[i].v[4]);//5
-            face2node[fid].push_back(mmgMesh->prism[i].v[5]);//6
-            if(bfaces.find(face1)!=bfaces.end())
-            {
-                int refe = btfaces_Ref[face1];
-                std::vector<int> bctria(3);
-                bctria[0] = mmgMesh->prism[i].v[3];
-                bctria[1] = mmgMesh->prism[i].v[5];
-                bctria[2] = mmgMesh->prism[i].v[4];
-                bctrias[refe].push_back(bctria);
-                bf++;
-            }
             lh[fid] = mmgMesh->ne+i-1;
-            Nlh[fid] = 3;
             fid++;
-            fnew++;
         }
         else
         {
             rh[facemap[face1]]  = mmgMesh->ne+i-1;
-            Nrh[facemap[face1]] = 3;
+            faces.erase(face1);
+            facemap.erase(face1);
         }
         
         // Quad faces //
@@ -1364,30 +1517,14 @@ void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh,MMG5_pSol mmgSol, US3D* us3d)
         {
             qfaces.insert(qface0);
             qfacemap[qface0]=fid;
-            face2node[fid].push_back(mmgMesh->prism[i].v[0]);//1
-            face2node[fid].push_back(mmgMesh->prism[i].v[2]);//4
-            face2node[fid].push_back(mmgMesh->prism[i].v[4]);//6
-            face2node[fid].push_back(mmgMesh->prism[i].v[3]);//3
-            if(bqfaces.find(qface0)!=bqfaces.end())
-            {
-                int refe = bqfaces_Ref[qface0];
-                std::vector<int> bcquad(4);
-                bcquad[0] = mmgMesh->prism[i].v[0];
-                bcquad[1] = mmgMesh->prism[i].v[2];
-                bcquad[2] = mmgMesh->prism[i].v[4];
-                bcquad[3] = mmgMesh->prism[i].v[3];
-                bcquads[refe].push_back(bcquad);
-                bq++;
-            }
             lh[fid] = mmgMesh->ne+i-1;
-            Nlh[fid] = 4;
             fid++;
-            qfid++;
         }
         else
         {
             rh[qfacemap[qface0]]  = mmgMesh->ne+i-1;
-            Nrh[qfacemap[qface0]] = 4;
+            qfaces.erase(qface0);
+            qfacemap.erase(qface0);
         }
 
         qface1.insert(mmgMesh->prism[i].v[1]);
@@ -1400,31 +1537,15 @@ void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh,MMG5_pSol mmgSol, US3D* us3d)
         {
             qfaces.insert(qface1);
             qfacemap[qface1]=fid;
-            face2node[fid].push_back(mmgMesh->prism[i].v[1]);//2
-            face2node[fid].push_back(mmgMesh->prism[i].v[5]);//3
-            face2node[fid].push_back(mmgMesh->prism[i].v[4]);//6
-            face2node[fid].push_back(mmgMesh->prism[i].v[2]);//5
-            if(bqfaces.find(qface1)!=bqfaces.end())
-            {
-                int refe = bqfaces_Ref[qface1];
-                std::vector<int> bcquad(4);
-                bcquad[0] = mmgMesh->prism[i].v[1];
-                bcquad[1] = mmgMesh->prism[i].v[5];
-                bcquad[2] = mmgMesh->prism[i].v[4];
-                bcquad[3] = mmgMesh->prism[i].v[2];
-                bcquads[refe].push_back(bcquad);
-                bq++;
-            }
             lh[fid] = mmgMesh->ne+i-1;
-            Nlh[fid] = 4;
             fid++;
-            qfid++;
         }
         else
         {
 
             rh[qfacemap[qface1]]  = mmgMesh->ne+i-1;
-            Nrh[qfacemap[qface1]] = 4;
+            qfaces.erase(qface1);
+            qfacemap.erase(qface1);
         }
         
         qface2.insert(mmgMesh->prism[i].v[0]);//1
@@ -1437,31 +1558,15 @@ void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh,MMG5_pSol mmgSol, US3D* us3d)
         {
             qfaces.insert(qface2);
             qfacemap[qface2]=fid;
-            face2node[fid].push_back(mmgMesh->prism[i].v[0]);//1
-            face2node[fid].push_back(mmgMesh->prism[i].v[3]);//2
-            face2node[fid].push_back(mmgMesh->prism[i].v[5]);//5
-            face2node[fid].push_back(mmgMesh->prism[i].v[1]);//4
-            if(bqfaces.find(qface2)!=bqfaces.end())
-            {
-                int refe = bqfaces_Ref[qface2];
-                std::vector<int> bcquad(4);
-                bcquad[0] = mmgMesh->prism[i].v[0];
-                bcquad[1] = mmgMesh->prism[i].v[3];
-                bcquad[2] = mmgMesh->prism[i].v[5];
-                bcquad[3] = mmgMesh->prism[i].v[1];
-                bcquads[refe].push_back(bcquad);
-                bq++;
-            }
             lh[fid] = mmgMesh->ne+i-1;
-            Nlh[fid] = 4;
             fid++;
-            qfid++;
         }
         else
         {
 
             rh[qfacemap[qface2]] = mmgMesh->ne+i-1;
-            Nlh[qfacemap[qface2]] = 4;
+            qfaces.erase(qface2);
+            qfacemap.erase(qface2);
         }
         
         face0.clear();
@@ -1471,6 +1576,7 @@ void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh,MMG5_pSol mmgSol, US3D* us3d)
         qface2.clear();
          
     }
+    
     //====================================================================================
     //====================================================================================
     dimsf[0] = adapt_iet->getNrow();
@@ -1492,62 +1598,476 @@ void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh,MMG5_pSol mmgSol, US3D* us3d)
     delete adapt_iet;
     //====================================================================================
     //====================================================================================
+
+    std::cout << "AND WE ARE DONE COUNTING " << std::endl;
+    
+    int ftot = 0;
+    std::map<int,int> new2old;
+//
+    std::map<int,int>::iterator itm;
+    int it;
+    for(itm=lh.begin();itm!=lh.end();itm++)
+    {
+        it = itm->first;
+        if(rh.find(it)!=rh.end())
+        {
+            new2old[it] = ftot;
+            ftot++;
+        }
+    }
+    
+    std::cout << "AND WE ARE DONE DETERMINING THE ORDER" << std::endl;
+    std::cout << "Starting creating massive array" << std::endl;
+
+    Array<int>* adapt_ifn = new Array<int>(fid,8);
+    std::cout << "Finished creating massive array" << std::endl;
+
+    faces.clear();
+    qfaces.clear();
+    facemap.clear();
+    qfacemap.clear();
+    
+    fid = 0;
+    int idx = 0;
+    std::map<std::set<int>,int> bctFace2lh;
+    std::map<std::set<int>,int> bcqFace2lh;
+     for(int i=1;i<=mmgMesh->ne;i++)
+     {
+         //adapt_iet->setVal(i-1,0,2); // Element type = 2 since we are dealing with tetrahedra.
+         
+         face0.insert(mmgMesh->tetra[i].v[1]);
+         face0.insert(mmgMesh->tetra[i].v[2]);
+         face0.insert(mmgMesh->tetra[i].v[3]);
+         
+         if(faces.count(face0) != 1 )
+         {
+             faces.insert(face0);
+             //facemap[face0]=fid;
+
+             if(bfaces.find(face0)!=bfaces.end())
+             {
+                 int refe = btfaces_Ref[face0];
+                 std::vector<int> bctria(3);
+                 bctria[0] = mmgMesh->tetra[i].v[1];
+                 bctria[1] = mmgMesh->tetra[i].v[2];
+                 bctria[2] = mmgMesh->tetra[i].v[3];
+                 bctrias[refe].push_back(bctria);
+                 bctFace2lh[face0]=lh[fid];
+                 bf++;
+             }
+             else
+             {
+                 idx = new2old[fid];
+                 adapt_ifn->setVal(idx,0,3);
+                 adapt_ifn->setVal(idx,1,mmgMesh->tetra[i].v[1]);
+                 adapt_ifn->setVal(idx,2,mmgMesh->tetra[i].v[2]);
+                 adapt_ifn->setVal(idx,3,mmgMesh->tetra[i].v[3]);
+                 adapt_ifn->setVal(idx,4,0);
+                 adapt_ifn->setVal(idx,5,rh[fid]+1);
+                 adapt_ifn->setVal(idx,6,lh[fid]+1);
+                 adapt_ifn->setVal(idx,7,2);
+                 //idx++;
+             }
+             fid++;
+         }
+         else
+         {
+             faces.erase(face0);
+         }
+         
+         face1.insert(mmgMesh->tetra[i].v[0]);
+         face1.insert(mmgMesh->tetra[i].v[2]);
+         face1.insert(mmgMesh->tetra[i].v[3]);
+         
+         if(faces.count(face1) != 1)
+         {
+             faces.insert(face1);
+             //facemap[face1]=fid;
+
+             if(bfaces.find(face1)!=bfaces.end())
+             {
+                 int refe = btfaces_Ref[face1];
+                 std::vector<int> bctria(3);
+                 bctria[0] = mmgMesh->tetra[i].v[0];
+                 bctria[1] = mmgMesh->tetra[i].v[3];
+                 bctria[2] = mmgMesh->tetra[i].v[2];
+                 bctrias[refe].push_back(bctria);
+                 bctFace2lh[face1]=lh[fid];
+                 bf++;
+             }
+             else
+             {
+                 idx = new2old[fid];
+                 adapt_ifn->setVal(idx,0,3);
+                 adapt_ifn->setVal(idx,1,mmgMesh->tetra[i].v[0]);
+                 adapt_ifn->setVal(idx,2,mmgMesh->tetra[i].v[3]);
+                 adapt_ifn->setVal(idx,3,mmgMesh->tetra[i].v[2]);
+                 adapt_ifn->setVal(idx,4,0);
+                 adapt_ifn->setVal(idx,5,rh[fid]+1);
+                 adapt_ifn->setVal(idx,6,lh[fid]+1);
+                 adapt_ifn->setVal(idx,7,2);
+                 //idx++;
+             }
+             
+             fid++;
+         }
+         else
+         {
+             faces.erase(face1);
+         }
+         
+         
+         face2.insert(mmgMesh->tetra[i].v[0]);
+         face2.insert(mmgMesh->tetra[i].v[3]);
+         face2.insert(mmgMesh->tetra[i].v[1]);
+         
+         
+         
+         
+         if( faces.count(face2) != 1)
+         {
+             faces.insert(face2);
+             //facemap[face2]=fid;
+
+             if(bfaces.find(face2)!=bfaces.end())
+             {
+                 int refe = btfaces_Ref[face2];
+                 std::vector<int> bctria(3);
+                 bctria[0] = mmgMesh->tetra[i].v[0];
+                 bctria[1] = mmgMesh->tetra[i].v[1];
+                 bctria[2] = mmgMesh->tetra[i].v[3];
+                 bctrias[refe].push_back(bctria);
+                 bctFace2lh[face2]=lh[fid];
+                 bf++;
+             }
+             else
+             {
+                 idx = new2old[fid];
+                 adapt_ifn->setVal(idx,0,3);
+                 adapt_ifn->setVal(idx,1,mmgMesh->tetra[i].v[0]);
+                 adapt_ifn->setVal(idx,2,mmgMesh->tetra[i].v[1]);
+                 adapt_ifn->setVal(idx,3,mmgMesh->tetra[i].v[3]);
+                 adapt_ifn->setVal(idx,4,0);
+                 adapt_ifn->setVal(idx,5,rh[fid]+1);
+                 adapt_ifn->setVal(idx,6,lh[fid]+1);
+                 adapt_ifn->setVal(idx,7,2);
+                 //idx++;
+             }
+                         
+             fid++;
+         }
+         else
+         {
+             faces.erase(face2);
+         }
+         
+         face3.insert(mmgMesh->tetra[i].v[0]);
+         face3.insert(mmgMesh->tetra[i].v[2]);
+         face3.insert(mmgMesh->tetra[i].v[1]);
+         
+         
+         if( faces.count(face3) != 1)
+         {
+             faces.insert(face3);
+             
+             //facemap[face3]=fid;
+             
+             if(bfaces.find(face3)!=bfaces.end())
+             {
+                 int refe = btfaces_Ref[face3];
+                 std::vector<int> bctria(3);
+                 bctria[0] = mmgMesh->tetra[i].v[0];
+                 bctria[1] = mmgMesh->tetra[i].v[2];
+                 bctria[2] = mmgMesh->tetra[i].v[1];
+                 bctrias[refe].push_back(bctria);
+                 bctFace2lh[face3]=lh[fid];
+                 bf++;
+             }
+             else
+             {
+                 idx = new2old[fid];
+                 adapt_ifn->setVal(idx,0,3);
+                 adapt_ifn->setVal(idx,1,mmgMesh->tetra[i].v[0]);
+                 adapt_ifn->setVal(idx,2,mmgMesh->tetra[i].v[2]);
+                 adapt_ifn->setVal(idx,3,mmgMesh->tetra[i].v[1]);
+                 adapt_ifn->setVal(idx,4,0);
+                 adapt_ifn->setVal(idx,5,rh[fid]+1);
+                 adapt_ifn->setVal(idx,6,lh[fid]+1);
+                 adapt_ifn->setVal(idx,7,2);
+                 //idx++;
+             }
+             fid++;
+         }
+         else
+         {
+             faces.erase(face3);
+         }
+         
+         
+         face0.clear();
+         face1.clear();
+         face2.clear();
+         face3.clear();
+         
+     }
+     
+     
+
+     for(int i=1;i<=mmgMesh->nprism;i++)
+     {
+         //adapt_iet->setVal(mmgMesh->ne+i-1,0,6); // Element type = 6 since we are dealing with prisms.
+                // std::cout  << "Prism ["<<i<<"]=" << mmgMesh->prism[i].v[0] << " " << mmgMesh->prism[i].v[1] << " " << mmgMesh->prism[i].v[2] << " " << mmgMesh->prism[i].v[3] << " " << mmgMesh->prism[i].v[4] << " " << mmgMesh->prism[i].v[5] << std::endl;
+   
+         face0.insert(mmgMesh->prism[i].v[0]);
+         face0.insert(mmgMesh->prism[i].v[2]);
+         face0.insert(mmgMesh->prism[i].v[1]);
+         
+         // local face2vert_map for a prism in mmg {0,1,2,0},{3,5,4,3},{1,4,5,2},{0,2,5,3},{0,3,4,1} };
+     
+         if(faces.count(face0) != 1 )
+         {
+             faces.insert(face0);
+             //facemap[face0]=fid;
+             if(bfaces.find(face0)!=bfaces.end())
+             {
+                 int refe = btfaces_Ref[face0];
+                 std::vector<int> bctria(3);
+                 bctria[0] = mmgMesh->prism[i].v[0];
+                 bctria[1] = mmgMesh->prism[i].v[1];
+                 bctria[2] = mmgMesh->prism[i].v[2];
+                 bctrias[refe].push_back(bctria);
+                 bctFace2lh[face0]=lh[fid];
+                 bf++;
+             }
+             else
+             {
+                 idx = new2old[fid];
+                 adapt_ifn->setVal(idx,0,3);
+                 adapt_ifn->setVal(idx,1,mmgMesh->prism[i].v[0]);
+                 adapt_ifn->setVal(idx,2,mmgMesh->prism[i].v[1]);
+                 adapt_ifn->setVal(idx,3,mmgMesh->prism[i].v[2]);
+                 adapt_ifn->setVal(idx,4,0);
+                 adapt_ifn->setVal(idx,5,rh[fid]+1);
+                 adapt_ifn->setVal(idx,6,lh[fid]+1);
+                 adapt_ifn->setVal(idx,7,2);
+                 //idx++;
+             }
+             
+             fid++;
+
+         }
+         else
+         {
+             faces.erase(face0);
+         }
+         
+         face1.insert(mmgMesh->prism[i].v[3]);
+         face1.insert(mmgMesh->prism[i].v[4]);
+         face1.insert(mmgMesh->prism[i].v[5]);
+         // local face2vert_map for a prism in mmg {0,1,2,0},{3,5,4,3},{1,4,5,2},{0,2,5,3},{0,3,4,1} };
+         
+         
+         if(faces.count(face1) != 1)
+         {
+             faces.insert(face1);
+             //facemap[face1]=fid;
+             if(bfaces.find(face1)!=bfaces.end())
+             {
+                 int refe = btfaces_Ref[face1];
+                 std::vector<int> bctria(3);
+                 bctria[0] = mmgMesh->prism[i].v[3];
+                 bctria[1] = mmgMesh->prism[i].v[5];
+                 bctria[2] = mmgMesh->prism[i].v[4];
+                 bctrias[refe].push_back(bctria);
+                 bctFace2lh[face1]=lh[fid];
+                 bf++;
+             }
+             else
+             {
+                 idx = new2old[fid];
+                 adapt_ifn->setVal(idx,0,3);
+                 adapt_ifn->setVal(idx,1,mmgMesh->prism[i].v[3]);
+                 adapt_ifn->setVal(idx,2,mmgMesh->prism[i].v[4]);
+                 adapt_ifn->setVal(idx,3,mmgMesh->prism[i].v[5]);
+                 adapt_ifn->setVal(idx,4,0);
+                 adapt_ifn->setVal(idx,5,rh[fid]+1);
+                 adapt_ifn->setVal(idx,6,lh[fid]+1);
+                 adapt_ifn->setVal(idx,7,2);
+                 //idx++;
+             }
+             
+             fid++;
+         }
+         else
+         {
+             faces.erase(face1);
+         }
+         
+         // Quad faces //
+         qface0.insert(mmgMesh->prism[i].v[0]);
+         qface0.insert(mmgMesh->prism[i].v[2]);
+         qface0.insert(mmgMesh->prism[i].v[4]);
+         qface0.insert(mmgMesh->prism[i].v[3]);
+         // local face2vert_map for a prism in mmg {0,1,2,0},{3,5,4,3},{1,4,5,2},{0,2,5,3},{0,3,4,1} };
+
+         if( qfaces.count(qface0) != 1)
+         {
+             qfaces.insert(qface0);
+             //qfacemap[qface0]=fid;
+             if(bqfaces.find(qface0)!=bqfaces.end())
+             {
+                 int refe = bqfaces_Ref[qface0];
+                 std::vector<int> bcquad(4);
+                 bcquad[0] = mmgMesh->prism[i].v[0];
+                 bcquad[1] = mmgMesh->prism[i].v[2];
+                 bcquad[2] = mmgMesh->prism[i].v[4];
+                 bcquad[3] = mmgMesh->prism[i].v[3];
+                 bcquads[refe].push_back(bcquad);
+                 bcqFace2lh[qface0]=lh[fid];
+                 bq++;
+             }
+             else
+             {
+                 idx = new2old[fid];
+                 adapt_ifn->setVal(idx,0,4);
+                 adapt_ifn->setVal(idx,1,mmgMesh->prism[i].v[0]);
+                 adapt_ifn->setVal(idx,2,mmgMesh->prism[i].v[2]);
+                 adapt_ifn->setVal(idx,3,mmgMesh->prism[i].v[4]);
+                 adapt_ifn->setVal(idx,4,mmgMesh->prism[i].v[3]);
+                 adapt_ifn->setVal(idx,5,rh[fid]+1);
+                 adapt_ifn->setVal(idx,6,lh[fid]+1);
+                 adapt_ifn->setVal(idx,7,2);
+                 //idx++;
+             }
+             
+             fid++;
+         }
+         else
+         {
+             qfaces.erase(qface0);
+         }
+
+         qface1.insert(mmgMesh->prism[i].v[1]);
+         qface1.insert(mmgMesh->prism[i].v[5]);
+         qface1.insert(mmgMesh->prism[i].v[4]);
+         qface1.insert(mmgMesh->prism[i].v[2]);
+         // local face2vert_map for a prism in mmg {0,1,2,0},{3,5,4,3},{1,4,5,2},{0,2,5,3},{0,3,4,1} };
+
+         if( qfaces.count(qface1) != 1)
+         {
+             qfaces.insert(qface1);
+             //qfacemap[qface1]=fid;
+             if(bqfaces.find(qface1)!=bqfaces.end())
+             {
+                 int refe = bqfaces_Ref[qface1];
+                 std::vector<int> bcquad(4);
+                 bcquad[0] = mmgMesh->prism[i].v[1];
+                 bcquad[1] = mmgMesh->prism[i].v[5];
+                 bcquad[2] = mmgMesh->prism[i].v[4];
+                 bcquad[3] = mmgMesh->prism[i].v[2];
+                 bcquads[refe].push_back(bcquad);
+                 bcqFace2lh[qface1]=lh[fid];
+                 bq++;
+             }
+             else
+             {
+                 idx = new2old[fid];
+                 adapt_ifn->setVal(idx,0,4);
+                 adapt_ifn->setVal(idx,1,mmgMesh->prism[i].v[1]);
+                 adapt_ifn->setVal(idx,2,mmgMesh->prism[i].v[5]);
+                 adapt_ifn->setVal(idx,3,mmgMesh->prism[i].v[4]);
+                 adapt_ifn->setVal(idx,4,mmgMesh->prism[i].v[2]);
+                 adapt_ifn->setVal(idx,5,rh[fid]+1);
+                 adapt_ifn->setVal(idx,6,lh[fid]+1);
+                 adapt_ifn->setVal(idx,7,2);
+                 //idx++;
+             }
+             fid++;
+
+         }
+         else
+         {
+             qfaces.erase(qface1);
+         }
+         
+         
+         qface2.insert(mmgMesh->prism[i].v[0]);//1
+         qface2.insert(mmgMesh->prism[i].v[3]);//2
+         qface2.insert(mmgMesh->prism[i].v[5]);//5
+         qface2.insert(mmgMesh->prism[i].v[1]);//4
+         // local face2vert_map for a prism in mmg {0,1,2,0},{3,5,4,3},{1,4,5,2},{0,2,5,3},{0,3,4,1} };
+
+         if( qfaces.count(qface2) != 1)
+         {
+             qfaces.insert(qface2);
+             //qfacemap[qface2]=fid;
+             if(bqfaces.find(qface2)!=bqfaces.end())
+             {
+                 int refe = bqfaces_Ref[qface2];
+                 std::vector<int> bcquad(4);
+                 bcquad[0] = mmgMesh->prism[i].v[0];
+                 bcquad[1] = mmgMesh->prism[i].v[3];
+                 bcquad[2] = mmgMesh->prism[i].v[5];
+                 bcquad[3] = mmgMesh->prism[i].v[1];
+                 bcquads[refe].push_back(bcquad);
+                 bcqFace2lh[qface2]=lh[fid];
+                 bq++;
+             }
+             else
+             {
+                 idx = new2old[fid];
+                 adapt_ifn->setVal(idx,0,4);
+                 adapt_ifn->setVal(idx,1,mmgMesh->prism[i].v[0]);
+                 adapt_ifn->setVal(idx,2,mmgMesh->prism[i].v[3]);
+                 adapt_ifn->setVal(idx,3,mmgMesh->prism[i].v[5]);
+                 adapt_ifn->setVal(idx,4,mmgMesh->prism[i].v[1]);
+                 adapt_ifn->setVal(idx,5,rh[fid]+1);
+                 adapt_ifn->setVal(idx,6,lh[fid]+1);
+                 adapt_ifn->setVal(idx,7,2);
+                 //idx++;
+             }
+             
+             fid++;
+         }
+         else
+         {
+             qfaces.erase(qface2);
+         }
+         
+         face0.clear();
+         face1.clear();
+         qface0.clear();
+         qface1.clear();
+         qface2.clear();
+          
+     }
+     
+     
+     
+     
+    faces.clear();
+    qfaces.clear();
+    
+    
+    //====================================================================================
+    //====================================================================================
     //MMG3D_Free_allSols(mmgMesh,&mmgSol);
     MMG3D_Free_all(MMG5_ARG_start,
                    MMG5_ARG_ppMesh,&mmgMesh,MMG5_ARG_ppSols,&mmgSol,
                    MMG5_ARG_end);
     //====================================================================================
     //====================================================================================
-    std::map<int,int>::iterator itm;
-    int it;
-    Array<int>* adapt_ifn = new Array<int>(face2node.size(),8);
-    int t = 0;
     Array<int>* zdefs = us3d->zdefs;
     int bc_id = 0;
     int gaa   = 0;
     int typef3 = 0;
     int typef4 = 0;
     
-    std::cout << "-- Adding the interior faces to the new ifn array... face2node.size() -> " << face2node.size() << " " << lh.size() << " " << rh.size() <<std::endl;
+    std::cout << "-- Adding the interior faces to the new ifn array... face2node.size() -> " << " " << lh.size() << " " << rh.size() <<std::endl;
     int ty=0;
-    for(itm=lh.begin();itm!=lh.end();itm++)
-    {
-        it = itm->first;
-        
-        if(rh.find(it)==rh.end())
-        {
-            rh[it] = 0;
-        }
-        else
-        {
-            if(Nlh[itm->first]==3)
-            {
-                adapt_ifn->setVal(t,0,3);
-                adapt_ifn->setVal(t,1,face2node[it][0]);
-                adapt_ifn->setVal(t,2,face2node[it][1]);
-                adapt_ifn->setVal(t,3,face2node[it][2]);
-                adapt_ifn->setVal(t,4,0);
-                //std::cout << "3 int row = " << t << " " << face2node[it][0] << " " << face2node[it][1] << " " << face2node[it][2] << std::endl;
-            }
-            if(Nlh[itm->first]==4)
-            {
-                adapt_ifn->setVal(t,0,4);
-                adapt_ifn->setVal(t,1,face2node[it][0]);
-                adapt_ifn->setVal(t,2,face2node[it][1]);
-                adapt_ifn->setVal(t,3,face2node[it][2]);
-                adapt_ifn->setVal(t,4,face2node[it][3]);
-                //std::cout << "4 int row = " << t << " " << face2node[it][0] << " " << face2node[it][1] << " " << face2node[it][2] << std::endl;
+    int counte;
 
-            }
-            
-            adapt_ifn->setVal(t,5,rh[it]+1);
-            adapt_ifn->setVal(t,6,itm->second+1);
-            adapt_ifn->setVal(t,7,us3d->zdefs->getVal(3+bc_id-1,5));
-            t++;
-        }
-    }
     
-    face2node.clear();
 
     std::map<int,std::vector<int> >::iterator it_bref;
     int faceid;
@@ -1556,7 +2076,7 @@ void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh,MMG5_pSol mmgSol, US3D* us3d)
     int fa=0;
     std::cout << "-- Adding the boundary faces to the new ifn array..."<<std::endl;
     std::map<int,std::vector<std::vector<int> > >::iterator iterbc;
-    
+    int t = ftot;
     for(iterbc=bctrias.begin();iterbc!=bctrias.end();iterbc++)
     {
         int bnd_id     = iterbc->first;
@@ -1564,6 +2084,7 @@ void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh,MMG5_pSol mmgSol, US3D* us3d)
         int Nquads     = bcquads[bnd_id].size();
         std::cout << "bnd ref test = " << bnd_id << " " << Ntris << " " << Nquads << std::endl;
     }
+    int lhi;
     for(iterbc=bctrias.begin();iterbc!=bctrias.end();iterbc++)
     {
         int bnd_id     = iterbc->first;
@@ -1586,10 +2107,10 @@ void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh,MMG5_pSol mmgSol, US3D* us3d)
             
             //std::cout << "3 bc row = " << t << " " << mmgMesh->tria[faceid].v[0] << " " << mmgMesh->tria[faceid].v[1] << " " << mmgMesh->tria[faceid].v[2] << std::endl;
 
-            fid=facemap[iface];
-            
-            adapt_ifn->setVal(t,5,rh[fid]);
-            adapt_ifn->setVal(t,6,lh[fid]+1);
+            //fid=facemap[iface];
+            lhi = bctFace2lh[iface];
+            adapt_ifn->setVal(t,5,0);
+            adapt_ifn->setVal(t,6,lhi+1);
             //adapt_ifn->setVal(t,7,us3d->zdefs->getVal(3+bnd_id-1,5));
             adapt_ifn->setVal(t,7,bnd_id);
 
@@ -1609,10 +2130,10 @@ void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh,MMG5_pSol mmgSol, US3D* us3d)
             iface.insert(bcquads[bnd_id][q][2]);
             iface.insert(bcquads[bnd_id][q][3]);
                         
-            fid=qfacemap[iface];
-
-            adapt_ifn->setVal(t,5,rh[fid]);
-            adapt_ifn->setVal(t,6,lh[fid]+1);
+            //fid=qfacemap[iface];
+            lhi = bcqFace2lh[iface];
+            adapt_ifn->setVal(t,5,0);
+            adapt_ifn->setVal(t,6,lhi+1);
             adapt_ifn->setVal(t,7,bnd_id);
             iface.clear();
             
@@ -1648,13 +2169,13 @@ void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh,MMG5_pSol mmgSol, US3D* us3d)
     adapt_zdefs->setVal(2,1,-1);
     adapt_zdefs->setVal(2,2, 3);
     adapt_zdefs->setVal(2,3, 1);
-    adapt_zdefs->setVal(2,4,faces.size()+qfaces.size()-bfaces.size()-bqfaces.size());
+    adapt_zdefs->setVal(2,4,lh.size()-bfaces.size()-bqfaces.size());
     adapt_zdefs->setVal(2,5,us3d->zdefs->getVal(2,5));
     adapt_zdefs->setVal(2,6,2);
     // Collect boundary face data (13) . Starting index-ending index boundary face for each boundary ID.
     int q  = 1;
     int nb = 0;
-    int face_start = faces.size()+qfaces.size()-bfaces.size()-bqfaces.size()+1;
+    int face_start = lh.size()-bfaces.size()-bqfaces.size()+1;
     int face_end;
     std::set<int>::iterator itr;
     for(itr=bcrefs.begin();itr!=bcrefs.end();itr++)
@@ -1726,7 +2247,7 @@ void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh,MMG5_pSol mmgSol, US3D* us3d)
     status = H5Awrite(attr_id, H5T_NATIVE_INT, &value);
     H5Aclose(attr_id);
     attr_id   = H5Acreate (group_grid_id, "nf", H5T_STD_I32BE, att_space, H5P_DEFAULT, H5P_DEFAULT);
-    value = faces.size()+qfaces.size();
+    value = lh.size();
     status = H5Awrite(attr_id, H5T_NATIVE_INT, &value);
     H5Aclose(attr_id);
     attr_id   = H5Acreate (group_grid_id, "ng", H5T_STD_I32BE, att_space, H5P_DEFAULT, H5P_DEFAULT);
@@ -1798,7 +2319,6 @@ void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh,MMG5_pSol mmgSol, US3D* us3d)
     facemap.clear();
     faces.clear();
     qfaces.clear();
-    face2node.clear();
     lh.clear();
     rh.clear();
     Nlh.clear();
