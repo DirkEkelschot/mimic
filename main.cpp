@@ -108,7 +108,7 @@ int main(int argc, char** argv) {
         }
         
         US3D* us3d = ReadUS3DData(fn_conn,fn_grid,fn_data,ReadFromStats,comm,info);
-        
+        int Nve = us3d->xcn->getNglob();
         
         int Nel_part = us3d->ien->getNrow();
         
@@ -170,15 +170,30 @@ int main(int argc, char** argv) {
         {
             int gid = LocElem[i];
             UvariaV   = Uvaria[i];
-            
             Array<double>* Uarr = new Array<double>(1,1);
             Uarr->setVal(0,0,UvariaV);
             Uvaria_map[gid] = Uarr;
         }
         
+        Mesh_Topology* meshTopo = new Mesh_Topology(P,comm);
+        
+        std::map<int,double> Volumes = meshTopo->getVol();
+        
         //Domain* pDom = P->getPartitionDomain();
 
         P->AddStateVecForAdjacentElements(Uvaria_map,1,comm);
+        
+        std::map<int,Array<double>* > var_vmap = P->ReduceStateVecToAllVertices(Uvaria_map,1);
+        std::map<int,Array<double>* >::iterator vm;
+        for(vm=var_vmap.begin();vm!=var_vmap.end();vm++)
+        {
+            if(vm->second->getVal(0,0)<0.0)
+            {
+                std::cout << "Mach vert " << vm->first << " " << vm->second->getVal(0,0) << std::endl;
+            }
+            
+        }
+        
         
         if(world_rank == 0)
         {
@@ -289,11 +304,96 @@ int main(int argc, char** argv) {
         dU2dYi2.clear();
         dU2dZi2.clear();
         
+        
+        double* Hessie = new double[9];
+        double * WRn = new double[3];
+        Array<double>* DR  = new Array<double>(3,3);
+        Array<double>* UR  = new Array<double>(3,3);
+        //+++++++++++++++++++++++++++++++++++++++++++
+        //++++  Scaling eigenvalues/eigenvectors ++++
+        double hmin         = metric_inputs[1];
+        double hmax         = metric_inputs[2];
+        double f            = metric_inputs[3];
+        //+++++++++++++++++++++++++++++++++++++++++++
+        //+++++++++++++++++++++++++++++++++++++++++++
+        double cmplxty = 0.0;
+        double cmplxty2 = 0.0;
+        double Volu=0.0,cmplxty_red=0.0,cmplxty_tmp=0.0,cmplxty_tmp2=0.0;
+        double po = 6.0;
+        for(int j=0;j<3;j++)
+        {
+            for(int k=0;k<3;k++)
+            {
+                DR->setVal(j,k,0.0);
+            }
+        }
+        for(itgg=Hess_map.begin();itgg!=Hess_map.end();itgg++)
+        {
+            Hessie[0] = itgg->second->getVal(0,0);
+            Hessie[1] = itgg->second->getVal(1,0);
+            Hessie[2] = itgg->second->getVal(2,0);
+            
+            Hessie[3] = itgg->second->getVal(1,0);
+            Hessie[4] = itgg->second->getVal(3,0);
+            Hessie[5] = itgg->second->getVal(4,0);
+            
+            Hessie[6] = itgg->second->getVal(2,0);
+            Hessie[7] = itgg->second->getVal(4,0);
+            Hessie[8] = itgg->second->getVal(5,0);
+            
+            Eig* eig = ComputeEigenDecomp(3, Hessie);
+            
+            WRn[0] = std::min(std::max(f*fabs(eig->Dre[0]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
+            WRn[1] = std::min(std::max(f*fabs(eig->Dre[1]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
+            WRn[2] = std::min(std::max(f*fabs(eig->Dre[2]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
+            
+            DR->setVal(0,0,WRn[0]);DR->setVal(0,1,0.0);DR->setVal(0,1,0.0);
+            DR->setVal(1,0,0.0);DR->setVal(1,1,WRn[1]);DR->setVal(1,2,0.0);
+            DR->setVal(2,0,0.0);DR->setVal(2,1,0.0);DR->setVal(2,2,WRn[2]);
+            
+            UR->setVal(0,0,eig->V[0]);UR->setVal(0,1,eig->V[1]);UR->setVal(0,2,eig->V[2]);
+            UR->setVal(1,0,eig->V[3]);UR->setVal(1,1,eig->V[4]);UR->setVal(1,2,eig->V[5]);
+            UR->setVal(2,0,eig->V[6]);UR->setVal(2,1,eig->V[7]);UR->setVal(2,2,eig->V[8]);
+
+            Array<double>* iVR = MatInv(UR);
+            Array<double>* Rs = MatMul(UR,DR);
+            Array<double>* Rf = MatMul(Rs,iVR);
+            double detRf = sqrt( Rf->getVal(0,0)*(Rf->getVal(1,1)*Rf->getVal(2,2)-Rf->getVal(2,1)*Rf->getVal(1,2))
+                                -Rf->getVal(0,1)*(Rf->getVal(1,0)*Rf->getVal(2,2)-Rf->getVal(2,0)*Rf->getVal(1,2))
+                                +Rf->getVal(0,2)*(Rf->getVal(1,0)*Rf->getVal(2,1)-Rf->getVal(2,0)*Rf->getVal(1,1)));
+            
+            Volu = Volumes[itgg->first];
+            cmplxty_tmp = detRf;
+            cmplxty_tmp2 = Volu;
+            //std::pow(cmplxty_tmp,(po+1.0)/(2.0*po+3.0));
+            cmplxty = cmplxty + cmplxty_tmp;
+            cmplxty2 = cmplxty2 + cmplxty_tmp2;
+            if(std::isnan(cmplxty_tmp))
+            {
+                std::cout << "nna an " << Rf->getVal(0,0)*(Rf->getVal(1,1)*Rf->getVal(2,2)-Rf->getVal(2,1)*Rf->getVal(1,2))
+                -Rf->getVal(0,1)*(Rf->getVal(1,0)*Rf->getVal(2,2)-Rf->getVal(2,0)*Rf->getVal(1,2))
+                +Rf->getVal(0,2)*(Rf->getVal(1,0)*Rf->getVal(2,1)-Rf->getVal(2,0)*Rf->getVal(1,1)) << std::endl;
+            }
+            delete iVR;
+            delete Rs;
+            delete Rf;
+        }
+        
+        std::cout << cmplxty << " " << cmplxty2 << " " << cmplxty_red << std::endl;
+
+        MPI_Allreduce(&cmplxty, &cmplxty_red, 1, MPI_DOUBLE, MPI_SUM, comm);
+        //cmplxty_red = std::pow(cmplxty_red,(po+1)/(2.0*po+3.0));
+        
         P->AddStateVecForAdjacentElements(Hess_map,6,comm);
 
         std::map<int,Array<double>* > hess_vmap = P->ReduceStateVecToAllVertices(Hess_map,6);
+        std::cout << "complexity = " << cmplxty_red << " " << Nve << std::endl;
+        cmplxty_red = Nve/cmplxty_red;
         
-        ComputeMetric(P,metric_inputs, comm, hess_vmap);
+        
+        std::cout << "complexity = " << cmplxty_red << std::endl;
+        
+        ComputeMetric(P, metric_inputs, comm, var_vmap, hess_vmap, 1.0, po);
         
         if(world_rank==0)
         {
@@ -1033,7 +1133,7 @@ int main(int argc, char** argv) {
 
                     for(int q=0;q<nve->second.size();q++)
                     {
-                        vgg = lv2gv_tet_mesh[nve->second[q]-1];
+                        vgg  = lv2gv_tet_mesh[nve->second[q]-1];
 
                         m11n = m11n + mv_g->getVal(vgg,0);
                         m12n = m12n + mv_g->getVal(vgg,1);
@@ -1051,8 +1151,10 @@ int main(int argc, char** argv) {
                     m33n = m33n/nve->second.size();
                     
                     double* newM = new double[6];
+                    
                     newM[0] = m11n;newM[1] = m12n;newM[2] = m13n;
                     newM[3] = m22n;newM[4] = m23n;newM[5] = m33n;
+                    
                     newvert2metric[nve->first]=newM;
                 }
                 

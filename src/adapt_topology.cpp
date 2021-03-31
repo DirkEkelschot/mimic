@@ -39,8 +39,6 @@ Mesh_Topology::Mesh_Topology(Partition* Pa, MPI_Comm comm)
     i_part_map* iee_part_map    = Pa->getIEEpartmap();
     i_part_map* if_Nv_part_map  = Pa->getIF_Nvpartmap();
     
-
-    
     std::vector<int> vijkIDs;
     std::map<int,int> LocElem2Nv = P->getLocElem2Nv();
     int tel     = 0;
@@ -78,9 +76,19 @@ Mesh_Topology::Mesh_Topology(Partition* Pa, MPI_Comm comm)
         {
             volume  = ComputeVolumePrismCell(Pijk);
         }
+        if(volume>0.001)
+        {
+            std::cout << "Volu " << volume << " " << gEl << std::endl;
+            for(int k=0;k<vijkIDs.size();k++)
+            {
+                std::cout << Pijk[k*3+0] << " " << Pijk[k*3+1] << " " << Pijk[k*3+2] << std::endl;
+            }
+        }
+        
         Vol[gEl] = volume;
         std::set<int> vs;
         std::vector<int> vrts;
+        
         for(int s=0;s<NfPEl;s++)
         {
             int adjID = iee_part_map->i_map[gEl][s];

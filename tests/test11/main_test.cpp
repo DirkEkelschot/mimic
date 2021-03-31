@@ -62,9 +62,9 @@ int main(int argc, char** argv)
 
     
     
-    const char* fn_grid="../test_mesh/cylinder_hex/grid.h5";
-    const char* fn_conn="../test_mesh/cylinder_hex/conn.h5";
-    const char* fn_data="../test_mesh/cylinder_hex/data.h5";
+    const char* fn_grid="../../msl_a10_r2/grid.h5";
+    const char* fn_conn="../../msl_a10_r2/conn.h5";
+    const char* fn_data="../../msl_a10_r2/data.h5";
     
 //    const char* fn_grid="itn1/grid.h5";
 //    const char* fn_conn="itn1/conn.h5";
@@ -77,23 +77,41 @@ int main(int argc, char** argv)
 //    const char* fn_grid="it1/grid.h5";
 //    const char* fn_conn="it1/conn.h5";
 //    const char* fn_data="it1/data.h5";
+    const char* fn_metric = "metric.inp";
+    std::vector<double> metric_inputs = ReadMetricInputs(fn_metric);
+    int ReadFromStats = 0;
+    if(metric_inputs.size()==6)
+    {
+        ReadFromStats=metric_inputs[5];
+    }
     
-    US3D* us3d    = ReadUS3DData(fn_conn,fn_grid,fn_data,0,comm,info);
+    US3D* us3d    = ReadUS3DData(fn_conn,fn_grid,fn_data,ReadFromStats,comm,info);
     
     Array<double>* xcn_ref = ReadDataSetFromFile<double>(fn_grid,"xcn");
     Array<int>* ien_ref = ReadDataSetFromFile<int>(fn_conn,"ien");
 
-    const char* fn_metric = "metric.inp";
-    std::vector<double> metric_inputs = ReadMetricInputs(fn_metric);
+
         
     int Nel_part = us3d->ien->getNrow();
 
     Array<double>* Ui = new Array<double>(Nel_part,1);
     int varia = 4;
+    double rhoState,uState,vState,wState,TState,VtotState,aState,MState;
     for(int i=0;i<Nel_part;i++)
     {
-        Ui->setVal(i,0,us3d->interior->getVal(i,varia));
+        rhoState = us3d->interior->getVal(i,0);
+        uState   = us3d->interior->getVal(i,1);
+        vState   = us3d->interior->getVal(i,2);
+        wState   = us3d->interior->getVal(i,3);
+        TState   = us3d->interior->getVal(i,4);
+        VtotState = sqrt(uState*uState+vState*vState+wState*wState);
+        aState   = sqrt(1.4*287.05*TState);
+        MState = VtotState/aState;
+        Ui->setVal(i,0,MState);
     }
+    
+    delete us3d->interior;
+
     
     ParallelState* ien_pstate               = new ParallelState(us3d->ien->getNglob(),comm);
     ParallelState* ife_pstate               = new ParallelState(us3d->ifn->getNglob(),comm);
@@ -1023,10 +1041,10 @@ int main(int argc, char** argv)
         }
         
         std::cout<<"Started writing the adapted tetrahedra mesh in ---> OuterVolume.dat"<<std::endl;
-        OutputMesh_MMG(mmgMesh_TETCOPY,0,mmgMesh_TETCOPY->ne,"OuterVolume.dat");
+         OutputMesh_MMG_Slice(mmgMesh_TETCOPY,0,mmgMesh_TETCOPY->ne,"OuterVolume.dat");
         std::cout<<"Finished writing the adapted tetrahedra mesh in ---> OuterVolume.dat"<<std::endl;
         
-        WriteUS3DGridFromMMG_itN(mmgMesh_hyb, us3d);
+        WriteUS3DGridFromMMG_itN(mmgMesh_hyb, mmgSol_hyb, us3d);
         /**/
         
         
