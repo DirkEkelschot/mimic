@@ -1053,7 +1053,8 @@ void ComputeMetric(Partition* Pa, std::vector<double> metric_inputs,
     double fiso = 0.01;
     double Lambdamax,Lambdamin;
     std::vector<int> eignval(3);
-    double hiso = 0.01;
+    double hwake = 0.02;
+    int anitel = 0;
     for(itm=Hess_vm.begin();itm!=Hess_vm.end();itm++)
     {
         int glob_vid = itm->first;
@@ -1123,23 +1124,32 @@ void ComputeMetric(Partition* Pa, std::vector<double> metric_inputs,
                       -Rf->getVal(0,1)*(Rf->getVal(1,0)*Rf->getVal(2,2)-Rf->getVal(2,0)*Rf->getVal(1,2))
                       +Rf->getVal(0,2)*(Rf->getVal(1,0)*Rf->getVal(2,1)-Rf->getVal(2,0)*Rf->getVal(1,1));
         
-        Array<double>* Habs  = new Array<double>(3,3);
-        double pow = -1.0/(2.0*po+3.0);
-        detRf = std::pow(detRf,pow);
         
-        if(scale_vm[glob_vid]->getVal(0,0)<0.5)
-        {
-            Habs->setVal(0,0,1.0/(hiso*hiso));
-            Habs->setVal(0,1,0.0);
-            Habs->setVal(0,2,0.0);
-            
-            Habs->setVal(1,0,0.0);
-            Habs->setVal(1,1,1.0/(hiso*hiso));
-            Habs->setVal(1,2,0.0);
+        double pow = -1.0/(2.0*po+3.0);
+        double eigRat = Lambdamin/Lambdamax;
+        
+        detRf = std::pow(detRf,pow);
+        Array<double>* Habs  = new Array<double>(3,3);
 
-            Habs->setVal(2,0,0.0);
-            Habs->setVal(2,1,0.0);
-            Habs->setVal(2,2,1.0/(hiso*hiso));
+        if(scale_vm[glob_vid]->getVal(0,0)<1.0)
+        {
+            double wi    = 1.0-scale_vm[glob_vid]->getVal(0,0);
+            double wa    = scale_vm[glob_vid]->getVal(0,0);
+            double hiso  = hwake;//(Lambdamax-hwake)*scale_vm[glob_vid]->getVal(0,0)+hwake;
+            
+            Habs->setVal(0,0,wi/(hiso*hiso)+wa*sumvol*detRf*Rf->getVal(0,0));
+            Habs->setVal(0,1,wa*sumvol*detRf*Rf->getVal(0,1));
+            Habs->setVal(0,2,wa*sumvol*detRf*Rf->getVal(0,2));
+            
+            Habs->setVal(1,0,wa*sumvol*detRf*Rf->getVal(1,0));
+            Habs->setVal(1,1,wi/(hiso*hiso)+wa*sumvol*detRf*Rf->getVal(1,1));
+            Habs->setVal(1,2,wa*sumvol*detRf*Rf->getVal(1,2));
+
+            Habs->setVal(2,0,wa*sumvol*detRf*Rf->getVal(2,0));
+            Habs->setVal(2,1,wa*sumvol*detRf*Rf->getVal(2,1));
+            Habs->setVal(2,2,wi/(hiso*hiso)+wa*sumvol*detRf*Rf->getVal(2,2));
+            
+            anitel++;
         }
         else
         {
@@ -1156,6 +1166,11 @@ void ComputeMetric(Partition* Pa, std::vector<double> metric_inputs,
             Habs->setVal(2,2,sumvol*detRf*Rf->getVal(2,2));
         }
         
+        
+        
+
+        
+        
         Hess_vm[glob_vid]=Habs;
         
         delete Rf;
@@ -1170,7 +1185,14 @@ void ComputeMetric(Partition* Pa, std::vector<double> metric_inputs,
         delete[] WI;
         i++;
     }
-    
+    int anitel_red;
+    MPI_Allreduce(&anitel, &anitel_red, 1, MPI_INT, MPI_SUM, comm);
+    if(rank == 0)
+    {
+
+    std::cout << "anitel_red " << anitel_red << std::endl;
+
+    }
     delete[] Hmet;
 }
 

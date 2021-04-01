@@ -76,14 +76,6 @@ Mesh_Topology::Mesh_Topology(Partition* Pa, MPI_Comm comm)
         {
             volume  = ComputeVolumePrismCell(Pijk);
         }
-        if(volume>0.001)
-        {
-            std::cout << "Volu " << volume << " " << gEl << std::endl;
-            for(int k=0;k<vijkIDs.size();k++)
-            {
-                std::cout << Pijk[k*3+0] << " " << Pijk[k*3+1] << " " << Pijk[k*3+2] << std::endl;
-            }
-        }
         
         Vol[gEl] = volume;
         std::set<int> vs;

@@ -26,5 +26,5 @@ export OMP_NUM_THREADS
 
 # Run eddy
 #env US3D_PLUGINS_PATH=/home1/dekelsch/plugins/multi-body_free-flight-master mpiexec -np 448 us3d --restart=data_restart2.h5 --data=data.h5 > us3d.out
-mpiexec -np 84 ./adapt --grid=msl/grid.h5 --conn=msl/conn.h5 --data=msl/data.h5
+mpiexec -np 84 ./adapt --grid=msl/grid.h5 --conn=msl/conn.h5 --data=msl/data.h5 > adapting.out
 #mpiexec -np 224 us3d --restart=data_restart2.h5 --data=data.h5 > us3d_restart2.out

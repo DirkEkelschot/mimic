@@ -368,18 +368,11 @@ int main(int argc, char** argv) {
             //std::pow(cmplxty_tmp,(po+1.0)/(2.0*po+3.0));
             cmplxty = cmplxty + cmplxty_tmp;
             cmplxty2 = cmplxty2 + cmplxty_tmp2;
-            if(std::isnan(cmplxty_tmp))
-            {
-                std::cout << "nna an " << Rf->getVal(0,0)*(Rf->getVal(1,1)*Rf->getVal(2,2)-Rf->getVal(2,1)*Rf->getVal(1,2))
-                -Rf->getVal(0,1)*(Rf->getVal(1,0)*Rf->getVal(2,2)-Rf->getVal(2,0)*Rf->getVal(1,2))
-                +Rf->getVal(0,2)*(Rf->getVal(1,0)*Rf->getVal(2,1)-Rf->getVal(2,0)*Rf->getVal(1,1)) << std::endl;
-            }
             delete iVR;
             delete Rs;
             delete Rf;
         }
         
-        std::cout << cmplxty << " " << cmplxty2 << " " << cmplxty_red << std::endl;
 
         MPI_Allreduce(&cmplxty, &cmplxty_red, 1, MPI_DOUBLE, MPI_SUM, comm);
         //cmplxty_red = std::pow(cmplxty_red,(po+1)/(2.0*po+3.0));
@@ -387,12 +380,16 @@ int main(int argc, char** argv) {
         P->AddStateVecForAdjacentElements(Hess_map,6,comm);
 
         std::map<int,Array<double>* > hess_vmap = P->ReduceStateVecToAllVertices(Hess_map,6);
+	if(world_rank == 0)
+	{
         std::cout << "complexity = " << cmplxty_red << " " << Nve << std::endl;
+	}
         cmplxty_red = Nve/cmplxty_red;
         
-        
+        if(world_rank == 0)
+	{
         std::cout << "complexity = " << cmplxty_red << std::endl;
-        
+        }
         ComputeMetric(P, metric_inputs, comm, var_vmap, hess_vmap, 1.0, po);
         
         if(world_rank==0)
