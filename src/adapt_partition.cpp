@@ -235,7 +235,6 @@ void Partition::DeterminePartitionLayout(ParArray<int>* ien, ParallelState_Parme
     idx_t *nparts = nparts_;
     int* part_arr = new int[nloc];
     real_t itr_[]    = {1.05};
-    real_t *itr      = itr_;
     idx_t *vsize = NULL;
     idx_t *adjwgt = NULL;
     
@@ -576,7 +575,6 @@ void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief,
         {
             int v_id_n = TotRecvVerts_IDs[cnt_v+k];
             //elem.push_back(v_id_n);
-            r = FindRank(new_V_offsets,size,v_id_n);
             
             if(unique_vertIDs_on_rank_set.find( v_id_n ) == unique_vertIDs_on_rank_set.end()) // add the required unique vertex for current rank.
             {
@@ -771,7 +769,6 @@ void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief,
         lvid++;
     }
     
-    int o = 3*vloc_tmp;
     m = 0;
     
     for(it_f=recv_back_verts.begin();it_f!=recv_back_verts.end();it_f++)
@@ -1006,7 +1003,6 @@ void Partition::DetermineAdjacentElement2ProcMapUS3D(ParArray<int>* ien,
     MPI_Comm_rank(comm, &rank);
 
     int xcn_o = xcn_pstate->getOffset(rank);
-    int ien_o = ien_pstate->getOffset(rank);
 
     int el_id;
     int p_id;
@@ -1111,7 +1107,6 @@ void Partition::DetermineAdjacentElement2ProcMapUS3D(ParArray<int>* ien,
         for(int j=0;j<itv->second.size();j++)
         {
             adj_id = itv->second[j];
-            int ladj_id = elem_map[adj_id];
             TotAdj_El_IDs.push_back(adj_id);
 
             int nvPerEl = LocElem2Nv[adj_id];
@@ -3074,7 +3069,6 @@ std::map<int,std::map<int,double> > Partition::getNode2NodeMap()
     for(ieet=iee_part_map->i_map.begin();ieet!=iee_part_map->i_map.end();ieet++)
     {
         Nv  = LocElem2Nv[ieet->first];
-        Nf  = LocElem2Nf[ieet->first];
         
         for(int i=0;i<Nv;i++)
         {

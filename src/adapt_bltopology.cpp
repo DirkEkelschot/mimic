@@ -52,6 +52,8 @@ BLShellInfo* FindOuterShellBoundaryLayerMesh(int wall_id, int nLayer,
     Vec3D* r00 = new Vec3D;
     Vec3D* v00 = new Vec3D;
     Vec3D* v11 = new Vec3D;
+    Vert* Vface  = new Vert;
+    Vert* V  = new Vert;
 
     for(int bf=0;bf<bnd_face_map[wall_id].size();bf++)
     {
@@ -85,11 +87,15 @@ BLShellInfo* FindOuterShellBoundaryLayerMesh(int wall_id, int nLayer,
         
         Vert* Vijk = ComputeCenterCoord(Pijk, 8);
         
-        Vert* Vface  = new Vert;
         std::vector<Vert*> face;
         std::vector<Vert*> face_turned(4);
         std::vector<Vert*> face_turned2(4);
         std::set<int> conn_bvid;
+        
+        Vface->x = 0.0;
+        Vface->y = 0.0;
+        Vface->z = 0.0;
+        
         for(int r=0;r<4;r++)
         {
             int vid  = ifn_g->getVal(faceid,r);
@@ -97,7 +103,6 @@ BLShellInfo* FindOuterShellBoundaryLayerMesh(int wall_id, int nLayer,
             {
                 bvid = vid;
             }
-            Vert* V  = new Vert;
             V->x     = xcn_g->getVal(vid,0);
             V->y     = xcn_g->getVal(vid,1);
             V->z     = xcn_g->getVal(vid,2);
@@ -349,6 +354,14 @@ BLShellInfo* FindOuterShellBoundaryLayerMesh(int wall_id, int nLayer,
     }
     delete[] Pijk;
     delete[] Pijk_id;
+    
+    delete r00;
+    delete v00;
+    delete v11;
+    delete Vface2;
+    delete Vface;
+    delete V;
+    
     double duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
     std::cout << "Timing extracting outer shell BL mesh = " << duration << std::endl;
     std::map<int,std::vector<int> >::iterator itt;
@@ -424,6 +437,10 @@ Mesh_Topology_BL* ExtractBoundaryLayerMeshFromShell(std::vector<std::vector<int>
     Vec3D* v_t11 = new Vec3D;
     Vert* Vface  = new Vert;
 
+    Vec3D* r00 = new Vec3D;
+    Vec3D* v00 = new Vec3D;
+    Vec3D* v11 = new Vec3D;
+    
     
     for(int bf=0;bf<bnd_face_map[wall_id].size();bf++)
     {
@@ -777,21 +794,23 @@ Mesh_Topology_BL* ExtractBoundaryLayerMeshFromShell(std::vector<std::vector<int>
                 Vface2->y = Vface2->y/4.0;
                 Vface2->z = Vface2->z/4.0;
                                 
-                Vec3D* r00 = new Vec3D;
+
+                
                 r00->c0 = (Vface2->x-Vijk->x);
                 r00->c1 = (Vface2->y-Vijk->y);
                 r00->c2 = (Vface2->z-Vijk->z);
-                Vec3D* v00 = new Vec3D;
+                
                 v00->c0 = face2[1]->x-face2[0]->x;
                 v00->c1 = face2[1]->y-face2[0]->y;
                 v00->c2 = face2[1]->z-face2[0]->z;
-                Vec3D* v11 = new Vec3D;
+                
                 v11->c0 = face2[3]->x-face2[0]->x;
                 v11->c1 = face2[3]->y-face2[0]->y;
                 v11->c2 = face2[3]->z-face2[0]->z;
                 
                 Vec3D* n00        = ComputeSurfaceNormal(v00,v11);
                 double orient00   = DotVec3D(r00,n00);
+                
                 
                 if(orient00<0.0)
                 {
@@ -1178,6 +1197,9 @@ Mesh_Topology_BL* ExtractBoundaryLayerMeshFromShell(std::vector<std::vector<int>
             //delete P0;
             //delete P1;
             elid_cur = elid_next;
+            
+            delete n_toppo0;
+            delete n_toppo10;
         }
 //        prism0.clear();
 //        prism1.clear();
@@ -1190,6 +1212,14 @@ Mesh_Topology_BL* ExtractBoundaryLayerMeshFromShell(std::vector<std::vector<int>
     
     delete[] Pijk_id;
     delete[] Pijk;
+    delete r00;
+    delete v00;
+    delete v11;
+    delete Vface2;
+    delete v_t0;
+    delete v_t1;
+    delete v_t10;
+    delete v_t11;
     
     double duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
     std::cout << "Timing for extracting BL mesh = " << duration << std::endl;

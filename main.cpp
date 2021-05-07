@@ -975,11 +975,6 @@ int main(int argc, char** argv) {
                             
                         }
                         
-                        
-                        vxc = vxc/4;
-                        vyc = vyc/4;
-                        vzc = vzc/4;
-                        
                         //===========================================================================
 //                        int v0 = lv2gv_tet_mesh[mmgMesh_TET->tetra[i].v[0]-1];
 //                        int v1 = lv2gv_tet_mesh[mmgMesh_TET->tetra[i].v[1]-1];
