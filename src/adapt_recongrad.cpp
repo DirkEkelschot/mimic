@@ -1,6 +1,190 @@
 #include "adapt_recongrad.h"
 
+std::map<int,Array<double>* > Py_ComputedUdx_LSQ_US3D(std::vector<Vert* > LocalVs,
+                                                      std::map<int,std::vector<int> > gE2lV,
+                                                      std::map<int,int> gV2lV,
+                                                      std::vector<int> Loc_Elem,
+                                                      std::map<int,std::vector<int> > ifn_part_map,
+                                                      std::map<int,std::vector<int> > ief_part_map,
+                                                      std::map<int,std::vector<int> > iee_part_map,
+                                                      std::map<int,std::vector<int> > if_Nv_part_map,
+                                                      std::map<int,int> LocElem2Nf,
+                                                      std::map<int,int> LocElem2Nv,
+                                                      int Nel_glob,
+                                                      std::map<int,Array<double>* > UState,
+                                                      Array<double>* ghost, MPI_Comm comm)
+{
+   int world_size;
+   MPI_Comm_size(comm, &world_size);
+   // Get the rank of the process
+   int world_rank;
+   MPI_Comm_rank(comm, &world_rank);
+    
+   int nLoc_Elem                         = Loc_Elem.size();
+   int Nel = Nel_glob;
+   std::vector<double> dist;
+   std::map<int,Array<double>* > dudx_map;
+   double d;
+   int loc_vid,adjID,elID;
+   int cou = 0;
+   Vert* Vc = new Vert;
+   Vert* Vadj;
+   int lid = 0;
+   double u_ijk, u_po;
+   //Array<double>* dudx = new Array<double>(nLoc_Elem,3);
 
+   for(int i=0;i<nLoc_Elem;i++)
+   {
+       int elID  = Loc_Elem[i];
+       int NvPEl = LocElem2Nv[elID];
+       int nadj  = LocElem2Nf[elID];
+       Array<double>* Vrt_T = new Array<double>(3,nadj);
+       Array<double>* Vrt   = new Array<double>(nadj,3);
+       Array<double>* b     = new Array<double>(nadj,1);
+
+       for(int q=0;q<nadj;q++)
+       {
+           for(int j=0;j<3;j++)
+           {
+               Vrt_T->setVal(j,q,0.0);
+               Vrt->setVal(q,j,0.0);
+           }
+       }
+       double* Pijk = new double[NvPEl*3];
+       for(int k=0;k<gE2lV[elID].size();k++)
+       {
+           loc_vid     = gE2lV[elID][k];
+           Pijk[k*3+0] = LocalVs[loc_vid]->x;
+           Pijk[k*3+1] = LocalVs[loc_vid]->y;
+           Pijk[k*3+2] = LocalVs[loc_vid]->z;
+       }
+
+       Vert* Vijk   = ComputeCentroidCoord(Pijk,NvPEl);
+
+       u_ijk        = UState[elID]->getVal(0,0);
+       int t        = 0;
+       
+       for(int j=0;j<nadj;j++)
+       {
+           int adjID = iee_part_map[elID][j];
+           //int NvPAdjEl = LocElem2Nv[adjID];
+           double* Padj = new double[gE2lV[adjID].size()*3];
+           //std::cout << adjID << " ";
+           if(adjID<Nel)
+           {
+               u_po = UState[adjID]->getVal(0,0);
+
+               for(int k=0;k<gE2lV[adjID].size();k++)
+               {
+                   loc_vid     = gE2lV[adjID][k];
+                   Padj[k*3+0] = LocalVs[loc_vid]->x;
+                   Padj[k*3+1] = LocalVs[loc_vid]->y;
+                   Padj[k*3+2] = LocalVs[loc_vid]->z;
+               }
+
+               Vadj = ComputeCentroidCoord(Padj,gE2lV[adjID].size());
+
+               d = sqrt((Vadj->x-Vijk->x)*(Vadj->x-Vijk->x)+
+                        (Vadj->y-Vijk->y)*(Vadj->y-Vijk->y)+
+                        (Vadj->z-Vijk->z)*(Vadj->z-Vijk->z));
+
+               Vrt->setVal(t,0,(1.0/d)*(Vadj->x-Vijk->x));
+               Vrt->setVal(t,1,(1.0/d)*(Vadj->y-Vijk->y));
+               Vrt->setVal(t,2,(1.0/d)*(Vadj->z-Vijk->z));
+
+               b->setVal(t,0,(1.0/d)*(u_po-u_ijk));
+               //std::cout << "internal guys because  " << adjID << " < " << Nel << " " << u_po << " " << u_ijk << " " << d << std::endl;
+
+               delete Vadj;
+               dist.push_back(d);
+               t++;
+
+           }
+           else
+           {
+               //int fid = gE2gF[elID][j];
+               int fid    = ief_part_map[elID][j];
+               int NvPerF = if_Nv_part_map[fid][0];
+               Vc->x = 0.0;
+               Vc->y = 0.0;
+               Vc->z = 0.0;
+
+               for(int s=0;s<NvPerF;s++)
+               {
+                   //int gvid_o = ifn->getVal(fid,s);
+                   int gvid = ifn_part_map[fid][s];
+                   int lvid = gV2lV[gvid];
+
+                   Vc->x = Vc->x+LocalVs[lvid]->x;
+                   Vc->y = Vc->y+LocalVs[lvid]->y;
+                   Vc->z = Vc->z+LocalVs[lvid]->z;
+               }
+
+
+               Vc->x = Vc->x/NvPerF;
+               Vc->y = Vc->y/NvPerF;
+               Vc->z = Vc->z/NvPerF;
+
+
+               d = sqrt((Vc->x-Vijk->x)*(Vc->x-Vijk->x)+
+                        (Vc->y-Vijk->y)*(Vc->y-Vijk->y)+
+                        (Vc->z-Vijk->z)*(Vc->z-Vijk->z));
+
+               //u_po = ghost->getVal(adjID-Nel,0);
+               //u_po = u_ijk;
+               //u_po = U[elID];
+               //double u_fpo = ghost->getVal(adjID-Nel,0);
+
+               Vrt->setVal(t,0,(1.0/d)*(Vc->x-Vijk->x));
+               Vrt->setVal(t,1,(1.0/d)*(Vc->y-Vijk->y));
+               Vrt->setVal(t,2,(1.0/d)*(Vc->z-Vijk->z));
+
+//               if(isnan(Vrt->getVal(t,0)) || isnan(Vrt->getVal(t,1)) || isnan(Vrt->getVal(t,2)))
+//               {
+//                   std::cout << "Vc = (" << Vc->x << ", " << Vc->y << ", " << Vc->z << ") " << std::endl;
+//               }
+
+               b->setVal(t,0,(1.0/d)*(0.0));
+               t++;
+               //dist.push_back(d);
+           }
+
+           delete[] Padj;
+
+      }
+      //std::cout << std::endl;
+       
+      double* A_cm = new double[nadj*3];
+       //std::cout << " =========================== " << std::endl;
+      for(int s=0;s<nadj;s++)
+      {
+          //std::cout << "b = " << b->getVal(s,0) << std::endl;
+          for(int j=0;j<3;j++)
+          {
+              A_cm[j*nadj+s] = Vrt->getVal(s,j);
+          }
+      }
+       //std::cout << " =========================== " << std::endl;
+
+       Array<double>* x = SolveQR(A_cm,nadj,3,b);
+       
+       //std::cout << x->getVal(0,0) << " " << x->getVal(1,0) << " " << x->getVal(2,0) << std::endl;
+       dudx_map[elID] = x;
+       //delete[] A_cm;
+       //delete x;
+       delete[] Pijk;
+       delete Vrt_T;
+       delete Vrt;
+       delete b;
+
+       //iee_dist.push_back(dist);
+       //dist.clear();
+   }
+    
+    delete Vc;
+    
+   return dudx_map;
+}
 
 std::map<int,Array<double>* > ComputedUdx_LSQ_Vrt_US3D(Partition* Pa, std::map<int,Array<double>* > Ue, std::map<int,double> Uv, Mesh_Topology* meshTopo, Array<double>* ghost, MPI_Comm comm)
 {
