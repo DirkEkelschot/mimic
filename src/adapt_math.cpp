@@ -71,8 +71,6 @@ Array<double>* SolveQR(double* A, int m, int n, Array<double>* b)
     return out;
 }
 
-
-
 Eig* ComputeEigenDecomp(int n, double * A)
 {
   Eig* eig = new Eig;
@@ -136,8 +134,6 @@ SVD* ComputeSVD(int M, int N, double * A)
     return svd;
 }
 
-
-
 bool isDiagonalMatrix(Array<double>* Msq)
 {
     
@@ -149,9 +145,6 @@ bool isDiagonalMatrix(Array<double>* Msq)
                 return false;
     return true;
 }
-
-
-
 
 Array<double>* MatInv(Array<double>* A)
 {
@@ -175,12 +168,7 @@ Array<double>* MatInv(Array<double>* A)
     return R;
 }
  
-
-
-
-
- 
- void UnitTestSVD()
+void UnitTestSVD()
  {
      double* A = new double[9];
      A[0] = 2758;A[1]=-2477.29;A[2]=1.00706e-12;
@@ -200,16 +188,7 @@ Array<double>* MatInv(Array<double>* A)
      
      
      delete svd;
- //    U= [[-8.48791491e-01 -5.28727723e-01  1.09121085e-14]
- //    [ 5.28727723e-01 -8.48791491e-01  1.25551127e-14]
- //        [ 2.62386865e-15  1.64262071e-14  1.00000000e+00]];
- //
- //    Vh= [[-8.48791491e-01  5.28727723e-01  2.62386865e-15]
- //    [ 5.28727723e-01  8.48791491e-01 -1.64262071e-14]
- //    [ 1.09121085e-14  1.25551127e-14  1.00000000e+00]];
-
  }
- 
  
 void UnitTestEigenDecomp()
 {
@@ -218,11 +197,6 @@ void UnitTestEigenDecomp()
     M[3] = -0.3;M[4]=1.25;M[5]=0.1;
     M[6] = 0.4;M[7]=0.1;M[8]=0.25;
     
-//    double * WR = new double[3];
-//    double * WI = new double[3];
-//    double * V = new double[3*3];
-//    double * iV = new double[3*3];
-    //EigenDecomp(3, M,  WR,  WI, V, iV );
     Eig* eig = ComputeEigenDecomp(3,M);
     for(int i=0;i<3;i++)
     {
@@ -263,5 +237,3 @@ void UnitTestEigenDecomp()
     }
     std::cout << std::endl;
 }
-
-//#endif

@@ -1,1 +1,5 @@
 *.vtk
+*.o
+*.DS_Store
+adapt
+bin

@@ -9,7 +9,6 @@
 class ParallelState_Parmetis2 {
    public:
     ParallelState_Parmetis2(ParArray<int>* e2n, MPI_Comm comm, int type);
-    //ParallelState_Parmetis(ParArray<int>* e2n, ParArray<int>* iet, MPI_Comm comm);
     int* getNlocs( void );
     int* getElmdist( void );
     int getNloc( int rank );
@@ -29,13 +28,8 @@ class ParallelState_Parmetis2 {
       int* eind;
 };
 
-inline ParallelState_Parmetis2::ParallelState_Parmetis2(ParArray<int>* e2n, MPI_Comm comm, int type)
+inline ParallelState_Parmetis2::ParallelState_Parmetis2(ParArray<int>* e2n, MPI_Comm comm, int rank, int size, int type)
 {
-    int size;
-    MPI_Comm_size(comm, &size);
-    // Get the rank of the process;
-    int rank;
-    MPI_Comm_rank(comm, &rank);
     int Nel = e2n->getNglob();
     //std::cout << "number of elements = " << Nel;
     int nloc             = int(Nel/size) + ( rank < Nel%size );
@@ -112,20 +106,7 @@ inline ParallelState_Parmetis2::ParallelState_Parmetis2(ParArray<int>* e2n, MPI_
             eind[j] = e2n->data[j];
         }
     }
-//    eind = e2n->data;
-
-    // The constructor builds the following arrays:
-    // elmdist
-    // nlocs
-    // npo_locs
-    // npo_offset
-    // eptr
-    // eind
-
-}// This is the constructor
-
-
-
+}
 
 inline int* ParallelState_Parmetis2::getElmdist( void )
 {

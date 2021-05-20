@@ -12,22 +12,37 @@
 class Partition {
    public:
     Partition(){};
-    Partition(ParArray<int>* ien, ParArray<int>* iee, ParArray<int>* ief, ParArray<int>* ie_Nv, ParArray<int>* ieie_Nf, ParArray<int>* ifn, ParArray<int>* ife, ParArray<int>* if_ref, ParArray<int>* if_Nv,  ParallelState_Parmetis* pstate_parmetis, ParallelState* ien_parstate, ParallelState* ife_parstate, ParArray<double>* xcn, ParallelState* xcn_parstate, Array<double>* U, MPI_Comm comm);
+    Partition(ParArray<int>* ien, 
+              ParArray<int>* iee, 
+              ParArray<int>* ief, 
+              ParArray<int>* ie_Nv, 
+              ParArray<int>* ieie_Nf, 
+              ParArray<int>* ifn, 
+              ParArray<int>* ife, 
+              ParArray<int>* if_ref, 
+              ParArray<int>* if_Nv,  
+              ParallelState_Parmetis* pstate_parmetis, 
+              ParallelState* ien_parstate, 
+              ParallelState* ife_parstate, 
+              ParArray<double>* xcn, 
+              ParallelState* xcn_parstate, 
+              Array<double>* U, 
+              MPI_Comm comm, int rank, int size);
     ~Partition();
-    void DeterminePartitionLayout(ParArray<int>* ien, ParallelState_Parmetis* pstate_parmetis, MPI_Comm comm);
-    void DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief, ParArray<int>* ie_Nv, ParArray<int>* ie_Nf, ParArray<double>* xcn, Array<double>* U, MPI_Comm comm);
-    void DetermineAdjacentElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief, ParArray<int>* part, ParArray<double>* xcn, Array<double>* U, MPI_Comm comm);
-    void DetermineAdjacentElement2ProcMapUS3D(ParArray<int>* ien, std::map<int,std::vector<int> > iee_vec, ParArray<int>* part, ParArray<double>* xcn, Array<double>* U, MPI_Comm comm);
+    void DeterminePartitionLayout(ParArray<int>* ien, ParallelState_Parmetis* pstate_parmetis, MPI_Comm comm, int rank, int size);
+    void DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief, ParArray<int>* ie_Nv, ParArray<int>* ie_Nf, ParArray<double>* xcn, Array<double>* U, MPI_Comm comm, int rank, int size);
+    void DetermineAdjacentElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief, ParArray<int>* part, ParArray<double>* xcn, Array<double>* U, MPI_Comm comm, int rank, int size);
+    void DetermineAdjacentElement2ProcMapUS3D(ParArray<int>* ien, std::map<int,std::vector<int> > iee_vec, ParArray<int>* part, ParArray<double>* xcn, Array<double>* U, MPI_Comm comm, int rank, int size);
     void CreatePartitionDomain();
-    std::vector<double> PartitionAuxilaryData(Array<double>* U, MPI_Comm comm);
-    std::map<int,double> CommunicateLocalDataUS3D(Array<double>* U, MPI_Comm comm);
-    void AddStateForAdjacentElements(std::map<int,double> U, MPI_Comm comm);
-    void AddStateVecForAdjacentElements(std::map<int,Array<double>* > &U, int nvar, MPI_Comm comm);
-    void AddAdjacentVertexDataUS3D(std::map<int,double> &Uv, MPI_Comm comm);
-    void AddStateVecForAdjacentVertices(std::map<int,Array<double>* > &Uv, int nvar, MPI_Comm comm);
-    i_part_map* getElement2EntityPerPartition(ParArray<int>* iee, std::vector<int> Loc_Elem_Ne, MPI_Comm comm);
-    i_part_map* getFace2EntityPerPartition(ParArray<int>* ife, MPI_Comm comm);
-    i_part_map* getFace2NodePerPartition(ParArray<int>* ifn, MPI_Comm comm);
+    std::vector<double> PartitionAuxilaryData(Array<double>* U, MPI_Comm comm, int rank, int size);
+    std::map<int,double> CommunicateLocalDataUS3D(Array<double>* U, MPI_Comm comm, int rank, int size);
+    void AddStateForAdjacentElements(std::map<int,double> U, MPI_Comm comm, int rank, int size);
+    void AddStateVecForAdjacentElements(std::map<int,Array<double>* > &U, int nvar, MPI_Comm comm, int rank, int size);
+    void AddAdjacentVertexDataUS3D(std::map<int,double> &Uv, MPI_Comm comm, int rank, int size);
+    void AddStateVecForAdjacentVertices(std::map<int,Array<double>* > &Uv, int nvar, MPI_Comm comm, int rank, int size);
+    i_part_map* getElement2EntityPerPartition(ParArray<int>* iee, std::vector<int> Loc_Elem_Ne, MPI_Comm comm, int rank, int size);
+    i_part_map* getFace2EntityPerPartition(ParArray<int>* ife, MPI_Comm comm, int rank, int size);
+    i_part_map* getFace2NodePerPartition(ParArray<int>* ifn, MPI_Comm comm, int rank, int size);
     Domain* getPartitionDomain();
     std::map<int,double> ReduceFieldToVertices(std::map<int,double> Uelem);
     std::map<int,double> ReduceFieldToAllVertices(std::map<int,double> Uelem);

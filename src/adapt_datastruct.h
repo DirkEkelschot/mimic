@@ -58,8 +58,6 @@ struct ParVar_ParMetis
     int* eind;
 };
 
-
-
 template <typename T> class JaggedArray {
 private:
 
@@ -97,9 +95,6 @@ struct Vert
 };
 
 
-
-
-
 struct TmpStruct
 {
     int* data;
@@ -110,9 +105,6 @@ struct TmpStruct
     int* offsets_sizing;
     int* nlocs_sizing;
 };
-
-
-
 
 
 struct LocalPartitionData
@@ -127,9 +119,6 @@ struct LocalPartitionData
     
     Array<int>* ien_loc;
 };
-
-
-
 
 struct Partition_old
 {
@@ -149,8 +138,6 @@ struct Partition_old
     int* adjncy;
 };
 
-
-
 struct PartitionStruct
 {
     int ndim;
@@ -164,12 +151,6 @@ struct PartitionStruct
     Array<double>* rho_elem;
     Array<double>* rho_vert;
 };
-
-
-
-
-
-
 
 template <class T>
 void printArray(Array<T> A)
@@ -198,103 +179,5 @@ void printArray(Array<T> A)
     std::cout << "]" << std::endl;
     std::cout << " " << std::endl;
 };
-
-
-/*
-//template<typename T>
-struct US3dData
-{
-    int rows_grd;
-    int cols_grd;
-    double* Coordinates;
-    
-    int rows_conn;
-    int cols_conn;
-    int* Connection;
-    
-    int rows_bound;
-    int cols_bound;
-    double* Boundaries;
-    
-    int rows_interior;
-    int cols_interior;
-    double* Interior;
-
-    std::vector<std::vector<int> > element2face;
-    std::vector<std::vector<int> > face2element;
-    
-    std::vector<std::vector<int> > element2node;
-    std::vector<std::vector<int> > node2element;
-    
-    std::vector<std::vector<int> > face2node;
-    std::vector<std::vector<int> > node2face;
-    
-    std::vector<int> ElType;
-};
-
-
-template <class T>
-void PrintUS3dData(US3dData Vec, char tag)
-{
-    if (tag == 'g')
-    {
-        std::cout << " ===============Grid Coordinate Values ======= " << std::endl;
-        std::cout << " ====================================== " << std::endl;
-        for(int i=0;i<Vec.rows_grd;i++)
-        {
-            for(int j=0;j<Vec.cols_grd;j++)
-            {
-                std::cout << Vec.Coordinates[i*Vec.cols_grd+j] << " ";
-            }
-            std::cout << std::endl;
-        }
-        std::cout << " ====================================== " << std::endl;
-    }
-    if (tag == 'c')
-    {
-        std::cout << " ===============Connection Values ======= " << std::endl;
-        std::cout << " ====================================== " << std::endl;
-        for(int i=0;i<Vec.rows_conn;i++)
-        {
-            for(int j=0;j<Vec.cols_conn;j++)
-            {
-                std::cout << Vec.Connection[i*Vec.cols_conn+j] << " ";
-            }
-            std::cout << std::endl;
-        }
-        std::cout << " ====================================== " << std::endl;
-    }
-    if (tag == 'b')
-    {
-        std::cout << " ===============Boundary Values ======= " << std::endl;
-        std::cout << " ====================================== " << std::endl;
-        for(int i=0;i<Vec.rows_bound;i++)
-        {
-            for(int j=0;j<Vec.cols_bound;j++)
-            {
-                std::cout << Vec.Boundaries[i*Vec.cols_bound+j] << " ";
-            }
-            std::cout << std::endl;
-        }
-        std::cout << " ====================================== " << std::endl;
-    }
-    if (tag == 'i')
-    {
-        std::cout << " ===============Interior Values ======= " << std::endl;
-        std::cout << " ====================================== " << std::endl;
-        for(int i=0;i<Vec.rows_interior;i++)
-        {
-            for(int j=0;j<Vec.cols_interior;j++)
-            {
-                std::cout << Vec.Interior[i*Vec.cols_interior+j] << " ";
-            }
-            std::cout << std::endl;
-        }
-        std::cout << " ====================================== " << std::endl;
-    }
-
-
-};
-*/
 
 #endif

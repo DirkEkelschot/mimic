@@ -8,7 +8,6 @@ void NegateVec3D(Vec3D* a)
     a->c0 = -a->c0;
     a->c1 = -a->c1;
     a->c2 = -a->c2;
-    
 }
 
 double DotVec3D(Vec3D* a, Vec3D* b)
@@ -64,10 +63,8 @@ double ComputeDetJac(double *P0,double *P1,double *P2,double *P3)
     return DetJ;
 }
 
-
-
-
-double ComputeJ(double*P, int ElType){
+double ComputeJ(double*P, int ElType)
+{
     
     double J = 0.0;
     if (ElType==4)
@@ -191,14 +188,12 @@ double ComputeJ(double*P, int ElType){
     return J;
 }
 
-
 double ComputeEdgeLength(Vert* v0, Vert* v1)
 {
     return sqrt((v0->x - v1->x) * (v0->x - v1->x)+
                 (v0->y - v1->y) * (v0->y - v1->y)+
                 (v0->z - v1->z) * (v0->z - v1->z));
 }
-
 
 double ComputeTetVolume(double *P)
 {
@@ -248,9 +243,7 @@ double ComputeTetVolume(double *P)
     delete c;
     delete d;
     //delete[] cross;
-    return V;
-    
-    
+    return V;    
 }
 
 double ComputeVolumeHexCell(double *P)
@@ -360,9 +353,6 @@ double ComputeVolumeHexCell(double *P)
     return vol0+vol1+vol2+vol3;
 }
 
-
-
-
 double ComputeVolumeTetCell(double *P)
 {
     Vert* a = new Vert;
@@ -414,8 +404,6 @@ double ComputeVolumeTetCell(double *P)
     return V;
 }
 
-
-
 double ComputeVolumePrismCell(double *P)
 {
     Vert* v0 = new Vert;
@@ -453,11 +441,6 @@ double ComputeVolumePrismCell(double *P)
     double hb = ComputeEdgeLength(v0,v3);
     double hc = ComputeEdgeLength(v2,v5);
     
-//    double A2 = La*(hb+hc)/2.0;
-//    double A3 = Lb*(ha+hc)/2.0;
-//    double A4 = Lc*(ha+hb)/2.0;
-//
-//    double A = A0+A1+A2+A3+A4;
     double V = A0*(ha+hb+hc)/3.0;
     
     delete v0;
@@ -467,13 +450,8 @@ double ComputeVolumePrismCell(double *P)
     delete v4;
     delete v5;
     
-    return V;
-    
+    return V; 
 }
-
-
-
-
 
 // This function outputs J as an array of 9 values where the matrix is defined as:
 
@@ -532,7 +510,6 @@ Vert* ComputeCenterCoord(double*P, int np)
     return V;
 }
 
-
 Vert* ComputeCentroidCoord(double*P, int np)
 {
     Vert* V = new Vert;
@@ -555,7 +532,6 @@ Vert* ComputeCentroidCoord(double*P, int np)
     
     return V;
 }
-
 
 double* ComputeJAtCenter(double*P, int np)
 {
@@ -643,50 +619,6 @@ double* ComputeJAtCenter(double*P, int np)
     return J;
 }
 
-//double* ComputeJAtCenter_tet(double*P)
-//{
-//    Array<double>* ref = new Array<double>(4,4);
-//    ref->setVal(0,0,-1.0);ref->setVal(0,1, 1.0);ref->setVal(0,2,-1.0);ref->setVal(0,3,-1.0);
-//    ref->setVal(1,0,-1.0);ref->setVal(1,1,-1.0);ref->setVal(1,2, 1.0);ref->setVal(1,3,-1.0);
-//    ref->setVal(2,0,-1.0);ref->setVal(2,1,-1.0);ref->setVal(2,2,-1.0);ref->setVal(2,3, 1.0);
-//    ref->setVal(3,0, 1.0);ref->setVal(3,1, 1.0);ref->setVal(3,2, 1.0);ref->setVal(3,3, 1.0);
-//
-//    Array<double>* phys = new Array<double>(4,4);
-//    phys->setVal(0,0,P[0*3+0]);phys->setVal(0,1,P[1*3+0]);phys->setVal(0,2,P[2*3+0]);phys->setVal(0,3,P[3*3+0]);
-//    phys->setVal(1,0,P[0*3+1]);phys->setVal(1,1,P[1*3+1]);phys->setVal(1,2,P[2*3+1]);phys->setVal(1,3,P[3*3+1]);
-//    phys->setVal(2,0,P[0*3+2]);phys->setVal(2,1,P[1*3+2]);phys->setVal(2,2,P[2*3+2]);phys->setVal(2,3,P[3*3+2]);
-//    phys->setVal(3,0,    1.0); phys->setVal(3,1,     1.0);phys->setVal(3,2,     1.0);phys->setVal(3,3,     1.0);
-//
-//    Array<double>* phys_t = new Array<double>(4,4);
-//    Array<double>* ref_t = new Array<double>(4,4);
-//
-//    for(int i=0;i<4;i++)
-//    {
-//        for(int j=0;j<4;j++)
-//        {
-//            ref_t->setVal(j,i,ref->getVal(i,j));
-//            phys_t->setVal(j,i,phys->getVal(i,j));
-//        }
-//    }
-//
-//    Array<double>* iphys = MatInv(phys);
-//    Array<double>* iref  = MatInv(ref);
-//    Array<double>* M  = MatMul(ref,iphys);
-//    Array<double>* Ma = MatMul(phys,iref);
-//
-//    double* J = new double[3*3];
-//    for(int i=0;i<3;i++)
-//    {
-//        for(int j=0;j<3;j++)
-//        {
-//            J[i*3+j] = Ma->getVal(i,j);
-//        }
-//    }
-//
-//    return J;
-//}
-
-
 Array<double>* ComputeJAtCenter_tet_v2(double*P)
 {
 
@@ -723,6 +655,7 @@ Array<double>* ComputeJAtCenter_tet_v2(double*P)
     
     return M;
 }
+
 double ComputeDeterminantJ_tet_v2(double*P)
 {
     Array<double>* JP1 = ComputeJAtCenter_tet_v2(P);
@@ -827,7 +760,6 @@ double ComputeDeterminantJ_tet(double*P)
     return DetJ;
 }
 
-
 double ComputeDeterminantJ(double*P, int np)
 {
     double* JP1 = ComputeJAtCenter(P, np);
@@ -836,10 +768,8 @@ double ComputeDeterminantJ(double*P, int np)
     -JP1[1]*(JP1[3]*JP1[8]-JP1[6]*JP1[5])
     +JP1[2]*(JP1[3]*JP1[7]-JP1[6]*JP1[4]);
     
-    return DetJ;
-    
+    return DetJ;  
 }
-
 
 Array<double>* ComputeHessian(Partition_old* pa)
 {
@@ -848,7 +778,6 @@ Array<double>* ComputeHessian(Partition_old* pa)
     
     return H;
 }
-
 
 Array<double>* ComputeDeterminantofJacobian(ParArray<int>* ien, Array<double>* xcn)
 {
@@ -885,14 +814,8 @@ Array<double>* ComputeDeterminantofJacobian(ParArray<int>* ien, Array<double>* x
     return detJ;
 }
 
-
-double* ComputeVolumeCellsSerial(Array<double>* xcn, Array<int>* ien, MPI_Comm comm)
+double* ComputeVolumeCellsSerial(Array<double>* xcn, Array<int>* ien, MPI_Comm comm, int world_rank, int world_size)
 {
-    int world_size;
-    MPI_Comm_size(comm, &world_size);
-    // Get the rank of the process
-    int world_rank;
-    MPI_Comm_rank(comm, &world_rank);
     int Nel = ien->getNrow();
     //  compute offset of rows for each proc;
     int offset   = world_rank*int(Nel/world_size) + MIN(world_rank, Nel%world_size);
@@ -925,15 +848,8 @@ double* ComputeVolumeCellsSerial(Array<double>* xcn, Array<int>* ien, MPI_Comm c
     
     delete[] P;
     
-    return vol_cells;
-    
+    return vol_cells;  
 }
-
-
-
-
-
-
 
 double* ComputeVolumeCellsReducedToVerts(Array<double>* xcn, Array<int>* ien)
 {
@@ -988,8 +904,6 @@ double* ComputeVolumeCellsReducedToVerts(Array<double>* xcn, Array<int>* ien)
     return vol_verts;
 }
 
-
-
 void UnitTestJacobian()
 {
     double* Hex = new double[8*3];
@@ -1022,23 +936,12 @@ void UnitTestJacobian()
     std::cout << DetJ << std::endl;
 }
 
-
-
-
-
-
-
 void ComputeMetric(Partition* Pa, std::vector<double> metric_inputs,
-                   MPI_Comm comm,
+                   MPI_Comm comm, int rank, int size,
                    std::map<int,Array<double>* > scale_vm,
                    std::map<int,Array<double>* > &Hess_vm,
                    double sumvol, double po)
 {
-    int size;
-    MPI_Comm_size(comm, &size);
-    // Get the rank of the process
-    int rank;
-    MPI_Comm_rank(comm, &rank);
     //+++++++++++++++++++++++++++++++++++++++++++
     //++++  Scaling eigenvalues/eigenvectors ++++
     double hmin         = metric_inputs[1];
@@ -1058,11 +961,6 @@ void ComputeMetric(Partition* Pa, std::vector<double> metric_inputs,
     for(itm=Hess_vm.begin();itm!=Hess_vm.end();itm++)
     {
         int glob_vid = itm->first;
-//        if(scale_vm[glob_vid]->getVal(0,0)<0.0)
-//        {
-//            std::cout << "Mach " << scale_vm[glob_vid]->getVal(0,0) << std::endl;
-//
-//        }
         
         Hmet[0] = Hess_vm[glob_vid]->getVal(0,0);
         Hmet[1] = Hess_vm[glob_vid]->getVal(1,0);
@@ -1197,14 +1095,11 @@ void ComputeMetric(Partition* Pa, std::vector<double> metric_inputs,
 }
 
 
-Array<double>* ComputeFaceValues(Partition* P, Array<double>* U, MPI_Comm comm)
+Array<double>* ComputeFaceValues(Partition* P, Array<double>* U, MPI_Comm comm, int rank, int size)
 {
-    int nface, start, end, rank, size;
+    int nface, start, end;
     int nloc, offset, adjEl_id, leid, geid, i, t;
     double u_o,u_c;
-    MPI_Comm_size(comm, &size);
-    // Get the rank of the process
-    MPI_Comm_rank(comm, &rank);
     
     //offset  = P->getLocalPartition()->getOffset(rank);
     int* xadj   = P->getXadj();
@@ -1213,7 +1108,7 @@ Array<double>* ComputeFaceValues(Partition* P, Array<double>* U, MPI_Comm comm)
     
     nface = 6; // # hardcoded for hexes for now
     
-    std::vector<double> Uelem_all         = P->PartitionAuxilaryData(U, comm);
+    std::vector<double> Uelem_all         = P->PartitionAuxilaryData(U, comm, rank, size);
     std::map<int,int> gE2lE               = P->getGlobalElement2LocalElement();
     std::map<int,int> lE2gE               = P->getLocalElement2GlobalElement();
     std::map<int,std::vector<int> > gE2gF = P->getglobElem2globFaces();
@@ -1243,7 +1138,6 @@ Array<double>* ComputeFaceValues(Partition* P, Array<double>* U, MPI_Comm comm)
     
     return Uf;
 }
-
 
 Array<double>* ComputeVolumes(Partition* Pa)
 {

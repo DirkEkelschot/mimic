@@ -27,15 +27,8 @@ inline MPI_Datatype get_mpi_datatype() {
 }
 
 template<typename T>
-Array<T>* GatherArrayOnRoot(Array<T>* A,MPI_Comm comm, MPI_Info info)
+Array<T>* GatherArrayOnRoot(Array<T>* A,MPI_Comm comm, int rank, int size, MPI_Info info)
 {
-    // Get the size of the process;
-    int size;
-    MPI_Comm_size(comm, &size);
-
-    // Get the rank of the process;
-    int rank;
-    MPI_Comm_rank(comm, &rank);
     
     MPI_Datatype mpi_dtype = get_mpi_datatype<T>();
     
@@ -91,8 +84,7 @@ Array<T>* GatherArrayOnRoot(Array<T>* A,MPI_Comm comm, MPI_Info info)
     return gA;
 }
 
-
-Array<double>* GetOptimizedMMG3DMeshOnRoot(Partition* P, US3D* us3d, std::map<int,Array<double>*> mv_map, MPI_Comm comm);
+Array<double>* GetOptimizedMMG3DMeshOnRoot(Partition* P, US3D* us3d, std::map<int,Array<double>*> mv_map, MPI_Comm comm, int world_rank, int world_size);
 
 
 Mesh* ReduceMeshToRoot(ParArray<int>* ien,
@@ -101,7 +93,7 @@ Mesh* ReduceMeshToRoot(ParArray<int>* ien,
                        ParArray<int>* ifn,
                        ParArray<int>* ife,
                        ParArray<int>* if_ref,
-                       MPI_Comm comm, MPI_Info info);
+                       MPI_Comm comm, int rank, int size, MPI_Info info);
 
-std::map<int,std::vector<int> > GatherElementsOnRoot(std::map<int,std::vector<int> >Apr, std::map<int,std::vector<int> > Ate, MPI_Comm comm, MPI_Info info);
+std::map<int,std::vector<int> > GatherElementsOnRoot(std::map<int,std::vector<int> >Apr, std::map<int,std::vector<int> > Ate, MPI_Comm comm, int rank, int size, MPI_Info info);
 #endif

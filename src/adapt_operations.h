@@ -11,9 +11,9 @@ int FindBoundaryID(int* arr, int size, int val);
 
 std::vector<int> FindDuplicates(std::vector<int> arr);
 
-std::vector<int> FindDuplicatesInParallel(int* arr, int loc_size, int glob_size, MPI_Comm comm);
+std::vector<int> FindDuplicatesInParallel(int* arr, int loc_size, int glob_size, MPI_Comm comm, int rank, int size);
 
-std::vector<int> FindDuplicatesInParallel_Vec(std::vector<int> arr, int arr_size, int glob_size, MPI_Comm comm);
+std::vector<int> FindDuplicatesInParallel_Vec(std::vector<int> arr, int arr_size, int glob_size, MPI_Comm comm, int rank, int size);
 
 int compare (const void * a, const void * b);
 
@@ -29,6 +29,6 @@ int binarySearch(int* arr, int low, int high, int key);
 
 int largest(int arr[], int n);
 
-void TestFindRank(MPI_Comm comm);
+void TestFindRank(MPI_Comm comm, int rank, int size);
 
 #endif

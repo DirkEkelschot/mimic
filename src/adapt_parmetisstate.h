@@ -8,8 +8,7 @@
 
 class ParallelState_Parmetis {
    public:
-    //ParallelState_Parmetis(ParArray<int>* e2n, MPI_Comm comm, int type);
-    ParallelState_Parmetis(ParArray<int>* e2n, Array<int>* elTypes, ParArray<int>* iet, MPI_Comm comm);
+    ParallelState_Parmetis(ParArray<int>* e2n, Array<int>* elTypes, ParArray<int>* iet, MPI_Comm comm, int world_rank, int world_size);
     int* getNlocs( void );
     int* getElmdist( void );
     int getNloc( int rank );
@@ -33,13 +32,8 @@ class ParallelState_Parmetis {
 
 
 
-inline ParallelState_Parmetis::ParallelState_Parmetis(ParArray<int>* e2n, Array<int>* elTypes, ParArray<int>* ie_Nv, MPI_Comm comm)
+inline ParallelState_Parmetis::ParallelState_Parmetis(ParArray<int>* e2n, Array<int>* elTypes, ParArray<int>* ie_Nv, MPI_Comm comm, int rank, int size)
 {
-    int size;
-    MPI_Comm_size(comm, &size);
-    // Get the rank of the process;
-    int rank;
-    MPI_Comm_rank(comm, &rank);
     int Nel = e2n->getNglob();
 
     int nloc             = int(Nel/size) + ( rank < Nel%size );
@@ -108,10 +102,6 @@ inline ParallelState_Parmetis::ParallelState_Parmetis(ParArray<int>* e2n, Array<
     elmdist[size]       = Nel;
     //npo_offset[size]    = npo_loc_tot;
 
-//    for(int i=0;i<size+1;i++)
-//    {
-//        std::cout << elmdist[i] << " " << npo_offset[i] << std::endl;
-//    }
 
     eptr     = new int[nloc+1];
     eind     = new int[npo_loc];
@@ -128,15 +118,6 @@ inline ParallelState_Parmetis::ParallelState_Parmetis(ParArray<int>* e2n, Array<
             k++;
         }
     }
-//    eind = e2n->data;
-
-    // The constructor builds the following arrays:
-    // elmdist
-    // nlocs
-    // npo_locs
-    // npo_offset
-    // eptr
-    // eind
 
 }// This is the constructor
 

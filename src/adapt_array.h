@@ -68,14 +68,8 @@ template <typename T> class Array {
 template <typename T> class ParArray : public Array<T>
 {
     public:
-        ParArray(int N, int c, MPI_Comm comm): Array<T>()
-        {
-            //pstate = new ParallelState(N,comm);
-            int size;
-            MPI_Comm_size(comm, &size);
-            int rank;
-            MPI_Comm_rank(comm, &rank);
-            
+        ParArray(int N, int c, MPI_Comm comm, int rank, int size): Array<T>()
+        {   
             nloc             = int(N/size) + ( rank < N%size );
             //  compute offset of rows for each proc;
             offset           = rank*int(N/size) + MIN(rank, N%size); 

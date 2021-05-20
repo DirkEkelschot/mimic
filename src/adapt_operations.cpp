@@ -3,9 +3,6 @@
 
 using namespace std;
 
-
-
-
 int FindRank(int* arr, int size, int val)
 {
     int start = 0;
@@ -28,8 +25,6 @@ int FindRank(int* arr, int size, int val)
 
     return mid;
 }
-
-
 
 int FindBoundaryID(int* arr, int size, int val)
 {
@@ -54,8 +49,6 @@ int FindBoundaryID(int* arr, int size, int val)
     return mid;
 }
 
-
-
 std::vector<int> FindDuplicates(std::vector<int> arr)
 {
     int N = arr.size();
@@ -77,7 +70,6 @@ std::vector<int> FindDuplicates(std::vector<int> arr)
     return res;
 }
 
-
 int binarySearch(int* arr, int low, int high, int key)
 {
     if (high < low)
@@ -91,32 +83,19 @@ int binarySearch(int* arr, int low, int high, int key)
     return binarySearch(arr, low, (mid - 1), key);
 }
 
-
-
-
-
-std::vector<int> FindDuplicatesInParallel_Vec(std::vector<int> arr, int arr_size, int glob_size, MPI_Comm comm)
+std::vector<int> FindDuplicatesInParallel_Vec(std::vector<int> arr, int arr_size, int glob_size, MPI_Comm comm, int rank, int size)
 {
-    int size;
-    MPI_Comm_size(comm, &size);
-    // Get the rank of the process
-    int rank;
-    MPI_Comm_rank(comm, &rank);
     
     int levels = log2(size);
     
     int N = arr_size;
 
-    //if (rank == 0)
-    //{
-    //glob_arr = new int[glob_size];
-    //}
     std::vector<int> glob_arr(glob_size);
     std::vector<int> sorted = mergeSort_vec(levels, rank, arr, N, comm, glob_arr);
     
     MPI_Bcast(&sorted[0], glob_size, MPI_INT, 0, MPI_COMM_WORLD);
 
-    ParallelState* pv = new ParallelState(glob_size, comm);
+    ParallelState* pv = new ParallelState(glob_size, comm, rank, size);
     
     std::vector<int> res;
     std::set<int> check;
@@ -174,13 +153,8 @@ std::vector<int> FindDuplicatesInParallel_Vec(std::vector<int> arr, int arr_size
     return duplicates;
 }
 
-std::vector<int> FindDuplicatesInParallel(int* arr, int arr_size, int glob_size, MPI_Comm comm)
+std::vector<int> FindDuplicatesInParallel(int* arr, int arr_size, int glob_size, MPI_Comm comm, int rank, int size)
 {
-    int size;
-    MPI_Comm_size(comm, &size);
-    // Get the rank of the process
-    int rank;
-    MPI_Comm_rank(comm, &rank);
     
     int levels = log2(size);
     
@@ -192,7 +166,7 @@ std::vector<int> FindDuplicatesInParallel(int* arr, int arr_size, int glob_size,
     
     MPI_Bcast(sorted, glob_size, MPI_INT, 0, MPI_COMM_WORLD);
 
-    ParallelState* pv = new ParallelState(glob_size, comm);
+    ParallelState* pv = new ParallelState(glob_size, comm, rank, size);
     
     std::vector<int> res;
     std::set<int> check;
@@ -254,7 +228,6 @@ std::vector<int> FindDuplicatesInParallel(int* arr, int arr_size, int glob_size,
     return duplicates;
 }
 
-
 int compare (const void * a, const void * b)
 {
   return ( *(int*)a - *(int*)b );
@@ -290,7 +263,6 @@ int* merge(int* a, int* b, int size_a, int size_b, int* merged, int size)
     return merged;
 }
 
-
 std::vector<int> merge_vec(std::vector<int> a, std::vector<int> b)
 {
     int n = a.size();
@@ -324,7 +296,6 @@ std::vector<int> merge_vec(std::vector<int> a, std::vector<int> b)
     
     return merged;
 }
-
 
 int* mergeSort(int height, int id, int* localArray, int size, MPI_Comm comm, int* globalArray)
 {
@@ -389,9 +360,8 @@ int* mergeSort(int height, int id, int* localArray, int size, MPI_Comm comm, int
     return globalArray;
 }
 
-
-
-std::vector<int> mergeSort_vec(int height, int rank, std::vector<int> localArray, int size, MPI_Comm comm, std::vector<int> globalArray){
+std::vector<int> mergeSort_vec(int height, int rank, std::vector<int> localArray, int size, MPI_Comm comm, std::vector<int> globalArray)
+{
     
     int parent, rightChild, myHeight;
 
@@ -449,7 +419,6 @@ std::vector<int> mergeSort_vec(int height, int rank, std::vector<int> localArray
     return globalArray;
 }
 
-
 int largest(int arr[], int n)
 {
     int i;
@@ -467,18 +436,8 @@ int largest(int arr[], int n)
     return max;
 }
 
-
-
-
-void TestFindRank(MPI_Comm comm)
+void TestFindRank(MPI_Comm comm, int rank, int size)
 {
-    
-    int size;
-    MPI_Comm_size(comm, &size);
-
-    // Get the rank of the process
-    int rank;
-    MPI_Comm_rank(comm, &rank);
     int* arr = new int[10];
     
     arr[0] = 0;
@@ -508,221 +467,3 @@ void TestFindRank(MPI_Comm comm)
     }
     
 }
-
-//void ParallelSortTest_v2()
-//{
-//    MPI_Comm comm = MPI_COMM_WORLD;
-//    MPI_Info info = MPI_INFO_NULL;
-//    int size;
-//    MPI_Comm_size(comm, &size);
-//    // Get the rank of the process
-//    int rank;
-//    MPI_Comm_rank(comm, &rank);
-//    
-//    int levels = log2(size);
-//    
-//    const char* fn_conn="grids/piston/conn.h5";
-//    //const char* fn_grid="grids/piston/grid.h5";
-//    
-//    ParArray<int>* ief = ReadDataSetFromFileInParallel<int>(fn_conn,"ief",comm,info);
-//    
-//    int nrow = ief->getNrow();
-//    int ncol = ief->getNcol();
-//    
-//    int *data = new int[nrow*(ncol-1)];
-//    std::vector<int> ief_copy(nrow*(ncol-1));
-//    int fid;
-//    int cnt=0;
-//    for(int i=0;i<nrow;i++)
-//    {
-//        for(int j=0;j<ncol-1;j++)
-//        {
-//            fid = fabs(ief->getVal(i,j+1))-1;
-//            ief_copy[cnt] = fid;
-//            cnt++;
-//        }
-//    }
-//    int lsize = ief_copy.size();
-//    int* ief_arr = new int[lsize];
-//    for(int i=0;i<lsize;i++)
-//    {
-//        ief_arr[i] = ief_copy[i];
-//    }
-//    //int *glob_arr;
-////    if (rank == 0)
-////    {
-////        glob_arr = new int[ief->nglob*6];
-////
-////    }
-//    int nglob = ief->getNglob();
-//    std::vector<int> glob_arr(nglob*6);
-//    
-//    std::vector<int> sorted = mergeSort_vec(levels, rank, ief_copy, lsize, comm, glob_arr);
-//    
-//    if(rank == 0)
-//    {
-//        std::cout << "hoi " << rank << " " << nglob*6 << std::endl;
-//       for(int i=0;i<nglob*6;i++)
-//        {
-//           std::cout << "vec " << rank << " " << i << " " << sorted[i] << std::endl;
-//        }
-//    }
-//    
-//    delete[] ief_arr;
-//    delete[] data;
-//    delete ief;
-//    
-//    ief_copy.erase(ief_copy.begin(),ief_copy.end());
-//    
-//}
-
-
-
-
-//void MergeTest()
-//{
-//    std::vector<int> vec;
-//    vec.push_back(1);
-//    vec.push_back(3);
-//    vec.push_back(2);
-//    vec.push_back(14);
-//    vec.push_back(8);
-//    vec.push_back(2);
-//    vec.push_back(3);
-//    vec.push_back(14);
-//    vec.push_back(9);
-//    vec.push_back(15);
-//    vec.push_back(1);
-//    vec.push_back(14);
-//    sort(vec.begin(),vec.end());
-//    std::cout << "==vec1==" << std::endl;
-//    for(int i = 0;i<vec.size();i++)
-//    {
-//        std::cout << vec[i] << std::endl;
-//    }
-//    std::cout << "====" << std::endl;
-//    std::vector<int> vec2;
-//    vec2.push_back(2);
-//    vec2.push_back(6);
-//    vec2.push_back(5);
-//    vec2.push_back(7);
-//    vec2.push_back(9);
-//    vec2.push_back(4);
-//    vec2.push_back(31);
-//    vec2.push_back(4);
-//    sort(vec2.begin(),vec2.end());
-//    std::cout << "==vec2==" << std::endl;
-//    for(int i = 0;i<vec2.size();i++)
-//    {
-//        std::cout << vec2[i] << std::endl;
-//    }
-//    std::cout << "====" << std::endl;
-//    
-//    std::vector<int> res = merge_vec(vec,vec2);
-//    
-//    std::cout << "====" << std::endl;
-//    for(int i = 0;i<res.size();i++)
-//    {
-//        std::cout << res[i] << std::endl;
-//    }
-//    std::cout << "====" << std::endl;
-//}
-//
-//
-//
-//void FindDuplicateTest()
-//{
-//    std::vector<int> vec;
-//    vec.push_back(1);
-//    vec.push_back(3);
-//    vec.push_back(2);
-//    vec.push_back(14);
-//    vec.push_back(8);
-//    vec.push_back(2);
-//    vec.push_back(3);
-//    vec.push_back(14);
-//    vec.push_back(9);
-//    vec.push_back(15);
-//    vec.push_back(1);
-//    vec.push_back(14);
-//    std::vector<int> res = FindDuplicates(vec);
-//    
-//    std::cout << "====" << std::endl;
-//    for(int i = 0;i<res.size();i++)
-//    {
-//        std::cout << res[i] << std::endl;
-//    }
-//    std::cout << "====" << std::endl;
-//}
-//
-//
-//
-//
-//
-//void ParallelSortTest()
-//{
-//    int i=0;
-//    MPI_Comm comm = MPI_COMM_WORLD;
-//    MPI_Info info = MPI_INFO_NULL;
-//    int size;
-//    MPI_Comm_size(comm, &size);
-//    // Get the rank of the process
-//    int rank;
-//    MPI_Comm_rank(comm, &rank);
-//    
-//    int levels = log2(size);
-//    
-//    const char* fn_conn="grids/piston/conn.h5";
-//    
-//    ParArray<int>* ief = ReadDataSetFromFileInParallel<int>(fn_conn,"ief",comm,info);
-//    
-//    int nrow = ief->getNrow();
-//    int ncol = ief->getNcol();
-//    
-//    std::vector<int> ief_copy(nrow*(ncol-1));
-//    int fid;
-//    int cnt=0;
-//    for(i=0;i<nrow;i++)
-//    {
-//        for(int j=0;j<ncol-1;j++)
-//        {
-//            fid = fabs(ief->getVal(i,j+1))-1;
-//            //std::cout << cnt << " " << fid << std::endl;
-//            ief_copy[cnt] = fid;
-//            cnt++;
-//        }
-//    }
-//    
-//    int lsize = ief_copy.size();
-//    int* ief_arr = new int[lsize];
-//    
-//    for(i=0;i<lsize;i++)
-//    {
-//        ief_arr[i] = ief_copy[i];
-//    }
-//    
-//    int *glob_arr = NULL;
-//    int nglob = ief->getNglob();
-//
-//    if (rank == 0)
-//    {
-//        glob_arr = new int[nglob*6];
-//    }
-//    int* sorted = mergeSort(levels, rank, ief_arr, lsize, comm, glob_arr);
-//    
-//    if(rank == 0)
-//    {
-//       for(int i=0;i<nglob*6;i++)
-//        {
-//           std::cout << rank << " " << i << " " << sorted[i] << std::endl;
-//        }
-//    }
-//    
-//    
-//    delete ief;
-//    ief_copy.erase(ief_copy.begin(),ief_copy.end());
-//    
-//}
-
-
-

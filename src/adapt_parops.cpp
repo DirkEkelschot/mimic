@@ -1,14 +1,8 @@
 #include "adapt_parops.h"
 
-Array<double>* GetOptimizedMMG3DMeshOnRoot(Partition* P, US3D* us3d, std::map<int,Array<double>*> mv_map, MPI_Comm comm)
+Array<double>* GetOptimizedMMG3DMeshOnRoot(Partition* P, US3D* us3d, std::map<int,Array<double>*> mv_map, MPI_Comm comm, int world_rank, int world_size)
 {
-    int world_size;
-    MPI_Comm_size(comm, &world_size);
-    // Get the rank of the process
-    int world_rank;
-    MPI_Comm_rank(comm, &world_rank);
     int i,j;
-    //MMG_Mesh* mmg = new MMG_Mesh;
     
     Domain* pDom = P->getPartitionDomain();
     std::map<int,std::vector<int> > v2e = pDom->vert2elem;
@@ -19,7 +13,6 @@ Array<double>* GetOptimizedMMG3DMeshOnRoot(Partition* P, US3D* us3d, std::map<in
     i = 0;
     for(grit=mv_map.begin();grit!=mv_map.end();grit++)
     {
-        //std::cout << "(rowxcol) =(" << grit->second->getNrow() << " " << grit->second->getNcol() << ") -> " << grit->second->getVal(0,0) << " " << grit->second->getVal(0,1) << " " << grit->second->getVal(0,2) << " " << grit->second->getVal(1,0) << " " << grit->second->getVal(1,1) << " " << grit->second->getVal(1,2) << " " << grit->second->getVal(2,0)  << " " << grit->second->getVal(2,1) << " " << grit->second->getVal(2,2) << std::endl;
         
         lE2gE->setVal(i,0,grit->first);
         mv->setVal(i,0,grit->second->getVal(0,0));
@@ -182,19 +175,12 @@ Array<double>* GetOptimizedMMG3DMeshOnRoot(Partition* P, US3D* us3d, std::map<in
                 MPI_INT, 0, comm);
     
     int NtetLoc = us3d->elTypes->getVal(0,0);
-//    int NprismLoc = us3d->elTypes->getVal(1,0);
-//    int NhexLoc = us3d->elTypes->getVal(2,0);
-//
-//
     int Ntetras = 0;
     int Nprisms = 0;
     int Nhexes = 0;
 
     
     MPI_Reduce(&NtetLoc,   &Ntetras,   1, MPI_INT, MPI_SUM, 0, comm);
-//    MPI_Reduce(&NprismLoc, &Nprisms,   1, MPI_INT, MPI_SUM, 0,  comm);
-//    MPI_Reduce(&NhexLoc,   &Nhexes,    1, MPI_INT, MPI_SUM, 0,  comm);
-    //std::cout << "RANK = " << NtetLoc << " " << Ntetras << std::endl;
 
     Array<double>* Mg;
     Array<int>* tel;
@@ -213,56 +199,6 @@ Array<double>* GetOptimizedMMG3DMeshOnRoot(Partition* P, US3D* us3d, std::map<in
             Mg->setVal(gvid,4,mv_g->getVal(u,4));
             Mg->setVal(gvid,5,mv_g->getVal(u,5));
         }
-        
-        
-//        std::string filename = "MetricRoot.dat";
-//        std::ofstream myfile;
-//        myfile.open(filename);
-//        myfile << "TITLE=\"volume_part_"  + std::to_string(world_rank) +  ".tec\"" << std::endl;
-//        myfile <<"VARIABLES = \"X\", \"Y\", \"Z\", \"M00\", \"M01\", \"M02\", \"M11\", \"M12\", \"M22\"" << std::endl;
-//        myfile <<"ZONE N = " << us3d->xcn->getNglob() << ", E = " << Ntetras << ", DATAPACKING = POINT, ZONETYPE = FETETRAHEDRON" << std::endl;
-//        
-//        string filename2 = "metric.dat";
-//        ofstream myfile2;
-//        myfile2.open(filename2);
-//
-//        string filename3 = "elements.dat";
-//        ofstream myfile3;
-//        myfile3.open(filename3);
-//        int tel = 0;
-//        for(int i=0;i<us3d->xcn->getNglob();i++)
-//        {
-//            myfile <<     xcn_g->getVal(i,0) << " " << xcn_g->getVal(i,1) << " " << xcn_g->getVal(i,2)
-//                    << " " << Mg->getVal(i,0) << " " <<    Mg->getVal(i,1) << " " << Mg->getVal(i,2)
-//                    << " " << Mg->getVal(i,3) << " " <<    Mg->getVal(i,4) << " " << Mg->getVal(i,5) << std::endl;
-//            
-//            myfile2 <<std::setprecision(16)<< Mg->getVal(i,0) << " " <<    Mg->getVal(i,1) << " " << Mg->getVal(i,2)
-//                    << " " << Mg->getVal(i,3) << " " <<    Mg->getVal(i,4) << " " << Mg->getVal(i,5) << std::endl;
-//        }
-//        for(int i=0;i<ien_g->getNrow();i++)
-//        {
-//            if(iet_g->getVal(i,0)==2)
-//            {
-//                myfile <<  ien_g->getVal(i,0)+1 << " " <<
-//                           ien_g->getVal(i,1)+1 << " " <<
-//                           ien_g->getVal(i,2)+1 << " " <<
-//                           ien_g->getVal(i,3)+1 << " " << std::endl;
-//                tel++;
-//            }
-//            
-//            
-//            myfile3 << ien_g->getVal(i,0)+1 << " " <<
-//                       ien_g->getVal(i,1)+1 << " " <<
-//                       ien_g->getVal(i,2)+1 << " " <<
-//                       ien_g->getVal(i,3)+1 << " " <<
-//                       ien_g->getVal(i,4)+1 << " " <<
-//                       ien_g->getVal(i,5)+1 << " " <<
-//                       ien_g->getVal(i,6)+1 << " " <<
-//                       ien_g->getVal(i,7)+1 << std::endl;
-//        }
-//        myfile.close();
-//        myfile2.close();
-//        myfile3.close();
         
     }
     else
@@ -292,22 +228,16 @@ Array<double>* GetOptimizedMMG3DMeshOnRoot(Partition* P, US3D* us3d, std::map<in
     return Mg;
 }
 
-
 Mesh* ReduceMeshToRoot(ParArray<int>* ien,
                        ParArray<int>* ief,
                        ParArray<double>* xcn,
                        ParArray<int>* ifn,
                        ParArray<int>* ife,
                        ParArray<int>* if_ref,
-                       MPI_Comm comm, MPI_Info info)
+                       MPI_Comm comm, int world_rank, int world_size, MPI_Info info)
 {
     
     Mesh* us3d_root = new Mesh;
-    int world_size;
-    MPI_Comm_size(comm, &world_size);
-    // Get the rank of the process
-    int world_rank;
-    MPI_Comm_rank(comm, &world_rank);
     
     Array<double>*  xcn_g;
     Array<int>*     ief_g;
@@ -474,18 +404,11 @@ Mesh* ReduceMeshToRoot(ParArray<int>* ien,
     return us3d_root;
 }
 
-
-std::map<int,std::vector<int> > GatherElementsOnRoot(std::map<int,std::vector<int> >Apr, std::map<int,std::vector<int> > Ate, MPI_Comm comm, MPI_Info info)
+std::map<int,std::vector<int> > GatherElementsOnRoot(std::map<int,std::vector<int> >Apr, std::map<int,std::vector<int> > Ate, MPI_Comm comm, int world_rank, int world_size, MPI_Info info)
 {
     
     std::map<int,std::vector<int> > elements;
 
-    
-    int world_size;
-    MPI_Comm_size(comm, &world_size);
-    // Get the rank of the process
-    int world_rank;
-    MPI_Comm_rank(comm, &world_rank);
     int i,j;
     
     std::map<int,std::vector<int> >::iterator grit;
@@ -612,7 +535,7 @@ std::map<int,std::vector<int> > GatherElementsOnRoot(std::map<int,std::vector<in
                 red_lid_tet_nlocs,
                 lid_tet_offsets,
                 MPI_INT, 0, comm);
-//
+
     MPI_Gatherv(&lE2gE_pri->data[0],
                 lE2gE_pri->getNrow()*1,
                 MPI_INT,
@@ -620,7 +543,7 @@ std::map<int,std::vector<int> > GatherElementsOnRoot(std::map<int,std::vector<in
                 red_lid_pri_nlocs,
                 lid_pri_offsets,
                 MPI_INT, 0, comm);
-//
+
     MPI_Gatherv(&ien_tet->data[0],
                 ien_tet->getNrow()*4,
                 MPI_INT,
@@ -679,5 +602,4 @@ std::map<int,std::vector<int> > GatherElementsOnRoot(std::map<int,std::vector<in
     
     
     return elements;
-
 }

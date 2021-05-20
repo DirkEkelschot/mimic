@@ -6,7 +6,7 @@ BLShellInfo* FindOuterShellBoundaryLayerMesh(int wall_id, int nLayer,
                             Array<int>* ief_g, Array<int>* ife_g, Array<int>* ifn_g,
                             ParallelState* xcn_pstate, ParallelState* ien_pstate,
                             std::map<int,std::vector<int> > bnd_face_map,
-                            std::map<int,int> vert_ref_map, MPI_Comm comm)
+                            std::map<int,int> vert_ref_map, MPI_Comm comm, int world_rank, int world_size)
 {
     BLShellInfo* BLinfo = new BLShellInfo;
     BLinfo->ShellRef = new Array<int>(xcn_g->getNrow(),1);
@@ -26,11 +26,6 @@ BLShellInfo* FindOuterShellBoundaryLayerMesh(int wall_id, int nLayer,
     }
     
     std::vector<std::vector<int> > outer_shell_elements;
-    int world_size;
-    MPI_Comm_size(comm, &world_size);
-    // Get the rank of the process
-    int world_rank;
-    MPI_Comm_rank(comm, &world_rank);
 
     std::vector<double> dp(6);
     std::vector<Vec3D*> dpvec(6);
@@ -313,12 +308,6 @@ BLShellInfo* FindOuterShellBoundaryLayerMesh(int wall_id, int nLayer,
                 //            fv3 > opposite_tri[2];
                 //            fv2 > local_node2opponode_face[min_index][opposite_bvid]
                 std::map<int,int> opposite_verts;
-                
-//                opposite_verts[bvid_b] = opposite_bvid;
-//                opposite_verts[fv1_b]  = opposite_tri[1];
-//                opposite_verts[fv3_b]  = opposite_tri[2];
-//                opposite_verts[fv2_b]  = local_node2opponode_face[min_index][opposite_bvid];
-                
                 opposite_verts[opposite_bvid]    = bvid_b;
                 opposite_verts[opposite_tri[1]]  = fv1_b;
                 opposite_verts[opposite_tri[2]]  = fv3_b;
@@ -365,14 +354,23 @@ BLShellInfo* FindOuterShellBoundaryLayerMesh(int wall_id, int nLayer,
 
 
 
-Mesh_Topology_BL* ExtractBoundaryLayerMeshFromShell(std::vector<std::vector<int> > u_tris, BLShellInfo* BLshell, int wall_id, int nLayer, Array<double>* xcn_g, Array<int>* ien_g, Array<int>* ief_g, Array<int>* ife_g, Array<int>* ifn_g, ParallelState* xcn_pstate, ParallelState* ien_pstate, std::map<int,std::vector<int> > bnd_face_map, std::map<std::set<int>,int> tria_ref_map, std::map<std::set<int>,int> quad_ref_map,  MPI_Comm comm)
+Mesh_Topology_BL* ExtractBoundaryLayerMeshFromShell(std::vector<std::vector<int> > u_tris, 
+                                                    BLShellInfo* BLshell, 
+                                                    int wall_id, 
+                                                    int nLayer, 
+                                                    Array<double>* xcn_g, 
+                                                    Array<int>* ien_g, 
+                                                    Array<int>* ief_g, 
+                                                    Array<int>* ife_g, 
+                                                    Array<int>* ifn_g, 
+                                                    ParallelState* xcn_pstate, 
+                                                    ParallelState* ien_pstate, 
+                                                    std::map<int,std::vector<int> > bnd_face_map, 
+                                                    std::map<std::set<int>,int> tria_ref_map, 
+                                                    std::map<std::set<int>,int> quad_ref_map,  
+                                                    MPI_Comm comm, int world_rank, int world_size)
 {
     Mesh_Topology_BL* mesh_topology_bl = new Mesh_Topology_BL;
-    int world_size;
-    MPI_Comm_size(comm, &world_size);
-    // Get the rank of the process
-    int world_rank;
-    MPI_Comm_rank(comm, &world_rank);
 
     std::vector<double> dp(6);
     std::vector<Vec3D*> dpvec(6);
@@ -436,9 +434,7 @@ Mesh_Topology_BL* ExtractBoundaryLayerMeshFromShell(std::vector<std::vector<int>
         int triID1 = shellfaceID2triID[shell_faceid][1];
         std::vector<int> tri_shell_0 = u_tris[triID0];
         std::vector<int> tri_shell_1 = u_tris[triID1];
-        
-//        std::cout << "shell tri0 " << tri_shell_0[0] << " " <<  tri_shell_0[1] << " " <<  tri_shell_0[2] << std::endl;
-//        std::cout << "shell tri1 " << tri_shell_1[0] << " " <<  tri_shell_1[1] << " " <<  tri_shell_1[2] << std::endl;
+    
         
         std::vector<int> tri_bound_0(3);
         tri_bound_0[0] = BLshell->ShellFace2ShellVert2OppositeBoundaryVerts[shell_faceid][tri_shell_0[0]];
@@ -448,12 +444,6 @@ Mesh_Topology_BL* ExtractBoundaryLayerMeshFromShell(std::vector<std::vector<int>
         tri_bound_1[0] = BLshell->ShellFace2ShellVert2OppositeBoundaryVerts[shell_faceid][tri_shell_1[0]];
         tri_bound_1[1] = BLshell->ShellFace2ShellVert2OppositeBoundaryVerts[shell_faceid][tri_shell_1[1]];
         tri_bound_1[2] = BLshell->ShellFace2ShellVert2OppositeBoundaryVerts[shell_faceid][tri_shell_1[2]];
-        
-//        std::cout << "bound tri0 " << tri_bound_0[0] << " " <<  tri_bound_0[1] << " " <<  tri_bound_0[2] << std::endl;
-//        std::cout << "bound tri1 " << tri_bound_1[0] << " " <<  tri_bound_1[1] << " " <<  tri_bound_1[2] << std::endl;
-        
-        //std::cout << "BFF "<< bf << " " << bfaceid << " " << wall_id << std::endl; 
-        
         
         std::set<int> conn_bvid;
         std::vector<int> tri_0n(3);
@@ -525,7 +515,6 @@ Mesh_Topology_BL* ExtractBoundaryLayerMeshFromShell(std::vector<std::vector<int>
         }
         //std::cout << std::endl;
         //int changed = ChkHexorient(Pijk,Pijk_id);
-//
         Vert* Vijk = ComputeCenterCoord(Pijk, 8);
         
         Vface->x=0.0;
@@ -612,7 +601,6 @@ Mesh_Topology_BL* ExtractBoundaryLayerMeshFromShell(std::vector<std::vector<int>
         {
             fc1++;
         }
-        //std::cout << "First Check " << orient_t0 << " " << orient_t1 << std::endl;
         
         if(orient_t0<0.0)
         {
@@ -646,8 +634,6 @@ Mesh_Topology_BL* ExtractBoundaryLayerMeshFromShell(std::vector<std::vector<int>
         v_t1->c0 = xcn_g->getVal(tri_0n[2],0)-xcn_g->getVal(tri_0n[0],0);
         v_t1->c1 = xcn_g->getVal(tri_0n[2],1)-xcn_g->getVal(tri_0n[0],1);
         v_t1->c2 = xcn_g->getVal(tri_0n[2],2)-xcn_g->getVal(tri_0n[0],2);
-        //Vec3D* n_t0_v1 = ComputeSurfaceNormal(v_t0,v_t1);
-        //double orient_t0_check = DotVec3D(r0,n_t0_v1);
         
         v_t10->c0 = xcn_g->getVal(tri_1n[1],0)-xcn_g->getVal(tri_1n[0],0);
         v_t10->c1 = xcn_g->getVal(tri_1n[1],1)-xcn_g->getVal(tri_1n[0],1);
@@ -656,10 +642,6 @@ Mesh_Topology_BL* ExtractBoundaryLayerMeshFromShell(std::vector<std::vector<int>
         v_t11->c0 = xcn_g->getVal(tri_1n[2],0)-xcn_g->getVal(tri_1n[0],0);
         v_t11->c1 = xcn_g->getVal(tri_1n[2],1)-xcn_g->getVal(tri_1n[0],1);
         v_t11->c2 = xcn_g->getVal(tri_1n[2],2)-xcn_g->getVal(tri_1n[0],2);
-        //Vec3D* n_t10_v1 = ComputeSurfaceNormal(v_t10,v_t11);
-        //double orient_t1_check = DotVec3D(r0,n_t10_v1);
-        
-        //std::cout << "check = " << orient_t0_check  << " " << orient_t1_check  << std::endl;
         
         prism0[0] = tri_0n[0];
         prism0[1] = tri_0n[1];
@@ -677,9 +659,7 @@ Mesh_Topology_BL* ExtractBoundaryLayerMeshFromShell(std::vector<std::vector<int>
         v_t1->c1 = xcn_g->getVal(prism0[2],1)-xcn_g->getVal(prism0[0],1);
         v_t1->c2 = xcn_g->getVal(prism0[2],2)-xcn_g->getVal(prism0[0],2);
         Vec3D* n_t0_v2 = ComputeSurfaceNormal(v_t0,v_t1);
-        //orient_t0_check = DotVec3D(r0,n_t0_v2);
-//
-        //n_t0 = n_t0_v2;
+
         v_t10->c0 = xcn_g->getVal(prism1[1],0)-xcn_g->getVal(prism1[0],0);
         v_t10->c1 = xcn_g->getVal(prism1[1],1)-xcn_g->getVal(prism1[0],1);
         v_t10->c2 = xcn_g->getVal(prism1[1],2)-xcn_g->getVal(prism1[0],2);
@@ -928,16 +908,10 @@ Mesh_Topology_BL* ExtractBoundaryLayerMeshFromShell(std::vector<std::vector<int>
             prism0[3] = opposite_tri[0];
             prism0[4] = opposite_tri[1];
             prism0[5] = opposite_tri[2];
-//            prism0.push_back(opposite_tri[0]);
-//            prism0.push_back(opposite_tri[1]);
-//            prism0.push_back(opposite_tri[2]);
             
             prism1[3] = opposite_tri1[0];
             prism1[4] = opposite_tri1[1];
             prism1[5] = opposite_tri1[2];
-//            prism1.push_back(opposite_tri1[0]);
-//            prism1.push_back(opposite_tri1[1]);
-//            prism1.push_back(opposite_tri1[2]);
 
             NegateVec3D(nbf);
 
@@ -1160,12 +1134,6 @@ Mesh_Topology_BL* ExtractBoundaryLayerMeshFromShell(std::vector<std::vector<int>
             prism1[1] = opposite_tri1[2];
             prism1[2] = opposite_tri1[1];
             
-//            prism0.push_back(opposite_tri[0]);
-//            prism0.push_back(opposite_tri[1]);
-//            prism0.push_back(opposite_tri[2]);
-//            prism1.push_back(opposite_tri1[0]);
-//            prism1.push_back(opposite_tri1[1]);
-//            prism1.push_back(opposite_tri1[2]);
             
             conn_bvid.clear();
             bvid = opposite_tri[0];
@@ -1175,14 +1143,9 @@ Mesh_Topology_BL* ExtractBoundaryLayerMeshFromShell(std::vector<std::vector<int>
             local_node2node_element.clear();
             local_node2node_face.clear();
             local_node2opponode_face.clear();
-            //delete P0;
-            //delete P1;
             elid_cur = elid_next;
         }
-//        prism0.clear();
-//        prism1.clear();
         mesh_topology_bl->BLlayersPrisms[bfaceid]=PPrisms;
-        //mesh_topology_bl->BLlayers[bfaceid]=layer;
         mesh_topology_bl->Nprisms = mesh_topology_bl->Nprisms+PPrisms.size();
         
         delete Vijk;
@@ -1193,16 +1156,6 @@ Mesh_Topology_BL* ExtractBoundaryLayerMeshFromShell(std::vector<std::vector<int>
     
     double duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
     std::cout << "Timing for extracting BL mesh = " << duration << std::endl;
-//    std::map<int,std::vector<int> >::iterator itt;
-//    std::vector<int> elements;
-//    for(itt=mesh_topology_bl->BLlayers.begin();itt!=mesh_topology_bl->BLlayers.end();itt++)
-//    {
-//        for(int q=0;q<itt->second.size();q++)
-//        {
-//            elements.push_back(itt->second[q]);
-//        }
-//    }
-    //OutputBLElementsOnRoot(xcn_g,ien_g,elements,comm,"BL_Root_NEW");
        
     return mesh_topology_bl;
 }

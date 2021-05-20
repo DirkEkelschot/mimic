@@ -20,8 +20,8 @@ struct Mesh_Topology_BL{
 class Mesh_Topology {
     public:
         Mesh_Topology(){};
-        Mesh_Topology(Partition* Pa, MPI_Comm comm);
-        void DetermineBoundaryLayerElements(Partition* Pa, Array<int>* ife_in, int nLayer, int bID, MPI_Comm comm);
+        Mesh_Topology(Partition* Pa, MPI_Comm comm, int wolr_rank, int world_size);
+        void DetermineBoundaryLayerElements(Partition* Pa, Array<int>* ife_in, int nLayer, int bID, MPI_Comm comm, int rank, int size);
         std::map<int,std::vector<int> > getScheme_E2V();
         std::map<int,vector<Vec3D*> > getNormals();
         std::map<int,vector<Vec3D*> > getRvectors();

@@ -14,6 +14,6 @@ struct ScheduleObj
 };
 
 
-ScheduleObj* DoScheduling(std::map<int,std::vector<int> > Rank2RequestEntity, MPI_Comm comm);
+ScheduleObj* DoScheduling(std::map<int,std::vector<int> > Rank2RequestEntity, MPI_Comm comm, int rank, int size);
 
 #endif

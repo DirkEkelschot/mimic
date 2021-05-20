@@ -14,8 +14,6 @@ struct Mesh{
     Array<int>* if_Nv;
 };
 
-
-
 struct US3D{
     
     ParArray<double>* xcn;
@@ -53,7 +51,6 @@ struct MMG_Mesh{
     MMG5_pMesh mmgMesh;
     MMG5_pSol mmgSol;
 };
-
 
 
 struct Vec3D

@@ -21,8 +21,30 @@ struct BLShellInfo{
 
 
 BLShellInfo* FindOuterShellBoundaryLayerMesh(int wall_id, int nLayer,
-                                             Array<double>* xcn_g, Array<int>* ien_g, Array<int>* ief_g, Array<int>* ife_g, Array<int>* ifn_g,
-                                             ParallelState* xcn_pstate, ParallelState* ien_pstate, std::map<int,std::vector<int> > bnd_face_map, std::map<int,int> vert_ref_map, MPI_Comm comm);
+                                             Array<double>* xcn_g, 
+                                             Array<int>* ien_g, 
+                                             Array<int>* ief_g, 
+                                             Array<int>* ife_g, 
+                                             Array<int>* ifn_g,
+                                             ParallelState* xcn_pstate, 
+                                             ParallelState* ien_pstate, 
+                                             std::map<int,std::vector<int> > bnd_face_map, 
+                                             std::map<int,int> vert_ref_map, 
+                                             MPI_Comm comm, int world_rank, int world_size);
 
-Mesh_Topology_BL* ExtractBoundaryLayerMeshFromShell(std::vector<std::vector<int> > u_tris, BLShellInfo* BLshell, int wall_id, int nLayer, Array<double>* xcn_g, Array<int>* ien_g, Array<int>* ief_g, Array<int>* ife_g, Array<int>* ifn_g, ParallelState* xcn_pstate, ParallelState* ien_pstate, std::map<int,std::vector<int> > bnd_face_map, std::map<std::set<int>,int> tria_ref_map, std::map<std::set<int>,int> quad_ref_map,  MPI_Comm comm);
+Mesh_Topology_BL* ExtractBoundaryLayerMeshFromShell(std::vector<std::vector<int> > u_tris, 
+                                                    BLShellInfo* BLshell, 
+                                                    int wall_id,
+                                                    int nLayer, 
+                                                    Array<double>* xcn_g, 
+                                                    Array<int>* ien_g, 
+                                                    Array<int>* ief_g, 
+                                                    Array<int>* ife_g,
+                                                    Array<int>* ifn_g, 
+                                                    ParallelState* xcn_pstate, 
+                                                    ParallelState* ien_pstate, 
+                                                    std::map<int,std::vector<int> > bnd_face_map, 
+                                                    std::map<std::set<int>,int> tria_ref_map, 
+                                                    std::map<std::set<int>,int> quad_ref_map,  
+                                                    MPI_Comm comm, int world_rank, int world_size);
 

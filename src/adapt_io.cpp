@@ -144,7 +144,6 @@ void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh, MMG5_pSol mmgSol, US3D* us3d)
     //===================================================================
     hid_t plist_id = H5Pcreate(H5P_FILE_ACCESS);
     plist_id               = H5P_DEFAULT;
-    //H5Pset_fapl_mpio(plist_id, comm, info);
     hid_t file_id = H5Fcreate("grid_madam.h5", H5F_ACC_TRUNC, H5P_DEFAULT, plist_id);
     H5Pclose(plist_id);
     hid_t status;
@@ -452,7 +451,7 @@ void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh, MMG5_pSol mmgSol, US3D* us3d)
     
     int ftot = 0;
     std::map<int,int> new2old;
-//
+
     std::map<int,int>::iterator itm;
     int it;
     for(itm=lh.begin();itm!=lh.end();itm++)
@@ -1158,20 +1157,7 @@ void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh, MMG5_pSol mmgSol, US3D* us3d)
     status = H5Dwrite(dset_znames_id, type, memspace, filespace, plist_id, us3d->znames->data);
 
     PlotBoundaryData(us3d->znames,adapt_zdefs);
-    
-//    delete xcn_mmg;
-//    delete adapt_zdefs;
-//    qfacemap.clear();
-//    facemap.clear();
-//    faces.clear();
-//    qfaces.clear();
-//    face2node.clear();
-//    lh.clear();
-//    rh.clear();
-//    Nlh.clear();
-//    Nrh.clear();
-//    bctrias.clear();
-//    bcquads.clear();
+
 }
 
 
@@ -1289,7 +1275,6 @@ void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh,MMG5_pSol mmgSol, US3D* us3d)
     //===================================================================
     hid_t plist_id = H5Pcreate(H5P_FILE_ACCESS);
     plist_id               = H5P_DEFAULT;
-    //H5Pset_fapl_mpio(plist_id, comm, info);
     hid_t file_id = H5Fcreate("grid_madam.h5", H5F_ACC_TRUNC, H5P_DEFAULT, plist_id);
     H5Pclose(plist_id);
     hid_t status;
@@ -1603,7 +1588,7 @@ void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh,MMG5_pSol mmgSol, US3D* us3d)
     
     int ftot = 0;
     std::map<int,int> new2old;
-//
+
     std::map<int,int>::iterator itm;
     int it;
     for(itm=lh.begin();itm!=lh.end();itm++)
@@ -2328,340 +2313,36 @@ void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh,MMG5_pSol mmgSol, US3D* us3d)
     
 }
 
-
-
-
-
-
-
-//US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data, MPI_Comm comm, MPI_Info info)
-//{
-//    int size;
-//    MPI_Comm_size(comm, &size);
-//    // Get the rank of the process
-//    int rank;
-//    MPI_Comm_rank(comm, &rank);
-//    US3D* us3d = new US3D;
-//    ParArray<double>* xcn = ReadDataSetFromFileInParallel<double>(fn_grid,"xcn",comm,info);
-//
-//    ParArray<int>* ien = ReadDataSetFromFileInParallel<int>(fn_conn,"ien",comm,info);
-//    ParArray<int>* ief = ReadDataSetFromFileInParallel<int>(fn_conn,"ief",comm,info);
-//    ParArray<int>* iee = ReadDataSetFromFileInParallel<int>(fn_conn,"iee",comm,info);
-//
-//    Array<int>* ifn = ReadDataSetFromFile<int>(fn_grid,"ifn");
-//    Array<int>* ife = ReadDataSetFromFile<int>(fn_conn,"ife");
-//
-//    int Nel = ien->getNglob();
-//
-//    ParArray<double>* interior  = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_1","interior",0,Nel,comm,info);
-//    Array<double>* ghost        = ReadUS3DGhostCellsFromRun<double>(fn_data,"run_1","interior",Nel);
-//
-//    Array<int>*    zdefs        = ReadDataSetFromGroupFromFile<int>(fn_grid,"zones","zdefs");
-//    Array<char>*  znames        = ReadDataSetFromGroupFromFile<char>(fn_grid,"zones","znames");
-//    std::map<int,std::vector<int> > bnd_face_map;
-//    // Collect boundary data;
-//    std::vector<int> bnd_m;
-//    int t=0;
-//    for(int i=4;i<zdefs->getNrow();i++)
-//    {
-//        bnd_m.push_back(zdefs->getVal(i,3));
-//    }
-//    bnd_m.push_back(zdefs->getVal(zdefs->getNrow()-1,4));
-//
-//    if(rank == 0)
-//    {
-//       //std::cout << "Rank = " << rank << std::endl;
-//       PlotBoundaryData(znames,zdefs);
-//    }
-//
-//    int nBnd = zdefs->getNrow()-3;
-//    int* bnd_map = new int[zdefs->getNrow()-3];
-//    std::map<int,char*> znames_map;
-//    Array<char>* znames_new = new Array<char>(znames->getNrow(),znames->getNcol());
-//    for(int i=0;i<zdefs->getNrow();i++)
-//    {
-//        //bnd_map[i-3] = zdefs->getVal(i,3)-1;
-//
-//        if(zdefs->getVal(i,5)!=1)
-//        {
-//            char* name = new char[znames->getNcol()];
-//
-//            for(int j=0;j<znames->getNcol();j++)
-//            {
-//               name[j]=znames->getVal(i,j);
-//            }
-//            znames_map[zdefs->getVal(i,5)] = name;
-//        }
-//    }
-//
-//    // number of vertices
-//    for(int j=0;j<znames->getNcol();j++)
-//    {
-//       znames_new->setVal(0,j,znames->getVal(0,j));
-//    }
-//    std::cout << std::endl;
-//    // number of cells
-//    for(int j=0;j<znames->getNcol();j++)
-//    {
-//       znames_new->setVal(1,j,znames->getVal(1,j));
-//    }
-//
-//    std::map<int,char*>::iterator itch;
-//    int c=2;
-//    for(itch=znames_map.begin();itch!=znames_map.end();itch++)
-//    {
-//        int bid = itch->first;
-//        for(int j=0;j<znames->getNcol();j++)
-//        {
-//            znames_new->setVal(c,j,znames_map[bid][j]);
-//        }
-//        c++;
-//    }
-//
-//
-//
-//    int i,j;
-//    int nglob = ien->getNglob();
-//    int nrow  = ien->getNrow();
-//    int ncol  = ien->getNcol()-1;
-//    //
-//    ParArray<int>* ien_copy = new ParArray<int>(nglob,ncol,comm);
-//    //
-//    for(i=0;i<nrow;i++)
-//    {
-//        for(int j=0;j<ncol;j++)
-//        {
-//            ien_copy->setVal(i,j,ien->getVal(i,j+1)-1);
-//        }
-//    }
-//    delete ien;
-//    //
-//    int ncol_ief = ief->getNcol()-1;
-//    ParArray<int>* ief_copy = new ParArray<int>(nglob,ncol_ief,comm);
-//
-//    for(i=0;i<nrow;i++)
-//    {
-//        for(j=0;j<ncol_ief;j++)
-//        {
-//            ief_copy->setVal(i,j,fabs(ief->getVal(i,j+1))-1);
-//        }
-//    }
-//    delete ief;
-//
-//    int ncol_iee = iee->getNcol()-1;
-//    ParArray<int>* iee_copy = new ParArray<int>(nglob,6,comm);
-//
-//    for(i=0;i<nrow;i++)
-//    {
-//        for(j=0;j<ncol_iee;j++)
-//        {
-//            iee_copy->setVal(i,j,iee->getVal(i,j+1)-1);
-//        }
-//    }
-//    delete iee;
-//
-//    int nrow_ifn = ifn->getNrow();
-//
-//    int ncol_ifn = 4;
-//    Array<int>* ifn_copy = new Array<int>(nrow_ifn,ncol_ifn);
-//    Array<int>* ifn_ref  = new Array<int>(nrow_ifn,1);
-//    int ref;
-//    //std::ofstream myfile20;
-//    //myfile20.open("ifn_ref.dat");
-//    std::map<std::set<int>,int> tria_ref_map;
-//    std::map<std::set<int>,int> quad_ref_map;
-//    std::map<int,int> vert_ref_map;
-//    std::set<int> vert_ref_set;
-//
-//    std::set<int> tria0;
-//    std::set<int> tria00;
-//    std::set<int> tria1;
-//    std::set<int> tria11;
-//
-//    std::set<int> quad;
-//    int faceid;
-//    int nodeid;
-//    for(i=0;i<nrow_ifn;i++)
-//    {
-//        ref = ifn->getVal(i,7);
-//        ifn_ref->setVal(i,0,ref);
-//        faceid = i;
-//        if(ref != 2)
-//        {
-//            bnd_face_map[ref].push_back(faceid);
-//        }
-//
-//        for(j=0;j<ncol_ifn;j++)
-//        {
-//            nodeid = ifn->getVal(i,j+1)-1; // This is actually node ID!!!!
-//            ifn_copy->setVal(i,j,ifn->getVal(i,j+1)-1);
-//
-//            if(ref!=2)
-//            {
-//                if(vert_ref_set.find(nodeid)==vert_ref_set.end())
-//                {
-//                    vert_ref_set.insert(nodeid);
-//                    vert_ref_map[nodeid] = ifn->getVal(i,7);
-//                }
-//            }
-////            else
-////            {
-////                vert_ref_map[nodeid] = ifn->getVal(i,7);
-////            }
-//
-////            if(vert_ref_set.find(nodeid)==vert_ref_set.end())
-////            {
-////                vert_ref_set.insert(nodeid);
-////                vert_ref_map[nodeid] = ifn_ref->getVal(i,0);
-////
-//////                if(ifn_ref->getVal(i,0)!=0)
-//////                {
-//////                    std::cout << "ref not zero " << ifn_ref->getVal(i,0) << std::endl;
-//////                }
-////            }
-//        }
-//
-//
-//        tria0.insert(ifn->getVal(i,0+1)-1);
-//        tria0.insert(ifn->getVal(i,1+1)-1);
-//        tria0.insert(ifn->getVal(i,2+1)-1);
-//        tria00.insert(ifn->getVal(i,0+1)-1);
-//        tria00.insert(ifn->getVal(i,2+1)-1);
-//        tria00.insert(ifn->getVal(i,3+1)-1);
-//
-//        tria1.insert(ifn->getVal(i,0+1)-1);
-//        tria1.insert(ifn->getVal(i,1+1)-1);
-//        tria1.insert(ifn->getVal(i,3+1)-1);
-//        tria11.insert(ifn->getVal(i,1+1)-1);
-//        tria11.insert(ifn->getVal(i,2+1)-1);
-//        tria11.insert(ifn->getVal(i,3+1)-1);
-//
-//        quad.insert(ifn->getVal(i,0+1)-1);
-//        quad.insert(ifn->getVal(i,1+1)-1);
-//        quad.insert(ifn->getVal(i,2+1)-1);
-//        quad.insert(ifn->getVal(i,3+1)-1);
-//
-//        if(tria_ref_map.find(tria0)==tria_ref_map.end() && ref!=2)
-//        {
-//            tria_ref_map[tria0] = ref;
-//            tria_ref_map[tria00] = ref;
-//        }
-//        if(tria_ref_map.find(tria1)==tria_ref_map.end() && ref!=2)
-//        {
-//            tria_ref_map[tria1] = ref;
-//            tria_ref_map[tria11] = ref;
-//        }
-//
-//        if(quad_ref_map.find(quad)==quad_ref_map.end() && ref!=2)
-//        {
-//            quad_ref_map[quad] = ref;
-//        }
-//
-//        tria0.clear();
-//        tria00.clear();
-//        tria1.clear();
-//        tria11.clear();
-//        quad.clear();
-//    }
-//
-////    std::map<int,int>::iterator itje;
-////    for(itje=vert_ref_map.begin();itje!=vert_ref_map.end();itje++)
-////    {
-////        if(itje->second!=0)
-////        {
-////            std::cout << itje->first << " " << itje->second << std::endl;
-////
-////        }
-////    }
-//
-//    //std::cout << " vert_ref_map = " << vert_ref_map.size() << std::endl;
-//
-//    //myfile20.close();
-//    if(rank == 0)
-//    {
-//        std::map<int,std::vector<int> >::iterator its;
-//        for(its=bnd_face_map.begin();its!=bnd_face_map.end();its++)
-//        {
-//            std::cout << "bnd_face_map " << its->first << " " << its->second.size() << std::endl;
-//        }
-//    }
-//
-//    delete ifn;
-//    int nrow_ife = ife->getNrow();
-//    int ncol_ife = 2;
-//    Array<int>* ife_copy = new Array<int>(nrow_ife,ncol_ife);
-//    for(i=0;i<nrow_ife;i++)
-//    {
-//        for(j=0;j<ncol_ife;j++)
-//        {
-//            ife_copy->setVal(i,j,ife->getVal(i,j)-1);
-//        }
-//    }
-//    delete ife;
-//
-//    us3d->xcn = xcn;
-//
-//    us3d->ien           = ien_copy;
-//    us3d->ief           = ief_copy;
-//    us3d->iee           = iee_copy;
-//
-//    us3d->ifn           = ifn_copy;
-//    us3d->ifn_ref       = ifn_copy;
-//    us3d->ife           = ife_copy;
-//
-//    us3d->interior      = interior;
-//    us3d->ghost         = ghost;
-//
-//    us3d->znames        = znames_new;
-//    us3d->zdefs         = zdefs;
-//    us3d->bnd_m         = bnd_m;
-//    us3d->bnd_map       = bnd_map;
-//    us3d->bnd_face_map  = bnd_face_map;
-//    us3d->nBnd          = nBnd;
-//
-//    us3d->tria_ref_map  = tria_ref_map;
-//    us3d->quad_ref_map  = quad_ref_map;
-//    us3d->vert_ref_map  = vert_ref_map;
-//
-//    return us3d;
-//}
-
-
-US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data, int readFromStats, MPI_Comm comm, MPI_Info info)
+US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data, int readFromStats, MPI_Comm comm,  int rank, int size, MPI_Info info)
 {
-    int size;
-    MPI_Comm_size(comm, &size);
-    // Get the rank of the process
-    int rank;
-    MPI_Comm_rank(comm, &rank);
     US3D* us3d = new US3D;
-    ParArray<double>* xcn = ReadDataSetFromFileInParallel<double>(fn_grid,"xcn",comm,info);
-    //std::cout << "Reading from :: " << fn_conn << std::endl;
-    ParArray<int>* ien = ReadDataSetFromFileInParallel<int>(fn_conn,"ien",comm,info);
-    ParArray<int>* ief = ReadDataSetFromFileInParallel<int>(fn_conn,"ief",comm,info);
-    ParArray<int>* iee = ReadDataSetFromFileInParallel<int>(fn_conn,"iee",comm,info);
-    ParArray<int>* iet = ReadDataSetFromFileInParallel<int>(fn_grid,"iet",comm,info);
-    ParArray<int>* ifn = ReadDataSetFromFileInParallel<int>(fn_grid,"ifn",comm,info);
-    ParArray<int>* ife = ReadDataSetFromFileInParallel<int>(fn_conn,"ife",comm,info);
+    std::cout << "Reading grid data from :: " << fn_grid << std::endl;
+    ParArray<double>* xcn = ReadDataSetFromFileInParallel<double>(fn_grid,"xcn",comm,rank,size,info);
+    ParArray<int>* iet = ReadDataSetFromFileInParallel<int>(fn_grid,"iet",comm,rank,size,info);
+    ParArray<int>* ifn = ReadDataSetFromFileInParallel<int>(fn_grid,"ifn",comm,rank,size,info);
+    std::cout << "Reading conn data from :: " << fn_conn << std::endl;
+    ParArray<int>* ien = ReadDataSetFromFileInParallel<int>(fn_conn,"ien",comm,rank,size,info);
+    ParArray<int>* ief = ReadDataSetFromFileInParallel<int>(fn_conn,"ief",comm,rank,size,info);
+    ParArray<int>* iee = ReadDataSetFromFileInParallel<int>(fn_conn,"iee",comm,rank,size,info);
+    ParArray<int>* ife = ReadDataSetFromFileInParallel<int>(fn_conn,"ife",comm,rank,size,info);
 
-    
+    std::cout << "I am inside ReadUS3DData"<< "reading from stats?"<<readFromStats<< std::endl;
     int Nel = ien->getNglob();
     ParArray<double>* interior;
     if(readFromStats==1)
     {
-        interior  = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_1","stats-mean",0,Nel,comm,info);
+        interior  = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_1","stats-mean",0,Nel,comm,rank,size,info);
     }
     else{
-        interior  = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_1","interior",0,Nel,comm,info);
+        interior  = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_1","interior",0,Nel,comm,rank,size,info);
     }
     
     Array<double>* ghost        = ReadUS3DGhostCellsFromRun<double>(fn_data,"run_1","interior",Nel);
 
-    
     Array<int>*    zdefs        = ReadDataSetFromGroupFromFile<int>(fn_grid,"zones","zdefs");
     Array<char>*  znames        = ReadDataSetFromGroupFromFile<char>(fn_grid,"zones","znames");
-    
-    
+
+    std::cout << "I am inside ReadUS3DData 2" << std::endl;
     std::map<int,std::vector<int> > bnd_face_map;
     // Collect boundary data;
     std::vector<int> bnd_m;
@@ -2671,12 +2352,13 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
         bnd_m.push_back(zdefs->getVal(i,3));
     }
     bnd_m.push_back(zdefs->getVal(zdefs->getNrow()-1,4));
-    
+
     if(rank == 0)
     {
        PlotBoundaryData(znames,zdefs);
     }
-    
+
+    std::cout << "I am inside ReadUS3DData 3" << std::endl;
     std::map<int,char*> znames_map;
     Array<char>* znames_new = new Array<char>(znames->getNrow(),znames->getNcol());
     for(int i=0;i<zdefs->getNrow();i++)
@@ -2692,7 +2374,8 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
             znames_map[zdefs->getVal(i,5)] = name;
         }
     }
-    
+
+    std::cout << "I am inside ReadUS3DData 4" << std::endl;
     // number of vertices
     for(int j=0;j<znames->getNcol();j++)
     {
@@ -2703,7 +2386,8 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
     {
        znames_new->setVal(1,j,znames->getVal(1,j));
     }
-    
+
+    std::cout << "I am inside ReadUS3DData 5" << std::endl;
     std::map<int,char*>::iterator itch;
     int c=2;
     for(itch=znames_map.begin();itch!=znames_map.end();itch++)
@@ -2715,13 +2399,14 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
         }
         c++;
     }
-    
+
+    std::cout << "I am inside ReadUS3DData 6" << std::endl;
     int i,j;
     int nglob = ien->getNglob();
     int nrow  = ien->getNrow();
     int ncol  = ien->getNcol()-1;
     //
-    ParArray<int>* ien_copy = new ParArray<int>(nglob,ncol,comm);
+    ParArray<int>* ien_copy = new ParArray<int>(nglob,ncol,comm,rank,size);
     //
     for(i=0;i<nrow;i++)
     {
@@ -2733,8 +2418,9 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
     delete ien;
     //
     int ncol_ief = ief->getNcol()-1;
-    ParArray<int>* ief_copy = new ParArray<int>(nglob,ncol_ief,comm);
+    ParArray<int>* ief_copy = new ParArray<int>(nglob,ncol_ief,comm,rank,size);
 
+    std::cout << "I am inside ReadUS3DData 7" << std::endl;
     for(i=0;i<nrow;i++)
     {
         for(j=0;j<ncol_ief;j++)
@@ -2745,7 +2431,7 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
     delete ief;
     
     int ncol_iee = iee->getNcol()-1;
-    ParArray<int>* iee_copy = new ParArray<int>(nglob,6,comm);
+    ParArray<int>* iee_copy = new ParArray<int>(nglob,6,comm,rank,size);
     
     for(i=0;i<nrow;i++)
     {
@@ -2757,14 +2443,15 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
     
     delete iee;
     
+    std::cout << "I am inside ReadUS3DData 8" << std::endl;
     int nrow_fglob = ifn->getNglob();
     int nrow_floc  = ifn->getNrow();
     int ncol_ifn = 4;
     int ncol_ife = 2;
-    ParArray<int>* ifn_copy    = new ParArray<int>(nrow_fglob,ncol_ifn,comm);
-    ParArray<int>* ife_copy    = new ParArray<int>(nrow_fglob,ncol_ife,comm);
-    ParArray<int>* if_ref_copy = new ParArray<int>(nrow_fglob,1,comm);
-    ParArray<int>* if_Nv_copy  = new ParArray<int>(nrow_fglob,1,comm);
+    ParArray<int>* ifn_copy    = new ParArray<int>(nrow_fglob,ncol_ifn,comm,rank,size);
+    ParArray<int>* ife_copy    = new ParArray<int>(nrow_fglob,ncol_ife,comm,rank,size);
+    ParArray<int>* if_ref_copy = new ParArray<int>(nrow_fglob,1,comm,rank,size);
+    ParArray<int>* if_Nv_copy  = new ParArray<int>(nrow_fglob,1,comm,rank,size);
 
     for(i=0;i<nrow_floc;i++)
     {
@@ -2784,8 +2471,8 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
     delete ifn;
     delete ife;
     
-    ParArray<int>* ie_Nv    = new ParArray<int>(nglob,1,comm);
-    ParArray<int>* ie_Nf    = new ParArray<int>(nglob,1,comm);
+    ParArray<int>* ie_Nv    = new ParArray<int>(nglob,1,comm,rank,size);
+    ParArray<int>* ie_Nf    = new ParArray<int>(nglob,1,comm,rank,size);
     
     int check_hex = 0;
     int check_tet = 0;

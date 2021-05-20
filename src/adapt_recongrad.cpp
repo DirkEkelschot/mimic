@@ -2,13 +2,13 @@
 
 
 
-std::map<int,Array<double>* > ComputedUdx_LSQ_Vrt_US3D(Partition* Pa, std::map<int,Array<double>* > Ue, std::map<int,double> Uv, Mesh_Topology* meshTopo, Array<double>* ghost, MPI_Comm comm)
+std::map<int,Array<double>* > ComputedUdx_LSQ_Vrt_US3D(Partition* Pa, 
+                                                       std::map<int,Array<double>* > Ue, 
+                                                       std::map<int,double> Uv, 
+                                                       Mesh_Topology* meshTopo, 
+                                                       Array<double>* ghost, 
+                                                       MPI_Comm comm, int world_rank, int world_size)
 {
-   int world_size;
-   MPI_Comm_size(comm, &world_size);
-   // Get the rank of the process
-   int world_rank;
-   MPI_Comm_rank(comm, &world_rank);
    std::vector<Vert*> LocalVs                 = Pa->getLocalVerts();
    std::map<int,std::vector<int> > gE2lV      = Pa->getGlobElem2LocVerts();
    std::map<int,std::vector<int> > gE2gF      = Pa->getglobElem2globFaces();
@@ -25,9 +25,6 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_Vrt_US3D(Partition* Pa, std::map<i
    i_part_map* ief_part_map     = Pa->getIEFpartmap();
    i_part_map*  iee_vec         = Pa->getIEEpartmap();
    i_part_map* if_Nv_part_map   = Pa->getIF_Nvpartmap();
-
-//   std::vector<std::vector<double> > iee_dist;
-//   std::vector<double> dist;
 
    std::map<int,Array<double>* > dudx_map;
    double d;
@@ -256,16 +253,8 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_Vrt_US3D(Partition* Pa, std::map<i
    return dudx_map;
 }
 
-
-
-
-std::map<int,Array<double>* > ComputedUdx_LSQ_US3D(Partition* Pa, std::map<int,Array<double>* > U, Array<double>* ghost, MPI_Comm comm)
+std::map<int,Array<double>* > ComputedUdx_LSQ_US3D(Partition* Pa, std::map<int,Array<double>* > U, Array<double>* ghost, MPI_Comm comm, int world_rank, int world_size)
 {
-   int world_size;
-   MPI_Comm_size(comm, &world_size);
-   // Get the rank of the process
-   int world_rank;
-   MPI_Comm_rank(comm, &world_rank);
    std::vector<Vert*> LocalVs             = Pa->getLocalVerts();
    std::map<int,std::vector<int> > gE2lV = Pa->getGlobElem2LocVerts();
    std::map<int,std::vector<int> > gE2gF = Pa->getglobElem2globFaces();
@@ -403,10 +392,6 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_US3D(Partition* Pa, std::map<int,A
                Vrt->setVal(t,1,(1.0/d)*(Vc->y-Vijk->y));
                Vrt->setVal(t,2,(1.0/d)*(Vc->z-Vijk->z));
                
-//               if(isnan(Vrt->getVal(t,0)) || isnan(Vrt->getVal(t,1)) || isnan(Vrt->getVal(t,2)))
-//               {
-//                   std::cout << "Vc = (" << Vc->x << ", " << Vc->y << ", " << Vc->z << ") " << std::endl;
-//               }
                
                b->setVal(t,0,(1.0/d)*(0.0));
                t++;
@@ -447,15 +432,10 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_US3D(Partition* Pa, std::map<int,A
    return dudx_map;
 }
 
-
-
-std::map<int,Array<double>* >  ComputedUdx_MGG(Partition* Pa, std::map<int,double> U, Mesh_Topology* meshTopo, Array<double>* ghost, MPI_Comm comm)
+std::map<int,Array<double>* >  ComputedUdx_MGG(Partition* Pa, std::map<int,double> U, Mesh_Topology* meshTopo, Array<double>* ghost, MPI_Comm comm, int rank, int size)
 {
-    int lid, gEl, adjID, l_adjid, size, rank;
+    int lid, gEl, adjID, l_adjid;
     double u_c, u_nb, gu_c_vx, gu_c_vy, gu_c_vz, gu_nb_vx, gu_nb_vy, gu_nb_vz,sum_phix,sum_phiy,sum_phiz,dphi_dn,Vol;
-    MPI_Comm_size(comm, &size);
-    // Get the rank of the process
-    MPI_Comm_rank(comm, &rank);
     int Nel = Pa->getLocalPartition()->getNglob();
     
     std::map<int,int> gE2lE                 = Pa->getGlobalElement2LocalElement();
@@ -520,14 +500,9 @@ std::map<int,Array<double>* >  ComputedUdx_MGG(Partition* Pa, std::map<int,doubl
         t = clock();
         //communicate grad phi!!!
         
-        Pa->AddStateForAdjacentElements(gu_c_x_m, comm);
-        Pa->AddStateForAdjacentElements(gu_c_y_m, comm);
-        Pa->AddStateForAdjacentElements(gu_c_z_m, comm);
-//        std::map<int,double> dUdx_p_bnd = Pa->CommunicateStateAdjacentElements(gu_c_x_m, comm);
-//        std::map<int,double> dUdy_p_bnd = Pa->CommunicateStateAdjacentElements(gu_c_y_m, comm);
-//        std::map<int,double> dUdz_p_bnd = Pa->CommunicateStateAdjacentElements(gu_c_z_m, comm);
-
-        //std::map<int,std::vector<double> > dUdxi_p_bnd = Pa->CommunicateStateAdjacentElementsNew(gu_c_old, comm);
+        Pa->AddStateForAdjacentElements(gu_c_x_m, comm, rank, size);
+        Pa->AddStateForAdjacentElements(gu_c_y_m, comm, rank, size);
+        Pa->AddStateForAdjacentElements(gu_c_z_m, comm, rank, size);
                 
         L2normx = 0.0;
         L2normy = 0.0;
@@ -563,9 +538,6 @@ std::map<int,Array<double>* >  ComputedUdx_MGG(Partition* Pa, std::map<int,doubl
                      gu_nb_vy = gu_c_y_m[adjID];
                      gu_nb_vz = gu_c_z_m[adjID];
                      
-//                   gu_nb_vx = dUdxi_p_bnd[adjID][0];//dUdx_p_bnd[adjID];
-//                   gu_nb_vy = dUdxi_p_bnd[adjID][1];//dUdy_p_bnd[adjID];
-//                   gu_nb_vz = dUdxi_p_bnd[adjID][2];//dUdz_p_bnd[adjID];
                      
                      u_nb = U[adjID];
                  }
@@ -576,11 +548,6 @@ std::map<int,Array<double>* >  ComputedUdx_MGG(Partition* Pa, std::map<int,doubl
                      gu_nb_vx = gu_c_x->getVal(lid,0);
                      gu_nb_vy = gu_c_y->getVal(lid,0);
                      gu_nb_vz = gu_c_z->getVal(lid,0);
-//
-//                     u_nb     = 0.0;
-//                     gu_nb_vx = 0.0;
-//                     gu_nb_vy = 0.0;
-//                     gu_nb_vz = 0.0;
                      
                  }
                  
@@ -632,9 +599,6 @@ std::map<int,Array<double>* >  ComputedUdx_MGG(Partition* Pa, std::map<int,doubl
             gudxi[gEl]->setVal(2,0,1.0/Vol*sum_phiz);
          }
         
-//        dUdx_p_bnd.clear();
-//        dUdy_p_bnd.clear();
-//        dUdz_p_bnd.clear();
         
         MPI_Allreduce(&L2normx, &L2normx_max, 1, MPI_DOUBLE, MPI_MAX, comm);
         MPI_Allreduce(&L2normy, &L2normy_max, 1, MPI_DOUBLE, MPI_MAX, comm);
@@ -664,4 +628,3 @@ std::map<int,Array<double>* >  ComputedUdx_MGG(Partition* Pa, std::map<int,doubl
     
     return gudxi;
 }
-

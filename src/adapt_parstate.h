@@ -8,7 +8,7 @@
 
 class ParallelState {
    public:
-    ParallelState(int N, MPI_Comm c);
+    ParallelState(int N, MPI_Comm c, int world_rank, int world_size);
     int* getOffsets( void );
     int* getNlocs( void );
     int getNloc( int rank );
@@ -23,17 +23,11 @@ class ParallelState {
       int* nlocs;
 };
 
-inline ParallelState::ParallelState(int N, MPI_Comm c)
+inline ParallelState::ParallelState(int N, MPI_Comm c, int rank, int size)
 {
     Nel  = N;
     comm = c;
-     
-    int size;
-    MPI_Comm_size(comm, &size);
 
-    // Get the rank of the process;
-    int rank;
-    MPI_Comm_rank(comm, &rank);
     int nloc             = int(N/size) + ( rank < N%size );
     //  compute offset of rows for each proc;
     int offset           = rank*int(N/size) + MIN(rank, N%size);

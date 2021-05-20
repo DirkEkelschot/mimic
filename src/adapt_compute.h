@@ -58,7 +58,7 @@ double ComputeDeterminantJ(double*P, int np);
 
 Array<double>* ComputeDeterminantofJacobian(ParArray<int>* ien, Array<double>* xcn);
 
-double* ComputeVolumeCells(Array<double>* xcn, Array<int>* ien, MPI_Comm comm);
+double* ComputeVolumeCells(Array<double>* xcn, Array<int>* ien, MPI_Comm comm, int rank, int size);
 
 double ComputeTetVolume(double *P);
 
@@ -66,113 +66,13 @@ double* ComputeVolumeCellsReducedToVerts(Array<double>* xcn, Array<int>* ien);
 
 void UnitTestJacobian();
 
-void ComputeMetric(Partition* Pa, std::vector<double> metric_inputs, MPI_Comm comm,
+void ComputeMetric(Partition* Pa, std::vector<double> metric_inputs, MPI_Comm comm, int rank, int size,
                    std::map<int,Array<double>* > scale_vm,
                    std::map<int,Array<double>* > &Hess_vm,
                    double sumvol, double po);
 
-Array<double>* ComputeFaceValues(Partition* P, Array<double>* U, MPI_Comm comm);
+Array<double>* ComputeFaceValues(Partition* P, Array<double>* U, MPI_Comm comm, int rank, int size);
 
 Array<double>* ComputeVolumes(Partition* Pa);
 
-/*
-double* ComputeVolumeCells(Array<double>* xcn, Array<int>* ien)
-{
-    int Nelements = ien->nrow;
-    double * vol_cells = new double[Nelements];
-    int np = 8;
-    double* P = new double[np*3];
-    
-    double L01=0.0;
-    double L15=0.0;
-    double L04=0.0;
-    double L45=0.0;
-    double L37=0.0;
-    double L23=0.0;
-    double L26=0.0;
-    double L67=0.0;
-    
-    double b0,b1,b2,b3;
-    double v0,v1,v2,v3,vhex;
-    double H12,H47,H30,H56;
-    
-    int Vid;
-    for(int i=0;i<Nelements;i++)
-    {
-        for(int j=0;j<np;j++)
-        {
-            Vid = ien->getVal(i,j+1)-1;
-            P[j*3+0] = xcn->getVal(Vid,0);
-            P[j*3+1] = xcn->getVal(Vid,1);
-            P[j*3+2] = xcn->getVal(Vid,2);
-        }
-        
-        L01 = sqrt((P[0*3+0]-P[1*3+0])*(P[0*3+0]-P[1*3+0])+
-                   (P[0*3+1]-P[1*3+1])*(P[0*3+1]-P[1*3+1])+
-                   (P[0*3+2]-P[1*3+2])*(P[0*3+2]-P[1*3+2]));
-        
-        L15 = sqrt((P[1*3+0]-P[5*3+0])*(P[1*3+0]-P[5*3+0])+
-                   (P[1*3+1]-P[5*3+1])*(P[1*3+1]-P[5*3+1])+
-                   (P[1*3+2]-P[5*3+2])*(P[1*3+2]-P[5*3+2]));
-        
-        H12 = sqrt((P[1*3+0]-P[2*3+0])*(P[1*3+0]-P[2*3+0])+
-                   (P[1*3+1]-P[2*3+1])*(P[1*3+1]-P[2*3+1])+
-                   (P[1*3+2]-P[2*3+2])*(P[1*3+2]-P[2*3+2]));
-        
-        
-        b0 = 0.5*L01*L15;
-        v0 = 1.0/3.0*b0*H12;
-        
-        L04 = sqrt((P[0*3+0]-P[4*3+0])*(P[0*3+0]-P[4*3+0])+
-                   (P[0*3+1]-P[4*3+1])*(P[0*3+1]-P[4*3+1])+
-                   (P[0*3+2]-P[4*3+2])*(P[0*3+2]-P[4*3+2]));
-        
-        L45 = sqrt((P[4*3+0]-P[5*3+0])*(P[4*3+0]-P[5*3+0])+
-                   (P[4*3+1]-P[5*3+1])*(P[4*3+1]-P[5*3+1])+
-                   (P[4*3+2]-P[5*3+2])*(P[4*3+2]-P[5*3+2]));
-        
-        H47 = sqrt((P[4*3+0]-P[7*3+0])*(P[4*3+0]-P[7*3+0])+
-                   (P[4*3+1]-P[7*3+1])*(P[4*3+1]-P[7*3+1])+
-                   (P[4*3+2]-P[7*3+2])*(P[4*3+2]-P[7*3+2]));
-        
-        b1 = 0.5*L04*L45;
-        v1 = 1.0/3.0*b1*H47;
-        
-        L37 = sqrt((P[3*3+0]-P[7*3+0])*(P[3*3+0]-P[7*3+0])+
-                   (P[3*3+1]-P[7*3+1])*(P[3*3+1]-P[7*3+1])+
-                   (P[3*3+2]-P[7*3+2])*(P[3*3+2]-P[7*3+2]));
-        
-        L23 = sqrt((P[2*3+0]-P[3*3+0])*(P[2*3+0]-P[3*3+0])+
-                   (P[2*3+1]-P[3*3+1])*(P[2*3+1]-P[3*3+1])+
-                   (P[2*3+2]-P[3*3+2])*(P[2*3+2]-P[3*3+2]));
-        
-        H30 = sqrt((P[3*3+0]-P[0*3+0])*(P[3*3+0]-P[0*3+0])+
-                   (P[3*3+1]-P[0*3+1])*(P[3*3+1]-P[0*3+1])+
-                   (P[3*3+2]-P[0*3+2])*(P[3*3+2]-P[0*3+2]));
-        
-        b2 = 0.5*L37*L23;
-        v2 = 1.0/3.0*b2*H30;
-        
-        L26 = sqrt((P[2*3+0]-P[6*3+0])*(P[2*3+0]-P[6*3+0])+
-                   (P[2*3+1]-P[6*3+1])*(P[2*3+1]-P[6*3+1])+
-                   (P[2*3+2]-P[6*3+2])*(P[2*3+2]-P[6*3+2]));
-        
-        L67 = sqrt((P[6*3+0]-P[7*3+0])*(P[6*3+0]-P[7*3+0])+
-                   (P[6*3+1]-P[7*3+1])*(P[6*3+1]-P[7*3+1])+
-                   (P[6*3+2]-P[7*3+2])*(P[6*3+2]-P[7*3+2]));
-        
-        H56 = sqrt((P[5*3+0]-P[6*3+0])*(P[5*3+0]-P[6*3+0])+
-                   (P[5*3+1]-P[6*3+1])*(P[5*3+1]-P[6*3+1])+
-                   (P[5*3+2]-P[6*3+2])*(P[5*3+2]-P[6*3+2]));
-        
-        b3 = 0.5*L26*L67;
-        v3 = 1.0/3.0*b3*H56;
-        vhex = v0+v1+v2+v3;
-    
-        vol_cells[i] = vhex;
-        
-    }
-    return vol_cells;
-}
-*/
 #endif
