@@ -9,9 +9,10 @@
 #include <iomanip>
 #include "main_api.h"
 
-int madam_api(const char* fn_grid, const char* fn_conn, const char* fn_data, MPI_Comm comm, int world_rank, int world_size) {
+int madam_api( const char *fn_grid, const char *fn_conn, const char *fn_data, MPI_Comm comm, int world_rank, int world_size) {
     
-    std::cout << "Starting MADAM_API"<< std::endl;
+    std::cout << "Starting MADAM_API";
+    std::cout << " comm="<<comm<<" world_rank="<<world_rank<<" world_size="<<world_size<< std::endl;
     MPI_Info info = MPI_INFO_NULL;
     
     int debug = 0;
@@ -31,19 +32,24 @@ int madam_api(const char* fn_grid, const char* fn_conn, const char* fn_data, MPI
     }
     std::cout << "grid="<<fn_grid <<"  conn="<<fn_conn<<"  data="<<fn_data << std::endl;
     std::cout << "HACK JMB!! fixing grid, and data to known values... something is weird with read in from US3D"<< std::endl;
-    fn_grid = "grid.h5";
-    fn_conn = "conn.h5";
-    fn_data = "data.h5";
+    // fn_grid = "grid.h5";
+    // fn_conn = "conn.h5";
+    // fn_data = "data.h5";
     US3D* us3d = ReadUS3DData(fn_conn,fn_grid,fn_data,ReadFromStats,comm,world_rank,world_size,info);
     int Nve = us3d->xcn->getNglob();
         
     int Nel_part = us3d->ien->getNrow();
-            
+    
+
+    std::cout << "HACK JMB!! Done with ReadUS3DData";
     ParallelState* ien_pstate               = new ParallelState(us3d->ien->getNglob(), comm, world_rank, world_size);
+    std::cout << "HACK JMB!! Done with ParallelState 1"<< std::endl;
     ParallelState* ife_pstate               = new ParallelState(us3d->ifn->getNglob(), comm, world_rank, world_size);
+    std::cout << "HACK JMB!! Done with ParallelState 2"<< std::endl;
     ParallelState_Parmetis* parmetis_pstate = new ParallelState_Parmetis(us3d->ien,us3d->elTypes,us3d->ie_Nv, comm, world_rank, world_size);
+    std::cout << "HACK JMB!! Done with ParallelState 2"<< std::endl;
     ParallelState* xcn_pstate               = new ParallelState(us3d->xcn->getNglob(), comm, world_rank, world_size);
-        
+    std::cout << "HACK JMB!! Done with ParallelState stuff"<< std::endl;
     Array<double>* Uivar = new Array<double>(Nel_part,1);
     double rhoState,uState,vState,wState,TState,VtotState,aState,MState;
     for(int i=0;i<Nel_part;i++)

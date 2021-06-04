@@ -25,18 +25,19 @@ class ParallelState {
 
 inline ParallelState::ParallelState(int N, MPI_Comm c, int rank, int size)
 {
+    std::cout << "here 1 in ParallelState::ParallelState" << std::endl;
     Nel  = N;
     comm = c;
 
     int nloc             = int(N/size) + ( rank < N%size );
     //  compute offset of rows for each proc;
     int offset           = rank*int(N/size) + MIN(rank, N%size);
-     
+    
+    std::cout << "here 2 in ParallelState::ParallelState" << std::endl;
     int* proc_nlocs                 = new int[size];
     int* proc_offset                = new int[size];
     nlocs                           = new int[size];
     offsets                         = new int[size];
-    //std::cout << offset << std::endl;
     for(int i=0;i<size;i++)
     {
         nlocs[i]   = 0;
@@ -53,9 +54,12 @@ inline ParallelState::ParallelState(int N, MPI_Comm c, int rank, int size)
             proc_offset[i] = 0;
         }
     }
-     
+    std::cout << "here 3 in ParallelState::ParallelState";
+    std::cout << " size=" << size << " rank=" << rank << std::endl;
+    std::cout << "proc_nlocs=" <<proc_nlocs<< " proc_offset" << proc_offset << std::endl;
     MPI_Allreduce(proc_nlocs,  nlocs,   size, MPI_INT, MPI_SUM, comm);
     MPI_Allreduce(proc_offset, offsets, size, MPI_INT, MPI_SUM, comm);
+    std::cout << "here 4 in ParallelState::ParallelState" << std::endl;
      
 }// This is the constructor
 

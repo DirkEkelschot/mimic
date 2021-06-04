@@ -2316,17 +2316,14 @@ void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh,MMG5_pSol mmgSol, US3D* us3d)
 US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data, int readFromStats, MPI_Comm comm,  int rank, int size, MPI_Info info)
 {
     US3D* us3d = new US3D;
-    std::cout << "Reading grid data from :: " << fn_grid << std::endl;
     ParArray<double>* xcn = ReadDataSetFromFileInParallel<double>(fn_grid,"xcn",comm,rank,size,info);
     ParArray<int>* iet = ReadDataSetFromFileInParallel<int>(fn_grid,"iet",comm,rank,size,info);
     ParArray<int>* ifn = ReadDataSetFromFileInParallel<int>(fn_grid,"ifn",comm,rank,size,info);
-    std::cout << "Reading conn data from :: " << fn_conn << std::endl;
     ParArray<int>* ien = ReadDataSetFromFileInParallel<int>(fn_conn,"ien",comm,rank,size,info);
     ParArray<int>* ief = ReadDataSetFromFileInParallel<int>(fn_conn,"ief",comm,rank,size,info);
     ParArray<int>* iee = ReadDataSetFromFileInParallel<int>(fn_conn,"iee",comm,rank,size,info);
     ParArray<int>* ife = ReadDataSetFromFileInParallel<int>(fn_conn,"ife",comm,rank,size,info);
 
-    std::cout << "I am inside ReadUS3DData"<< "reading from stats?"<<readFromStats<< std::endl;
     int Nel = ien->getNglob();
     ParArray<double>* interior;
     if(readFromStats==1)
@@ -2342,7 +2339,6 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
     Array<int>*    zdefs        = ReadDataSetFromGroupFromFile<int>(fn_grid,"zones","zdefs");
     Array<char>*  znames        = ReadDataSetFromGroupFromFile<char>(fn_grid,"zones","znames");
 
-    std::cout << "I am inside ReadUS3DData 2" << std::endl;
     std::map<int,std::vector<int> > bnd_face_map;
     // Collect boundary data;
     std::vector<int> bnd_m;
@@ -2358,7 +2354,6 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
        PlotBoundaryData(znames,zdefs);
     }
 
-    std::cout << "I am inside ReadUS3DData 3" << std::endl;
     std::map<int,char*> znames_map;
     Array<char>* znames_new = new Array<char>(znames->getNrow(),znames->getNcol());
     for(int i=0;i<zdefs->getNrow();i++)
@@ -2375,7 +2370,6 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
         }
     }
 
-    std::cout << "I am inside ReadUS3DData 4" << std::endl;
     // number of vertices
     for(int j=0;j<znames->getNcol();j++)
     {
@@ -2387,7 +2381,6 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
        znames_new->setVal(1,j,znames->getVal(1,j));
     }
 
-    std::cout << "I am inside ReadUS3DData 5" << std::endl;
     std::map<int,char*>::iterator itch;
     int c=2;
     for(itch=znames_map.begin();itch!=znames_map.end();itch++)
@@ -2400,7 +2393,6 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
         c++;
     }
 
-    std::cout << "I am inside ReadUS3DData 6" << std::endl;
     int i,j;
     int nglob = ien->getNglob();
     int nrow  = ien->getNrow();
@@ -2420,7 +2412,6 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
     int ncol_ief = ief->getNcol()-1;
     ParArray<int>* ief_copy = new ParArray<int>(nglob,ncol_ief,comm,rank,size);
 
-    std::cout << "I am inside ReadUS3DData 7" << std::endl;
     for(i=0;i<nrow;i++)
     {
         for(j=0;j<ncol_ief;j++)
@@ -2443,7 +2434,6 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
     
     delete iee;
     
-    std::cout << "I am inside ReadUS3DData 8" << std::endl;
     int nrow_fglob = ifn->getNglob();
     int nrow_floc  = ifn->getNrow();
     int ncol_ifn = 4;
