@@ -12,13 +12,14 @@
 class Partition {
    public:
     Partition(){};
-    Partition(ParArray<int>* ien, ParArray<int>* iee, ParArray<int>* ief, ParArray<int>* ie_Nv, ParArray<int>* ieie_Nf, ParArray<int>* ifn, ParArray<int>* ife, ParArray<int>* if_ref, ParArray<int>* if_Nv,  ParallelState_Parmetis* pstate_parmetis, ParallelState* ien_parstate, ParallelState* ife_parstate, ParArray<double>* xcn, ParallelState* xcn_parstate, Array<double>* U, MPI_Comm comm);
+    Partition(ParArray<int>* ien, ParArray<int>* iee, ParArray<int>* ief, ParArray<int>* ie_Nv, ParArray<int>* ieie_Nf, ParArray<int>* ifn, ParArray<int>* ife, ParArray<int>* if_ref, ParArray<int>* if_Nv,  ParallelState_Parmetis* pstate_parmetis, ParallelState* ien_parstate, ParallelState* ife_parstate, ParArray<double>* xcn, ParallelState* xcn_parstate, Array<double>* U, Array<int>* tetCnt, MPI_Comm comm);
     ~Partition();
     void DeterminePartitionLayout(ParArray<int>* ien, ParallelState_Parmetis* pstate_parmetis, MPI_Comm comm);
-    void DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief, ParArray<int>* ie_Nv, ParArray<int>* ie_Nf, ParArray<double>* xcn, Array<double>* U, MPI_Comm comm);
+    void DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief, ParArray<int>* ie_Nv, ParArray<int>* ie_Nf, ParArray<double>* xcn, Array<double>* U, Array<int>* tetCnt, MPI_Comm comm);
     void DetermineAdjacentElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief, ParArray<int>* part, ParArray<double>* xcn, Array<double>* U, MPI_Comm comm);
     void DetermineAdjacentElement2ProcMapUS3D(ParArray<int>* ien, std::map<int,std::vector<int> > iee_vec, ParArray<int>* part, ParArray<double>* xcn, Array<double>* U, MPI_Comm comm);
     void CreatePartitionDomain();
+    void CreatePartitionDomainTest();
     std::vector<double> PartitionAuxilaryData(Array<double>* U, MPI_Comm comm);
     std::map<int,double> CommunicateLocalDataUS3D(Array<double>* U, MPI_Comm comm);
     void AddStateForAdjacentElements(std::map<int,double> U, MPI_Comm comm);
@@ -34,7 +35,8 @@ class Partition {
     std::map<int,Array<double>* > ReduceStateVecToAllVertices(std::map<int,Array<double>* > UaddAdj, int nvar);
     std::map<int,Array<double>*> ReduceMetricToVertices(std::map<int,Array<double>* > Telem);
     std::map<int,int> getGlobalVert2GlobalElement();
-
+    void GetPartitionFaceColorMaps();
+    std::vector<int> getTetCnt();
     std::vector<int> getLocElem();
     std::vector<int> getLocElemNv();
     std::map<int,int> getLocElem2Nv();
@@ -52,7 +54,6 @@ class Partition {
     int* getAdjcny();
     std::vector<int> getLocAndAdj_Elem();
     std::vector<int> getLocAndAdj_Elem_Nv();
-    std::vector<int> getLocAndAdj_Elem_Nf();
     ParArray<int>* getLocalPartition();
     Array<int>* getGlobalPartition();
     std::vector<Vert*> getLocalVerts();
@@ -95,13 +96,16 @@ class Partition {
     i_part_map* getIF_Nvpartmap();
     i_part_map* getIFEpartmap();
     i_part_map* getIFREFpartmap();
-    
+    i_part_map* getIE_Nfpartmap();
    private:
-      
+      MPI_Comm comm_p;
+      int rank;
+      int size;
       std::vector<int> Loc_Elem;
       std::vector<int> Loc_Elem_Nv;
       std::vector<int> Loc_Elem_Nf;
       std::vector<double> Loc_Elem_Varia;
+      std::vector<int> Loc_Elem_TetCnt;
       std::vector<int> LocAndAdj_Elem;
       std::vector<int> LocAndAdj_Elem_Nv;
       std::vector<int> LocAndAdj_Elem_Nf;
@@ -120,6 +124,7 @@ class Partition {
       std::vector<int> loc_r_nv_elem;
       std::vector<int> loc_r_nf_elem;
       std::vector<double> loc_varia;
+      std::vector<int> loc_tetc;
       Domain* pDom;
       int nLoc_Elem;
       int nLocAndAdj_Elem;
@@ -180,7 +185,7 @@ class Partition {
       i_part_map* if_ref_part_map;
       i_part_map* ifn_part_map;
       i_part_map* ife_part_map;
-    
+      i_part_map* ieNf_part_map;
       i_part_map* iee_part_map;
       i_part_map* ief_part_map;
       i_part_map* ien_part_map;

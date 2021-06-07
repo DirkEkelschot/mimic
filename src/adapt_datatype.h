@@ -31,7 +31,7 @@ struct US3D{
     ParArray<int>* ifn;
     ParArray<int>* ife;
     ParArray<int>* if_ref;
-    
+    Array<int>* ie_tetCnt;
     std::map<std::set<int>,int> tria_ref_map;
     std::map<std::set<int>,int> quad_ref_map;
     std::map<int,int> vert_ref_map;

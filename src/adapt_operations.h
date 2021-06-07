@@ -1,6 +1,7 @@
 #include "adapt.h"
 #include "adapt_parstate.h"
 #include "adapt_array.h"
+#include "adapt_datastruct.h"
 
 #ifndef ADAPT_OPERATIONS_H
 #define ADAPT_OPERATIONS_H
@@ -13,7 +14,9 @@ std::vector<int> FindDuplicates(std::vector<int> arr);
 
 std::vector<int> FindDuplicatesInParallel(int* arr, int loc_size, int glob_size, MPI_Comm comm);
 
-std::vector<int> FindDuplicatesInParallel_Vec(std::vector<int> arr, int arr_size, int glob_size, MPI_Comm comm);
+InteriorPartitionEntity* FindDuplicatesInParallel_Vec(std::vector<int> arr, int arr_size, int glob_size, MPI_Comm comm);
+
+std::vector<int> FindDuplicatesInParallel_VecV2(std::vector<int> arr, int arr_size, int glob_size, MPI_Comm comm);
 
 int compare (const void * a, const void * b);
 
@@ -30,5 +33,11 @@ int binarySearch(int* arr, int low, int high, int key);
 int largest(int arr[], int n);
 
 void TestFindRank(MPI_Comm comm);
+
+void mergeNew(int *, int *, int, int, int);
+
+void mergeSortNew(int *, int *, int, int);
+
+
 
 #endif

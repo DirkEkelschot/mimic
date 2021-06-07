@@ -93,9 +93,7 @@ int binarySearch(int* arr, int low, int high, int key)
 
 
 
-
-
-std::vector<int> FindDuplicatesInParallel_Vec(std::vector<int> arr, int arr_size, int glob_size, MPI_Comm comm)
+std::vector<int> FindDuplicatesInParallel_VecV2(std::vector<int> arr, int arr_size, int glob_size, MPI_Comm comm)
 {
     int size;
     MPI_Comm_size(comm, &size);
@@ -172,6 +170,124 @@ std::vector<int> FindDuplicatesInParallel_Vec(std::vector<int> arr, int arr_size
     
     delete pv;
     return duplicates;
+}
+
+
+
+
+
+
+InteriorPartitionEntity* FindDuplicatesInParallel_Vec(std::vector<int> arr, int arr_size, int glob_size, MPI_Comm comm)
+{
+    int size;
+    MPI_Comm_size(comm, &size);
+    // Get the rank of the process
+    int rank;
+    MPI_Comm_rank(comm, &rank);
+    
+    int levels = log2(size);
+    
+    int N = arr_size;
+
+    //if (rank == 0)
+    //{
+    //glob_arr = new int[glob_size];
+    //}
+    std::vector<int> glob_arr(glob_size);
+    std::vector<int> sorted = mergeSort_vec(levels, rank, arr, N, comm, glob_arr);
+    
+    MPI_Bcast(&sorted[0], glob_size, MPI_INT, 0, MPI_COMM_WORLD);
+
+    ParallelState* pv = new ParallelState(glob_size, comm);
+    
+    std::vector<int> res;
+    std::set<int> check;
+
+    for(int i=0;i<pv->getNloc(rank);i++)
+    {
+        if(sorted[pv->getOffset(rank)+i+1]==sorted[pv->getOffset(rank)+i])
+        {
+            check.insert(pv->getOffset(rank)+sorted[i]);
+            res.push_back(pv->getOffset(rank)+sorted[i]);
+        }
+    }
+  
+    
+    int* dupl_locs     = new int[size];
+    int* red_dupl_locs = new int[size];
+
+    
+    for(int i=0;i<size;i++)
+    {
+        red_dupl_locs[i]  = 0;
+        
+        if(i==rank)
+        {
+            dupl_locs[i]  = res.size();
+        }
+        else
+        {
+            dupl_locs[i]  = 0;
+        }
+    }
+    
+    std::cout << "comp size " << arr.size() << " " << res.size() << " " << glob_size << " " << sorted.size() << std::endl;
+ 
+//    if(rank == 0)
+//    {
+//
+//        for(int i=0;i<res.size();i++)
+//        {
+//            std::cout << "ressie " << res[i] << std::endl;
+//        }
+//    }
+    
+    
+    MPI_Allreduce(dupl_locs, red_dupl_locs, size, MPI_INT, MPI_SUM, comm);
+    
+    int* red_dupl_offsets = new int[size];
+    red_dupl_offsets[0] = 0;
+    for(int i=0;i<size-1;i++)
+    {
+        red_dupl_offsets[i+1]=red_dupl_offsets[i]+red_dupl_locs[i];
+    }
+    
+    int tot_dupl = red_dupl_offsets[size-1]+red_dupl_locs[size-1];
+    
+    std::vector<int> duplicates(tot_dupl);
+    
+    MPI_Allgatherv(&res[0],
+                   res.size(),
+                   MPI_INT,
+                   &duplicates[0],
+                   red_dupl_locs,
+                   red_dupl_offsets,
+                   MPI_INT, comm);
+    
+    InteriorPartitionEntity* iEntity = new InteriorPartitionEntity;
+    
+    iEntity->PartInterEntity = duplicates;
+    std::map<int,int> mappie;
+    std::set<int> ufglobal;
+    std::vector<int> ufglobal_vec;
+    for(int i=0;i<duplicates.size();i++)
+    {
+        
+        int key = duplicates[i];
+        int val = i;
+        iEntity->glob2loc_PartInterEntity[key] = val;
+
+        ufglobal.insert(key);
+        ufglobal_vec.push_back(key);
+    }
+    
+    std::vector<int> dupdup = FindDuplicates(duplicates);
+    std::cout << "ranki " << rank << " Double dup " << duplicates.size() << " " << dupdup.size() << std::endl;
+    iEntity->UniqueFaces = ufglobal;
+    iEntity->UniqueFacesVec = ufglobal_vec;
+
+    delete pv;
+    return iEntity;
 }
 
 std::vector<int> FindDuplicatesInParallel(int* arr, int arr_size, int glob_size, MPI_Comm comm)
@@ -339,8 +455,9 @@ int* mergeSort(int height, int id, int* localArray, int size, MPI_Comm comm, int
     while (myHeight < height) { // not yet at top
         parent = (id & (~(1 << myHeight)));
 
-        if (parent == id) { // left child
-            rightChild = (id | (1 << myHeight));
+        if (parent == id)
+        { // left child
+              rightChild = (id | (1 << myHeight));
 
               // allocate memory and receive array of right child
               
@@ -389,7 +506,10 @@ int* mergeSort(int height, int id, int* localArray, int size, MPI_Comm comm, int
     return globalArray;
 }
 
-
+//std::vector<int> MergeAndSort(std::vector<int> localArray, std::vector<int> globalArray, MPI_Comm comm)
+//{
+//
+//}
 
 std::vector<int> mergeSort_vec(int height, int rank, std::vector<int> localArray, int size, MPI_Comm comm, std::vector<int> globalArray){
     
@@ -508,6 +628,18 @@ void TestFindRank(MPI_Comm comm)
     }
     
 }
+
+
+
+
+
+
+
+
+
+
+
+
 
 //void ParallelSortTest_v2()
 //{

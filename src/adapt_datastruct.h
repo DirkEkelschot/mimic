@@ -7,10 +7,19 @@
 
 struct Domain
 {
+    std::set<int> ushell;
+    int ncomm;
+    std::vector<int> faces_ref;
+    std::vector<std::vector<int> > faces_part;
+    int* ntifc;
+    int* color_face;
+    std::vector<int* > ifc_tria_loc;
+    std::vector<int* > ifc_tria_glob;
     std::map<int,std::vector<int> > Elements;
     std::map<int,std::vector<int> > Hexes;
     std::map<int,std::vector<int> > Prisms;
     std::map<int,std::vector<int> > Tetras;
+    std::map<int,std::vector<int> > ref2bcface;
     
     std::map<int,std::vector<int> > GHexes;
     std::map<int,std::vector<int> > GPrisms;
@@ -29,6 +38,23 @@ struct i_part_map
 {
     std::map<int,std::vector<int> > i_map;
     std::map<int,std::vector<int> > i_inv_map;
+};
+
+
+struct InteriorPartitionEntity
+{
+    std::vector<int> PartInterEntity;
+    std::vector<int> InterEntity;
+    std::map<int,int> glob2loc_PartInterEntity;
+    std::set<int> UniqueFaces;
+    std::vector<int> UniqueFacesVec;
+};
+
+struct MeshTransfer
+{
+    std::vector<int> UniqueFacesVec;
+    InteriorPartitionEntity* iFaces;
+    InteriorPartitionEntity* iVerts;
 };
 
 struct ParVar

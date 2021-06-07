@@ -2781,6 +2781,16 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
         }
     }
     
+    
+    for(int q=0;q<if_ref_copy->getNrow();q++)
+    {
+        if(if_ref_copy->getVal(q,0)!=3 && if_ref_copy->getVal(q,0)!=7 && if_ref_copy->getVal(q,0)!=10 && if_ref_copy->getVal(q,0)!=36 && if_ref_copy->getVal(q,0)!=2)
+        {
+            std::cout<<"while reading TEFFIE " << if_ref_copy->getVal(q,0) << std::endl;
+        }
+    }
+    
+    
     delete ifn;
     delete ife;
     
@@ -2791,7 +2801,7 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
     int check_tet = 0;
     int check_pri = 0;
     
-    
+    int tetCount=0;
     for(int i=0;i<nrow;i++)
     {
         if(iet->getVal(i,0)==2) // Tet
@@ -2799,6 +2809,7 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
             ie_Nv->setVal(i,0,4);
             ie_Nf->setVal(i,0,4);
             check_tet = 1;
+            tetCount++;
         }
         if(iet->getVal(i,0)==6) // Prism
         {
@@ -2814,6 +2825,46 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
         }
     }
     
+    int* colTetCount = new int[size];
+    int* RedcolTetCount = new int[size];
+    int* OffcolTetCount = new int[size];
+
+    for(int i=0;i<size;i++)
+    {
+        colTetCount[i]    = 0;
+        RedcolTetCount[i] = 0;
+        if(i==rank)
+        {
+            colTetCount[i] = tetCount;
+        }
+    }
+    
+    MPI_Allreduce(colTetCount,  RedcolTetCount,  size, MPI_INT, MPI_SUM, comm);
+    int offset_tetC = 0;
+    for(int i=0;i<size;i++)
+    {
+        OffcolTetCount[i] = offset_tetC;
+        offset_tetC = offset_tetC+RedcolTetCount[i];
+    }
+    
+    Array<int>* ie_tetCnt    = new Array<int>(nrow,1);
+
+    int tett=0;
+    int pris=0;
+    for(int i=0;i<nrow;i++)
+    {
+        if(iet->getVal(i,0)==2) // Tet
+        {
+            ie_tetCnt->setVal(i,0,OffcolTetCount[i]+tett);
+            tett++;
+        }
+        else
+        {
+            ie_tetCnt->setVal(i,0,-1);
+            pris++;
+        }
+    }
+    //std::cout << "before partitioning rank = " << rank << " #tets = " << tett << " #prisms " << pris << std::endl;
     Array<int>* elTypes = new Array<int>(3,1);
     elTypes->setVal(0,0,check_tet);
     elTypes->setVal(1,0,check_pri);
@@ -2832,7 +2883,7 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
     us3d->ifn           = ifn_copy;
     us3d->if_ref        = if_ref_copy;
     us3d->ife           = ife_copy;
-
+    us3d->ie_tetCnt     = ie_tetCnt;
     us3d->interior      = interior;
     us3d->ghost         = ghost;
     
@@ -2844,5 +2895,41 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
     
     //std::cout << interior->getNrow() << " " << interior->getNcol() << std::endl;
     return us3d;
+}
+
+
+
+
+
+std::vector<std::vector<int> > ReadUS3DTetrahdra(const char* fn_conn, const char* fn_grid, const char* fn_data, int readFromStats, MPI_Comm comm, MPI_Info info)
+{
+    int size;
+    MPI_Comm_size(comm, &size);
+    // Get the rank of the process
+    int rank;
+    MPI_Comm_rank(comm, &rank);
+    
+    
+    std::vector<std::vector<int> > tetras;
+    
+    ParArray<double>* xcn = ReadDataSetFromFileInParallel<double>(fn_grid,"xcn",comm,info);
+    Array<int>* iet = ReadDataSetFromFile<int>(fn_grid,"iet");
+    int ntet   = 0;
+    int nprism = 0;
+    for(int i=0;i<iet->getNrow();i++)
+    {
+        if(iet->getVal(i,0)==2)
+        {
+            ntet++;
+        }
+        if(iet->getVal(i,0)==6)
+        {
+            nprism++;
+        }
+    }
+    
+    ParArray<int>* ien = ReadDataSetFromFileInParallel<int>(fn_conn,"ien",comm,info);
+    
+        return tetras;
 }
 

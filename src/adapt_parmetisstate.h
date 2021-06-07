@@ -12,6 +12,7 @@ class ParallelState_Parmetis {
     ParallelState_Parmetis(ParArray<int>* e2n, Array<int>* elTypes, ParArray<int>* iet, MPI_Comm comm);
     int* getNlocs( void );
     int* getElmdist( void );
+    int* getElmWgt( void );
     int getNloc( int rank );
     int getElmdistAtRank (int rank );
     int getNpolocAtRank (int rank );
@@ -29,6 +30,7 @@ class ParallelState_Parmetis {
       int* eptr;
       int* eind;
       int ncommonnodes;
+      int* elmwgt;
 };
 
 
@@ -57,11 +59,25 @@ inline ParallelState_Parmetis::ParallelState_Parmetis(ParArray<int>* e2n, Array<
         ncommonnodes = 4;
     }
     
-    
+    elmwgt = new int[nloc];
     
     for(int i=0;i<nloc;i++)
     {
         npo_loc += ie_Nv->getVal(i,0);
+        if(ie_Nv->getVal(i,0)==4)
+        {
+            elmwgt[i] = 1;
+        }
+        if(ie_Nv->getVal(i,0)==6)
+        {
+            elmwgt[i] = 1;
+        }
+        if(ie_Nv->getVal(i,0)==8)
+        {
+            elmwgt[i] = 1;
+        }
+        
+        
     }
     
     MPI_Allreduce(&npo_loc, &npo_loc_tot, 1, MPI_INT, MPI_SUM, comm);
@@ -99,14 +115,11 @@ inline ParallelState_Parmetis::ParallelState_Parmetis(ParArray<int>* e2n, Array<
     for(int i=0;i<size;i++)
     {
         elmdist[i]      = nelOffset;
-        //npo_offset[i]   = npoOffset;
-
         npoOffset       = npoOffset+npo_locs[i];
         nelOffset       = nelOffset+nlocs[i];
     }
 
     elmdist[size]       = Nel;
-    //npo_offset[size]    = npo_loc_tot;
 
 //    for(int i=0;i<size+1;i++)
 //    {
@@ -139,6 +152,12 @@ inline ParallelState_Parmetis::ParallelState_Parmetis(ParArray<int>* e2n, Array<
     // eind
 
 }// This is the constructor
+
+inline int* ParallelState_Parmetis::getElmWgt( void )
+{
+    return elmwgt;
+}
+
 
 inline int* ParallelState_Parmetis::getElmdist( void )
 {

@@ -62,13 +62,13 @@ int main(int argc, char** argv)
 
     
     
-    const char* fn_grid="../../msl_a10_r2/grid.h5";
-    const char* fn_conn="../../msl_a10_r2/conn.h5";
-    const char* fn_data="../../msl_a10_r2/data.h5";
-    
-//    const char* fn_grid="itn1/grid.h5";
-//    const char* fn_conn="itn1/conn.h5";
-//    const char* fn_data="itn1/data.h5";
+//    const char* fn_grid="../../msl_a10_r2/grid.h5";
+//    const char* fn_conn="../../msl_a10_r2/conn.h5";
+//    const char* fn_data="../../msl_a10_r2/data.h5";
+//
+    const char* fn_grid="../test_mesh/cylinder_hybrid/grid.h5";
+    const char* fn_conn="../test_mesh/cylinder_hybrid/conn.h5";
+    const char* fn_data="../test_mesh/cylinder_hybrid/data.h5";
     
 //    const char* fn_grid="../test_mesh/it1n/grid.h5";
 //    const char* fn_conn="../test_mesh/it1n/conn.h5";
@@ -79,6 +79,7 @@ int main(int argc, char** argv)
 //    const char* fn_data="it1/data.h5";
     const char* fn_metric = "metric.inp";
     std::vector<double> metric_inputs = ReadMetricInputs(fn_metric);
+    
     int ReadFromStats = 0;
     if(metric_inputs.size()==6)
     {
@@ -90,8 +91,6 @@ int main(int argc, char** argv)
     Array<double>* xcn_ref = ReadDataSetFromFile<double>(fn_grid,"xcn");
     Array<int>* ien_ref = ReadDataSetFromFile<int>(fn_conn,"ien");
 
-
-        
     int Nel_part = us3d->ien->getNrow();
 
     Array<double>* Ui = new Array<double>(Nel_part,1);
@@ -161,6 +160,9 @@ int main(int argc, char** argv)
         Ui_map[gid] = UvariaV;
         Ui_map_arr[gid] = Uarr;
     }
+    
+    
+
     LocElem.clear();
     LocElemNv.clear();
     LocElem2Nv.clear();
@@ -430,7 +432,8 @@ int main(int argc, char** argv)
     hess_vmap.clear();
     //std::map<int,Array<double>* > hess_met = P->ReduceMetricToVertices(Hess_map);
     // updates hess_vmap_new such that is contains the metric.
-    ComputeMetric(P,metric_inputs, comm, hess_vmap_new);
+    double po = 2.0;
+    ComputeMetric(P,metric_inputs, comm, u_vmap, hess_vmap_new, 1.0, po);
 
     Array<double>* mv_g = GetOptimizedMMG3DMeshOnRoot(P, us3d, hess_vmap_new, comm);
     
@@ -543,6 +546,13 @@ int main(int argc, char** argv)
     
     std::map<int,std::vector<int> > ElementsRoot   = GatherElementsOnRoot(Prisms,Tetras,comm,info);
 
+//    for(int q=0;q<us3d->if_ref->getNrow();q++)
+//    {
+//        if(us3d->if_ref->getVal(q,0)!=3 && us3d->if_ref->getVal(q,0)!=7 && us3d->if_ref->getVal(q,0)!=10 && us3d->if_ref->getVal(q,0)!=36 && us3d->if_ref->getVal(q,0)!=2)
+//        {
+//            std::cout<<"TEFFIE " << us3d->if_ref->getVal(q,0) << std::endl;
+//        }
+//    }
    
     
     Mesh* us3dRoot = ReduceMeshToRoot(us3d->ien,
@@ -964,6 +974,9 @@ int main(int argc, char** argv)
         int ier = MMG3D_mmg3dlib(mmgMesh_hyb,mmgSol_hyb);
         std::cout<<"Finished the adaptation of the tetrahedra..."<<std::endl;
         std::cout << "face statistics after = " << mmgMesh_hyb->nt << " " << mmgMesh_hyb->nquad << std::endl;
+        
+        if ( MMG3D_saveMesh(mmgMesh_hyb,"mmgOutput.mesh") != 1 )        exit(EXIT_FAILURE);
+        
         MMG5_pMesh mmgMesh_TETCOPY = NULL;
         MMG5_pSol mmgSol_TETCOPY   = NULL;
         

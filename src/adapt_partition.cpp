@@ -1,13 +1,13 @@
 #include "adapt_partition.h"
 
-Partition::Partition(ParArray<int>* ien, ParArray<int>* iee, ParArray<int>* ief, ParArray<int>* ie_Nv, ParArray<int>* ie_Nf, ParArray<int>* ifn, ParArray<int>* ife, ParArray<int>* if_ref, ParArray<int>* if_Nv,  ParallelState_Parmetis* pstate_parmetis, ParallelState* ien_parstate, ParallelState* ife_parstate, ParArray<double>* xcn, ParallelState* xcn_parstate, Array<double>* U, MPI_Comm comm)
+Partition::Partition(ParArray<int>* ien, ParArray<int>* iee, ParArray<int>* ief, ParArray<int>* ie_Nv, ParArray<int>* ie_Nf, ParArray<int>* ifn, ParArray<int>* ife, ParArray<int>* if_ref, ParArray<int>* if_Nv,  ParallelState_Parmetis* pstate_parmetis, ParallelState* ien_parstate, ParallelState* ife_parstate, ParArray<double>* xcn, ParallelState* xcn_parstate, Array<double>* U, Array<int>* tetCnt, MPI_Comm comm)
 {
-    int size;
+    
     MPI_Comm_size(comm, &size);
     // Get the rank of the process
-    int rank;
     MPI_Comm_rank(comm, &rank);
     
+    comm_p = comm;
     ien_pstate = ien_parstate;
     xcn_pstate = xcn_parstate;
     ife_pstate = ife_parstate;
@@ -30,25 +30,35 @@ Partition::Partition(ParArray<int>* ien, ParArray<int>* iee, ParArray<int>* ief,
     // These operations are based on the fact that part holds the desired partitioning of the elements. the spread of the vertices is based on the fact that all the vertices stored in xcn are distributed "uniformly";
 
     //Sends each element and its vertices and faces to the correct proc.
-    DetermineElement2ProcMap(ien, ief, ie_Nv, ie_Nf, xcn, U, comm);
+    
+    
+    DetermineElement2ProcMap(ien, ief, ie_Nv, ie_Nf, xcn, U,  tetCnt, comm);
+    
+    
 //
-    iee_part_map = getElement2EntityPerPartition(iee,  Loc_Elem_Nf,   comm);
-    ief_part_map = getElement2EntityPerPartition(ief,  Loc_Elem_Nf,   comm);
-    ien_part_map = getElement2EntityPerPartition(ien,  Loc_Elem_Nv,   comm);
+    iee_part_map  = getElement2EntityPerPartition(iee,     Loc_Elem_Nf,   comm);
+    ief_part_map  = getElement2EntityPerPartition(ief,     Loc_Elem_Nf,   comm);
+    ien_part_map  = getElement2EntityPerPartition(ien,     Loc_Elem_Nv,   comm);
+    ieNf_part_map = getElement2EntityPerPartition(ie_Nf,   Loc_Elem_Nf,   comm);
+    
 //
     if_Nv_part_map      = getFace2EntityPerPartition(if_Nv ,   comm);
-    ifn_part_map        = getFace2NodePerPartition(ifn     ,   comm);
-
-    //ifn_part_map        = getFace2EntityPerPartition(ifn   ,   comm);
+    //ifn_part_map      = getFace2NodePerPartition(ifn     ,   comm);
+    
+    ifn_part_map        = getFace2EntityPerPartition(ifn   ,   comm);
     ife_part_map        = getFace2EntityPerPartition(ife   ,   comm);
     if_ref_part_map     = getFace2EntityPerPartition(if_ref,   comm);
 //
+    
+    
     DetermineAdjacentElement2ProcMapUS3D(ien, iee_part_map->i_map, part, xcn, U, comm);
 //
-    CreatePartitionDomain();
+    
+    CreatePartitionDomainTest();
+    //CreatePartitionDomain();
 //
     nLocAndAdj_Elem = LocAndAdj_Elem.size();
- 
+    /**/
 }
 
 
@@ -214,12 +224,14 @@ void Partition::DeterminePartitionLayout(ParArray<int>* ien, ParallelState_Parme
     idx_t *adjncy_par    = NULL;
     idx_t options_[] = {0, 0, 0};
     idx_t *options   = options_;
-    idx_t wgtflag_[] = {0};
+    idx_t wgtflag_[] = {2};
     idx_t *wgtflag   = wgtflag_;
     real_t ubvec_[]  = {1.1};
     real_t *ubvec    = ubvec_;
 
-    idx_t *elmwgt = NULL;
+    int *elmwgt = pstate_parmetis->getElmWgt();
+    
+    
 
     int np           = size;
     idx_t ncon_[]    = {1};
@@ -235,6 +247,8 @@ void Partition::DeterminePartitionLayout(ParArray<int>* ien, ParallelState_Parme
     idx_t *nparts = nparts_;
     int* part_arr = new int[nloc];
     real_t itr_[]    = {1.05};
+    real_t *itr = itr_;
+
     idx_t *vsize = NULL;
     idx_t *adjwgt = NULL;
     
@@ -295,7 +309,7 @@ void Partition::DeterminePartitionLayout(ParArray<int>* ien, ParallelState_Parme
 
 
 
-void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief, ParArray<int>* ie_Nv, ParArray<int>* ie_Nf, ParArray<double>* xcn, Array<double>* U, MPI_Comm comm)
+void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief, ParArray<int>* ie_Nv, ParArray<int>* ie_Nf, ParArray<double>* xcn, Array<double>* U, Array<int>* tetCnt, MPI_Comm comm)
 {
     int floc_tmp=0;
     int vloc_tmp=0;
@@ -316,7 +330,8 @@ void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief,
     std::map<int,std::vector<int> > vertIDs_to_send_to_ranks;
     std::map<int,std::vector<int> > faceIDs_to_send_to_ranks;
     std::map<int,std::vector<double> > varia_to_send_to_ranks;
-    
+    std::map<int,std::vector<int> > tett_to_send_to_ranks;
+
 
     
     std::map<int,std::vector<int> > rank2req_vert;
@@ -354,11 +369,13 @@ void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief,
     
     int nvPerEl;
     int nfPerEl;
+    int tett = 0;
     for(i=0;i<part->getNrow();i++)
     {
         p_id    = part->getVal(i,0);
         el_id   = part->getOffset(rank)+i;
         varia   = U->getVal(i,0);
+        tett    = tetCnt->getVal(i,0);
         nvPerEl = ie_Nv->getVal(i,0);
         nfPerEl = ie_Nf->getVal(i,0);
         
@@ -369,6 +386,8 @@ void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief,
             nfPerElms_to_send_to_ranks[p_id].push_back(nfPerEl);
 
             varia_to_send_to_ranks[p_id].push_back(varia);
+            tett_to_send_to_ranks[p_id].push_back(tett);
+
             //====================Hybrid=======================
             for(int k=0;k<nvPerEl;k++)//This works for hexes.
             {
@@ -439,6 +458,7 @@ void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief,
             loc_r_nv_elem.push_back(nvPerEl);
             loc_r_nf_elem.push_back(nfPerEl);
             loc_varia.push_back(varia);
+            loc_tetc.push_back(tett);
             elem_set.insert(el_id);
             loc_r_elem_set.insert(el_id);
             elem_map[el_id] = on_rank;
@@ -453,6 +473,8 @@ void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief,
     std::map<int,std::vector<int> >  part_tot_recv_elNVs_map;
     std::map<int,std::vector<int> >  part_tot_recv_elNFs_map;
     
+    std::map<int,std::vector<int> >  part_tot_recv_tett_map;
+
     std::map<int,std::vector<double> >  part_tot_recv_varias_map;
     std::map<int,std::vector<int> >  TotRecvElement_IDs_v_map;
     std::map<int,std::vector<int> >  TotRecvElement_IDs_f_map;
@@ -483,6 +505,7 @@ void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief,
                 //MPI_Send(&it->second[0], n_req, MPI_INT, dest, 100+dest*2, comm);
                 MPI_Send(&it->second[0], n_req, MPI_INT, dest, dest*66666+5555, comm);
                 MPI_Send(&varia_to_send_to_ranks[it->first][0], n_req, MPI_DOUBLE, dest, 20000+100+dest*2, comm);
+                MPI_Send(&tett_to_send_to_ranks[it->first][0], n_req, MPI_INT, dest, 940000+100+dest*2, comm);
                 MPI_Send(&nvPerElms_to_send_to_ranks[it->first][0], n_req, MPI_INT, dest, dest*33333+7777, comm);
                 MPI_Send(&nfPerElms_to_send_to_ranks[it->first][0], n_req, MPI_INT, dest, dest*44444+8888, comm);
 
@@ -498,6 +521,8 @@ void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief,
             MPI_Recv(&n_req_recv_f, 1, MPI_INT, q, rank*222, comm, MPI_STATUS_IGNORE);
 
             std::vector<double> part_recv_varia(n_req_recv);
+            std::vector<int>    part_recv_tett(n_req_recv);
+
             std::vector<int>    part_recv_el_id(n_req_recv);
             std::vector<int>    part_recv_el_nv(n_req_recv);
             std::vector<int>    part_recv_el_nf(n_req_recv);
@@ -507,6 +532,7 @@ void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief,
             
             MPI_Recv(&part_recv_el_id[0], n_req_recv, MPI_INT, q, rank*66666+5555, comm, MPI_STATUS_IGNORE);
             MPI_Recv(&part_recv_varia[0], n_req_recv, MPI_DOUBLE, q, 20000+100+rank*2, comm, MPI_STATUS_IGNORE);
+            MPI_Recv(&part_recv_tett[0], n_req_recv, MPI_INT, q, 940000+100+rank*2, comm, MPI_STATUS_IGNORE);
             MPI_Recv(&part_recv_el_nv[0], n_req_recv, MPI_INT, q, rank*33333+7777, comm, MPI_STATUS_IGNORE);
             MPI_Recv(&part_recv_el_nf[0], n_req_recv, MPI_INT, q, rank*44444+8888, comm, MPI_STATUS_IGNORE);
 
@@ -517,6 +543,7 @@ void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief,
             TotRecvElement_IDs_f_map[q] = part_recv_face_id;
             part_tot_recv_elIDs_map[q]  = part_recv_el_id;
             part_tot_recv_varias_map[q] = part_recv_varia;
+            part_tot_recv_tett_map[q] = part_recv_tett;
             part_tot_recv_elNVs_map[q]  = part_recv_el_nv;
             part_tot_recv_elNFs_map[q]  = part_recv_el_nf;
         }
@@ -531,7 +558,8 @@ void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief,
     std::vector<int> TotRecvVerts_IDs;
     std::vector<int> TotRecvFaces_IDs;
     std::vector<double> TotRecvElement_varia;
-    
+    std::vector<int> TotRecvElement_tett;
+
     std::map<int,std::vector<int> >::iterator totrecv;
     //unpack the element IDs and their corresponding variable values.
     int TotNelem_recv = 0;
@@ -543,6 +571,8 @@ void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief,
             TotRecvElement_NVs.push_back(part_tot_recv_elNVs_map[totrecv->first][r]);
             TotRecvElement_NFs.push_back(part_tot_recv_elNFs_map[totrecv->first][r]);
             TotRecvElement_varia.push_back(part_tot_recv_varias_map[totrecv->first][r]);
+            TotRecvElement_tett.push_back(part_tot_recv_tett_map[totrecv->first][r]);
+
         }
         TotNelem_recv = TotNelem_recv + totrecv->second.size();
     }
@@ -824,7 +854,7 @@ void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief,
     int glob_f = 0;
     int loc_f  = 0;
     double varia_v = 0.0;
-    
+    int tett_v = 0;
     std::vector<int> tmp_globv;
     std::vector<int> tmp_locv;
     
@@ -837,7 +867,7 @@ void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief,
         nvPerEl = loc_r_nv_elem[m];
         nfPerEl = loc_r_nf_elem[m];
         varia_v = loc_varia[m];
-        
+        tett_v  = loc_tetc[m];
         Loc_Elem.push_back(el_id);
         LocElem2Nv[el_id] = nvPerEl;
         LocElem2Nf[el_id] = nfPerEl;
@@ -847,6 +877,7 @@ void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief,
         LocAndAdj_Elem_Nv.push_back(nvPerEl);
         LocAndAdj_Elem_Nf.push_back(nfPerEl);
         Loc_Elem_Varia.push_back(varia_v);
+        Loc_Elem_TetCnt.push_back(tett_v);
         LocAndAdj_Elem_Varia.push_back(varia_v);
         //U0Elem->setVal(m,0,rho_v);
         //ElemPart->setVal(m,0,el_id);
@@ -901,6 +932,7 @@ void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief,
         GlobalElement2LocalElement[el_id] = eloc;
         eloc++;
         varia_v = TotRecvElement_varia[m];
+        tett_v = TotRecvElement_tett[m];
         Loc_Elem.push_back(el_id);
         Loc_Elem_Nv.push_back(nvPerEl);
         Loc_Elem_Nf.push_back(nfPerEl);
@@ -908,6 +940,7 @@ void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief,
         LocAndAdj_Elem_Nv.push_back(nvPerEl);
         LocAndAdj_Elem_Nf.push_back(nfPerEl);
         Loc_Elem_Varia.push_back(varia_v);
+        Loc_Elem_TetCnt.push_back(tett_v);
         LocAndAdj_Elem_Varia.push_back(varia_v);
         for(int p=0;p<nvPerEl;p++)
         {
@@ -983,6 +1016,7 @@ void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief,
     tmp_globv.clear();
     tmp_locv.clear();
 }
+
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -2539,7 +2573,7 @@ i_part_map* Partition::getElement2EntityPerPartition(ParArray<int>* iee, std::ve
 
 
 
-i_part_map* Partition::getFace2EntityPerPartition(ParArray<int>* ife,MPI_Comm comm)
+i_part_map* Partition::getFace2EntityPerPartition(ParArray<int>* ife, MPI_Comm comm)
 {
     
     i_part_map* ife_p_map = new i_part_map;
@@ -3038,6 +3072,13 @@ void Partition::CreatePartitionDomain()
         elid++;
     }
     
+    
+    
+    int i = 0;
+    //std::map<int,double>::iterator itm;
+    
+    
+    
     pDom->Elements        = Elements;
     pDom->Hexes           = Hexes;
     pDom->Prisms          = Prisms;
@@ -3055,6 +3096,177 @@ void Partition::CreatePartitionDomain()
     pDom->lpartv2gv       = lpartv2gv;
     
 }
+
+
+
+
+
+
+
+
+void Partition::CreatePartitionDomainTest()
+{
+    pDom = new Domain;
+    
+    std::map<int,int> gv2lpv;
+    std::map<int,int> lv2gpv;
+    std::map<int,int> gv2lpartv;
+    std::map<int,int> lpartv2gv;
+    
+    Array<int>* locelem2locnode= new Array<int>(ien_part_map->i_map.size(),8);
+
+    std::map<int,std::vector<int> >::iterator itm;
+    std::map<int,std::vector<int> > vert2elem;
+    
+    int lcv  = 0;
+    int elid = 0;
+    int nbcfaces = 0;
+    std::vector<int> loc_part_verts;
+    std::vector<int> glob_part_verts;
+    
+    std::map<int,std::vector<int> > Elements;
+    std::map<int,std::vector<int> > Hexes;
+    std::map<int,std::vector<int> > Prisms;
+    std::map<int,std::vector<int> > Tetras;
+    
+    std::map<int,std::vector<int> > GElements;
+    std::map<int,std::vector<int> > GHexes;
+    std::map<int,std::vector<int> > GPrisms;
+    std::map<int,std::vector<int> > GTetras;
+    
+    std::set<int> ufaces;
+    std::set<int> uvrts;
+    
+    std::vector<int> faces_ref;
+    std::vector<std::vector<int> > faces_part;
+    std::map<int,std::vector<int> > ref2bcface;
+    std::vector<int> interiorFaces;
+
+    int r0,r1,el0,el1,pos,ra,Nf0,Nf1;
+    
+    int lv,gv,nfaces,Nvface,ref,faceid;
+    std::set<int> ushell;
+    std::vector<int> ushell_vec;
+    
+    std::map<int,int> elem2Nf;
+    for(int i=0;i<LocAndAdj_Elem.size();i++)
+    {
+        int gEl = LocAndAdj_Elem[i];
+        int Nfe = LocAndAdj_Elem_Nf[i];
+        elem2Nf[gEl] = Nfe;
+    }
+//    // Identify the interface between the prisms and the tets;
+    for(itm  = ief_part_map->i_map.begin();
+        itm != ief_part_map->i_map.end();
+        itm++)
+    {
+        int glob_id  = itm->first;
+        nfaces       = itm->second.size();
+
+        for(int f=0;f<nfaces;f++)
+        {
+            faceid = itm->second[f];
+            ref    = if_ref_part_map->i_map[faceid][0];
+
+            if(ufaces.find(faceid)==ufaces.end())
+            {
+                ufaces.insert(faceid);
+                Nvface = if_Nv_part_map->i_map[faceid][0];
+
+                el0    = ife_part_map->i_map[faceid][0];
+                el1    = ife_part_map->i_map[faceid][1];
+                
+                if(el0<NelGlob && el1<NelGlob)
+                {
+                    Nf0    = elem2Nf[el0];
+                    Nf1    = elem2Nf[el1];
+                    
+                    if(Nf0!=Nf1 && ushell.find(faceid)==ushell.end())
+                    {
+                        ushell.insert(faceid);
+                    }
+                }
+            }
+        }
+    }
+    
+    elem2Nf.clear();
+//
+//
+    std::set<int> gv_set;
+    for(itm  = ien_part_map->i_map.begin();
+        itm != ien_part_map->i_map.end();
+        itm++)
+    {
+        int glob_id  = itm->first;
+        int NvpEl    = itm->second.size();
+        std::vector<int>Elg(NvpEl);
+        for(int q=0;q<itm->second.size();q++)
+        {
+            int gv = itm->second[q];
+            int lv = GlobalVert2LocalVert[gv];
+            
+            if(gv_set.find(gv)==gv_set.end())
+            {
+                gv_set.insert(gv);
+                loc_part_verts.push_back(lv);
+            }
+            
+            Elg[q] = gv;
+        }
+        //GElements[glob_id]=El;
+
+        if(Elg.size()==4)
+        {
+            GTetras[glob_id]=Elg;
+        }
+        if(Elg.size()==6)
+        {
+            GPrisms[glob_id]=Elg;
+        }
+        if(Elg.size()==8)
+        {
+            GHexes[glob_id]=Elg;
+        }
+        Elg.clear();
+    }
+    
+    
+    pDom->ushell           = ushell;
+//    pDom->ncomm           = ncomm;
+//    pDom->faces_ref       = faces_ref;
+//    pDom->faces_part      = faces_part;
+//    pDom->ntifc           = ntifc;
+//    pDom->color_face      = color_face;
+//    pDom->ifc_tria_loc    = ifc_tria_loc;
+//    pDom->ifc_tria_glob   = ifc_tria_glob;
+//    pDom->ref2bcface      = ref2bcface;
+    pDom->Elements        = Elements;
+    pDom->Hexes           = Hexes;
+    pDom->Prisms          = Prisms;
+    pDom->Tetras          = Tetras;
+    pDom->GHexes          = GHexes;
+    pDom->GPrisms         = GPrisms;
+    pDom->GTetras         = GTetras;
+    pDom->LocElem2LocNode = locelem2locnode;
+    pDom->loc_part_verts  = loc_part_verts;
+    pDom->glob_part_verts = glob_part_verts;
+    pDom->gv2lpv          = gv2lpv;
+    pDom->lv2gpv          = lv2gpv;
+    pDom->vert2elem       = vert2elem;
+    pDom->gv2lpartv       = gv2lpartv;
+    pDom->lpartv2gv       = lpartv2gv;
+    
+    
+    
+}
+
+
+
+
+
+
+
 
 
 std::map<int,std::map<int,double> > Partition::getNode2NodeMap()
@@ -3399,6 +3611,11 @@ Domain* Partition::getPartitionDomain()
     return pDom;
 }
 
+std::vector<int> Partition::getTetCnt()
+{
+    return Loc_Elem_TetCnt;
+}
+
 std::vector<int> Partition::getLocElem()
 {
     return Loc_Elem;
@@ -3422,6 +3639,11 @@ std::vector<double> Partition::getLocElemVaria()
 std::vector<int> Partition::getLocAndAdjElem()
 {
     return LocAndAdj_Elem;
+}
+
+std::vector<int> Partition::getLocAndAdjElem_Nf()
+{
+    return LocAndAdj_Elem_Nf;
 }
 
 int Partition::getnLoc_Elem()
@@ -3566,6 +3788,11 @@ i_part_map* Partition::getIFEpartmap()
 i_part_map* Partition::getIFREFpartmap()
 {
     return if_ref_part_map;
+}
+i_part_map* Partition::getIE_Nfpartmap()
+{
+    return ieNf_part_map;
+
 }
 ParallelState* Partition::getXcnParallelState()
 {

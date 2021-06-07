@@ -1,4 +1,5 @@
 #include "adapt_parops.h"
+#include "adapt_operations.h"
 
 Array<double>* GetOptimizedMMG3DMeshOnRoot(Partition* P, US3D* us3d, std::map<int,Array<double>*> mv_map, MPI_Comm comm)
 {
@@ -474,6 +475,313 @@ Mesh* ReduceMeshToRoot(ParArray<int>* ien,
     return us3d_root;
 }
 
+
+
+
+
+MeshTransfer* GetMeshTransfer(std::map<int,std::vector<int> > Ate, std::vector<int> ufaces_vec, std::vector<int> uverts_vec, MPI_Comm comm, MPI_Info info)
+{
+    
+    int nufaces = ufaces_vec.size();
+    Array<int>* ufaces_arr = new Array<int>(ufaces_vec.size(),1);
+    for(int i=0;i<ufaces_vec.size();i++)
+    {
+        ufaces_arr->setVal(i,0,ufaces_vec[i]);
+    }
+    
+    int nuverts = uverts_vec.size();
+    Array<int>* uverts_arr = new Array<int>(uverts_vec.size(),1);
+    for(int i=0;i<uverts_vec.size();i++)
+    {
+        uverts_arr->setVal(i,0,uverts_vec[i]);
+    }
+    
+    int world_size;
+    MPI_Comm_size(comm, &world_size);
+    // Get the rank of the process
+    int world_rank;
+    MPI_Comm_rank(comm, &world_rank);
+    int i,j;
+    
+    int* ufaces_nlocs      = new int[world_size];
+    int* red_ufaces_nlocs  = new int[world_size];
+    int* offset_ufaces     = new int[world_size];
+
+    int* uverts_nlocs      = new int[world_size];
+    int* red_uverts_nlocs  = new int[world_size];
+    int* offset_uverts     = new int[world_size];
+
+//
+    for(i=0;i<world_size;i++)
+    {
+        ufaces_nlocs[i] = 0;
+        red_ufaces_nlocs[i] = 0;
+
+        uverts_nlocs[i] = 0;
+        red_uverts_nlocs[i] = 0;
+
+        if(i==world_rank)
+        {
+            ufaces_nlocs[i] = ufaces_vec.size();
+            uverts_nlocs[i] = uverts_vec.size();
+
+        }
+        else
+        {
+            ufaces_nlocs[i] = 0;
+            red_ufaces_nlocs[i] = 0;
+
+            uverts_nlocs[i] = 0;
+            red_uverts_nlocs[i] = 0;
+        }
+    }
+//
+    MPI_Allreduce(ufaces_nlocs, red_ufaces_nlocs, world_size, MPI_INT, MPI_SUM, comm);
+    MPI_Allreduce(uverts_nlocs, red_uverts_nlocs, world_size, MPI_INT, MPI_SUM, comm);
+
+//
+    int o_uf = 0;
+    int o_uv = 0;
+
+    for(i=0;i<world_size;i++)
+    {
+        offset_ufaces[i] = o_uf;
+        o_uf = o_uf+red_ufaces_nlocs[i];
+
+        offset_uverts[i] = o_uv;
+        o_uv = o_uv+red_uverts_nlocs[i];
+    }
+
+    int n_glob_uf = o_uf;
+    int n_glob_uv = o_uv;
+    
+    Array<int>*  lE2gE_uf_g;
+    Array<int>*  lE2gE_uv_g;
+    
+    if(world_rank == 0)
+    {
+        lE2gE_uf_g   = new Array<int>(n_glob_uf,1);
+        lE2gE_uv_g   = new Array<int>(n_glob_uv,1);
+    }
+    else
+    {
+        lE2gE_uf_g   = new Array<int>(1,1);
+        lE2gE_uv_g   = new Array<int>(1,1);
+    }
+
+    //std::cout <<  "rank " << world_rank  << " " << ufaces_vec.size() << " " << n_glob_uf << " " << ufaces_vec[0] << std::endl;
+    std::vector<int> ufaces_tot(n_glob_uf);
+    MPI_Gatherv(&ufaces_arr->data[0],
+                ufaces_arr->getNrow()*1,
+                MPI_INT,
+                &lE2gE_uf_g->data[0],
+                red_ufaces_nlocs,
+                offset_ufaces,
+                MPI_INT, 0, comm);
+    
+    if(world_rank == 0)
+    {
+        for(int k=0;k<n_glob_uf;k++)
+        {
+            if(lE2gE_uf_g->getVal(k,0) == 153214)
+            {
+                std::cout << "afab " << k << " " << lE2gE_uf_g->getVal(k,0) << std::endl;
+            }
+        }
+    }
+    
+//    MPI_Allgatherv(&ufaces_vec[0],
+//                   ufaces_vec.size(), MPI_INT,
+//                   &ufaces_tot[0],
+//                   red_ufaces_nlocs,
+//                   offset_ufaces,
+//                   MPI_INT,comm);
+//
+    
+//    std::vector<int> dupli = FindDuplicates(ufaces_tot);
+//    std::cout << "dupli.size() " << dupli.size() << std::endl;
+    std::vector<int> dupli2;
+    
+    ParallelState* eqDistF = new ParallelState(n_glob_uf,comm);
+    int* offsetsF = eqDistF->getOffsets();
+    int* nlocsF   = eqDistF->getNlocs();
+
+    int* eqDistFace = new int[nlocsF[world_rank]];
+    
+    std::vector<int> eqDistFaceV(nlocsF[world_rank]);
+    
+    std::cout << " g vs l " << n_glob_uf << " " << nlocsF[world_rank] << std::endl;
+    
+    MPI_Scatterv(&lE2gE_uf_g->data[0], nlocsF, offsetsF,
+                 MPI_INT, &eqDistFaceV[0],
+                 nlocsF[world_rank], MPI_INT, 0, comm);
+    
+//    MPI_Scatterv(lE2gE_uf_g->data,
+//                nloc_face, MPI_INT,
+//                eqDistFace, nloc_face,
+//                MPI_INT, 0, MPI_COMM_WORLD);
+//
+//    for(int u=0;u<nloc_face;u++)
+//    {
+//        eqDistFaceV[u] = eqDistFace[u];
+//    }
+    
+    dupli2 = FindDuplicatesInParallel_VecV2(eqDistFaceV,
+                                            nlocsF[world_rank],
+                                            n_glob_uf, comm);
+    
+    //InteriorPartitionEntity* iFaces = FindDuplicatesInParallel_Vec(ufaces_vec, ufaces_vec.size(), n_glob_uf, comm);
+    
+    //InteriorPartitionEntity* iVerts = FindDuplicatesInParallel_Vec(uverts_vec, uverts_vec.size(), n_glob_uv, comm);
+ 
+    
+    //std::cout << "Rank  Faces " << world_rank << " " << " " << ufaces_vec.size() << " " <<  iFaces->glob2loc_PartInterEntity.size() << " "  << " " << iFaces->PartInterEntity.size() <<  std::endl;
+    
+    //std::cout << "Rank  Verts " << world_rank << " " << " " << uverts_vec.size() << " " <<  iVerts->glob2loc_PartInterEntity.size() << " " << iVerts->InterEntity.size() << " " << iVerts->PartInterEntity.size() <<  std::endl;
+    //std::cout << n_glob_uf << " " << recv2.size() << std::endl;
+//    if(world_rank==0)
+//    {
+//        for(int i=0;i<recv2.size();i++)
+//        {
+//            //std::cout << recv2[i] << std::endl;
+//        }
+//    }
+//    MPI_Gatherv(&uverts_vec[0],
+//                uverts_vec.size(),
+//                MPI_INT,
+//                &lE2gE_uv_g->data[0],
+//                red_uverts_nlocs,
+//                offset_uverts,
+//                MPI_INT, 0, comm);
+    
+    MeshTransfer* Tr = new MeshTransfer;
+    
+    //Tr->iFaces = iFaces;
+    //Tr->iVerts = iVerts;
+
+    Tr->UniqueFacesVec = dupli2;
+    
+    return Tr;
+
+}
+
+
+
+
+
+Array<int>* GatherTetrahedraOnRoot(std::map<int,std::vector<int> > Ate, MPI_Comm comm, MPI_Info info)
+{
+
+
+    
+    int world_size;
+    MPI_Comm_size(comm, &world_size);
+    // Get the rank of the process
+    int world_rank;
+    MPI_Comm_rank(comm, &world_rank);
+    int i,j;
+    
+    std::map<int,std::vector<int> >::iterator grit;
+    Array<int>* lE2gE_tet = new Array<int>(Ate.size(),1);
+    Array<int>* ien_tet = new Array<int>(Ate.size(),4);
+    
+    std::cout << "ien_tet " << ien_tet->getNrow() << std::endl;
+    i = 0;
+    
+    for(grit=Ate.begin();grit!=Ate.end();grit++)
+    {
+        lE2gE_tet->setVal(i,0,grit->first);
+        ien_tet->setVal(i,0,grit->second[0]);
+        ien_tet->setVal(i,1,grit->second[1]);
+        ien_tet->setVal(i,2,grit->second[2]);
+        ien_tet->setVal(i,3,grit->second[3]);
+        i++;
+    }
+    
+    int* lid_tet_nlocs      = new int[world_size];
+    int* ien_tet_nlocs      = new int[world_size];
+    
+    int* red_lid_tet_nlocs  = new int[world_size];
+    int* red_ien_tet_nlocs  = new int[world_size];
+    
+    int* lid_tet_offsets = new int[world_size];
+    int* ien_tet_offsets = new int[world_size];
+    
+    for(i=0;i<world_size;i++)
+    {
+        lid_tet_nlocs[i] = 0;
+        ien_tet_nlocs[i] = 0;
+        
+        if(i==world_rank)
+        {
+            lid_tet_nlocs[i] = Ate.size();
+            ien_tet_nlocs[i] = Ate.size()*4;
+        }
+        else
+        {
+            lid_tet_nlocs[i] = 0;
+            ien_tet_nlocs[i] = 0;
+        }
+    }
+
+    MPI_Allreduce(lid_tet_nlocs, red_lid_tet_nlocs, world_size, MPI_INT, MPI_SUM, comm);
+    MPI_Allreduce(ien_tet_nlocs, red_ien_tet_nlocs, world_size, MPI_INT, MPI_SUM, comm);
+    
+    int offset_lid_tet = 0;
+    int offset_ien_tet  = 0;
+    for(i=0;i<world_size;i++)
+    {
+        lid_tet_offsets[i] = offset_lid_tet;
+        ien_tet_offsets[i] = offset_ien_tet;
+        
+        offset_lid_tet = offset_lid_tet+red_lid_tet_nlocs[i];
+        offset_ien_tet = offset_ien_tet+red_ien_tet_nlocs[i];
+    }
+
+    Array<int>*  lE2gE_tet_g;
+    Array<int>*  ien_tet_g;
+
+    int n_glob_lid_tet = offset_lid_tet;
+    int n_glob_ien_tet = offset_ien_tet;
+    if(world_rank == 0)
+    {
+        lE2gE_tet_g   = new Array<int>(n_glob_lid_tet,1);
+        ien_tet_g   = new Array<int>(n_glob_ien_tet,4);
+    }
+    else
+    {
+        lE2gE_tet_g   = new Array<int>(1,1);
+        ien_tet_g   = new Array<int>(1,1);
+    }
+    
+    int ncol_lid = 1;
+    MPI_Gatherv(&lE2gE_tet->data[0],
+                lE2gE_tet->getNrow()*1,
+                MPI_INT,
+                &lE2gE_tet_g->data[0],
+                red_lid_tet_nlocs,
+                lid_tet_offsets,
+                MPI_INT, 0, comm);
+//
+    
+//
+    MPI_Gatherv(&ien_tet->data[0],
+                ien_tet->getNrow()*4,
+                MPI_INT,
+                &ien_tet_g->data[0],
+                red_ien_tet_nlocs,
+                ien_tet_offsets,
+                MPI_INT, 0, comm);
+
+    delete lE2gE_tet_g;
+    delete lE2gE_tet;
+    delete ien_tet;
+    
+    /**/
+    
+    return ien_tet_g;
+
+}
 
 std::map<int,std::vector<int> > GatherElementsOnRoot(std::map<int,std::vector<int> >Apr, std::map<int,std::vector<int> > Ate, MPI_Comm comm, MPI_Info info)
 {

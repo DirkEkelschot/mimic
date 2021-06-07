@@ -1135,6 +1135,9 @@ void ComputeMetric(Partition* Pa, std::vector<double> metric_inputs,
         {
             double wi    = 1.0-scale_vm[glob_vid]->getVal(0,0);
             double wa    = scale_vm[glob_vid]->getVal(0,0);
+            
+            wi = 0.0;
+            wa = 1.0;
             double hiso  = hwake;//(Lambdamax-hwake)*scale_vm[glob_vid]->getVal(0,0)+hwake;
             
             Habs->setVal(0,0,wi/(hiso*hiso)+wa*sumvol*detRf*Rf->getVal(0,0));
