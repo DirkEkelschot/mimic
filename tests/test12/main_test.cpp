@@ -664,13 +664,18 @@ int main(int argc, char** argv)
     
     int dd      = 0;
     int Nsend   = 0;
-
+    int nv      = 4;
     if(world_rank == allocRank)
     {
         int u = 0;
         for(ite=tetras.begin();ite!=tetras.end();ite++)
         {
             int gEl = ite->first;
+            
+            int* ien   = new int[nv];
+            int* ien_o = new int[nv];
+            int* ief   = new int[nv];
+            int* ief_o = new int[nv];
             
             for(int q=0;q<4;q++)
             {
@@ -679,22 +684,22 @@ int main(int argc, char** argv)
                 if(v2r.find(gvid)!=v2r.end())
                 {
                     lvid2 = sharedVmap[gvid];
-                    new_ien->setVal(elloc,q,lvid2);
+                    ien[q] = lvid2;
                 }
                 else
                 {
                     if(gl_set.find(gvid)==gl_set.end())
                     {
                         gl_set.insert(gvid);
-                        new_ien->setVal(elloc,q,lbvid);
                         gl_map[gvid] = lbvid;
                         lbvid = lbvid + 1;
+                        ien[q] = lbvid;
                         lbvids++;
                     }
                     else
                     {
                         int lbbvid = gl_map[gvid];
-                        new_ien->setVal(elloc,q,lbbvid);
+                        ien[q] = lvid2;
                     }
                 }
             }
@@ -707,14 +712,13 @@ int main(int argc, char** argv)
                 if(f2r.find(gfid)!=f2r.end())
                 {
                     lfid2 = sharedFmap[gfid];
-                    new_ief->setVal(elloc,q,lfid2);
+                    ief[q] = lfid2;
                 }
                 else
                 {
                     if(glf_set.find(gfid)==glf_set.end())
                     {
                         glf_set.insert(gfid);
-                        new_ief->setVal(elloc,q,lbfid);
                         glf_map[gfid] = lbfid;
                         lbfid = lbfid + 1;
                         lbfids++;
@@ -722,49 +726,48 @@ int main(int argc, char** argv)
                     else
                     {
                         int lbbfid = glf_map[gfid];
-                        new_ief->setVal(elloc,q,lbbfid);
+                        ief[q] = lbbfid;
                     }
                 }
             }
             
             if(u<world_size && red_Elplease[u]==1)
             {
-                std::vector<int>    eli(4);
-                int nv  = 4;
-                int* ien = new int[nv];
-                int* ien_o = new int[nv];
-                int* ief = new int[nv];
-                int* ief_o = new int[nv];
-                
-                ien[0]     = new_ien->getVal(Nsend,0);
-                ien[1]     = new_ien->getVal(Nsend,1);
-                ien[2]     = new_ien->getVal(Nsend,2);
-                ien[3]     = new_ien->getVal(Nsend,3);
-                
                 ien_o[0]   = ite->second[0];
                 ien_o[1]   = ite->second[1];
                 ien_o[2]   = ite->second[2];
                 ien_o[3]   = ite->second[3];
-                
-                ief[0]     = new_ief->getVal(Nsend,0);
-                ief[1]     = new_ief->getVal(Nsend,1);
-                ief[2]     = new_ief->getVal(Nsend,2);
-                ief[3]     = new_ief->getVal(Nsend,3);
                 
                 ief_o[0]   = ief_part_map->i_map[gEl][0];
                 ief_o[1]   = ief_part_map->i_map[gEl][1];
                 ief_o[2]   = ief_part_map->i_map[gEl][2];
                 ief_o[3]   = ief_part_map->i_map[gEl][3];
                 
-                MPI_Send(&ien[0], nv, MPI_INT, u,   u*64975, comm);
-                MPI_Send(&ien_o[0], nv, MPI_INT, u, u*84975, comm);
-                MPI_Send(&ief[0], nv, MPI_INT, u,   u*94975, comm);
-                MPI_Send(&ief_o[0], nv, MPI_INT, u, u*104975, comm);
+                MPI_Send(&ien[0],   nv, MPI_INT, u,   u*64975,  comm);
+                MPI_Send(&ien_o[0], nv, MPI_INT, u,   u*84975,  comm);
+                MPI_Send(&ief[0],   nv, MPI_INT, u,   u*94975,  comm);
+                MPI_Send(&ief_o[0], nv, MPI_INT, u,  u*104975, comm);
+                
                 Nsend++;
             }
+            else
+            {
+                new_ien->setVal(elloc,0,ien[0]);
+                new_ien->setVal(elloc,1,ien[1]);
+                new_ien->setVal(elloc,2,ien[2]);
+                new_ien->setVal(elloc,3,ien[3]);
+                
+                new_ief->setVal(elloc,0,ief[0]);
+                new_ief->setVal(elloc,1,ief[1]);
+                new_ief->setVal(elloc,2,ief[2]);
+                new_ief->setVal(elloc,3,ief[3]);
+                
+                elloc++;
+            }
             u++;
-            elloc++;
         }
+        
+        std::cout << "elloc " << elloc << " " << nTetras << " " << NRankNoTets << std::endl;
     }
     else
     {
@@ -800,7 +803,6 @@ int main(int argc, char** argv)
             new_ief_or->setVal(0,1,ief_o[1]);
             new_ief_or->setVal(0,2,ief_o[2]);
             new_ief_or->setVal(0,3,ief_o[3]);
-
         }
         else
         {
