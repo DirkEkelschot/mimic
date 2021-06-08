@@ -136,7 +136,6 @@ class Partition {
       ParArray<int>* part;
       Array<int>* part_global;
       std::vector<Vert*> LocalVerts;
-      
 
       std::set<int> unique_vertIDs_on_rank_set;
       std::vector<int> unique_verts_on_rank_vec;
