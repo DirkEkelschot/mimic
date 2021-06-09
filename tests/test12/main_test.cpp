@@ -21,11 +21,22 @@ void merge_indexed(int data[], const int offsets[], size_t index_begin, size_t i
     }
 }
 
+struct PartMesh
+{
+    std::map<int,int> LocalVert2GlobalVert;
+    std::map<int,int> GlobalVert2LocalVert;
+    std::vector<Vert*> LocalVerts;
+    std::map<int, std::vector<int> > ien_part;
+    std::map<int, std::vector<int> > ien_part_glob;
+    std::map<int, std::vector<int> > ief_part;
+};
 
 
-void CommunicateTetrahedra(Array<int>* part,
+
+PartMesh* CommunicateTetrahedra(Array<int>* part,
                            Array<int>* new_elId,
                            Array<int>* new_ien,
+                           Array<int>* new_ien_or,
                            Array<int>* new_ief,
                            ParArray<double>* xcn,
                            ParallelState* xcn_pstate,
@@ -34,11 +45,7 @@ void CommunicateTetrahedra(Array<int>* part,
                            MPI_Comm comm)
 {
     
-    std::map<int,int> LocalVert2GlobalVert;
-    std::map<int,int> GlobalVert2LocalVert;
-    std::vector<Vert*> LocalVerts;
-    std::map<int, std::vector<int> > ien_part;
-    std::map<int, std::vector<int> > ief_part;
+    PartMesh* pm = new PartMesh;
     
     int floc_tmp=0;
     int vloc_tmp=0;
@@ -53,17 +60,22 @@ void CommunicateTetrahedra(Array<int>* part,
     int el_id;
     int p_id;
     int v_id;
+    int v_id_o;
     Vert V;
     std::vector<Vert> part_verts;
     std::vector<std::vector<int> >  part_elem2verts;
     std::map<int,std::vector<int> > elms_to_send_to_ranks;
     std::map<int,std::vector<int> > vertIDs_to_send_to_ranks;
+    std::map<int,std::vector<int> > OriVertIDs_to_send_to_ranks;
     std::map<int,std::vector<int> > faceIDs_to_send_to_ranks;
     std::map<int,std::vector<int> > rank2req_vert;
+    std::map<int,std::vector<int> > rank2req_vertOri;
     std::map<int,std::vector<int> > rank2req_face;
     std::vector<int> faceIDs_on_rank;
     std::vector<int> vertIDs_on_rank;
+    std::vector<int> vertIDs_on_rank_Ori;
     std::vector<int> part_v;
+    std::vector<int> loc_r_elem;
     
     std::set<int> unique_vertIDs_on_rank_set;
     std::set<int> unique_faceIDs_on_rank_set;
@@ -93,6 +105,7 @@ void CommunicateTetrahedra(Array<int>* part,
     {
         p_id    = part->getVal(i,0);
         el_id   = new_elId->getVal(i,0);
+        
         nvPerEl = 4;
         nfPerEl = 4;
         
@@ -103,9 +116,14 @@ void CommunicateTetrahedra(Array<int>* part,
             //====================Hybrid=======================
             for(int k=0;k<4;k++)
             {
-                v_id = new_ien->getVal(i,k);
+                v_id   = new_ien->getVal(i,k);
+                v_id_o = new_ien_or->getVal(i,k);
                 vertIDs_to_send_to_ranks[p_id].push_back(v_id);
+                OriVertIDs_to_send_to_ranks[p_id].push_back(v_id_o);
             }// We do not care about the vertices for these elements since they are needed on other ranks anyways.
+            
+            
+            
             for(int k=0;k<4;k++)
             {
                 f_id = new_ief->getVal(i,k);
@@ -118,31 +136,44 @@ void CommunicateTetrahedra(Array<int>* part,
         {
             std::vector<int> elem;
             std::vector<int> nodes(4);
+            std::vector<int> nodes_glob(4);
             std::vector<int> faces(4);
 
             for(int k=0;k<4;k++)// looping over the vertices for element "i".
             {
-                v_id = new_ien->getVal(i,k);
+                v_id   = new_ien->getVal(i,k);
+                v_id_o = new_ien_or->getVal(i,k);
                 nodes[k] = v_id;
-
+                nodes_glob[k] = v_id_o;
+                
                 if(unique_vertIDs_on_rank_set.find( v_id ) == unique_vertIDs_on_rank_set.end() && v_id != -1)// find the unique vertices that need to be send to other partitions.
                 {
                     unique_vertIDs_on_rank_set.insert(v_id);
                     //unique_verts_on_rank_vec.push_back(v_id);
                     
-                    r = FindRank(new_V_offsets,size,v_id);
-
+                    r = FindRank(new_V_offsets,size,v_id_o);
+                    
                     if (r!=rank)// if vertex is present on other rank, add it to vertIDs_on_rank map..
                     {
                         rank2req_vert[r].push_back(v_id); // add the vertex id that needs to be requested from rank r.
+                        rank2req_vertOri[r].push_back(v_id_o);
                     }
                     else
                     {
                         vertIDs_on_rank.push_back(v_id);  // add the vertex to list that is already available on rank.
+                        vertIDs_on_rank_Ori.push_back(v_id_o);
+//                        if(rank == 2)
+//                        {
+//                            std::cout << "inside " << v_id_o << " " << r << " " << new_V_offsets[rank] << std::endl;
+//                        }
+                        
                         vloc_tmp++;
                     }
                     lv_id++;
                 }
+                
+                
+                
             }
             
             for(int k=0;k<4;k++)// looping over the vertices for element "i".
@@ -170,19 +201,22 @@ void CommunicateTetrahedra(Array<int>* part,
                 }
             }
             //std::cout << "el ID = " << el_id << " wr " << rank << std::endl;
-            ien_part[el_id] = nodes;
-            ief_part[el_id] = faces;
-            
+            pm->ien_part[el_id]      = nodes;
+            pm->ien_part_glob[el_id] = nodes_glob;
+            pm->ief_part[el_id]      = faces;
+            loc_r_elem.push_back(el_id);
             on_rank++;
         }
+        
+        
     }
     
-    std::cout << "WR before = " << rank << " ien_part = " << ien_part.size() << " " << ief_part.size() << " " << on_rank << " " << not_on_rank << std::endl;
-
-    ScheduleObj* part_schedule_elem = DoScheduling(elms_to_send_to_ranks,comm);
+    std::cout << " RANK - " << rank << " " <<vertIDs_on_rank.size() << std::endl;
     
+    ScheduleObj* part_schedule_elem = DoScheduling(elms_to_send_to_ranks,comm);
     std::map<int,std::vector<int> >  part_tot_recv_elIDs_map;
     std::map<int,std::vector<int> >  TotRecvElement_IDs_v_map;
+    std::map<int,std::vector<int> >  TotRecvElement_IDs_ov_map;
     std::map<int,std::vector<int> >  TotRecvElement_IDs_f_map;
     std::map<int,std::vector<int> >::iterator it;
     
@@ -198,6 +232,7 @@ void CommunicateTetrahedra(Array<int>* part,
             {
                 int n_req           = it->second.size();
                 int n_req_v         = vertIDs_to_send_to_ranks[it->first].size();
+                
                 int n_req_f         = faceIDs_to_send_to_ranks[it->first].size();
                 int dest            = it->first;
                                 
@@ -208,6 +243,7 @@ void CommunicateTetrahedra(Array<int>* part,
                 //MPI_Send(&it->second[0], n_req, MPI_INT, dest, 100+dest*2, comm);
                 MPI_Send(&it->second[0], n_req, MPI_INT, dest, dest*66666+5555, comm);
                 MPI_Send(&vertIDs_to_send_to_ranks[it->first][0], n_req_v, MPI_INT, dest, 9000+100+dest*2, comm);
+                MPI_Send(&OriVertIDs_to_send_to_ranks[it->first][0], n_req_v, MPI_INT, dest, 339000+100+dest*2, comm);
                 MPI_Send(&faceIDs_to_send_to_ranks[it->first][0], n_req_f, MPI_INT, dest, 229000+100+dest*2, comm);
                 i++;
             }
@@ -220,12 +256,15 @@ void CommunicateTetrahedra(Array<int>* part,
 
             std::vector<int>    part_recv_el_id(n_req_recv);
             std::vector<int>    part_recv_vrt_id(n_req_recv_v);
+            std::vector<int>    part_recv_orivrt_id(n_req_recv_v);
             std::vector<int>    part_recv_face_id(n_req_recv_f);
             
             MPI_Recv(&part_recv_el_id[0],   n_req_recv, MPI_INT, q, rank*66666+5555, comm, MPI_STATUS_IGNORE);
             MPI_Recv(&part_recv_vrt_id[0],  n_req_recv_v, MPI_INT, q, 9000+100+rank*2, comm, MPI_STATUS_IGNORE);
+            MPI_Recv(&part_recv_orivrt_id[0],  n_req_recv_v, MPI_INT, q, 339000+100+rank*2, comm, MPI_STATUS_IGNORE);
             MPI_Recv(&part_recv_face_id[0], n_req_recv_f, MPI_INT, q, 229000+100+rank*2, comm, MPI_STATUS_IGNORE);
             
+            TotRecvElement_IDs_ov_map[q] = part_recv_orivrt_id;
             TotRecvElement_IDs_v_map[q] = part_recv_vrt_id;
             TotRecvElement_IDs_f_map[q] = part_recv_face_id;
             part_tot_recv_elIDs_map[q]  = part_recv_el_id;
@@ -234,6 +273,7 @@ void CommunicateTetrahedra(Array<int>* part,
     
     std::vector<int> TotRecvElement_IDs;
     std::vector<int> TotRecvVerts_IDs;
+    std::vector<int> TotRecvOriVerts_IDs;
     std::vector<int> TotRecvFaces_IDs;
 
     std::map<int,std::vector<int> >::iterator totrecv;
@@ -253,6 +293,7 @@ void CommunicateTetrahedra(Array<int>* part,
         for(int r=0;r<totrecv->second.size();r++)
         {
             TotRecvVerts_IDs.push_back(TotRecvElement_IDs_v_map[totrecv->first][r]);
+            TotRecvOriVerts_IDs.push_back(TotRecvElement_IDs_ov_map[totrecv->first][r]);
         }
     }
     //unpack the face IDs and their corresponding variable values.
@@ -271,28 +312,33 @@ void CommunicateTetrahedra(Array<int>* part,
     {
         std::vector<int> elem;
         std::vector<int> nodes(4);
+        std::vector<int> nodes_glob(4);
         std::vector<int> faces(4);
         
         int elID = TotRecvElement_IDs[i];
         for(int k=0;k<4;k++)
         {
             int v_id_n = TotRecvVerts_IDs[cnt_v+k];
-
+            int v_id_o_n = TotRecvOriVerts_IDs[cnt_v+k];
+            
             nodes[k] = v_id_n;
+            nodes_glob[k] = v_id_o_n;
             if(unique_vertIDs_on_rank_set.find( v_id_n ) == unique_vertIDs_on_rank_set.end()) // add the required unique vertex for current rank.
             {
                 unique_vertIDs_on_rank_set.insert(v_id_n);
                 //unique_verts_on_rank_vec.push_back(v_id);
                 
-                r = FindRank(new_V_offsets, size, v_id_n);
+                r = FindRank(new_V_offsets, size, v_id_o_n);
 
                 if (r!=rank)// if vertex is present on other rank, add it to vertIDs_on_rank map..
                 {
                     rank2req_vert[r].push_back(v_id_n); // add the vertex id that needs to be requested from rank r.
+                    rank2req_vertOri[r].push_back(v_id_o_n);
                 }
                 else
                 {
                     vertIDs_on_rank.push_back(v_id_n);  // add the vertex to list that is already available on rank.
+                    vertIDs_on_rank_Ori.push_back(v_id_o_n);
                     vloc_tmp++;
                 }
                 lv_id++;
@@ -326,8 +372,9 @@ void CommunicateTetrahedra(Array<int>* part,
         cnt_v=cnt_v+4;
         cnt_f=cnt_f+4;
         
-        ien_part[elID] = nodes;
-        ief_part[elID] = faces;
+        pm->ien_part[elID] = nodes;
+        pm->ien_part_glob[elID] = nodes_glob;
+        pm->ief_part[elID] = faces;
         
         on_rank++;
         
@@ -360,7 +407,8 @@ void CommunicateTetrahedra(Array<int>* part,
     
     ScheduleObj* part_schedule = DoScheduling(rank2req_vert,comm);
     std::map<int,std::vector<int> >  reqstd_ids_per_rank;
-    
+    std::map<int,std::vector<int> >  reqstd_Ori_ids_per_rank;
+
     for(q=0;q<size;q++)
     {
         if(rank==q)
@@ -375,7 +423,8 @@ void CommunicateTetrahedra(Array<int>* part,
                 MPI_Send(&n_req, 1, MPI_INT, dest, 9876+10*dest, comm);
                 //MPI_Send(&it->second[0], n_req, MPI_INT, dest, 9876+dest*2, comm);
                 MPI_Send(&it->second[0], n_req, MPI_INT, dest, 9876*2+dest*2, comm);
-                
+                MPI_Send(&rank2req_vertOri[it->first][0], n_req, MPI_INT, dest, 2229876*2+dest*2, comm);
+
                 i++;
             }
         }
@@ -385,8 +434,11 @@ void CommunicateTetrahedra(Array<int>* part,
             //MPI_Recv(&TotRecvVert_IDs[RecvAlloc_offset_map_v[q]], n_reqstd_ids, MPI_INT, q, 9876+rank*2, comm, MPI_STATUS_IGNORE);
             
             std::vector<int> recv_reqstd_ids(n_reqstd_ids);
+            std::vector<int> recv_reqstd_Ori_ids(n_reqstd_ids);
             MPI_Recv(&recv_reqstd_ids[0], n_reqstd_ids, MPI_INT, q, 9876*2+rank*2, comm, MPI_STATUS_IGNORE);
+            MPI_Recv(&recv_reqstd_Ori_ids[0], n_reqstd_ids, MPI_INT, q, 2229876*2+rank*2, comm, MPI_STATUS_IGNORE);
             reqstd_ids_per_rank[q] = recv_reqstd_ids;
+            reqstd_Ori_ids_per_rank[q] = recv_reqstd_Ori_ids;
         }
     }
     
@@ -402,7 +454,7 @@ void CommunicateTetrahedra(Array<int>* part,
     {
         if(rank == q)
         {
-            for (it = reqstd_ids_per_rank.begin(); it != reqstd_ids_per_rank.end(); it++)
+            for (it = reqstd_Ori_ids_per_rank.begin(); it != reqstd_Ori_ids_per_rank.end(); it++)
             {
                 int nv_send = it->second.size();
                 double* vert_send = new double[nv_send*3];
@@ -419,7 +471,7 @@ void CommunicateTetrahedra(Array<int>* part,
                 // MPI_Send(&vert_send[0], nv_send, MPI_DOUBLE, dest, 9876+dest*888, comm);
             
                 MPI_Send(&vert_send[0], nv_send*3, MPI_DOUBLE, dest, 9876+dest*8888, comm);
-                MPI_Send(&it->second[0], it->second.size(), MPI_INT, dest, 8888*9876+dest*8888,comm);
+                MPI_Send(&reqstd_ids_per_rank[it->first][0], it->second.size(), MPI_INT, dest, 8888*9876+dest*8888,comm);
                 
                 delete[] vert_send;
             }
@@ -452,25 +504,28 @@ void CommunicateTetrahedra(Array<int>* part,
 
     int gvid=0;
     int lvid=0;
-
+    int gvid_gl = 0;
 
     for(m=0;m<vloc_tmp;m++)
     {
         gvid = vertIDs_on_rank[m];
-       
+        gvid_gl = vertIDs_on_rank_Ori[m];
+        
         Vert* V = new Vert;
         
-        V->x = xcn->getVal(gvid-xcn_o,0);
-        V->y = xcn->getVal(gvid-xcn_o,1);
-        V->z = xcn->getVal(gvid-xcn_o,2);
-        
-        LocalVerts.push_back(V);
-        LocalVert2GlobalVert[lvid] = gvid;
-        GlobalVert2LocalVert[gvid] = lvid;
+        V->x = xcn->getVal(gvid_gl-xcn_o,0);
+        V->y = xcn->getVal(gvid_gl-xcn_o,1);
+        V->z = xcn->getVal(gvid_gl-xcn_o,2);
+            
+        pm->LocalVerts.push_back(V);
+        pm->LocalVert2GlobalVert[lvid] = gvid;
+        pm->GlobalVert2LocalVert[gvid] = lvid;
         lvid++;
     }
     
     m = 0;
+    
+    std::cout << "# verts intermediate " << rank << " " << pm->LocalVerts.size() << " vloc " << vloc_tmp << std::endl;
     
     for(it_f=recv_back_verts.begin();it_f!=recv_back_verts.end();it_f++)
     {
@@ -486,10 +541,10 @@ void CommunicateTetrahedra(Array<int>* part,
             V->y = it_f->second[u*3+1];
             V->z = it_f->second[u*3+2];
             
-            LocalVerts.push_back(V);
+            pm->LocalVerts.push_back(V);
             
-            LocalVert2GlobalVert[lvid]=gvid;
-            GlobalVert2LocalVert[gvid]=lvid;
+            pm->LocalVert2GlobalVert[lvid]=gvid;
+            pm->GlobalVert2LocalVert[gvid]=lvid;
            
             m++;
             lvid++;
@@ -497,7 +552,10 @@ void CommunicateTetrahedra(Array<int>* part,
     }
 
 
-    int nLoc_Verts = LocalVerts.size();
+    int nLoc_Verts = pm->LocalVerts.size();
+    
+    
+    std::cout << "# verts final " << rank << " " << pm->LocalVerts.size() << " vloc " << vloc_tmp << std::endl;
     // ================================== Faces on Rank =========================================
     
 //    int lfid = 0;
@@ -510,113 +568,18 @@ void CommunicateTetrahedra(Array<int>* part,
 //        GlobalFace2LocalFace[gfid] = lfid;
 //        lfid++;
 //    }
-//
-//    // ================================== Faces on Rank =========================================
-//    //NlocElem             = loc_r_elem.size()+Nel_extra+itel;
-//    //LocalElem2GlobalVert = new Array<int>(NlocElem,8);
-//    //LocalElem2LocalVert  = new Array<int>(NlocElem,8);
-//    //std::vector<double> U0vert;
-//    //U0Elem               = new Array<double>(NlocElem,1);
-//    //U0Vert               = new Array<double>(LocalVerts.size(),1);
-//    //ElemPart             = new Array<int>(NlocElem,1);
-//
-//    int glob_v = 0;
-//    int loc_v  = 0;
-//    int glob_f = 0;
-//    int loc_f  = 0;
-//    double varia_v = 0.0;
-//    int tett_v = 0;
-//    std::vector<int> tmp_globv;
-//    std::vector<int> tmp_locv;
-//
-//
-//
-//
-//    for(m=0;m<loc_r_elem.size();m++)
-//    {
-//        el_id   = loc_r_elem[m];
-//        nvPerEl = 4;
-//        nfPerEl = 4;
-//        Loc_Elem.push_back(el_id);
-//        LocAndAdj_Elem.push_back(el_id);
-//        LocalElement2GlobalElement[eloc] = el_id;
-//        GlobalElement2LocalElement[el_id] = eloc;
-//        eloc++;
-//
-//        for(int p=0;p<nvPerEl;p++)
-//        {
-//            glob_v = new_ien->getVal(m,p);
-//            loc_v  = GlobalVert2LocalVert[glob_v];
-//            tmp_globv.push_back(glob_v);
-//            tmp_locv.push_back(loc_v);
-//
-//            globElem2globVerts[el_id].push_back(glob_v);
-//            globVerts2globElem[glob_v].push_back(el_id);
-//            globElem2locVerts[el_id].push_back(loc_v);
-//        }
-//        for(int p=0;p<nfPerEl;p++)
-//        {
-//            glob_f = ief->getVal(el_id-ien_o,p);
-//            loc_f  = GlobalFace2LocalFace[glob_f];
-//            globElem2localFaces[el_id].push_back(loc_f);
-//            globElem2globFaces[el_id].push_back(glob_f);
-//            globFace2GlobalElements[glob_f].push_back(el_id);
-//        }
-//
-//        LocalElem2GlobalVert.push_back(tmp_globv);
-//        LocalElem2LocalVert.push_back(tmp_locv);
-//        tmp_globv.clear();
-//        tmp_locv.clear();
-//    }
-//    int cnv = 0;
-//    int cnf = 0;
-//    for(m=0;m<Nel_extra;m++)
-//    {
-//        el_id = TotRecvElement_IDs[m];
-//        nvPerEl = 4;
-//        nfPerEl = 4;
-//
-//        LocalElement2GlobalElement[eloc] = el_id;
-//        GlobalElement2LocalElement[el_id] = eloc;
-//        eloc++;
-//        Loc_Elem.push_back(el_id);
-//        LocAndAdj_Elem.push_back(el_id);
-//
-//        for(int p=0;p<nvPerEl;p++)
-//        {
-//            glob_v = TotRecvVerts_IDs[cnv+p];
-//            loc_v  = GlobalVert2LocalVert[glob_v];
-//            globElem2globVerts[el_id].push_back(glob_v);
-//            globElem2locVerts[el_id].push_back(loc_v);
-//            globVerts2globElem[glob_v].push_back(el_id);
-//
-//            tmp_globv.push_back(glob_v);
-//            tmp_locv.push_back(loc_v);
-//
-//        }
-//        for(int p=0;p<nfPerEl;p++)
-//        {
-//            glob_f = TotRecvFaces_IDs[cnf+p];
-//
-//            loc_f  = GlobalFace2LocalFace[glob_f];
-//            globElem2localFaces[el_id].push_back(loc_f);
-//            globElem2globFaces[el_id].push_back(glob_f);
-//            globFace2GlobalElements[glob_f].push_back(el_id);
-//
-//        }
-//        cnv=cnv+nvPerEl;
-//        cnf=cnf+nfPerEl;
-//        LocalElem2GlobalVert.push_back(tmp_globv);
-//        LocalElem2LocalVert.push_back(tmp_locv);
-//        tmp_globv.clear();
-//        tmp_locv.clear();
-//    }
-//
-//    nLoc_Elem = Loc_Elem.size();
-//    vloc = LocalVerts.size();
-//    floc = cnf;
+
+    // ================================== Faces on Rank =========================================
+    //NlocElem             = loc_r_elem.size()+Nel_extra+itel;
+    //LocalElem2GlobalVert = new Array<int>(NlocElem,8);
+    //LocalElem2LocalVert  = new Array<int>(NlocElem,8);
+    //std::vector<double> U0vert;
+    //U0Elem               = new Array<double>(NlocElem,1);
+    //U0Vert               = new Array<double>(LocalVerts.size(),1);
+    //ElemPart             = new Array<int>(NlocElem,1);
+
     
-    std::cout << "WR = " << rank << " ien_part = " << ien_part.size() << " " << ief_part.size() << std::endl;
+    return pm;
     
 }
 
@@ -699,9 +662,13 @@ int main(int argc, char** argv)
     //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     
-     Domain* pDom = P->getPartitionDomain();
-    std::map<int,std::vector<int> > tetras     = pDom->GTetras;
-    std::map<int,std::vector<int> > Gtetras     = pDom->GTetras;
+    Domain* pDom = P->getPartitionDomain();
+    std::vector<Vert*> VertsOr = P->getLocalVerts();
+    
+    
+    std::map<int,std::vector<int> > tetrasLoc     = pDom->Tetras;
+    std::map<int,std::vector<int> > tetras        = pDom->GTetras;
+    std::map<int,std::vector<int> > Gtetras       = pDom->GTetras;
 
     int nTetras       = tetras.size();
     int* Elplease     = new int[world_size];
@@ -761,36 +728,30 @@ int main(int argc, char** argv)
     std::vector<Vert*> Verts        = P->getLocalVerts();
     std::map<int,int> lpartv2gv     = pDom->lpartv2gv;
     
-    
-    /*
-    std::string filename = "checkPart_" + std::to_string(world_rank) + ".dat";
-    std::ofstream myfile;
-    myfile.open(filename);
-    myfile << "TITLE=\"volume_part_"  + std::to_string(world_rank) +  ".tec\"" << std::endl;
-    myfile <<"VARIABLES = \"X\", \"Y\", \"Z\"" << std::endl;
-    myfile <<"ZONE N = " << loc_part_verts.size() << ", E = " << tetras.size() << ", DATAPACKING = POINT, ZONETYPE = FETETRAHEDRON" << std::endl;
+    std::ofstream myfilet;
+    myfilet.open("output_" + std::to_string(world_rank) + ".dat");
+    myfilet << "TITLE=\"new_volume.tec\"" << std::endl;
+    myfilet <<"VARIABLES = \"X\", \"Y\", \"Z\"" << std::endl;
+    myfilet <<"ZONE N = " << loc_part_verts.size() << ", E = " << tetrasLoc.size() << ", DATAPACKING = POINT, ZONETYPE = FETETRAHEDRON" << std::endl;
 
     for(int i=0;i<loc_part_verts.size();i++)
     {
         int loc_vid  = loc_part_verts[i];
         int glob_vid = lpartv2gv[loc_vid];
-        myfile << Verts[loc_vid]->x << " " << Verts[loc_vid]->y << " " << Verts[loc_vid]->z << std::endl;
+        myfilet << VertsOr[loc_vid]->x << " "
+                << VertsOr[loc_vid]->y << " "
+                << VertsOr[loc_vid]->z << std::endl;
     }
-    int gv0,gv1,gv2,gv3,gv4,gv5,gv6,gv7;
-    int lv0,lv1,lv2,lv3,lv4,lv5,lv6,lv7;
-    std::map<int,std::vector<int> >::iterator itertet;
-    for(itertet=tetras.begin();itertet!=tetras.end();itertet++)
+    std::map<int,std::vector<int> >::iterator itte;
+    for(itte=tetrasLoc.begin();itte!=tetrasLoc.end();itte++)
     {
-        int glob_id = itertet->first;
-        myfile <<   itertet->second[0]+1 << "  " <<
-                    itertet->second[1]+1 << "  " <<
-                    itertet->second[2]+1 << "  " <<
-                    itertet->second[3]+1 << "  " << std::endl;
+        myfilet << itte->second[0]+1 << " " << itte->second[1]+1 << " "
+                << itte->second[2]+1 << " " << itte->second[3]+1 <<  std::endl;
     }
 
-
-    myfile.close();
-     */
+    myfilet.close();
+    
+    
      //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
      //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
      //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -1235,6 +1196,7 @@ int main(int argc, char** argv)
                   world_size,
                   MPI_INT, MPI_SUM, comm);
     
+    
     int nonSharedOff = 0;
     int nonFacesSharedOff = 0;
     for(i=0;i<world_size;i++)
@@ -1372,19 +1334,25 @@ int main(int argc, char** argv)
                 MPI_Send(&ien[0],   nv, MPI_INT, u,   u*64975,  comm);
                 MPI_Send(&ien_o[0], nv, MPI_INT, u,   u*84975,  comm);
                 MPI_Send(&ief[0],   nv, MPI_INT, u,   u*94975,  comm);
-                MPI_Send(&ief_o[0], nv, MPI_INT, u,  u*104975, comm);
+                MPI_Send(&ief_o[0], nv, MPI_INT, u,  u*104975,  comm);
                 
                 Nsend++;
             }
             else
             {
                 new_elId->setVal(elloc,0,lEl);
-                std::cout << "w rank " << world_rank << "  " << elloc << "  " <<  lEl << " " << nTet << " " << lEl <<  std::endl;
+                
+                //std::cout << "w rank " << world_rank << "  " << elloc << "  " <<  lEl << " " << nTet << " " << lEl <<  std::endl;
                 
                 new_ien->setVal(elloc,0,ien[0]);
                 new_ien->setVal(elloc,1,ien[1]);
                 new_ien->setVal(elloc,2,ien[2]);
                 new_ien->setVal(elloc,3,ien[3]);
+                
+                new_ien_or->setVal(elloc,0,ite->second[0]);
+                new_ien_or->setVal(elloc,1,ite->second[1]);
+                new_ien_or->setVal(elloc,2,ite->second[2]);
+                new_ien_or->setVal(elloc,3,ite->second[3]);
                 
                 new_ief->setVal(elloc,0,ief[0]);
                 new_ief->setVal(elloc,1,ief[1]);
@@ -1450,6 +1418,7 @@ int main(int argc, char** argv)
                     {
                         lvid2 = sharedVmap[gvid];
                         new_ien->setVal(elloc,q,lvid2);
+                        new_ien_or->setVal(elloc,q,gvid);
                     }
                     else
                     {
@@ -1457,6 +1426,7 @@ int main(int argc, char** argv)
                         {
                             gl_set.insert(gvid);
                             new_ien->setVal(elloc,q,lbvid);
+                            new_ien_or->setVal(elloc,q,gvid);
                             gl_map[gvid] = lbvid;
                             lbvid = lbvid + 1;
                             lbvids++;
@@ -1465,6 +1435,7 @@ int main(int argc, char** argv)
                         {
                             int lbbvid = gl_map[gvid];
                             new_ien->setVal(elloc,q,lbbvid);
+                            new_ien_or->setVal(elloc,q,gvid);
                         }
                     }
                 }
@@ -1504,6 +1475,9 @@ int main(int argc, char** argv)
         }
     }
     
+    std::cout << "WORLD_RANK = " << world_rank << " " << lbvid << std::endl;
+    
+    
     int* elmdist = new int[world_size+1];
 
     for(i=0;i<world_size;i++)
@@ -1534,6 +1508,11 @@ int main(int argc, char** argv)
         ielement_nlocs[i] = red_ielement_nlocs[i];
         elmdist[i]          = o_ie;
         o_ie                = o_ie+red_ielement_nlocs[i];
+        
+        if(world_rank == 0)
+        {
+            std::cout << "dist " << i << " " << red_ielement_nlocs[i] << std::endl;
+        }
     }
     
     elmdist[world_size] = o_ie;
@@ -1564,13 +1543,18 @@ int main(int argc, char** argv)
     real_t *tpwgts   = new real_t[np*ncon[0]];
     idx_t wgtflag_[] = {2};
     idx_t *wgtflag   = wgtflag_;
-    real_t ubvec_[]  = {1.1};
+    real_t ubvec_[]  = {1.02};
     real_t *ubvec    = ubvec_;
     idx_t options_[] = {0, 0, 0};
     idx_t *options   = options_;
     int* part_arr = new int[nTet];
     idx_t nparts_[] = {np};
     idx_t *nparts = nparts_;
+    idx_t *vsize = NULL;
+    idx_t *adjwgt = NULL;
+    real_t itr_[]    = {1.05};
+    real_t *itr = itr_;
+    
     
     for(int i=0; i<np*ncon[0]; i++)
     {
@@ -1589,13 +1573,21 @@ int main(int argc, char** argv)
                           numflag,ncommonnodes,
                           &xadj_par,&adjncy_par,&comm);
 
-    ParMETIS_V3_PartKway(elmdist,
-                         xadj_par,
-                         adjncy_par,
-                         elmwgt, NULL, wgtflag, numflag,
-                         ncon, nparts,
-                         tpwgts, ubvec, options,
-                         &edgecut, part_arr, &comm);
+//    ParMETIS_V3_PartKway(elmdist,
+//                         xadj_par,
+//                         adjncy_par,
+//                         elmwgt, NULL, wgtflag, numflag,
+//                         ncon, nparts,
+//                         tpwgts, ubvec, options,
+//                         &edgecut, part_arr, &comm);
+    
+    ParMETIS_V3_AdaptiveRepart(elmdist,
+                               xadj_par, adjncy_par,
+                               elmwgt, adjwgt,
+                               vsize, wgtflag,
+                               numflag, ncon, nparts,
+                               tpwgts, ubvec, itr, options,
+                               &edgecut, part_arr, &comm);
 
     Array<int>* part_global_new  = new Array<int>(o_ie,1);
     Array<int>* part_new         = new Array<int>(nTet,1);
@@ -1636,12 +1628,82 @@ int main(int argc, char** argv)
         }
     }
     
+    PartMesh* pm = CommunicateTetrahedra(part_new,
+                                         new_elId, new_ien, new_ien_or, new_ief,
+                                         us3d->xcn, xcn_pstate,
+                                         us3d->ifn, ife_pstate, comm);
     
-    CommunicateTetrahedra(part_new, new_elId, new_ien, new_ief,
-                          us3d->xcn, xcn_pstate, us3d->ifn, ife_pstate, comm);
-    
-    
+    std::vector<int> lverts;
+    std::map<int,int> lpartv2gv_v2;
+    std::map<int,int> gv2lpv2;
 
+    std::set<int> gv_set;
+    int lcv2 = 0;
+    std::map<int,std::vector<int> > ien_part = pm->ien_part;
+    std::map<int,std::vector<int> > ien_part_glob = pm->ien_part_glob;
+    std::map<int,std::vector<int> >::iterator itertet;
+    Array<int>* locelem2locnode= new Array<int>(ien_part.size(),4);
+    int elid = 0;
+    for(itertet=ien_part.begin();itertet!=ien_part.end();itertet++)
+    {
+        int glob_id  = itertet->first;
+        for(int q=0;q<itertet->second.size();q++)
+        {
+            int gv = itertet->second[q];
+            int lv = pm->GlobalVert2LocalVert[gv];
+            
+            if(gv_set.find(gv)==gv_set.end())
+            {
+                gv_set.insert(gv);
+                lverts.push_back(lv);
+                lpartv2gv_v2[lv]=gv;
+                gv2lpv2[gv]=lcv2;
+                locelem2locnode->setVal(elid,q,lcv2);
+                lcv2=lcv2+1;
+            }
+            else
+            {
+                int lcv_u = gv2lpv2[gv];
+                locelem2locnode->setVal(elid,q,lcv_u);
+            }
+        }
+        elid++;
+
+    }
+    
+    
+    Array<double>* xcn_glob = ReadDataSetFromFile<double>(fn_grid,"xcn");
+    
+    std::vector<Vert*> lv = pm->LocalVerts;
+    std::string filename = "checkPart_" + std::to_string(world_rank) + ".dat";
+    std::ofstream myfile;
+    myfile.open(filename);
+    myfile << "TITLE=\"volume_part_"  + std::to_string(world_rank) +  ".tec\"" << std::endl;
+    myfile <<"VARIABLES = \"X\", \"Y\", \"Z\"" << std::endl;
+    myfile <<"ZONE N = " << xcn_glob->getNrow() << ", E = " << ien_part.size() << ", DATAPACKING = POINT, ZONETYPE = FETETRAHEDRON" << std::endl;
+
+    std::cout << "loc_part_verts " << lverts.size() << " " << lv.size() << std::endl;
+    for(int i=0;i<xcn_glob->getNrow();i++)
+    {
+        //int loc_vid  = lverts[i];
+        //int glob_vid = lpartv2gv_v2[loc_vid];
+        //myfile << Verts[loc_vid]->x << " " << Verts[loc_vid]->y << " " << Verts[loc_vid]->z << std::endl;
+        myfile << xcn_glob->getVal(i,0) << " " << xcn_glob->getVal(i,1) << " " << xcn_glob->getVal(i,2) << std::endl;
+    }
+    int gv0,gv1,gv2,gv3,gv4,gv5,gv6,gv7;
+    int lv0,lv1,lv2,lv3,lv4,lv5,lv6,lv7;
+    std::map<int,std::vector<int> >::iterator itt;
+    for(itt = ien_part_glob.begin(); itt != ien_part_glob.end(); itt++)
+    {
+        int glob_id = itertet->first;
+        myfile <<   itt->second[0]+1 << "  " <<
+        itt->second[1]+1 << "  " <<
+        itt->second[2]+1 << "  " <<
+        itt->second[3]+1 << "  " << std::endl;
+    }
+
+
+    myfile.close();
     
     
     

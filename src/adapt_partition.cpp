@@ -49,11 +49,8 @@ Partition::Partition(ParArray<int>* ien, ParArray<int>* iee, ParArray<int>* ief,
     ife_part_map        = getFace2EntityPerPartition(ife   ,   comm);
     if_ref_part_map     = getFace2EntityPerPartition(if_ref,   comm);
 //
-    
-    
     DetermineAdjacentElement2ProcMapUS3D(ien, iee_part_map->i_map, part, xcn, U, comm);
 //
-    
     CreatePartitionDomainTest();
     //CreatePartitionDomain();
 //
@@ -3083,9 +3080,9 @@ void Partition::CreatePartitionDomain()
     pDom->Hexes           = Hexes;
     pDom->Prisms          = Prisms;
     pDom->Tetras          = Tetras;
-    pDom->GHexes           = GHexes;
-    pDom->GPrisms          = GPrisms;
-    pDom->GTetras          = GTetras;
+    pDom->GHexes          = GHexes;
+    pDom->GPrisms         = GPrisms;
+    pDom->GTetras         = GTetras;
     pDom->LocElem2LocNode = locelem2locnode;
     pDom->loc_part_verts  = loc_part_verts;
     pDom->glob_part_verts = glob_part_verts;
@@ -3193,6 +3190,8 @@ void Partition::CreatePartitionDomainTest()
     elem2Nf.clear();
 //
 //
+    
+    int lcvn = 0;
     std::set<int> gv_set;
     for(itm  = ien_part_map->i_map.begin();
         itm != ien_part_map->i_map.end();
@@ -3201,6 +3200,7 @@ void Partition::CreatePartitionDomainTest()
         int glob_id  = itm->first;
         int NvpEl    = itm->second.size();
         std::vector<int>Elg(NvpEl);
+        std::vector<int>El(NvpEl);
         for(int q=0;q<itm->second.size();q++)
         {
             int gv = itm->second[q];
@@ -3210,24 +3210,37 @@ void Partition::CreatePartitionDomainTest()
             {
                 gv_set.insert(gv);
                 loc_part_verts.push_back(lv);
+                gv2lpv[gv]    = lcvn;
+                El[q]         = lcvn;
+                lpartv2gv[lv] = gv;
+                lcvn = lcvn+1;
             }
-            
+            else
+            {
+                int lcv_u = gv2lpv[gv];
+                El[q] = lcv_u;
+                
+            }
             Elg[q] = gv;
         }
         //GElements[glob_id]=El;
 
         if(Elg.size()==4)
         {
+            Tetras[glob_id]=El;
             GTetras[glob_id]=Elg;
         }
         if(Elg.size()==6)
         {
+            Prisms[glob_id]=El;
             GPrisms[glob_id]=Elg;
         }
         if(Elg.size()==8)
         {
+            Hexes[glob_id]=El;
             GHexes[glob_id]=Elg;
         }
+        El.clear();
         Elg.clear();
     }
     
