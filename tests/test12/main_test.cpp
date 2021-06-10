@@ -1219,7 +1219,7 @@ int main(int argc, char** argv)
     int optimalSize = int(offsetEl/size) + ( world_rank < offsetEl%size );
     double rat = (double)nTetras/(double)optimalSize;
     
-    std::cout << "optimalsize at rank " << world_rank << " is  " << optimalSize << " " << nTetras << std::endl;
+    //std::cout << "optimalsize at rank " << world_rank << " is  " << optimalSize << " " << nTetras << std::endl;
     
     int NtoRecv = 0;
     int NtoSend = 0;
@@ -1233,27 +1233,35 @@ int main(int argc, char** argv)
         NtoRecv = optimalSize-nTetras;
     }
     
-    if(world_rank == 0)
-    {
-        std::cout << world_rank << " " << optimalSize << " " << nTetras << " " << " ------> to send " << (double)NtoSend/(double)optimalSize << " " << ceil((double)NtoSend/(double)optimalSize) << " ------> to recv " << (double)NtoRecv/(double)optimalSize<< " "<< ceil((double)NtoRecv/(double)optimalSize) << std::endl;
-    }
+//    if(world_rank == 0)
+//    {
+//        std::cout << world_rank << " " << optimalSize << " " << nTetras << " " << " ------> to send " << (double)NtoSend/(double)optimalSize << " " << ceil((double)NtoSend/(double)optimalSize) << " ------> to recv " << (double)NtoRecv/(double)optimalSize<< " "<< ceil((double)NtoRecv/(double)optimalSize) << std::endl;
+//    }
    
     int* toS_red = new int[world_size];
     int* toR_red = new int[world_size];
-    
+    int* to_Send_copy = new int[world_size];
+    int* to_Recv_copy = new int[world_size];
+    int* optiSize = new int[world_size];
+    int* optiSize_red = new int[world_size];
+
     int* toS = new int[world_size];
     int* toR = new int[world_size];
     for(int i=0;i<world_size;i++)
     {
         toS[i] = 0;
         toR[i] = 0;
-
+        optiSize[i] = 0;
+        optiSize_red[i] = 0;
         if(i==world_rank)
         {
+            optiSize[i] = optimalSize;
+
             toS[i] = NtoSend;
             toR[i] = NtoRecv;
         }
     }
+    MPI_Allreduce(optiSize, optiSize_red, world_size, MPI_INT, MPI_SUM, comm);
     MPI_Allreduce(toS, toS_red, world_size, MPI_INT, MPI_SUM, comm);
     MPI_Allreduce(toR, toR_red, world_size, MPI_INT, MPI_SUM, comm);
 
@@ -1265,9 +1273,17 @@ int main(int argc, char** argv)
 	
 	std::map<int,std::vector<int> > sendRa;
 	std::map<int,std::vector<int> > sendNe;
-	
+	if(world_rank==0)
+	{
+		for(int i=0;i<world_size;i++)
+		{
+			std::cout << red_ini_nEl[i] << " " << toS_red[i] << " " << toR_red[i] << " " << optiSize_red[i] << std::endl;
+		}
+	}
 	for(int i=0;i<world_size;i++)
 	{
+		to_Send_copy[i] =  toS_red[i];
+		to_Recv_copy[i] =  toR_red[i];
 		if(toR_red[i]!=0)
 		{
 			for(int j=0;j<world_size;j++)
@@ -1298,36 +1314,6 @@ int main(int argc, char** argv)
 			}
 		}
 	}
-	
-	
-//	if(sendRa.find(world_rank)!=sendRa.end())
-//	{
-//		std::vector<int> toRanks    = sendRa[world_rank];
-//		std::vector<int> NeltoRanks = sendNe[world_rank];
-//		std::map<int,int> el2ranks;
-//		
-//		for(int i=0;i<toRanks.size();i++)
-//		{
-//			int Nel = NeltoRanks[i];
-//			int* elIDs = new int[NeltoRanks[i]];
-//			
-//			for(int j=0;j<NeltoRanks[i];j++)
-//			{
-//				
-//			}
-//			el2ranks[toRanks[i]] = elIDs;
-//		}
-//		
-//	}
-	
-	
-	
-//	std::map<int,std::vector<int> >::iterator it;
-//
-//	for(q=0;q<world_size;q++)
-//	{
-//		for()
-//	}
 	
 	
 	if(world_rank==0)
@@ -1369,30 +1355,6 @@ int main(int argc, char** argv)
     
     
     int nTet = 0;
-//    int allocRank = std::max_element(red_ielement_nlocs.begin(),red_ielement_nlocs.end())-red_ielement_nlocs.begin();
-//    
-//    if(world_rank == allocRank)
-//    {
-//        nTet = nTetras-NRankNoTets;
-//    }
-//    else
-//    {
-//        nTet=nTetras;
-//    }
-//    
-//    if(nTetras==0)
-//    {
-//        nTet = 1;
-//    }
-    
-//    Array<int>* new_elId    = new Array<int>(nTet,1);
-//    
-//    Array<int>* new_ien     = new Array<int>(nTet,4);
-//    Array<int>* new_ief     = new Array<int>(nTet,4);
-//
-//    Array<int>* new_ien_or  = new Array<int>(nTet,4);
-//    Array<int>* new_ief_or  = new Array<int>(nTet,4);
-
     int elloc   = 0;
     int lbvid   = nNonSharedVertsArrayOff[world_rank];
     int lbfid   = nNonSharedFacesArrayOff[world_rank];
@@ -1415,15 +1377,14 @@ int main(int argc, char** argv)
     int u = 0;
     int c = 0;
     
-    
-    
-    
+    Array<int>* new_ien     = new Array<int>(optimalSize,4);
+
 	if(sendRa.find(world_rank)!=sendRa.end())
 	{
 		std::vector<int> toRanks    = sendRa[world_rank];
 		std::vector<int> NeltoRanks = sendNe[world_rank];
 		std::vector<std::vector<int> > elIDs;
-		std::cout << "sendRa " << sendRa.size() << std::endl;
+		//std::cout << "sendRa " << sendRa.size() << std::endl;
 		for(int i=0;i<toRanks.size();i++)
 		{
 			int Nel = NeltoRanks[i];
@@ -1438,9 +1399,10 @@ int main(int argc, char** argv)
 		int cntv     = 0;
 		
 		int t = 0;
+		int nuloc = 0;
+		int uloc = 0;
 		for(ite=tetras.begin();ite!=tetras.end();ite++)
-		{
-			
+		{	
 			int nelPrank  = NeltoRanks[cc];
 			int sRank     = toRanks[cc];
 			int gEl       = ite->first;
@@ -1503,27 +1465,39 @@ int main(int argc, char** argv)
 				}
 			}
 			
-			
-			if(u<(offPrank+nelPrank) && cc < toRanks.size())
+			if(u<to_Send_copy[world_rank])
 			{
-				elIDs[cc][4*t+0]=ien[0];
-				elIDs[cc][4*t+1]=ien[1];
-				elIDs[cc][4*t+2]=ien[2];
-				elIDs[cc][4*t+3]=ien[3];
-				
-				t=t+1;
+				if(u<(offPrank+nelPrank))
+				{
+					elIDs[cc][4*t+0]=ien[0];
+					elIDs[cc][4*t+1]=ien[1];
+					elIDs[cc][4*t+2]=ien[2];
+					elIDs[cc][4*t+3]=ien[3];
+									
+					t=t+1;
+				}
+				else
+				{
+					t = 0;
+					offPrank=offPrank+nelPrank;
+					cc=cc+1;
+				}
+				nuloc++;
 			}
-			if(u>=(offPrank+nelPrank) && cc < toRanks.size())
+			else
 			{
-				t = 0;
-				offPrank=offPrank+nelPrank;
-				cc=cc+1;
+				new_ien->setVal(uloc,0,ien[0]);
+				new_ien->setVal(uloc,1,ien[1]);
+				new_ien->setVal(uloc,2,ien[2]);
+				new_ien->setVal(uloc,3,ien[3]);
+
+				uloc++;
 			}
 			
 			u++;
 		}
 		
-		
+		int acull = 0;
 		for(int i=0;i<toRanks.size();i++)
 		{
 			int dest = toRanks[i];
@@ -1532,7 +1506,11 @@ int main(int argc, char** argv)
 			
             MPI_Send(&n_El  , 1, MPI_INT, dest, dest, comm);
             MPI_Send(&Elvec[0] , n_El, MPI_INT, dest, dest*100, comm);
+            
+            acull = acull + n_El;
 		}
+		
+		std::cout << "send = " << uloc << " " << nuloc << " " << world_rank <<  std::endl;
 		
 	}
 	
@@ -1547,13 +1525,21 @@ int main(int argc, char** argv)
 			int origin = expFromRank[i];
 			int n_Elr;
 			MPI_Recv(&n_Elr,   1, MPI_INT, origin, world_rank, comm, MPI_STATUS_IGNORE);
-			std::cout << world_rank << " or " << origin << " " << n_Elr << std::endl;
-
 			std::vector<int> recvElVec(n_Elr);
 			MPI_Recv(&recvElVec[0],   n_Elr, MPI_INT, origin, world_rank*100, comm, MPI_STATUS_IGNORE);
 			
 			collected_Ids[origin] = recvElVec;
 		}
+		
+		
+		std::map<int,std::vector<int> >::iterator collit;
+		int ntot = nTetras;
+		for(collit=collected_Ids.begin();collit!=collected_Ids.end();collit++)
+		{
+			ntot = ntot + collit->second.size();
+		}
+		
+		std::cout << "recv = " << ntot << " " << world_rank << std::endl;
 	}
 	
 	
