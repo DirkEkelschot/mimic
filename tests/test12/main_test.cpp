@@ -419,9 +419,9 @@ PartMesh* CommunicateTetrahedra(Array<int>* part,
                 int n_req           = it->second.size();
                 int dest            = it->first;
                 
-                //MPI_Send(&dest, 1, MPI_INT, dest, 9876+10*dest, comm);
+                //	MPI_Send(&dest, 1, MPI_INT, dest, 9876+10*dest, comm);
                 MPI_Send(&n_req, 1, MPI_INT, dest, 9876+10*dest, comm);
-                //MPI_Send(&it->second[0], n_req, MPI_INT, dest, 9876+dest*2, comm);
+                //	MPI_Send(&it->second[0], n_req, MPI_INT, dest, 9876+dest*2, comm);
                 MPI_Send(&it->second[0], n_req, MPI_INT, dest, 9876*2+dest*2, comm);
                 MPI_Send(&rank2req_vertOri[it->first][0], n_req, MPI_INT, dest, 2229876*2+dest*2, comm);
 
@@ -432,7 +432,6 @@ PartMesh* CommunicateTetrahedra(Array<int>* part,
         {
             MPI_Recv(&n_reqstd_ids, 1, MPI_INT, q, 9876+10*rank, comm, MPI_STATUS_IGNORE);
             //MPI_Recv(&TotRecvVert_IDs[RecvAlloc_offset_map_v[q]], n_reqstd_ids, MPI_INT, q, 9876+rank*2, comm, MPI_STATUS_IGNORE);
-            
             std::vector<int> recv_reqstd_ids(n_reqstd_ids);
             std::vector<int> recv_reqstd_Ori_ids(n_reqstd_ids);
             MPI_Recv(&recv_reqstd_ids[0], n_reqstd_ids, MPI_INT, q, 9876*2+rank*2, comm, MPI_STATUS_IGNORE);
@@ -673,33 +672,8 @@ int main(int argc, char** argv)
     int nTetras       = tetras.size();
     int* Elplease     = new int[world_size];
     int* red_Elplease = new int[world_size];
-    int* ini_nEl      = new int[world_size];
-    int* red_ini_nEl  = new int[world_size];
-    int* ini_offsetEl = new int[world_size];
-
-    for(int i=0;i<world_size;i++)
-    {
-        ini_nEl[i]      = 0;
-        red_ini_nEl[i]  = 0;
-        ini_offsetEl[i] = 0;
-        
-        if(i==world_rank)
-        {
-            ini_nEl[i] = tetras.size();
-        }
-    }
-    MPI_Allreduce(ini_nEl, red_ini_nEl, world_size, MPI_INT, MPI_SUM, comm);
-
-    int offsetEl = 0;
+    std::vector<int> NoElRankID;
     
-    for(int i=0;i<world_size;i++)
-    {
-        ini_offsetEl[i] = offsetEl;
-        offsetEl        = offsetEl + red_ini_nEl[i];
-    }
-    
-    
-    std::vector<int> rankNoEls;
     for(int u=0;u<world_size;u++)
     {
         Elplease[u]     = 0;
@@ -721,6 +695,10 @@ int main(int argc, char** argv)
     for(int u=0;u<world_size;u++)
     {
         NRankNoTets = NRankNoTets + red_Elplease[u];
+        if(red_Elplease[u]==1)
+        {
+            NoElRankID.push_back(u);
+        }
     }
     
     
@@ -1208,30 +1186,212 @@ int main(int argc, char** argv)
         nonFacesSharedOff = nonFacesSharedOff + nNonSharedFacesArrayRed[i];
     }
     
-    int nTet = 0;
-    int allocRank = std::max_element(red_ielement_nlocs.begin(),red_ielement_nlocs.end())-red_ielement_nlocs.begin();
-    
-    if(world_rank == allocRank)
-    {
-        nTet = nTetras-NRankNoTets;
-    }
-    else
-    {
-        nTet=nTetras;
-    }
-    
-    if(nTetras==0)
-    {
-        nTet = 1;
-    }
-    
-    Array<int>* new_elId    = new Array<int>(nTet,1);
-    
-    Array<int>* new_ien     = new Array<int>(nTet,4);
-    Array<int>* new_ief     = new Array<int>(nTet,4);
+    //=================================================================================================
+    //=================================================================================================
+    //=================================================================================================
 
-    Array<int>* new_ien_or  = new Array<int>(nTet,4);
-    Array<int>* new_ief_or  = new Array<int>(nTet,4);
+    int* ini_nEl      = new int[world_size];
+    int* red_ini_nEl  = new int[world_size];
+    int* ini_offsetEl = new int[world_size];
+
+    for(int i=0;i<world_size;i++)
+    {
+        ini_nEl[i]      = 0;
+        red_ini_nEl[i]  = 0;
+        ini_offsetEl[i] = 0;
+        
+        if(i==world_rank)
+        {
+            ini_nEl[i] = tetras.size();
+        }
+    }
+    MPI_Allreduce(ini_nEl, red_ini_nEl, world_size, MPI_INT, MPI_SUM, comm);
+
+    int offsetEl = 0;
+    
+    for(int i=0;i<world_size;i++)
+    {
+        ini_offsetEl[i] = offsetEl;
+        offsetEl        = offsetEl + red_ini_nEl[i];
+    }
+    
+    int size = world_size;
+    int optimalSize = int(offsetEl/size) + ( world_rank < offsetEl%size );
+    double rat = (double)nTetras/(double)optimalSize;
+    
+    std::cout << "optimalsize at rank " << world_rank << " is  " << optimalSize << " " << nTetras << std::endl;
+    
+    int NtoRecv = 0;
+    int NtoSend = 0;
+    
+    if(nTetras>optimalSize)
+    {
+        NtoSend = nTetras-optimalSize;
+    }
+    if(nTetras<optimalSize)
+    {
+        NtoRecv = optimalSize-nTetras;
+    }
+    
+    if(world_rank == 0)
+    {
+        std::cout << world_rank << " " << optimalSize << " " << nTetras << " " << " ------> to send " << (double)NtoSend/(double)optimalSize << " " << ceil((double)NtoSend/(double)optimalSize) << " ------> to recv " << (double)NtoRecv/(double)optimalSize<< " "<< ceil((double)NtoRecv/(double)optimalSize) << std::endl;
+    }
+   
+    int* toS_red = new int[world_size];
+    int* toR_red = new int[world_size];
+    
+    int* toS = new int[world_size];
+    int* toR = new int[world_size];
+    for(int i=0;i<world_size;i++)
+    {
+        toS[i] = 0;
+        toR[i] = 0;
+
+        if(i==world_rank)
+        {
+            toS[i] = NtoSend;
+            toR[i] = NtoRecv;
+        }
+    }
+    MPI_Allreduce(toS, toS_red, world_size, MPI_INT, MPI_SUM, comm);
+    MPI_Allreduce(toR, toR_red, world_size, MPI_INT, MPI_SUM, comm);
+
+	int sent;
+	int sendUpdate;
+	
+	std::map<int,std::vector<int> > recvRa;
+	std::map<int,std::vector<int> > recvNe;
+	
+	std::map<int,std::vector<int> > sendRa;
+	std::map<int,std::vector<int> > sendNe;
+	
+	for(int i=0;i<world_size;i++)
+	{
+		if(toR_red[i]!=0)
+		{
+			for(int j=0;j<world_size;j++)
+			{
+				if(toS_red[j]>=toR_red[i])
+				{
+					sendUpdate = toS_red[j]-toR_red[i];
+					sent       = toR_red[i];
+				}
+				
+				if(toS_red[j]<toR_red[i])
+				{
+					sendUpdate = 0;
+					sent       = toS_red[j];
+				}
+				
+				toS_red[j] = sendUpdate;
+				toR_red[i] = toR_red[i]-sent;
+				
+				if(sent>0)
+				{
+					recvRa[i].push_back(j);
+					recvNe[i].push_back(sent);
+					
+					sendRa[j].push_back(i);
+					sendNe[j].push_back(sent);
+				}
+			}
+		}
+	}
+	
+	
+//	if(sendRa.find(world_rank)!=sendRa.end())
+//	{
+//		std::vector<int> toRanks    = sendRa[world_rank];
+//		std::vector<int> NeltoRanks = sendNe[world_rank];
+//		std::map<int,int> el2ranks;
+//		
+//		for(int i=0;i<toRanks.size();i++)
+//		{
+//			int Nel = NeltoRanks[i];
+//			int* elIDs = new int[NeltoRanks[i]];
+//			
+//			for(int j=0;j<NeltoRanks[i];j++)
+//			{
+//				
+//			}
+//			el2ranks[toRanks[i]] = elIDs;
+//		}
+//		
+//	}
+	
+	
+	
+//	std::map<int,std::vector<int> >::iterator it;
+//
+//	for(q=0;q<world_size;q++)
+//	{
+//		for()
+//	}
+	
+	
+	if(world_rank==0)
+	{
+		std::map<int,std::vector<int> >::iterator sch;
+			for(sch=recvRa.begin();sch!=recvRa.end();sch++)
+			{
+				std::cout << sch->first << " receives from -> ";
+				
+				for(int q=0;q<sch->second.size();q++)
+				{
+					std::cout << " (" << sch->second[q] << ", N = " << recvNe[sch->first][q] << ") ";
+				}
+				
+				std::cout << std::endl;
+				
+			}
+			
+			
+			
+			for(sch=sendRa.begin();sch!=sendRa.end();sch++)
+			{
+				std::cout << "sending from " << sch->first << " -> ";
+				
+				for(int q=0;q<sch->second.size();q++)
+				{
+					std::cout << " (" << sch->second[q] << ", N = " << sendNe[sch->first][q] << ") ";
+				}
+				
+				std::cout << std::endl;
+				
+			}
+	}
+    
+    
+	//=================================================================================================
+	//================================================================================================
+	//=================================================================================================
+    
+    
+    int nTet = 0;
+//    int allocRank = std::max_element(red_ielement_nlocs.begin(),red_ielement_nlocs.end())-red_ielement_nlocs.begin();
+//    
+//    if(world_rank == allocRank)
+//    {
+//        nTet = nTetras-NRankNoTets;
+//    }
+//    else
+//    {
+//        nTet=nTetras;
+//    }
+//    
+//    if(nTetras==0)
+//    {
+//        nTet = 1;
+//    }
+    
+//    Array<int>* new_elId    = new Array<int>(nTet,1);
+//    
+//    Array<int>* new_ien     = new Array<int>(nTet,4);
+//    Array<int>* new_ief     = new Array<int>(nTet,4);
+//
+//    Array<int>* new_ien_or  = new Array<int>(nTet,4);
+//    Array<int>* new_ief_or  = new Array<int>(nTet,4);
 
     int elloc   = 0;
     int lbvid   = nNonSharedVertsArrayOff[world_rank];
@@ -1251,230 +1411,173 @@ int main(int argc, char** argv)
     int dd      = 0;
     int Nsend   = 0;
     int nv      = 4;
-    if(world_rank == allocRank)
-    {
-        int u = 0;
-        
-        for(ite=tetras.begin();ite!=tetras.end();ite++)
-        {
-            int gEl    = ite->first;
-            int lEl    = ini_offsetEl[world_rank]+elloc;
-            int* ien   = new int[nv];
-            int* ien_o = new int[nv];
-            int* ief   = new int[nv];
-            int* ief_o = new int[nv];
-            
-            for(int q=0;q<4;q++)
-            {
-                gvid = ite->second[q];
-                
-                if(v2r.find(gvid)!=v2r.end())
-                {
-                    lvid2 = sharedVmap[gvid];
-                    ien[q] = lvid2;
-                }
-                else
-                {
-                    if(gl_set.find(gvid)==gl_set.end())
-                    {
-                        gl_set.insert(gvid);
-                        gl_map[gvid] = lbvid;
-                        lbvid = lbvid + 1;
-                        ien[q] = lbvid;
-                        lbvids++;
-                    }
-                    else
-                    {
-                        int lbbvid = gl_map[gvid];
-                        ien[q] = lvid2;
-                    }
-                }
-            }
-            
-            
-            for(int q=0;q<4;q++)
-            {
-                gfid = ief_part_map->i_map[gEl][q];
-                
-                if(f2r.find(gfid)!=f2r.end())
-                {
-                    lfid2 = sharedFmap[gfid];
-                    ief[q] = lfid2;
-                }
-                else
-                {
-                    if(glf_set.find(gfid)==glf_set.end())
-                    {
-                        glf_set.insert(gfid);
-                        glf_map[gfid] = lbfid;
-                        lbfid = lbfid + 1;
-                        lbfids++;
-                    }
-                    else
-                    {
-                        int lbbfid = glf_map[gfid];
-                        ief[q] = lbbfid;
-                    }
-                }
-            }
-            
-            if(u<world_size && red_Elplease[u]==1)
-            {
-                ien_o[0]   = ite->second[0];
-                ien_o[1]   = ite->second[1];
-                ien_o[2]   = ite->second[2];
-                ien_o[3]   = ite->second[3];
-                
-                ief_o[0]   = ief_part_map->i_map[gEl][0];
-                ief_o[1]   = ief_part_map->i_map[gEl][1];
-                ief_o[2]   = ief_part_map->i_map[gEl][2];
-                ief_o[3]   = ief_part_map->i_map[gEl][3];
-                
-                MPI_Send(&lEl,       1, MPI_INT, u,   u*54975,  comm);
-                MPI_Send(&ien[0],   nv, MPI_INT, u,   u*64975,  comm);
-                MPI_Send(&ien_o[0], nv, MPI_INT, u,   u*84975,  comm);
-                MPI_Send(&ief[0],   nv, MPI_INT, u,   u*94975,  comm);
-                MPI_Send(&ief_o[0], nv, MPI_INT, u,  u*104975,  comm);
-                
-                Nsend++;
-            }
-            else
-            {
-                new_elId->setVal(elloc,0,lEl);
-                
-                //std::cout << "w rank " << world_rank << "  " << elloc << "  " <<  lEl << " " << nTet << " " << lEl <<  std::endl;
-                
-                new_ien->setVal(elloc,0,ien[0]);
-                new_ien->setVal(elloc,1,ien[1]);
-                new_ien->setVal(elloc,2,ien[2]);
-                new_ien->setVal(elloc,3,ien[3]);
-                
-                new_ien_or->setVal(elloc,0,ite->second[0]);
-                new_ien_or->setVal(elloc,1,ite->second[1]);
-                new_ien_or->setVal(elloc,2,ite->second[2]);
-                new_ien_or->setVal(elloc,3,ite->second[3]);
-                
-                new_ief->setVal(elloc,0,ief[0]);
-                new_ief->setVal(elloc,1,ief[1]);
-                new_ief->setVal(elloc,2,ief[2]);
-                new_ief->setVal(elloc,3,ief[3]);
-                
-                elloc++;
-            }
-            u++;
-        }
-    }
-    else
-    {
-        std::vector<int> ien(4);
-        std::vector<int> ien_o(4);
-        
-        std::vector<int> ief(4);
-        std::vector<int> ief_o(4);
-
-        if(red_Elplease[world_rank]==1)
-        {
-            int lEln = -1;
-            MPI_Recv(&lEln, 1, MPI_INT, allocRank, world_rank*54975, comm, MPI_STATUS_IGNORE);
-            MPI_Recv(&ien[0], 4, MPI_INT, allocRank, world_rank*64975, comm, MPI_STATUS_IGNORE);
-            MPI_Recv(&ien_o[0], 4, MPI_INT, allocRank, world_rank*84975, comm, MPI_STATUS_IGNORE);
-            MPI_Recv(&ief[0], 4, MPI_INT, allocRank, world_rank*94975, comm, MPI_STATUS_IGNORE);
-            MPI_Recv(&ief_o[0], 4, MPI_INT, allocRank, world_rank*104975, comm, MPI_STATUS_IGNORE);
-            
-            new_elId->setVal(elloc,0,lEln);
-            
-            new_ien->setVal(0,0,ien[0]);
-            new_ien->setVal(0,1,ien[1]);
-            new_ien->setVal(0,2,ien[2]);
-            new_ien->setVal(0,3,ien[3]);
-            
-            new_ien_or->setVal(0,0,ien_o[0]);
-            new_ien_or->setVal(0,1,ien_o[1]);
-            new_ien_or->setVal(0,2,ien_o[2]);
-            new_ien_or->setVal(0,3,ien_o[3]);
-            
-            new_ief->setVal(0,0,ief[0]);
-            new_ief->setVal(0,1,ief[1]);
-            new_ief->setVal(0,2,ief[2]);
-            new_ief->setVal(0,3,ief[3]);
-            
-            new_ief_or->setVal(0,0,ief_o[0]);
-            new_ief_or->setVal(0,1,ief_o[1]);
-            new_ief_or->setVal(0,2,ief_o[2]);
-            new_ief_or->setVal(0,3,ief_o[3]);
-        }
-        else
-        {
-            for(ite=tetras.begin();ite!=tetras.end();ite++)
-            {
-                int gEl  = ite->first;
-                int lEln = ini_offsetEl[world_rank]+elloc;
-
-                for(int q=0;q<4;q++)
-                {
-                    gvid = ite->second[q];
-                    
-                    if(v2r.find(gvid)!=v2r.end())
-                    {
-                        lvid2 = sharedVmap[gvid];
-                        new_ien->setVal(elloc,q,lvid2);
-                        new_ien_or->setVal(elloc,q,gvid);
-                    }
-                    else
-                    {
-                        if(gl_set.find(gvid)==gl_set.end())
-                        {
-                            gl_set.insert(gvid);
-                            new_ien->setVal(elloc,q,lbvid);
-                            new_ien_or->setVal(elloc,q,gvid);
-                            gl_map[gvid] = lbvid;
-                            lbvid = lbvid + 1;
-                            lbvids++;
-                        }
-                        else
-                        {
-                            int lbbvid = gl_map[gvid];
-                            new_ien->setVal(elloc,q,lbbvid);
-                            new_ien_or->setVal(elloc,q,gvid);
-                        }
-                    }
-                }
-                
-                
-                for(int q=0;q<4;q++)
-                {
-                    gfid = ief_part_map->i_map[gEl][q];
-                    
-                    if(f2r.find(gfid)!=f2r.end())
-                    {
-                        lfid2 = sharedFmap[gfid];
-                        new_ief->setVal(elloc,q,lfid2);
-                    }
-                    else
-                    {
-                        if(glf_set.find(gfid)==glf_set.end())
-                        {
-                            glf_set.insert(gfid);
-                            new_ief->setVal(elloc,q,lbfid);
-                            glf_map[gfid] = lbfid;
-                            lbfid = lbfid + 1;
-                            lbfids++;
-                        }
-                        else
-                        {
-                            int lbbfid = glf_map[gfid];
-                            new_ief->setVal(elloc,q,lbbfid);
-                        }
-                    }
-                }
-                
-                new_elId->setVal(elloc,0,lEln);
-
-                elloc++;
-            }
-        }
-    }
     
+    int u = 0;
+    int c = 0;
+    
+    
+    
+    
+	if(sendRa.find(world_rank)!=sendRa.end())
+	{
+		std::vector<int> toRanks    = sendRa[world_rank];
+		std::vector<int> NeltoRanks = sendNe[world_rank];
+		std::vector<std::vector<int> > elIDs;
+		std::cout << "sendRa " << sendRa.size() << std::endl;
+		for(int i=0;i<toRanks.size();i++)
+		{
+			int Nel = NeltoRanks[i];
+			std::vector<int> row(Nel*4);
+			elIDs.push_back(row);
+		}
+		
+		int cc = 0;
+		int sRank = toRanks[0];
+		
+		int offPrank = 0;
+		int cntv     = 0;
+		
+		int t = 0;
+		for(ite=tetras.begin();ite!=tetras.end();ite++)
+		{
+			
+			int nelPrank  = NeltoRanks[cc];
+			int sRank     = toRanks[cc];
+			int gEl       = ite->first;
+			int lEl       = ini_offsetEl[world_rank]+u;
+			int* ien      = new int[nv];
+			int* ien_o    = new int[nv];
+			int* ief      = new int[nv];
+			int* ief_o    = new int[nv];
+			
+			for(int q=0;q<4;q++)
+			{
+				gvid = ite->second[q];
+				
+				if(v2r.find(gvid)!=v2r.end())
+				{
+					lvid2 = sharedVmap[gvid];
+					ien[q] = lvid2;
+				}
+				else
+				{
+					if(gl_set.find(gvid)==gl_set.end())
+					{
+						gl_set.insert(gvid);
+						gl_map[gvid] = lbvid;
+						lbvid = lbvid + 1;
+						ien[q] = lbvid;
+						lbvids++;
+					}
+					else
+					{
+						int lbbvid = gl_map[gvid];
+						ien[q] = lvid2;
+					}
+				}
+			}
+			
+			for(int q=0;q<4;q++)
+			{
+				gfid = ief_part_map->i_map[gEl][q];
+				
+				if(f2r.find(gfid)!=f2r.end())
+				{
+					lfid2 = sharedFmap[gfid];
+					ief[q] = lfid2;
+				}
+				else
+				{
+					if(glf_set.find(gfid)==glf_set.end())
+					{
+						glf_set.insert(gfid);
+						glf_map[gfid] = lbfid;
+						lbfid = lbfid + 1;
+						lbfids++;
+					}
+					else
+					{
+						int lbbfid = glf_map[gfid];
+						ief[q] = lbbfid;
+					}
+				}
+			}
+			
+			
+			if(u<(offPrank+nelPrank) && cc < toRanks.size())
+			{
+				elIDs[cc][4*t+0]=ien[0];
+				elIDs[cc][4*t+1]=ien[1];
+				elIDs[cc][4*t+2]=ien[2];
+				elIDs[cc][4*t+3]=ien[3];
+				
+				t=t+1;
+			}
+			if(u>=(offPrank+nelPrank) && cc < toRanks.size())
+			{
+				t = 0;
+				offPrank=offPrank+nelPrank;
+				cc=cc+1;
+			}
+			
+			u++;
+		}
+		
+		
+		for(int i=0;i<toRanks.size();i++)
+		{
+			int dest = toRanks[i];
+			int n_El = NeltoRanks[i];
+			std::vector<int> Elvec = elIDs[i];
+			
+            MPI_Send(&n_El  , 1, MPI_INT, dest, dest, comm);
+            MPI_Send(&Elvec[0] , n_El, MPI_INT, dest, dest*100, comm);
+		}
+		
+	}
+	
+	if(recvRa.find(world_rank)!=recvRa.end())
+	{
+		std::vector<int > expFromRank = recvRa[world_rank];
+		
+		std::map<int,std::vector<int> > collected_Ids;
+		
+		for(int i=0;i<expFromRank.size();i++)
+		{
+			int origin = expFromRank[i];
+			int n_Elr;
+			MPI_Recv(&n_Elr,   1, MPI_INT, origin, world_rank, comm, MPI_STATUS_IGNORE);
+			std::cout << world_rank << " or " << origin << " " << n_Elr << std::endl;
+
+			std::vector<int> recvElVec(n_Elr);
+			MPI_Recv(&recvElVec[0],   n_Elr, MPI_INT, origin, world_rank*100, comm, MPI_STATUS_IGNORE);
+			
+			collected_Ids[origin] = recvElVec;
+		}
+	}
+	
+	
+	
+	
+	
+	
+    
+    
+    
+    
+    
+	
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    /*
     std::cout << "WORLD_RANK = " << world_rank << " " << lbvid << std::endl;
     
     
@@ -1505,7 +1608,7 @@ int main(int argc, char** argv)
     for(i=0;i<world_size;i++)
     {
         ielement_offsets[i] = o_ie;
-        ielement_nlocs[i] = red_ielement_nlocs[i];
+        ielement_nlocs[i]   = red_ielement_nlocs[i];
         elmdist[i]          = o_ie;
         o_ie                = o_ie+red_ielement_nlocs[i];
         
@@ -1573,21 +1676,21 @@ int main(int argc, char** argv)
                           numflag,ncommonnodes,
                           &xadj_par,&adjncy_par,&comm);
 
-//    ParMETIS_V3_PartKway(elmdist,
-//                         xadj_par,
-//                         adjncy_par,
-//                         elmwgt, NULL, wgtflag, numflag,
-//                         ncon, nparts,
-//                         tpwgts, ubvec, options,
-//                         &edgecut, part_arr, &comm);
+    ParMETIS_V3_PartKway(elmdist,
+                         xadj_par,
+                         adjncy_par,
+                         elmwgt, NULL, wgtflag, numflag,
+                         ncon, nparts,
+                         tpwgts, ubvec, options,
+                         &edgecut, part_arr, &comm);
     
-    ParMETIS_V3_AdaptiveRepart(elmdist,
-                               xadj_par, adjncy_par,
-                               elmwgt, adjwgt,
-                               vsize, wgtflag,
-                               numflag, ncon, nparts,
-                               tpwgts, ubvec, itr, options,
-                               &edgecut, part_arr, &comm);
+//    ParMETIS_V3_AdaptiveRepart(elmdist,
+//                               xadj_par, adjncy_par,
+//                               elmwgt, adjwgt,
+//                               vsize, wgtflag,
+//                               numflag, ncon, nparts,
+//                               tpwgts, ubvec, itr, options,
+//                               &edgecut, part_arr, &comm);
 
     Array<int>* part_global_new  = new Array<int>(o_ie,1);
     Array<int>* part_new         = new Array<int>(nTet,1);
@@ -1705,7 +1808,7 @@ int main(int argc, char** argv)
 
     myfile.close();
     
-    
+    */
     
     
     
