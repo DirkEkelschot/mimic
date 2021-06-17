@@ -104,17 +104,9 @@ std::map<int,int*> GetFace2EntityTetrahedraMesh(TetrahedraMesh* tmesh, ParArray<
             if(ufacesHyb.find(face_hyb)==ufacesHyb.end())
             {
                 ufacesHyb.insert(face_hyb);
+                tmesh->tetF2hybF[face_tet] = face_hyb;
                 tmesh->hybF2tetF[face_hyb] = face_tet;
             }
-            
-            if(ufacesTet.find(face_tet)==ufacesTet.end())
-            {
-                ufacesTet.insert(face_tet);
-
-                tmesh->tetF2hybF[face_tet] = face_hyb;
-
-            }
-
             
             
             r = FindRank(new_offsets,size,face_hyb);
@@ -259,20 +251,19 @@ std::map<int,int*> GetFace2EntityTetrahedraMesh(TetrahedraMesh* tmesh, ParArray<
     for(itf=ife_part_hyb_map.begin();itf!=ife_part_hyb_map.end();itf++)
     {
         fhyb = itf->first;
-        //ftet = tmesh->hybF2tetF[itf->first];
+        ftet = tmesh->hybF2tetF[itf->first];
         int* nodes = new int[3];
+        //std::cout << itf->first << " == ";
         for(int j=0;j<3;j++)
         {
             hvid        = itf->second[j];
-            //tvid        = tmesh->hybV2tetV[hvid];
             //std::cout << hvid << " ";
-            nodes[j]    = hvid;
+            tvid        = tmesh->hybV2tetV[hvid];
+            nodes[j]    = tvid;
         }
         //std::cout << std::endl;
-        face2node[fhyb] = nodes;
+        face2node[ftet] = nodes;
     }
-    
-    //std::cout << rank << " ife_part_hyb_map " << tmesh->tetF2hybF.size() << " " << tmesh->hybF2tetF.size()  << "  --  " << tmesh->hybV2tetV.size() << " " << tmesh->tetV2hybV.size() <<  std::endl;
     
     /**/
     return face2node;
@@ -303,7 +294,6 @@ void OutputTetrahedralMeshOnPartition(TetrahedraMesh* tmesh, MPI_Comm comm)
     int nElonRank = ien_part_tetra->getNrow();
 
     Array<int>* locelem2locnode= new Array<int>(nElonRank,4);
-
     
     std::vector<Vert*> printVs;
     for(int i=0;i<ien_part_tetra->getNrow();i++)
@@ -470,6 +460,8 @@ void UpdateTetrahedraOnPartition(int nglob, int nElexpctd, Array<int>* part,
     
     int fref;
     int tellert = 0;
+    int sum = 0;
+    int sum3 = 0;
     for(i=0;i<part->getNrow();i++)
     {
         p_id    = part->getVal(i,0);
@@ -479,7 +471,8 @@ void UpdateTetrahedraOnPartition(int nglob, int nElexpctd, Array<int>* part,
         
         nvPerEl = 4;
         nfPerEl = 4;
-        
+        sum =0;
+        sum3 = 0;
         if(p_id!=rank) // If element is not on this rank and needs to be send to other rank (p_id), add it to rank to element map.
         {
             elms_to_send_to_ranks[p_id].push_back(el_id); // rank to element map.
@@ -493,9 +486,14 @@ void UpdateTetrahedraOnPartition(int nglob, int nElexpctd, Array<int>* part,
                 vertIDs_to_send_to_ranks[p_id].push_back(v_id);
                 OriVertIDs_to_send_to_ranks[p_id].push_back(v_id_o);
                 
+                sum3=sum3+v_id;
+                
                 
             }// We do not care about the vertices for these elements since they are needed on other ranks anyways.
-            
+            if(sum3==0)
+            {
+                std::cout << "help sending " << rank << " " << p_id << " " << i << " " << std::endl;
+            }
             
             
             for(int k=0;k<4;k++)
@@ -509,18 +507,7 @@ void UpdateTetrahedraOnPartition(int nglob, int nElexpctd, Array<int>* part,
                 OriFaceIDs_to_send_to_ranks[p_id].push_back(f_id_o);
 
             }
-            
-//            if(rank==3 && p_id == 1)
-//            {
-//                if(tellert<2040 && tellert>2020)
-//                {
-//                    for(int k=0;k<4;k++)
-//                    {
-//                        std::cout << "testje = " << i << "  " << tmesh->ien_part_tetra->getVal(i,k) << " " << tmesh->ien_part_hybrid->getVal(i,k) << std::endl;
-//                    }
-//                }
-//                tellert++;
-//            }
+
             
             //====================Hybrid=======================
             not_on_rank++;
@@ -532,16 +519,15 @@ void UpdateTetrahedraOnPartition(int nglob, int nElexpctd, Array<int>* part,
             for(int k=0;k<4;k++)// looping over the vertices for element "i".
             {
                 
-                
                 v_id   = tmesh->ien_part_tetra->getVal(i,k);
                 v_id_o = tmesh->ien_part_hybrid->getVal(i,k);
                 
-                
-                
                 ien_part_tetra->setVal(on_rank,k,v_id);
                 ien_part_hybrid->setVal(on_rank,k,v_id_o);
+                sum = sum + v_id;
                 
-                
+                tmesh->hybV2tetV[v_id_o]=v_id;
+                tmesh->tetV2hybV[v_id]=v_id_o;
                 
                 if(unique_vertIDs_on_rank_set.find( v_id ) == unique_vertIDs_on_rank_set.end() && v_id != -1)// find the unique vertices that need to be send to other partitions.
                 {
@@ -560,9 +546,6 @@ void UpdateTetrahedraOnPartition(int nglob, int nElexpctd, Array<int>* part,
                         vertIDs_on_rank.push_back(v_id);  // add the vertex to list that is already available on rank.
                         vertIDs_on_rank_Ori.push_back(v_id_o);
                         
-                        tmesh->hybV2tetV[v_id_o]=v_id;
-                        tmesh->tetV2hybV[v_id]=v_id_o;
-                        
                         vloc_tmp++;
                     }
                     lv_id++;
@@ -571,6 +554,7 @@ void UpdateTetrahedraOnPartition(int nglob, int nElexpctd, Array<int>* part,
                 
                 
             }
+            
             
             for(int k=0;k<4;k++)// looping over the vertices for element "i".
             {
@@ -613,6 +597,7 @@ void UpdateTetrahedraOnPartition(int nglob, int nElexpctd, Array<int>* part,
             on_rank++;
         }
     }
+    
     
     std::set<int> hybFaces;
     std::set<int> tetFaces;
@@ -664,6 +649,7 @@ void UpdateTetrahedraOnPartition(int nglob, int nElexpctd, Array<int>* part,
                 MPI_Send(&n_req  , 1, MPI_INT, dest, dest, comm);
                 MPI_Send(&n_req_v, 1, MPI_INT, dest, dest*111, comm);
                 MPI_Send(&n_req_f, 1, MPI_INT, dest, dest*222, comm);
+                
                 //std::cout << "vertIDs_to_send_to_ranks[it->first] " << vertIDs_to_send_to_ranks[it->first].size() << " " << vertIDs_to_send_to_ranks[it->first].size() << std::endl;
                 //MPI_Send(&it->second[0], n_req, MPI_INT, dest, 100+dest*2, comm);
                 
@@ -682,7 +668,6 @@ void UpdateTetrahedraOnPartition(int nglob, int nElexpctd, Array<int>* part,
 //                            std::cout << std::endl;
 //                        }
 //                    }
-////
 //                }
                 
                 MPI_Send(&it->second[0], n_req, MPI_INT, dest, dest*66666+5555, comm);
@@ -731,8 +716,6 @@ void UpdateTetrahedraOnPartition(int nglob, int nElexpctd, Array<int>* part,
     std::vector<int> TotRecvFaces_Refs;
     std::vector<int> TotRecvOriFaces_IDs;
 
-    
-
     std::set<int> uovert;
     std::set<int> uvert;
     
@@ -763,7 +746,14 @@ void UpdateTetrahedraOnPartition(int nglob, int nElexpctd, Array<int>* part,
             }
             
             tt=cc/4;
+            
+//            if(rank == 2)
+//            {
+//                std::cout << l << " " << totrecv->first << " " << rank << std::endl;
+//            }
             cc++;
+            
+            
             
         }
         
@@ -792,21 +782,24 @@ void UpdateTetrahedraOnPartition(int nglob, int nElexpctd, Array<int>* part,
     int cnt_f = 0;
     
     int onrank_before = on_rank;
-    
+    int sum2 = 0;
     for(int i=0;i<TotNelem_recv;i++)
     {
         std::vector<int> elem;
         
         int elID = TotRecvElement_IDs[i];
-        
+        sum2 = 0;
         for(int k=0;k<4;k++)
         {
-            int v_id_n = TotRecvVerts_IDs[cnt_v+k];
+            int v_id_n   = TotRecvVerts_IDs[cnt_v+k];
             int v_id_o_n = TotRecvOriVerts_IDs[cnt_v+k];
             
             
             ien_part_tetra->setVal(on_rank,k,v_id_n);
             ien_part_hybrid->setVal(on_rank,k,v_id_o_n);
+            sum2 = sum2+v_id_n;
+            tmesh->hybV2tetV[v_id_o_n]=v_id_n;
+            tmesh->tetV2hybV[v_id_n]=v_id_o_n;
             
             if(unique_vertIDs_on_rank_set.find( v_id_n ) == unique_vertIDs_on_rank_set.end()) // add the required unique vertex for current rank.
             {
@@ -833,6 +826,13 @@ void UpdateTetrahedraOnPartition(int nglob, int nElexpctd, Array<int>* part,
                 lv_id++;
             }
         }
+        
+        if(sum2==0)
+        {
+            std::cout << "help " << rank << " " << i << " " << TotNelem_recv << " " << on_rank << std::endl;
+        }
+        
+        
         for(int k=0;k<4;k++)// looping over the vertices for element "i".
         {
             int f_id_n   = TotRecvFaces_IDs[cnt_f+k];
@@ -1589,6 +1589,21 @@ TetrahedraMesh* ExtractTetrahedralMesh(Array<int>* part_global,
 		}
 	}
 	
+//    if(world_rank==0)
+//    {
+//        std::map<int,std::vector<int> >::iterator its;
+//
+//        for(its=recvRa.begin();its!=recvRa.end();its++)
+//        {
+//            std::cout << its->first << " -> ";
+//            for(int q=0;q<its->second.size();q++)
+//            {
+//                std::cout << recvNe[its->first][q] << " ";
+//            }
+//        }
+//    }
+    
+    
 	//=================================================================================================
 	//================================================================================================
 	//=================================================================================================
@@ -1677,6 +1692,8 @@ TetrahedraMesh* ExtractTetrahedralMesh(Array<int>* part_global,
 			for(int q=0;q<4;q++)
 			{
 				gvid = ite->second[q];
+                
+                
                 ien_o[q]        = gvid;
 
 				if(v2r.find(gvid)!=v2r.end())
@@ -1736,10 +1753,13 @@ TetrahedraMesh* ExtractTetrahedralMesh(Array<int>* part_global,
                 
 			}
 			
+            
+            
 			if(u<to_Send_copy[world_rank])
 			{
 				if(t<(nelPrank))
 				{
+                    
 					elNodeIDs[cc][4*t+0]=ien[0];
 					elNodeIDs[cc][4*t+1]=ien[1];
 					elNodeIDs[cc][4*t+2]=ien[2];
@@ -1764,20 +1784,27 @@ TetrahedraMesh* ExtractTetrahedralMesh(Array<int>* part_global,
                     elFaceRefs[cc][4*t+1]=iefref[1];
                     elFaceRefs[cc][4*t+2]=iefref[2];
                     elFaceRefs[cc][4*t+3]=iefref[3];
+                
                     
                     if(t==nelPrank-1)
                     {
                         t = 0;
                         cc=cc+1;
                     }
-                    
-					t=t+1;
+                    else
+                    {
+                        t=t+1;
+                    }
 				}
 				
 				nuloc++;
 			}
 			else
 			{
+//                if(world_rank==2)
+//                {
+//                    std::cout << uloc << " " << new_ien->getNrow()  << " checkoe " << ien[0] << " " << ien[1] << " " << ien[2] << " " << ien[3] << std::endl;
+//                }
 				new_ien->setVal(uloc,0,ien[0]);
 				new_ien->setVal(uloc,1,ien[1]);
 				new_ien->setVal(uloc,2,ien[2]);
@@ -1985,6 +2012,9 @@ TetrahedraMesh* ExtractTetrahedralMesh(Array<int>* part_global,
 			u++;
 		}
 		
+        
+        //std::cout << "wereldkampioen!! " << u << std::endl;
+        
 		std::map<int,std::vector<int> >::iterator collit;
 		int ntot = nTetras;
 		for(collit=collected_NIds.begin();collit!=collected_NIds.end();collit++)
@@ -1992,6 +2022,7 @@ TetrahedraMesh* ExtractTetrahedralMesh(Array<int>* part_global,
 			int nel =  collit->second.size()/4;
 			ntot = ntot + nel;
             
+            int fromRank = collit->first;
 			for(int q=0;q<nel;q++)
 			{
 				new_ien->setVal(u,0,collit->second[q*4+0]);
@@ -1999,6 +2030,11 @@ TetrahedraMesh* ExtractTetrahedralMesh(Array<int>* part_global,
 				new_ien->setVal(u,2,collit->second[q*4+2]);
 				new_ien->setVal(u,3,collit->second[q*4+3]);
 				
+//                if(u == 0)
+//                {
+//                    std::cout << world_rank << " <--> " << collit->first<< " fromRanl = " << collected_NIds.size() << fromRank << " :: " << collit->second[q*4+0] << " " << collit->second[q*4+1] << " " << collit->second[q*4+2] << " " << collit->second[q*4+3] << std::endl;
+//                }
+                
 				new_ien_or->setVal(u,0,collected_OriginalNIds[collit->first][4*q+0]);
 				new_ien_or->setVal(u,1,collected_OriginalNIds[collit->first][4*q+1]);
 				new_ien_or->setVal(u,2,collected_OriginalNIds[collit->first][4*q+2]);
@@ -2031,6 +2067,20 @@ TetrahedraMesh* ExtractTetrahedralMesh(Array<int>* part_global,
 	}
     
     
+//    for(int i=0;i<new_ien->getNrow();i++)
+//    {
+//        int sum = 0;
+//        for(int j=0;j<new_ien->getNcol();j++)
+//        {
+//            sum = sum + new_ien->getVal(i,j);
+//        }
+//
+//        if(sum == 0)
+//        {
+//            std::cout << world_rank << " " << i << std::endl;
+//        }
+//
+//    }
     
 	// return these guys.
 	tmesh->ien_part_tetra     = new_ien;
@@ -2217,7 +2267,7 @@ int main(int argc, char** argv)
     int Nel_part = us3d->ien->getNrow();
     
     Array<double>* xcn_ref = ReadDataSetFromFile<double>(fn_grid,"xcn");
-    Array<int>* ien_ref = ReadDataSetFromFile<int>(fn_conn,"ien");
+    Array<int>* ien_ref    = ReadDataSetFromFile<int>(fn_conn,"ien");
 
     Array<double>* Ui = new Array<double>(Nel_part,1);
     int varia = 4;
@@ -2277,6 +2327,8 @@ int main(int argc, char** argv)
     
     // Based on a partitioned hybrid mesh, we are extracting the tetra and redistribute them
     // uniformly. The hybrid mesh is partitioned without any weights which means that it might happen that the tetrahedra are initial distributed non-uniformly where a significant number of processors end up with any tetrahedra. This function distributed them equally.
+    
+    
     TetrahedraMesh* tmesh   = ExtractTetrahedralMesh(part_global,tetras,
                                                    ief_part_map->i_map,
                                                    ifn_part_map->i_map,
@@ -2298,10 +2350,14 @@ int main(int argc, char** argv)
 
     // Grab the optimal number of elements on current rank based on the partitioning array.
     int nTetrahedra         = newSizesOnRanks[world_rank];
-    
+    int nTetrahedraGlob     = 0;
+    for(int i=0;i<world_size;i++)
+    {
+        nTetrahedraGlob=nTetrahedraGlob+newSizesOnRanks[i];
+    }
     // Grab the global number of elements in the mesh.
-    int GlobalNel           = part_global->getNrow();
-
+    // int GlobalNel           = part_global->getNrow();
+    
     
     // Based on the PARMETIS partitioning (Array<int>* part_new) and the uniform tetrahedra distribution (tmesh) and the unformly read vertices (xcn) and the face maps (ifn), we communicate the appropriate data such that each processor can compute on tetrahedra while minimizing the number of shared faces between partitions.
 
@@ -2318,7 +2374,7 @@ int main(int argc, char** argv)
 //        }
 //    }
     
-    UpdateTetrahedraOnPartition(GlobalNel, nTetrahedra,
+    UpdateTetrahedraOnPartition(nTetrahedraGlob, nTetrahedra,
                                 part_new, tmesh,
                                 us3d->xcn, xcn_pstate,
                                 ife_pstate,
@@ -2328,116 +2384,144 @@ int main(int argc, char** argv)
 
     std::map<int,int*> face2node = GetFace2EntityTetrahedraMesh(tmesh,us3d->ifn, ife_pstate,comm);
     
-    // std::cout << world_rank << " number of faces = " << face2node.size() << std::endl;
+    //std::cout << world_rank << " number of faces = " << face2node.size() << " " << tmesh->hybF2tetF.size() << " " << tmesh->tetF2hybF.size() << std::endl;
     
+    std::map<int,int*>::iterator itst;
+    
+//    for(itst=face2node.begin();itst!=face2node.end();itst++)
+//    {
+//        std::cout << itst->first << " :: ";
+//
+//        for(int j=0;j<3;j++)
+//        {
+//            std::cout << itst->second[j] << " ";
+//        }
+//        std::cout << std::endl;
+//    }
     //Based on the new local tetrahedra mesh, we output a tecplot file per processor that has the geometry of the computational domain that is owned by world_rank.
     
     OutputTetrahedralMeshOnPartition(tmesh,comm);
     
+    Array<int>* ien_part_tetra   = tmesh->ien_part_tetra;
+    Array<int>* ien_part_hybrid  = tmesh->ien_part_hybrid;
+    Array<int>* ief_part_tetra   = tmesh->ief_part_tetra;
+    Array<int>* ief_part_hybrid  = tmesh->ief_part_hybrid;
+    std::vector<Vert*> locVs     = tmesh->LocalVerts;
+    int nVertices                = locVs.size();
+    int nTriangles               = face2node.size();
+    int nEdges                   = 0;
+    int nPrisms                  = 0;
+    int nQuadrilaterals          = 0;
     
     
     
     
-    
-    
-    Array<int>* ien_part_tetra      = tmesh->ien_part_tetra;
-    Array<int>* ien_part_hybrid     = tmesh->ien_part_hybrid;
-    Array<int>* ief_part_tetra      = tmesh->ief_part_tetra;
-    Array<int>* ief_part_hybrid     = tmesh->ief_part_hybrid;
-    std::vector<Vert*> locVs        = tmesh->LocalVerts;
-    int nVertices                   = locVs.size();
-    int nTriangles                  = 0;
-    int nEdges                      = 0;
-    int nPrisms                     = 0;
-    int nQuadrilaterals             = 0;
-    
-    
-    
-    
-//    PMMG_pParMesh   parmesh;
-//    PMMG_Init_parMesh(PMMG_ARG_start,
-//                      PMMG_ARG_ppParMesh,&parmesh,
-//                      PMMG_ARG_pMesh,PMMG_ARG_pMet,
-//                      PMMG_ARG_dim,3,PMMG_ARG_MPIComm,MPI_COMM_WORLD,
-//                      PMMG_ARG_end);
+    PMMG_pParMesh   parmesh;
+    PMMG_Init_parMesh(PMMG_ARG_start,
+                      PMMG_ARG_ppParMesh,&parmesh,
+                      PMMG_ARG_pMesh,PMMG_ARG_pMet,
+                      PMMG_ARG_dim,3,PMMG_ARG_MPIComm,MPI_COMM_WORLD,
+                      PMMG_ARG_end);
 //
 //
 //
 //
-//    if ( PMMG_Set_meshSize(parmesh,nVertices,nTetrahedra,nPrisms,nTriangles,
-//                              nQuadrilaterals,nEdges) != 1 ) {
-//      MPI_Finalize();
-//      exit(EXIT_FAILURE);
-//    }
+    if ( PMMG_Set_meshSize(parmesh,nVertices,nTetrahedra,nPrisms,nTriangles,
+                              nQuadrilaterals,nEdges) != 1 ) {
+      MPI_Finalize();
+      exit(EXIT_FAILURE);
+    }
 //
 //
 //
 //
-//    const int nSolsAtVertices = 1; // 3 solutions per vertex
-//    int solType[1] = {MMG5_Tensor};
-//
-//    if ( PMMG_Set_solsAtVerticesSize(parmesh,nSolsAtVertices,nVertices,solType) != 1 ) {
-//       MPI_Finalize();
-//       exit(EXIT_FAILURE);
-//    }
-//
-//
-//
-//
-//
-//    double* tensor = new double[6];
-//    for ( k=0; k<nVertices; ++k )
-//    {
-//
-//          double vx = locVs[k]->x;
-//          double vy = locVs[k]->y;
-//          double vz = locVs[k]->z;
-//
-//          if ( PMMG_Set_vertex(parmesh,vx,vy,vz, 1.0, k+1) != 1 )
-//          {
-//            MPI_Finalize();
-//            exit(EXIT_FAILURE);
-//          }
-//
-//
-//
-//          tensor[0] = 1.0;
-//          tensor[1] = 0.0;
-//          tensor[2] = 0.0;
-//          tensor[3] = 1.0;
-//          tensor[4] = 0.0;
-//          tensor[5] = 1.0;
+    const int nSolsAtVertices = 1; // 3 solutions per vertex
+    int solType[1] = {MMG5_Tensor};
+
+    if ( PMMG_Set_solsAtVerticesSize(parmesh,nSolsAtVertices,nVertices,solType) != 1 ) {
+       MPI_Finalize();
+       exit(EXIT_FAILURE);
+    }
 //
 //
 //
 //
-//          if ( PMMG_Set_ithSol_inSolsAtVertices(parmesh,1,tensor,k+1) != 1 )
-//          {
-//             MPI_Finalize();
-//             exit(EXIT_FAILURE);
-//          }
-//    }
+    double* tensor = new double[6];
+    for ( k=0; k<nVertices; ++k )
+    {
+
+          double vx = locVs[k]->x;
+          double vy = locVs[k]->y;
+          double vz = locVs[k]->z;
+            
+        
+        //std::cout << k << " :: " << vx << " " << vy << " " << vz << std::endl;
+          if ( PMMG_Set_vertex(parmesh,vx,vy,vz, 1.0, k+1) != 1 )
+          {
+            MPI_Finalize();
+            exit(EXIT_FAILURE);
+          }
+
+        
+          tensor[0] = 1.0;
+          tensor[1] = 0.0;
+          tensor[2] = 0.0;
+          tensor[3] = 1.0;
+          tensor[4] = 0.0;
+          tensor[5] = 1.0;
+
+        
+          if ( PMMG_Set_ithSol_inSolsAtVertices(parmesh,1,tensor,k+1) != 1 )
+          {
+             MPI_Finalize();
+             exit(EXIT_FAILURE);
+          }
+    }
 //
 //
 //
 //
-//    std::map<int,std::vector<int> >::iterator ittet;
-//    k = 0;
-//    int v0,v1,v2,v3;
-//    for ( int t = 0;t < nTetrahedra; t++  )
-//    {
-//        v0 = ien_part_tetra->getVal(t,0);
-//        v1 = ien_part_tetra->getVal(t,1);
-//        v2 = ien_part_tetra->getVal(t,2);
-//        v3 = ien_part_tetra->getVal(t,3);
-//
-//        if ( PMMG_Set_tetrahedron(parmesh,v0+1,v1+1,v2+1,v3+1,1.0,t+1) != 1 )
+    std::map<int,std::vector<int> >::iterator ittet;
+    k = 0;
+    int v0,v1,v2,v3;
+    int v0l,v1l,v2l,v3l;
+    for ( int t = 0;t < nTetrahedra; t++  )
+    {
+        v0 = ien_part_tetra->getVal(t,0);
+        v1 = ien_part_tetra->getVal(t,1);
+        v2 = ien_part_tetra->getVal(t,2);
+        v3 = ien_part_tetra->getVal(t,3);
+        
+        v0l = tmesh->globV2locV[v0];
+        v1l = tmesh->globV2locV[v1];
+        v2l = tmesh->globV2locV[v2];
+        v3l = tmesh->globV2locV[v3];
+        
+        double* P = new double[4*3];
+        P[0*3+0]=locVs[v0l]->x;   P[0*3+1]=locVs[v0l]->y;    P[0*3+2]=locVs[v0l]->z;
+        P[1*3+0]=locVs[v1l]->x;   P[1*3+1]=locVs[v1l]->y;    P[1*3+2]=locVs[v1l]->z;
+        P[2*3+0]=locVs[v2l]->x;   P[2*3+1]=locVs[v2l]->y;    P[2*3+2]=locVs[v2l]->z;
+        P[3*3+0]=locVs[v3l]->x;   P[3*3+1]=locVs[v3l]->y;    P[3*3+2]=locVs[v3l]->z;
+        
+        double Vtet = ComputeVolumeTetCell(P);
+        
+//        if(world_rank==2)
 //        {
-//            MPI_Finalize();
-//            exit(EXIT_FAILURE);
+//            std::cout << t << " "  << v0+1 << " "
+//                                   << v1+1 << " "
+//                                   << v2+1 << " "
+//                                   << v3+1 << " -> " <<Vtet <<  std::endl;
 //        }
-//        t++;
-//    }
+        
+        if ( PMMG_Set_tetrahedron(parmesh,v0l+1,v1l+1,v2l+1,v3l+1,1.0,t+1) != 1 )
+        {
+            MPI_Finalize();
+            exit(EXIT_FAILURE);
+        }
+        
+    }
+    
+    //14943
     
     
     MPI_Finalize();
