@@ -2765,7 +2765,6 @@ int main(int argc, char** argv)
     Domain* pDom = P->getPartitionDomain();
     std::map<int,std::vector<int> > tetras     = pDom->GTetras;
     std::set<int> ushell                       = pDom->ushell;
-
     
     i_part_map* if_Nv_part_map                 = P->getIF_Nvpartmap();
     i_part_map* ifn_part_map                   = P->getIFNpartmap();
@@ -2775,13 +2774,10 @@ int main(int argc, char** argv)
     i_part_map* if_ref_part_map                = P->getIFREFpartmap();
     Array<int>* part_global                    = P->getGlobalPartition();
     
-    
-    
     // Based on a partitioned hybrid mesh, we are extracting the tetra and redistribute them
     // uniformly. The hybrid mesh is partitioned without any weights which means that it might happen that the tetrahedra are initial distributed non-uniformly where a significant number of processors end up with any tetrahedra. This function distributed them equally.
     
-    
-    TetrahedraMesh* tmesh = ExtractTetrahedralMesh(part_global,tetras,
+    TetrahedraMesh* tmesh = ExtractTetrahedralMesh(part_global, tetras,
                                                    ief_part_map->i_map,
                                                    ifn_part_map->i_map,
                                                    ife_part_map->i_map,
@@ -3012,7 +3008,6 @@ int main(int argc, char** argv)
     
     for ( k=0; k<nVertices; ++k )
     {
-
           double vx = locVs[k]->x;
           double vy = locVs[k]->y;
           double vz = locVs[k]->z;
@@ -3124,10 +3119,114 @@ int main(int argc, char** argv)
       exit(EXIT_FAILURE);
     };
 
+    std::cout << "Statistics before::" <<std::endl;
     
+    int nVerticesIN   = 0;
+    int nTetrahedraIN = 0;
+    int nTrianglesIN  = 0;
+    int nEdgesIN      = 0;
+    if ( PMMG_Get_meshSize(parmesh,&nVerticesIN,&nTetrahedraIN,NULL,&nTrianglesIN,NULL,
+                           &nEdgesIN) !=1 )
+    {
+        ier = PMMG_STRONGFAILURE;
+    }
+    
+    //std::cout << "rank = " << world_rank << " ElementIN = " << nTetrahedraIN << " FacesIN = " << nTrianglesIN << " VerticesIN = " << nVerticesIN << std::endl;
+
     /* remeshing function */
     int ierlib = PMMG_parmmglib_distributed( parmesh );
     
+    
+    int nVerticesOUT   = 0;
+    int nTetrahedraOUT = 0;
+    int nTrianglesOUT  = 0;
+    int nEdgesOUT      = 0;
+    if ( PMMG_Get_meshSize(parmesh,&nVerticesOUT,&nTetrahedraOUT,NULL,&nTrianglesOUT,NULL,
+                           &nEdgesOUT) !=1 )
+    {
+        ier = PMMG_STRONGFAILURE;
+    }
+    
+    //std::cout << "rank = " << world_rank << " ElementOUT = " << nTetrahedraOUT << " FacesOUT = " << nTrianglesOUT << " VerticesOUT " << nVerticesOUT << std::endl;
+    
+    std::cout << "Successfully adapted ? -> " <<  ierlib << std::endl;
+    
+    int* tetraOUT = new int[nTetrahedraOUT*4];
+    int *required = (int*)calloc(MAX4(nVerticesOUT,nTetrahedraOUT,nTrianglesOUT,nEdgesOUT),sizeof(int));
+    int *ref = (int*)calloc(MAX4(nVerticesOUT,nTetrahedraOUT,nTrianglesOUT,nEdgesOUT),sizeof(int));
+    int *corner = (int*)calloc(nVerticesOUT,sizeof(int));
+    int pos;
+    
+    std::vector<std::vector<int> > outT;
+    
+    double *vertOUT = (double*)calloc((nVerticesOUT)*3,sizeof(double));
+    
+    for ( k=0; k<nVerticesOUT; k++ ) {
+          pos = 3*k;
+          if ( PMMG_Get_vertex(parmesh,&(vertOUT[pos]),&(vertOUT[pos+1]),&(vertOUT[pos+2]),
+                               &(ref[k]),&(corner[k]),&(required[k])) != 1 ) {
+            fprintf(inm,"Unable to get mesh vertex %d \n",k);
+            ier = PMMG_STRONGFAILURE;
+          }
+//          if ( corner && corner[k] )  nc++;
+//          if ( required && required[k] )  nreq++;
+    }
+    
+    for ( k=0; k<nTetrahedraOUT; k++ )
+    {
+        //std::vector<int> TE(4);
+        pos = 4*k;
+        
+        if ( PMMG_Get_tetrahedron(parmesh,
+                                    &(tetraOUT[pos  ]),&(tetraOUT[pos+1]),
+                                    &(tetraOUT[pos+2]),&(tetraOUT[pos+3]),
+                                    &(ref[k]),&(required[k])) != 1 ) {
+            fprintf(inm,"Unable to get mesh tetra %d \n",k);
+            ier = PMMG_STRONGFAILURE;
+        }
+        
+//        int v0 = tetraOUT[pos];
+//        int v1 = tetraOUT[pos+1];
+//        int v2 = tetraOUT[pos+2];
+//        int v3 = tetraOUT[pos+3];
+//
+//        if(vertOUT[(v0-1)*3+2]>0.25 && vertOUT[(v1-1)*3+2]>0.25 && vertOUT[(v2-1)*3+2]>0.25 && vertOUT[(v3-1)*3+2]>0.25)
+//        {
+//            TE[0] = v0;
+//            TE[1] = v1;
+//            TE[2] = v2;
+//            TE[3] = v3;
+//
+//            outT.push_back(TE);
+//
+//        }
+    }
+    
+    std::string filename2 = "Adapted_" + std::to_string(world_rank) + ".dat";
+    std::ofstream myfile2;
+    myfile2.open(filename2);
+    myfile2 << "TITLE=\"volume_part_"  + std::to_string(world_rank) +  ".tec\"" << std::endl;
+    myfile2 <<"VARIABLES = \"X\", \"Y\", \"Z\"" << std::endl;
+    myfile2 <<"ZONE N = " << nVerticesOUT << ", E = " << outT.size() << ", DATAPACKING = POINT, ZONETYPE = FETETRAHEDRON" << std::endl;
+
+    for(int i=0;i<nVerticesOUT;i++)
+    {
+        pos = 3*i;
+        myfile2 << vertOUT[pos  ] << " " << vertOUT[pos+1  ] << " " << vertOUT[pos+2  ] << std::endl;
+    }
+
+    
+    for(int i=0;i<nTetrahedraOUT;i++)
+    {
+        pos = 4*i;
+        myfile2 <<   tetraOUT[pos+0  ] << " "
+                <<   tetraOUT[pos+1  ] << " "
+                <<   tetraOUT[pos+2  ] << " "
+                <<   tetraOUT[pos+3  ] << std::endl;
+    }
+
+
+    myfile2.close();
     
 //
 //
