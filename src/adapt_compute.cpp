@@ -514,6 +514,7 @@ Vert* ComputeCenterCoord(double*P, int np)
     double eta = 0;
     double mu  = 0;
     double ksi = 0;
+    
     V->x = 0.0;
     V->y = 0.0;
     V->z = 0.0;
@@ -686,6 +687,94 @@ double* ComputeJAtCenter(double*P, int np)
 //    return J;
 //}
 
+
+double GetQualityTetrahedra(double* P)
+{
+    double       h1,h2,h3,h4,h5,h6,det,vol,rap,v1,v2,v3,num;
+    double       cal,abx,aby,abz,acx,acy,acz,adx,ady,adz;
+    double       bcx,bcy,bcz,bdx,bdy,bdz,cdx,cdy,cdz;
+    
+
+    /* average metric */
+    double mm[6];
+    mm[0] = 1.0;
+    mm[1] = 0.0;
+    mm[2] = 0.0;
+    mm[3] = 1.0;
+    mm[4] = 0.0;
+    mm[5] = 1.0;
+    
+    double* a = new double[3];
+    a[0] = P[0*3+0];    a[1] = P[0*3+1];    a[2] = P[0*3+2];
+    double* b = new double[3];
+    b[0] = P[1*3+0];    b[1] = P[1*3+1];    b[2] = P[1*3+2];
+    double* c = new double[3];
+    c[0] = P[2*3+0];    c[1] = P[2*3+1];    c[2] = P[2*3+2];
+    double* d = new double[3];
+    d[0] = P[3*3+0];    d[1] = P[3*3+1];    d[2] = P[3*3+2];
+    
+
+    /* volume */
+    abx = b[0] - a[0];
+    aby = b[1] - a[1];
+    abz = b[2] - a[2];
+
+    acx = c[0] - a[0];
+    acy = c[1] - a[1];
+    acz = c[2] - a[2];
+
+    adx = d[0] - a[0];
+    ady = d[1] - a[1];
+    adz = d[2] - a[2];
+
+    bcx = c[0] - b[0];
+    bcy = c[1] - b[1];
+    bcz = c[2] - b[2];
+
+    bdx = d[0] - b[0];
+    bdy = d[1] - b[1];
+    bdz = d[2] - b[2];
+
+    cdx = d[0] - c[0];
+    cdy = d[1] - c[1];
+    cdz = d[2] - c[2];
+
+    v1  = acy*adz - acz*ady;
+    v2  = acz*adx - acx*adz;
+    v3  = acx*ady - acy*adx;
+    vol = abx * v1 + aby * v2 + abz * v3;
+    if ( vol <= 0. )  return 0.0;
+
+    det = mm[0] * ( mm[3]*mm[5] - mm[4]*mm[4]) \
+      - mm[1] * ( mm[1]*mm[5] - mm[2]*mm[4]) \
+      + mm[2] * ( mm[1]*mm[4] - mm[2]*mm[3]);
+    if ( det < 1.0e-200 )   {
+      return 0.0;
+    }
+    det = sqrt(det) * vol;
+
+    /* edge lengths */
+    h1 = mm[0]*abx*abx + mm[3]*aby*aby + mm[5]*abz*abz
+      + 2.0*(mm[1]*abx*aby + mm[2]*abx*abz + mm[4]*aby*abz);
+    h2 =  mm[0]*acx*acx + mm[3]*acy*acy + mm[5]*acz*acz
+      + 2.0*(mm[1]*acx*acy + mm[2]*acx*acz + mm[4]*acy*acz);
+    h3 = mm[0]*adx*adx + mm[3]*ady*ady + mm[5]*adz*adz
+      + 2.0*(mm[1]*adx*ady + mm[2]*adx*adz + mm[4]*ady*adz);
+    h4 =  mm[0]*bcx*bcx + mm[3]*bcy*bcy + mm[5]*bcz*bcz
+      + 2.0*(mm[1]*bcx*bcy + mm[2]*bcx*bcz + mm[4]*bcy*bcz);
+    h5 =  mm[0]*bdx*bdx + mm[3]*bdy*bdy + mm[5]*bdz*bdz
+      + 2.0*(mm[1]*bdx*bdy + mm[2]*bdx*bdz + mm[4]*bdy*bdz);
+    h6 =  mm[0]*cdx*cdx + mm[3]*cdy*cdy + mm[5]*cdz*cdz
+      + 2.0*(mm[1]*cdx*cdy + mm[2]*cdx*cdz + mm[4]*cdy*cdz);
+
+    /* quality */
+    rap = h1 + h2 + h3 + h4 + h5 + h6;
+    num = sqrt(rap) * rap;
+
+    cal = det / num;
+
+    return cal;
+}
 
 Array<double>* ComputeJAtCenter_tet_v2(double*P)
 {

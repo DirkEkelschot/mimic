@@ -50,6 +50,8 @@ extern "C" {
 double* ComputeJAtCenter(double*P, int np);
 }
 
+double GetQualityTetrahedra(double* P);
+
 double ComputeDeterminantJ_tet(double*P);
 
 double ComputeDeterminantJ(double*P, int np);
