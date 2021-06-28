@@ -1117,7 +1117,7 @@ void UnitTestJacobian()
 
 
 
-void ComputeMetric(Partition* Pa, std::vector<double> metric_inputs,
+void ComputeMetricWithWake(Partition* Pa, std::vector<double> metric_inputs,
                    MPI_Comm comm,
                    std::map<int,Array<double>* > scale_vm,
                    std::map<int,Array<double>* > &Hess_vm,
@@ -1261,6 +1261,144 @@ void ComputeMetric(Partition* Pa, std::vector<double> metric_inputs,
         
         
 
+        
+        
+        Hess_vm[glob_vid]=Habs;
+        
+        delete Rf;
+        delete DR;
+        delete UR;
+        delete Rs;
+        //delete Rf;
+
+        delete[] iV;
+        delete[] V;
+        delete[] WR;
+        delete[] WI;
+        i++;
+    }
+    int anitel_red;
+    MPI_Allreduce(&anitel, &anitel_red, 1, MPI_INT, MPI_SUM, comm);
+    if(rank == 0)
+    {
+
+    std::cout << "anitel_red " << anitel_red << std::endl;
+
+    }
+    delete[] Hmet;
+}
+
+
+
+
+void ComputeMetric(Partition* Pa, std::vector<double> metric_inputs,
+                   MPI_Comm comm,
+                   std::map<int,Array<double>* > &Hess_vm,
+                   double sumvol, double po)
+{
+    int size;
+    MPI_Comm_size(comm, &size);
+    // Get the rank of the process
+    int rank;
+    MPI_Comm_rank(comm, &rank);
+    //+++++++++++++++++++++++++++++++++++++++++++
+    //++++  Scaling eigenvalues/eigenvectors ++++
+    double hmin         = metric_inputs[1];
+    double hmax         = metric_inputs[2];
+    double f            = metric_inputs[3];
+    //+++++++++++++++++++++++++++++++++++++++++++
+    //+++++++++++++++++++++++++++++++++++++++++++
+    double* Hmet = new double[9];
+
+    std::map<int,Array<double>*>::iterator itm;
+    int i = 0;
+    double fiso = 0.01;
+    double Lambdamax,Lambdamin;
+    std::vector<int> eignval(3);
+    double hwake = 0.02;
+    int anitel = 0;
+    for(itm=Hess_vm.begin();itm!=Hess_vm.end();itm++)
+    {
+        int glob_vid = itm->first;
+        
+        Hmet[0] = Hess_vm[glob_vid]->getVal(0,0);
+        Hmet[1] = Hess_vm[glob_vid]->getVal(1,0);
+        Hmet[2] = Hess_vm[glob_vid]->getVal(2,0);
+
+        Hmet[3] = Hess_vm[glob_vid]->getVal(1,0);
+        Hmet[4] = Hess_vm[glob_vid]->getVal(3,0);
+        Hmet[5] = Hess_vm[glob_vid]->getVal(4,0);
+
+        Hmet[6] = Hess_vm[glob_vid]->getVal(2,0);
+        Hmet[7] = Hess_vm[glob_vid]->getVal(4,0);
+        Hmet[8] = Hess_vm[glob_vid]->getVal(5,0);
+        
+        //delete Hess_vm[glob_vid];
+        
+        double * WR = new double[3];
+        double * WI = new double[3];
+        double * V  = new double[3*3];
+        double * iV = new double[3*3];
+        double* WRn = new double[3];
+
+        Array<double>* DR  = new Array<double>(3,3);
+        Array<double>* UR  = new Array<double>(3,3);
+        for(int j=0;j<3;j++)
+        {
+            WR[j]  = 0.0;
+            WRn[j] = 0.0;
+            WI[j]  = 0.0;
+
+            for(int k=0;k<3;k++)
+            {
+                DR->setVal(j,k,0.0);
+                V[j*3+k] = 0.0;
+                iV[j*3+k] = 0.0;
+            }
+        }
+        
+        Eig* eig = ComputeEigenDecomp(3, Hmet);
+        
+        eignval[0] =  std::min(std::max(f*fabs(eig->Dre[0]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
+        eignval[1] =  std::min(std::max(f*fabs(eig->Dre[1]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
+        eignval[2] =  std::min(std::max(f*fabs(eig->Dre[2]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
+        
+        Lambdamax = *std::max_element(eignval.begin(),eignval.end());
+        Lambdamin = *std::min_element(eignval.begin(),eignval.end());
+        
+        DR->setVal(0,0,eignval[0]);DR->setVal(0,1,0.0);DR->setVal(0,1,0.0);
+        DR->setVal(1,0,0.0);DR->setVal(1,1,eignval[1]);DR->setVal(1,2,0.0);
+        DR->setVal(2,0,0.0);DR->setVal(2,1,0.0);DR->setVal(2,2,eignval[2]);
+        UR->setVal(0,0,eig->V[0]);UR->setVal(0,1,eig->V[1]);UR->setVal(0,2,eig->V[2]);
+        UR->setVal(1,0,eig->V[3]);UR->setVal(1,1,eig->V[4]);UR->setVal(1,2,eig->V[5]);
+        UR->setVal(2,0,eig->V[6]);UR->setVal(2,1,eig->V[7]);UR->setVal(2,2,eig->V[8]);
+
+        Array<double>* iVR = MatInv(UR);
+        Array<double>* Rs = MatMul(UR,DR);
+        Array<double>* Rf = MatMul(Rs,iVR);
+        
+        double detRf = Rf->getVal(0,0)*(Rf->getVal(1,1)*Rf->getVal(2,2)-Rf->getVal(2,1)*Rf->getVal(1,2))
+                      -Rf->getVal(0,1)*(Rf->getVal(1,0)*Rf->getVal(2,2)-Rf->getVal(2,0)*Rf->getVal(1,2))
+                      +Rf->getVal(0,2)*(Rf->getVal(1,0)*Rf->getVal(2,1)-Rf->getVal(2,0)*Rf->getVal(1,1));
+        
+        
+        double pow = -1.0/(2.0*po+3.0);
+        double eigRat = Lambdamin/Lambdamax;
+        
+        detRf = std::pow(detRf,pow);
+        Array<double>* Habs  = new Array<double>(3,3);
+
+        Habs->setVal(0,0,sumvol*detRf*Rf->getVal(0,0));
+        Habs->setVal(0,1,sumvol*detRf*Rf->getVal(0,1));
+        Habs->setVal(0,2,sumvol*detRf*Rf->getVal(0,2));
+        
+        Habs->setVal(1,0,sumvol*detRf*Rf->getVal(1,0));
+        Habs->setVal(1,1,sumvol*detRf*Rf->getVal(1,1));
+        Habs->setVal(1,2,sumvol*detRf*Rf->getVal(1,2));
+
+        Habs->setVal(2,0,sumvol*detRf*Rf->getVal(2,0));
+        Habs->setVal(2,1,sumvol*detRf*Rf->getVal(2,1));
+        Habs->setVal(2,2,sumvol*detRf*Rf->getVal(2,2));
         
         
         Hess_vm[glob_vid]=Habs;

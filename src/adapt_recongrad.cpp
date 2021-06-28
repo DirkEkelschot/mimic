@@ -2,7 +2,7 @@
 
 
 
-std::map<int,Array<double>* > ComputedUdx_LSQ_Vrt_US3D(Partition* Pa, std::map<int,Array<double>* > Ue, std::map<int,double> Uv, Mesh_Topology* meshTopo, Array<double>* ghost, MPI_Comm comm)
+std::map<int,Array<double>* > ComputedUdx_LSQ_Vrt_US3D(Partition* Pa, std::map<int,Array<double>* > Ue, std::map<int,Array<double>* > Uv, Mesh_Topology* meshTopo, Array<double>* ghost, MPI_Comm comm)
 {
    int world_size;
    MPI_Comm_size(comm, &world_size);
@@ -198,7 +198,7 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_Vrt_US3D(Partition* Pa, std::map<i
            for(int j=0;j<nadj_vrts;j++)
            {
                int gvid    = vrts[j];
-               double Uvrt = Uv[gvid];
+               double Uvrt = Uv[gvid]->getVal(0,0);
 
                int lvid = gV2lV[gvid];
 

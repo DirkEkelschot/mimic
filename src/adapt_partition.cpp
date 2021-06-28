@@ -3210,6 +3210,8 @@ void Partition::CreatePartitionDomainTest()
             {
                 gv_set.insert(gv);
                 loc_part_verts.push_back(lv);
+                vert2elem[gv].push_back(glob_id);
+                
                 gv2lpv[gv]    = lcvn;
                 El[q]         = lcvn;
                 lpartv2gv[lv] = gv;
@@ -3218,6 +3220,7 @@ void Partition::CreatePartitionDomainTest()
             else
             {
                 int lcv_u = gv2lpv[gv];
+                vert2elem[gv].push_back(glob_id);
                 El[q] = lcv_u;
                 
             }
@@ -3269,9 +3272,6 @@ void Partition::CreatePartitionDomainTest()
     pDom->vert2elem       = vert2elem;
     pDom->gv2lpartv       = gv2lpartv;
     pDom->lpartv2gv       = lpartv2gv;
-    
-    
-    
 }
 
 
