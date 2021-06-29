@@ -18,12 +18,33 @@ struct PartitionInfo
     Array<int>* part_global;
 };
 
+struct Hyb2TetraMeshTransfer
+{
+    std::map<int,std::vector<int> > m_TetraToSendToRanks;
+    std::map<int,std::vector<int> > m_HybridToSendToRanks;
+    std::map<int,std::vector<int> > m_TetraVertIDToSendToRanks;
+    std::map<int,std::vector<int> > m_HybridVertIDToSendToRanks;
+    std::map<int,std::vector<int> > m_TetraFaceIDToSendToRanks;
+    std::map<int,std::vector<int> > m_TetraFaceRefToSendToRanks;
+    std::map<int,std::vector<int> > m_HybridFaceIDToSendToRanks;
+    std::map<int,std::vector<int> > m_TetraRank2ReqVerts;
+    std::map<int,std::vector<int> > m_HybridRank2ReqVerts;
+    std::map<int,std::vector<int> > m_TetraRank2ReqFaces;
+    std::map<int,std::vector<int> > m_HybridRank2ReqFaces;
+    std::map<int,std::vector<double> > metricsToSend;
+    
+    std::vector<int> m_TetraVertsOnRank;
+    std::vector<int> m_HybridVertsOnRank;
+
+    std::map<int,int> m_TetEl2HybEl;
+};
+
 struct TetrahedraMesh
 {
     Array<int>* ElGids;
     Array<int>* ien_part_tetra;
     Array<int>* ien_part_hybrid;
-    
+    std::map<int,std::vector<int> > m_TetraToSendToRanks;
     Array<int>* ief_part_tetra;
     Array<int>* ief_part_hybrid;
     
@@ -355,10 +376,7 @@ std::map<int,int*> GetFace2EntityTetrahedraMesh(TetrahedraMesh* tmesh, ParArray<
                 tmesh->hybF2tetF[face_hyb] = face_tet;
                 
                 r = FindRank(new_offsets,size,face_hyb);
-                if(face_id == 865052)
-                {
-                    std::cout << " Sends it " << tmesh->ief_part_hybrid->getVal(i,q) << " " << r << std::endl;
-                }
+                
                 if(r != rank)
                 {
                     rank2req_FacesHyb[r].push_back(face_hyb);
@@ -646,7 +664,9 @@ void UpdateTetrahedraOnPartition(int nglob, int nElexpctd, Array<int>* part,
                                  ParallelState* ife_pstate,
                                  MPI_Comm comm)
 {
-    
+    tmesh->locV2globV.clear();
+    tmesh->globV2locV.clear();
+
     Array<int>* ElGids             = new Array<int>(nElexpctd,4);
     Array<int>* ien_part_tetra     = new Array<int>(nElexpctd,4);
     Array<int>* ien_part_hybrid    = new Array<int>(nElexpctd,4);
@@ -674,21 +694,9 @@ void UpdateTetrahedraOnPartition(int nglob, int nElexpctd, Array<int>* part,
     Vert V;
     std::vector<Vert> part_verts;
     std::vector<std::vector<int> >  part_elem2verts;
-    std::map<int,std::vector<int> > elms_to_send_to_ranks;
-    std::map<int,std::vector<int> > Gelms_to_send_to_ranks;
-    std::map<int,std::vector<int> > vertIDs_to_send_to_ranks;
-    std::map<int,std::vector<int> > OriVertIDs_to_send_to_ranks;
-    std::map<int,std::vector<int> > OriFaceIDs_to_send_to_ranks;
-    std::map<int,std::vector<int> > faceIDs_to_send_to_ranks;
-    std::map<int,std::vector<int> > faceRefs_to_send_to_ranks;
-    std::map<int,std::vector<int> > rank2req_vert;
-    std::map<int,std::vector<int> > rank2req_vertOri;
     std::map<int,std::vector<int> > rank2req_face;
     std::map<int,std::vector<int> > rank2req_faceOri;
-    
     std::vector<int> faceIDs_on_rank;
-    std::vector<int> vertIDs_on_rank;
-    std::vector<int> vertIDs_on_rank_Ori;
     std::vector<int> part_v;
     std::vector<int> loc_r_elem;
     
@@ -721,31 +729,37 @@ void UpdateTetrahedraOnPartition(int nglob, int nElexpctd, Array<int>* part,
     int sum = 0;
     int sum3 = 0;
     int newElID;
-    int gEL;
+    //int gEL;
+    Hyb2TetraMeshTransfer* tmesh_trans = new Hyb2TetraMeshTransfer;
+
+
+
     for(i=0;i<part->getNrow();i++)
     {
-        p_id    = part->getVal(i,0);
-        el_id   = ien_pstate->getOffsets()[rank]+i;
-        gEL     = tmesh->ElGids->getVal(i,0);
-        
-        loc2globEL->setVal(i,0,el_id);
-        
-        nvPerEl = 4;
-        nfPerEl = 4;
-        sum =0;
-        sum3 = 0;
+        p_id        = part->getVal(i,0);
+        el_id       = ien_pstate->getOffsets()[rank]+i;
+        int gEL     = tmesh->ElGids->getVal(i,0);
+        //loc2globEL->setVal(i,0,el_id);
+////        tmesh_trans->m_TetEl2HybEl[el_id] = gEL;
+//        nvPerEl = 4;
+//        nfPerEl = 4;
+//        sum  = 0;
+//        sum3 = 0;
         if(p_id!=rank) // If element is not on this rank and needs to be send to other rank (p_id), add it to rank to element map.
         {
-            elms_to_send_to_ranks[p_id].push_back(el_id); // rank to element map.
-            Gelms_to_send_to_ranks[p_id].push_back(gEL); // rank to element map.
+            
+            
+            tmesh_trans->m_TetraToSendToRanks[p_id].push_back(el_id); // rank to element map.
+            tmesh_trans->m_HybridToSendToRanks[p_id].push_back(gEL);
+            
             //====================Hybrid=======================
             for(int k=0;k<4;k++)
             {
                 v_id   = tmesh->ien_part_tetra->getVal(i,k);
                 v_id_o = tmesh->ien_part_hybrid->getVal(i,k);
                 
-                vertIDs_to_send_to_ranks[p_id].push_back(v_id);
-                OriVertIDs_to_send_to_ranks[p_id].push_back(v_id_o);
+                tmesh_trans->m_TetraVertIDToSendToRanks[p_id].push_back(v_id);
+                tmesh_trans->m_HybridVertIDToSendToRanks[p_id].push_back(v_id_o);
                 sum3=sum3+v_id;
             }// We do not care about the vertices for these elements since they are needed on other ranks anyways.
             
@@ -755,18 +769,18 @@ void UpdateTetrahedraOnPartition(int nglob, int nElexpctd, Array<int>* part,
                 f_id_o = tmesh->ief_part_hybrid->getVal(i,k);
                 fref   = tmesh->iefref_part_tetra->getVal(i,k);
                 
-                faceIDs_to_send_to_ranks[p_id].push_back(f_id);
-                faceRefs_to_send_to_ranks[p_id].push_back(fref);
-                OriFaceIDs_to_send_to_ranks[p_id].push_back(f_id_o);
-
+                tmesh_trans->m_TetraFaceIDToSendToRanks[p_id].push_back(f_id);
+                tmesh_trans->m_TetraFaceRefToSendToRanks[p_id].push_back(fref);
+                tmesh_trans->m_HybridFaceIDToSendToRanks[p_id].push_back(f_id_o);
             }
-
-            
             //====================Hybrid=======================
-            not_on_rank++;
+            not_on_rank++;/**/
         }
+        
+        
         else // Here we are storing the actual vertices/elements that are required by the current rank.
         {
+            
             std::vector<int> elem;
 
             ElGids->setVal(on_rank,0,gEL);
@@ -785,25 +799,25 @@ void UpdateTetrahedraOnPartition(int nglob, int nElexpctd, Array<int>* part,
                 
                 if(unique_vertIDs_on_rank_set.find( v_id ) == unique_vertIDs_on_rank_set.end() && v_id != -1)// find the unique vertices that need to be send to other partitions.
                 {
-                    unique_vertIDs_on_rank_set.insert(v_id);
-                    //unique_verts_on_rank_vec.push_back(v_id);
                     
-                    tmesh->hybV2tetV[v_id_o]= v_id;
-                    tmesh->tetV2hybV[v_id]  = v_id_o;
-                    M_vmap_copy[v_id]       = tmesh->M_vmap[v_id];
+                    unique_vertIDs_on_rank_set.insert(v_id);
+                    
+                    tmesh->hybV2tetV[v_id_o] = v_id;
+                    tmesh->tetV2hybV[v_id]   = v_id_o;
+                    M_vmap_copy[v_id]        = tmesh->M_vmap[v_id];
 
                     r = FindRank(new_V_offsets,size,v_id_o);
                     
                     if (r!=rank)// if vertex is present on other rank, add it to vertIDs_on_rank map..
                     {
-                        rank2req_vert[r].push_back(v_id); // add the vertex id that needs to be requested from rank r.
-                        rank2req_vertOri[r].push_back(v_id_o);
+                        tmesh_trans->m_TetraRank2ReqVerts[r].push_back(v_id); // add the vertex id that needs to be requested from rank r.
+                        tmesh_trans->m_HybridRank2ReqVerts[r].push_back(v_id_o);
                     }
                     else
                     {
-                        vertIDs_on_rank.push_back(v_id);  // add the vertex to list that is already available on rank.
-                        vertIDs_on_rank_Ori.push_back(v_id_o);
-                        
+                        tmesh_trans->m_TetraVertsOnRank.push_back(v_id);  // add the vertex to list that is already available on rank.
+                        tmesh_trans->m_HybridVertsOnRank.push_back(v_id_o);
+
                         vloc_tmp++;
                     }
                     lv_id++;
@@ -831,13 +845,13 @@ void UpdateTetrahedraOnPartition(int nglob, int nElexpctd, Array<int>* part,
 
                     if (r!=rank)// if vertex is present on other rank, add it to vertIDs_on_rank map..
                     {
-                        rank2req_face[r].push_back(f_id); // add the vertex id that needs to be requested from rank r.
-                        rank2req_faceOri[r].push_back(f_id_o);
+                        tmesh_trans->m_TetraRank2ReqFaces[r].push_back(f_id); // add the vertex id that needs to be requested from rank r.
+                        tmesh_trans->m_HybridRank2ReqFaces[r].push_back(f_id_o);
 
                     }
                     else
                     {
-                        faceIDs_on_rank.push_back(f_id);  // add the vertex to list that is already available on rank.
+                        //faceIDs_on_rank.push_back(f_id);  // add the vertex to list that is already available on rank.
 //                      tmesh->hybF2tetF[f_id_o]=f_id;
 //                      tmesh->tetF2hybF[f_id]=f_id_o;
                         tmesh->ref2face[fref].push_back(f_id);
@@ -850,17 +864,23 @@ void UpdateTetrahedraOnPartition(int nglob, int nElexpctd, Array<int>* part,
             loc_r_elem.push_back(el_id);
             
             on_rank++;
-        }
+            
+        }/**/
+        
     }
+    
+    std::map<int,std::vector<int> >::iterator ite;
+    int Ell,Elg;
+    
     
     
     //============================================================
     //============================================================
     //============================================================
     std::map<int,std::vector<int> >::iterator itt;
-    std::map<int,std::vector<double> > metricsToSend;
+
     int globvid;
-    for(itt=vertIDs_to_send_to_ranks.begin();itt!=vertIDs_to_send_to_ranks.end();itt++)
+    for(itt=tmesh_trans->m_TetraVertIDToSendToRanks.begin();itt!=tmesh_trans->m_TetraVertIDToSendToRanks.end();itt++)
     {
         std::vector<double> metrics(6*itt->second.size());
 
@@ -875,14 +895,9 @@ void UpdateTetrahedraOnPartition(int nglob, int nElexpctd, Array<int>* part,
             metrics[q*6+4] = tmesh->M_vmap[globvid]->getVal(4,0);
             metrics[q*6+5] = tmesh->M_vmap[globvid]->getVal(5,0);
             double sum =metrics[q*6+0]+metrics[q*6+1]+metrics[q*6+2]+metrics[q*6+3]+metrics[q*6+4]+metrics[q*6+5];
-            if(sum == 0.0)
-            {
-                std::cout << " line 875 :: " << rank << " -> " << globvid << ":: " << metrics[q*6+0] << " " << metrics[q*6+1] << " " << metrics[q*6+2] << " " << metrics[q*6+3] << " " << metrics[q*6+4] << " " << metrics[q*6+5] << std::endl;
-
-            }
         }
 
-        metricsToSend[itt->first] = metrics;
+        tmesh_trans->metricsToSend[itt->first] = metrics;
     }
     //============================================================
     //============================================================
@@ -912,7 +927,7 @@ void UpdateTetrahedraOnPartition(int nglob, int nElexpctd, Array<int>* part,
     }
     
     
-    ScheduleObj* part_schedule_elem = DoScheduling(elms_to_send_to_ranks,comm);
+    ScheduleObj* part_schedule_elem = DoScheduling(tmesh_trans->m_TetraToSendToRanks,comm);
     std::map<int,std::vector<int> >  part_tot_recv_elIDs_map;
     std::map<int,std::vector<int> >  TotRecvElement_IDs_v_map;
     std::map<int,std::vector<int> >  TotRecvElement_IDs_ov_map;
@@ -932,18 +947,14 @@ void UpdateTetrahedraOnPartition(int nglob, int nElexpctd, Array<int>* part,
         if(rank==q)
         {
             int i=0;
-            for (it = elms_to_send_to_ranks.begin(); it != elms_to_send_to_ranks.end(); it++)
+            for (it = tmesh_trans->m_TetraToSendToRanks.begin(); it != tmesh_trans->m_TetraToSendToRanks.end(); it++)
             {
                 int n_req           = it->second.size();
-                int n_req_v         = vertIDs_to_send_to_ranks[it->first].size();
-                int n_req_f         = faceIDs_to_send_to_ranks[it->first].size();
+                int n_req_v         = tmesh_trans->m_TetraVertIDToSendToRanks[it->first].size();
+                int n_req_f         = tmesh_trans->m_TetraFaceIDToSendToRanks[it->first].size();
                 int n_req_M         = n_req_v*6;
                 
-                if(n_req!=n_req_v/4.0)
-                {
-                    std::cout << rank << " n_req " << n_req << " n_req_v " << n_req_v/4.0 << " n_req_M " << n_req_M << std::endl;
-                }
-               
+                
                 int dest            = it->first;
                                 
                 MPI_Send(&n_req  , 1, MPI_INT, dest, dest, comm);
@@ -952,13 +963,13 @@ void UpdateTetrahedraOnPartition(int nglob, int nElexpctd, Array<int>* part,
                 MPI_Send(&n_req_M, 1, MPI_INT, dest, dest*33300, comm);
                 
                 MPI_Send(&it->second[0], n_req, MPI_INT, dest, dest*66666+5555, comm);
-                MPI_Send(&vertIDs_to_send_to_ranks[it->first][0], n_req_v, MPI_INT, dest, 9000+100+dest*2, comm);
-                MPI_Send(&OriVertIDs_to_send_to_ranks[it->first][0], n_req_v, MPI_INT, dest, 339000+100+dest*2, comm);
-                MPI_Send(&faceIDs_to_send_to_ranks[it->first][0], n_req_f, MPI_INT, dest, 229000+100+dest*2, comm);
-                MPI_Send(&faceRefs_to_send_to_ranks[it->first][0], n_req_f, MPI_INT, dest, 449000+100+dest*2, comm);
-                MPI_Send(&OriFaceIDs_to_send_to_ranks[it->first][0], n_req_f, MPI_INT, dest, 889000+100+dest*2, comm);
-                MPI_Send(&Gelms_to_send_to_ranks[it->first][0], n_req, MPI_INT, dest, dest*7000000, comm);
-                MPI_Send(&metricsToSend[it->first][0], n_req_M, MPI_DOUBLE, dest, dest*8000000, comm);
+                MPI_Send(&tmesh_trans->m_TetraVertIDToSendToRanks[it->first][0], n_req_v, MPI_INT, dest, 9000+100+dest*2, comm);
+                MPI_Send(&tmesh_trans->m_HybridVertIDToSendToRanks[it->first][0], n_req_v, MPI_INT, dest, 339000+100+dest*2, comm);
+                MPI_Send(&tmesh_trans->m_TetraFaceIDToSendToRanks[it->first][0], n_req_f, MPI_INT, dest, 229000+100+dest*2, comm);
+                MPI_Send(&tmesh_trans->m_TetraFaceRefToSendToRanks[it->first][0], n_req_f, MPI_INT, dest, 449000+100+dest*2, comm);
+                MPI_Send(&tmesh_trans->m_HybridFaceIDToSendToRanks[it->first][0], n_req_f, MPI_INT, dest, 889000+100+dest*2, comm);
+                MPI_Send(&tmesh_trans->m_HybridToSendToRanks[it->first][0], n_req, MPI_INT, dest, dest*7000000, comm);
+                MPI_Send(&tmesh_trans->metricsToSend[it->first][0], n_req_M, MPI_DOUBLE, dest, dest*8000000, comm);
 
                 
 
@@ -1007,6 +1018,7 @@ void UpdateTetrahedraOnPartition(int nglob, int nElexpctd, Array<int>* part,
 //            }
         }
     }
+    
     std::vector<int> TotRecvElement_GIDs;
     std::vector<int> TotRecvElement_IDs;
     std::vector<int> TotRecvVerts_IDs;
@@ -1054,19 +1066,6 @@ void UpdateTetrahedraOnPartition(int nglob, int nElexpctd, Array<int>* part,
                     mtrcs->setVal(4,0,TotRecvVertMtrcs_map[totrecv->first][6*4*l+6*h+4]);
                     mtrcs->setVal(5,0,TotRecvVertMtrcs_map[totrecv->first][6*4*l+6*h+5]);
                     
-                    double sum = mtrcs->getVal(0,0)+mtrcs->getVal(1,0)+mtrcs->getVal(2,0)+mtrcs->getVal(3,0)+mtrcs->getVal(4,0)+mtrcs->getVal(5,0);
-                    
-//                    if(sum == 0.0)
-//                    {
-//                        std::cout << " line 1046 :: " << rank << " -> " << TotRecvElement_IDs_v_map[totrecv->first][l*4+h] << ":: " << mtrcs->getVal(0,0) << " " << mtrcs->getVal(1,0) << " " << mtrcs->getVal(2,0) << " " << mtrcs->getVal(3,0) << " " << mtrcs->getVal(4,0) << " " << mtrcs->getVal(5,0) << std::endl;
-//
-//                        std::cout << " line 1046 v2 :: " << rank << " -> " << TotRecvVertMtrcs_map[totrecv->first][6*4*l+6*h+0] << " " <<        TotRecvVertMtrcs_map[totrecv->first][6*4*l+6*h+1] << " " << TotRecvVertMtrcs_map[totrecv->first][6*4*l+6*h+2] << " " <<
-//                            TotRecvVertMtrcs_map[totrecv->first][6*4*l+6*h+3] <<" " <<
-//                            TotRecvVertMtrcs_map[totrecv->first][6*4*l+6*h+4] << " " <<
-//                            TotRecvVertMtrcs_map[totrecv->first][6*4*l+6*h+5] << std::endl;
-//
-//                    }
-                    
                     M_vmap_copy[TotRecvElement_IDs_v_map[totrecv->first][l*4+h]] = mtrcs;
                 }
             }
@@ -1100,6 +1099,13 @@ void UpdateTetrahedraOnPartition(int nglob, int nElexpctd, Array<int>* part,
     
     int onrank_before = on_rank;
     int sum2 = 0;
+    
+    
+    
+    
+    
+    
+    
     for(int i=0;i<TotNelem_recv;i++)
     {
         std::vector<int> elem;
@@ -1112,10 +1118,18 @@ void UpdateTetrahedraOnPartition(int nglob, int nElexpctd, Array<int>* part,
         tmesh->hybE2tetE[GelID]=elID;
         tmesh->tetE2hybE[elID]=GelID;
         
+        
+        
         for(int k=0;k<4;k++)
         {
             int v_id_n   = TotRecvVerts_IDs[cnt_v+k];
             int v_id_o_n = TotRecvOriVerts_IDs[cnt_v+k];
+            
+            if(rank == 1 && on_rank==5125)
+            {
+                std::cout<< "----l ("<<v_id_n <<", "<<v_id_o_n<<")"<<std::endl;
+            }
+            
             
             ien_part_tetra->setVal(on_rank,k,v_id_n);
             ien_part_hybrid->setVal(on_rank,k,v_id_o_n);
@@ -1131,13 +1145,13 @@ void UpdateTetrahedraOnPartition(int nglob, int nElexpctd, Array<int>* part,
 
                 if (r!=rank)// if vertex is present on other rank, add it to vertIDs_on_rank map..
                 {
-                    rank2req_vert[r].push_back(v_id_n); // add the vertex id that needs to be requested from rank r.
-                    rank2req_vertOri[r].push_back(v_id_o_n);
+                    tmesh_trans->m_TetraRank2ReqVerts[r].push_back(v_id_n); // add the vertex id that needs to be requested from rank r.
+                    tmesh_trans->m_HybridRank2ReqVerts[r].push_back(v_id_o_n);
                 }
                 else
                 {
-                    vertIDs_on_rank.push_back(v_id_n);  // add the vertex to list that is already available on rank.
-                    vertIDs_on_rank_Ori.push_back(v_id_o_n);
+                    tmesh_trans->m_TetraVertsOnRank.push_back(v_id_n);  // add the vertex to list that is already available on rank.
+                    tmesh_trans->m_HybridVertsOnRank.push_back(v_id_o_n);
                 
                     vloc_tmp++;
                 }
@@ -1166,15 +1180,12 @@ void UpdateTetrahedraOnPartition(int nglob, int nElexpctd, Array<int>* part,
 
                 if (r!=rank)// if vertex is present on other rank, add it to vertIDs_on_rank map..
                 {
-                    rank2req_face[r].push_back(f_id_n); // add the vertex id that needs to be requested from rank r.
-                    rank2req_faceOri[r].push_back(f_id_o_n);
+                    tmesh_trans->m_TetraRank2ReqFaces[r].push_back(f_id_n); // add the vertex id that needs to be requested from rank r.
+                    tmesh_trans->m_HybridRank2ReqFaces[r].push_back(f_id_o_n);
 
                 }
                 else
                 {
-                    faceIDs_on_rank.push_back(f_id_n);  // add the vertex to list that is already available on rank.
-//                  tmesh->hybF2tetF[f_id_o_n]=f_id_n;
-//                  tmesh->tetF2hybF[f_id_n]=f_id_o_n;
                     tmesh->face2ref[f_id_n] = fref_n;
                     tmesh->ref2face[fref_n].push_back(f_id_n);
                     
@@ -1197,7 +1208,7 @@ void UpdateTetrahedraOnPartition(int nglob, int nElexpctd, Array<int>* part,
     TotRecvFaces_IDs.clear();
     TotRecvFaces_Refs.clear();
     
-        
+    
     // Loop over all received vertex IDs in order to determine the remaining required unique vertices on the current rank.
     
 
@@ -1208,7 +1219,7 @@ void UpdateTetrahedraOnPartition(int nglob, int nElexpctd, Array<int>* part,
     
     // At this point we have all the elements that are required on current rank and the vertex ids as well
     // However we are still missing the vertex coordinate data which is spread out equally over the available procs.
-    // This rank2req_vert map essentially holds this information by mapping the rank_id from which we need to request a list/vector of vertex ids (hence the name "rank2req_vert" name.
+    // This m_TetraRank2ReqVerts map essentially holds this information by mapping the rank_id from which we need to request a list/vector of vertex ids (hence the name "m_TetraRank2ReqVerts" name.
     
     // At this point the perspective changes. When we were figuring out the layout of the elements, we knew the partition ID for each element on the current rank. This means that from the current rank, we needed to send a certain element to another rank since it is more logical to reside there. For the vertices this changes since we just figured out which vertices are required on the current rank. The logic here is first to send for each the current rank a list/vector<int> of vertex IDs that is requested from another rank. The other rank assembles the list of the required coordinates and sends it back.
     
@@ -1223,7 +1234,7 @@ void UpdateTetrahedraOnPartition(int nglob, int nElexpctd, Array<int>* part,
     // This thing needs to revised because for the verts it doesnt work.
     // The current rank does not have the verts_to_send_rank. Instead it has an request list.
     
-    ScheduleObj* part_schedule = DoScheduling(rank2req_vert,comm);
+    ScheduleObj* part_schedule = DoScheduling(tmesh_trans->m_TetraRank2ReqVerts,comm);
     std::map<int,std::vector<int> >  reqstd_ids_per_rank;
     std::map<int,std::vector<int> >  reqstd_Ori_ids_per_rank;
     std::map<int,std::vector<int> >  reqstd_Metrics_per_rank;
@@ -1233,7 +1244,7 @@ void UpdateTetrahedraOnPartition(int nglob, int nElexpctd, Array<int>* part,
         if(rank==q)
         {
             int i=0;
-            for (it = rank2req_vert.begin(); it != rank2req_vert.end(); it++)
+            for (it = tmesh_trans->m_TetraRank2ReqVerts.begin(); it != tmesh_trans->m_TetraRank2ReqVerts.end(); it++)
             {
                 int n_req           = it->second.size();
                 int dest            = it->first;
@@ -1242,7 +1253,7 @@ void UpdateTetrahedraOnPartition(int nglob, int nElexpctd, Array<int>* part,
                 MPI_Send(&n_req, 1, MPI_INT, dest, 9876+10*dest, comm);
                 //	MPI_Send(&it->second[0], n_req, MPI_INT, dest, 9876+dest*2, comm);
                 MPI_Send(&it->second[0], n_req, MPI_INT, dest, 9876*2+dest*2, comm);
-                MPI_Send(&rank2req_vertOri[it->first][0], n_req, MPI_INT, dest, 2229876*2+dest*2, comm);
+                MPI_Send(&tmesh_trans->m_HybridRank2ReqVerts[it->first][0], n_req, MPI_INT, dest, 2229876*2+dest*2, comm);
 
                 i++;
             }
@@ -1313,7 +1324,7 @@ void UpdateTetrahedraOnPartition(int nglob, int nElexpctd, Array<int>* part,
         
          }
     }
-   
+    
     int vfor = 0;
     std::map<int,double* >::iterator it_f;
     for(it_f=recv_back_verts.begin();it_f!=recv_back_verts.end();it_f++)
@@ -1325,24 +1336,29 @@ void UpdateTetrahedraOnPartition(int nglob, int nElexpctd, Array<int>* part,
     int gvid=0;
     int lvid=0;
     int gvid_gl = 0;
-
-    for(m=0;m<vloc_tmp;m++)
+    
+    for(m=0;m<tmesh_trans->m_TetraVertsOnRank.size();m++)
     {
-        gvid    = vertIDs_on_rank[m];
-        gvid_gl = vertIDs_on_rank_Ori[m];
+        gvid    = tmesh_trans->m_TetraVertsOnRank[m];
+        gvid_gl = tmesh_trans->m_HybridVertsOnRank[m];
         
         Vert* V = new Vert;
-        
+
         V->x = xcn->getVal(gvid_gl-xcn_o,0);
         V->y = xcn->getVal(gvid_gl-xcn_o,1);
         V->z = xcn->getVal(gvid_gl-xcn_o,2);
-            
+
         tmesh->LocalVerts.push_back(V);
-        tmesh->locV2globV[lvid] = gvid;
-        tmesh->globV2locV[gvid] = lvid;
+        
+        if(tmesh->locV2globV.find(lvid)==tmesh->locV2globV.end())
+        {
+            tmesh->locV2globV[lvid] = gvid;
+            tmesh->globV2locV[gvid] = lvid;
+        }
+        
         lvid++;
     }
-    
+   
     m = 0;
     
     for(it_f=recv_back_verts.begin();it_f!=recv_back_verts.end();it_f++)
@@ -1351,7 +1367,7 @@ void UpdateTetrahedraOnPartition(int nglob, int nElexpctd, Array<int>* part,
        
         for(int u=0;u<Nv;u++)
         {
-            gvid = rank2req_vert[it_f->first][u];
+            gvid = tmesh_trans->m_TetraRank2ReqVerts[it_f->first][u];
             
             Vert* V = new Vert;
             
@@ -1367,7 +1383,7 @@ void UpdateTetrahedraOnPartition(int nglob, int nElexpctd, Array<int>* part,
             lvid++;
         }
     }
-
+    
 
     int nLoc_Verts = tmesh->LocalVerts.size();
     
@@ -1378,22 +1394,35 @@ void UpdateTetrahedraOnPartition(int nglob, int nElexpctd, Array<int>* part,
     reqstd_ids_per_rank.clear();
     reqstd_Ori_ids_per_rank.clear();
     part_elem2verts.clear();
-    elms_to_send_to_ranks.clear();
-    vertIDs_to_send_to_ranks.clear();
-    OriVertIDs_to_send_to_ranks.clear();
-    OriFaceIDs_to_send_to_ranks.clear();
-    faceIDs_to_send_to_ranks.clear();
-    rank2req_vert.clear();
-    rank2req_vertOri.clear();
+    
     rank2req_face.clear();
     rank2req_faceOri.clear();
     faceIDs_on_rank.clear();
-    vertIDs_on_rank.clear();
-    vertIDs_on_rank_Ori.clear();
+    
     part_v.clear();
     loc_r_elem.clear();
     unique_vertIDs_on_rank_set.clear();
     unique_faceIDs_on_rank_set.clear();
+    
+    tmesh_trans->m_TetraToSendToRanks.clear();
+    tmesh_trans->m_HybridToSendToRanks.clear();
+    tmesh_trans->m_TetraVertIDToSendToRanks.clear();
+    tmesh_trans->m_HybridVertIDToSendToRanks.clear();
+    tmesh_trans->m_TetraFaceIDToSendToRanks.clear();
+    tmesh_trans->m_TetraFaceRefToSendToRanks.clear();
+    tmesh_trans->m_HybridFaceIDToSendToRanks.clear();
+    tmesh_trans->m_TetraRank2ReqVerts.clear();
+    tmesh_trans->m_HybridRank2ReqVerts.clear();
+    tmesh_trans->m_TetraRank2ReqFaces.clear();
+    tmesh_trans->m_HybridRank2ReqFaces.clear();
+    tmesh_trans->metricsToSend.clear();
+    
+    std::vector<int> m_TetraVertsOnRank;
+    std::vector<int> m_HybridVertsOnRank;
+
+    std::map<int,int> m_TetEl2HybEl;
+    
+    
     
     tmesh->ElGids               = ElGids;
     tmesh->ien_part_tetra       = ien_part_tetra;
@@ -1402,8 +1431,15 @@ void UpdateTetrahedraOnPartition(int nglob, int nElexpctd, Array<int>* part,
     tmesh->ief_part_hybrid      = ief_part_hybrid;
     tmesh->iefref_part_tetra    = iefref_part_tetra;
     tmesh->M_vmap               = M_vmap_copy;
+    
+    
+        //std::cout << "Testje =  "<< ien_part_tetra->getVal(5125,0) << " " << ien_part_tetra->getVal(5125,1) << " " << ien_part_tetra->getVal(5125,2) << " " << ien_part_tetra->getVal(5125,3) << " on_rank " << on_rank <<" "<<ien_part_tetra->getNrow()<< std::endl;
+    
+    
+    /**/
+    
+    
     //return tmesh_ret;
-     
 }
 
 
@@ -2657,7 +2693,7 @@ TetrahedraMesh* ExtractTetrahedralMesh(Array<int>* part_global,
     tmesh->ief_part_hybrid    = new_ief_or;
     tmesh->iefref_part_tetra  = new_iefref;
     
-
+    
 
     return tmesh;
 	
@@ -3100,7 +3136,7 @@ int main(int argc, char** argv)
     
     // Once we have a uniform distribution of the tetrahedra, we determine a new OPTIMAL partitioning using the PARMETIS routine.
     PartitionInfo* partInfo = GetNewGlobalPartitioningTetrahedraMesh(tmesh,comm);
-
+    
     // Determining the OPTIMAL number of elements on each rank based on the PARMETIS partitioning.
     int* newSizesOnRanks    = CommunicatePartitionLayout(partInfo->part,comm);
 
@@ -3411,6 +3447,11 @@ int main(int argc, char** argv)
 
         double Vtet = GetQualityTetrahedra(P);
         
+//        if(t==5125)
+//        {
+//            std::cout << world_rank << " " << t << " " << Vtet << "(" << v0l<<", "<<v1l<<", " << v2l << ", " << v3l << ") --> (" << v0 << ", "<< v1<<", "<< v2 << ", " << v3 << ") "<<  std::endl;
+//        }
+        
         if ( PMMG_Set_tetrahedron(parmesh,v0l+1,v1l+1,v2l+1,v3l+1,1.0,t+1) != 1 )
         {
             MPI_Finalize();
@@ -3548,9 +3589,9 @@ int main(int argc, char** argv)
           out_tria_loc[icomm] = (int *) malloc(nitem_face_comm[icomm]*sizeof(int));
         ier = PMMG_Get_FaceCommunicator_faces(parmesh, out_tria_loc);
         
-        /* Check matching of input interface nodes with the set ones */
+        // Check matching of input interface nodes with the set ones
         
-        /* Get input triangle nodes */
+        // Get input triangle nodes
         int** faceNodes2 = (int **) malloc(pb->ncomm*sizeof(int *));
         for( icomm = 0; icomm < pb->ncomm; icomm++ ) {
           faceNodes2[icomm] = (int *) malloc(3*ntifc[icomm]*sizeof(int));
@@ -3575,7 +3616,7 @@ int main(int argc, char** argv)
           }
         }
 
-        /* Check matching of input interface triangles with the set ones */
+        // Check matching of input interface triangles with the set ones
         if( !PMMG_Check_Set_FaceCommunicators(parmesh,pb->ncomm,ntifc,
                                               color_face,faceNodes2) ) {
           printf("### FAILED:: Wrong set face communicators!\n");
@@ -3615,7 +3656,7 @@ int main(int argc, char** argv)
           }
         }
 
-        /* Check matching of input interface triangles with the output ones */
+        // Check matching of input interface triangles with the output ones
         if( !PMMG_Check_Get_FaceCommunicators(parmesh,pb->ncomm,ntifc,
                                               color_face,faceNodes2,
                                               next_face_comm,nitem_face_comm,
