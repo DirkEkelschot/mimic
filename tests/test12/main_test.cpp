@@ -664,8 +664,8 @@ void UpdateTetrahedraOnPartition(int nglob, int nElexpctd, Array<int>* part,
                                  ParallelState* ife_pstate,
                                  MPI_Comm comm)
 {
-    tmesh->locV2globV.clear();
-    tmesh->globV2locV.clear();
+//    tmesh->locV2globV.clear();
+//    tmesh->globV2locV.clear();
 
     Array<int>* ElGids             = new Array<int>(nElexpctd,4);
     Array<int>* ien_part_tetra     = new Array<int>(nElexpctd,4);
@@ -747,8 +747,6 @@ void UpdateTetrahedraOnPartition(int nglob, int nElexpctd, Array<int>* part,
 //        sum3 = 0;
         if(p_id!=rank) // If element is not on this rank and needs to be send to other rank (p_id), add it to rank to element map.
         {
-            
-            
             tmesh_trans->m_TetraToSendToRanks[p_id].push_back(el_id); // rank to element map.
             tmesh_trans->m_HybridToSendToRanks[p_id].push_back(gEL);
             
@@ -806,6 +804,14 @@ void UpdateTetrahedraOnPartition(int nglob, int nElexpctd, Array<int>* part,
                     tmesh->tetV2hybV[v_id]   = v_id_o;
                     M_vmap_copy[v_id]        = tmesh->M_vmap[v_id];
 
+                    
+                    double sum = tmesh->M_vmap[v_id]->getVal(3,0)+tmesh->M_vmap[v_id]->getVal(4,0)+tmesh->M_vmap[v_id]->getVal(5,0);
+                    
+//                    if(sum == 0)
+//                    {
+//                        std::cout << " errror " << on_rank << " " << rank << " " << v_id << " " << v_id_o << std::endl;
+//                    }
+//
                     r = FindRank(new_V_offsets,size,v_id_o);
                     
                     if (r!=rank)// if vertex is present on other rank, add it to vertIDs_on_rank map..
@@ -894,7 +900,13 @@ void UpdateTetrahedraOnPartition(int nglob, int nElexpctd, Array<int>* part,
             metrics[q*6+3] = tmesh->M_vmap[globvid]->getVal(3,0);
             metrics[q*6+4] = tmesh->M_vmap[globvid]->getVal(4,0);
             metrics[q*6+5] = tmesh->M_vmap[globvid]->getVal(5,0);
-            double sum =metrics[q*6+0]+metrics[q*6+1]+metrics[q*6+2]+metrics[q*6+3]+metrics[q*6+4]+metrics[q*6+5];
+            
+            double sum =metrics[q*6+3]+metrics[q*6+4]+metrics[q*6+5];
+            
+//            if(sum==0)
+//            {
+//                std::cout << "Error!" <<std::endl;
+//            }
         }
 
         tmesh_trans->metricsToSend[itt->first] = metrics;
@@ -1208,7 +1220,7 @@ void UpdateTetrahedraOnPartition(int nglob, int nElexpctd, Array<int>* part,
     TotRecvFaces_IDs.clear();
     TotRecvFaces_Refs.clear();
     
-    
+    std::cout << "WORLD_RANK - " << rank << " " << on_rank << " " << ief_part_tetra->getNrow() << std::endl;
     // Loop over all received vertex IDs in order to determine the remaining required unique vertices on the current rank.
     
 
@@ -2106,19 +2118,19 @@ TetrahedraMesh* ExtractTetrahedralMesh(Array<int>* part_global,
 		}
 	}
 	
-//    if(world_rank==0)
-//    {
-//        std::map<int,std::vector<int> >::iterator its;
-//
-//        for(its=recvRa.begin();its!=recvRa.end();its++)
-//        {
-//            std::cout << its->first << " -> ";
-//            for(int q=0;q<its->second.size();q++)
-//            {
-//                std::cout << recvNe[its->first][q] << " ";
-//            }
-//        }
-//    }
+    if(world_rank==0)
+    {
+        std::map<int,std::vector<int> >::iterator its;
+
+        for(its=sendRa.begin();its!=sendRa.end();its++)
+        {
+            std::cout << its->first << " -> ";
+            for(int q=0;q<its->second.size();q++)
+            {
+                std::cout << its->second[q] << " " << sendNe[its->first][q] << " ";
+            }
+        }
+    }
     
     
 	//=================================================================================================
@@ -2226,8 +2238,13 @@ TetrahedraMesh* ExtractTetrahedralMesh(Array<int>* part_global,
                 Met[q*6+3] = M_vmap[gvid]->getVal(1,1);
                 Met[q*6+4] = M_vmap[gvid]->getVal(1,2);
                 Met[q*6+5] = M_vmap[gvid]->getVal(2,2);
-                double sum = Met[q*6+0]+Met[q*6+1]+Met[q*6+2]+Met[q*6+3]+Met[q*6+4]+Met[q*6+5];
-               
+                double sum = Met[q*6+3]+Met[q*6+4]+Met[q*6+5];
+
+//                if(sum == 0)
+//                {
+//                    std::cout << "SUMERROR " << std::endl;
+//                }
+                
                 //std::cout << world_rank << " -> " << gvid << ":: " << M_vmap[gvid]->getVal(0,0) << " " << M_vmap[gvid]->getVal(1,0) << " " << M_vmap[gvid]->getVal(2,0) << " " << M_vmap[gvid]->getVal(3,0) << " " << M_vmap[gvid]->getVal(4,0) << " " << M_vmap[gvid]->getVal(5,0) << std::endl;
                  
 				if(v2r.find(gvid)!=v2r.end())
@@ -2308,28 +2325,45 @@ TetrahedraMesh* ExtractTetrahedralMesh(Array<int>* part_global,
                     elNodeMetrics[cc][4*6*t+3] = Met[0*6+3];
                     elNodeMetrics[cc][4*6*t+4] = Met[0*6+4];
                     elNodeMetrics[cc][4*6*t+5] = Met[0*6+5];
-
+                    double sum0 = Met[0*6+3]+Met[0*6+4]+Met[0*6+5];
                     elNodeMetrics[cc][4*6*t+6]  = Met[1*6+0];
                     elNodeMetrics[cc][4*6*t+7]  = Met[1*6+1];
                     elNodeMetrics[cc][4*6*t+8]  = Met[1*6+2];
                     elNodeMetrics[cc][4*6*t+9]  = Met[1*6+3];
                     elNodeMetrics[cc][4*6*t+10] = Met[1*6+4];
                     elNodeMetrics[cc][4*6*t+11] = Met[1*6+5];
-
+                    double sum1 = Met[1*6+3]+Met[1*6+4]+Met[1*6+5];
                     elNodeMetrics[cc][4*6*t+12] = Met[2*6+0];
                     elNodeMetrics[cc][4*6*t+13] = Met[2*6+1];
                     elNodeMetrics[cc][4*6*t+14] = Met[2*6+2];
                     elNodeMetrics[cc][4*6*t+15] = Met[2*6+3];
                     elNodeMetrics[cc][4*6*t+16] = Met[2*6+4];
                     elNodeMetrics[cc][4*6*t+17] = Met[2*6+5];
-
+                    double sum2 = Met[2*6+3]+Met[2*6+4]+Met[2*6+5];
                     elNodeMetrics[cc][4*6*t+18] = Met[3*6+0];
                     elNodeMetrics[cc][4*6*t+19] = Met[3*6+1];
                     elNodeMetrics[cc][4*6*t+20] = Met[3*6+2];
                     elNodeMetrics[cc][4*6*t+21] = Met[3*6+3];
                     elNodeMetrics[cc][4*6*t+22] = Met[3*6+4];
                     elNodeMetrics[cc][4*6*t+23] = Met[3*6+5];
-                    					
+                    double sum3 = Met[3*6+3]+Met[3*6+4]+Met[3*6+5];
+                    if(sum0==0)
+                    {
+                        std::cout << "SUM0 ERROR " <<std::endl;
+                    }
+                    if(sum1==0)
+                    {
+                        std::cout << "SUM1 ERROR " <<std::endl;
+                    }
+                    if(sum2==0)
+                    {
+                        std::cout << "SUM2 ERROR " <<std::endl;
+                    }
+                    if(sum3==0)
+                    {
+                        std::cout << "SUM3 ERROR " <<std::endl;
+                    }
+                    
 					elFaceIDs[cc][4*t+0]=ief[0];
 					elFaceIDs[cc][4*t+1]=ief[1];
 					elFaceIDs[cc][4*t+2]=ief[2];
@@ -2398,7 +2432,12 @@ TetrahedraMesh* ExtractTetrahedralMesh(Array<int>* part_global,
                         Mtrcs->setVal(3,0,M_vmap[ien_o[s]]->getVal(1,1));
                         Mtrcs->setVal(4,0,M_vmap[ien_o[s]]->getVal(1,2));
                         Mtrcs->setVal(5,0,M_vmap[ien_o[s]]->getVal(2,2));
-                        
+                        double summ = Mtrcs->getVal(3,0)+Mtrcs->getVal(4,0)+Mtrcs->getVal(5,0);
+
+                        if(summ==0)
+                        {
+                            std::cout << "ERROR SUMM << " << std::endl;
+                        }
                         tmesh->M_vmap[ien[s]]=Mtrcs;
                     }
                 }
@@ -2603,7 +2642,23 @@ TetrahedraMesh* ExtractTetrahedralMesh(Array<int>* part_global,
             {
                 if(tmesh->M_vmap.find(ien[s])==tmesh->M_vmap.end())
                 {
-                    tmesh->M_vmap[ien[s]] = M_vmap[ien_o[s]];
+                    Array<double>* Mtrc = new Array<double>(6,1);
+                    
+                    Mtrc->setVal(0,0,M_vmap[ien_o[s]]->getVal(0,0));
+                    Mtrc->setVal(1,0,M_vmap[ien_o[s]]->getVal(0,1));
+                    Mtrc->setVal(2,0,M_vmap[ien_o[s]]->getVal(0,2));
+                    Mtrc->setVal(3,0,M_vmap[ien_o[s]]->getVal(1,1));
+                    Mtrc->setVal(4,0,M_vmap[ien_o[s]]->getVal(1,2));
+                    Mtrc->setVal(5,0,M_vmap[ien_o[s]]->getVal(2,2));
+                    
+                    tmesh->M_vmap[ien[s]] = Mtrc;
+                    
+                    double summmm = tmesh->M_vmap[ien[s]]->getVal(3,0)+tmesh->M_vmap[ien[s]]->getVal(4,0)+tmesh->M_vmap[ien[s]]->getVal(5,0);
+
+                    if(summmm == 0)
+                    {
+                        std::cout << "SUMERROR " << std::endl;
+                    }
                 }
             }
             
@@ -2643,6 +2698,13 @@ TetrahedraMesh* ExtractTetrahedralMesh(Array<int>* part_global,
                         Mtrc->setVal(3,0,collected_VrtMetrics[collit->first][6*4*q+6*s+3]);
                         Mtrc->setVal(4,0,collected_VrtMetrics[collit->first][6*4*q+6*s+4]);
                         Mtrc->setVal(5,0,collected_VrtMetrics[collit->first][6*4*q+6*s+5]);
+                        
+                        double summm = Mtrc->getVal(3,0)+Mtrc->getVal(4,0)+Mtrc->getVal(5,0);
+
+                        if(summm==0)
+                        {
+                            std::cout << "ERROR SUMMM << " << std::endl;
+                        }
                         nadded++;
                         tmesh->M_vmap[collit->second[q*4+s]] = Mtrc;
                     }
@@ -2737,6 +2799,8 @@ PartitionInfo* GetNewGlobalPartitioningTetrahedraMesh(TetrahedraMesh* tmesh, MPI
         }
     }
     
+    std::cout << " optimalSize " << world_rank << " " << optimalSize << std::endl;
+    
     MPI_Allreduce(ielement_nlocs,
                   &red_ielement_nlocs[0],
                   world_size, MPI_INT,
@@ -2785,7 +2849,7 @@ PartitionInfo* GetNewGlobalPartitioningTetrahedraMesh(TetrahedraMesh* tmesh, MPI
     real_t *tpwgts   = new real_t[np*ncon[0]];
     idx_t wgtflag_[] = {2};
     idx_t *wgtflag   = wgtflag_;
-    real_t ubvec_[]  = {1.02};
+    real_t ubvec_[]  = {1.1};
     real_t *ubvec    = ubvec_;
     idx_t options_[] = {0, 0, 0};
     idx_t *options   = options_;
@@ -3138,6 +3202,9 @@ int main(int argc, char** argv)
     PartitionInfo* partInfo = GetNewGlobalPartitioningTetrahedraMesh(tmesh,comm);
     
     // Determining the OPTIMAL number of elements on each rank based on the PARMETIS partitioning.
+    
+    std::cout << "partInfo->part " << world_rank << " " << partInfo->part->getNrow() << std::endl;
+    
     int* newSizesOnRanks    = CommunicatePartitionLayout(partInfo->part,comm);
 
     // Grab the optimal number of elements on current rank based on the partitioning array.
@@ -3161,6 +3228,8 @@ int main(int argc, char** argv)
     
     
     // Based on the PARMETIS partitioning (Array<int>* part_new) and the uniform tetrahedra distribution (tmesh) and the unformly read vertices (xcn) and the face maps (ifn), we communicate the appropriate data such that each processor can compute on tetrahedra while minimizing the number of shared faces between partitions.
+    
+    std::cout << "FIRST + " << world_rank << " " << nTetrahedraGlob << " " << nTetrahedra << std::endl;
     
     UpdateTetrahedraOnPartition(nTetrahedraGlob, nTetrahedra,
                                 partInfo->part, tmesh,
@@ -3390,8 +3459,6 @@ int main(int argc, char** argv)
         v0l = tmesh->globV2locV[v0];
         v1l = tmesh->globV2locV[v1];
         v2l = tmesh->globV2locV[v2];
-        
-        
         
         if ( PMMG_Set_triangle(parmesh,v0l+1,v1l+1,v2l+1,1.0,k+1) != 1 )
         {
