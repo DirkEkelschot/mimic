@@ -2183,105 +2183,194 @@ TetrahedraMesh* ExtractTetrahedralMesh(Array<int>* part_global,
 	}
 
    
-	int* toS_red = new int[world_size];
-	int* toR_red = new int[world_size];
-	int* to_Send_copy = new int[world_size];
-	int* to_Recv_copy = new int[world_size];
-	int* optiSize = new int[world_size];
-	int* optiSize_red = new int[world_size];
-
-	int* toS = new int[world_size];
-	int* toR = new int[world_size];
-	for(int i=0;i<world_size;i++)
-	{
-		toS[i] = 0;
-		toR[i] = 0;
-		optiSize[i] = 0;
-		optiSize_red[i] = 0;
-		if(i==world_rank)
-		{
-			optiSize[i] = optimalSize;
-
-			toS[i] = NtoSend;
-			toR[i] = NtoRecv;
-		}
-	}
-	MPI_Allreduce(optiSize, optiSize_red, world_size, MPI_INT, MPI_SUM, comm);
-	MPI_Allreduce(toS,           toS_red, world_size, MPI_INT, MPI_SUM, comm);
-	MPI_Allreduce(toR,           toR_red, world_size, MPI_INT, MPI_SUM, comm);
-
-	int sent;
-	int sendUpdate;
-	
-	std::map<int,std::vector<int> > recvRa;
-	std::map<int,std::vector<int> > recvNe;
-	
-	std::map<int,std::vector<int> > sendRa;
-	std::map<int,std::vector<int> > sendNe;
-	
-	for(int i=0;i<world_size;i++)
-	{
-		to_Send_copy[i] =  toS_red[i];
-		to_Recv_copy[i] =  toR_red[i];
-        
-		if(toR_red[i]!=0)
-		{
-			for(int j=0;j<world_size;j++)
-			{
-				if(toS_red[j]>=toR_red[i])
-				{
-					sendUpdate = toS_red[j]-toR_red[i];
-					sent       = toR_red[i];
-				}
-				
-				if(toS_red[j]<toR_red[i])
-				{
-					sendUpdate = 0;
-					sent       = toS_red[j];
-				}
-				
-				toS_red[j] = sendUpdate;
-				toR_red[i] = toR_red[i]-sent;
-				
-				if(sent>0)
-				{
-					recvRa[i].push_back(j);
-					recvNe[i].push_back(sent);
-					
-					sendRa[j].push_back(i);
-					sendNe[j].push_back(sent);
-				}
-			}
-		}
-	}
-    	
-    //std::cout << "OLD DIST VS NEW DIST " << optimalSize << " " << nTetras << std::endl;
-    if(world_rank==0)
+    int* toR_red2 = new int[world_size];
+    int* toS_red2 = new int[world_size];
+    int* toS_red = new int[world_size];
+    int* toR_red = new int[world_size];
+    int* to_Send_copy = new int[world_size];
+    int* to_Recv_copy = new int[world_size];
+    int* optiSize = new int[world_size];
+    int* optiSize_red = new int[world_size];
+    int* old_ntets = new int[world_size];
+    int* old_ntets_red = new int[world_size];
+    int* toS = new int[world_size];
+    int* toR = new int[world_size];
+    for(int i=0;i<world_size;i++)
     {
-        std::map<int,std::vector<int> >::iterator its;
+        toS[i] = 0;
+        toR[i] = 0;
+        optiSize[i] = 0;
+        optiSize_red[i] = 0;
+        toS_red[i] = 0;
+        toR_red[i] = 0;
+        toS_red2[i] = 0;
+        toR_red2[i] = 0;
+        old_ntets[i] = 0;
+        old_ntets_red[i] = 0;
+        if(i==world_rank)
+        {
+            optiSize[i] = optimalSize;
+            toS[i] = NtoSend;
+            toR[i] = NtoRecv;
+            old_ntets[i] = nTetras;
 
-        for(its=sendRa.begin();its!=sendRa.end();its++)
-        {
-            std::cout << its->first << " -> ";
-            for(int q=0;q<its->second.size();q++)
-            {
-                std::cout << its->second[q] << " " << sendNe[its->first][q] << " ";
-            }
-        }
-        
-        
-        std::cout << "======================================="<<std::endl;
-        
-        
-        for(its=recvRa.begin();its!=recvRa.end();its++)
-        {
-            std::cout << its->first << " -> ";
-            for(int q=0;q<its->second.size();q++)
-            {
-                std::cout << its->second[q] << " " << recvNe[its->first][q] << " ";
-            }
         }
     }
+    MPI_Allreduce(optiSize, optiSize_red, world_size, MPI_INT, MPI_SUM, comm);
+    MPI_Allreduce(toS,           toS_red, world_size, MPI_INT, MPI_SUM, comm);
+    MPI_Allreduce(toR,           toR_red, world_size, MPI_INT, MPI_SUM, comm);
+    MPI_Allreduce(&old_ntets[0], &old_ntets_red[0], world_size, MPI_INT, MPI_SUM, comm);
+    int sent;
+    int sendUpdate;
+    
+    int opti_Rank,ntet_Rank;
+    int ns=0;
+    int nr=0;
+    for(int i=0;i<world_size;i++)
+    {
+        opti_Rank = optiSize_red[i];
+        ntet_Rank = old_ntets_red[i];
+        
+        if(ntet_Rank>opti_Rank)
+        {
+            toS_red2[i] = old_ntets_red[i]-optiSize_red[i];
+            toR_red2[i] = 0;
+            
+            ns++;
+        }
+        if(opti_Rank>ntet_Rank)
+        {
+            toS_red2[i] = 0;
+            toR_red2[i] = optiSize_red[i]-old_ntets_red[i];
+            nr++;
+        }
+    }
+    
+    int* Psending   = new int[ns];
+    int* Nsending   = new int[ns];
+    int* Preceiving = new int[nr];
+    int* Nreceiving = new int[nr];
+
+    
+    std::map<int,std::vector<int> > recvRa;
+    std::map<int,std::vector<int> > recvNe;
+    
+    std::map<int,std::vector<int> > sendRa;
+    std::map<int,std::vector<int> > sendNe;
+    
+    int r = 0;
+    int s = 0;
+    
+    for(int i=0;i<world_size;i++)
+    {
+        if(toS_red2[i]>0)
+        {
+            Psending[s] = i;
+            Nsending[s] = toS_red2[i];
+            s++;
+        }
+        if(toR_red2[i]>0)
+        {
+            Preceiving[r] = i;
+            Nreceiving[r] = toR_red2[i];
+            r++;
+        }
+    }
+    
+    int adv = 0;
+    int st = 0;
+    int residual = 0;
+    while(adv<ns)
+    {
+        int Psend = Psending[adv];
+        int dist  = Nsending[adv];
+
+        
+        std::vector<int> toRank;
+        std::vector<int> NtoRank;
+        //std::cout << Psend << " with " << dist << " sends -> ";
+        
+        while(dist!=0)
+        {
+            int PtoS = Preceiving[st];
+            
+            toRank.push_back(PtoS);
+            
+            if(residual != 0)
+            {
+                if(dist>residual)
+                {
+                    dist = dist - residual;
+                    NtoRank.push_back(residual);
+                    //std::cout << "(" << residual << " ";
+                    residual = 0;
+                    st++;
+                }
+                else
+                {
+                    NtoRank.push_back(dist);
+                    residual = residual - dist;
+                    //std::cout << "(" << dist << " ";
+                    dist     = 0;
+                }
+            }
+            else if(dist>Nreceiving[st])
+            {
+                dist = dist - Nreceiving[st];
+                NtoRank.push_back(Nreceiving[st]);
+                //std::cout << "(" << Nreceiving[st] << " ";
+                st++;
+            }
+            else
+            {
+                NtoRank.push_back(dist);
+                //std::cout << "(" << dist << " ";
+                residual = Nreceiving[st]-dist;
+                dist = 0;
+            }
+        }
+        
+        //std::cout << std::endl;
+        
+        sendRa[Psend]=toRank;
+        sendNe[Psend]=NtoRank;
+        
+        adv++;
+    }
+    
+
+    
+    std::map<int,std::vector<int> >::iterator its;
+
+    for(its=sendRa.begin();its!=sendRa.end();its++)
+    {
+        
+        for(int q=0;q<its->second.size();q++)
+        {
+            recvRa[its->second[q]].push_back(its->first);
+            recvNe[its->second[q]].push_back(sendNe[its->first][q]);
+        }
+    }
+
+    
+//    if(world_rank==0)
+//    {
+//
+//        for(int i=0;i<world_size;i++)
+//        {
+//            std::cout << i << " " << toS_red2[i]<< " " <<toR_red2[i] << " " << toS_red[i]<< " " <<toR_red[i] << std::endl;
+//        }
+//        std::map<int,std::vector<int> >::iterator its;
+//
+//        for(its=sendRa.begin();its!=sendRa.end();its++)
+//        {
+//            std::cout << its->first << " -> ";
+//            for(int q=0;q<its->second.size();q++)
+//            {
+//                std::cout << its->second[q] << " " << sendNe[its->first][q] << " ";
+//            }
+//        }
+//    }
     
     
 	//=================================================================================================
@@ -2457,7 +2546,7 @@ TetrahedraMesh* ExtractTetrahedralMesh(Array<int>* part_global,
 			
             
             
-			if(u<to_Send_copy[world_rank])
+			if(u<toS_red2[world_rank])
 			{
 				if(t<(nelPrank))
 				{
