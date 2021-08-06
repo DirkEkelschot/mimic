@@ -3153,6 +3153,9 @@ void Partition::CreatePartitionDomainTest()
         elem2Nf[gEl] = Nfe;
     }
 //    // Identify the interface between the prisms and the tets;
+//    int t36 = 0;
+//    int y36 = 0;
+    //std::map<int,std::vector<int> > prism_BndFaces;
     for(itm  = ief_part_map->i_map.begin();
         itm != ief_part_map->i_map.end();
         itm++)
@@ -3164,12 +3167,19 @@ void Partition::CreatePartitionDomainTest()
         {
             faceid = itm->second[f];
             ref    = if_ref_part_map->i_map[faceid][0];
-
+            
             if(ufaces.find(faceid)==ufaces.end())
             {
                 ufaces.insert(faceid);
                 Nvface = if_Nv_part_map->i_map[faceid][0];
-
+//                if(ref != 0 && ref != 2)
+//                {
+//                    if(Nvface==4)
+//                    {
+//                        prism_BndFaces[ref].push_back(faceid);
+//                    }
+//                }
+                
                 el0    = ife_part_map->i_map[faceid][0];
                 el1    = ife_part_map->i_map[faceid][1];
                 
@@ -3190,6 +3200,12 @@ void Partition::CreatePartitionDomainTest()
     elem2Nf.clear();
 //
 //
+    std::map<int,std::vector<int> >::iterator itb;
+    
+//    for(itb=prism_BndFaces.begin();itb!=prism_BndFaces.end();itb++)
+//    {
+//        std::cout << "world_rank " << rank << "  --- " << itb->first << " " << itb->second.size() << std::endl;
+//    }
     
     int lcvn = 0;
     std::set<int> gv_set;
@@ -3198,6 +3214,7 @@ void Partition::CreatePartitionDomainTest()
         itm++)
     {
         int glob_id  = itm->first;
+        
         int NvpEl    = itm->second.size();
         std::vector<int>Elg(NvpEl);
         std::vector<int>El(NvpEl);
@@ -3226,6 +3243,7 @@ void Partition::CreatePartitionDomainTest()
             }
             Elg[q] = gv;
         }
+        
         //GElements[glob_id]=El;
 
         if(Elg.size()==4)
@@ -3246,7 +3264,6 @@ void Partition::CreatePartitionDomainTest()
         El.clear();
         Elg.clear();
     }
-    
     
     pDom->ushell           = ushell;
 //    pDom->ncomm           = ncomm;
@@ -3272,6 +3289,17 @@ void Partition::CreatePartitionDomainTest()
     pDom->vert2elem       = vert2elem;
     pDom->gv2lpartv       = gv2lpartv;
     pDom->lpartv2gv       = lpartv2gv;
+    std::map<int,std::vector<int> >::iterator itimap;
+
+    for(itimap=GTetras.begin();itimap!=GTetras.end();itimap++)
+    {
+        int elId = itimap->first;
+        if(rank == 0)
+        {
+            //std::cout << "tetras2 " <<elId << std::endl;
+
+        }
+    }
 }
 
 

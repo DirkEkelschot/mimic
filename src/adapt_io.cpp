@@ -1033,9 +1033,9 @@ void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh, MMG5_pSol mmgSol, US3D* us3d)
         adapt_zdefs->setVal(3+nb,4,face_end);
         adapt_zdefs->setVal(3+nb,5,bnd_ref);
         adapt_zdefs->setVal(3+nb,6,2);
-        //std::cout << "us3d->zdefs->getVal(3+nb,5) " << us3d->zdefs->getVal(3+nb,5) << std::endl;
+
         face_start = face_end+1;
-        //std::cout << "nb  = " << nb << " " << ref2bface.size() << " " << ref2bqface.size() << std::endl;
+
         nb++;
         q++;
     }

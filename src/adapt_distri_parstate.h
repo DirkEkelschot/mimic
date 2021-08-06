@@ -59,7 +59,7 @@ inline DistributedParallelState::DistributedParallelState(int nloc, MPI_Comm com
     for(i=0;i<world_size;i++)
     {
         offsets[i] = o;
-        o             = o+nlocs[i];
+        o          = o+nlocs[i];
     }
     
     Nel = o;
