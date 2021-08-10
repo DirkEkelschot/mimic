@@ -3651,15 +3651,8 @@ int main(int argc, char** argv)
                                 ife_pstate,
                                 comm);
     
-    
-    
-     
-     
-     
-     
     ParallelState* ien_pstate_tet      = new ParallelState(nTetrahedraGlob,comm);
 
-    
     std::map<int,int*> face2node = GetFace2EntityTetrahedraMesh(tmesh, us3d->ifn, 3, ife_pstate,nTetrahedraGlob,comm);
     
     std::map<int,std::vector<int> > face2rank = GetFace2RankTetrahedraMesh(tmesh,ien_pstate_tet,comm);
@@ -4011,6 +4004,7 @@ int main(int argc, char** argv)
     int             nodeGloNumber,nodeOwner;
     std::map<int,int> loc2globVid;
     std::map<int,int> glob2locVid;
+    std::vector<int> globIDs;
     for( k = 1; k <= nVerticesOUT; k++ )
     {
         if( !PMMG_Get_vertexGloNum( parmesh, &nodeGloNumber, &nodeOwner ) )
@@ -4019,12 +4013,19 @@ int main(int argc, char** argv)
             exit(EXIT_FAILURE);
         }
     
-        loc2globVid[k-1]=nodeGloNumber;
-        glob2locVid[nodeGloNumber]=k-1;
+        loc2globVid[k]=nodeGloNumber;
+        glob2locVid[nodeGloNumber]=k;
+        globIDs.push_back(nodeGloNumber);
     }
     
-    
-    
+//
+//    if(globIDs.size()!=0)
+//    {
+//        cout << world_rank << "\nMax Element = "
+//                 << *max_element(globIDs.begin(), globIDs.end());
+//    }
+//
+//
     
     int *required = (int*)calloc(MAX4(nVerticesOUT,nTetrahedraOUT,nTrianglesOUT,nEdgesOUT),sizeof(int));
     int *ref = (int*)calloc(MAX4(nVerticesOUT,nTetrahedraOUT,nTrianglesOUT,nEdgesOUT),sizeof(int));
@@ -4046,18 +4047,8 @@ int main(int argc, char** argv)
     
     
     
-
-    
-    
-    
-    
-    
-    
-    
-    
-    
     //int debug = 1;
-    if(!niter)
+    if(niter==3)
     {
         
         std::cout << "Check the input and outputted shard faces." << std::endl;
@@ -4204,7 +4195,7 @@ int main(int argc, char** argv)
                     for(int k=0;k<3;k++)
                     {
                         int vt3 = triaNodes2[3*(ft-1)+k];
-                        faceNodes_out[icomm][3*i+k]   = triaNodes2[3*(ft-1)+k];
+                        faceNodes_out[icomm][3*i+k] = triaNodes2[3*(ft-1)+k];
                         faceSh.insert(vt3);
                         if(sharedVert.find(vt3)==sharedVert.end())
                         {
@@ -4215,14 +4206,10 @@ int main(int argc, char** argv)
                 }
             }
         }
-        
-        std::cout << "f;dlgja;a;a " << world_rank <<" checking " << uniShVrts_owned.size() << " " << uniShVrts.size() << " " << intVrts.size() << " " << sharedVert.size() << " " << sharedVrts_Owned.size() << std::endl;
-        
     }
     else
     {
         //std::cout << "Outputting the new triangles..." << std::endl;
-        
         //===================================================================
         int **out_tria_loc, **out_node_loc;
         int *nitem_face_comm,*nitem_node_comm;
@@ -4244,8 +4231,6 @@ int main(int argc, char** argv)
           out_node_loc[icomm] = (int *) malloc(nitem_node_comm[icomm]*sizeof(int));
         ier = PMMG_Get_NodeCommunicator_nodes(parmesh, out_node_loc);
         
-        
-        
         //===================================================================
         ier = PMMG_Get_numberOfFaceCommunicators(parmesh,&next_face_comm);
         color_face_out  = (int *) malloc(next_face_comm*sizeof(int));
@@ -4262,72 +4247,26 @@ int main(int argc, char** argv)
           out_tria_loc[icomm] = (int *) malloc(nitem_face_comm[icomm]*sizeof(int));
         ier = PMMG_Get_FaceCommunicator_faces(parmesh, out_tria_loc);
         
-        
-        PMMG_pGrp      listgrp,grpI;
-        listgrp         = parmesh->listgrp;
-        grpI            = &listgrp[0];
-        int            poi_id_int,poi_id_glo,imsh,k;
-        
-        std::cout << "world _ R " << world_rank << " "  << grpI->nitem_int_node_comm << std::endl;
-        
-        std::set<int> un_poi_id_int;
-        std::set<int> un_poi_id_glo;
-
-        std::map<int,int> locSh2globSh;
-        std::map<int,int> globSh2locSh;
-        
-        std::map<int,int> globSh2Rank;
-        for ( k = 0; k < grpI->nitem_int_node_comm; ++k )
-        {
-            poi_id_int = grpI->node2int_node_comm_index1[k];
-            poi_id_glo = grpI->node2int_node_comm_index2[k];
-            locSh2globSh[poi_id_int]=poi_id_glo;
-            globSh2locSh[poi_id_int]=poi_id_int;
-            globSh2Rank[poi_id_glo]=world_rank;
-            
-            //std::cout << "world_rank " << world_rank << " " << poi_id_int << " " << poi_id_glo << std::endl;
-            
-            if(un_poi_id_int.find(poi_id_int)==un_poi_id_int.end())
-            {
-                un_poi_id_int.insert(poi_id_int);
-            }
-            
-            if(un_poi_id_glo.find(poi_id_glo)==un_poi_id_glo.end())
-            {
-                un_poi_id_glo.insert(poi_id_glo);
-            }
-        }
-        
-        
-        
-        
-        
-        std::cout << "W_R " << world_rank<< " " << un_poi_id_int.size() << " " << un_poi_id_glo.size() << std::endl;
-        
-        for( icomm=0; icomm<next_node_comm; icomm++ )
-        {
-            //std::cout << "world rank NODES " << world_rank << " " << color_node_out[icomm] << " " << nitem_node_comm[icomm] << " " << nVerticesOUT<< std::endl;
-//            for(int j=0;j<nitem_node_comm[icomm];j++)
-//            {
-//                if(out_node_loc[icomm][j]>=nVerticesOUT)
-//                {
-//                    std::cout << "test " << j << " " << out_node_loc[icomm][j] << std::endl;
-//                }
 //
-//            }
-        }
-          
-
-        for( icomm=0; icomm<next_face_comm; icomm++ )
-        {
-            //std::cout << "world rank FACE " << world_rank << " " << color_face_out[icomm] << " " << nitem_face_comm[icomm] << std::endl;
-        }
-          
-        
-        
-        
-        
-        
+//        PMMG_pGrp      listgrp,grpI;
+//        listgrp         = parmesh->listgrp;
+//        grpI            = &listgrp[0];
+//        int            poi_id_int,poi_id_glo,imsh,k;
+//
+//        std::map<int,int> locSh2globSh;
+//        std::map<int,int> globSh2locSh;
+//
+//        std::map<int,int> globSh2Rank;
+//        for ( k = 0; k < grpI->nitem_int_node_comm; ++k )
+//        {
+//            poi_id_int = grpI->node2int_node_comm_index1[k];
+//            poi_id_glo = grpI->node2int_node_comm_index2[k];
+//            locSh2globSh[poi_id_int]=poi_id_glo;
+//            globSh2locSh[poi_id_int]=poi_id_int;
+//            globSh2Rank[poi_id_glo]=world_rank;
+//        }
+//
+    
         // Check matching of input interface nodes with the set ones
         int *ref2       = (int*)calloc(nTrianglesOUT,sizeof(int));
         int *required2  = (int*)calloc(nTrianglesOUT,sizeof(int));
@@ -4344,11 +4283,11 @@ int main(int argc, char** argv)
         int cnt_int = 0;
         std::map<std::set<int>, int> PMMG_Face2Ref;
         std::set<std::set<int> > TotalFaces;
-        std::set<std::set<int> > TotalFaces2;
-        std::set<std::set<int> > TotalFaces3;
+        std::set<std::set<int> > InteriorFaces;
 
         
         int c36 = 0;
+        int gv0,gv1,gv2;
         for ( k=0; k<nTrianglesOUT; k++ )
         {
             pos = 3*k;
@@ -4364,20 +4303,24 @@ int main(int argc, char** argv)
 
             std::set<int> faceSh;
             
-            faceSh.insert(triaNodes2[pos]);
-            faceSh.insert(triaNodes2[pos+1]);
-            faceSh.insert(triaNodes2[pos+2]);
+            gv0 = loc2globVid[triaNodes2[pos]];
+            gv1 = loc2globVid[triaNodes2[pos+1]];
+            gv2 = loc2globVid[triaNodes2[pos+2]];
+            
+            faceSh.insert(gv0);
+            faceSh.insert(gv1);
+            faceSh.insert(gv2);
+            
             TotalFaces.insert(faceSh);
             
             if(ref2[k]==0)
             {
-               TotalFaces2.insert(faceSh);
+               InteriorFaces.insert(faceSh);
             }
 
             if(ref2[k]!=0)
             {
               PMMG_Face2Ref[faceSh] = ref2[k];
-              TotalFaces3.insert(faceSh);
             }
          
             faceSh.clear();
@@ -4385,37 +4328,26 @@ int main(int argc, char** argv)
             if ( required2 && required2[k] )  nreq2++;
         }
         
-        
-        
+        //std::cout << "HIIIIIIIIIIIII " << std::endl;
         
         int itt2            = 0;
         int nTshared_owned  = 0;
 
-        std::map<int,int> sharedVert;
-        std::map<int,int> sharedVrts_Owned;
-        std::set<int> sharedVert_NotOwned;
+        int vt,ft,gvt,gft;
 
-        std::map<int,int> sharedFacesIDs;
-        std::map<int,int> sharedFace_Owned;
-        
-        std::map<int,std::vector<int> > Color_SharedOwned;
-        std::map<int,int> sharedFOld2New;
-
-        int vt,ft;
-        int lvt_o = 0;
-        int lft_o = 0;
-        int lvt   = 0;
-        int lft   = 0;
-        std::map<int,std::vector<double> > SharedCoords;
-        
-        std::set<std::set<int> > PMMG_SharedFaces;
-        std::set<std::set<int> > PMMG_SharedFacesOwned;
+        std::map<std::set<int>, int> PMMG_SharedFaces;
+        std::map<std::set<int>, int> PMMG_SharedFacesOwned;
+        std::set<int> PMMG_SharedVertsOwned;
         int nPartFace = 0;
         std::map<int,int> rank2icomm;
-        
         std::map<int,std::vector<int> > LocateOppositeFace;
         std::map<int,int> vertonrank;
         int locID_NotShVrt = 0;
+        std::vector<int> PMMG_SharedVertsOwned_vec;
+        std::vector<int> PMMG_SharedVertsOwnedRank_vec;
+        std::set<int> PMMG_SharedVertices;
+        std::map<int,std::vector<int> > Color_SharedOwned;
+
         for( icomm = 0; icomm < next_face_comm; icomm++ )
         {
             nPartFace 				          = nPartFace + nitem_face_comm[icomm];
@@ -4429,251 +4361,146 @@ int main(int argc, char** argv)
                 {
                     int ft       = out_tria_loc[icomm][i];
                     int face_ref = ref2[ft-1];
-                    Color_SharedOwned[color_face_out[icomm]].push_back(i);
-                    
+                    //Color_SharedOwned[icomm].push_back(i);
                     std::set<int> faceSh;
                     for(int k=0;k<3;k++)
                     {
-                        int vt2 = triaNodes2[3*(ft-1)+k];
-                        faceSh.insert(vt2);
-                    }
-                    
-                    PMMG_SharedFaces.insert(faceSh);
-                    PMMG_SharedFacesOwned.insert(faceSh);
-                    
-                    for(int k=0;k<3;k++)
-                    {
-                        vt = triaNodes2[3*(ft-1)+k];
-                    
-                        if(sharedVrts_Owned.find(vt)==sharedVrts_Owned.end())
-                        {
-                            sharedVrts_Owned[vt] = lvt_o;
-                            sharedVert[vt]       = lvt;
-                            
-                            SharedCoords[vt].push_back(vertOUT[(vt-1)*3+0]);
-                            SharedCoords[vt].push_back(vertOUT[(vt-1)*3+1]);
-                            SharedCoords[vt].push_back(vertOUT[(vt-1)*3+2]);
+                        int vt  = triaNodes2[3*(ft-1)+k];
+                        int gvt = loc2globVid[vt];
+                        faceSh.insert(gvt);
                         
-                            lvt++;
-                            lvt_o++;
+                        if(PMMG_SharedVertices.find(gvt)==PMMG_SharedVertices.end())
+                        {
+                            PMMG_SharedVertices.insert(gvt);
+                        }
+                        
+                        if(PMMG_SharedVertsOwned.find(gvt)==PMMG_SharedVertsOwned.end())
+                        {
+                            PMMG_SharedVertsOwned.insert(gvt);
+                            PMMG_SharedVertsOwned_vec.push_back(gvt);
+                            PMMG_SharedVertsOwnedRank_vec.push_back(world_rank);
                         }
                     }
                     
+                    
+                    Color_SharedOwned[color_face_out[icomm]].push_back(i);
+                    PMMG_SharedFacesOwned[faceSh]=ft;
+                    PMMG_SharedFaces[faceSh]=ft;
                     faceSh.clear();
-                    lft_o++;
-                    lft++;
-
                 }
             }
             else
             {
                 for( i = 0; i < nitem_face_comm[icomm]; i++ )
                 {
-                    int ft = out_tria_loc[icomm][i];
+                    int ft       = out_tria_loc[icomm][i];
                     
                     std::set<int> faceSh;
-                    
-                    if(sharedFacesIDs.find(ft)==sharedFacesIDs.end())
+                    for(int k=0;k<3;k++)
                     {
-                        for(int k=0;k<3;k++)
+                        int vt  = triaNodes2[3*(ft-1)+k];
+                        int gvt = loc2globVid[vt];
+                        faceSh.insert(gvt);
+                        if(PMMG_SharedVertices.find(gvt)==PMMG_SharedVertices.end())
                         {
-                            int vt = triaNodes2[3*(ft-1)+k];
-                            
-                            faceSh.insert(vt);
-                            if(sharedVert_NotOwned.find(vt)==sharedVert_NotOwned.end())
-                            {
-                                sharedVert_NotOwned.insert(vt);
-                                LocateOppositeFace[vt].push_back(color_face_out[icomm]);
-                                LocateOppositeFace[vt].push_back(i);
-                            }
-                            
-                            if(sharedVert.find(vt)==sharedVert.end())
-                            {
-                                sharedVert[vt]      = lvt;
-                                
-                                SharedCoords[vt].push_back(vertOUT[(vt-1)*3+0]);
-                                SharedCoords[vt].push_back(vertOUT[(vt-1)*3+1]);
-                                SharedCoords[vt].push_back(vertOUT[(vt-1)*3+2]);
-                                
-                                lvt++;
-                            }
+                            PMMG_SharedVertices.insert(gvt);
                         }
-                        
-                        sharedFacesIDs[ft] = lft;
-                        PMMG_SharedFaces.insert(faceSh);
-
-                        lft++;
-                        
+                    
                     }
+                    if(PMMG_SharedFaces.find(faceSh)==PMMG_SharedFaces.end())
+                    {
+                        PMMG_SharedFaces[faceSh]=ft;
+                    }
+                    
                     faceSh.clear();
                 }
             }
         }
+       
+        int nLocallyOwnedVerts              = PMMG_SharedVertsOwned.size();
+        DistributedParallelState* locallyOwnedVerts = new DistributedParallelState(nLocallyOwnedVerts,comm);
+        int* OwnedVertsDistri               = new int[locallyOwnedVerts->getNel()];
+        int* OwnedVertsDistriRank           = new int[locallyOwnedVerts->getNel()];
+        int* PMMG_SharedVertsOwned_arr      = new int[nLocallyOwnedVerts];
+        int* PMMG_SharedVertsOwnedRank_arr  = new int[nLocallyOwnedVerts];
         
-        // Check for duplicates:
-        int nu = 0;
-        std::vector<int> dupl_sharedVrts;
-        std::map<int,int>::iterator itsh;
-
-        std::set<int> dupl_sharedVrts_set;
-        for(itsh=sharedVrts_Owned.begin();itsh!=sharedVrts_Owned.end();itsh++)
+        for(int i=0;i<nLocallyOwnedVerts;i++)
         {
-            int ggvidd = itsh->first;
-            if(dupl_sharedVrts_set.find(ggvidd)==dupl_sharedVrts_set.end() &&
-               sharedVert_NotOwned.find(ggvidd)!=sharedVert_NotOwned.end())
-            {
-                dupl_sharedVrts_set.insert(ggvidd);
-                dupl_sharedVrts.push_back(ggvidd);
-            }
+            PMMG_SharedVertsOwned_arr[i]            = PMMG_SharedVertsOwned_vec[i];
+            PMMG_SharedVertsOwnedRank_arr[i]        = PMMG_SharedVertsOwnedRank_vec[i];
         }
         
-        //============================================================================
-        //============================================================================
-        //============================================================================
-        //============================================================================
-        //============================================================================
         
-        std::map<int,std::vector<int> > req_locFaceID;
-        std::map<int,std::vector<double> > req_locVrtOfCrds;
+        MPI_Allgatherv(&PMMG_SharedVertsOwned_arr[0],
+                       nLocallyOwnedVerts,
+                       MPI_INT,
+                       OwnedVertsDistri,
+                       locallyOwnedVerts->getNlocs(),
+                       locallyOwnedVerts->getOffsets(),
+                       MPI_INT, comm);
         
+        MPI_Allgatherv(&PMMG_SharedVertsOwnedRank_arr[0],
+                       nLocallyOwnedVerts,
+                       MPI_INT,
+                       OwnedVertsDistriRank,
+                       locallyOwnedVerts->getNlocs(),
+                       locallyOwnedVerts->getOffsets(),
+                       MPI_INT, comm);
         
-        for(int u=0;u<dupl_sharedVrts.size();u++)
+        std::map<int,int> ActualOwnedVertDistr;
+        std::map<int,std::vector<int> > ActualOwnedVertDistr_map;
+        int ownedID;
+        for(int i=0;i<locallyOwnedVerts->getNel();i++)
         {
-            if(sharedVert_NotOwned.find(dupl_sharedVrts[u])!=sharedVert_NotOwned.end())
-            {
-                int alsoOnRank = LocateOppositeFace[dupl_sharedVrts[u]][0];
-                int alsoFid    = LocateOppositeFace[dupl_sharedVrts[u]][1];
-                                
-                req_locFaceID[alsoOnRank].push_back(alsoFid);
-                
-                req_locVrtOfCrds[alsoOnRank].push_back(SharedCoords[dupl_sharedVrts[u]][0]);
-                req_locVrtOfCrds[alsoOnRank].push_back(SharedCoords[dupl_sharedVrts[u]][1]);
-                req_locVrtOfCrds[alsoOnRank].push_back(SharedCoords[dupl_sharedVrts[u]][2]);
-                
-            }
-        }
-
-        ScheduleObj* global_vrt_schedule = DoScheduling(req_locFaceID,comm);
-
-        std::map<int,std::vector<int> > recv_Fids;
-        std::map<int,std::vector<double> > recv_Crds;
-        std::map<int,std::vector<int> >::iterator itsched;
-
-        for(int q=0;q<world_size;q++)
-        {
-            if(world_rank==q)
-            {
-                int i=0;
-                for (itsched = req_locFaceID.begin(); itsched != req_locFaceID.end(); itsched++)
-                {
-                    int n_req           = itsched->second.size();
-                    int dest            = itsched->first;
-                    
-                    MPI_Send(&n_req, 1, MPI_INT, dest, 16798+78*dest, comm);
-                    MPI_Send(&itsched->second[0], n_req, MPI_INT, dest, 114876+dest, comm);
-                    MPI_Send(&req_locVrtOfCrds[itsched->first][0], n_req*3, MPI_DOUBLE, dest, 214876*5+dest, comm);
-
-                    i++;
-                }
-            }
-            else if (global_vrt_schedule->SendFromRank2Rank[q].find( world_rank ) != global_vrt_schedule->SendFromRank2Rank[q].end())
-            {
-                int n_reqstd_ids;
-                MPI_Recv(&n_reqstd_ids,
-                         1, MPI_INT, q,
-                         16798+78*world_rank, comm, MPI_STATUS_IGNORE);
-
-                std::vector<int> recv_reqstd_Fids(n_reqstd_ids);
-                std::vector<double> recv_reqstd_Crds(n_reqstd_ids*3);
-                
-                MPI_Recv(&recv_reqstd_Fids[0],
-                         n_reqstd_ids, MPI_INT, q,
-                         114876+world_rank, comm, MPI_STATUS_IGNORE);
-                
-                MPI_Recv(&recv_reqstd_Crds[0],
-                         n_reqstd_ids*3, MPI_DOUBLE, q,
-                         214876*5+world_rank, comm, MPI_STATUS_IGNORE);
-
-                recv_Fids[q] = recv_reqstd_Fids;
-                recv_Crds[q] = recv_reqstd_Crds;
-            }
-        }
-
-
-        std::map<int,std::vector<int> >::iterator itje;
-        double eps = 1.0e-08;
-        int mfound;
-        int vtfound;
-        
-        std::set<int> dupliVrtsFound;
-        int dpl = 0;
-        
-        for(itje = recv_Fids.begin();itje!=recv_Fids.end();itje++)
-        {
-            int rank_recvd = itje->first;
-            int icomm_cor = rank2icomm[itje->first];
+            int gvd = OwnedVertsDistri[i];
             
-            for(int i=0;i<itje->second.size();i++)
+            if(ActualOwnedVertDistr.find(gvd)==ActualOwnedVertDistr.end())
             {
-                int fid_cons = itje->second[i];
-                int ft       = out_tria_loc[icomm_cor][fid_cons];
-                
-                double xtest = recv_Crds[itje->first][i*3+0];
-                double ytest = recv_Crds[itje->first][i*3+1];
-                double ztest = recv_Crds[itje->first][i*3+2];
-                
-                for(int m=0;m<3;m++)
+                ActualOwnedVertDistr_map[gvd].push_back(OwnedVertsDistriRank[i]);
+
+                ActualOwnedVertDistr[gvd] = OwnedVertsDistriRank[i];
+                ownedID = OwnedVertsDistriRank[i];
+            }
+            else
+            {
+                if(OwnedVertsDistriRank[i]<ActualOwnedVertDistr[gvd])
                 {
-                    int vt = triaNodes2[3*(ft-1)+m];
-                    double resx   = fabs(xtest-SharedCoords[vt][0]);
-                    double resy   = fabs(ytest-SharedCoords[vt][1]);
-                    double resz   = fabs(ztest-SharedCoords[vt][2]);
-                    double restot = resx+resy+resz;
-                    if(restot<eps)
-                    {
-                        mfound  = m;
-                        vtfound = vt;
-                        dupliVrtsFound.insert(vt);
-                        sharedVrts_Owned.erase(vtfound);
-                        dpl++;
-                    }
+                    ActualOwnedVertDistr[gvd] = OwnedVertsDistriRank[i];
+                    ownedID = OwnedVertsDistriRank[i];
+                }
+                else
+                {
+                    ActualOwnedVertDistr[gvd] = OwnedVertsDistriRank[i];
+                    ownedID = ActualOwnedVertDistr[gvd];
                 }
             }
         }
-
-        //========================================================================
-        //========================================================================
-        //========================================================================
-        //========================================================================
-        //========================================================================
         
-        int nSharedVrts          = sharedVert.size();
-        int nSharedVrts_own      = sharedVrts_Owned.size();
-        int nSharedFaces         = sharedFacesIDs.size();
-        int nSharedFaces_own     = sharedFace_Owned.size();
-        int nShVrtsCrdsOwn       = SharedCoords.size();
-        DistributedParallelState* SharedVrtIds  = new DistributedParallelState(nSharedVrts,comm);
-        DistributedParallelState* SharedVrtCrdsOwned = new DistributedParallelState(nShVrtsCrdsOwn,comm);
-        DistributedParallelState* SharedVrtIdsOwned  = new DistributedParallelState(nSharedVrts_own,comm);
-        int* uvoffset = SharedVrtCrdsOwned->getOffsets();
-        std::map<int,int> local2glob_sharedVert;
-        std::map<int,int>::iterator unvit;
-        int voff = uvoffset[world_rank];
-        int guvid;
-        for(unvit=sharedVrts_Owned.begin();unvit!=sharedVrts_Owned.end();unvit++)
+        std::map<int,std::vector<int> > ActualOwnedVertDistr_map_update;
+
+        std::map<int,std::vector<int> >::iterator itm;
+        int tel = 0;
+        int* tells = new int[world_size];
+        for(int u=0;u<world_size;u++)
         {
-            int gvid = unvit->first;
-            //sharedVrts_Owned[lvid] = guvid;
-            
-            guvid=voff+1;
+            tells[u] = 0;
         }
         
-        int nTotSharedVrts_unique = SharedVrtIdsOwned->getNel();
-        int nTotSharedVrts = SharedVrtIds->getNel();
+        std::map<int,int> LocationSharedVert;
+        for(itm=ActualOwnedVertDistr_map.begin();itm!=ActualOwnedVertDistr_map.end();itm++)
+        {
+            int gv = itm->first;
+            int ra = *min_element(itm->second.begin(), itm->second.end());
+            tells[ra] = tells[ra]+1;
+            ActualOwnedVertDistr_map_update[ra].push_back(gv);
+            LocationSharedVert[gv]=ra;
+            tel++;
+        }
 
-        std::cout << "nTotSharedVrts_unique " << " " << world_rank << " " << nTotSharedVrts_unique << " " << nSharedVrts_own << " " << nTotSharedVrts << " " << nSharedVrts << std::endl;
+       
         
-        /*
+        //std::cout << "Check filtered Length = " << ActualOwnedVertDistr.size() << std::endl;
+        
         //===========================================================================
         //===========================================================================
         //===========================================================================
@@ -4710,13 +4537,12 @@ int main(int argc, char** argv)
         
         int* tetraOUT = new int[nTetrahedraOUT*4];
         std::vector<std::vector<int> > tetrasOUT;
-        std::set<int> NonSharedVrts;
         std::vector<int> NonSharedVrts_vec;
 
         std::map<int,std::vector<double> > coords_int;
-
-        
-        
+        std::map<int,int> lhshown;
+        std::map<int,int> lhbnd;
+        std::map<int,int> lhsh;
         std::map<int,int> lh;
         std::map<int,int> rh;
         
@@ -4727,7 +4553,7 @@ int main(int argc, char** argv)
         std::map<int,std::vector<int> > ienOUT;
         std::map<int,std::vector<int> > fmBnd;
         std::map<int,std::vector<int> > fmInt;
-        std::map<int,std::vector<int> > fmSh;
+        std::map<int,std::vector<int> > fmSha;
         std::map<int,std::vector<int> > fm;
 
         
@@ -4742,14 +4568,26 @@ int main(int argc, char** argv)
         std::map<int,int> gvid2shid;
         int fid  = 0;
         int lshf = 0;
-        int tetra_faces[4][3] = {{1,2,3},{0,2,3},{0,3,1},{0,2,1}};
+        int tetra_faces[4][3] = {{1,2,3},{0,3,2},{0,1,3},{0,2,1}};
         int NoNShFaces = 0;
         
         std::map<int,int> locShF2globShF;
         std::map<int,int> locBF2globBF;
+        std::map<int,int> NonSharedVrts;
+        int ngv = 0;
         
+        std::vector<int> Elvrts(4);
+        int fv0,fv1,fv2;
+        Vec3D* v0 = new Vec3D;
+        Vec3D* v1 = new Vec3D;
+        Vec3D* r0 = new Vec3D;
+
+        Vert* Vface = new Vert;
+        int negit = 0;
         for ( k=0; k<nTetrahedraOUT; k++ )
         {
+            parmmg_iet->setVal(k,0,2);
+            pos = 4*k;
             if ( PMMG_Get_tetrahedron(parmesh,
                                         &(tetraOUT[pos  ]),&(tetraOUT[pos+1]),
                                         &(tetraOUT[pos+2]),&(tetraOUT[pos+3]),
@@ -4759,63 +4597,128 @@ int main(int argc, char** argv)
                 ier = PMMG_STRONGFAILURE;
             }
             
-            std::vector<int> Elvrts(4);
             Elvrts[0] = tetraOUT[pos];
             Elvrts[1] = tetraOUT[pos+1];
             Elvrts[2] = tetraOUT[pos+2];
             Elvrts[3] = tetraOUT[pos+3];
             
+            double* P = new double[4*3];
+            
+            P[0*3+0]=vertOUT[(Elvrts[0]-1)*3];
+            P[0*3+1]=vertOUT[(Elvrts[0]-1)*3+1];
+            P[0*3+2]=vertOUT[(Elvrts[0]-1)*3+2];
+            
+            P[1*3+0]=vertOUT[(Elvrts[1]-1)*3];
+            P[1*3+1]=vertOUT[(Elvrts[1]-1)*3+1];
+            P[1*3+2]=vertOUT[(Elvrts[1]-1)*3+2];
+            
+            P[2*3+0]=vertOUT[(Elvrts[2]-1)*3];
+            P[2*3+1]=vertOUT[(Elvrts[2]-1)*3+1];
+            P[2*3+2]=vertOUT[(Elvrts[2]-1)*3+2];
+            
+            P[3*3+0]=vertOUT[(Elvrts[3]-1)*3];
+            P[3*3+1]=vertOUT[(Elvrts[3]-1)*3+1];
+            P[3*3+2]=vertOUT[(Elvrts[3]-1)*3+2];
+            
+            ienOUT[curElID] = Elvrts;
+            tetrasOUT.push_back(Elvrts);
+            double Vtet = GetQualityTetrahedra(P);
+            Vert* vCenter = ComputeCentroidCoord(P, 4);
+            
+            if(Vtet<0.0)
+            {
+                std::cout << "Error " << Vtet << std::endl;
+            }
+            
+            if(curElID==27124)
+            {
+                std::cout << "eolrdrank = " << world_rank << " curElID =  " << curElID << " " << Elvrts[0] << " " << Elvrts[1] << " " << Elvrts[2] << " " << Elvrts[3] << " Vtet = " << Vtet << std::endl;
+            }
             for(int u=0;u<4;u++)
             {
-                std::set<int> Face;
+                fv0 = loc2globVid[Elvrts[tetra_faces[u][0]]];
+                fv1 = loc2globVid[Elvrts[tetra_faces[u][1]]];
+                fv2 = loc2globVid[Elvrts[tetra_faces[u][2]]];
                 
-                for(int w=0;w<3;w++)
-                {
-                    int lv = tetra_faces[u][w];
-                    Face.insert(Elvrts[lv]);
-                    
-                    int gvidd = Elvrts[lv];
-                    
-                    //================================================================
-                    //================================================================
-                    //================================================================
-                    // SCENARIO 1!
-                    if(NonSharedVrts.find(gvidd)==NonSharedVrts.end() &&
-                       sharedVert.find(gvidd)==sharedVert.end())
-                    {
-                        NonSharedVrts.insert(gvidd);
-                        NonSharedVrts_vec.push_back(gvidd);
-                    }
-                    
-                    //================================================================
-                    //================================================================
-                    //================================================================
-                }
+                std::set<int> Face;
+                Face.insert(fv0);
+                Face.insert(fv1);
+                Face.insert(fv2);
                 
                 if(facemap.find(Face)==facemap.end())
                 {
-                    facemap[Face]=fid;
+                    facemap[Face] = fid;
                     std::vector<int> fce(3);
+                    fce[0]  = fv0;
+                    fce[1]  = fv1;
+                    fce[2]  = fv2;
                     
-                    fce[0]  = Elvrts[tetra_faces[u][0]];
-                    fce[1]  = Elvrts[tetra_faces[u][1]];
-                    fce[2]  = Elvrts[tetra_faces[u][2]];
+                    double v0x = vertOUT[(Elvrts[tetra_faces[u][0]]-1)*3];
+                    double v0y = vertOUT[(Elvrts[tetra_faces[u][0]]-1)*3+1];
+                    double v0z = vertOUT[(Elvrts[tetra_faces[u][0]]-1)*3+2];
+                    
+                    double v1x = vertOUT[(Elvrts[tetra_faces[u][1]]-1)*3];
+                    double v1y = vertOUT[(Elvrts[tetra_faces[u][1]]-1)*3+1];
+                    double v1z = vertOUT[(Elvrts[tetra_faces[u][1]]-1)*3+2];
+                    
+                    double v2x = vertOUT[(Elvrts[tetra_faces[u][2]]-1)*3];
+                    double v2y = vertOUT[(Elvrts[tetra_faces[u][2]]-1)*3+1];
+                    double v2z = vertOUT[(Elvrts[tetra_faces[u][2]]-1)*3+2];
+                    
+                    Vface->x = (v0x+v1x+v2x)/3.0;
+                    Vface->y = (v0y+v1y+v2y)/3.0;
+                    Vface->z = (v0z+v1z+v2z)/3.0;
+                    
+                    r0->c0 = (Vface->x-vCenter->x);///Lr;
+                    r0->c1 = (Vface->y-vCenter->y);///Lr;
+                    r0->c2 = (Vface->z-vCenter->z);///Lr;
+                    
+                    
+                    v0->c0 = v1x-v0x;
+                    v0->c1 = v1y-v0y;
+                    v0->c2 = v1z-v0z;
+
+                    v1->c0 = v2x-v0x;
+                    v1->c1 = v2y-v0y;
+                    v1->c2 = v2z-v0z;
+                    
+                    Vec3D* n0 = ComputeSurfaceNormal(v0,v1);
+                    double orient0   = DotVec3D(r0,n0);
+                    if(orient0<0.0)
+                    {
+                        negit++;
+                    }
                     
                     fm[fid] = fce;
+                    if(PMMG_SharedFaces.find(Face) != PMMG_SharedFaces.end())
+                    {
+                        lshf                     = PMMG_SharedFaces[Face];
+                        locShF2globShF[lshf]     = fid;
+                        lhsh[fid]                = curElID;
+                    }
+                    
                     
                     if(PMMG_SharedFaces.find(Face) == PMMG_SharedFaces.end()
                        && PMMG_Face2Ref.find(Face) == PMMG_Face2Ref.end())
                     {
                         fmInt[fid]  = fce;
                         lh[fid]     = curElID;
+                        
+                        for(int s=0;s<3;s++)
+                        {
+                            int gvm2 = fce[s];
+                            if(NonSharedVrts.find(gvm2)==NonSharedVrts.end() && PMMG_SharedVertices.find(gvm2)==PMMG_SharedVertices.end())
+                            {
+                                NonSharedVrts[gvm2] = ngv;
+                                ngv++;
+                            }
+                        }
                     }
                     
                     if(PMMG_SharedFacesOwned.find(Face) != PMMG_SharedFacesOwned.end())
                     {
-                        fmSh[fid]               = fce;
-                        locShF2globShF[lshf]    = fid;
-                        lh[fid] = curElID;
-                        lshf++;
+                        fmSha[fid]               = fce;
+                        lhshown[fid]             = curElID;
                     }
                     
                     if(PMMG_Face2Ref.find(Face) != PMMG_Face2Ref.end())
@@ -4823,9 +4726,13 @@ int main(int argc, char** argv)
                         fmBnd[fid]          = fce;
                         int FaceRef         = PMMG_Face2Ref[Face];
                         locBF2globBF[lshf]  = fid;
-                        lh[fid]             = curElID;
+                        lhbnd[fid]          = curElID;
                         bcmap[FaceRef].push_back(fid);
                     }
+                    
+                    
+//                    delete r0;
+//                    delete n0;
                     fid++;
                 }
                 else
@@ -4837,139 +4744,165 @@ int main(int argc, char** argv)
                 Face.clear();
             }
             
-            double* P = new double[4*3];
             
-            P[0*3+0]=vertOUT[(v0-1)*3];
-            P[0*3+1]=vertOUT[(v0-1)*3+1];
-            P[0*3+2]=vertOUT[(v0-1)*3+2];
-            
-            P[1*3+0]=vertOUT[(v1-1)*3];
-            P[1*3+1]=vertOUT[(v1-1)*3+1];
-            P[1*3+2]=vertOUT[(v1-1)*3+2];
-            
-            P[2*3+0]=vertOUT[(v2-1)*3];
-            P[2*3+1]=vertOUT[(v2-1)*3+1];
-            P[2*3+2]=vertOUT[(v2-1)*3+2];
-            
-            P[3*3+0]=vertOUT[(v3-1)*3];
-            P[3*3+1]=vertOUT[(v3-1)*3+1];
-            P[3*3+2]=vertOUT[(v3-1)*3+2];
-            
-            std::vector<int> tetra(4);
-            tetra[0] = v0;
-            tetra[1] = v1;
-            tetra[2] = v2;
-            tetra[3] = v3;
-            
-            ienOUT[curElID] = tetra;
-            tetrasOUT.push_back(tetra);
-            double Vtet = GetQualityTetrahedra(P);
-            
-            if(Vtet<0.0)
-            {
-                std::cout << "Error " << Vtet << std::endl;
-            }
             
             curElID++;
 
             delete[] P;
         }
         
-        
-        
-        // GENERATE THE GLOBAL VERTEX IDS AND THE CORRESPONDING MAPS
+        std::cout << negit << " normals are pointing inwards. " << std::endl;
+        int nLocIntVrts         = NonSharedVrts.size();
+        int nLocShVrts          = ActualOwnedVertDistr_map_update[world_rank].size();
+        int nLocTotVrts         = nLocIntVrts+nLocShVrts;
+        DistributedParallelState* distnLocTotVrts = new DistributedParallelState(nLocTotVrts,comm);
 
-        //==================================================================
-        //==================================================================
-        //==================================================================
-        //==================================================================
-        //==================================================================
-        int totalLocalVrts = NonSharedVrts_vec.size()+sharedVrts_Owned.size();
-        DistributedParallelState* distUniqueTotVerts     = new DistributedParallelState(totalLocalVrts,comm);
-        DistributedParallelState* distUniqueVerts        = new DistributedParallelState(NonSharedVrts_vec.size(),comm);
-        DistributedParallelState* distUniqueSharedVerts  = new DistributedParallelState(sharedVrts_Owned.size(),comm);
-
-        int nTotVrtsUnique      = distUniqueTotVerts->getNel();
-        int nTotVrts_unique     = distUniqueVerts->getNel();
+        int vert = 0;//distnLocTotVrts->getOffsets()[world_rank];
+        int ToTVrts =  distnLocTotVrts->getNel();
+        int* ToTVrts_offsets = distnLocTotVrts->getOffsets();
+        int ToTVrts_offset = ToTVrts_offsets[world_rank];
+        Array<double>* xcn_parmmg = new Array<double>(nLocTotVrts,3);
+        std::map<int,int> tag2glob;
+        std::map<int,int> glob2tag;
         
-    	std::map<int,int> locVrt2globVrt;
-    	std::map<int,int> globVrt2locVrt;
-
-        int ToTVrts_offset      = distUniqueTotVerts->getOffsets()[world_rank];
-        int ToTVrts             = distUniqueTotVerts->getNel();
-        int gv                  = ToTVrts_offset;
-        int gv_b                = ToTVrts_offset;
-        int vrtid               = 0;
-
-        Array<double>* xcn_parmmg = new Array<double>(totalLocalVrts,3);
-        
-    	for(int i=0;i<NonSharedVrts_vec.size();i++)
-    	{
-            int lcid = NonSharedVrts_vec[i];
-            
-    		locVrt2globVrt[NonSharedVrts_vec[i]] = gv;
-    		globVrt2locVrt[gv] = NonSharedVrts_vec[i];
-            
-            xcn_parmmg->setVal(vrtid,0,vertOUT[(lcid-1)*3+0]);
-            xcn_parmmg->setVal(vrtid,1,vertOUT[(lcid-1)*3+1]);
-            xcn_parmmg->setVal(vrtid,2,vertOUT[(lcid-1)*3+2]);
-            
-            vrtid++;
-    		gv++;
-    	}
-        
-        std::map<int,int>::iterator sh_vrt;
-        for(sh_vrt=sharedVrts_Owned.begin();sh_vrt!=sharedVrts_Owned.end();sh_vrt++)
+        std::map<int,int>::iterator iitm;
+        for(iitm=NonSharedVrts.begin();iitm!=NonSharedVrts.end();iitm++)
         {
-            int lcid = sh_vrt->first;
             
-            locVrt2globVrt[lcid] = gv;
-            globVrt2locVrt[gv] = lcid;
+            int tag = iitm->first;
+            int lvert = glob2locVid[tag];
+
+            double xc = vertOUT[(lvert-1)*3+0];
+            double yc = vertOUT[(lvert-1)*3+1];
+            double zc = vertOUT[(lvert-1)*3+2];
+
+            //std::cout << world_rank << " " << tag << " --> " << lvert << " " << nVerticesOUT << " " << xc << " " << yc << " " << zc << std::endl;
             
-            xcn_parmmg->setVal(vrtid,0,vertOUT[(lcid-1)*3+0]);
-            xcn_parmmg->setVal(vrtid,1,vertOUT[(lcid-1)*3+1]);
-            xcn_parmmg->setVal(vrtid,2,vertOUT[(lcid-1)*3+2]);
+            xcn_parmmg->setVal(vert,0,xc);
+            xcn_parmmg->setVal(vert,1,yc);
+            xcn_parmmg->setVal(vert,2,zc);
+            tag2glob[tag] = vert+distnLocTotVrts->getOffsets()[world_rank]+1;
+            glob2tag[vert+distnLocTotVrts->getOffsets()[world_rank]+1] = tag;
             
-            vrtid++;
-            gv++;
+            vert++;
+        }
+        for(int i=0;i<nLocShVrts;i++)
+        {
+            int tag = ActualOwnedVertDistr_map_update[world_rank][i];
+            int lvert = glob2locVid[tag];
+
+            double xc = vertOUT[(lvert-1)*3+0];
+            double yc = vertOUT[(lvert-1)*3+1];
+            double zc = vertOUT[(lvert-1)*3+2];
+
+            xcn_parmmg->setVal(vert,0,xc);
+            xcn_parmmg->setVal(vert,1,yc);
+            xcn_parmmg->setVal(vert,2,zc);
+
+            tag2glob[tag] = vert+distnLocTotVrts->getOffsets()[world_rank]+1;
+            glob2tag[vert+distnLocTotVrts->getOffsets()[world_rank]+1] = tag;
+
+            vert++;
         }
         
-        std::cout << "nTotVrtsUnique " << nTotVrtsUnique << " "  << totalLocalVrts << std::endl;
+        int* updateGlobSharedVrtID     = new int[LocationSharedVert.size()];
+        int* updateGlobSharedVrtID_red = new int[LocationSharedVert.size()];
         
-        int nTotIntpShFaces = fmInt.size() + fmSh.size();
-        DistributedParallelState* distUniqueIntpShFaces   = new DistributedParallelState(nTotIntpShFaces,comm);
-        DistributedParallelState* distUniqueInteriorFace  = new DistributedParallelState(fmInt.size(),comm);
-        DistributedParallelState* distUniqueSharedFace    = new DistributedParallelState(fmSh.size(),comm);
-        DistributedParallelState* distUniqueBndFace       = new DistributedParallelState(fmBnd.size(),comm);
-        int nTotBndFaces_unique                           = distUniqueBndFace->getNel();
-        int nTotSharedFaces_unique                        = distUniqueSharedFace->getNel();
-        int nTotIntpShFaces_unique                        = distUniqueIntpShFaces->getNel();
-        int nTotIntFaces_unique                           = distUniqueInteriorFace->getNel();
+        int* originalGlobSharedVrtID     = new int[LocationSharedVert.size()];
+        int* originalGlobSharedVrtID_red = new int[LocationSharedVert.size()];
+        int ig = 0;
 
-        int nLocIntpShFace_offset = distUniqueIntpShFaces->getOffsets()[world_rank];
-
+        for(iitm=LocationSharedVert.begin();iitm!=LocationSharedVert.end();iitm++)
+        {
+            int tag = iitm->first;
+            int ra  = iitm->second;
+            
+            originalGlobSharedVrtID_red[ig] = 0;
+            updateGlobSharedVrtID_red[ig]   = 0;
+            
+            if(ra == world_rank)
+            {
+                originalGlobSharedVrtID[ig] = tag;
+                updateGlobSharedVrtID[ig]   = tag2glob[tag];
+            }
+            else
+            {
+                originalGlobSharedVrtID[ig] = 0;
+                updateGlobSharedVrtID[ig]   = 0;
+                
+            }
+            ig++;
+        }
         
         
-        // Ordering is InteriorFaces, SharedFaces, BoundaryFaces;
-
-        //=================================================================================
-        //=================================================================================
-        //=================================================================================
-        //=================================================================================
-        //=================================================================================
-        //=================================================================================
-        //=================================================================================
-        //=================================================================================
+        std::cout << "Performing an AllReduce of the global vertex IDs of the shared Vertices between partitions." << std::endl;
         
-        //Add send/receive of the adjacent elements of the shared faces;
+        MPI_Allreduce(originalGlobSharedVrtID,
+                      originalGlobSharedVrtID_red,
+                      LocationSharedVert.size(),
+                      MPI_INT, MPI_SUM, comm);
+        
+        MPI_Allreduce(updateGlobSharedVrtID,
+                      updateGlobSharedVrtID_red,
+                      LocationSharedVert.size(),
+                      MPI_INT, MPI_SUM, comm);
+        
+        std::map<int,int> LocationSharedVert_update;
+        for(int i=0;i<LocationSharedVert.size();i++)
+        {
+            LocationSharedVert_update[originalGlobSharedVrtID_red[i]] = updateGlobSharedVrtID_red[i];
+        }
+    
+        int nBndFaces     = PMMG_Face2Ref.size();
+        int nShaFaces     = PMMG_SharedFacesOwned.size();
+        int nIntFaces     = fmInt.size();
+        int nLocFaceNBnd  = rh.size()+nShaFaces;
+        Array<int>* ifnOUT = new Array<int>(nLocFaceNBnd,8);
+        std::map<int,int> updateID;
+        int ftot = 0;
+        std::vector<int> fq(3);
+        int flag = -1;
+        int flagged = 0;
+        for(itm=fmInt.begin();itm!=fmInt.end();itm++)
+        {
+            fid             = itm->first;
+            updateID[fid]   = ftot;
+            ifnOUT->setVal(ftot,0,3);
+            flag = -1;
+            for(int q=0;q<3;q++)
+            {
+                if(LocationSharedVert_update.find(itm->second[q])!=LocationSharedVert_update.end())
+                {
+                    fq[q] = LocationSharedVert_update[itm->second[q]];
+                    flag = q;
+                }
+                else
+                {
+                    fq[q] = tag2glob[itm->second[q]];
+                }
+            }
+            int gv0 = fq[0];
+            int gv1 = fq[1];
+            int gv2 = fq[2];
+            
+            ifnOUT->setVal(ftot,1,gv0);
+            ifnOUT->setVal(ftot,2,gv1);
+            ifnOUT->setVal(ftot,3,gv2);
+            ifnOUT->setVal(ftot,4,0);
+            ifnOUT->setVal(ftot,5,rh[fid]);
+            ifnOUT->setVal(ftot,6,lh[fid]);
+            ifnOUT->setVal(ftot,7,2);
+            
+            ftot++;
+        }
+        
         
         
         //Color_SharedOwned
         
-        ScheduleObj* ish_schedule = DoScheduling(Color_SharedOwned,comm);
-  
-        std::map<int,std::vector<int> > recv_ids;
         
+        ScheduleObj* ish_schedule = DoScheduling(Color_SharedOwned,comm);
+        std::map<int,std::vector<int> > recv_ids;
         std::map<int,std::vector<int> >::iterator it;
           
         for(int q=0;q<world_size;q++)
@@ -4984,7 +4917,6 @@ int main(int argc, char** argv)
 
 					MPI_Send(&n_req, 1, MPI_INT, dest, 6798+78*dest, comm);
 					MPI_Send(&it->second[0], n_req, MPI_INT, dest, 14876+dest, comm);
-
 					i++;
 				}
 			}
@@ -5000,9 +4932,7 @@ int main(int argc, char** argv)
 			}
 		}
         
-        
 		std::map<int,std::vector<int> > sendEl;
-        
         std::map<int,std::vector<int> >::iterator rcvit;
         for(rcvit=recv_ids.begin();rcvit!=recv_ids.end();rcvit++)
         {
@@ -5016,13 +4946,12 @@ int main(int argc, char** argv)
 				int fidInt = rcvit->second[j];
 				int ofid   = out_tria_loc[icomm][fidInt];
 				int nfid   = locShF2globShF[ofid];
-				
-				sendEl[frank].push_back(lh[nfid]);
+                //std::cout << "nfid = " << nfid << std::endl;
+				sendEl[frank].push_back(lhsh[nfid]);
 			}
         }
         
         ScheduleObj* ishBack_schedule = DoScheduling(sendEl,comm);
-
 
         std::map<int,std::vector<int> > adj_ids;
         for(int q=0;q<world_size;q++)
@@ -5034,7 +4963,11 @@ int main(int argc, char** argv)
 				{
 					int n_req           = it->second.size();
 					int dest            = it->first;
-
+//                    for(int u=0;u<n_req;u++)
+//                    {
+//                        std::cout << "it->second[u] " << it->second[u] << std::endl;
+//                    }
+                    //
 					MPI_Send(&n_req, 1, 
 							MPI_INT, dest, 
 							6798+78000*dest, comm);
@@ -5064,145 +4997,103 @@ int main(int argc, char** argv)
 						comm, MPI_STATUS_IGNORE);
 				
 				adj_ids[q] = recv_reqstd_ids;
+//                for(int u=0;u<n_reqstd_ids;u++)
+//                {
+//                    std::cout << "recv_reqstd_ids[u] " << recv_reqstd_ids[u] << std::endl;
+//                }
+                //std::cout << world_rank << " " << q << " " << n_reqstd_ids << std::endl;
+
 			}
 		}
         
-        
-        //int nBndFaces	 = nTrianglesOUT-sharedFaces.size();
-        int nShaFaces	 = sharedFace_Owned.size();
-        int nIntFaces	 = rh.size();
-		int nLocFaceNBnd = rh.size()+nShaFaces;
-        Array<int>* ifnOUT = new Array<int>(nLocFaceNBnd,8);
 
-        std::map<int,int>::iterator lhit;
+        DistributedParallelState* rhbefore = new DistributedParallelState(rh.size(),comm);
+        DistributedParallelState* lhbefore = new DistributedParallelState(lh.size(),comm);
         
-        int ftot = 0;
-		std::map<int,int> updateID;
-        std::map<int,int>::iterator itm;
-		int gv0,gv1,gv2;
-        for(itm=rh.begin();itm!=rh.end();itm++)
+        //std::cout << "check BEFORE rh and lh " << rhbefore->getNel() << " " << lhbefore->getNel() << std::endl;
+
+        std::map<int,int> adjElements;
+        int fid_loc,fid_glo;
+        int telli = 0;
+        std::set<int> frh;
+        int outside = 0;
+        for(itm=Color_SharedOwned.begin();itm!=Color_SharedOwned.end();itm++)
         {
-        	fid = itm->first;
-        	updateID[fid] = ftot;
-			ifnOUT->setVal(ftot,0,3);
-            if(fm.find(fid)!=fm.end())
+            int rrank = itm->first;
+            //std::cout << world_rank << " " << rrank << " " << itm->second.size() << std::endl;
+            for(int j=0;j<itm->second.size();j++)
             {
-                if(locVrt2globVrt.find(fm[fid][0])!=locVrt2globVrt.end()
-                   && locVrt2globVrt.find(fm[fid][1])!=locVrt2globVrt.end()
-                   && locVrt2globVrt.find(fm[fid][2])!=locVrt2globVrt.end())
+                fid_loc              = itm->second[j];
+                int icomm            = rank2icomm[rrank];
+                int ft               = out_tria_loc[icomm][fid_loc];
+                fid_glo              = locShF2globShF[ft];
+                rh[fid_glo]          = adj_ids[itm->first][j];
+                
+                if(frh.find(fid_glo)==frh.end())
                 {
-                    gv0 = locVrt2globVrt[fm[fid][0]]+1;
-                    gv1 = locVrt2globVrt[fm[fid][1]]+1;
-                    gv2 = locVrt2globVrt[fm[fid][2]]+1;
+                    adjElements[fid_glo] = adj_ids[itm->first][j];
+                    
+                    frh.insert(fid_glo);
+                    outside++;
                 }
+                
+                telli++;
             }
-            
-			ifnOUT->setVal(ftot,1,gv0);
-			ifnOUT->setVal(ftot,2,gv1);
-			ifnOUT->setVal(ftot,3,gv2);
-			ifnOUT->setVal(ftot,4,0);
-			ifnOUT->setVal(ftot,5,rh[fid]);
-			ifnOUT->setVal(ftot,6,lh[fid]);
-			ifnOUT->setVal(ftot,7,2);
-            
-            
-        	ftot++;
         }
         
-        std::cout << ftot << std::endl;
+        DistributedParallelState* rhafter  = new DistributedParallelState(rh.size(),comm);
+        DistributedParallelState* lhafter  = new DistributedParallelState(lh.size(),comm);
+        DistributedParallelState* adjafter = new DistributedParallelState(adjElements.size(),comm);
+        int nothere =  0;
+        int elLh    = -1;
+        int elRh    = -1;
+        int buthere =  0;
         
+        int ftot_inter = ftot;
+        for(itm=fmSha.begin();itm!=fmSha.end();itm++)
+        {
+            fid             = itm->first;
+            updateID[fid]   = ftot;
+            ifnOUT->setVal(ftot,0,3);
+            flag = -1;
+            for(int q=0;q<3;q++)
+            {
+                if(LocationSharedVert_update.find(itm->second[q])!=LocationSharedVert_update.end())
+                {
+                    fq[q] = LocationSharedVert_update[itm->second[q]];
+                    flag = q;
+                }
+                else
+                {
+                    fq[q] = tag2glob[itm->second[q]];
+                }
+            }
+            int gv0 = fq[0];
+            int gv1 = fq[1];
+            int gv2 = fq[2];
+            
+            if(lhshown.find(fid)!=lhshown.end())
+            {
+                elLh = lhshown[fid];
+                elRh = adjElements[fid];
+            }
+            
+            ifnOUT->setVal(ftot,1,gv0);
+            ifnOUT->setVal(ftot,2,gv1);
+            ifnOUT->setVal(ftot,3,gv2);
+            ifnOUT->setVal(ftot,4,0);
+            ifnOUT->setVal(ftot,5,elRh);
+            ifnOUT->setVal(ftot,6,elLh);
+            ifnOUT->setVal(ftot,7,2);
+            
+            ftot++;
+        }
+        DistributedParallelState* distftot  = new DistributedParallelState(ftot,comm);
         
+        //std::cout << "check     AFTER rh and lh " << rhafter->getNel() << " " << lhafter->getNel() << " " << ftot << " " << distftot->getNel() << std::endl;
         
-		int cntrr=0;
-		//		
-		int NotFound = 0;
-		for(cit=Color_SharedOwned.begin();cit!=Color_SharedOwned.end();cit++)
-		{
-			int icomm   =  cit->first;
-			int srank 	= color_face_out[icomm];
-			int nF 		= cit->second.size();
-			
-			for(int j=0;j<nF;j++)
-			{
-				int fidInt   = cit->second[j];
-				int oldfid   = out_tria_loc[icomm][fidInt];
-				int newfid   = sharedFOld2New[oldfid];
-				
-				reqEl[srank].push_back(fidInt);
-				
-				int elLh = lh[newfid];
-				int elRh = adj_ids[srank][j];
-				
-				if(rh.find(newfid)==rh.end())
-				{
-					rh[newfid] = elRh;
-					updateID[newfid] = ftot;
-					ifnOUT->setVal(ftot,0,3);
-					
-					gv0 = locVrt2globVrt[fm[newfid][0]]+1;
-					gv1 = locVrt2globVrt[fm[newfid][1]]+1;
-					gv2 = locVrt2globVrt[fm[newfid][2]]+1;
-                    
-					ifnOUT->setVal(ftot,1,gv0);
-					ifnOUT->setVal(ftot,2,gv1);
-					ifnOUT->setVal(ftot,3,gv2);
-                    
-					ifnOUT->setVal(ftot,4,0);
-					ifnOUT->setVal(ftot,5,rh[newfid]);
-					ifnOUT->setVal(ftot,6,lh[newfid]);
-					ifnOUT->setVal(ftot,7,2);
-					ftot++;
-				}
-				cntrr++;
-			}
-		}
-		
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        DistributedParallelState* distInteriorFaces = new DistributedParallelState(nLocFaceNBnd,comm);
-
-		int nTotInteriorFaces    = distInteriorFaces->getNel();
-        int* TotIntFaces_offsets = distInteriorFaces->getOffsets();
-
-        //===================================================================================
-        //===================================================================================
-        //===================================================================================
-        //===================================================================================
-        
-
-        
-        int nLocFacesInt = rh.size();
-        int nLocFacesTot = lh.size();
-        
-        DistributedParallelState* distIntFace  	= new DistributedParallelState(nLocFacesInt,comm);
-        int Nt_IntFaces              			= distIntFace->getNel();
-        int* IntFaces_offsets        			= distIntFace->getOffsets();
-        int* IntFaces_nlocs          			= distIntFace->getNlocs();
-        int* IntFacesIDs             			= new int[nLocFacesInt];
-        int* IntFaces_RankIDs        			= new int[nLocFacesInt];
-        
-        DistributedParallelState* distTotFace  	= new DistributedParallelState(nLocFacesTot,comm);
-        int Nt_TotFaces              			= distTotFace->getNel();
-        int* TotFaces_offsets        			= distTotFace->getOffsets();
-        int* TotFaces_nlocs          			= distTotFace->getNlocs();
-        int* TotFacesIDs             			= new int[nLocFacesTot];
-        int* TotFaces_RankIDs       	 		= new int[nLocFacesTot];
-        
-        std::map<int,int> rh_new;
-        int iface = 0;
-        
-        
+        int nTotInteriorFaces = distftot->getNel();
+        int* TotIntFaces_offsets = distftot->getOffsets();
         std::map<int,std::vector<int> >::iterator bit;
         std::set<int> sorted_BCid;
         std::map<int,int> sorted_BCid_map;
@@ -5211,13 +5102,12 @@ int main(int argc, char** argv)
         int Nbf;
         int nloc_bcs = bcmap.size();
         int* Lbcs = new int[nloc_bcs];
+        
         for(bit=bcmap.begin();bit!=bcmap.end();bit++)
         {
-            //Nbf         = bit->second.size();
             Lbcs[ii]      = bit->first;
             ii++;
         }
-        
         
         DistributedParallelState* distLocBCs = new DistributedParallelState(nloc_bcs,comm);
         
@@ -5241,10 +5131,7 @@ int main(int argc, char** argv)
             
             if(bcsToT.find(BCs_arr[i])==bcsToT.end())
             {
-                
                 bcsToT.insert(BCs_arr[i]);
-//                bcentry[bcsToT] = entry;
-//                entry++;
             }
         }
         
@@ -5296,15 +5183,27 @@ int main(int argc, char** argv)
                 Nbf = bcmap[bc_id].size();
                 
                 int fbc = 0;
-
+                
                 for(int q=0;q<Nbf;q++)
                 {
                     int bcface = bcmap[bc_id][q];
-                    
-                    gv0 = locVrt2globVrt[fm[bcface][0]]+1;
-                    gv1 = locVrt2globVrt[fm[bcface][1]]+1;
-                    gv2 = locVrt2globVrt[fm[bcface][2]]+1;
-                    
+                    flag = -1;
+                    for(int w=0;w<3;w++)
+                    {
+                        if(LocationSharedVert_update.find(fmBnd[bcface][w])!=LocationSharedVert_update.end())
+                        {
+                            fq[w] = LocationSharedVert_update[fmBnd[bcface][w]];
+                            flag = w;
+                        }
+                        else
+                        {
+                            fq[w] = tag2glob[fmBnd[bcface][w]];
+                        }
+                    }
+                    int gv0 = fq[0];
+                    int gv1 = fq[1];
+                    int gv2 = fq[2];
+                   
                     ifn_bc_i->setVal(fbc,0,3);
                     ifn_bc_i->setVal(fbc,1,gv0);
                     ifn_bc_i->setVal(fbc,2,gv1);
@@ -5312,7 +5211,8 @@ int main(int argc, char** argv)
                     
                     ifn_bc_i->setVal(fbc,4,0);
                     ifn_bc_i->setVal(fbc,5,0);
-                    ifn_bc_i->setVal(fbc,6,lh[bcface]);
+                    ifn_bc_i->setVal(fbc,6,lhbnd[bcface]);
+                    
                     
                     ifn_bc_i->setVal(fbc,7,bc_id);
                     
@@ -5329,6 +5229,7 @@ int main(int argc, char** argv)
             nTotBCFaces        = nTotBCFaces + NelTot_bci;
         }
         
+        
         DistributedParallelState* distTetra = new DistributedParallelState(nTetrahedraOUT,comm);
 
         int ToTElements         = distTetra->getNel();
@@ -5342,7 +5243,7 @@ int main(int argc, char** argv)
         adapt_zdefs->setVal(0,1,-1);
         adapt_zdefs->setVal(0,2,1);
         adapt_zdefs->setVal(0,3,1);
-        adapt_zdefs->setVal(0,4,ToTVrts);
+        adapt_zdefs->setVal(0,4,distnLocTotVrts->getNel());
         adapt_zdefs->setVal(0,5,us3d->zdefs->getVal(0,5));
         adapt_zdefs->setVal(0,6,us3d->zdefs->getVal(0,6));
         // Collect element data (12) . Starting index-ending index Element
@@ -5379,14 +5280,9 @@ int main(int argc, char** argv)
             adapt_zdefs->setVal(3+nb,4,face_end);
             adapt_zdefs->setVal(3+nb,5,bnd_ref);
             adapt_zdefs->setVal(3+nb,6,2);
-            //std::cout << "us3d->zdefs->getVal(3+nb,5) " << us3d->zdefs->getVal(3+nb,5) << std::endl;
             face_start = face_end+1;
             
-            if(world_rank == 0)
-            {
-                std::cout << "bc id  " << bnd_ref << " " << bnd_size << std::endl;
-            }
-            //std::cout << "nb  = " << nb << " " << ref2bface.size() << " " << ref2bqface.size() << std::endl;
+
             nb++;
             qq++;
         }
@@ -5400,7 +5296,7 @@ int main(int argc, char** argv)
             
             PlotBoundaryData(us3d->znames,adapt_zdefs);
         }
-
+        
         //===================================================================================
         //===================================================================================
         //===================================================================================
@@ -5672,21 +5568,13 @@ int main(int argc, char** argv)
             }
 
             myfile2.close();
-
-        }
+         
+        }/**/
          
         
-    }*/
+    }
     
      
-    
-    
-    
-    
-
-    
-
-    
     
     MPI_Finalize();
     
