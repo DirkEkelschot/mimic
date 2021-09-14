@@ -7,7 +7,7 @@
 
 struct Domain
 {
-    std::set<int> ushell;
+    std::map<int,std::vector<int> > ushell;
     int ncomm;
     std::vector<int> faces_ref;
     std::vector<std::vector<int> > faces_part;

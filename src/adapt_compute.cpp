@@ -1279,12 +1279,12 @@ void ComputeMetricWithWake(Partition* Pa, std::vector<double> metric_inputs,
     }
     int anitel_red;
     MPI_Allreduce(&anitel, &anitel_red, 1, MPI_INT, MPI_SUM, comm);
-    if(rank == 0)
-    {
-
-    std::cout << "anitel_red " << anitel_red << std::endl;
-
-    }
+//    if(rank == 0)
+//    {
+//
+//    std::cout << "anitel_red " << anitel_red << std::endl;
+//
+//    }
     delete[] Hmet;
 }
 

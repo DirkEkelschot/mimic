@@ -5,6 +5,7 @@
 #include "adapt_parmetisstate.h"
 #include "adapt_datastruct.h"
 #include "adapt_array.h"
+#include "adapt_distri_parstate.h"
 
 #ifndef ADAPT_PARTITION_H
 #define ADAPT_PARTITION_H

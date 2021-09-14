@@ -31,9 +31,7 @@ Partition::Partition(ParArray<int>* ien, ParArray<int>* iee, ParArray<int>* ief,
 
     //Sends each element and its vertices and faces to the correct proc.
     
-    
     DetermineElement2ProcMap(ien, ief, ie_Nv, ie_Nf, xcn, U,  tetCnt, comm);
-    
     
 //
     iee_part_map  = getElement2EntityPerPartition(iee,     Loc_Elem_Nf,   comm);
@@ -1551,6 +1549,7 @@ void Partition::DetermineAdjacentElement2ProcMapUS3D(ParArray<int>* ien,
     
     
     double varia_v = 0.0;
+    std::set<int> LocAdjElemSet;
     for(int m=0;m<itel;m++)
     {
         el_id = adj_elements_vec[m];
@@ -1562,6 +1561,7 @@ void Partition::DetermineAdjacentElement2ProcMapUS3D(ParArray<int>* ien,
         //rho_v = adj_rhos[m];
 
         //U0Elem.push_back(rho_v);
+        LocAdjElemSet.insert(el_id);
         LocAndAdj_Elem.push_back(el_id);
         LocAndAdj_Elem_Nv.push_back(Nv);
         LocAndAdj_Elem_Nf.push_back(Nf);
@@ -3142,7 +3142,8 @@ void Partition::CreatePartitionDomainTest()
     int r0,r1,el0,el1,pos,ra,Nf0,Nf1;
     
     int lv,gv,nfaces,Nvface,ref,faceid;
-    std::set<int> ushell;
+    
+    std::map<int,std::vector<int> > ushell;
     std::vector<int> ushell_vec;
     
     std::map<int,int> elem2Nf;
@@ -3156,6 +3157,10 @@ void Partition::CreatePartitionDomainTest()
 //    int t36 = 0;
 //    int y36 = 0;
     //std::map<int,std::vector<int> > prism_BndFaces;
+    std::vector<int> left_tet;
+    std::vector<int> right_prism;
+    std::vector<int> shell_faceid;
+    
     for(itm  = ief_part_map->i_map.begin();
         itm != ief_part_map->i_map.end();
         itm++)
@@ -3190,13 +3195,88 @@ void Partition::CreatePartitionDomainTest()
                     
                     if(Nf0!=Nf1 && ushell.find(faceid)==ushell.end())
                     {
-                        ushell.insert(faceid);
+                        if(Nf0>Nf1)
+                        {
+                            left_tet.push_back(el1);
+                            right_prism.push_back(el0);
+                            shell_faceid.push_back(faceid);
+                            
+                            ushell[faceid].push_back(el0);
+                            ushell[faceid].push_back(el1);
+                        }
+                        else
+                        {
+                            left_tet.push_back(el0);
+                            right_prism.push_back(el1);
+                            shell_faceid.push_back(faceid);
+                            
+                            ushell[faceid].push_back(el1);
+                            ushell[faceid].push_back(el0);
+                        }
                     }
                 }
             }
         }
     }
+        
+    int nLocShellF       = left_tet.size();
+    int* loc_lhtets      = new int[nLocShellF];
+    int* loc_rhprisms    = new int[nLocShellF];
+    int* loc_shellFid    = new int[nLocShellF];
     
+    for(int q=0;q<nLocShellF;q++)
+    {
+        loc_lhtets[q] = left_tet[q];
+        loc_rhprisms[q] = right_prism[q];
+        loc_shellFid[q] = shell_faceid[q];
+    }
+    
+    DistributedParallelState* ltet = new DistributedParallelState(left_tet.size(),comm_p);
+    
+    int nShellFs   = ltet->getNel();
+    int* lhtets    = new int[nShellFs];
+    int* rhprisms  = new int[nShellFs];
+    int* shellFid  = new int[nShellFs];
+    std::map<int,std::vector<int> > shallLayout;
+    
+    MPI_Allgatherv(loc_lhtets,
+                   nLocShellF,
+                   MPI_INT,
+                   lhtets,
+                   ltet->getNlocs(),
+                   ltet->getOffsets(),
+                   MPI_INT,comm_p);
+    
+    MPI_Allgatherv(loc_rhprisms,
+                   nLocShellF,
+                   MPI_INT,
+                   rhprisms,
+                   ltet->getNlocs(),
+                   ltet->getOffsets(),
+                   MPI_INT,comm_p);
+//
+    MPI_Allgatherv(loc_shellFid,
+                   nLocShellF,
+                   MPI_INT,
+                   shellFid,
+                   ltet->getNlocs(),
+                   ltet->getOffsets(),
+                   MPI_INT,comm_p);
+//
+    int sfid;
+    for(int i=0;i<nShellFs;i++)
+    {
+        sfid = shellFid[i];
+        if(shallLayout.find(sfid)==shallLayout.end())
+        {
+            std::vector<int> TetPrism(2);
+            TetPrism[0] = lhtets[i];
+            TetPrism[1] = rhprisms[i];
+            shallLayout[sfid] = TetPrism;
+            
+        }
+    }
+          
     elem2Nf.clear();
 //
 //
@@ -3265,7 +3345,7 @@ void Partition::CreatePartitionDomainTest()
         Elg.clear();
     }
     
-    pDom->ushell           = ushell;
+    pDom->ushell           = shallLayout;
 //    pDom->ncomm           = ncomm;
 //    pDom->faces_ref       = faces_ref;
 //    pDom->faces_part      = faces_part;

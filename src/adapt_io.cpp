@@ -565,13 +565,10 @@ void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh, MMG5_pSol mmgSol, US3D* us3d)
             faces.erase(face1);
         }
         
-        
-        
-        
-        
         face2.insert(mmgMesh->tetra[i].v[0]);
         face2.insert(mmgMesh->tetra[i].v[3]);
         face2.insert(mmgMesh->tetra[i].v[1]);
+        
         if( faces.count(face2) != 1)
         {
             faces.insert(face2);
