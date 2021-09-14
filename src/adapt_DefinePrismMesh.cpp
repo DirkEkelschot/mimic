@@ -478,24 +478,34 @@ newNumberingNodesFaces* DetermineNewNumberingOfElementSubset_Test(Array<int>* pa
     std::map<int,int> SharedVertsOwned;
     std::map<int,int> SharedVertsNotOwned;
     std::map<int,int> sharedVmap;
+    
+    int* ownedVs = new int[world_size];
+    for(int i=0;i<world_size;i++)
+    {
+        ownedVs[i] = 0;
+    }
+    
     for(itmm=v2r.begin();itmm!=v2r.end();itmm++)
     {
-        sharedVmap[itmm->first] = nNonSharedVertsTot+ tshaVrt + 1;
-//        if(world_rank == 0)
-//        {
-//            std::cout << nNonSharedVertsTot+ tshaVrt + 1 << std::endl;
-//        }
+        int globid = nNonSharedVertsTot+ownedSharedVrtsDist->getOffsets()[itmm->second]+ownedVs[itmm->second]+1;
+        sharedVmap[itmm->first] = globid;
+        
         if(itmm->second==world_rank)
         {
-            int globid = nNonSharedVertsTot + tshaVrt + 1;
             SharedVertsOwned[itmm->first] = globid;
-            //lshaVrt++;
         }
-        tshaVrt++;
+        
+        ownedVs[itmm->second] = ownedVs[itmm->second]+1;
     }
     
     
-    
+    if(world_rank == 0)
+    {
+        for(int i=0;i<world_size;i++)
+        {
+            std::cout << i << " " << ownedVs[i] << std::endl;
+        }
+    }
 
     
 

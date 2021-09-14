@@ -1110,7 +1110,6 @@ int main(int argc, char** argv)
 
                 for(int q=0;q<Nbfp;q++)
 				{
-                    
 					int bcface = pbcmap[bc_id][q];
 					int flag = -1;
 					
@@ -1285,6 +1284,8 @@ int main(int argc, char** argv)
         DistributedParallelState* distPrismVerts = new DistributedParallelState(xcn_prisms_int->getNrow()+xcn_prisms_shared->getNrow(),comm);
         DistributedParallelState* distPrismIntVerts = new DistributedParallelState(xcn_prisms_int->getNrow(),comm);
         DistributedParallelState* distPrismShaVerts = new DistributedParallelState(xcn_prisms_shared->getNrow(),comm);
+    DistributedParallelState* distPrismIntVerts_comm = new DistributedParallelState(xcn_prisms_int->getNrow()*3,comm);
+    DistributedParallelState* distPrismShaVerts_comm = new DistributedParallelState(xcn_prisms_shared->getNrow()*3,comm);
         
         int ToTElements_prism           = distPrism->getNel();
         int ToTElements_offset_prism    = distPrism->getOffsets()[world_rank];
@@ -1306,7 +1307,100 @@ int main(int argc, char** argv)
         int TotPrismVerts_offset        = distPrismVerts->getOffsets()[world_rank];
         
         int nTotVertsPrismTetra = nTotPrismVerts_v2;
+    
+
+        Array<double>* xcn_prisms_int_total = new Array<double>(distPrismIntVerts->getNel(),3);
+    
+        MPI_Allgatherv(xcn_prisms_int->data,
+                       xcn_prisms_int->getNrow()*3,
+                       MPI_DOUBLE,
+                       xcn_prisms_int_total->data,
+                       distPrismIntVerts_comm->getNlocs(),
+                       distPrismIntVerts_comm->getOffsets(),
+                       MPI_DOUBLE, comm);
+    
+        Array<double>* xcn_prisms_shared_total = new Array<double>(distPrismShaVerts->getNel(),3);
+
+        MPI_Allgatherv(xcn_prisms_shared->data,
+                       xcn_prisms_shared->getNrow()*3,
+                       MPI_DOUBLE,
+                       xcn_prisms_shared_total->data,
+                       distPrismShaVerts_comm->getNlocs(),
+                       distPrismShaVerts_comm->getOffsets(),
+                       MPI_DOUBLE, comm);
+    
+        Array<double>* xcn_prisms_total = new Array<double>(distPrismIntVerts->getNel()+distPrismShaVerts->getNel(),3);
         
+        for(int o=0;o<xcn_prisms_int_total->getNrow();o++)
+        {
+            xcn_prisms_total->setVal(o,0,xcn_prisms_int_total->getVal(o,0));
+            xcn_prisms_total->setVal(o,1,xcn_prisms_int_total->getVal(o,1));
+            xcn_prisms_total->setVal(o,2,xcn_prisms_int_total->getVal(o,2));
+        }
+        for(int o=0;o<xcn_prisms_shared_total->getNrow();o++)
+        {
+            xcn_prisms_total->setVal(distPrismIntVerts->getNel()+o,0,xcn_prisms_shared_total->getVal(o,0));
+            xcn_prisms_total->setVal(distPrismIntVerts->getNel()+o,1,xcn_prisms_shared_total->getVal(o,1));
+            xcn_prisms_total->setVal(distPrismIntVerts->getNel()+o,2,xcn_prisms_shared_total->getVal(o,2));
+        }
+//        delete[] xcn_prisms_int_total;
+//        delete[] xcn_prisms_shared_total;
+        for(prit=prisms.begin();prit!=prisms.end();prit++)
+        {
+            double* P = new double[6*3];
+            std::vector<int> fce(6);
+            int itt = tagE2gE[prit->first];
+            
+            for(int l=0;l<prit->second.size();l++)
+            {
+                int oldtag = prit->second[l];
+                
+                if(tag2glob_prism.find(oldtag)!=tag2glob_prism.end())
+                {
+                    int globid = tag2glob_prism[oldtag]-1;
+                    fce[l]     = globid;
+                    P[l*3+0] = xcn_prisms_total->getVal(globid,0);
+                    P[l*3+1] = xcn_prisms_total->getVal(globid,1);
+                    P[l*3+2] = xcn_prisms_total->getVal(globid,2);
+                }
+                else if(SharedVertsNotOwned.find(oldtag)!=SharedVertsNotOwned.end())
+                {
+                    int globid = SharedVertsNotOwned[oldtag]-1;
+                    fce[l]     = globid;
+                    P[l*3+0] = xcn_prisms_total->getVal(globid,0);
+                    P[l*3+1] = xcn_prisms_total->getVal(globid,1);
+                    P[l*3+2] = xcn_prisms_total->getVal(globid,2);
+                }
+                
+                if(world_rank == 0)
+                {
+                    if(itt == 1)
+                    {
+                        std::cout << "p" <<l<< "=[" << P[l*3+0] << ", " << P[l*3+1] << ", " << P[l*3+2] << "]" << std::endl;
+                    }
+                }
+            }
+            
+            if(world_rank == 0)
+            {
+                if(itt == 1)
+                {
+                    std::cout << std::endl;
+                }
+            }
+            
+            double VolPrism = ComputeVolumePrismCell(P);
+            if(VolPrism<0.0)
+            {
+                std::cout << "FOUNNNNNNNNNNNNND IT " << VolPrism << std::endl;
+            }
+        }
+    
+    
+        std::cout << "wefqbg  " << distPrismShaVerts->getNel() + distPrismIntVerts->getNel() << std::endl;
+    
+        
+    
         int nbo = bcArrays.size();
         //std::cout << "-- Constructing the zdefs array..."<<std::endl;
         Array<int>* adapt_zdefs = new Array<int>(3+nbo,7);
@@ -1526,7 +1620,7 @@ int main(int argc, char** argv)
         countH5[0]  = xcn_prisms_shared->getNrow();
         countH5[1]  = xcn_prisms_shared->getNcol();
         
-            std::cout << "nTotPrismIntVerts_v2+TotPrismVerts_offset_sha " << nTotPrismIntVerts_v2+TotPrismVerts_offset_sha << " " << world_rank << std::endl;
+        std::cout << "nTotPrismIntVerts_v2+TotPrismVerts_offset_sha " << nTotPrismIntVerts_v2+TotPrismVerts_offset_sha << " " << xcn_prisms_shared->getNrow() << " " << nTotPrismIntVerts_v2+nTotPrismShaVerts_v2 << " "<< world_rank << std::endl;
         offsetH5[0] = nTotPrismIntVerts_v2+TotPrismVerts_offset_sha;
         offsetH5[1] = 0;
         memspace = H5Screate_simple(2, countH5, NULL);
