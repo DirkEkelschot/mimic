@@ -442,6 +442,8 @@ int main(int argc, char** argv)
     i_part_map* ien_part_map                   = P->getIENpartmap();
     i_part_map* if_ref_part_map                = P->getIFREFpartmap();
     Array<int>* part_global                    = P->getGlobalPartition();
+    
+    std::cout << "Check shell size " << ushell.size() << std::endl;
     //std::map<int,Array<double>* > M_vmap;
     // Based on a partitioned hybrid mesh, we are extracting the tetra and redistribute them
     // uniformly. The hybrid mesh is partitioned without any weights which means that it might happen that the tetrahedra are initial distributed non-uniformly where a significant number of processors end up with any tetrahedra. This function distributed them equally.
@@ -523,9 +525,11 @@ int main(int argc, char** argv)
 
     std::map<int,int> tetF2hybF                     = tetra_distri->GetTetF2HybFMap();
     std::map<int,int> tetV2tagV						= tetra_distri->GetTet2TagVertMap();
+    std::map<int,int> vertTag2RefLocalMap           = tetra_distri->GetVertTag2RefLocalMap();
     
     std::map<int,int> shellvertTag2ref;
-    
+    std::map<int,int> ref2shellvertTag;
+
     std::map<int,int>::iterator itt;
     for(itt=shellvert2ref.begin();itt!=shellvert2ref.end();itt++)
     {
@@ -533,10 +537,18 @@ int main(int argc, char** argv)
     	int vhyb = tetV2tagV[vtet];
     	int ref  = itt->second;
     	shellvertTag2ref[vhyb] = ref;
+        ref2shellvertTag[ref] = vhyb;
     }
     
-    
-    std::map<int,int> shellvertOriginalTag2ref_Glob = AllGatherMap(shellvert2ref,comm);
+    std::map<int,int> vertTag2RefGlobMap            = AllGatherMap(vertTag2RefLocalMap,comm);
+
+    std::map<int,int> shellvertOriginalTag2ref_Glob = AllGatherMap(shellvertTag2ref,comm);
+    std::map<int,int> ref2shellvertOriginalTag_Glob = AllGatherMap(ref2shellvertTag,comm);
+
+//    for(itt=vertTag2RefGlobMap.begin();itt!=vertTag2RefGlobMap.end();itt++)
+//    {
+//        std::cout << "compare map " << itt->first << " :: " << itt->second << " -> " << shellvertOriginalTag2ref_Glob[itt->first] << std::endl;
+//    }
     
     
     //std::cout << " shell_Vert2Ref " << world_rank << " " << shellvertOriginalTag2ref_Glob.size() << " " << shellvert2ref.size() << std::endl;
@@ -559,7 +571,7 @@ int main(int argc, char** argv)
     std::map<int,int> tag2locV_map = P->getGlobalVert2LocalVert();
     std::vector<Vert*> localVsPartition = P->getLocalVerts();
     
-    newNumberingNodesFaces* nnf = DetermineNewNumberingOfElementSubset(part_global,
+    newNumberingNodesFaces* nnf = DetermineNewNumberingOfElementSubset_Test2(part_global,
                                                                        prisms,
                                                                        ief_part_map->i_map,
                                                                        ifn_part_map->i_map,
@@ -595,7 +607,7 @@ int main(int argc, char** argv)
     std::map<int,std::vector<int> > shell_face2node_prism   = nnf->shellFace2Node;
     std::map<int,std::vector<int> > shared_face2node_prism  = nnf->sharedFace2Node;
     std::map<int,std::vector<int> > int_face2node_prism     = nnf->intFace2Node;
-    
+    std::map<int,int> tag2glob_prism = nnf->tag2glob_prism;
     //std::cout << "int_face2node_prism size just after being created " << int_face2node_prism.size() << std::endl;
     
     std::map<int,std::vector<int> > bc_face2node_prism      = nnf->bcFace2Node;
@@ -606,26 +618,46 @@ int main(int argc, char** argv)
     Array<int>* ifnOUT_prism = new Array<int>(int_face2node_prism.size()+shared_face2node_prism.size(),8);
     Array<int>* parmmg_iet_prisms                           = nnf->iet;
     // std::cout << bcFace2Node_prism.size() << " " << nnf->rh.size() << " " << nnf->lh.size() << std::endl;
-    Array<double>* xcn_prisms                               = nnf->xcn;
-    DistributedParallelState* dist_intFprism = new DistributedParallelState(int_face2node_prism.size()+shared_face2node_prism.size(),comm);
-    int NelIntFprism        = dist_intFprism->getNel();
-    int* IntFprims_offsets  = dist_intFprism->getOffsets();
+    Array<double>* xcn_prisms_int                               = nnf->xcn_int;
+    Array<double>* xcn_prisms_shared                            = nnf->xcn_shared;
+
+    DistributedParallelState* distPrismIntVerts = new DistributedParallelState(xcn_prisms_int->getNrow(),comm);
+    DistributedParallelState* distPrismShaVerts = new DistributedParallelState(xcn_prisms_shared->getNrow(),comm);
+DistributedParallelState* distPrismIntVerts_comm = new DistributedParallelState(xcn_prisms_int->getNrow()*3,comm);
+DistributedParallelState* distPrismShaVerts_comm = new DistributedParallelState(xcn_prisms_shared->getNrow()*3,comm);
+
     
+    std::cout << "Verts = " << distPrismIntVerts->getNel() << " " << distPrismShaVerts->getNel() << std::endl;
     
+    //std::cout << "int_face2node_prism.size() and shared_face2node_prism.size()  " << int_face2node_prism.size() << " " <<shared_face2node_prism.size() << " " << world_rank << std::endl;
     std::map<int,std::vector<int> >::iterator itmm;
     int foundU = 0;
     
     std::map<std::set<int>, int > vertref2shell_prism;
     int nshell = 0;
+    std::set<int> testSet;
+    testSet.insert(113);
+    testSet.insert(114);
+    testSet.insert(148);
     for(itmm=ushell.begin();itmm!=ushell.end();itmm++)
     {
         int fhyb      = itmm->first;
         int Etettag   = itmm->second[0];
         int Eprismtag = itmm->second[1];
-        int EprismNew = tag2element[Eprismtag];
+        int EprismNew = tagE2gE[Eprismtag];
         
+        if(EprismNew==9)
+        {
+            std::cout << "On Shell " << Etettag << " " << Eprismtag << " " << fhyb << std::endl;
+            std::cout << "Also " << ifn_part_map->i_map[fhyb][0] << " " << ifn_part_map->i_map[fhyb][1] << " " << ifn_part_map->i_map[fhyb][2] << std::endl;
+        }
+
         if(shellface2vertref.find(fhyb)!=shellface2vertref.end())
         {
+            if(shellface2vertref[fhyb]==testSet)
+            {
+                std::cout << "testSet - " << EprismNew << std::endl;
+            }
             vertref2shell_prism[shellface2vertref[fhyb]] = EprismNew;
             foundU++;
         }
@@ -638,10 +670,11 @@ int main(int argc, char** argv)
 	DistributedParallelState* dist_Vprism = new DistributedParallelState(nLocVertPrism,comm);
 	int nTotPrismVerts          = dist_Vprism->getNel();
         
-    int nTetVertsOffset_prism   = nTotUniqueNonShellVerts;
+    //int nTetVertsOffset_prism   = nTotUniqueNonShellVerts;
     
     //std::cout << "FoundU =============>>>>>>>>>>>  " << shellface2vertref.size() << " " << vertref2shell_prism.size() << " " << nshell << " " << ushell.size() << " " << foundU << " " << nShellVertsTot << " " << dist_Vprism->getNel() << std::endl;
     //std::cout << "wfafkadslka " << world_rank << " " << nTotPrismVerts << " " << tagV2localV_prism.size() << " " << localV2tagV_prism.size() << " " << nTotUniqueNonShellVerts << " " << nTetVertsOffset_prism << std::endl;
+    
     
     PMMG_pParMesh   parmesh;
     PMMG_Init_parMesh(PMMG_ARG_start,
@@ -656,10 +689,6 @@ int main(int argc, char** argv)
       exit(EXIT_FAILURE);
     }
     
-//
-//
-//
-//
     //PMMG_Set_metSize(PMMG_pParMesh parmesh,int typEntity,int np,int typSol)
     if ( PMMG_Set_metSize(parmesh,MMG5_Vertex,nVertices,MMG5_Tensor) != 1 ) exit(EXIT_FAILURE);
 //    const int nSolsAtVertices = 1; // 3 solutions per vertex
@@ -669,8 +698,9 @@ int main(int argc, char** argv)
 //       MPI_Finalize();
 //       exit(EXIT_FAILURE);
 //    }
-    
+    std::set<int> vset_un;
     int vrefmax = -1;
+    int vset = 0;
     for ( k=0; k<nVertices; ++k )
     {
         double vx = locVs[k]->x;
@@ -687,6 +717,11 @@ int main(int argc, char** argv)
             if(vref>vrefmax)
             {
                 vrefmax=vref;
+            }
+            if(vset_un.find(vert)==vset_un.end())
+            {
+                vset_un.insert(vert);
+                vset++;
             }
         }
 
@@ -714,7 +749,7 @@ int main(int argc, char** argv)
         }
     }
     
-    //std::cout << " vrefmax " << vrefmax << std::endl;
+    std::cout << " vrefmax " << vrefmax << " " << vset << " " << shellvert2ref.size() << " " << vset_un.size() << std::endl;
    
     int v0,v1,v2,v3;
     int v0l,v1l,v2l,v3l;
@@ -730,6 +765,10 @@ int main(int argc, char** argv)
     int buggi = 0;
     int shelfound = 0;
     int shelfound2 = 0;
+    std::set<int> tset;
+    tset.insert(113);
+    tset.insert(114);
+    tset.insert(148);
     for ( k=0; k<nTriangles; ++k )
     {
         int faceID  = faces4parmmg[k];
@@ -764,7 +803,6 @@ int main(int argc, char** argv)
                     std::set<int>::iterator its;
                     std::set<int> sf    = shellface2vertref[facetag];
                     
-                    //std::cout << "sf :: ";
                     std::set<int> sft_t;
                     for(int u=0;u<3;u++)
                     {
@@ -815,6 +853,11 @@ int main(int argc, char** argv)
                         shelfound++;
                     }
                     
+                    if(sft_t == tset)
+                    {
+                        std::cout << "tset is present  "<< std::endl;
+                    }
+                    
                     sft_t.clear();
 //                    if(sft_t==sf)
 //                    {
@@ -829,7 +872,7 @@ int main(int argc, char** argv)
         
     }
     
-    //std::cout << "faceUvids " << faceUvids.size() <<  " "  << c13 << " " << suc << " " << buggi << " " << shelfound << " " << shelfound2 << std::endl;
+    std::cout << "faceUvids " << faceUvids.size() <<  " "  << c13 << " " << suc << " " << buggi << " " << shelfound << " " << shelfound2 << std::endl;
     
     
     
@@ -1112,12 +1155,12 @@ int main(int argc, char** argv)
     {
         if(refOUT[k]!=0 && refOUT[k]!=1)
         {
-        	if(frf.find(refOUT[k]) == frf.end())
-        	{
-        		frf[refOUT[k]] = k;
-        		rf.push_back(refOUT[k]);        	
-        		foundRref++;
-        	}
+            if(frf.find(refOUT[k]) == frf.end())
+            {
+                frf[refOUT[k]] = k;
+                rf.push_back(refOUT[k]);
+                foundRref++;
+            }
         }
     }
     
@@ -1425,12 +1468,16 @@ int main(int argc, char** argv)
                 
                 if(vertref2shell_prism.find(test_set)!=vertref2shell_prism.end())
                 {
-                    PMMG_Shell2Prism[faceSh] = vertref2shell_prism[test_set];
-                    //std::cout << "vertref2shell_prism[test_set] " << vertref2shell_prism[test_set] << std::endl;
+                    if(vertref2shell_prism[test_set]==9)
+                    {
+                        std::cout << "tettagverts gv " << gv0 << " " << gv1 << " " << gv2 << std::endl;
+                    }
+                    
+                    PMMG_Shell2Prism[faceSh]                      = vertref2shell_prism[test_set];
                     PMMG_ShellFace[vertref2shell_prism[test_set]] = shFace;
                     prismFound++;
                 }
-//           
+//
                 test_set.clear();
                 
                 faceCovered++;
@@ -1442,7 +1489,7 @@ int main(int argc, char** argv)
             if ( required2 && required2[k] )  nreq2++;
         }
         
-        //std::cout << world_rank << " PMMG_ShellFaces size  " << PMMG_ShellFaces.size() << " prismFound-> " << prismFound << " " << faceCovered << " " << PMMG_Shell2Prism.size() <<  std::endl;
+        std::cout << world_rank << " PMMG_ShellFaces size  " << PMMG_ShellFaces.size() << " prismFound-> " << prismFound << " " << faceCovered << " " << PMMG_Shell2Prism.size() <<  std::endl;
         
         int itt2            = 0;
         int nTshared_owned  = 0;
@@ -1464,7 +1511,7 @@ int main(int argc, char** argv)
 
         for(int icomm = 0; icomm < next_face_comm; icomm++ )
         {
-            nPartFace 				          = nPartFace + nitem_face_comm[icomm];
+            nPartFace                           = nPartFace + nitem_face_comm[icomm];
             rank2icomm[color_face_out[icomm]] = icomm;
                     
             if(world_rank < color_face_out[icomm])
@@ -1853,8 +1900,8 @@ int main(int argc, char** argv)
                         for(int s=0;s<3;s++)
                         {
                             int gvm2 = fce[s];
-                            if(NonSharedVrts.find(gvm2)==NonSharedVrts.end() && 
-                            		PMMG_SharedVertices.find(gvm2)==PMMG_SharedVertices.end())
+                            if(NonSharedVrts.find(gvm2)==NonSharedVrts.end() &&
+                                    PMMG_SharedVertices.find(gvm2)==PMMG_SharedVertices.end())
                             {
                                 NonSharedVrts[gvm2] = ngv;
                                 ngv++;
@@ -1874,45 +1921,48 @@ int main(int argc, char** argv)
                     
                     
                     if(PMMG_ShellFaces.find(Face) != PMMG_ShellFaces.end())
-					{
-                    	fmShell[fid]        = fce;
+                    {
+                        fmShell[fid]        = fce;
                         lhshell[fid]        = curElID;
                         
-						if(PMMG_Shell2Prism.find(Face)!=PMMG_Shell2Prism.end())
-						{
-							rhshell[fid] = PMMG_Shell2Prism[Face];
-                            //std::cout << "Do we find it ? " << PMMG_Shell2Prism[Face] << std::endl;
-
-                            // std::cout << "rhshell[fid] "  << rhshell[fid] << std::endl;
+                        if(PMMG_Shell2Prism.find(Face)!=PMMG_Shell2Prism.end())
+                        {
+                            rhshell[fid] = PMMG_Shell2Prism[Face];
                             
-							for(int y=0;y<3;y++)
-							{
-								int shelltag = refOUT[Elvrts[tetra_faces[u][y]]-1];
-								int vtag     = fce[y];
-								
-								if(tag2shelltag.find(vtag)==tag2shelltag.end())
-								{
-									tag2shelltag[vtag]=shelltag;
-									shelltag2tag[shelltag]=vtag;
-								}
-							}
+                            for(int y=0;y<3;y++)
+                            {
+                                int shelltag = refOUT[Elvrts[tetra_faces[u][y]]-1];
+                                int vtag     = fce[y];
+                                
+                                if(tag2shelltag.find(vtag)==tag2shelltag.end())
+                                {
+                                    tag2shelltag[vtag]=shelltag;
+                                    shelltag2tag[shelltag]=vtag;
+                                }
+                            }
                             
+                            
+                            if(rhshell[fid]==9)
+                            {
+                                std::cout << "tettagverts " << fce[0] << " " << fce[1] << " " << fce[2] << std::endl;
+                            }
+                            //std::cout << rhshell[fid] << std::endl;
                             hellofound++;
-							
-						}
+                            
+                        }
                         else
                         {
                             
                         }
-					}
+                    }
                     
                     
                     if(PMMG_Face2Ref.find(Face) != PMMG_Face2Ref.end())
                     {
                         int FaceRef         = PMMG_Face2Ref[Face];
                         fmBnd[fid]          = fce;
-						lhbnd[fid]          = curElID;
-						bcmap[FaceRef].push_back(fid);
+                        lhbnd[fid]          = curElID;
+                        bcmap[FaceRef].push_back(fid);
                     }
                 }
                 else
@@ -1935,7 +1985,7 @@ int main(int argc, char** argv)
         
         std::map<int,int> tag2shelltag_glob = AllGatherMap(tag2shelltag,comm);
         std::map<int,int> shelltag2tag_glob = AllGatherMap(shelltag2tag,comm);
-        //std::cout << negit << " normals are pointing inwards. " << tag2shelltag.size() << " " << tag2shelltag_glob.size() << " vs " << shelltag2tag_glob.size() << " " << hellofound << " on rnk " << world_rank << std::endl;
+        std::cout << negit << " normals are pointing inwards. " << tag2shelltag.size() << " " << tag2shelltag_glob.size() << " vs " << shelltag2tag_glob.size() << " " << hellofound << " on rnk " << world_rank << std::endl;
         int nLocIntVrts         = NonSharedVrts.size();
         int nLocShVrts          = ActualOwnedVertDistr_map_update[world_rank].size();
         int nLocTotVrts         = nLocIntVrts+nLocShVrts;
@@ -1966,9 +2016,9 @@ int main(int argc, char** argv)
         
         
         
+        int nPrismVerts_tmp = distPrismIntVerts->getNel()+distPrismShaVerts->getNel();
         
-        
-        
+        std::cout << " starting with  " << world_rank << " " << vert+distnLocTotVrts->getOffsets()[world_rank]+1+nPrismVerts_tmp << std::endl;
         
         for(iitm=NonSharedVrts.begin();iitm!=NonSharedVrts.end();iitm++)
         {
@@ -1985,19 +2035,13 @@ int main(int argc, char** argv)
             xcn_parmmg->setVal(vert,1,yc);
             xcn_parmmg->setVal(vert,2,zc);
             
-            tag2glob[tag] = vert+distnLocTotVrts->getOffsets()[world_rank]+1+nTetVertsOffset_prism;
-            glob2tag[vert+distnLocTotVrts->getOffsets()[world_rank]+1+nTetVertsOffset_prism] = tag;
+            tag2glob[tag] = vert+distnLocTotVrts->getOffsets()[world_rank]+1+nPrismVerts_tmp;
+            glob2tag[vert+distnLocTotVrts->getOffsets()[world_rank]+1+nPrismVerts_tmp] = tag;
             
             vert++;
         }
         
-        
-        
-        
-        
-        
-        
-        
+        std::cout << " middle with  " << world_rank << " " << vert+distnLocTotVrts->getOffsets()[world_rank]+1+nPrismVerts_tmp-1 << " " << NonSharedVrts.size() << std::endl;
         
         for(int i=0;i<nLocShVrts;i++)
         {
@@ -2012,15 +2056,14 @@ int main(int argc, char** argv)
             xcn_parmmg->setVal(vert,1,yc);
             xcn_parmmg->setVal(vert,2,zc);
 
-            tag2glob[tag] = vert+distnLocTotVrts->getOffsets()[world_rank]+1+nTotPrismVerts;
-            glob2tag[vert+distnLocTotVrts->getOffsets()[world_rank]+1+nTotPrismVerts] = tag;
+            tag2glob[tag] = vert+distnLocTotVrts->getOffsets()[world_rank]+1+nPrismVerts_tmp;
+            glob2tag[vert+distnLocTotVrts->getOffsets()[world_rank]+1+nPrismVerts_tmp] = tag;
 
             vert++;
         }
         
         
-        
-        
+        std::cout << " end with  " << world_rank << " " << vert+distnLocTotVrts->getOffsets()[world_rank]+1+nPrismVerts_tmp-1 << " " << nLocShVrts << std::endl;
         
         
         
@@ -2131,10 +2174,6 @@ int main(int argc, char** argv)
             int gv1 = fq[1];
             int gv2 = fq[2];
             
-            
-            
-            
-            
             Vert* Vijk   = new Vert;
             Vijk->x = 0.0;
             Vijk->y = 0.0;
@@ -2172,33 +2211,33 @@ int main(int argc, char** argv)
         
             
             
-            if(lh[fid] == testElem || rh[fid] == testElem)
-            {
-                std::cout << world_rank << " CONSIDERING testElem = " << testElem << " TET INTERNAL " << lh[fid] << " " <<rh[fid] << " -----------> " << orient0<<  std::endl;
-                
-                std::cout << " = [";
-                for(int u=0;u<3;u++)
-                {
-                    std::cout <<"["<<Vfaces[u]->x << ", " << Vfaces[u]->y << ", " << Vfaces[u]->z << "]," << std::endl;
-                }
-                std::cout << "];" << std::endl;
-            }
-            
-            
-            
-            
-            if(lh[fid] == testComp || rh[fid] == testComp)
-            {
-                std::cout << world_rank << " TET INTERNAL ---> " << testComp << " <--- " << fid << " " << lh[fid] << " " << rh[fid] << " -----------> " << orient0 << std::endl;
-                
-                
-                std::cout << " = [";
-                for(int u=0;u<3;u++)
-                {
-                    std::cout <<"["<<Vfaces[u]->x << ", " << Vfaces[u]->y << ", " << Vfaces[u]->z << "]," << std::endl;
-                }
-                std::cout << "];" << std::endl;
-            }
+//            if(lh[fid] == testElem || rh[fid] == testElem)
+//            {
+//                std::cout << world_rank << " CONSIDERING testElem = " << testElem << " TET INTERNAL " << lh[fid] << " " <<rh[fid] << " -----------> " << orient0<<  std::endl;
+//
+//                std::cout << " = [";
+//                for(int u=0;u<3;u++)
+//                {
+//                    std::cout <<"["<<Vfaces[u]->x << ", " << Vfaces[u]->y << ", " << Vfaces[u]->z << "]," << std::endl;
+//                }
+//                std::cout << "];" << std::endl;
+//            }
+//
+//
+//
+//
+//            if(lh[fid] == testComp || rh[fid] == testComp)
+//            {
+//                std::cout << world_rank << " TET INTERNAL ---> " << testComp << " <--- " << fid << " " << lh[fid] << " " << rh[fid] << " -----------> " << orient0 << std::endl;
+//
+//
+//                std::cout << " = [";
+//                for(int u=0;u<3;u++)
+//                {
+//                    std::cout <<"["<<Vfaces[u]->x << ", " << Vfaces[u]->y << ", " << Vfaces[u]->z << "]," << std::endl;
+//                }
+//                std::cout << "];" << std::endl;
+//            }
             
             ifnOUT->setVal(ftot,7,2);
 
@@ -2215,100 +2254,100 @@ int main(int argc, char** argv)
         std::map<int,std::vector<int> >::iterator it;
           
         for(int q=0;q<world_size;q++)
-		{
-			if(world_rank==q)
-			{
-				int i=0;
-				for (it = Color_SharedOwned.begin(); it != Color_SharedOwned.end(); it++)
-				{
-					int n_req           = it->second.size();
-					int dest            = it->first;
+        {
+            if(world_rank==q)
+            {
+                int i=0;
+                for (it = Color_SharedOwned.begin(); it != Color_SharedOwned.end(); it++)
+                {
+                    int n_req           = it->second.size();
+                    int dest            = it->first;
 
-					MPI_Send(&n_req, 1, MPI_INT, dest, 6798+78*dest, comm);
-					MPI_Send(&it->second[0], n_req, MPI_INT, dest, 14876+dest, comm);
-					i++;
-				}
-			}
-			else if (ish_schedule->SendFromRank2Rank[q].find( world_rank ) != ish_schedule->SendFromRank2Rank[q].end())
-			{
-				int n_reqstd_ids;
-				MPI_Recv(&n_reqstd_ids, 1, MPI_INT, q, 6798+78*world_rank, comm, MPI_STATUS_IGNORE);
+                    MPI_Send(&n_req, 1, MPI_INT, dest, 6798+78*dest, comm);
+                    MPI_Send(&it->second[0], n_req, MPI_INT, dest, 14876+dest, comm);
+                    i++;
+                }
+            }
+            else if (ish_schedule->SendFromRank2Rank[q].find( world_rank ) != ish_schedule->SendFromRank2Rank[q].end())
+            {
+                int n_reqstd_ids;
+                MPI_Recv(&n_reqstd_ids, 1, MPI_INT, q, 6798+78*world_rank, comm, MPI_STATUS_IGNORE);
 
-				std::vector<int> recv_reqstd_ids(n_reqstd_ids);
-				
-				MPI_Recv(&recv_reqstd_ids[0], n_reqstd_ids, MPI_INT, q, 14876+world_rank, comm, MPI_STATUS_IGNORE);
-				recv_ids[q] = recv_reqstd_ids;
-			}
-		}
+                std::vector<int> recv_reqstd_ids(n_reqstd_ids);
+                
+                MPI_Recv(&recv_reqstd_ids[0], n_reqstd_ids, MPI_INT, q, 14876+world_rank, comm, MPI_STATUS_IGNORE);
+                recv_ids[q] = recv_reqstd_ids;
+            }
+        }
         
-		std::map<int,std::vector<int> > sendEl;
+        std::map<int,std::vector<int> > sendEl;
         std::map<int,std::vector<int> >::iterator rcvit;
         for(rcvit=recv_ids.begin();rcvit!=recv_ids.end();rcvit++)
         {
-        	int frank = rcvit->first;
-        	
-        	int icomm = rank2icomm[frank];
-        	int nF    = rcvit->second.size();  
-        	
-			for(int j=0;j<nF;j++)
-			{
-				int fidInt = rcvit->second[j];
-				int ofid   = out_tria_loc[icomm][fidInt];
-				int nfid   = locShF2globShF[ofid];
-				sendEl[frank].push_back(lhsh[nfid]);
+            int frank = rcvit->first;
+            
+            int icomm = rank2icomm[frank];
+            int nF    = rcvit->second.size();
+            
+            for(int j=0;j<nF;j++)
+            {
+                int fidInt = rcvit->second[j];
+                int ofid   = out_tria_loc[icomm][fidInt];
+                int nfid   = locShF2globShF[ofid];
+                sendEl[frank].push_back(lhsh[nfid]);
                 
                 if(lhsh[nfid] == 0)
                 {
                     std::cout << "yep commi not correct " << std::endl;
                 }
-			}
+            }
         }
         
         ScheduleObj* ishBack_schedule = DoScheduling(sendEl,comm);
 
         std::map<int,std::vector<int> > adj_ids;
         for(int q=0;q<world_size;q++)
-		{
-			if(world_rank==q)
-			{
-				int i=0;
-				for (it = sendEl.begin(); it != sendEl.end(); it++)
-				{
-					int n_req           = it->second.size();
-					int dest            = it->first;
+        {
+            if(world_rank==q)
+            {
+                int i=0;
+                for (it = sendEl.begin(); it != sendEl.end(); it++)
+                {
+                    int n_req           = it->second.size();
+                    int dest            = it->first;
 
-					MPI_Send(&n_req, 1, 
-							MPI_INT, dest, 
-							6798+78000*dest, comm);
-					
-					MPI_Send(&it->second[0], 
-							n_req, MPI_INT, 
-							dest, 14876000+dest, comm);
+                    MPI_Send(&n_req, 1,
+                            MPI_INT, dest,
+                            6798+78000*dest, comm);
+                    
+                    MPI_Send(&it->second[0],
+                            n_req, MPI_INT,
+                            dest, 14876000+dest, comm);
 
-					i++;
-				}
-			}
-			else if (ishBack_schedule->SendFromRank2Rank[q].find( world_rank ) != ishBack_schedule->SendFromRank2Rank[q].end())
-			{
-				int n_reqstd_ids;
-				
-				MPI_Recv(&n_reqstd_ids, 
-						1, MPI_INT, q, 
-						6798+78000*world_rank, 
-						comm, MPI_STATUS_IGNORE);
+                    i++;
+                }
+            }
+            else if (ishBack_schedule->SendFromRank2Rank[q].find( world_rank ) != ishBack_schedule->SendFromRank2Rank[q].end())
+            {
+                int n_reqstd_ids;
+                
+                MPI_Recv(&n_reqstd_ids,
+                        1, MPI_INT, q,
+                        6798+78000*world_rank,
+                        comm, MPI_STATUS_IGNORE);
 
-				std::vector<int> recv_reqstd_ids(n_reqstd_ids);
-				
-				MPI_Recv(&recv_reqstd_ids[0], 
-						n_reqstd_ids, 
-						MPI_INT, q, 
-						14876000+world_rank, 
-						comm, MPI_STATUS_IGNORE);
-				
-				adj_ids[q] = recv_reqstd_ids;
+                std::vector<int> recv_reqstd_ids(n_reqstd_ids);
+                
+                MPI_Recv(&recv_reqstd_ids[0],
+                        n_reqstd_ids,
+                        MPI_INT, q,
+                        14876000+world_rank,
+                        comm, MPI_STATUS_IGNORE);
+                
+                adj_ids[q] = recv_reqstd_ids;
 
-			}
-		}
+            }
+        }
         
         DistributedParallelState* rhbefore = new DistributedParallelState(rh.size(),comm);
         DistributedParallelState* lhbefore = new DistributedParallelState(lh.size(),comm);
@@ -2434,33 +2473,33 @@ int main(int argc, char** argv)
             ifnOUT->setVal(ftot,7,2);
 
             
-            if(elLh == testElem || elRh == testElem)
-            {
-                std::cout << world_rank << " CONSIDERING testElem = " << testElem << " TET SHARED " << elLh << " " <<elRh << " -----------> " << orient0 << std::endl;
-                
-                std::cout << " = [";
-                for(int u=0;u<3;u++)
-                {
-                    std::cout <<"["<<Vfaces[u]->x << ", " << Vfaces[u]->y << ", " << Vfaces[u]->z << "]," << std::endl;
-                }
-                std::cout << "];" << std::endl;
-            }
+//            if(elLh == testElem || elRh == testElem)
+//            {
+//                std::cout << world_rank << " CONSIDERING testElem = " << testElem << " TET SHARED " << elLh << " " <<elRh << " -----------> " << orient0 << std::endl;
+//
+//                std::cout << " = [";
+//                for(int u=0;u<3;u++)
+//                {
+//                    std::cout <<"["<<Vfaces[u]->x << ", " << Vfaces[u]->y << ", " << Vfaces[u]->z << "]," << std::endl;
+//                }
+//                std::cout << "];" << std::endl;
+//            }
             
             
             
-            if(elLh == testComp || elRh == testComp)
-            {
-                std::cout << world_rank << " TET SHARED ---> " << testComp << " <--- " << fid << " " << elLh << " " <<elRh << " -----------> " << orient0 << std::endl;
-                
-                
-                std::cout << " = [";
-                for(int u=0;u<3;u++)
-                {
-                    std::cout <<"["<<Vfaces[u]->x << ", " << Vfaces[u]->y << ", " << Vfaces[u]->z << "]," << std::endl;
-                }
-                std::cout << "];" << std::endl;
-                
-            }
+//            if(elLh == testComp || elRh == testComp)
+//            {
+//                std::cout << world_rank << " TET SHARED ---> " << testComp << " <--- " << fid << " " << elLh << " " <<elRh << " -----------> " << orient0 << std::endl;
+//
+//
+//                std::cout << " = [";
+//                for(int u=0;u<3;u++)
+//                {
+//                    std::cout <<"["<<Vfaces[u]->x << ", " << Vfaces[u]->y << ", " << Vfaces[u]->z << "]," << std::endl;
+//                }
+//                std::cout << "];" << std::endl;
+//
+//            }
             
             if(ifnOUT->getVal(ftot,0)==0 && ifnOUT->getVal(ftot,1)==0 && ifnOUT->getVal(ftot,2)==0 && ifnOUT->getVal(ftot,3)==0)
             {
@@ -2487,6 +2526,7 @@ int main(int argc, char** argv)
             flag = -1;
             Vert* VcF = new Vert;
             std::vector<Vert*> Vfaces;
+            std::vector<int> reference(3);
             for(int q=0;q<3;q++)
             {
                 int lvert = glob2locVid[itm->second[q]];
@@ -2494,6 +2534,8 @@ int main(int argc, char** argv)
                 Vf->x  = vertOUT[(lvert-1)*3+0];
                 Vf->y  = vertOUT[(lvert-1)*3+1];
                 Vf->z  = vertOUT[(lvert-1)*3+2];
+                
+                reference[q] = refOUT[(lvert-1)];
                 
                 VcF->x = VcF->x + Vf->x;
                 VcF->y = VcF->y + Vf->y;
@@ -2505,12 +2547,13 @@ int main(int argc, char** argv)
                 {
                     fq[q] = LocationSharedVert_update[itm->second[q]];
                     
-                    int shelltag = tag2shelltag_glob[itm->second[q]];                	                    
-					if(shelltag2glob.find(shelltag)==shelltag2glob.end())
-					{
-						shelltag2glob[shelltag] = fq[q];
-					}
-                    					
+                    int shelltag = tag2shelltag_glob[itm->second[q]];
+                    
+                    if(shelltag2glob.find(shelltag)==shelltag2glob.end())
+                    {
+                        shelltag2glob[shelltag] = fq[q];
+                    }
+                                        
                     flag = q;
                 }
                 else
@@ -2521,11 +2564,11 @@ int main(int argc, char** argv)
                     
                     if(shelltag2glob.find(shelltag)==shelltag2glob.end())
                     {
-                    	shelltag2glob[shelltag] = fq[q];
+                        shelltag2glob[shelltag] = fq[q];
                     }
                     else
                     {
-                    	alhere++;
+                        alhere++;
                     }
                 }
             }
@@ -2552,6 +2595,7 @@ int main(int argc, char** argv)
             Vijk->x = 0.0;
             Vijk->y = 0.0;
             Vijk->z = 0.0;
+            
             // compute element center;
             //ienOUT[curElID] = Elvrts
             for(int u=0;u<ienOUT[elLh].size();u++)
@@ -2586,37 +2630,40 @@ int main(int argc, char** argv)
                 ormin++;
             }
             
-            if(elLh == testElem || elRh == testElem)
+            if(elRh == 9 || elLh == 9)
             {
-                std::cout << world_rank << "CONSIDERING testElem = " << testElem << " TET SHELL " << fid << " " << elLh << " " <<elRh << " -----------> " << orient0<< std::endl;
-                
-                std::cout <<"["<<Vfaces[0]->x << ", " << Vfaces[0]->y << ", " << Vfaces[0]->z << "]," << std::endl;
-                std::cout <<"["<<Vfaces[2]->x << ", " << Vfaces[2]->y << ", " << Vfaces[2]->z << "]," << std::endl;
-                std::cout <<"["<<Vfaces[1]->x << ", " << Vfaces[1]->y << ", " << Vfaces[1]->z << "]," << std::endl;
-
-                std::cout << " = [";
-                for(int u=0;u<3;u++)
-                {
-                }
-                std::cout << "];" << std::endl;
-                
+                std::cout << "Found tags " << itm->second[0] << " " << itm->second[1] << " " << itm->second[2] << " global IDs = " << gv0 << " " << gv1 << " " << gv2 <<  " " << elLh << " -> ref " << reference[0] << " " << reference[1] << " " << reference[2] << std::endl;
             }
             
+//            if(elLh == testElem || elRh == testElem)
+//            {
+//                std::cout << world_rank << "CONSIDERING testElem = " << testElem << " TET SHELL " << fid << " " << elLh << " " <<elRh << " -----------> " << orient0<< std::endl;
+//
+//                std::cout <<"["<<Vfaces[0]->x << ", " << Vfaces[0]->y << ", " << Vfaces[0]->z << "]," << std::endl;
+//                std::cout <<"["<<Vfaces[2]->x << ", " << Vfaces[2]->y << ", " << Vfaces[2]->z << "]," << std::endl;
+//                std::cout <<"["<<Vfaces[1]->x << ", " << Vfaces[1]->y << ", " << Vfaces[1]->z << "]," << std::endl;
+//
+//                std::cout << " = [";
+//                for(int u=0;u<3;u++)
+//                {
+//                }
+//                std::cout << "];" << std::endl;
+//
+//            }
             
-            
-            if(elLh == testComp || elRh == testComp)
-            {
-                std::cout << world_rank << " TET SHELL --> " << testComp << " <-- " << fid << " " << elLh << " " <<elRh << " -----------> " << orient0<< std::endl;
-                
-                
-                std::cout << " = [";
-                for(int u=0;u<3;u++)
-                {
-                    std::cout <<"["<<Vfaces[u]->x << ", " << Vfaces[u]->y << ", " << Vfaces[u]->z << "]," << std::endl;
-                }
-                std::cout << "];" << std::endl;
-                
-            }
+//            if(elLh == testComp || elRh == testComp)
+//            {
+//                std::cout << world_rank << " TET SHELL --> " << testComp << " <-- " << fid << " " << elLh << " " <<elRh << " -----------> " << orient0<< std::endl;
+//
+//
+//                std::cout << " = [";
+//                for(int u=0;u<3;u++)
+//                {
+//                    std::cout <<"["<<Vfaces[u]->x << ", " << Vfaces[u]->y << ", " << Vfaces[u]->z << "]," << std::endl;
+//                }
+//                std::cout << "];" << std::endl;
+//
+//            }
             
             
 //
@@ -2646,60 +2693,61 @@ int main(int argc, char** argv)
         //std::cout << " sna " << world_rank << " " << sna << " " << tellie << " " << tellie2 << " " << prisms.size() << " ormin = " << ormin << std::endl;
         
         int mapSizeLoc = shelltag2glob.size();
-		DistributedParallelState* distrimap = new DistributedParallelState(mapSizeLoc,comm);
-		int mapSizeTot = distrimap->getNel();
-		int* shelltag_loc = new int[mapSizeLoc];
-		int* tag_loc = new int[mapSizeLoc];
-		int* shelltag_tot = new int[mapSizeTot];
-		int* tag_tot = new int[mapSizeTot];
+        DistributedParallelState* distrimap = new DistributedParallelState(mapSizeLoc,comm);
+        int mapSizeTot = distrimap->getNel();
+        int* shelltag_loc = new int[mapSizeLoc];
+        int* tag_loc = new int[mapSizeLoc];
+        int* shelltag_tot = new int[mapSizeTot];
+        int* tag_tot = new int[mapSizeTot];
 
-		int i = 0;
-		
-		std::map<int,int>::iterator itred;
-		
-		for(itred=shelltag2glob.begin();itred!=shelltag2glob.end();itred++)
-		{
-			shelltag_loc[i] = itred->first;
-			tag_loc[i] = itred->second;
-			i++;
-		}
-		
-		int* offsets = distrimap->getOffsets();
-		int* nlocs   = distrimap->getNlocs();
-		
-		
-		MPI_Allgatherv(shelltag_loc,
-					   mapSizeLoc,
-					   MPI_INT,
-					   shelltag_tot,
-					   nlocs,
-					   offsets,
-					   MPI_INT, comm);
-		
-		
-		MPI_Allgatherv(tag_loc,
-					   mapSizeLoc,
-					   MPI_INT,
-					   tag_tot,
-					   nlocs,
-					   offsets,
-					   MPI_INT, comm);
-		
-		int key,val;
-		std::map<int,int> shelltag2glob_global;
-		for(int i=0;i<mapSizeTot;i++)
-		{
-			key = tag_tot[i];
-			val = shelltag_tot[i];
-			
-			if(shelltag2glob_global.find(val)==shelltag2glob_global.end())
-			{
-				shelltag2glob_global[val] = key;
+        int i = 0;
+        
+        std::map<int,int>::iterator itred;
+        
+        for(itred=shelltag2glob.begin();itred!=shelltag2glob.end();itred++)
+        {
+            shelltag_loc[i] = itred->first;
+            tag_loc[i] = itred->second;
+            i++;
+        }
+        
+        int* offsets = distrimap->getOffsets();
+        int* nlocs   = distrimap->getNlocs();
+        
+        
+        MPI_Allgatherv(shelltag_loc,
+                       mapSizeLoc,
+                       MPI_INT,
+                       shelltag_tot,
+                       nlocs,
+                       offsets,
+                       MPI_INT, comm);
+        
+        
+        MPI_Allgatherv(tag_loc,
+                       mapSizeLoc,
+                       MPI_INT,
+                       tag_tot,
+                       nlocs,
+                       offsets,
+                       MPI_INT, comm);
+        
+        int key,val;
+        std::map<int,int> shelltag2glob_global;
+        for(int i=0;i<mapSizeTot;i++)
+        {
+            key = tag_tot[i];
+            val = shelltag_tot[i];
+            
+            if(shelltag2glob_global.find(val)==shelltag2glob_global.end())
+            {
+                shelltag2glob_global[val] = key;
                 //std::cout << val << " " << key << std::endl;
-			}
-		}
+            }
+        }
         
         //std::cout << " shelltag2glob_global " << shelltag2glob_global.size() << " " << mapSizeTot << " " << mapSizeLoc << " tag2shelltag_glob.size() " << tag2shelltag_glob.size() << std::endl;
+
         
         std::map<int,std::vector<int> >::iterator prit;
         int pid   = 0;
@@ -2731,86 +2779,103 @@ int main(int argc, char** argv)
         int inbitch = 0;
         int swbitch = 0;
         int inbitchint = 0;
+    
+    
+        std::map<int,int> SharedVertsOwned     =  nnf->SharedVertsOwned;
+        std::map<int,int> NonSharedVertsOwned  =  nnf->NonSharedVertsOwned;
+        std::map<int,int> SharedVertsNotOwned  =  nnf->SharedVertsNotOwned;
+        std::map<int,int> collect;
+        std::map<int,int> collect2;
+        int cn = 0;
+        int fshell = 0;
+        int cint = 0;
+        int csha = 0;
+        int cbnd = 0;
         for( prit=int_face2node_prism.begin();prit!=int_face2node_prism.end();prit++)
         {
-            int gfid  = prit->first;
-            int npf   = prit->second.size();
+            int gfid    = prit->first;
+            int npf     = prit->second.size();
+            std::vector<int> fce(npf);
+            ifnOUT_prism->setVal(fptot,0,npf);
+            std::vector<int> reference(npf);
             std::vector<Vert*> Vfaces;
             Vert* VcF = new Vert;
-            ifnOUT_prism->setVal(fptot,0,npf);
-            swbitch = 0;
-            
+            fshell = 0;
+            int printfa = 0;
             for(int g=0;g<npf;g++)
             {
                 int oldtag = prit->second[g];
                 
-                int lvp  = tag2locV_map[oldtag];
-                Vert* Vf = new Vert;
-                Vf->x = localVsPartition[lvp]->x;
-                Vf->y = localVsPartition[lvp]->y;
-                Vf->z = localVsPartition[lvp]->z;
-                
-                VcF->x = VcF->x + Vf->x;
-                VcF->y = VcF->y + Vf->y;
-                VcF->z = VcF->z + Vf->z;
-                
-                Vfaces.push_back(Vf);
-                if(shellvertOriginalTag2ref_Glob.find(oldtag)!=shellvertOriginalTag2ref_Glob.end())
+                if(tag2glob_prism.find(oldtag)!=tag2glob_prism.end() &&
+                   shellvertOriginalTag2ref_Glob.find(oldtag)==shellvertOriginalTag2ref_Glob.end())
                 {
-                    int ref  = shellvertOriginalTag2ref_Glob[oldtag];
-                    int gvid = shelltag2glob_global[ref];
-                    swbitch = 1;
-                    //std::cout << gvid << " <-- int prismt face  " <<std::endl;
-                    inbitch++;
-                    inbitchint++;
-                    if(gvid<nTotPrismVerts)
-                    {
-                        redflag++;
-                        std::cout << "RED FLAG !!! " << std::endl;
-                    }
-                    ifnOUT_prism->setVal(fptot,g+1,gvid);
+                    int lvp  = tag2locV_map[oldtag];
+                    Vert* Vf = new Vert;
+                    Vf->x = localVsPartition[lvp]->x;
+                    Vf->y = localVsPartition[lvp]->y;
+                    Vf->z = localVsPartition[lvp]->z;
+                    VcF->x = VcF->x + Vf->x;
+                    VcF->y = VcF->y + Vf->y;
+                    VcF->z = VcF->z + Vf->z;
                     
-                    if(gvid == 0)
-                    {
-                        std::cout << "Prob not in shelltag2glob_global " << std::endl;
-                    }
-                }
+                    Vfaces.push_back(Vf);
+                    int globid = tag2glob_prism[oldtag];
+                    fce[g]     = globid;
+                    reference[g] = -1;
                 
-                if(local2globalVertMap.find(oldtag)!=local2globalVertMap.end()) // These are the local ids.
-                {
-                    int gvid = local2globalVertMap[oldtag];
-                    //int gvid = 0;
-                    ifnOUT_prism->setVal(fptot,g+1,gvid);
-                    if(gvid == 0)
-                    {
-                        std::cout << "Prob not in local2globalVertMap " << std::endl;
-                    }
                 }
-                
-                if(shellvertOriginalTag2ref_Glob.find(oldtag)==shellvertOriginalTag2ref_Glob.end() &&
-                   local2globalVertMap.find(oldtag)==local2globalVertMap.end())
+                else if(SharedVertsNotOwned.find(oldtag)!=SharedVertsNotOwned.end() &&
+                        shellvertOriginalTag2ref_Glob.find(oldtag)==shellvertOriginalTag2ref_Glob.end())
                 {
-                    if(sharedVmap.find(oldtag)!=sharedVmap.end())
+                    int lvp  = tag2locV_map[oldtag];
+                    Vert* Vf = new Vert;
+                    Vf->x = localVsPartition[lvp]->x;
+                    Vf->y = localVsPartition[lvp]->y;
+                    Vf->z = localVsPartition[lvp]->z;
+                    VcF->x = VcF->x + Vf->x;
+                    VcF->y = VcF->y + Vf->y;
+                    VcF->z = VcF->z + Vf->z;
+                    
+                    Vfaces.push_back(Vf);
+                    int globid = SharedVertsNotOwned[oldtag];
+                    fce[g]     = globid;
+                    reference[g] = -1;
+                    
+                }
+                else if(shellvertOriginalTag2ref_Glob.find(oldtag)!=shellvertOriginalTag2ref_Glob.end())
+                {
+                    
+                    int ref     = shellvertOriginalTag2ref_Glob[oldtag];
+                    int tagglo  = shelltag2tag_glob[ref];
+                    int globid2 = 1;//tag2glob[itm->second[q]];//tag2glob[itm->second[q]];
+                    int globid  = shelltag2glob_global[ref];
+                    
+                    //std::cout << "PASTA " << tagglo << " " << globid2 << " " << globid << std::endl;
+                    
+                    fce[g]      = globid;
+                    reference[g] = ref;
+//                    if(ref == 113 || ref == 114 || ref == 148)
+//                    {
+//                        printfa = 1;
+//                    }
+                    
+                    if(collect.find(globid)==collect.end())
                     {
-                        int gvid = sharedVmap[oldtag];//tagV2localV_prism[oldtag];
-                        ifnOUT_prism->setVal(fptot,g+1,gvid);
-                        if(gvid==0)
-                        {
-                            std::cout << " Internal sharedVmap " << gvid << " " << oldtag << std::endl;
-
-                        }
-                    }
-                    else{
-                        std::cout << "Not in sharedVmap " << std::endl;
+                        collect[globid] = cint;
+                        cint++;
                     }
                     
                 }
             }
             
-            if(npf == 3)
-            {
-                ifnOUT_prism->setVal(fptot,4,0);
-            }
+            VcF->x = VcF->x/npf;
+            VcF->y = VcF->y/npf;
+            VcF->z = VcF->z/npf;
+            
+//            if(npf == 3)
+//            {
+//                ifnOUT_prism->setVal(fptot,4,0);
+//            }
             
             if(rhp[gfid] == 0 || lhp[gfid] == 0)
             {
@@ -2819,66 +2884,86 @@ int main(int argc, char** argv)
             
             int leftEl  = lhp[gfid];
             int leftTag = gE2tagE[leftEl];
-            
             Vert* Vijk = new Vert;
             Vijk->x = 0.0;
             Vijk->y = 0.0;
             Vijk->z = 0.0;
             // compute element center;
             int nvp = prisms[leftTag].size();
-            
+
             for(int q=0;q<nvp;q++)
             {
                 int tag  = prisms[leftTag][q];
                 int lvp  = tag2locV_map[tag];
-            
+
                 Vijk->x = Vijk->x + localVsPartition[lvp]->x;
                 Vijk->y = Vijk->y + localVsPartition[lvp]->y;
                 Vijk->z = Vijk->z + localVsPartition[lvp]->z;
             }
-            
+
             Vijk->x = Vijk->x/nvp;
             Vijk->y = Vijk->y/nvp;
             Vijk->z = Vijk->z/nvp;
-            
-            
+
             double orient0 = CheckFaceOrientation(VcF,Vfaces,Vijk);
             
-            //std::cout << "wo " << world_rank << " " << orient0 << " " << Vijk->x << " " << Vijk->y << " " << Vijk->z << " " << nvp << " " << leftEl << std::endl;
             if(orient0 < 0.0)
             {
-                std::cout << "FAIL " << orient0 << std::endl;
-            }
-            
-            
-            
-            if(lhp[gfid] == testElem || rhp[gfid] == testElem)
-            {
-                
-                std::cout << world_rank << "CONSIDERING testElem = " << testElem << " PRISM INT " << 2 << " " << lhp[gfid] << " " <<rhp[gfid] << " -----------> " << orient0<< " " << fptot << " swbitch = " <<swbitch << std::endl;
-                
-                std::cout << " = [";
-                for(int u=0;u<Vfaces.size();u++)
+                if(npf == 3)
                 {
-                    std::cout <<"["<<Vfaces[u]->x << ", " << Vfaces[u]->y << ", " << Vfaces[u]->z << "]," << std::endl;
+                    ifnOUT_prism->setVal(fptot,1,fce[0]);
+                    ifnOUT_prism->setVal(fptot,2,fce[2]);
+                    ifnOUT_prism->setVal(fptot,3,fce[1]);
+                    ifnOUT_prism->setVal(fptot,4,0);
                 }
-                std::cout << "];" << std::endl;
-            }
-            
-            //==============================
-            if(lhp[gfid] == testComp || rhp[gfid] == testComp)
-            {
-                
-                std::cout << world_rank << " PRISM INT --> "<<testComp<< " <-- " << 2 << " " << lhp[gfid] << " " <<rhp[gfid] << " -----------> " << orient0<< " " << fptot << " swbitch = " <<swbitch << std::endl;
-                
-                std::cout << " = [";
-                for(int u=0;u<Vfaces.size();u++)
+                if(npf == 4)
                 {
-                    std::cout <<"["<<Vfaces[u]->x << ", " << Vfaces[u]->y << ", " << Vfaces[u]->z << "]," << std::endl;
+                    ifnOUT_prism->setVal(fptot,1,fce[0]);
+                    ifnOUT_prism->setVal(fptot,2,fce[3]);
+                    ifnOUT_prism->setVal(fptot,3,fce[2]);
+                    ifnOUT_prism->setVal(fptot,4,fce[1]);
                 }
-                std::cout << "];" << std::endl;
+                
+            }
+            else
+            {
+                if(npf == 3)
+                {
+                    ifnOUT_prism->setVal(fptot,1,fce[0]);
+                    ifnOUT_prism->setVal(fptot,2,fce[1]);
+                    ifnOUT_prism->setVal(fptot,3,fce[2]);
+                    ifnOUT_prism->setVal(fptot,4,0);
+                }
+                if(npf == 4)
+                {
+                    ifnOUT_prism->setVal(fptot,1,fce[0]);
+                    ifnOUT_prism->setVal(fptot,2,fce[1]);
+                    ifnOUT_prism->setVal(fptot,3,fce[2]);
+                    ifnOUT_prism->setVal(fptot,4,fce[3]);
+                }
             }
             
+//            if(printfa == 1)
+//            {
+//                std::cout << "printfa internal ";
+//                for(int u=0;u<npf;u++)
+//                {
+//                    std::cout << "(" << reference[u] << ", " << fce[u] << " " << prit->second[u] << ") ";
+//                }
+//                std::cout << " " << lhp[gfid] << " " << rhp[gfid] <<  std::endl;
+//            }
+            
+            
+            
+            if(lhp[gfid] == 9 || rhp[gfid] == 9)
+            {
+                std::cout << "Prism found :: ";
+                for(int u=0;u<npf;u++)
+                {
+                    std::cout << "( " << fce[u] << ", " << reference[u] << " ) ";
+                }
+                std::cout << " --> " << lhp[gfid]  << " " << rhp[gfid] << std::endl;
+            }
             ifnOUT_prism->setVal(fptot,5,rhp[gfid]);
             ifnOUT_prism->setVal(fptot,6,lhp[gfid]);
             ifnOUT_prism->setVal(fptot,7,2);
@@ -2886,73 +2971,90 @@ int main(int argc, char** argv)
             fptot++;
             pid++;
         }
-        
+    
         //std::cout << " notfo " << notfo2 << " " << notfo <<  " " << fo << " " << fptot << " " << int_face2node_prism.size() << " " << world_rank << std::endl;
-
-        int cnttt = 0;
-        int inbitchsh=0;
+            
+        int cnttt     = 0;
+        int inbitchsh = 0;
+        int notany = 0;
         for( prit=shared_face2node_prism.begin();prit!=shared_face2node_prism.end();prit++)
         {
             int gfid  = prit->first;
             int npf   = prit->second.size();
             
             ifnOUT_prism->setVal(fptot,0,npf);
+            std::vector<int> fce(npf);
             std::vector<Vert*> Vfaces;
             Vert* VcF = new Vert;
-            swbitch = 0;
-            std::vector<int> fce(npf);
+            std::vector<int> reference(npf);
+            int printfa = 0;
             for(int g=0;g<npf;g++)
             {
                 int oldtag = prit->second[g];
-                
-                int lvp  = tag2locV_map[oldtag];
-                Vert* Vf = new Vert;
-                Vf->x = localVsPartition[lvp]->x;
-                Vf->y = localVsPartition[lvp]->y;
-                Vf->z = localVsPartition[lvp]->z;
-                
-                VcF->x = VcF->x + Vf->x;
-                VcF->y = VcF->y + Vf->y;
-                VcF->z = VcF->z + Vf->z;
-                
-                Vfaces.push_back(Vf);
-                
-                if(shellvertOriginalTag2ref_Glob.find(oldtag)!=shellvertOriginalTag2ref_Glob.end())
+                if(tag2glob_prism.find(oldtag)!=tag2glob_prism.end() &&
+                   shellvertOriginalTag2ref_Glob.find(oldtag)==shellvertOriginalTag2ref_Glob.end())
                 {
-                    int ref  = shellvertOriginalTag2ref_Glob[oldtag];
-                    int gvid = shelltag2glob_global[ref];
-                    swbitch = 1;
-                    inbitch++;
-                    //std::cout << gvid << " <-- shares prismt face  " <<std::endl;
-                    inbitchsh++;
-                    if(gvid<nTotPrismVerts)
+                    int lvp  = tag2locV_map[oldtag];
+                    Vert* Vf = new Vert;
+                    Vf->x = localVsPartition[lvp]->x;
+                    Vf->y = localVsPartition[lvp]->y;
+                    Vf->z = localVsPartition[lvp]->z;
+                    VcF->x = VcF->x + Vf->x;
+                    VcF->y = VcF->y + Vf->y;
+                    VcF->z = VcF->z + Vf->z;
+                    
+                    Vfaces.push_back(Vf);
+                    int globid = tag2glob_prism[oldtag];
+                    fce[g]     = globid;
+                    reference[g] = -1;
+                    
+                }
+                else if(SharedVertsNotOwned.find(oldtag)!=SharedVertsNotOwned.end() &&
+                        shellvertOriginalTag2ref_Glob.find(oldtag)==shellvertOriginalTag2ref_Glob.end())
+                {
+                    int lvp  = tag2locV_map[oldtag];
+                    Vert* Vf = new Vert;
+                    Vf->x = localVsPartition[lvp]->x;
+                    Vf->y = localVsPartition[lvp]->y;
+                    Vf->z = localVsPartition[lvp]->z;
+                    VcF->x = VcF->x + Vf->x;
+                    VcF->y = VcF->y + Vf->y;
+                    VcF->z = VcF->z + Vf->z;
+                    
+                    Vfaces.push_back(Vf);
+                    int globid = SharedVertsNotOwned[oldtag];
+                    fce[g]     = globid;
+                    reference[g] = -1;
+                }
+                else if(shellvertOriginalTag2ref_Glob.find(oldtag)!=shellvertOriginalTag2ref_Glob.end())
+                {
+                    int ref     = shellvertOriginalTag2ref_Glob[oldtag];
+                    int globid = shelltag2glob_global[ref];
+                    fce[g]     = globid;
+                    if(globid>nPrismVerts_tmp)
                     {
-                        redflag++;
-                        std::cout << "RED FLAG !!! " << std::endl;
+                        if(collect2.find(globid)==collect2.end())
+                        {
+                            collect2[globid] = cn;
+                            cn++;
+                        }
                     }
-                    ifnOUT_prism->setVal(fptot,g+1,gvid);
-                    fce[g] = gvid;
-                }
-                
-                if(local2globalVertMap.find(oldtag)!=local2globalVertMap.end()) // These are the local ids.
-                {
-                    int gvid = local2globalVertMap[oldtag];
-                    ifnOUT_prism->setVal(fptot,g+1,gvid);
-                    fce[g] = gvid;
-                }
-                
-                if(shellvertOriginalTag2ref_Glob.find(oldtag)==shellvertOriginalTag2ref_Glob.end() &&
-                   local2globalVertMap.find(oldtag)==local2globalVertMap.end())
-                {
-                    if(sharedVmap.find(oldtag)!=sharedVmap.end())
+                    if(collect.find(globid)==collect.end())
                     {
-                        int gvid = sharedVmap[oldtag];//tagV2localV_prism[oldtag];
-                        ifnOUT_prism->setVal(fptot,g+1,gvid);
-                        fce[g] = gvid;
+                        collect[globid] = csha;
+                        csha++;
+                    }
+                    reference[g] = ref;
+                    if(ref == 113 || ref == 114 || ref == 148)
+                    {
+                        printfa = 1;
                     }
                 }
             }
             
+            VcF->x = VcF->x/npf;
+            VcF->y = VcF->y/npf;
+            VcF->z = VcF->z/npf;
             if(npf == 3)
             {
                 ifnOUT_prism->setVal(fptot,4,0);
@@ -2967,59 +3069,82 @@ int main(int argc, char** argv)
             Vijk->z = 0.0;
             // compute element center;
             int nvp = prisms[leftTag].size();
-            
+
             for(int q=0;q<nvp;q++)
             {
                 int tag  = prisms[leftTag][q];
                 int lvp  = tag2locV_map[tag];
-            
+
                 Vijk->x = Vijk->x + localVsPartition[lvp]->x;
                 Vijk->y = Vijk->y + localVsPartition[lvp]->y;
                 Vijk->z = Vijk->z + localVsPartition[lvp]->z;
             }
-            
+
             Vijk->x = Vijk->x/nvp;
             Vijk->y = Vijk->y/nvp;
             Vijk->z = Vijk->z/nvp;
-            
+
             double orient0 = CheckFaceOrientation(VcF,Vfaces,Vijk);
-            
+//
             if(orient0 < 0.0)
             {
-                std::cout << "FAIL shared " << orient0 << std::endl;
+                if(npf == 3)
+                {
+                    ifnOUT_prism->setVal(fptot,1,fce[0]);
+                    ifnOUT_prism->setVal(fptot,2,fce[2]);
+                    ifnOUT_prism->setVal(fptot,3,fce[1]);
+                    ifnOUT_prism->setVal(fptot,4,0);
+                }
+                if(npf == 4)
+                {
+                    ifnOUT_prism->setVal(fptot,1,fce[0]);
+                    ifnOUT_prism->setVal(fptot,2,fce[3]);
+                    ifnOUT_prism->setVal(fptot,3,fce[2]);
+                    ifnOUT_prism->setVal(fptot,4,fce[1]);
+                }
+            }
+            else
+            {
+                if(npf == 3)
+                {
+                    ifnOUT_prism->setVal(fptot,1,fce[0]);
+                    ifnOUT_prism->setVal(fptot,2,fce[1]);
+                    ifnOUT_prism->setVal(fptot,3,fce[2]);
+                    ifnOUT_prism->setVal(fptot,4,0);
+                }
+                if(npf == 4)
+                {
+                    ifnOUT_prism->setVal(fptot,1,fce[0]);
+                    ifnOUT_prism->setVal(fptot,2,fce[1]);
+                    ifnOUT_prism->setVal(fptot,3,fce[2]);
+                    ifnOUT_prism->setVal(fptot,4,fce[3]);
+                }
             }
             
-            if(lhp[gfid] == testElem || rhp[gfid] == testElem)
-            {
-                std::cout << world_rank << "CONSIDERING testElem = " << testElem << " PRISM SHARED " << 2 << " " << lhp[gfid] << " " <<rhp[gfid] << " " << " -----------> " << orient0<< " " << fptot << " swbitch = " <<swbitch << std::endl;
-                
-//                if(Vfaces.size()==3)
+            
+//            if(printfa == 1)
+//            {
+//                std::cout << "printfa shared ";
+//                for(int u=0;u<npf;u++)
 //                {
-//                    ifnOUT_prism->setVal(fptot,2,fce[2]);
-//                    ifnOUT_prism->setVal(fptot,3,fce[1]);
-//
+//                    std::cout << reference[u] << " ";
 //                }
-                
-                std::cout << " = [";
-                for(int u=0;u<Vfaces.size();u++)
+//                std::cout << " " << lhp[gfid] << " " << rhp[gfid] <<  std::endl;
+//            }
+//
+            
+            if(lhp[gfid] == 9 || rhp[gfid] == 9)
+            {
+                std::cout << "fshell " << fshell << std::endl;
+                std::cout << "Shared Prism found :: ";
+                for(int u=0;u<npf;u++)
                 {
-                    std::cout <<"["<<Vfaces[u]->x << ", " << Vfaces[u]->y << ", " << Vfaces[u]->z << "]," << std::endl;
+                    std::cout << "( " << fce[u] << ", " << reference[u] << " ) ";
                 }
-                std::cout << "];" << std::endl;
+                std::cout << " --> " << lhp[gfid]  << " " << rhp[gfid] << std::endl;
             }
             
-            if(lhp[gfid] == testComp || rhp[gfid] == testComp)
-            {
-                
-                std::cout << world_rank << " PRISM SHARED --> " << testComp << " <-- " << 2 << " " << lhp[gfid] << " " <<rhp[gfid] << " -----------> " << orient0<< " " << fptot << " swbitch = " <<swbitch << std::endl;
-                
-                std::cout << " = [";
-                for(int u=0;u<Vfaces.size();u++)
-                {
-                    std::cout <<"["<<Vfaces[u]->x << ", " << Vfaces[u]->y << ", " << Vfaces[u]->z << "]," << std::endl;
-                }
-                std::cout << "];" << std::endl;
-            }
+           
             
             ifnOUT_prism->setVal(fptot,5,rhp[gfid]);
             ifnOUT_prism->setVal(fptot,6,lhp[gfid]);
@@ -3028,54 +3153,18 @@ int main(int argc, char** argv)
             fptot++;
             pid++;
         }
-        
-        std::cout << "inbitch "  << world_rank << " " << inbitch << " " << inbitchsh << " " << inbitchint << " "  << redflag << std::endl;
-        
-        //std::cout << "int_face2node_prism.size()+shared_face2node_prism.size() " << int_face2node_prism.size()+shared_face2node_prism.size() << " " << fptot << std::endl;
-        
-//        for( prit=bc_face2node_prism.begin();prit!=bc_face2node_prism.end();prit++)
-//        {
-//            int lfid  = prit->first;
-//            int fref  = ifref[lfid];
-//            int npf   = prit->second.size();
-//
-//            for(int g=0;g<npf;g++)
-//            {
-//                int newtag = prit->second[g];
-//                int oldtag = localV2tagV_prism[newtag];
-//
-//                if(shellvertOriginalTag2ref_Glob.find(oldtag)!=shellvertOriginalTag2ref_Glob.end())
-//                {
-//                    int ref  = shellvertOriginalTag2ref_Glob[oldtag];
-//                    int gvid = shelltag2glob_global[ref];
-//
-//                }
-//
-//                if(local2globalVertMap.find(newtag)!=local2globalVertMap.end()) // These are the local ids.
-//                {
-//                    int gvid = local2globalVertMap[newtag];
-//                    testmap[newtag] = gvid;
-//                }
-//
-//                if(shellvertOriginalTag2ref_Glob.find(oldtag)==shellvertOriginalTag2ref_Glob.end() &&
-//                   local2globalVertMap.find(newtag)==local2globalVertMap.end())
-//                {
-//                    int gvid = newtag;
-//                }
-//            }
-//
-//            fptot++;
-//            pid++;
-//        }
-        
+    
+        //std::cout << "notany " << world_rank << " " << notany << std::endl;
         //std::cout << "ftoto " << world_rank << " " << ftot << " "  << ifnOUT->getNrow() << "  fptot " << cnttt << std::endl;
 
+        
         //std::cout << local2globalVertMap.size() << " " << distriPrismVertmap->getNel() << " " << world_rank << " " << fptot << " " << int_face2node_prism.size()+shared_face2node_prism.size() <<  std::endl;
         
         DistributedParallelState* distriUniquePrismVertmap = new DistributedParallelState(local2globalVertMap.size(),comm);
         
         
         //std::cout << "cntty  " << " " << local2globalVertMap.size() << " " << distriUniquePrismVertmap->getNel() << " wr " << world_rank << std::endl;
+        
         
         // End reducing the map.
         
@@ -3102,11 +3191,11 @@ int main(int argc, char** argv)
         for(bit=bcmap.begin();bit!=bcmap.end();bit++)
         {
             //std::cout << "bit " << world_rank << " " << bit->first << " " << bit->second.size() << std::endl;
-        	if(bcids_tot.find(bit->first)==bcids_tot.end())
-        	{
-        		bcids_tot.insert(bit->first);
-        		Lbcs.push_back(bit->first);
-        	}
+            if(bcids_tot.find(bit->first)==bcids_tot.end())
+            {
+                bcids_tot.insert(bit->first);
+                Lbcs.push_back(bit->first);
+            }
         }
         
         for(bit=pbcmap.begin();bit!=pbcmap.end();bit++)
@@ -3159,9 +3248,10 @@ int main(int argc, char** argv)
             int ee = *entry;
             int Nbft = 0;
             int Nbfp = 0;
+            
             if(bcmap.find(ee)!=bcmap.end())
             {
-            	Nbft = bcmap[ee].size();
+                Nbft = bcmap[ee].size();
             }
             if(pbcmap.find(ee)!=pbcmap.end())
             {
@@ -3175,7 +3265,6 @@ int main(int argc, char** argv)
             
             q++;
         }
-        
         
         
         
@@ -3201,25 +3290,20 @@ int main(int argc, char** argv)
             int NelTot_bci = distBCi->getNel();
             
             Array<int>* ifn_bc_i = new Array<int>(NelLoc_bci,8);
-
             int offsetbci        = distBCi->getOffsets()[world_rank];
-            
-            
-            int fbc = 0;
-            
+            int fbc  = 0;
             int Nbft = 0;
 			int Nbfp = 0;
-			if(bcmap.find(bc_id)!=bcmap.end())
-			{
-				Nbft = bcmap[bc_id].size();
-			}
-			if(pbcmap.find(bc_id)!=pbcmap.end())
-			{
-				Nbfp = pbcmap[bc_id].size();
-			}
-            
 
-             
+            if(bcmap.find(bc_id)!=bcmap.end())
+            {
+                Nbft = bcmap[bc_id].size();
+            }
+            if(pbcmap.find(bc_id)!=pbcmap.end())
+            {
+                Nbfp = pbcmap[bc_id].size();
+            }
+            
             if(Nbfp!=0)
             {
                 int sk = 0;
@@ -3227,74 +3311,79 @@ int main(int argc, char** argv)
                 for(int q=0;q<Nbfp;q++)
 				{
 					int bcface = pbcmap[bc_id][q];
-					flag = -1;
+					int flag = -1;
 					
 					int nppf = bc_face2node_prism[bcface].size();
 					
 					ifn_bc_i->setVal(fbc,0,nppf);
                     std::vector<int> face_tmp(nppf);
-                    Vert*VcF = new Vert;
-                    std::vector<Vert*> Vfaces;
                     std::vector<int> fce(nppf);
+                    std::vector<Vert*> Vfaces;
+                    Vert* VcF = new Vert;
+                    VcF->x = 0.0;
+                    VcF->y = 0.0;
+                    VcF->z = 0.0;
+                    
                     for(int g=0;g<nppf;g++)
                     {
                         int oldtag = bc_face2node_prism[bcface][g];
                         
-                        int lvp  = tag2locV_map[oldtag];
-
-                        Vert* Vf = new Vert;
-                        Vf->x = localVsPartition[lvp]->x;
-                        Vf->y = localVsPartition[lvp]->y;
-                        Vf->z = localVsPartition[lvp]->z;
-                        
-                        VcF->x = VcF->x + Vf->x;
-                        VcF->y = VcF->y + Vf->y;
-                        VcF->z = VcF->z + Vf->z;
-                        
-                        Vfaces.push_back(Vf);
-                        
-                        
-                        if(shellvertOriginalTag2ref_Glob.find(oldtag)!=shellvertOriginalTag2ref_Glob.end())
+                        if(tag2glob_prism.find(oldtag)!=tag2glob_prism.end() &&
+                           shellvertOriginalTag2ref_Glob.find(oldtag)==shellvertOriginalTag2ref_Glob.end())
                         {
-                            int ref  = shellvertOriginalTag2ref_Glob[oldtag];
-                            int globalVidt = shelltag2glob_global[ref];
-                            //ifn_bc_i->setVal(fbc,g+1,globalVidt);
-                            fce[g] = globalVidt;
+                            int lvp  = tag2locV_map[oldtag];
+                            Vert* Vf = new Vert;
+                            Vf->x = localVsPartition[lvp]->x;
+                            Vf->y = localVsPartition[lvp]->y;
+                            Vf->z = localVsPartition[lvp]->z;
+                            VcF->x = VcF->x + Vf->x;
+                            VcF->y = VcF->y + Vf->y;
+                            VcF->z = VcF->z + Vf->z;
                             
+                            Vfaces.push_back(Vf);
+                            int globid = tag2glob_prism[oldtag];
+                            fce[g]     = globid;
                         }
-                        else if(local2globalVertMap.find(oldtag)!=local2globalVertMap.end()) // These are the local ids.
+                        else if(SharedVertsNotOwned.find(oldtag)!=SharedVertsNotOwned.end() &&
+                                shellvertOriginalTag2ref_Glob.find(oldtag)==shellvertOriginalTag2ref_Glob.end())
                         {
-                            int globalVidn = local2globalVertMap[oldtag];
-                            //ifn_bc_i->setVal(fbc,g+1,globalVidn);
-                            fce[g] = globalVidn;
-
+                            int lvp  = tag2locV_map[oldtag];
+                            Vert* Vf = new Vert;
+                            Vf->x = localVsPartition[lvp]->x;
+                            Vf->y = localVsPartition[lvp]->y;
+                            Vf->z = localVsPartition[lvp]->z;
+                            VcF->x = VcF->x + Vf->x;
+                            VcF->y = VcF->y + Vf->y;
+                            VcF->z = VcF->z + Vf->z;
                             
+                            Vfaces.push_back(Vf);
+                            int globid = SharedVertsNotOwned[oldtag];
+                            fce[g]     = globid;
                         }
-                        
-                        else if(sharedVmap.find(oldtag)!=sharedVmap.end())
+                        else if(shellvertOriginalTag2ref_Glob.find(oldtag)!=shellvertOriginalTag2ref_Glob.end())
                         {
-                            
-                            int gvid = sharedVmap[oldtag];//tagV2localV_prism[oldtag];
-                            //ifn_bc_i->setVal(fbc,g+1,gvid);
-                            fce[g] = gvid;
-
+                            int ref     = shellvertOriginalTag2ref_Glob[oldtag];
+                            int globid  = shelltag2glob_global[ref];
+                            fce[g]      = globid;
+                            if(globid>nPrismVerts_tmp)
+                            {
+                                if(collect2.find(globid)==collect2.end())
+                                {
+                                    collect2[globid] = cn;
+                                    cn++;
+                                }
+                            }
+                            if(collect.find(globid)==collect.end())
+                            {
+                                collect[globid] = cbnd;
+                                cbnd++;
+                            }
                         }
                     }
                     
-                    if(nppf==3)
-                    {
-                        ifn_bc_i->setVal(fbc,1,fce[0]);
-                        ifn_bc_i->setVal(fbc,2,fce[1]);
-                        ifn_bc_i->setVal(fbc,3,fce[2]);
-                        ifn_bc_i->setVal(fbc,4,0);
-                    }
-                    if(nppf==4)
-                    {
-                        ifn_bc_i->setVal(fbc,1,fce[0]);
-                        ifn_bc_i->setVal(fbc,2,fce[1]);
-                        ifn_bc_i->setVal(fbc,3,fce[2]);
-                        ifn_bc_i->setVal(fbc,4,fce[3]);
-                    }
+                    VcF->x = VcF->x/nppf;
+                    VcF->y = VcF->y/nppf;
+                    VcF->z = VcF->z/nppf;
                     
                     int leftEl  = lhp[bcface];
                     int leftTag = gE2tagE[leftEl];
@@ -3305,58 +3394,59 @@ int main(int argc, char** argv)
                     Vijk->z = 0.0;
                     // compute element center;
                     int nvp = prisms[leftTag].size();
-                    
+
                     for(int q=0;q<nvp;q++)
                     {
                         int tag  = prisms[leftTag][q];
                         int lvp  = tag2locV_map[tag];
-                    
+
                         Vijk->x = Vijk->x + localVsPartition[lvp]->x;
                         Vijk->y = Vijk->y + localVsPartition[lvp]->y;
                         Vijk->z = Vijk->z + localVsPartition[lvp]->z;
                     }
-                    
+
                     Vijk->x = Vijk->x/nvp;
                     Vijk->y = Vijk->y/nvp;
                     Vijk->z = Vijk->z/nvp;
-                    
+
                     double orient0 = CheckFaceOrientation(VcF,Vfaces,Vijk);
                     
-                    if(orient0<0.0)
+                    if(orient0 < 0.0)
                     {
-                        failbc++;
-                    }
-                    
-                    if(lhp[bcface] == testElem)
-                    {
-                        //std::cout << world_rank << " we are on bnd " << bc_id <<" " <<bcface << " " << orient0 << std::endl;
-                        std::cout << world_rank << " CONSIDERING testElem " << testElem << " waaaaaa " << 2 << " " << lhp[bcface] << " " << 0 << bc_id << " " << orient0 << " " << fbc << std::endl;
-                        
-                        std::cout << " = [";
-                        for(int u=0;u<Vfaces.size();u++)
+                        if(nppf == 3)
                         {
-                            std::cout <<"["<<Vfaces[u]->x << ", " << Vfaces[u]->y << ", " << Vfaces[u]->z << "]," << std::endl;
+                            ifn_bc_i->setVal(fbc,1,fce[0]);
+                            ifn_bc_i->setVal(fbc,2,fce[2]);
+                            ifn_bc_i->setVal(fbc,3,fce[1]);
+                            ifn_bc_i->setVal(fbc,4,0);
                         }
-                        std::cout << "];" << std::endl;
-                    }
-                    
-                    
-                    if(lhp[bcface] == testComp)
-                    {
-                        std::cout << world_rank << "PRISM BND ---> " << testComp << " <---" << fid << " " << elLh << " " <<elRh << " " << fbc << std::endl;
-                        
-                        std::cout << " = [";
-                        for(int u=0;u<Vfaces.size();u++)
+                        if(nppf == 4)
                         {
-                            std::cout <<"["<<Vfaces[u]->x << ", " << Vfaces[u]->y << ", " << Vfaces[u]->z << "]," << std::endl;
+                            ifn_bc_i->setVal(fbc,1,fce[0]);
+                            ifn_bc_i->setVal(fbc,2,fce[3]);
+                            ifn_bc_i->setVal(fbc,3,fce[2]);
+                            ifn_bc_i->setVal(fbc,4,fce[1]);
                         }
-                        std::cout << "];" << std::endl;
                         
                     }
+                    else
+                    {
+                        if(nppf == 3)
+                        {
+                            ifn_bc_i->setVal(fbc,1,fce[0]);
+                            ifn_bc_i->setVal(fbc,2,fce[1]);
+                            ifn_bc_i->setVal(fbc,3,fce[2]);
+                            ifn_bc_i->setVal(fbc,4,0);
+                        }
+                        if(nppf == 4)
+                        {
+                            ifn_bc_i->setVal(fbc,1,fce[0]);
+                            ifn_bc_i->setVal(fbc,2,fce[1]);
+                            ifn_bc_i->setVal(fbc,3,fce[2]);
+                            ifn_bc_i->setVal(fbc,4,fce[3]);
+                        }
+                    }
                     
-                    
-                    
-					
 					ifn_bc_i->setVal(fbc,5,0);
 					ifn_bc_i->setVal(fbc,6,lhp[bcface]);
 					ifn_bc_i->setVal(fbc,7,bc_id);
@@ -3366,7 +3456,7 @@ int main(int argc, char** argv)
                 
                 
             }
-//            
+            
             if(Nbft!=0 )
             {
                 for(int q=0;q<Nbft;q++)
@@ -3431,33 +3521,36 @@ int main(int argc, char** argv)
                     
                     double orient0 = CheckFaceOrientation(VcF,Vfaces,Vijk);
 
-                    
-                    if(lhbnd[bcface] == testElem)
+                    if(elLh==9)
                     {
-                        std::cout << world_rank << " CONSIDERING testElem " << testElem << " " << fid << " " << elLh << " " <<elRh << " " <<orient0 << " " << fbc << std::endl;
-                        
-                        std::cout << " = [";
-                        for(int u=0;u<3;u++)
-                        {
-                            std::cout <<"["<<Vfaces[u]->x << ", " << Vfaces[u]->y << ", " << Vfaces[u]->z << "]," << std::endl;
-                        }
-                        std::cout << "];" << std::endl;
-                        
+                        std::cout << "Its not a tet " << std::endl;
                     }
-                    
-                    
-                    if(lhbnd[bcface] == testComp)
-                    {
-                        std::cout << world_rank << "PRISM BND ---> " << testComp << " <---" << fid << " " << elLh << " " <<elRh <<orient0 << " " << fbc << std::endl;
-                        
-                        std::cout << " = [";
-                        for(int u=0;u<3;u++)
-                        {
-                            std::cout <<"["<<Vfaces[u]->x << ", " << Vfaces[u]->y << ", " << Vfaces[u]->z << "]," << std::endl;
-                        }
-                        std::cout << "];" << std::endl;
-                        
-                    }
+//                    if(lhbnd[bcface] == testElem)
+//                    {
+//                        std::cout << world_rank << " CONSIDERING testElem " << testElem << " " << fid << " " << elLh << " " <<elRh << " " <<orient0 << " " << fbc << std::endl;
+//
+//                        std::cout << " = [";
+//                        for(int u=0;u<3;u++)
+//                        {
+//                            std::cout <<"["<<Vfaces[u]->x << ", " << Vfaces[u]->y << ", " << Vfaces[u]->z << "]," << std::endl;
+//                        }
+//                        std::cout << "];" << std::endl;
+//
+//                    }
+//
+//
+//                    if(lhbnd[bcface] == testComp)
+//                    {
+//                        std::cout << world_rank << "PRISM BND ---> " << testComp << " <---" << fid << " " << elLh << " " <<elRh <<orient0 << " " << fbc << std::endl;
+//
+//                        std::cout << " = [";
+//                        for(int u=0;u<3;u++)
+//                        {
+//                            std::cout <<"["<<Vfaces[u]->x << ", " << Vfaces[u]->y << ", " << Vfaces[u]->z << "]," << std::endl;
+//                        }
+//                        std::cout << "];" << std::endl;
+//
+//                    }
                     
                     ifn_bc_i->setVal(fbc,4,0);
                     ifn_bc_i->setVal(fbc,5,0);
@@ -3465,7 +3558,7 @@ int main(int argc, char** argv)
                     ifn_bc_i->setVal(fbc,7,bc_id);
                     
                     fbc++;
-                }                
+                }
             }
             
             
@@ -3486,34 +3579,166 @@ int main(int argc, char** argv)
             //nLocBCFaces_offset = nLocBCFaces_offset + NelLoc_bci;
             nTotBCFaces_offset = nTotBCFaces_offset + NelTot_bci;
             nTotBCFaces        = nTotBCFaces + NelTot_bci;
+            
+            
         }
         
+        std::cout << "c's " << world_rank << " " << cbnd << " " << cint << " " << csha << std::endl;
         //std::cout << world_rank << " nTotBCFaces " << " " << nTotBCFaces << " on -> " << world_rank  << std::endl;
         
-        std::cout << "failbc  " << failbc << std::endl;
+        //std::cout << "failbc  " << failbc << " " << collect.size() << " " << cn  << " " << mapSizeTot << " " << mapSizeLoc << " " << shelltag2glob_global.size() << " " << shellvertOriginalTag2ref_Glob.size() << std::endl;
+    
         int nPrismOUT = parmmg_iet_prisms->getNrow();
         //std::cout << "nPrismOUTnPrismOUTnPrismOUTnPrismOUT " << nPrismOUT << " " << world_rank << std::endl;
         DistributedParallelState* distTetra      = new DistributedParallelState(nTetrahedraOUT,comm);
         DistributedParallelState* distPrism      = new DistributedParallelState(nPrismOUT,comm);
         DistributedParallelState* distTetraVerts = new DistributedParallelState(xcn_parmmg->getNrow(),comm);
-        DistributedParallelState* distPrismVerts = new DistributedParallelState(xcn_prisms->getNrow(),comm);
+        DistributedParallelState* distPrismVerts = new DistributedParallelState(xcn_prisms_int->getNrow()+xcn_prisms_shared->getNrow(),comm);
+        
         
         int ToTElements_prism           = distPrism->getNel();
         int ToTElements_offset_prism    = distPrism->getOffsets()[world_rank];
         
         int ToTElements                 = distTetra->getNel();
         int ToTElements_offset          = distTetra->getOffsets()[world_rank];
-        
+        int nTotTetraVerts_v2           = distTetraVerts->getNel();
+
         int nTotElements                = ToTElements_prism+ToTElements;
         int nTotFaces                   = nTotInteriorFaces_prism + nTotInteriorFaces + nTotBCFaces;
         int nTotIntFaces                = nTotInteriorFaces_prism + nTotInteriorFaces;
         
         int nTotPrismVerts_v2           = distPrismVerts->getNel();
-        int nTotTetraVerts_v2           = distTetraVerts->getNel();
+        int nTotPrismIntVerts_v2        = distPrismIntVerts->getNel();
+        int nTotPrismShaVerts_v2        = distPrismShaVerts->getNel();
+    
+        int TotPrismVerts_offset_int    = distPrismIntVerts->getOffsets()[world_rank];
+        int TotPrismVerts_offset_sha    = distPrismShaVerts->getOffsets()[world_rank];
+
         int TotPrismVerts_offset        = distPrismVerts->getOffsets()[world_rank];
         
         int nTotVertsPrismTetra = nTotPrismVerts_v2+nTotTetraVerts_v2;
+
+        Array<double>* xcn_prisms_int_total = new Array<double>(distPrismIntVerts->getNel(),3);
+    
+        MPI_Allgatherv(xcn_prisms_int->data,
+                       xcn_prisms_int->getNrow()*3,
+                       MPI_DOUBLE,
+                       xcn_prisms_int_total->data,
+                       distPrismIntVerts_comm->getNlocs(),
+                       distPrismIntVerts_comm->getOffsets(),
+                       MPI_DOUBLE, comm);
+    
+        Array<double>* xcn_prisms_shared_total = new Array<double>(distPrismShaVerts->getNel(),3);
+
+        MPI_Allgatherv(xcn_prisms_shared->data,
+                       xcn_prisms_shared->getNrow()*3,
+                       MPI_DOUBLE,
+                       xcn_prisms_shared_total->data,
+                       distPrismShaVerts_comm->getNlocs(),
+                       distPrismShaVerts_comm->getOffsets(),
+                       MPI_DOUBLE, comm);
+    
+        Array<double>* xcn_prisms_total = new Array<double>(distPrismIntVerts->getNel()+distPrismShaVerts->getNel(),3);
         
+        for(int o=0;o<xcn_prisms_int_total->getNrow();o++)
+        {
+            xcn_prisms_total->setVal(o,0,xcn_prisms_int_total->getVal(o,0));
+            xcn_prisms_total->setVal(o,1,xcn_prisms_int_total->getVal(o,1));
+            xcn_prisms_total->setVal(o,2,xcn_prisms_int_total->getVal(o,2));
+        }
+        for(int o=0;o<xcn_prisms_shared_total->getNrow();o++)
+        {
+            xcn_prisms_total->setVal(distPrismIntVerts->getNel()+o,0,xcn_prisms_shared_total->getVal(o,0));
+            xcn_prisms_total->setVal(distPrismIntVerts->getNel()+o,1,xcn_prisms_shared_total->getVal(o,1));
+            xcn_prisms_total->setVal(distPrismIntVerts->getNel()+o,2,xcn_prisms_shared_total->getVal(o,2));
+        }
+//        delete[] xcn_prisms_int_total;
+//        delete[] xcn_prisms_shared_total;
+        
+        for(prit=prisms.begin();prit!=prisms.end();prit++)
+        {
+            double* P = new double[6*3];
+            std::vector<int> fce(6);
+            std::vector<int> refer(6);
+            int itt = tagE2gE[prit->first];
+            
+            for(int l=0;l<prit->second.size();l++)
+            {
+                int oldtag = prit->second[l];
+                
+                if(tag2glob_prism.find(oldtag)!=tag2glob_prism.end() &&
+                   shellvertOriginalTag2ref_Glob.find(oldtag)==shellvertOriginalTag2ref_Glob.end())
+                {
+                    int globid = tag2glob_prism[oldtag]-1;
+                    fce[l]     = globid;
+                    
+                    P[l*3+0] = xcn_prisms_total->getVal(globid,0);
+                    P[l*3+1] = xcn_prisms_total->getVal(globid,1);
+                    P[l*3+2] = xcn_prisms_total->getVal(globid,2);
+                    refer[l] = -1;
+                }
+                else if(SharedVertsNotOwned.find(oldtag)!=SharedVertsNotOwned.end() &&
+                        shellvertOriginalTag2ref_Glob.find(oldtag)==shellvertOriginalTag2ref_Glob.end())
+                {
+                    int globid = SharedVertsNotOwned[oldtag]-1;
+                    fce[l]     = globid;
+                    P[l*3+0] = xcn_prisms_total->getVal(globid,0);
+                    P[l*3+1] = xcn_prisms_total->getVal(globid,1);
+                    P[l*3+2] = xcn_prisms_total->getVal(globid,2);
+                    refer[l] = -1;
+                }
+                else if(shellvertOriginalTag2ref_Glob.find(oldtag)!=shellvertOriginalTag2ref_Glob.end())
+                {
+                    int ref     = shellvertOriginalTag2ref_Glob[oldtag];
+                    int globid  = shelltag2glob_global[ref];
+                    fce[l]      = globid;
+                    int lvp  = tag2locV_map[oldtag];
+                    P[l*3+0] = localVsPartition[lvp]->x;
+                    P[l*3+1] = localVsPartition[lvp]->y;
+                    P[l*3+2] = localVsPartition[lvp]->z;
+                    refer[l] = ref;
+                }
+                
+                if(world_rank == 0)
+                {
+                    if(itt == 9)
+                    {
+                        std::cout << "p" <<l<< "=[" << P[l*3+0] << ", " << P[l*3+1] << ", " << P[l*3+2] << "]" << std::endl;
+                    }
+                }
+            }
+            
+            if(world_rank == 0)
+            {
+                if(itt == 9)
+                {
+                    std::cout << "global vertids are -> ";
+                    for(int s=0;s<6;s++)
+                    {
+                        std::cout << "(" << prit->second[s] << ", " << fce[s]+1 << ", " << refer[s] << ") ";
+                    }
+                    
+                    std::cout << std::endl;
+                }
+            }
+            
+            
+            
+            
+            double VolPrism = ComputeVolumePrismCell(P);
+            
+            
+            if(VolPrism<0.0)
+            {
+                std::cout << "FOUNNNNNNNNNNNNND IT " << VolPrism << std::endl;
+            }
+        }
+        /**/
+    
+        std::cout << "wefqbg  " << distPrismShaVerts->getNel() + distPrismIntVerts->getNel() << std::endl;
+    
+        
+    
         int nbo = bcArrays.size();
         //std::cout << "-- Constructing the zdefs array..."<<std::endl;
         Array<int>* adapt_zdefs = new Array<int>(3+nbo,7);
@@ -3570,13 +3795,13 @@ int main(int argc, char** argv)
         if(world_rank == 0)
         {
             
-            std::cout << "Total faces = " << nTotFaces << " " << nTotInteriorFaces_prism+nTotInteriorFaces  << std::endl;
+            std::cout << "Total faces = " << nTotFaces << " " << nTotInteriorFaces_prism  << std::endl;
             
             PlotBoundaryData(us3d->znames,adapt_zdefs);
         }
         
 
-
+        
         //===================================================================================
         //===================================================================================
         //===================================================================================
@@ -3680,7 +3905,7 @@ int main(int argc, char** argv)
         //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
         countH5[0]  = parmmg_iet->getNrow();
         countH5[1]  = parmmg_iet->getNcol();
-        
+
         offsetH5[0] = ToTElements_prism+ToTElements_offset;
         offsetH5[1] = 0;
         memspace = H5Screate_simple(2, countH5, NULL);
@@ -3689,7 +3914,7 @@ int main(int argc, char** argv)
         H5Sselect_hyperslab(filespace, H5S_SELECT_SET, offsetH5, NULL, countH5, NULL);
         plist_id     = H5Pcreate(H5P_DATASET_XFER);
         H5Pset_dxpl_mpio(plist_id, H5FD_MPIO_COLLECTIVE);
-        
+
         status = H5Dwrite(dset_id, H5T_NATIVE_INT, memspace, filespace, plist_id, parmmg_iet->data);
         delete parmmg_iet;
         //====================================================================================
@@ -3699,18 +3924,18 @@ int main(int argc, char** argv)
 
         
         
-        dimsf[0] = nTotPrismVerts_v2+nTotTetraVerts_v2;
-        dimsf[1] = xcn_prisms->getNcol();
+        dimsf[0] = nTotPrismIntVerts_v2+nTotPrismShaVerts_v2+nTotTetraVerts_v2;
+        dimsf[1] = xcn_prisms_int->getNcol();
         filespace = H5Screate_simple(2, dimsf, NULL);
         
         dset_id = H5Dcreate(file_id, "xcn",
                             H5T_NATIVE_DOUBLE, filespace,
                             H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
         
-        countH5[0]  = xcn_prisms->getNrow();
-        countH5[1]  = xcn_prisms->getNcol();
+        countH5[0]  = xcn_prisms_int->getNrow();
+        countH5[1]  = xcn_prisms_int->getNcol();
         
-        offsetH5[0] = TotPrismVerts_offset;
+        offsetH5[0] = TotPrismVerts_offset_int;
         offsetH5[1] = 0;
         memspace = H5Screate_simple(2, countH5, NULL);
 
@@ -3719,25 +3944,52 @@ int main(int argc, char** argv)
         plist_id     = H5Pcreate(H5P_DATASET_XFER);
         H5Pset_dxpl_mpio(plist_id, H5FD_MPIO_COLLECTIVE);
         
-        status = H5Dwrite(dset_id, H5T_NATIVE_DOUBLE, memspace, filespace, plist_id, xcn_prisms->data);
-        delete xcn_prisms;
-        //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-        //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-        //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        status = H5Dwrite(dset_id, H5T_NATIVE_DOUBLE, memspace, filespace, plist_id, xcn_prisms_int->data);
+        delete xcn_prisms_int;
+    
+//        dimsf[0] = nTotPrismShaVerts_v2;//+nTotTetraVerts_v2;
+//        dimsf[1] = xcn_prisms_shared->getNcol();
+//        filespace = H5Screate_simple(2, dimsf, NULL);
         
+//        dset_id = H5Dcreate(file_id, "xcn",
+//                            H5T_NATIVE_DOUBLE, filespace,
+//                            H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+        
+        countH5[0]  = xcn_prisms_shared->getNrow();
+        countH5[1]  = xcn_prisms_shared->getNcol();
+        
+        std::cout << "nTotPrismIntVerts_v2+TotPrismVerts_offset_sha " << nTotPrismIntVerts_v2+TotPrismVerts_offset_sha << " " << xcn_prisms_shared->getNrow() << " " << nTotPrismIntVerts_v2+nTotPrismShaVerts_v2 << " "<< world_rank << std::endl;
+        offsetH5[0] = nTotPrismIntVerts_v2+TotPrismVerts_offset_sha;
+        offsetH5[1] = 0;
+        memspace = H5Screate_simple(2, countH5, NULL);
+
+        filespace = H5Dget_space(dset_id);
+        H5Sselect_hyperslab(filespace, H5S_SELECT_SET, offsetH5, NULL, countH5, NULL);
+        plist_id     = H5Pcreate(H5P_DATASET_XFER);
+        H5Pset_dxpl_mpio(plist_id, H5FD_MPIO_COLLECTIVE);
+        
+        status = H5Dwrite(dset_id, H5T_NATIVE_DOUBLE, memspace, filespace, plist_id, xcn_prisms_shared->data);
+        //std::cout << "world " << nTotPrismIntVerts_v2 << " " << TotPrismVerts_offset_sha << " " << xcn_prisms_shared->getNrow() << std::endl;
+        delete xcn_prisms_shared;
+        //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    
         countH5[0]  = xcn_parmmg->getNrow();
         countH5[1]  = xcn_parmmg->getNcol();
-        
-        offsetH5[0] = nTotPrismVerts_v2+ToTVrts_offset;
+
+        offsetH5[0] = nTotPrismIntVerts_v2+nTotPrismShaVerts_v2+ToTVrts_offset;
         offsetH5[1] = 0;
         memspace = H5Screate_simple(2, countH5, NULL);
         //filespace = H5Dget_space(dset_id);
         H5Sselect_hyperslab(filespace, H5S_SELECT_SET, offsetH5, NULL, countH5, NULL);
         plist_id     = H5Pcreate(H5P_DATASET_XFER);
         H5Pset_dxpl_mpio(plist_id, H5FD_MPIO_COLLECTIVE);
-        
+
         status = H5Dwrite(dset_id, H5T_NATIVE_DOUBLE, memspace, filespace, plist_id, xcn_parmmg->data);
         delete xcn_parmmg;
+        
+       
         //===================================================================================
 //        int nTotInteriorFaces          = distftot->getNel();
 //        int* TotIntFaces_offsets       = distftot->getOffsets();
@@ -3787,12 +4039,14 @@ int main(int argc, char** argv)
 //
         status = H5Dwrite(dset_id, H5T_NATIVE_INT, memspace, filespace,
                       plist_id, ifnOUT->data);
-        
+
         //std::cout << "world " << nTotInteriorFaces_prism+TotIntFaces_offsets[world_rank ]+ifnOUT->getNrow() << " --> " << nTotInteriorFaces_prism+nTotInteriorFaces << " +++ "<< world_rank << std::endl;
         //===================================================================================
 
         for(int i=0;i<bcsToT.size();i++)
         {
+            
+            
             int bc_id = bcid[i];
             DistributedParallelState* distBCi = new DistributedParallelState(nlbc[i],comm);
 
@@ -3804,29 +4058,6 @@ int main(int argc, char** argv)
             countH5[0]    = ifn_bc_i->getNrow();
             countH5[1]    = dimsf[1];
             
-//            if(i==0)
-//            {
-//                std::cout << " first bnd offsets = " << world_rank << " -> " << i << " " << NelLoc_bci << " " << NelTot_bci<< " " << ifn_bc_i->getNrow() << " offeis " << bciTot_offsets[i]<<" "<<bci_offsets[i] << std::endl;
-//
-//            }
-//            if(i==0)
-//            {
-//                std::cout << " zero bnd offsets = " << world_rank << " -> " << i << " " << NelLoc_bci << " " << NelTot_bci << " " << ifn_bc_i->getNrow() << " offeis " << bciTot_offsets[i] <<" "<< bci_offsets[i] << " for id " << bcid[i] << " Final " << nTotInteriorFaces_prism+nTotInteriorFaces+bciTot_offsets[i]+bci_offsets[i] << std::endl;
-//            }
-//            if(i==1)
-//            {
-//                std::cout << " first bnd offsets = " << world_rank << " -> " << i << " " << NelLoc_bci << " " << NelTot_bci << " " << ifn_bc_i->getNrow() << " offeis " << bciTot_offsets[i] <<" "<< bci_offsets[i] << " for id " << bcid[i] << " Final " << nTotInteriorFaces_prism+nTotInteriorFaces+bciTot_offsets[i]+bci_offsets[i]<< std::endl;
-//            }
-//            if(i==2)
-//            {
-//                std::cout << " secon bnd offsets = " << world_rank << " -> " << i << " " << NelLoc_bci << " " << NelTot_bci << " " << ifn_bc_i->getNrow() << " offeis " << bciTot_offsets[i] <<" "<< bci_offsets[i] << " for id " << bcid[i] << " Final " << nTotInteriorFaces_prism+nTotInteriorFaces+bciTot_offsets[i]+bci_offsets[i]<< std::endl;
-//            }
-//            if(i==3)
-//            {
-//                std::cout << " third bnd offsets = " << world_rank << " -> " << i << " " << NelLoc_bci << " " << NelTot_bci << " " << ifn_bc_i->getNrow() << " offeis " << bciTot_offsets[i] <<" "<< bci_offsets[i] << " for id " << bcid[i] << " Final " << nTotInteriorFaces_prism+nTotInteriorFaces+bciTot_offsets[i]+bci_offsets[i]<< std::endl;
-//            }
-
-            //std::cout << "nTotInteriorFaces_prism+nTotInteriorFaces+bciTot_offsets[i]+bci_offsets[i] " << world_rank << " " << nTotInteriorFaces_prism+nTotInteriorFaces << " " << nTotInteriorFaces_prism+nTotInteriorFaces+bciTot_offsets[i]+bci_offsets[i] << std::endl;
             offsetH5[0]   = nTotInteriorFaces_prism+nTotInteriorFaces+bciTot_offsets[i]+bci_offsets[i];
             offsetH5[1]   = 0;
             memspace      = H5Screate_simple(2, countH5, NULL);
@@ -3885,71 +4116,16 @@ int main(int argc, char** argv)
         memspace  = H5Screate_simple(1, &cnt2, NULL);
         filespace = H5Dget_space(dset_znames_id);
 
-
         status = H5Dwrite(dset_znames_id, type, memspace, filespace, plist_id, us3d->znames->data);
-    
 
         //===================================================================================
         //===================================================================================
         //===================================================================================
-                
-        if(tetrasOUT.size()!=0 && debug == 1)
-        {
-            int tc=0;
-            for(int i=0;i<tetrasOUT.size();i++)
-            {
-                pos = 4*i;
-                if(vertOUT[(tetrasOUT[i][0]-1)*3+2] < 0.25 &&
-                   vertOUT[(tetrasOUT[i][1]-1)*3+2] < 0.25 &&
-                   vertOUT[(tetrasOUT[i][2]-1)*3+2] < 0.25 &&
-                   vertOUT[(tetrasOUT[i][3]-1)*3+2] < 0.25)
-                {
-                    tc++;
-                }
-            }
-            
-            
-            std::string filename2 = "AdaptedMin_" + std::to_string(world_rank) + ".dat";
-            std::ofstream myfile2;
-            myfile2.open(filename2);
-            myfile2 << "TITLE=\"volume_part_"  + std::to_string(world_rank) +  ".tec\"" << std::endl;
-            myfile2 <<"VARIABLES = \"X\", \"Y\", \"Z\"" << std::endl;
-            myfile2 <<"ZONE N = " << nVerticesOUT << ", E = " << tc << ", DATAPACKING = POINT, ZONETYPE = FETETRAHEDRON" << std::endl;
-
-            for(int i=0;i<nVerticesOUT;i++)
-            {
-                pos = 3*i;
-                
-                myfile2 << vertOUT[pos  ] << " " << vertOUT[pos+1  ] << " " << vertOUT[pos+2  ] << std::endl;
-            }
-
-            
-            for(int i=0;i<tetrasOUT.size();i++)
-            {
-                pos = 4*i;
-                
-                
-                
-                if(vertOUT[(tetrasOUT[i][0]-1)*3+2] < 0.25 &&
-                   vertOUT[(tetrasOUT[i][1]-1)*3+2] < 0.25 &&
-                   vertOUT[(tetrasOUT[i][2]-1)*3+2] < 0.25 &&
-                   vertOUT[(tetrasOUT[i][3]-1)*3+2] < 0.25)
-                {
-                    myfile2 <<   tetrasOUT[i][0] << " "
-                            <<   tetrasOUT[i][1] << " "
-                            <<   tetrasOUT[i][2] << " "
-                            <<   tetrasOUT[i][3] << std::endl;
-                }
-                
-            }
-
-            myfile2.close();
-         
-        }
+        
         /**/
-       
     }
-         /**/
+    
+    
      
     
     MPI_Finalize();

@@ -55,6 +55,19 @@ struct newNumberingNodesFaces
 
 double CheckFaceOrientation(Vert* VcF, std::vector<Vert*> Vface, Vert* Vijk);
 
+newNumberingNodesFaces* DetermineNewNumberingOfElementSubset_Test2(Array<int>* part_global,
+                                          std::map<int,std::vector<int> > elements,
+                                          std::map<int,std::vector<int> > ief_part_map,
+                                          std::map<int,std::vector<int> > ifn_part_map,
+                                          std::map<int,std::vector<int> > ife_part_map,
+                                          std::map<int,std::vector<int> > if_ref_part_map,
+                                          std::map<int,std::vector<int> > if_Nv_part_map,
+                                          std::map<int,std::vector<int> > ushell,
+                                          std::map<int,int> tag2locV,
+                                          std::vector<Vert*> locVerts,
+                                          std::map<int,int> shellvert2ref_glob,
+                                                                   MPI_Comm comm );
+
 newNumberingNodesFaces* DetermineNewNumberingOfElementSubset_Test(Array<int>* part_global,
                                           std::map<int,std::vector<int> > elements,
                                           std::map<int,std::vector<int> > ief_part_map,

@@ -76,6 +76,9 @@ class RedistributePartitionObject{
         std::map<int,int> GetTag2TetVertMap();
         std::map<int,int> GetTet2TagVertMap();
         std::map<int,int> GetShellVert2RefMap_Global();
+        std::map<int,int> GetVertTag2RefLocalMap();
+        std::map<int,int > GetShellVert2RefMap_Local();
+    std::map<int,int > GetShellVertTag2RefMap_Global();
     private:
         MPI_Comm mpi_comm;
         int world_rank;
@@ -146,6 +149,10 @@ class RedistributePartitionObject{
         std::map<int,int> m_shell_tet2hyb_loc;
         std::map<int,int> m_shellVert2RefMapGlobal;
         std::map<int,int> m_shellVert2RefMapLocal;
+        std::map<int,int> m_shellVertTag2RefMapLocal;
+        std::map<int,int> m_shellVertTag2RefMapGlobal;
+        std::map<int,int> m_shellTagID2TetVID;
+        std::map<int,int> m_VertTag2RefLocal;
         std::map<int,int> m_ShellVidConsidered;
         std::map<int,std::vector<int> > m_ShellFace2Vert;
         std::map<int,std::set<int> > m_ShellFace2VertRef;

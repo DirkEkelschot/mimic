@@ -2645,7 +2645,9 @@ void RedistributePartitionObject::GetFace2NodeRedistributedMesh(ParArray<int>* i
                     shF[j]  = tvid;
                     if(m_shellVert2RefMapLocal.find(tvid)==m_shellVert2RefMapLocal.end())
                     {
+                        m_shellTagID2TetVID[tvid] = hvid;
                         m_shellVert2RefMapLocal[tvid]=iref;
+                        m_VertTag2RefLocal[hvid]=iref;
                         iref++;
                     }
                 }
@@ -3142,6 +3144,15 @@ std::map<int,int > RedistributePartitionObject::GetShellVert2RefMap()
 }
 
 
+std::map<int,int> RedistributePartitionObject::GetVertTag2RefLocalMap()
+{
+    return m_VertTag2RefLocal;
+}
+
+std::map<int,int > RedistributePartitionObject::GetShellVert2RefMap_Local()
+{
+    return m_shellVert2RefMapLocal;
+}
 
 std::map<int,int > RedistributePartitionObject::GetShellVert2RefMap_Global()
 {
@@ -3149,8 +3160,11 @@ std::map<int,int > RedistributePartitionObject::GetShellVert2RefMap_Global()
     int mapSizeLoc = m_shellVert2RefMapLocal.size();
     DistributedParallelState* distrimap = new DistributedParallelState(mapSizeLoc,mpi_comm);
     int mapSizeTot = distrimap->getNel();
+    int* hvid_loc = new int[mapSizeLoc];
     int* tvid_loc = new int[mapSizeLoc];
     int* iref_loc = new int[mapSizeLoc];
+    
+    int* hvid_tot = new int[mapSizeTot];
     int* tvid_tot = new int[mapSizeTot];
     int* iref_tot = new int[mapSizeTot];
     int tvid_tmp,iref_tmp;
@@ -3164,12 +3178,20 @@ std::map<int,int > RedistributePartitionObject::GetShellVert2RefMap_Global()
     {
         tvid_loc[i] = itred->first;
         iref_loc[i] = itred->second;
+        hvid_loc[i] = m_shellTagID2TetVID[itred->first];
         i++;
     }
     
     int* offsets = distrimap->getOffsets();
     int* nlocs   = distrimap->getNlocs();
     
+    MPI_Allgatherv(hvid_loc,
+                   mapSizeLoc,
+                   MPI_INT,
+                   hvid_tot,
+                   nlocs,
+                   offsets,
+                   MPI_INT, mpi_comm);
     
     MPI_Allgatherv(tvid_loc,
                    mapSizeLoc,
@@ -3190,14 +3212,15 @@ std::map<int,int > RedistributePartitionObject::GetShellVert2RefMap_Global()
     int tmp;
     int irefn = 100;
     int refcount = 0;
-    int key;
+    int key,key2;
     for(int i=0;i<mapSizeTot;i++)
     {
-        key = tvid_tot[i];
-        
+        key  = tvid_tot[i];
+        key2 = hvid_tot[i];
         if(m_shellVert2RefMapGlobal.find(key)==m_shellVert2RefMapGlobal.end())
         {
-            m_shellVert2RefMapGlobal[key] = irefn;
+            m_shellVert2RefMapGlobal[key]     = irefn;
+            m_shellVertTag2RefMapGlobal[key2] = irefn;
             irefn++;
             refcount++;
         }
@@ -3209,6 +3232,10 @@ std::map<int,int > RedistributePartitionObject::GetShellVert2RefMap_Global()
     return m_shellVert2RefMapGlobal;
 }
 
+std::map<int,int > RedistributePartitionObject::GetShellVertTag2RefMap_Global()
+{
+    return m_shellVertTag2RefMapGlobal;
+}
 
 std::map<int,int > RedistributePartitionObject::GetTag2TetVertMap()
 {
