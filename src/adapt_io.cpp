@@ -2867,6 +2867,7 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
     elTypes->setVal(1,0,check_pri);
     elTypes->setVal(2,0,check_hex);
     
+    delete[] OffcolTetCount;
     us3d->xcn           = xcn;
     us3d->elTypes       = elTypes;
     us3d->ien           = ien_copy;
@@ -2897,36 +2898,4 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
 
 
 
-
-std::vector<std::vector<int> > ReadUS3DTetrahdra(const char* fn_conn, const char* fn_grid, const char* fn_data, int readFromStats, MPI_Comm comm, MPI_Info info)
-{
-    int size;
-    MPI_Comm_size(comm, &size);
-    // Get the rank of the process
-    int rank;
-    MPI_Comm_rank(comm, &rank);
-    
-    
-    std::vector<std::vector<int> > tetras;
-    
-    ParArray<double>* xcn = ReadDataSetFromFileInParallel<double>(fn_grid,"xcn",comm,info);
-    Array<int>* iet = ReadDataSetFromFile<int>(fn_grid,"iet");
-    int ntet   = 0;
-    int nprism = 0;
-    for(int i=0;i<iet->getNrow();i++)
-    {
-        if(iet->getVal(i,0)==2)
-        {
-            ntet++;
-        }
-        if(iet->getVal(i,0)==6)
-        {
-            nprism++;
-        }
-    }
-    
-    ParArray<int>* ien = ReadDataSetFromFileInParallel<int>(fn_conn,"ien",comm,info);
-    
-        return tetras;
-}
 

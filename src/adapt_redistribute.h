@@ -4,7 +4,6 @@
 #include "adapt_array.h"
 #include "adapt_parmetisstate.h"
 #include "adapt_datastruct.h"
-#include "adapt_datatype.h"
 #include "adapt_array.h"
 #include "adapt_distri_parstate.h"
 

@@ -1,6 +1,5 @@
 #include "adapt.h"
 #include "adapt_array.h"
-#include "adapt_datatype.h"
 #include "adapt_datastruct.h"
 #include "adapt_compute.h"
 #include "adapt_geometry.h"

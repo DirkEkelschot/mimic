@@ -56,17 +56,14 @@ RedistributePartitionObject::RedistributePartitionObject(US3D* us3d, Array<int>*
     
     int nTetrahedra         = newSizesOnRanks[world_rank];
     int nTetrahedraGlob     = 0;
-    int* nTetOffsets        = new int[world_size];
 
     int tetoff = 0;
     for(int i=0;i<world_size;i++)
     {
         nTetrahedraGlob=nTetrahedraGlob+newSizesOnRanks[i];
-        nTetOffsets[i] = tetoff;
         tetoff = tetoff + newSizesOnRanks[i];
     }
 
-    int nLocTetOffset = nTetOffsets[world_rank];
     
     ParallelState* xcn_pstate = new ParallelState(us3d->xcn->getNglob(),mpi_comm);
     ParallelState* ife_pstate = new ParallelState(us3d->ifn->getNglob(),mpi_comm);
@@ -99,8 +96,6 @@ void RedistributePartitionObject::RebasePartitionObject(Array<int>* part_global,
                                                    std::map<int,std::vector<int> > ushell,
                                                    std::map<int,Array<double>* > M_vmap)
 {
-    
-    
         
     int shfn = 0;
     int shf = 0;
@@ -110,20 +105,18 @@ void RedistributePartitionObject::RebasePartitionObject(Array<int>* part_global,
     
     std::map<int,std::vector<int> >::iterator ite;
     int r0,r1,el0,el1,pos,ra;
-    int ref,nbcfaces;
+    int ref;
     int lcv = 0;
     std::map<int,std::vector<int> > ref2bcface;
 
     int lf  = 0;
     std::map<int,int> sharedFaces;
 
-    int* ielement_offsets     = new int[world_size];
-    int* ielement_nlocs       = new int[world_size];
+    //int* ielement_offsets     = new int[world_size];
+    //int* ielement_nlocs       = new int[world_size];
 
     int elTel = 0;
     
-//    std::map<int,int> lV2gV_tets;
-//    std::map<int,int> gV2lV_tets;
     std::set<int> gvid_set;
     int nLocalVerts = 0;
     
@@ -170,9 +163,6 @@ void RedistributePartitionObject::RebasePartitionObject(Array<int>* part_global,
                 }
             }
             
-            
-            
-
             if(ufaces.find(gfid)==ufaces.end())
             {
                 ufaces.insert(gfid);
@@ -185,10 +175,6 @@ void RedistributePartitionObject::RebasePartitionObject(Array<int>* part_global,
                     r0 = part_global->getVal(el0,0);
                     r1 = part_global->getVal(el1,0);
                     
-//                    if(r0==world_rank && r1==world_rank)
-//                    {
-//                        lf++;
-//                    }
                     if(r0==world_rank && r1!=world_rank)
                     {
                         sharedFaces[gfid] = r0;
@@ -200,20 +186,12 @@ void RedistributePartitionObject::RebasePartitionObject(Array<int>* part_global,
                         shf++;
                     }
                 }
-                
-                if(ref!=2)
-                {
-                    //ref2bcface[ref].push_back(gfid);
-                    nbcfaces++;
-                    lf++;
-                }
             }
         }
         elTel++;
     }
     
-    int nSharedFaces   = sharedFaces.size();
-    DistributedParallelState* distTetra       = new DistributedParallelState(nTetras,mpi_comm);
+    int nSharedFaces                          = sharedFaces.size();
     DistributedParallelState* distSharedFaces = new DistributedParallelState(nSharedFaces,mpi_comm);
     DistributedParallelState* distLocalVerts  = new DistributedParallelState(nLocalVerts,mpi_comm);
     DistributedParallelState* distLocalFaces  = new DistributedParallelState(nLocalFaces,mpi_comm);
@@ -304,11 +282,7 @@ void RedistributePartitionObject::RebasePartitionObject(Array<int>* part_global,
     int tmp;
     std::map<int,int> f2r;
     std::set<int> f2r_s;
-    int* owned_faces = new int[world_size];
-    for(int u=0;u<world_size;u++)
-    {
-        owned_faces[u] = 0;
-    }
+    
     
     int* NewGlobVertCountPerRank = new int[world_size];
     int* NewGlobFaceCountPerRank = new int[world_size];
@@ -336,31 +310,23 @@ void RedistributePartitionObject::RebasePartitionObject(Array<int>* part_global,
             if(val<tmp)
             {
                 f2r[key]=val;
-                owned_faces[val]=owned_faces[val]+1;
             }
             if(val>tmp)
             {
                 f2r[key]=tmp;
-                owned_faces[tmp]=owned_faces[tmp]+1;
             }
         }
     }
     
     std::map<int,int> v2r;
-    std::set<int> v2r_s;
-    int* owned_verts = new int[world_size];
-    for(int u=0;u<world_size;u++)
-    {
-        owned_verts[u] = 0;
-    }
+
     for(int i=0;i<Nt_shVerts;i++)
     {
         int key = TotalSharedVerts[i];
         int val = TotalSharedVerts_RankID[i];
         
-        if(v2r_s.find(key)==v2r_s.end())
+        if(v2r.find(key)==v2r.end())
         {
-            v2r_s.insert(key);
             v2r[key]=val;
             NewGlobVertCountPerRank[val]=NewGlobVertCountPerRank[val]+1;
         }
@@ -371,19 +337,18 @@ void RedistributePartitionObject::RebasePartitionObject(Array<int>* part_global,
             if(val<tmp)
             {
                 v2r[key]=val;
-                owned_verts[val]=owned_verts[val]+1;
 
             }
             if(val>tmp)
             {
                 v2r[key]=tmp;
-                owned_verts[tmp]=owned_verts[tmp]+1;
             }
         }
     }
 
     int* NewGlobVertOffset = new int[world_size];
     int* NewGlobFaceOffset = new int[world_size];
+
 
     for(int u=1;u<world_size;u++)
     {
@@ -419,14 +384,12 @@ void RedistributePartitionObject::RebasePartitionObject(Array<int>* part_global,
         sharedFmap[itvv->first] = iFshared;
         iFshared++;
     }
+    
 //    int nNonSharedVerts          = nLocalVerts-owned_verts[world_rank];
 //    int nNonSharedFaces          = nLocalFaces-owned_faces[world_rank];
     
-    
     int nNonSharedVerts          = nLocalVerts-nSharedVerts;
     int nNonSharedFaces          = nLocalFaces-nSharedFaces;
-    
-    //std::cout << "LOCALVERTS " << world_rank << "   -- = " << nNonSharedVerts <<" "<< nLocalVerts << " " << owned_verts[world_rank] << " " << nSharedVerts << std::endl;
 
     int* nNonSharedArray         = new int[world_size];
     int* nNonSharedArrayRed      = new int[world_size];
@@ -476,6 +439,9 @@ void RedistributePartitionObject::RebasePartitionObject(Array<int>* part_global,
     int* red_ini_nEl  = new int[world_size];
     int* ini_offsetEl = new int[world_size];
 
+    
+
+    
     for(int i=0;i<world_size;i++)
     {
         ini_nEl[i]      = 0;
@@ -499,7 +465,7 @@ void RedistributePartitionObject::RebasePartitionObject(Array<int>* part_global,
     
     int size = world_size;
     int optimalSize = int(offsetEl/size) + ( world_rank < offsetEl%size );
-    double rat = (double)nTetras/(double)optimalSize;
+    //double rat = (double)nTetras/(double)optimalSize;
         
     int NtoRecv = 0;
     int NtoSend = 0;
@@ -518,14 +484,14 @@ void RedistributePartitionObject::RebasePartitionObject(Array<int>* part_global,
     int* toS_red2 = new int[world_size];
     int* toS_red = new int[world_size];
     int* toR_red = new int[world_size];
-    int* to_Send_copy = new int[world_size];
-    int* to_Recv_copy = new int[world_size];
     int* optiSize = new int[world_size];
     int* optiSize_red = new int[world_size];
     int* old_ntets = new int[world_size];
     int* old_ntets_red = new int[world_size];
     int* toS = new int[world_size];
     int* toR = new int[world_size];
+    
+
     for(int i=0;i<world_size;i++)
     {
         toS[i] = 0;
@@ -588,6 +554,7 @@ void RedistributePartitionObject::RebasePartitionObject(Array<int>* part_global,
     int* Nsending   = new int[ns];
     int* Preceiving = new int[nr];
     int* Nreceiving = new int[nr];
+
     std::set<int> Pstay;
     
     std::map<int,std::vector<int> > recvRa;
@@ -697,7 +664,6 @@ void RedistributePartitionObject::RebasePartitionObject(Array<int>* part_global,
 
     for(its=sendRa.begin();its!=sendRa.end();its++)
     {
-        
         for(int q=0;q<its->second.size();q++)
         {
             recvRa[its->second[q]].push_back(its->first);
@@ -741,7 +707,6 @@ void RedistributePartitionObject::RebasePartitionObject(Array<int>* part_global,
     //================================================================================================
     //=================================================================================================
     
-    
     int nTet    = 0;
     int elloc   = 0;
     int lbvid   = nNonSharedVertsArrayOff[world_rank];
@@ -772,7 +737,6 @@ void RedistributePartitionObject::RebasePartitionObject(Array<int>* part_global,
     Array<int>* new_iefref  = new Array<int>(optimalSize,4);
     int nadded = 0;
     
-    
     if(Pstay.find(world_rank)!=Pstay.end())
     {
         //copy all data into tmesh
@@ -781,7 +745,7 @@ void RedistributePartitionObject::RebasePartitionObject(Array<int>* part_global,
         for(ite=tetras.begin();ite!=tetras.end();ite++)
         {
             int gEl       = ite->first;
-            int lEl       = ini_offsetEl[world_rank]+u;
+            //int lEl       = ini_offsetEl[world_rank]+u;
             int* ien      = new int[4];
             int* ien_o    = new int[4];
             int* ief      = new int[4];
@@ -856,9 +820,7 @@ void RedistributePartitionObject::RebasePartitionObject(Array<int>* part_global,
                 }
             }
             
-            
             new_GidEl->setVal(uloc,0,gEl);
-            
             new_ien->setVal(uloc,0,ien[0]);
             new_ien->setVal(uloc,1,ien[1]);
             new_ien->setVal(uloc,2,ien[2]);
@@ -899,7 +861,15 @@ void RedistributePartitionObject::RebasePartitionObject(Array<int>* part_global,
                     m_M_vmap[ien[s]]=Mtrcs;
                 }
             }
+            
             delete[] Met;
+            delete[] iefref;
+            delete[] ief_o;
+            delete[] ief;
+            delete[] ien_o;
+            delete[] ien;
+            
+            
             uloc++;
             u++;
         }
@@ -940,7 +910,7 @@ void RedistributePartitionObject::RebasePartitionObject(Array<int>* part_global,
         }
         
         int cc = 0;
-        int sRank    = toRanks[0];
+        //int sRank    = toRanks[0];
         
         int offPrank = 0;
         int cntv     = 0;
@@ -953,9 +923,9 @@ void RedistributePartitionObject::RebasePartitionObject(Array<int>* part_global,
         for(ite=tetras.begin();ite!=tetras.end();ite++)
         {
             int nelPrank  = NeltoRanks[cc];
-            int sRank     = toRanks[cc];
+            //int sRank     = toRanks[cc];
             int gEl       = ite->first;
-            int lEl       = ini_offsetEl[world_rank]+u;
+            //int lEl       = ini_offsetEl[world_rank]+u;
             int* ien      = new int[4];
             int* ien_o    = new int[4];
             int* ief      = new int[4];
@@ -1029,8 +999,6 @@ void RedistributePartitionObject::RebasePartitionObject(Array<int>* part_global,
                     }
                 }
             }
-            
-            
             
             if(u<toS_red2[world_rank])
             {
@@ -1251,7 +1219,7 @@ void RedistributePartitionObject::RebasePartitionObject(Array<int>* part_global,
         for(ite=tetras.begin();ite!=tetras.end();ite++)
         {
             int gEl       = ite->first;
-            int lEl       = ini_offsetEl[world_rank]+u;
+            //int lEl       = ini_offsetEl[world_rank]+u;
             int* ien      = new int[nv];
             int* ien_o    = new int[nv];
             int* ief      = new int[nv];
@@ -1381,7 +1349,7 @@ void RedistributePartitionObject::RebasePartitionObject(Array<int>* part_global,
             int nel =  collit->second.size()/4;
             ntot = ntot + nel;
             
-            int fromRank = collit->first;
+            //int fromRank = collit->first;
             for(int q=0;q<nel;q++)
             {
                 new_GidEl->setVal(u,0,collected_ElIds[collit->first][q]);
@@ -1426,9 +1394,7 @@ void RedistributePartitionObject::RebasePartitionObject(Array<int>* part_global,
                 new_iefref->setVal(u,1,collected_Frefs[collit->first][4*q+1]);
                 new_iefref->setVal(u,2,collected_Frefs[collit->first][4*q+2]);
                 new_iefref->setVal(u,3,collected_Frefs[collit->first][4*q+3]);
-                
-//                std::cout << "aff " << collected_Frefs[collit->first][4*q+0] << " " << collected_Frefs[collit->first][4*q+1] << " " << collected_Frefs[collit->first][4*q+2] << " " << collected_Frefs[collit->first][4*q+3] << std::endl;
-                
+                                
                 u++;
             }
         }
@@ -1442,6 +1408,33 @@ void RedistributePartitionObject::RebasePartitionObject(Array<int>* part_global,
         collected_VrtMetrics.clear();
     }
     
+    delete[] toR_red2;
+    delete[] toS_red2;
+    delete[] toS_red;
+    delete[] toR_red;
+    delete[] optiSize;
+    delete[] optiSize_red;
+    delete[] old_ntets;
+    delete[] old_ntets_red;
+    delete[] toS;
+    delete[] toR;
+    delete[] nNonSharedVertsArrayOff;
+    delete[] nNonSharedFacesArrayOff;
+    delete[] NewGlobVertCountPerRank;
+    delete[] NewGlobFaceCountPerRank;
+    delete[] Psending;
+    delete[] Nsending;
+    delete[] Preceiving;
+    delete[] Nreceiving;
+    delete[] NewGlobVertOffset;
+    delete[] NewGlobFaceOffset;
+    delete[] ini_nEl;
+    delete[] red_ini_nEl;
+    delete[] ini_offsetEl;
+    
+//    delete distSharedFaces;
+//    delete distLocalFaces;
+//    delete distLocalVerts;
     // return these guys.
     ElGids             = new_GidEl;
     ien_part_tetra     = new_ien;
@@ -1458,19 +1451,16 @@ void RedistributePartitionObject::GetNewGlobalPartitioningTetrahedraMesh()
 {
     int i;
 
+//    Array<int>* new_ien     = ien_part_tetra;
+//    Array<int>* new_ief     = ief_part_tetra;
+//    Array<int>* new_ien_or  = ien_part_hybrid;
     
-    Array<int>* new_ien     = ien_part_tetra;
-    Array<int>* new_ief     = ief_part_tetra;
-    Array<int>* new_ien_or  = ien_part_hybrid;
-    //std::cout << "WORLD_RANK = " << world_rank << " " << lbvid << std::endl;
-    
-    int optimalSize = new_ien->getNrow();
-    int* ielement_nlocs = new int[world_size];
-    int* ielement_offsets = new int[world_size];
+    int optimalSize         = ien_part_tetra->getNrow();
+    int* ielement_nlocs     = new int[world_size];
+    int* ielement_offsets   = new int[world_size];
 
     int* red_ielement_nlocs = new int[world_size];
-
-    int* elmdist = new int[world_size+1];
+    int* elmdist            = new int[world_size+1];
 
     for(i=0;i<world_size;i++)
     {
@@ -1487,8 +1477,6 @@ void RedistributePartitionObject::GetNewGlobalPartitioningTetrahedraMesh()
         }
     }
     
-    //std::cout << " optimalSize " << world_rank << " " << optimalSize << std::endl;
-    
     MPI_Allreduce(ielement_nlocs,
                   &red_ielement_nlocs[0],
                   world_size, MPI_INT,
@@ -1502,11 +1490,6 @@ void RedistributePartitionObject::GetNewGlobalPartitioningTetrahedraMesh()
         ielement_nlocs[i]   = red_ielement_nlocs[i];
         elmdist[i]          = o_ie;
         o_ie                = o_ie+red_ielement_nlocs[i];
-//        if(world_rank==0)
-//        {
-//            std::cout << "elmdist[i]  " << elmdist[i] << std::endl;
-//
-//        }
     }
     
     elmdist[world_size] = o_ie;
@@ -1520,7 +1503,7 @@ void RedistributePartitionObject::GetNewGlobalPartitioningTetrahedraMesh()
         eptr[i+1] = eptr[i]+4;
         for(int j=eptr[i];j<eptr[i+1];j++)
         {
-            eind[j]    = new_ien->data[j];
+            eind[j]    = ien_part_tetra->data[j];
         }
     }
 
@@ -1591,6 +1574,7 @@ void RedistributePartitionObject::GetNewGlobalPartitioningTetrahedraMesh()
     
     m_part          = part_new;
     m_part_global   = part_global_new;
+
     
 }
 
@@ -1613,7 +1597,7 @@ void RedistributePartitionObject::UpdateTetrahedraOnPartition(int nglob,
     Array<int>* ief_part_tetra_update     = new Array<int>(nElexpctd,4);
     Array<int>* ief_part_hybrid_update    = new Array<int>(nElexpctd,4);
     Array<int>* iefref_part_tetra_update  = new Array<int>(nElexpctd,4);
-    Array<int>* loc2globEL_update         = new Array<int>(nElexpctd,1);
+    //Array<int>* loc2globEL_update         = new Array<int>(nElexpctd,1);
     ParallelState* ien_pstate             = new ParallelState(nglob,mpi_comm);
 
     std::map<int,Array<double>* > M_vmap_copy_update;
@@ -1651,12 +1635,10 @@ void RedistributePartitionObject::UpdateTetrahedraOnPartition(int nglob,
     int not_on_rank=0;
     int on_rank = 0;
     int* new_V_offsets = new int[size];
-    int* new_F_offsets = new int[size];
     
     for(i=0;i<size;i++)
     {
         new_V_offsets[i] = xcn_pstate->getOffsets()[i]-1;
-        new_F_offsets[i] = ife_pstate->getOffsets()[i]-1;
     }
     
     int nvPerEl;
@@ -2138,6 +2120,7 @@ void RedistributePartitionObject::UpdateTetrahedraOnPartition(int nglob,
         on_rank++;
         
     }
+    
     TotRecvVerts_IDs.clear();
     TotRecvElement_IDs.clear();
     TotRecvOriVerts_IDs.clear();
@@ -2344,7 +2327,8 @@ void RedistributePartitionObject::UpdateTetrahedraOnPartition(int nglob,
     loc_r_elem.clear();
     unique_vertIDs_on_rank_set.clear();
     unique_faceIDs_on_rank_set.clear();
-    
+    delete[] new_V_offsets;
+    delete ien_pstate;
     m_TetraToSendToRanks.clear();
     m_HybridToSendToRanks.clear();
     m_TetraVertIDToSendToRanks.clear();
@@ -2354,8 +2338,7 @@ void RedistributePartitionObject::UpdateTetrahedraOnPartition(int nglob,
     m_HybridFaceIDToSendToRanks.clear();
     m_TetraRank2ReqVerts.clear();
     m_HybridRank2ReqVerts.clear();
-    //m_TetraRank2ReqFaces.clear();
-    //m_HybridRank2ReqFaces.clear();
+
     metricsToSend.clear();
     
     std::vector<int> m_TetraVertsOnRank;
@@ -2400,7 +2383,7 @@ void RedistributePartitionObject::GetFace2NodeRedistributedMesh(ParArray<int>* i
     MPI_Comm_rank(comm, &rank);
     
     ParallelState* ien_pstate      = new ParallelState(nGlob,comm);
-
+    
     int ife_o = ife_pstate->getOffset(rank);
     int face_id;
     int p_id;
@@ -2682,6 +2665,8 @@ void RedistributePartitionObject::GetFace2NodeRedistributedMesh(ParArray<int>* i
         face2node[ftet] = nodes;
     }
     
+    
+    delete ien_pstate;
     //std::cout << "m_shellVert2RefMapLocal.size() " << world_rank << " " << m_shellVert2RefMapLocal.size() << std::endl;
     
     
@@ -2777,7 +2762,7 @@ void RedistributePartitionObject::GetFace2RankTetrahedraMesh()
     delete[] shFace_nlocs;
     delete[] shFacesIDs;
     delete[] shFaces_RankIDs;
-    delete distSharedFaces;
+    //delete distSharedFaces;
     
     std::vector<int> faces4parmmg;
     std::map<int,std::vector<int> >::iterator itff;

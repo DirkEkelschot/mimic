@@ -5,6 +5,7 @@
 #include "adapt_boundary.h"
 #include "adapt_distri_parstate.h"
 #include "adapt_redistribute.h"
+#include "adapt_geometry.h"
 
 #ifndef ADAPT_DEFINEPRISMMESH_H
 #define ADAPT_DEFINEPRISMMESH_H

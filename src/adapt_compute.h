@@ -1,6 +1,5 @@
 #include "adapt_datastruct.h"
 #include "adapt_partition.h"
-#include "adapt_datatype.h"
 #include "adapt_math.h"
 #include "adapt.h"
 

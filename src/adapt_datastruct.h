@@ -5,6 +5,63 @@
 #ifndef ADAPT_DATASTRUCT_H
 #define ADAPT_DATASTRUCT_H
 
+struct Mesh{
+    Array<double>* xcn;
+    Array<int>* ief;
+    Array<int>* ien;
+    Array<int>* iet;
+    Array<int>* if_ref;
+    Array<int>* ifn;
+    Array<int>* ife;
+    Array<int>* if_Nv;
+};
+
+
+
+struct US3D{
+    
+    ParArray<double>* xcn;
+    Array<int>* elTypes;
+    ParArray<int>* ien;
+    ParArray<int>* ief;
+    ParArray<int>* iee;
+    ParArray<int>* iet;
+    ParArray<int>* ie_Nv;
+    ParArray<int>* ie_Nf;
+    ParArray<int>* if_Nv;
+    
+    ParArray<int>* ifn;
+    ParArray<int>* ife;
+    ParArray<int>* if_ref;
+    Array<int>* ie_tetCnt;
+    std::map<std::set<int>,int> tria_ref_map;
+    std::map<std::set<int>,int> quad_ref_map;
+    std::map<int,int> vert_ref_map;
+    
+    ParArray<double>* interior;
+    Array<double>* ghost;
+    
+    Array<char>* znames;
+    Array<int>* zdefs;
+    std::vector<int> bnd_m;
+    int* bnd_map;
+    std::map<int,std::vector<int> > face_map_gen;
+    std::map<int,std::vector<int> > bnd_face_map;
+    int nBnd;
+};
+
+
+
+
+
+struct Vec3D
+{
+    double c0;
+    double c1;
+    double c2;
+};
+
+
 struct Domain
 {
     std::map<int,std::vector<int> > ushell;
@@ -38,50 +95,6 @@ struct i_part_map
 {
     std::map<int,std::vector<int> > i_map;
     std::map<int,std::vector<int> > i_inv_map;
-};
-
-
-struct InteriorPartitionEntity
-{
-    std::vector<int> PartInterEntity;
-    std::vector<int> InterEntity;
-    std::map<int,int> glob2loc_PartInterEntity;
-    std::set<int> UniqueFaces;
-    std::vector<int> UniqueFacesVec;
-};
-
-struct MeshTransfer
-{
-    std::vector<int> UniqueFacesVec;
-    InteriorPartitionEntity* iFaces;
-    InteriorPartitionEntity* iVerts;
-};
-
-struct ParVar
-{
-    int size;
-    int* nlocs;
-    int* offsets;
-};
-
-struct ParArrayOnRoot
-{
-    int size;
-    int* nlocs;
-    int* offsets;
-    int* data;
-    int length;
-};
-
-struct ParVar_ParMetis
-{
-    int size;
-    int* nlocs;
-    int* elmdist;
-    int* npo_locs;
-    int* npo_offset;
-    int* eptr;
-    int* eind;
 };
 
 
@@ -126,70 +139,9 @@ struct Vert
 
 
 
-struct TmpStruct
-{
-    int* data;
-    int* offsets;
-    int* nlocs;
-    
-    int* sizing;
-    int* offsets_sizing;
-    int* nlocs_sizing;
-};
 
 
 
-
-
-struct LocalPartitionData
-{
-  
-    
-    std::map<int, int> loc2glob_el;
-    std::map<int, int> glob2loc_el;
-    
-    std::map<int, int> loc2glob_vrt;
-    std::map<int, int> glob2loc_vrt;
-    
-    Array<int>* ien_loc;
-};
-
-
-
-
-struct Partition_old
-{
-    
-    int ndim;
-    
-    std::map<int, int> loc2glob_Vmap;
-    std::map<int, int> glob2loc_Vmap;
-    
-    Array<int>* loc2glob_Varr;
-    Array<int>* glob2loc_Varr;
-    
-    Array<double>* Verts;
-    Array<int>* ien;
-    
-    int* xadj;
-    int* adjncy;
-};
-
-
-
-struct PartitionStruct
-{
-    int ndim;
-    std::vector<Vert> Verts;
-    Array<int>* loc_elem2verts_glob;
-    Array<int>* loc_elem2verts_loc;
-    std::map<int,int> v_loc2glob;
-    std::map<int,int> v_glob2loc;
-    int* xadj;
-    int* adjncy;
-    Array<double>* rho_elem;
-    Array<double>* rho_vert;
-};
 
 
 

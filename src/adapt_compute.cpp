@@ -738,6 +738,11 @@ double GetQualityTetrahedra(double* P)
     cdx = d[0] - c[0];
     cdy = d[1] - c[1];
     cdz = d[2] - c[2];
+    
+    delete[] a;
+    delete[] b;
+    delete[] c;
+    delete[] d;
 
     v1  = acy*adz - acz*ady;
     v2  = acz*adx - acx*adz;
@@ -773,6 +778,8 @@ double GetQualityTetrahedra(double* P)
 
     cal = det / num;
 
+
+    
     return cal;
 }
 
@@ -929,14 +936,6 @@ double ComputeDeterminantJ(double*P, int np)
     
 }
 
-
-Array<double>* ComputeHessian(Partition_old* pa)
-{
-    int ndim = pa->ndim;
-    Array<double>* H = new Array<double>(pa->ien->getNrow(),ndim);
-    
-    return H;
-}
 
 
 Array<double>* ComputeDeterminantofJacobian(ParArray<int>* ien, Array<double>* xcn)
