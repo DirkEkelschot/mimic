@@ -13,50 +13,60 @@
 struct newNumberingNodesFaces
 {
     std::map<int,int> internalVertMap;
+    
     std::map<int,std::vector<int> > sharedFace2Node;
     std::map<int,std::vector<int> > shellFace2Node;
-    std::map<int,std::vector<int> > shFace2Node;
     std::map<int,std::vector<int> > intFace2Node;
     std::map<int,std::vector<int> > bcFace2Node;
-    std::map<int,int> glob2locF;
-    std::map<int,int> loc2globF;
     std::map<int,int> tagE2gE;
     std::map<int,int> gE2tagE;
-    std::map<int,int> sharedVmap;
-    std::map<int,int> glob2locF_sha;
-    std::map<int,int> loc2globF_sha;
-    std::map<int,std::vector<int> > face2node;
-    std::map<int,int > ifref;
-    std::map<int,std::vector<int> > ien;
-    std::map<int,std::vector<int> > ief;
-    DistributedParallelState* dist;
     std::map<int,int> lh;
     std::map<int,int> rh;
-    std::map<int,int> lh_sha;
-    std::map<int,int> rh_sha;
     std::map<int,std::vector<int> > pbcmap;
     std::map<int,int> tag2ElementID;
-    std::map<int,int> localV2tagV;
-    std::map<int,int> tagV2localV;
-    Array<double>* xcn;
+    std::map<int,int> sharedVmap;
     Array<double>* xcn_int;
     Array<double>* xcn_shared;
-    int nTotUniqueNonShellVerts;
-    std::map<int,int> sharedvert2rank;
-    std::map<int,Vert*> tag2coords;
-    std::map<int,int> local2globalVertMap;
-    std::map<int,int> local2globalVertMapReal;
-    Array<int>* iet;
     std::map<int,int> SharedVertsOwned;
     std::map<int,int> NonSharedVertsOwned;
     std::map<int,int> SharedVertsNotOwned;
     std::map<int,int> tag2glob_prism;
-    std::map<int,int> glob2tag_prism;
+    std::map<int,int> local2globalVertMap;
+    Array<int>* iet;
+    std::map<int,int> tagV2localV;
+    
+    
+    
+    
+//    std::map<int,int> glob2locF;
+//    std::map<int,int> loc2globF;
+//    std::map<int,std::vector<int> > shFace2Node;
+//
+//    std::map<int,int> glob2locF_sha;
+//    std::map<int,int> loc2globF_sha;
+//    std::map<int,std::vector<int> > face2node;
+//    std::map<int,int > ifref;
+//    std::map<int,std::vector<int> > ien;
+//    std::map<int,std::vector<int> > ief;
+//    DistributedParallelState* dist;
+//
+//    std::map<int,int> lh_sha;
+//    std::map<int,int> rh_sha;
+//    std::map<int,int> localV2tagV;
+//
+//    Array<double>* xcn;
+//
+//    int nTotUniqueNonShellVerts;
+//    std::map<int,int> sharedvert2rank;
+//    std::map<int,Vert*> tag2coords;
+//    std::map<int,int> local2globalVertMapReal;
+//
+//    std::map<int,int> glob2tag_prism;
 };
 
-double CheckFaceOrientation(Vert* VcF, std::vector<Vert*> Vface, Vert* Vijk);
+//double CheckFaceOrientation(Vert* VcF, std::vector<Vert*> Vface, Vert* Vijk);
 
-newNumberingNodesFaces* DetermineNewNumberingOfElementSubset_Test2(Array<int>* part_global,
+newNumberingNodesFaces* ExtractPrismsForHybridMesh(Array<int>* part_global,
                                           std::map<int,std::vector<int> > elements,
                                           std::map<int,std::vector<int> > ief_part_map,
                                           std::map<int,std::vector<int> > ifn_part_map,

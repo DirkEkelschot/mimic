@@ -6,6 +6,7 @@
 #include "../../src/adapt_distri_parstate.h"
 #include "../../src/adapt_redistribute.h"
 #include "../../src/adapt_DefinePrismMesh.h"
+#include "../../src/adapt_prismaticlayer.h"
 
 #include <iomanip>
 
@@ -550,59 +551,40 @@ int main(int argc, char** argv)
     int nPrisms                  = 0;
     int nQuadrilaterals          = 0;
     
-    //std::cout << " shell_tet2hybF.size --> " << shell_tet2hybF.size() << std::endl;
 
     std::map<int,int> tag2locV_map = P->getGlobalVert2LocalVert();
     std::vector<Vert*> localVsPartition = P->getLocalVerts();
     
-    newNumberingNodesFaces* nnf = DetermineNewNumberingOfElementSubset_Test2(part_global,
-                                                                       prisms,
-                                                                       ief_part_map->i_map,
-                                                                       ifn_part_map->i_map,
-                                                                       ife_part_map->i_map,
-                                                                       if_ref_part_map->i_map,
-                                                                       if_Nv_part_map->i_map,
-                                                                       ushell,
-																	   tag2locV_map,
-																	   localVsPartition,
-                                                                       shellvertOriginalTag2ref_Glob,
-                                                                       comm);
     
+    PrismaticLayer* prsmLyr = new PrismaticLayer(part_global, prisms,
+                                                 ief_part_map->i_map, ifn_part_map->i_map,
+                                                 ife_part_map->i_map, if_ref_part_map->i_map,
+                                                 if_Nv_part_map->i_map, ushell, tag2locV_map,
+                                                 localVsPartition, shellvertOriginalTag2ref_Glob, comm);
     
-    nPrisms                                                 = nnf->ien.size();
-    std::map<int,int> tagE2gE                               = nnf->tagE2gE;
-    std::map<int,int> gE2tagE                               = nnf->gE2tagE;
-
+    nPrisms                                                 = prisms.size();
     DistributedParallelState* distPrismIN                   = new DistributedParallelState(nPrisms,comm);
-    
     int nPrismsTot                                          = distPrismIN->getNel();
+    
+    std::map<int,int> tagE2gE                               = prsmLyr->getTag2GlobalElementMap();
+    std::map<int,int> gE2tagE                               = prsmLyr->getGlobal2TagElementMap();
+    std::map<int,int> rhp                                   = prsmLyr->getRightElementGlobalIDForFaces();
+    std::map<int,int> lhp                                   = prsmLyr->getLeftElementGlobalIDForFaces();
+    std::map<int,std::vector<int> > pbcmap                  = prsmLyr->getBoundaryCondition2FaceID();
+    std::map<int,int> tag2element_shell                     = prsmLyr->getTag2Element4TetPrismInterface();
+    std::map<int,std::vector<int> > shared_face2node_prism  = prsmLyr->getOwnedSharedFace2NodeMap();
+    std::map<int,std::vector<int> > int_face2node_prism     = prsmLyr->getInternalFace2NodeMap();
+    std::map<int,std::vector<int> > bc_face2node_prism      = prsmLyr->getBoundaryFace2NodeMap();
+    std::map<int,int> tag2glob_prism                        = prsmLyr->getVertexTag2GlobalMap();
+    Array<double>* xcn_prisms_int                           = prsmLyr->getInternalCoordinates();
+    Array<double>* xcn_prisms_shared                        = prsmLyr->getSharedCoordinates();
+    std::map<int,int> SharedVertsNotOwned                   = prsmLyr->getNotOwnedSharedVerticesMap();
+    Array<int>* parmmg_iet_prisms                           = prsmLyr->getElementType();
+    std::map<int,int> sharedVmap                            = prsmLyr->getSharedVertexMap();
 
-    std::vector<std::vector<int> > prism_faces;
-    std::map<int,std::vector<int> > face2node_prisms        = nnf->face2node;
-    std::map<int,int> rhp                                   = nnf->rh;
-    std::map<int,int> lhp                                   = nnf->lh;
-    std::map<int,std::vector<int> > pbcmap                  = nnf->pbcmap;
-    std::map<int,int> tag2element                           = nnf->tag2ElementID;
-    
-    std::map<int,std::vector<int> > shared_face2node_prism  = nnf->sharedFace2Node;
-    std::map<int,std::vector<int> > int_face2node_prism     = nnf->intFace2Node;
-    std::map<int,std::vector<int> > bc_face2node_prism      = nnf->bcFace2Node;
-    
-    std::map<int,int> tag2glob_prism                        = nnf->tag2glob_prism;
-    std::map<int,int> tagV2localV_prism                     = nnf->tagV2localV;
-    
-    Array<double>* xcn_prisms_int                           = nnf->xcn_int;
-    Array<double>* xcn_prisms_shared                        = nnf->xcn_shared;
-
-    std::map<int,int> SharedVertsOwned                      = nnf->SharedVertsOwned;
-    std::map<int,int> NonSharedVertsOwned                   = nnf->NonSharedVertsOwned;
-    std::map<int,int> SharedVertsNotOwned                   = nnf->SharedVertsNotOwned;
-    
     
     Array<int>* ifnOUT_prism = new Array<int>(int_face2node_prism.size()+shared_face2node_prism.size(),8);
-    Array<int>* parmmg_iet_prisms                           = nnf->iet;
-    
-    
+
     DistributedParallelState* distPrismIntVerts = new DistributedParallelState(xcn_prisms_int->getNrow(),comm);
     DistributedParallelState* distPrismShaVerts = new DistributedParallelState(xcn_prisms_shared->getNrow(),comm);
 
@@ -616,7 +598,7 @@ int main(int argc, char** argv)
         int fhyb      = itmm->first;
         int Etettag   = itmm->second[0];
         int Eprismtag = itmm->second[1];
-        int EprismNew = tag2element[Eprismtag];
+        int EprismNew = tag2element_shell[Eprismtag];
 
         if(shellface2vertref.find(fhyb)!=shellface2vertref.end())
         {
@@ -625,14 +607,11 @@ int main(int argc, char** argv)
         }
         nshell++;
     }
-
-    int nShellVertsTot = shellvertOriginalTag2ref_Glob.size();
-    int nLocVertPrism  = tagV2localV_prism.size();
     
-	DistributedParallelState* dist_Vprism = new DistributedParallelState(nLocVertPrism,comm);
-	int nTotPrismVerts          = dist_Vprism->getNel();
-        
-    //int nTetVertsOffset_prism   = nTotUniqueNonShellVerts;
+    
+    //===============================================================================================
+    //===============================================================================================
+    //===============================================================================================
     
     
     PMMG_pParMesh   parmesh;
@@ -650,13 +629,7 @@ int main(int argc, char** argv)
     
     //PMMG_Set_metSize(PMMG_pParMesh parmesh,int typEntity,int np,int typSol)
     if ( PMMG_Set_metSize(parmesh,MMG5_Vertex,nVertices,MMG5_Tensor) != 1 ) exit(EXIT_FAILURE);
-//    const int nSolsAtVertices = 1; // 3 solutions per vertex
-//    int solType[1] = {MMG5_Tensor};
-//
-//    if ( PMMG_Set_solsAtVerticesSize(parmesh,nSolsAtVertices,nVertices,solType) != 1 ) {
-//       MPI_Finalize();
-//       exit(EXIT_FAILURE);
-//    }
+
     
     int vrefmax = -1;
     for ( k=0; k<nVertices; ++k )
@@ -669,14 +642,7 @@ int main(int argc, char** argv)
 
         int vref = 1;
         
-        if(shellvert2ref.find(vert)!=shellvert2ref.end())
-        {
-            vref = shellvert2ref[vert];
-            if(vref>vrefmax)
-            {
-                vrefmax=vref;
-            }
-        }
+
 
         //std::cout << world_rank << " vref = " << vref << std::endl;
         if ( PMMG_Set_vertex(parmesh,vx,vy,vz, vref, k+1) != 1 )
@@ -702,7 +668,6 @@ int main(int argc, char** argv)
         }
     }
     
-    //std::cout << " vrefmax " << vrefmax << std::endl;
    
     int v0,v1,v2,v3;
     int v0l,v1l,v2l,v3l;
@@ -752,7 +717,6 @@ int main(int argc, char** argv)
                     std::set<int>::iterator its;
                     std::set<int> sf    = shellface2vertref[facetag];
                     
-                    //std::cout << "sf :: ";
                     std::set<int> sft_t;
                     for(int u=0;u<3;u++)
                     {
@@ -767,111 +731,21 @@ int main(int argc, char** argv)
                         PMMG_Set_vertex( parmesh, c0[0], c0[1], c0[2], vertref, vidg+1 );
 
                         sft_t.insert(vertref);
-                        //std::cout << vertref << " ";
                         
                     }
-                    //std::cout << std::endl;
 
-//                    std::cout << "sft_t :: ";
-//                    for(its=sft_t.begin();its!=sft_t.end();its++)
+//                    if(vertref2shell_prism.find(sf)!=vertref2shell_prism.end())
 //                    {
-//                        std::cout << *its << " ";
+//                        shelfound++;
 //                    }
-                    
-                    //std::cout << std::endl;
-                    
-                    if(sft_t==sf)
-                    {
-                        shelfound2++;
-                    }
-//                    else
-//                    {
-//                        for(its=sft_t.begin();its!=sft_t.end();its++)
-//                        {
-//                            std::cout << *its << " ";
-//                        }
-//
-//                        std::cout << " vs " << " --> ";
-//                        for(its=sf.begin();its!=sf.end();its++)
-//                        {
-//                            std::cout << *its << " ";
-//                        }
-//                        std::cout << std::endl;
-//                    }
-                    if(vertref2shell_prism.find(sf)!=vertref2shell_prism.end())
-                    {
-                        shelfound++;
-                    }
                     
                     sft_t.clear();
-//                    if(sft_t==sf)
-//                    {
-//
-//                    }
                 }
                 suc++;
             }
             PMMG_Set_requiredTriangle( parmesh, k+1 );
         }
-        
-        
     }
-    
-    //std::cout << "faceUvids " << faceUvids.size() <<  " "  << c13 << " " << suc << " " << buggi << " " << shelfound << " " << shelfound2 << std::endl;
-    
-    
-    
-        
-        std::string filename10 = "shellrefs_" + std::to_string(world_rank) + ".dat";
-        std::ofstream myfile10;
-        myfile10.open(filename10);
-        
-        std::map<std::set<int>, int >::iterator itplt;
-        
-        for(itplt = vertref2shell_prism.begin();itplt!=vertref2shell_prism.end();itplt++)
-        {
-            std::set<int> face = itplt->first;
-            std::set<int>::iterator its;
-            for(its=face.begin();its!=face.end();its++)
-            {
-                myfile10 << *its << " ";
-            }
-            myfile10 << std::endl;
-        }
-
-        myfile10.close();
-    
-    std::string filename11 = "shellface2vertref_" + std::to_string(world_rank) + ".dat";
-    std::ofstream myfile11;
-    myfile11.open(filename11);
-    
-    std::map<int,std::set<int> >::iterator itplt2;
-    
-    for(itplt2 = shellface2vertref.begin();itplt2!=shellface2vertref.end();itplt2++)
-    {
-        int fhyb = itplt2->first;
-        std::set<int> face = itplt2->second;
-        std::set<int>::iterator its;
-        
-        myfile11 << fhyb << " :: ";
-        for(its=face.begin();its!=face.end();its++)
-        {
-            myfile11 << *its << " ";
-        }
-        myfile11 << std::endl;
-    }
-
-    myfile11.close();
-    
-    
-//    int foundRref = 0;
-//    for ( k=0; k<nVertices; k++ )
-//    {
-//        if(refOUT[k]!=1)
-//        {
-//            foundRref++;
-//        }
-//    }
     
     
     
@@ -951,59 +825,6 @@ int main(int argc, char** argv)
         MPI_Finalize();
         exit(EXIT_FAILURE);
     }
-    
-    
-    if(debug == 1)
-    {
-        std::string filename1 = "NotAdapted_" + std::to_string(world_rank) + ".dat";
-        std::ofstream myfile1;
-        myfile1.open(filename1);
-        myfile1 << "TITLE=\"volume_part_"  + std::to_string(world_rank) +  ".tec\"" << std::endl;
-        myfile1 <<"VARIABLES = \"X\", \"Y\", \"Z\", \"M00\", \"M01\", \"M02\", \"M11\", \"M12\", \"M22\"" << std::endl;
-        myfile1 <<"ZONE N = " << locVs.size() << ", E = " << nTetrahedra << ", DATAPACKING = POINT, ZONETYPE = FETETRAHEDRON" << std::endl;
-
-        for(int i=0;i<locVs.size();i++)
-        {
-            int vert = locV2globV[i];
-          
-            double M00 = metric[vert]->getVal(0,0);
-            double M01 = metric[vert]->getVal(1,0);
-            double M02 = metric[vert]->getVal(2,0);
-            double M11 = metric[vert]->getVal(3,0);
-            double M12 = metric[vert]->getVal(4,0);
-            double M22 = metric[vert]->getVal(5,0);
-            
-            myfile1 << locVs[i]->x << " " << locVs[i]->y << " " << locVs[i]->z << " "
-            << M00 << " "
-            << M01 << " "
-            << M02 << " "
-            << M11 << " "
-            << M12 << " "
-            << M22 << " " << std::endl;
-        }
-
-        
-        for(int i=0;i<nTetrahedra;i++)
-        {
-            v0 = ien_part_tetra->getVal(i,0);
-            v1 = ien_part_tetra->getVal(i,1);
-            v2 = ien_part_tetra->getVal(i,2);
-            v3 = ien_part_tetra->getVal(i,3);
-            
-            v0l = globV2locV[v0];
-            v1l = globV2locV[v1];
-            v2l = globV2locV[v2];
-            v3l = globV2locV[v3];
-            
-            myfile1 <<   v0l+1 << " "
-                    <<   v1l+1 << " "
-                    <<   v2l+1 << " "
-                    <<   v3l+1 << std::endl;
-        }
-
-
-        myfile1.close();
-    }
  
     int nVerticesIN   = 0;
     int nTetrahedraIN = 0;
@@ -1015,11 +836,7 @@ int main(int argc, char** argv)
     {
         ier = PMMG_STRONGFAILURE;
     }
-  
-    //std::cout << "world_rank " << world_rank << " :: " << nVerticesIN << " " << nTetrahedraIN << " " << nTrianglesIN << std::endl;
     
-    // remeshing function //
-    // Compute output nodes and triangles global numbering //
     if( !PMMG_Set_iparameter( parmesh, PMMG_IPARAM_globalNum, 1 ) ) {
       MPI_Finalize();
       exit(EXIT_FAILURE);
@@ -1066,12 +883,6 @@ int main(int argc, char** argv)
         glob2locVid[nodeGloNumber]=k;
         globIDs.push_back(nodeGloNumber);
     }
-    
-//    if(globIDs.size()!=0)
-//    {
-//        cout << world_rank << "\nMax Element = "
-//                 << *max_element(globIDs.begin(), globIDs.end());
-//    }
     
     int *required = (int*)calloc(MAX4(nVerticesOUT,nTetrahedraOUT,nTrianglesOUT,nEdgesOUT),sizeof(int));
     //int *refOUT = (int*)calloc(MAX4(nVerticesOUT,nTetrahedraOUT,nTrianglesOUT,nEdgesOUT),sizeof(int));
@@ -1599,43 +1410,6 @@ int main(int argc, char** argv)
             tel++;
         }
 
-       
-        
-        //std::cout << "Check filtered Length = " << ActualOwnedVertDistr.size() << std::endl;
-        
-        //===========================================================================
-        //===========================================================================
-        //===========================================================================
-        
-//        std::string filename4 = "AdaptedFaces_" + std::to_string(world_rank) + ".dat";
-//        std::ofstream myfile4;
-//        myfile4.open(filename4);
-//        myfile4 << "TITLE=\"volume_part_"  + std::to_string(world_rank) +  ".tec\"" << std::endl;
-//        myfile4 <<"VARIABLES = \"X\", \"Y\", \"Z\"" << std::endl;
-//        myfile4 <<"ZONE N = " << nVerticesOUT << ", E = " << nTrianglesOUT << ", DATAPACKING = POINT, ZONETYPE = FETRIANGLE" << std::endl;
-//
-//        for(int i=0;i<nVerticesOUT;i++)
-//        {
-//            pos = 3*i;
-//            myfile4 << vertOUT[pos  ] << " " << vertOUT[pos+1  ] << " " << vertOUT[pos+2  ] << std::endl;
-//        }
-//
-//        for ( k=0; k<nTrianglesOUT; k++ )
-//        {
-//            pos = 3*k;
-//
-//            myfile4 << triaNodes2[pos] << " "
-//                    << triaNodes2[pos+1] << " "
-//                    << triaNodes2[pos+2] << std::endl;
-//
-//        }
-//
-//        myfile4.close();
-        
-        //Extract the Local Face and vertex definition for the elements on each partition.
-        //===========================================================================
-        //===========================================================================
-        //===========================================================================
         
         
         
@@ -1674,18 +1448,6 @@ int main(int argc, char** argv)
         std::map<std::set<int>, int> pfacemap;
         std::map<int,std::set<int> > pfacemap_inv;
 
-        
-
-        
-        //    prism_faces[0].push_back(0);prism_faces[0].push_back(1);prism_faces[0].push_back(2);
-        //    prism_faces[1].push_back(3);prism_faces[1].push_back(5);prism_faces[1].push_back(4);
-        //
-        //    prism_faces[2].push_back(0);prism_faces[2].push_back(2);prism_faces[2].push_back(4);prism_faces[2].push_back(3);
-        //    prism_faces[3].push_back(1);prism_faces[3].push_back(5);prism_faces[3].push_back(4);prism_faces[3].push_back(2);
-        //    prism_faces[4].push_back(0);prism_faces[4].push_back(3);prism_faces[4].push_back(5);prism_faces[4].push_back(1);
-
-        
-       
         Array<int>* parmmg_iet = new Array<int>(nTetrahedraOUT,1);
         int q;
         
@@ -2578,9 +2340,7 @@ int main(int argc, char** argv)
         std::map<int,int> Tag2globPrimsVid;
         std::map<int,int> allPnodes;
         int ggvid;
-        std::map<int,int> local2globalVertMap = nnf->local2globalVertMap;
         
-        DistributedParallelState* distriPrismVertmap = new DistributedParallelState(local2globalVertMap.size(),comm);
         int cc       = 0;
         int notFound = 0;
         int tagnew   = 0;
@@ -2589,15 +2349,8 @@ int main(int argc, char** argv)
         int notfo  = 0;
         int fo     = 0;
         int notfo2 = 0;
-        
-        std::map<int,int> sharedVmap = nnf->sharedVmap;
         int redflag = 0;
-        int inbitch = 0;
-        int swbitch = 0;
-        int inbitchint = 0;
     
-    
-
         std::map<int,int> collect;
         std::map<int,int> collect2;
         int cn = 0;
@@ -2758,8 +2511,7 @@ int main(int argc, char** argv)
     
 
         int cnttt     = 0;
-        int inbitchsh = 0;
-        int notany = 0;
+        int notany    = 0;
         for( prit=shared_face2node_prism.begin();prit!=shared_face2node_prism.end();prit++)
         {
             int gfid  = prit->first;
@@ -2905,7 +2657,6 @@ int main(int argc, char** argv)
         }
         
 
-        DistributedParallelState* distriUniquePrismVertmap = new DistributedParallelState(local2globalVertMap.size(),comm);
         
         // End reducing the map.
         

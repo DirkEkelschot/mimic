@@ -1,6 +1,6 @@
 #include "adapt_DefinePrismMesh.h"
 
-newNumberingNodesFaces* DetermineNewNumberingOfElementSubset_Test2(Array<int>* part_global,
+newNumberingNodesFaces* ExtractPrismsForHybridMesh(Array<int>* part_global,
                                           std::map<int,std::vector<int> > elements,
                                           std::map<int,std::vector<int> > ief_part_map,
                                           std::map<int,std::vector<int> > ifn_part_map,
@@ -426,6 +426,7 @@ newNumberingNodesFaces* DetermineNewNumberingOfElementSubset_Test2(Array<int>* p
                                     }
                                 }
                             }
+                            
                             sharedFace2Node_prism[gfid] = fn_tag;
                             lhp[gfid]                   = lEl;
 
@@ -788,8 +789,8 @@ newNumberingNodesFaces* DetermineNewNumberingOfElementSubset_Test2(Array<int>* p
     nnf->intFace2Node               = intFace2Node_prism;
     nnf->bcFace2Node                = bcFace2Node_prism;
     
-    nnf->face2node                  = face2node;
-    nnf->ien                        = elements;
+//    nnf->face2node                  = face2node;
+//    nnf->ien                        = elements;
     nnf->pbcmap                     = ref2bcface;
     nnf->tag2ElementID              = tag2ElementID_tot;
 
