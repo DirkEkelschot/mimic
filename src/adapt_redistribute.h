@@ -77,7 +77,8 @@ class RedistributePartitionObject{
         std::map<int,int> GetShellVert2RefMap_Global();
         std::map<int,int> GetVertTag2RefLocalMap();
         std::map<int,int > GetShellVert2RefMap_Local();
-    std::map<int,int > GetShellVertTag2RefMap_Global();
+        std::map<int,int > GetShellVertTag2RefMap_Global();
+        std::map<int,std::vector<int> > GetBndRef2FaceMap();
     private:
         MPI_Comm mpi_comm;
         int world_rank;
@@ -114,7 +115,7 @@ class RedistributePartitionObject{
         std::map<int,std::vector<int> > ref2face;
         std::map<int,Array<double>* > m_M_vmap;
 
-
+        std::map<int,std::vector<int> > m_Boundary_Ref2Face;
         Array<int>* m_part;
         Array<int>* m_part_global;
     

@@ -846,6 +846,7 @@ void RedistributePartitionObject::RebasePartitionObject(Array<int>* part_global,
             new_iefref->setVal(uloc,2,iefref[2]);
             new_iefref->setVal(uloc,3,iefref[3]);
             
+            
             for(int s=0;s<4;s++)
             {
                 if(m_M_vmap.find(ien[s])==m_M_vmap.end())
@@ -1060,7 +1061,7 @@ void RedistributePartitionObject::RebasePartitionObject(Array<int>* part_global,
                     elFaceRefs[cc][4*t+2]=iefref[2];
                     elFaceRefs[cc][4*t+3]=iefref[3];
                     
-                    //std::cout << iefref[0] << " " << iefref[1] << " " << iefref[2] << " " << iefref[3] << std::endl;
+                   
                     
                     if(t==nelPrank-1)
                     {
@@ -1310,11 +1311,9 @@ void RedistributePartitionObject::RebasePartitionObject(Array<int>* part_global,
             new_ief_or->setVal(u,3,ief_o[3]);
             
             new_iefref->setVal(u,0,iefref[0]);
-            new_iefref->setVal(u,0,iefref[1]);
-            new_iefref->setVal(u,0,iefref[2]);
-            new_iefref->setVal(u,0,iefref[3]);
-            
-            //std::cout << iefref[0] << " " << iefref[1] << " " << iefref[2] << " " << iefref[3] << std::endl;
+            new_iefref->setVal(u,1,iefref[1]);
+            new_iefref->setVal(u,2,iefref[2]);
+            new_iefref->setVal(u,3,iefref[3]);
             
             for(int s=0;s<4;s++)
             {
@@ -1436,6 +1435,7 @@ void RedistributePartitionObject::RebasePartitionObject(Array<int>* part_global,
 //    delete distLocalFaces;
 //    delete distLocalVerts;
     // return these guys.
+    
     ElGids             = new_GidEl;
     ien_part_tetra     = new_ien;
     ien_part_hybrid    = new_ien_or;
@@ -1760,9 +1760,11 @@ void RedistributePartitionObject::UpdateTetrahedraOnPartition(int nglob,
                 ief_part_hybrid_update->setVal(on_rank,k,f_id_o);
                 iefref_part_tetra_update->setVal(on_rank,k,fref);
                 
-                if(m_face2ref.find(f_id)==m_face2ref.end())
+                if(fref!=2 && m_face2ref.find(f_id)==m_face2ref.end())
                 {
                     m_face2ref[f_id] = fref;
+                    m_Boundary_Ref2Face[fref].push_back(f_id);
+
                 }
 //                //std::cout << fref << " ";
 //                if(unique_faceIDs_on_rank_set.find( f_id ) == unique_faceIDs_on_rank_set.end() && f_id != -1) // add the required unique vertex for current rank.
@@ -2088,9 +2090,11 @@ void RedistributePartitionObject::UpdateTetrahedraOnPartition(int nglob,
             ief_part_hybrid_update->setVal(on_rank,k,f_id_o_n);
             iefref_part_tetra_update->setVal(on_rank,k,fref_n);
                  
-            if(m_face2ref.find(f_id_n)==m_face2ref.end())
+            if(fref_n!=2 && m_face2ref.find(f_id_n)==m_face2ref.end())
             {
                 m_face2ref[f_id_n] = fref_n;
+                m_Boundary_Ref2Face[fref_n].push_back(f_id_n);
+
             }
 //            if(unique_faceIDs_on_rank_set.find( f_id_n ) == unique_faceIDs_on_rank_set.end()) // add the required unique vertex for current rank.
 //            {
@@ -3057,6 +3061,10 @@ std::map<int,int> RedistributePartitionObject::GetLocalSharedFace2GlobalSharedFa
 std::map<int,int> RedistributePartitionObject::GetFace2RefMap()
 {
     return m_face2ref;
+}
+std::map<int,std::vector<int> > RedistributePartitionObject::GetBndRef2FaceMap()
+{
+    return m_Boundary_Ref2Face;
 }
 std::map<int,int> RedistributePartitionObject::GetTetF2HybFMap()
 {

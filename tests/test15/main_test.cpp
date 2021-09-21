@@ -525,10 +525,17 @@ int main(int argc, char** argv)
     std::map<int,int> tetF2hybF                     = tetra_distri->GetTetF2HybFMap();
     std::map<int,int> tetV2tagV						= tetra_distri->GetTet2TagVertMap();
     std::map<int,int> shellvertOriginalTag2ref_Glob = tetra_distri->GetShellVertTag2RefMap_Global();
-
+    std::map<int,std::vector<int> > bndref2face     = tetra_distri->GetBndRef2FaceMap();
     std::map<int,int> shellvertTag2ref;
     std::map<int,int> shellvertTag2ref2;
 
+    
+    std::map<int,std::vector<int> >::iterator itvm;
+    for(itvm=bndref2face.begin();itvm!=bndref2face.end();itvm++)
+    {
+        std::cout << "check bndface = " << world_rank << " --> " << itvm->first << " suze " << itvm->second.size() << std::endl;
+    }
+    
     std::map<int,int>::iterator itt;
     for(itt=shellvert2ref.begin();itt!=shellvert2ref.end();itt++)
     {
@@ -696,7 +703,15 @@ int main(int argc, char** argv)
         v1l     = globV2locV[v1];
         v2l     = globV2locV[v2];
         
-        refer   = face2ref[faceID];
+        if(face2ref.find(faceID)!=face2ref.end())
+        {
+            refer   = face2ref[faceID];
+        }
+        else
+        {
+            refer   = 0;
+        }
+        
         
         if ( PMMG_Set_triangle(parmesh,v0l+1,v1l+1,v2l+1,refer,k+1) != 1 )
         {
@@ -1018,7 +1033,8 @@ int main(int argc, char** argv)
         if( !PMMG_Check_Get_FaceCommunicators(parmesh,ncomm,ntifc,
                                               color_face,faceNodes2,
                                               next_face_comm,nitem_face_comm,
-                                              color_face_out,faceNodes_out) ) {
+                                              color_face_out,faceNodes_out) )
+        {
           printf("### FAILED:: Wrong retrieved face communicators!\n");
           MPI_Finalize();
           exit(EXIT_FAILURE);
