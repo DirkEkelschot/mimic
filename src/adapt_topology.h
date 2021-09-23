@@ -21,6 +21,7 @@ class Mesh_Topology {
     public:
         Mesh_Topology(){};
         Mesh_Topology(Partition* Pa, MPI_Comm comm);
+        ~Mesh_Topology();
         void DetermineBoundaryLayerElements(Partition* Pa, Array<int>* ife_in, int nLayer, int bID, MPI_Comm comm);
         std::map<int,std::vector<int> > getScheme_E2V();
         std::map<int,vector<Vec3D*> > getNormals();
@@ -39,14 +40,12 @@ class Mesh_Topology {
         std::map<int,std::vector<int> > getRef2Vert();
         Mesh_Topology_BL* getBLMeshTopology();
     private:
-        Array<double>* cc;
-        std::map<int,vector<Vec3D*> > normals;
-        std::map<int,vector<Vec3D*> > rvector;
-        std::map<int,vector<Vec3D*> > dxfxc;
-        std::map<int,vector<double> > dr;
-        std::map<int,vector<double> > dS;
+        std::map<int,std::vector<Vec3D*> > normals;
+        std::map<int,std::vector<Vec3D*> > rvector;
+        std::map<int,std::vector<Vec3D*> > dxfxc;
+        std::map<int,std::vector<double> > dr;
+        std::map<int,std::vector<double> > dS;
         std::map<int,double> Vol;
-        Partition* P;
         Array<int>* ifn;
         std::map<int,int> face2ref;
         std::map<int,std::vector<int> > ref2face;

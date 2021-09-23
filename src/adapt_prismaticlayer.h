@@ -14,18 +14,19 @@
 class PrismaticLayer {
    public:
         PrismaticLayer(){};
-        PrismaticLayer(Array<int>* part_global,
-                       std::map<int,std::vector<int> > elements,
+        PrismaticLayer(std::map<int,std::vector<int> > elements,
                        std::map<int,std::vector<int> > ief_part_map,
                        std::map<int,std::vector<int> > ifn_part_map,
                        std::map<int,std::vector<int> > ife_part_map,
-                       std::map<int,std::vector<int> > if_ref_part_map,
-                       std::map<int,std::vector<int> > if_Nv_part_map,
+                       std::map<int,int> if_ref_part_map,
+                       std::map<int,int> if_Nv_part_map,
+					   std::map<int,std::vector<int> > if_Erank_part_map,
                        std::map<int,std::vector<int> > ushell,
                        std::map<int,int> tag2locV,
                        std::vector<Vert*> locVerts,
                        std::map<int,int> shellvert2ref_glob,
                        MPI_Comm comm);
+        
         ~PrismaticLayer();
     
         std::map<int,int> getLeftElementGlobalIDForFaces();

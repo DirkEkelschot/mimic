@@ -33,26 +33,44 @@ Partition::Partition(ParArray<int>* ien, ParArray<int>* iee, ParArray<int>* ief,
     
     DetermineElement2ProcMap(ien, ief, ie_Nv, ie_Nf, xcn, U,  tetCnt, comm);
     
-//
+    int nglobf = ife->getNglob();
+    int nrow  = ife->getNrow();
+	int ncol  = ife->getNcol();
+	//
+	ParArray<int>* iferank = new ParArray<int>(nglobf,ncol,comm);
+	
+	for(int i=0;i<nrow;i++)
+	{
+		for(int j=0;j<ncol;j++)
+		{
+			int elid = ife->getVal(i,j);
+			int rankie = part_global->getVal(elid,0);
+			iferank->setVal(i,j,rankie);
+		}
+	}
+	
+
+//	The element map needs to be generated first before the face maps!!!
     iee_part_map  = getElement2EntityPerPartition(iee,     Loc_Elem_Nf,   comm);
     ief_part_map  = getElement2EntityPerPartition(ief,     Loc_Elem_Nf,   comm);
     ien_part_map  = getElement2EntityPerPartition(ien,     Loc_Elem_Nv,   comm);
     ieNf_part_map = getElement2EntityPerPartition(ie_Nf,   Loc_Elem_Nf,   comm);
     
+    if_Erank_part_map   = getFace2EntityPerPartition(iferank,   comm);
+    if_Nv_part_map      = getFace2EntityPerPartition(if_Nv  ,   comm);
+    //ifn_part_map      = getFace2NodePerPartition(ifn      ,   comm);
+    ifn_part_map        = getFace2EntityPerPartition(ifn    ,   comm);
+    ife_part_map        = getFace2EntityPerPartition(ife    ,   comm);
+    if_ref_part_map     = getFace2EntityPerPartition(if_ref ,   comm);
 //
-    if_Nv_part_map      = getFace2EntityPerPartition(if_Nv ,   comm);
-    //ifn_part_map      = getFace2NodePerPartition(ifn     ,   comm);
-    
-    ifn_part_map        = getFace2EntityPerPartition(ifn   ,   comm);
-    ife_part_map        = getFace2EntityPerPartition(ife   ,   comm);
-    if_ref_part_map     = getFace2EntityPerPartition(if_ref,   comm);
-//
+    delete iferank;
     DetermineAdjacentElement2ProcMapUS3D(ien, iee_part_map->i_map, part, xcn, U, comm);
 //
     CreatePartitionDomainTest();
     //CreatePartitionDomain();
 //
     nLocAndAdj_Elem = LocAndAdj_Elem.size();
+    
     /**/
 }
 
@@ -63,6 +81,11 @@ Partition::Partition(ParArray<int>* ien, ParArray<int>* iee, ParArray<int>* ief,
 
 Partition::~Partition()
 {
+	
+	for(int i=0;i<LocalVerts.size();i++)
+	{
+		delete LocalVerts[i];
+	}
     Loc_Elem.clear();
     Loc_Elem_Nv.clear();
     Loc_Elem_Nf.clear();
@@ -106,9 +129,12 @@ Partition::~Partition()
     elem_set.clear();
     elem_map.clear();
     loc_r_elem_set.clear();
-    delete part;
-    delete part_global;
-    LocalVerts.clear();
+//    delete part;
+//    delete part_global;
+//    delete[] xadj;
+//    delete[] adjcny;
+    
+    //LocalVerts.clear();
     unique_vertIDs_on_rank_set.clear();
     unique_faceIDs_on_rank_set.clear();
     globVerts2globElem.clear();
@@ -137,6 +163,10 @@ Partition::~Partition()
 
     adj_elements.clear();
     
+
+	//delete pDom->LocElem2LocNode;
+
+    //delete adj_schedule;
     //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //    adj_schedule->SendFromRank2Rank.clear();
 //    adj_schedule->RecvRankFromRank.clear();
@@ -3897,6 +3927,10 @@ i_part_map* Partition::getIENpartmap()
 i_part_map* Partition::getIFNpartmap()
 {
     return ifn_part_map;
+}
+i_part_map* Partition::getIFERankpartmap()
+{
+    return if_Erank_part_map;
 }
 i_part_map* Partition::getIF_Nvpartmap()
 {

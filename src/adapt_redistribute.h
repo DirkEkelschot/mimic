@@ -15,25 +15,25 @@ class RedistributePartitionObject{
     public:
         RedistributePartitionObject(){};
     
-        RedistributePartitionObject(US3D* us3d, Array<int>* part_global,
+        RedistributePartitionObject(US3D* us3d,
                           std::map<int,std::vector<int> > tetras,
+						  std::map<int,std::vector<int> > iferank_part_map,
                           std::map<int,std::vector<int> > ief_part_map,
                           std::map<int,std::vector<int> > ifn_part_map,
                           std::map<int,std::vector<int> > ife_part_map,
-                          std::map<int,std::vector<int> > if_ref_part_map,
-                                    std::map<int,std::vector<int> > ushell,
+                          std::map<int,int> if_ref_part_map,
+                          std::map<int,std::vector<int> > ushell,
                           std::map<int,Array<double>* > M_vmap,
                           MPI_Comm comm);
     
         ~RedistributePartitionObject();
     
-    
-        void RebasePartitionObject(Array<int>* part_global,
-                                   std::map<int,std::vector<int> > tetras,
+        void RebasePartitionObject(std::map<int,std::vector<int> > tetras,
+								   std::map<int,std::vector<int> > iferank_part_map,
                                    std::map<int,std::vector<int> > ief_part_map,
                                    std::map<int,std::vector<int> > ifn_part_map,
                                    std::map<int,std::vector<int> > ife_part_map,
-                                   std::map<int,std::vector<int> > if_ref_part_map,
+                                   std::map<int,int> if_ref_part_map,
                                    std::map<int,std::vector<int> > ushell,
                                    std::map<int,Array<double>* > M_vmap);
     
@@ -117,7 +117,6 @@ class RedistributePartitionObject{
 
         std::map<int,std::vector<int> > m_Boundary_Ref2Face;
         Array<int>* m_part;
-        Array<int>* m_part_global;
     
     
         std::map<int,std::vector<int> > m_TetraToSendToRanks;

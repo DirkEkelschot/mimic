@@ -18,6 +18,8 @@
 
 
 
+
+
 std::map<int,int> AllGatherMap(std::map<int,int> mappie, MPI_Comm mpi_comm)
 {
     int mapSizeLoc = mappie.size();
@@ -197,9 +199,9 @@ int main(int argc, char** argv)
     }
     
     US3D* us3d    = ReadUS3DData(fn_conn,fn_grid,fn_data,ReadFromStats,comm,info);
-    int Nve = us3d->xcn->getNglob();
+    int Nve       = us3d->xcn->getNglob();
     
-    int Nel_part = us3d->ien->getNrow();
+    int Nel_part  = us3d->ien->getNrow();
     
     //Array<double>* xcn_ref = ReadDataSetFromFile<double>(fn_grid,"xcn");
     //Array<int>* ien_ref    = ReadDataSetFromFile<int>(fn_conn,"ien");
@@ -237,22 +239,30 @@ int main(int argc, char** argv)
                                  parmetis_pstate, ien_pstate, ife_pstate,
                                  us3d->xcn, xcn_pstate, Ui, us3d->ie_tetCnt, comm);
 
-    std::vector<int> LocElem = P->getLocElem();
+    std::vector<int> LocElem    = P->getLocElem();
     std::vector<double> Uvaria  = P->getLocElemVaria();
     std::map<int,Array<double>*> Uvaria_map;
-    double UvariaV = 0.0;
+    double UvariaV              = 0.0;
     for(int i=0;i<LocElem.size();i++)
     {
-        int gid = LocElem[i];
+        int gid   = LocElem[i];
         UvariaV   = Uvaria[i];
         Array<double>* Uarr = new Array<double>(1,1);
         Uarr->setVal(0,0,UvariaV);
         Uvaria_map[gid] = Uarr;
     }
     
-    Mesh_Topology* meshTopo = new Mesh_Topology(P,comm);
-    
-    std::map<int,double> Volumes = meshTopo->getVol();
+    Mesh_Topology* meshTopo      = new Mesh_Topology(P,comm);
+    std::map<int,double> Volumes_tmp = meshTopo->getVol();
+    std::map<int,double> Volumes;
+    std::map<int,double>::iterator itc;
+    for(itc=Volumes_tmp.begin();itc!=Volumes_tmp.end();itc++)
+    {
+    	int elid = itc->first;
+    	int vol  = itc->second;
+    	Volumes[elid] = vol;
+    }
+
     P->AddStateVecForAdjacentElements(Uvaria_map,1,comm);
     
     std::map<int,Array<double>* > var_vmap = P->ReduceStateVecToAllVertices(Uvaria_map,1);
@@ -262,11 +272,31 @@ int main(int argc, char** argv)
     {
         gB->setVal(i,0,us3d->ghost->getVal(i,varia));
     }
+    int ngho = us3d->ghost->getNrow();
+    int ngval;
+    MPI_Allreduce(&ngho, &ngval, 1, MPI_INT, MPI_MAX, comm);
+    
+    if(world_rank == 0)
+    {
+        std::cout << "ghost val = " << ngval << std::endl;
+    }
+    
+    
+    
     
     delete us3d->ghost;
+    delete us3d->ien;
+    delete us3d->iee;
+    delete us3d->ief;
+    delete us3d->ie_Nv;
+    delete us3d->ie_Nf;
+//  delete us3d->ifn;
+    delete us3d->ife;
+    delete us3d->if_ref;
+    delete us3d->if_Nv;
+//  delete us3d->xcn;
     
     
-    //std::map<int,Array<double>* > dUdXi = ComputedUdx_LSQ_US3D(P,Uvaria_map,gB,comm);
     std::map<int,Array<double>* > dUdXi = ComputedUdx_LSQ_Vrt_US3D(P,Uvaria_map,var_vmap,meshTopo,gB,comm);
     
     P->AddStateVecForAdjacentElements(dUdXi,3,comm);
@@ -278,7 +308,6 @@ int main(int argc, char** argv)
     std::map<int,Array<double>* > dUidXi_map;
     for(grit=dUdXi.begin();grit!=dUdXi.end();grit++)
     {
-        
         Array<double>* dUdx_E = new Array<double>(1,1);
         dUdx_E->setVal(0,0,grit->second->getVal(0,0));
         Array<double>* dUdy_E = new Array<double>(1,1);
@@ -292,27 +321,35 @@ int main(int argc, char** argv)
         
         delete grit->second;
     }
-
+    
+    // dUdXi is deleted at this point;
+    
     std::map<int,Array<double>* > dudx_vmap = P->ReduceStateVecToAllVertices(dUidxi_map,1);
     std::map<int,Array<double>* > dudy_vmap = P->ReduceStateVecToAllVertices(dUidyi_map,1);
     std::map<int,Array<double>* > dudz_vmap = P->ReduceStateVecToAllVertices(dUidzi_map,1);
-
-
-    //std::cout << "second gradient "<<std::endl;
-//    std::map<int,Array<double>* > dU2dXi2 = ComputedUdx_LSQ_US3D(P,dUidxi_map,gB,comm);
-//    std::map<int,Array<double>* > dU2dYi2 = ComputedUdx_LSQ_US3D(P,dUidyi_map,gB,comm);
-//    std::map<int,Array<double>* > dU2dZi2 = ComputedUdx_LSQ_US3D(P,dUidzi_map,gB,comm);
-
+    
     std::map<int,Array<double>* > dU2dXi2 = ComputedUdx_LSQ_Vrt_US3D(P,dUidxi_map,dudx_vmap,meshTopo,gB,comm);
     std::map<int,Array<double>* > dU2dYi2 = ComputedUdx_LSQ_Vrt_US3D(P,dUidyi_map,dudy_vmap,meshTopo,gB,comm);
     std::map<int,Array<double>* > dU2dZi2 = ComputedUdx_LSQ_Vrt_US3D(P,dUidzi_map,dudz_vmap,meshTopo,gB,comm);
-
-//      Array<double>* dU2dXi2 = ComputedUdx_MGG(P,dUdxauxNew,meshTopo,gB,comm);
-//      Array<double>* dU2dYi2 = ComputedUdx_MGG(P,dUdyauxNew,meshTopo,gB,comm);
-//      Array<double>* dU2dZi2 = ComputedUdx_MGG(P,dUdzauxNew,meshTopo,gB,comm);
-            
+    
+    for(grit=dUidxi_map.begin();grit!=dUidxi_map.end();grit++)
+    {
+        delete grit->second;
+        delete dUidyi_map[grit->first];
+        delete dUidzi_map[grit->first];
+    }
+    
+    for(grit=dudx_vmap.begin();grit!=dudx_vmap.end();grit++)
+    {
+        delete grit->second;
+        delete dudy_vmap[grit->first];
+        delete dudz_vmap[grit->first];
+    }
+    
+    delete meshTopo;
+    delete gB;
+    
     std::map<int,Array<double>*> Hess_map;
-    //std::cout << "second gradient 2"<<std::endl;
 
     std::map<int,Array<double>* >::iterator itgg;
     int te = 0;
@@ -343,7 +380,8 @@ int main(int argc, char** argv)
     dU2dXi2.clear();
     dU2dYi2.clear();
     dU2dZi2.clear();
-    
+    std::cout << "Done computing the Hessian"<<std::endl;
+
     
     double* Hessie = new double[9];
     double * WRn = new double[3];
@@ -367,6 +405,7 @@ int main(int argc, char** argv)
             DR->setVal(j,k,0.0);
         }
     }
+    
     for(itgg=Hess_map.begin();itgg!=Hess_map.end();itgg++)
     {
         Hessie[0] = itgg->second->getVal(0,0);
@@ -398,6 +437,7 @@ int main(int argc, char** argv)
         Array<double>* iVR = MatInv(UR);
         Array<double>* Rs = MatMul(UR,DR);
         Array<double>* Rf = MatMul(Rs,iVR);
+        
         double detRf = sqrt( Rf->getVal(0,0)*(Rf->getVal(1,1)*Rf->getVal(2,2)-Rf->getVal(2,1)*Rf->getVal(1,2))
                             -Rf->getVal(0,1)*(Rf->getVal(1,0)*Rf->getVal(2,2)-Rf->getVal(2,0)*Rf->getVal(1,2))
                             +Rf->getVal(0,2)*(Rf->getVal(1,0)*Rf->getVal(2,1)-Rf->getVal(2,0)*Rf->getVal(1,1)));
@@ -413,6 +453,8 @@ int main(int argc, char** argv)
         delete Rf;
     }
     
+    delete[] Hessie;
+    
 
     MPI_Allreduce(&cmplxty, &cmplxty_red, 1, MPI_DOUBLE, MPI_SUM, comm);
     //cmplxty_red = std::pow(cmplxty_red,(po+1)/(2.0*po+3.0));
@@ -420,86 +462,181 @@ int main(int argc, char** argv)
     P->AddStateVecForAdjacentElements(Hess_map,6,comm);
 
     std::map<int,Array<double>* > hess_vmap = P->ReduceStateVecToAllVertices(Hess_map,6);
-
+    
+    // ++++++++++++++++++++++++++ Destroy the Hess_map +++++++++++++++++++++++++++++++++++++++++++++
+    for(grit=Hess_map.begin();grit!=Hess_map.end();grit++)
+    {
+        delete grit->second;
+    }
+    // ++++++++++++++++++++++++++ Destroy the Hess_map +++++++++++++++++++++++++++++++++++++++++++++
+    
+    
     cmplxty_red = Nve/cmplxty_red;
     
     ComputeMetric(P, metric_inputs, comm, hess_vmap, 1.0, po);
-    
+    std::cout << "Done computing the metric"<<std::endl;
     //std::cout << "understand bitshift " << world_rank << "  " << (world_rank & (~(1 << 3)))<< std::endl;
     //std::vector<int> LocElem     = P->getLocElem();
 
-    //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    
+    //================================================================================
+    //================================================================================
+    //================================================================================
     Domain* pDom = P->getPartitionDomain();
-    std::map<int,std::vector<int> > tetras     = pDom->GTetras;
-    std::map<int,std::vector<int> > prisms     = pDom->GPrisms;
-    std::map<int,std::vector<int> > ushell     = pDom->ushell;
+    std::map<int,std::vector<int> > tetraEl    = pDom->GTetras;
+    std::map<int,std::vector<int> > prismEl    = pDom->GPrisms;
+    std::map<int,std::vector<int> > ushell_o   = pDom->ushell;
+    i_part_map* ief_part_map                   = P->getIEFpartmap();
     i_part_map* if_Nv_part_map                 = P->getIF_Nvpartmap();
     i_part_map* ifn_part_map                   = P->getIFNpartmap();
     i_part_map* ife_part_map                   = P->getIFEpartmap();
-    i_part_map* ief_part_map                   = P->getIEFpartmap();
-    i_part_map* ien_part_map                   = P->getIENpartmap();
     i_part_map* if_ref_part_map                = P->getIFREFpartmap();
-    Array<int>* part_global                    = P->getGlobalPartition();
-    //std::map<int,Array<double>* > M_vmap;
-    // Based on a partitioned hybrid mesh, we are extracting the tetra and redistribute them
-    // uniformly. The hybrid mesh is partitioned without any weights which means that it might happen that the tetrahedra are initial distributed non-uniformly where a significant number of processors end up with any tetrahedra. This function distributed them equally.
-    //std::cout << "Starting extracting..." << tetras.size() <<std::endl;
-    //std::cout << "n_prism = " << prisms.size() << " " << tetras.size() << std::endl;
-    // local face2vert_map for a prism {0,1,2},{3,5,4},{0,2,4,3},{1,5,4,2},{0,3,5,1} };
-    // rowmap {3,3,4,4,4}
+    i_part_map* if_Erank_part_map			   = P->getIFERankpartmap();
+    std::map<int,int> tag2locV_map      	   = P->getGlobalVert2LocalVert();
+    std::vector<Vert*> LocVerts_part     	   = P->getLocalVerts();
+    //================================================================================
+    //================================================================================
+    //================================================================================
+    // Copy maps relevant maps so that we can destroy Partition*
+    std::map<int,std::vector<int> >::iterator itmm;
+    std::map<int,int >::iterator itr;
+    std::map<int,Vert* >::iterator itrV;
+
+    // ==== Copy required facemaps ====; 
+    std::map<int,std::vector<int> > ifn_map;
+    std::map<int,std::vector<int> > ife_map;
+    std::map<int,std::vector<int> > iferank_map;
+    std::map<int,int> ifref_map;
+    std::map<int,int> if_Nv_map;
+    
+    for(itmm=ifn_part_map->i_map.begin();itmm!=ifn_part_map->i_map.end();itmm++)
+    {
+        int faceid        = itmm->first;
+        int Nfn           = itmm->second.size();
+        int fref          = if_ref_part_map->i_map[faceid][0];
+        int fNv			  = if_Nv_part_map->i_map[faceid][0];
+        
+        std::vector<int>fn(Nfn);
+        std::vector<int>fe(2);
+        std::vector<int>ferank(2);
+
+        for(int j=0;j<Nfn;j++)
+        {
+            fn[j]=ifn_part_map->i_map[faceid][j];
+            if(j<2)
+            {
+                fe[j]     = ife_part_map->i_map[faceid][j];
+                ferank[j] = if_Erank_part_map->i_map[faceid][j];
+            }
+        }
+        ifn_map[faceid]     = fn;
+        ife_map[faceid]     = fe;
+        iferank_map[faceid] = ferank;
+        ifref_map[faceid]   = fref;
+        if_Nv_map[faceid]   = fNv;
+    }
     
     
-//    std::vector<std::vector<int> > prism_faces(4);
-//    prism_faces[0].push_back(0);prism_faces[0].push_back(1);prism_faces[0].push_back(2);
-//    prism_faces[1].push_back(3);prism_faces[1].push_back(5);prism_faces[1].push_back(4);
-//
-//    prism_faces[2].push_back(0);prism_faces[2].push_back(2);prism_faces[2].push_back(4);prism_faces[2].push_back(3);
-//    prism_faces[3].push_back(1);prism_faces[3].push_back(5);prism_faces[3].push_back(4);prism_faces[3].push_back(2);
-//    prism_faces[4].push_back(0);prism_faces[4].push_back(3);prism_faces[4].push_back(5);prism_faces[4].push_back(1);
+    // ==== Copy required elementmaps ====
+    std::map<int,std::vector<int> > ief_map;
     
-//    std::map<int,std::vector<int> >::iterator itmm;
-//    for(itmm=prisms.begin();itmm!=prism.end();itmm++)
-//    {
-//        pElid                   = itmm->first;
-//        std::vector<int> prism  = itmm->second;
-//
-//        for(int p=0;p<prism_faces.size();p++)
-//        {
-//            int nvf = prism_faces[p].size();
-//            std::vector<int> fce(nvf);
-//            std::set<int> fceset;
-//            for(int s=0;s<nvf;s++)
-//            {
-//                fce[s] = prism[prism_faces[p][s]];
-//                fceset.insert(prism[prism_faces[p][s]]);
-//            }
-//            fceset.clear();
-//
-//        }
-//    }
+    for(itmm=ief_part_map->i_map.begin();itmm!=ief_part_map->i_map.end();itmm++)
+	{
+		int elemid        = itmm->first;
+		int Nf            = itmm->second.size();
+
+		std::vector<int>ef(Nf);
+
+		for(int j=0;j<Nf;j++)
+		{
+			ef[j]=ief_part_map->i_map[elemid][j];
+		}
+		
+		ief_map[elemid] 	= ef;
+		
+	}
+    
+    // ==== Copy required element2node maps for tetrahedra ====
+    std::map<int,std::vector<int> > tetrahedra;
+	for(itmm=tetraEl.begin();itmm!=tetraEl.end();itmm++)
+	{
+		int elemid        = itmm->first;
+		int nn            = itmm->second.size();
+		std::vector<int> tetraNodes(nn);
+		for(int q=0;q<nn;q++)
+		{
+			tetraNodes[q] = itmm->second[q];
+		}
+		tetrahedra[elemid] = tetraNodes;
+	}
+	
+    // ==== Copy required element2node maps for prisms ====
+	std::map<int,std::vector<int> > prisms;
+	for(itmm=prismEl.begin();itmm!=prismEl.end();itmm++)
+	{
+		int elemid        = itmm->first;
+		int nn            = itmm->second.size();
+		std::vector<int> prismNodes(nn);
+		for(int q=0;q<nn;q++)
+		{
+			prismNodes[q] = itmm->second[q];
+		}
+		prisms[elemid] = prismNodes;
+	}
+	
+// ==== Copy required element2node maps for prisms ====
+	std::map<int,std::vector<int> > ushell;
+	for(itmm=ushell_o.begin();itmm!=ushell_o.end();itmm++)
+	{
+		int elemid        = itmm->first;
+		int nn            = itmm->second.size();
+		std::vector<int> shellnodes(nn);
+		for(int q=0;q<nn;q++)
+		{
+			shellnodes[q] = itmm->second[q];
+		}
+		ushell[elemid] = shellnodes;
+	}
+		
+	
+    std::map<int,int> tag2locVrtMap;
+    for(itr=tag2locV_map.begin();itr!=tag2locV_map.end();itr++)
+    {
+    	int key = itr->first;
+    	int val = itr->second;
+    	
+    	tag2locVrtMap[key] = val;
+    }
     
     
-//    RedistributePartitionObject* prism_distri = new RedistributePartitionObject(us3d,part_global,
-//                                                                                prisms,
-//                                                                                ief_part_map->i_map,
-//                                                                                ifn_part_map->i_map,
-//                                                                                ife_part_map->i_map,
-//                                                                                if_ref_part_map->i_map,
-//                                                                                ushell,
-//                                                                                hess_vmap, comm);
+    std::vector<Vert*> LocVerts(LocVerts_part.size());
+    for(int q=0;q<LocVerts_part.size();q++)
+    {
+        Vert* val = new Vert;
+        val->x = LocVerts_part[q]->x;
+        val->y = LocVerts_part[q]->y;
+        val->z = LocVerts_part[q]->z;
+        
+        LocVerts[q] = val;
+    }
+
+    std::cout << "Copied all relevant data over " << std::endl;
+	
+	delete P;
     
+    //================================================================================
+    //================================================================================
+    //================================================================================
     
-    RedistributePartitionObject* tetra_distri = new RedistributePartitionObject(us3d,part_global,
-                                                                                tetras,
-                                                                                ief_part_map->i_map,
-                                                                                ifn_part_map->i_map,
-                                                                                ife_part_map->i_map,
-                                                                                if_ref_part_map->i_map,
+    RedistributePartitionObject* tetra_distri = new RedistributePartitionObject(us3d,
+    																			tetrahedra,
+																				iferank_map,
+                                                                                ief_map,
+                                                                                ifn_map,
+                                                                                ife_map,
+                                                                                ifref_map,
                                                                                 ushell,
                                                                                 hess_vmap, comm);
+    
     
     Array<int>* element2node                        = tetra_distri->GetElement2NodeMap();
     std::map<int,Array<double>* > metric            = tetra_distri->GetVert2MetricMap();
@@ -529,12 +666,11 @@ int main(int argc, char** argv)
     std::map<int,int> shellvertTag2ref;
     std::map<int,int> shellvertTag2ref2;
 
-    
-    std::map<int,std::vector<int> >::iterator itvm;
-    for(itvm=bndref2face.begin();itvm!=bndref2face.end();itvm++)
-    {
-        std::cout << "check bndface = " << world_rank << " --> " << itvm->first << " suze " << itvm->second.size() << std::endl;
-    }
+//    std::map<int,std::vector<int> >::iterator itvm;
+//    for(itvm=bndref2face.begin();itvm!=bndref2face.end();itvm++)
+//    {
+//        std::cout << "check bndface = " << world_rank << " --> " << itvm->first << " suze " << itvm->second.size() << std::endl;
+//    }
     
     std::map<int,int>::iterator itt;
     for(itt=shellvert2ref.begin();itt!=shellvert2ref.end();itt++)
@@ -558,16 +694,9 @@ int main(int argc, char** argv)
     int nPrisms                  = 0;
     int nQuadrilaterals          = 0;
     
-
-    std::map<int,int> tag2locV_map = P->getGlobalVert2LocalVert();
-    std::vector<Vert*> localVsPartition = P->getLocalVerts();
-    
-    
-    PrismaticLayer* prsmLyr = new PrismaticLayer(part_global, prisms,
-                                                 ief_part_map->i_map, ifn_part_map->i_map,
-                                                 ife_part_map->i_map, if_ref_part_map->i_map,
-                                                 if_Nv_part_map->i_map, ushell, tag2locV_map,
-                                                 localVsPartition, shellvertOriginalTag2ref_Glob, comm);
+    PrismaticLayer* prsmLyr = new PrismaticLayer(prisms, ief_map, ifn_map, ife_map, ifref_map,
+                                                 if_Nv_map, iferank_map, ushell, tag2locVrtMap,
+												 LocVerts, shellvertOriginalTag2ref_Glob, comm);
     
     nPrisms                                                 = prisms.size();
     DistributedParallelState* distPrismIN                   = new DistributedParallelState(nPrisms,comm);
@@ -589,13 +718,11 @@ int main(int argc, char** argv)
     Array<int>* parmmg_iet_prisms                           = prsmLyr->getElementType();
     std::map<int,int> sharedVmap                            = prsmLyr->getSharedVertexMap();
 
-    
     Array<int>* ifnOUT_prism = new Array<int>(int_face2node_prism.size()+shared_face2node_prism.size(),8);
 
     DistributedParallelState* distPrismIntVerts = new DistributedParallelState(xcn_prisms_int->getNrow(),comm);
     DistributedParallelState* distPrismShaVerts = new DistributedParallelState(xcn_prisms_shared->getNrow(),comm);
 
-    std::map<int,std::vector<int> >::iterator itmm;
     int foundU = 0;
     
     std::map<std::set<int>, int > vertref2shell_prism;
@@ -2392,9 +2519,9 @@ int main(int argc, char** argv)
                 {
                     int lvp  = tag2locV_map[oldtag];
                     Vert* Vf = new Vert;
-                    Vf->x = localVsPartition[lvp]->x;
-                    Vf->y = localVsPartition[lvp]->y;
-                    Vf->z = localVsPartition[lvp]->z;
+                    Vf->x = LocVerts[lvp]->x;
+                    Vf->y = LocVerts[lvp]->y;
+                    Vf->z = LocVerts[lvp]->z;
                     VcF->x = VcF->x + Vf->x;
                     VcF->y = VcF->y + Vf->y;
                     VcF->z = VcF->z + Vf->z;
@@ -2409,9 +2536,9 @@ int main(int argc, char** argv)
                 {
                     int lvp  = tag2locV_map[oldtag];
                     Vert* Vf = new Vert;
-                    Vf->x = localVsPartition[lvp]->x;
-                    Vf->y = localVsPartition[lvp]->y;
-                    Vf->z = localVsPartition[lvp]->z;
+                    Vf->x = LocVerts[lvp]->x;
+                    Vf->y = LocVerts[lvp]->y;
+                    Vf->z = LocVerts[lvp]->z;
                     VcF->x = VcF->x + Vf->x;
                     VcF->y = VcF->y + Vf->y;
                     VcF->z = VcF->z + Vf->z;
@@ -2469,9 +2596,9 @@ int main(int argc, char** argv)
                 int tag  = prisms[leftTag][q];
                 int lvp  = tag2locV_map[tag];
 
-                Vijk->x = Vijk->x + localVsPartition[lvp]->x;
-                Vijk->y = Vijk->y + localVsPartition[lvp]->y;
-                Vijk->z = Vijk->z + localVsPartition[lvp]->z;
+                Vijk->x = Vijk->x + LocVerts[lvp]->x;
+                Vijk->y = Vijk->y + LocVerts[lvp]->y;
+                Vijk->z = Vijk->z + LocVerts[lvp]->z;
             }
 
             Vijk->x = Vijk->x/nvp;
@@ -2547,9 +2674,9 @@ int main(int argc, char** argv)
                 {
                     int lvp  = tag2locV_map[oldtag];
                     Vert* Vf = new Vert;
-                    Vf->x = localVsPartition[lvp]->x;
-                    Vf->y = localVsPartition[lvp]->y;
-                    Vf->z = localVsPartition[lvp]->z;
+                    Vf->x = LocVerts[lvp]->x;
+                    Vf->y = LocVerts[lvp]->y;
+                    Vf->z = LocVerts[lvp]->z;
                     VcF->x = VcF->x + Vf->x;
                     VcF->y = VcF->y + Vf->y;
                     VcF->z = VcF->z + Vf->z;
@@ -2564,9 +2691,9 @@ int main(int argc, char** argv)
                 {
                     int lvp  = tag2locV_map[oldtag];
                     Vert* Vf = new Vert;
-                    Vf->x = localVsPartition[lvp]->x;
-                    Vf->y = localVsPartition[lvp]->y;
-                    Vf->z = localVsPartition[lvp]->z;
+                    Vf->x = LocVerts[lvp]->x;
+                    Vf->y = LocVerts[lvp]->y;
+                    Vf->z = LocVerts[lvp]->z;
                     VcF->x = VcF->x + Vf->x;
                     VcF->y = VcF->y + Vf->y;
                     VcF->z = VcF->z + Vf->z;
@@ -2618,9 +2745,9 @@ int main(int argc, char** argv)
                 int tag  = prisms[leftTag][q];
                 int lvp  = tag2locV_map[tag];
 
-                Vijk->x = Vijk->x + localVsPartition[lvp]->x;
-                Vijk->y = Vijk->y + localVsPartition[lvp]->y;
-                Vijk->z = Vijk->z + localVsPartition[lvp]->z;
+                Vijk->x = Vijk->x + LocVerts[lvp]->x;
+                Vijk->y = Vijk->y + LocVerts[lvp]->y;
+                Vijk->z = Vijk->z + LocVerts[lvp]->z;
             }
 
             Vijk->x = Vijk->x/nvp;
@@ -2833,9 +2960,9 @@ int main(int argc, char** argv)
                         {
                             int lvp  = tag2locV_map[oldtag];
                             Vert* Vf = new Vert;
-                            Vf->x = localVsPartition[lvp]->x;
-                            Vf->y = localVsPartition[lvp]->y;
-                            Vf->z = localVsPartition[lvp]->z;
+                            Vf->x = LocVerts[lvp]->x;
+                            Vf->y = LocVerts[lvp]->y;
+                            Vf->z = LocVerts[lvp]->z;
                             VcF->x = VcF->x + Vf->x;
                             VcF->y = VcF->y + Vf->y;
                             VcF->z = VcF->z + Vf->z;
@@ -2849,9 +2976,9 @@ int main(int argc, char** argv)
                         {
                             int lvp  = tag2locV_map[oldtag];
                             Vert* Vf = new Vert;
-                            Vf->x = localVsPartition[lvp]->x;
-                            Vf->y = localVsPartition[lvp]->y;
-                            Vf->z = localVsPartition[lvp]->z;
+                            Vf->x = LocVerts[lvp]->x;
+                            Vf->y = LocVerts[lvp]->y;
+                            Vf->z = LocVerts[lvp]->z;
                             VcF->x = VcF->x + Vf->x;
                             VcF->y = VcF->y + Vf->y;
                             VcF->z = VcF->z + Vf->z;
@@ -2898,9 +3025,9 @@ int main(int argc, char** argv)
                         int tag  = prisms[leftTag][q];
                         int lvp  = tag2locV_map[tag];
 
-                        Vijk->x = Vijk->x + localVsPartition[lvp]->x;
-                        Vijk->y = Vijk->y + localVsPartition[lvp]->y;
-                        Vijk->z = Vijk->z + localVsPartition[lvp]->z;
+                        Vijk->x = Vijk->x + LocVerts[lvp]->x;
+                        Vijk->y = Vijk->y + LocVerts[lvp]->y;
+                        Vijk->z = Vijk->z + LocVerts[lvp]->z;
                     }
 
                     Vijk->x = Vijk->x/nvp;
@@ -3464,8 +3591,6 @@ int main(int argc, char** argv)
         //===================================================================================
         //===================================================================================
         //===================================================================================
-        
-        /**/
     }
     
     

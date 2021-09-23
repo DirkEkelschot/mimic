@@ -94,6 +94,7 @@ class Partition {
     i_part_map* getIEFpartmap();
     i_part_map* getIENpartmap();
     i_part_map* getIFNpartmap();
+    i_part_map* getIFERankpartmap();
     i_part_map* getIF_Nvpartmap();
     i_part_map* getIFEpartmap();
     i_part_map* getIFREFpartmap();
@@ -180,6 +181,8 @@ class Partition {
       std::map<int,std::vector<double> > part_tot_recv_varias;
       std::map<int,std::vector<int> > reqstd_adj_ids_per_rank;
       
+      i_part_map* if_Erank_part_map;
+     
       i_part_map* if_Nv_part_map;
       i_part_map* ifn2_part_map;
       i_part_map* if_ref_part_map;

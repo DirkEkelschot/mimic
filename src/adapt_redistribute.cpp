@@ -1,12 +1,13 @@
 #include "adapt_redistribute.h"
 
 
-RedistributePartitionObject::RedistributePartitionObject(US3D* us3d, Array<int>* part_global,
+RedistributePartitionObject::RedistributePartitionObject(US3D* us3d,
                         std::map<int,std::vector<int> > tetras,
+						std::map<int,std::vector<int> > iferank_map,
                         std::map<int,std::vector<int> > ief_part_map,
                         std::map<int,std::vector<int> > ifn_part_map,
                         std::map<int,std::vector<int> > ife_part_map,
-                        std::map<int,std::vector<int> > if_ref_part_map,
+                        std::map<int,int > if_ref_part_map,
                         std::map<int,std::vector<int> > ushell,
                         std::map<int,Array<double>* > M_vmap,
                         MPI_Comm comm)
@@ -20,8 +21,8 @@ RedistributePartitionObject::RedistributePartitionObject(US3D* us3d, Array<int>*
     MPI_Comm_rank(comm, &world_rank);
     
     
-    RebasePartitionObject(part_global,
-                          tetras,
+    RebasePartitionObject(tetras,
+						  iferank_map,
                           ief_part_map,
                           ifn_part_map,
                           ife_part_map,
@@ -87,12 +88,13 @@ RedistributePartitionObject::RedistributePartitionObject(US3D* us3d, Array<int>*
 }
 
 
-void RedistributePartitionObject::RebasePartitionObject(Array<int>* part_global,
+void RedistributePartitionObject::RebasePartitionObject(
                                                    std::map<int,std::vector<int> > tetras,
+												   std::map<int,std::vector<int> > iferank_part_map,
                                                    std::map<int,std::vector<int> > ief_part_map,
                                                    std::map<int,std::vector<int> > ifn_part_map,
                                                    std::map<int,std::vector<int> > ife_part_map,
-                                                   std::map<int,std::vector<int> > if_ref_part_map,
+                                                   std::map<int,int> if_ref_part_map,
                                                    std::map<int,std::vector<int> > ushell,
                                                    std::map<int,Array<double>* > M_vmap)
 {
@@ -141,7 +143,7 @@ void RedistributePartitionObject::RebasePartitionObject(Array<int>* part_global,
             }
             else
             {
-                ref = if_ref_part_map[gfid][0];
+                ref = if_ref_part_map[gfid];
             }
             
             
@@ -169,12 +171,12 @@ void RedistributePartitionObject::RebasePartitionObject(Array<int>* part_global,
 
                 el0    = ife_part_map[gfid][0];
                 el1    = ife_part_map[gfid][1];
-
+                
+                r0 	   = iferank_part_map[gfid][0];
+                r1 	   = iferank_part_map[gfid][1];
+                
                 if(ref==2)
                 {
-                    r0 = part_global->getVal(el0,0);
-                    r1 = part_global->getVal(el1,0);
-                    
                     if(r0==world_rank && r1!=world_rank)
                     {
                         sharedFaces[gfid] = r0;
@@ -1559,21 +1561,20 @@ void RedistributePartitionObject::GetNewGlobalPartitioningTetrahedraMesh()
                          tpwgts, ubvec, options,
                          &edgecut, part_arr, &mpi_comm);
 
-    Array<int>* part_global_new  = new Array<int>(o_ie,1);
     Array<int>* part_new         = new Array<int>(optimalSize,1);
 
     part_new->data = part_arr;
     
-    MPI_Allgatherv(&part_new->data[0],
-                   red_ielement_nlocs[world_rank], MPI_INT,
-                   &part_global_new->data[0],
-                   ielement_nlocs,
-                   ielement_offsets,
-                   MPI_INT,mpi_comm);
+//    MPI_Allgatherv(&part_new->data[0],
+//                   red_ielement_nlocs[world_rank], MPI_INT,
+//                   &part_global_new->data[0],
+//                   ielement_nlocs,
+//                   ielement_offsets,
+//                   MPI_INT,mpi_comm);
     
     
     m_part          = part_new;
-    m_part_global   = part_global_new;
+    //m_part_global   = part_global_new;
 
     
 }

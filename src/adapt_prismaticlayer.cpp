@@ -1,12 +1,15 @@
 #include "adapt_prismaticlayer.h"
 
-PrismaticLayer::PrismaticLayer(Array<int>* part_global,
-                               std::map<int,std::vector<int> > elements,
+
+
+    
+PrismaticLayer::PrismaticLayer(std::map<int,std::vector<int> > elements,
                                std::map<int,std::vector<int> > ief_part_map,
                                std::map<int,std::vector<int> > ifn_part_map,
                                std::map<int,std::vector<int> > ife_part_map,
-                               std::map<int,std::vector<int> > if_ref_part_map,
-                               std::map<int,std::vector<int> > if_Nv_part_map,
+                               std::map<int,int> if_ref_part_map,
+                               std::map<int,int> if_Nv_part_map,
+							   std::map<int,std::vector<int> > if_Erank_part_map,
                                std::map<int,std::vector<int> > ushell,
                                std::map<int,int> tag2locV,
                                std::vector<Vert*> locVerts,
@@ -57,10 +60,10 @@ PrismaticLayer::PrismaticLayer(Array<int>* part_global,
             }
             else
             {
-                ref = if_ref_part_map[gfid][0];
+                ref = if_ref_part_map[gfid];
             }
             
-            int nppf = if_Nv_part_map[gfid][0];
+            int nppf = if_Nv_part_map[gfid];
             for(int h=0;h<nppf;h++)
             {
                 gvid = ifn_part_map[gfid][h];
@@ -86,10 +89,13 @@ PrismaticLayer::PrismaticLayer(Array<int>* part_global,
                 el0    = ife_part_map[gfid][0];
                 el1    = ife_part_map[gfid][1];
 
+                r0 	   = if_Erank_part_map[gfid][0];
+                r1 	   = if_Erank_part_map[gfid][1];
+                
                 if(ref==2)
                 {
-                    r0 = part_global->getVal(el0,0);
-                    r1 = part_global->getVal(el1,0);
+//                    r0 = part_global->getVal(el0,0);
+//                    r1 = part_global->getVal(el1,0);
 
                     if(r0==world_rank && r1!=world_rank)
                     {
@@ -134,7 +140,7 @@ PrismaticLayer::PrismaticLayer(Array<int>* part_global,
         shFacesIDs[iter] = itsf->first;
         shFaces_RankIDs[iter] = itsf->second;
         gfid = itsf->first;
-        int nppf = if_Nv_part_map[gfid][0];
+        int nppf = if_Nv_part_map[gfid];
         for(int q=0;q<nppf;q++)
         {
             gvid   = ifn_part_map[gfid][q];
@@ -355,7 +361,7 @@ PrismaticLayer::PrismaticLayer(Array<int>* part_global,
         for(int q=0;q<5;q++)
         {
             gfid = ief_part_map[gEl][q];
-            int nfvrts = if_Nv_part_map[gfid][0];
+            int nfvrts = if_Nv_part_map[gfid];
             // Setting the reference to 13 for the shell faces;
             if(ushell.find(gfid)!=ushell.end())
             {
@@ -364,7 +370,7 @@ PrismaticLayer::PrismaticLayer(Array<int>* part_global,
             }
             else
             {
-                ref                 = if_ref_part_map[gfid][0];
+                ref                 = if_ref_part_map[gfid];
             }
             
             if(facemap.find(gfid)==facemap.end())
@@ -384,8 +390,11 @@ PrismaticLayer::PrismaticLayer(Array<int>* part_global,
                             el0                     = ife_part_map[gfid][0];
                             el1                     = ife_part_map[gfid][1];
                             
-                            r0                      = part_global->getVal(el0,0);
-                            r1                      = part_global->getVal(el1,0);
+                            r0 	   = if_Erank_part_map[gfid][0];
+                            r1 	   = if_Erank_part_map[gfid][1];
+                            
+//                            r0                      = part_global->getVal(el0,0);
+//                            r1                      = part_global->getVal(el1,0);
                             
                             if(r0==world_rank && r1!=world_rank)
                             {
@@ -424,7 +433,7 @@ PrismaticLayer::PrismaticLayer(Array<int>* part_global,
                     {
                         if(InternalFace2Node.find(gfid)==InternalFace2Node.end())
                         {
-                            int nfvrts         = if_Nv_part_map[gfid][0];
+                            int nfvrts         = if_Nv_part_map[gfid];
                             
                             std::vector<int> fn_tag(nfvrts);
 
@@ -463,7 +472,7 @@ PrismaticLayer::PrismaticLayer(Array<int>* part_global,
                         
                         if(BoundaryFace2Node.find(gfid)==BoundaryFace2Node.end())
                         {
-                            int nfvrts         = if_Nv_part_map[gfid][0];
+                            int nfvrts         = if_Nv_part_map[gfid];
                             std::vector<int> fn_tag(nfvrts);
                             for(int n=0;n<nfvrts;n++)
                             {

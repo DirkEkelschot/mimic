@@ -68,10 +68,10 @@ struct Domain
     int ncomm;
     std::vector<int> faces_ref;
     std::vector<std::vector<int> > faces_part;
-    int* ntifc;
-    int* color_face;
-    std::vector<int* > ifc_tria_loc;
-    std::vector<int* > ifc_tria_glob;
+//    int* ntifc;
+//    int* color_face;
+//    std::vector<int* > ifc_tria_loc;
+//    std::vector<int* > ifc_tria_glob;
     std::map<int,std::vector<int> > Elements;
     std::map<int,std::vector<int> > Hexes;
     std::map<int,std::vector<int> > Prisms;

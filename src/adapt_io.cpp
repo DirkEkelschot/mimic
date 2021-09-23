@@ -2779,13 +2779,13 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
     }
     
     
-    for(int q=0;q<if_ref_copy->getNrow();q++)
-    {
-        if(if_ref_copy->getVal(q,0)!=3 && if_ref_copy->getVal(q,0)!=7 && if_ref_copy->getVal(q,0)!=10 && if_ref_copy->getVal(q,0)!=36 && if_ref_copy->getVal(q,0)!=2)
-        {
-            std::cout<<"while reading TEFFIE " << if_ref_copy->getVal(q,0) << std::endl;
-        }
-    }
+//    for(int q=0;q<if_ref_copy->getNrow();q++)
+//    {
+//        if(if_ref_copy->getVal(q,0)!=3 && if_ref_copy->getVal(q,0)!=7 && if_ref_copy->getVal(q,0)!=10 && if_ref_copy->getVal(q,0)!=36 && if_ref_copy->getVal(q,0)!=2)
+//        {
+//            std::cout<<"while reading TEFFIE " << if_ref_copy->getVal(q,0) << std::endl;
+//        }
+//    }
     
     
     delete ifn;
