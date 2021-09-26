@@ -188,15 +188,19 @@ int main(int argc, char** argv)
     const char* fn_grid="../test_mesh/cylinder_hybrid/grid.h5";
     const char* fn_conn="../test_mesh/cylinder_hybrid/conn.h5";
     const char* fn_data="../test_mesh/cylinder_hybrid/data.h5";
+    
+//    const char* fn_grid="msl_test2/grid.h5";
+//    const char* fn_conn="msl_test2/conn.h5";
+//    const char* fn_data="msl_test2/data.h5";
     const char* fn_metric = "metric.inp";
     
     std::vector<double> metric_inputs = ReadMetricInputs(fn_metric);
     
     int ReadFromStats = 0;
-    if(metric_inputs.size()==6)
-    {
-        ReadFromStats=metric_inputs[5];
-    }
+//    if(metric_inputs.size()==6)
+//    {
+//        ReadFromStats=metric_inputs[5];
+//    }
     
     US3D* us3d    = ReadUS3DData(fn_conn,fn_grid,fn_data,ReadFromStats,comm,info);
     int Nve       = us3d->xcn->getNglob();
@@ -292,7 +296,7 @@ int main(int argc, char** argv)
     delete us3d->ie_Nf;
 //  delete us3d->ifn;
     delete us3d->ife;
-    delete us3d->if_ref;
+    //delete us3d->if_ref;
     delete us3d->if_Nv;
 //  delete us3d->xcn;
     
@@ -380,7 +384,7 @@ int main(int argc, char** argv)
     dU2dXi2.clear();
     dU2dYi2.clear();
     dU2dZi2.clear();
-    std::cout << "Done computing the Hessian"<<std::endl;
+    //std::cout << "Done computing the Hessian"<<std::endl;
 
     
     double* Hessie = new double[9];
@@ -474,7 +478,7 @@ int main(int argc, char** argv)
     cmplxty_red = Nve/cmplxty_red;
     
     ComputeMetric(P, metric_inputs, comm, hess_vmap, 1.0, po);
-    std::cout << "Done computing the metric"<<std::endl;
+    //std::cout << "Done computing the metric"<<std::endl;
     //std::cout << "understand bitshift " << world_rank << "  " << (world_rank & (~(1 << 3)))<< std::endl;
     //std::vector<int> LocElem     = P->getLocElem();
 
@@ -619,7 +623,7 @@ int main(int argc, char** argv)
         LocVerts[q] = val;
     }
 
-    std::cout << "Copied all relevant data over " << std::endl;
+    //std::cout << "Copied all relevant data over " << std::endl;
 	
 	delete P;
     
@@ -666,11 +670,11 @@ int main(int argc, char** argv)
     std::map<int,int> shellvertTag2ref;
     std::map<int,int> shellvertTag2ref2;
 
-//    std::map<int,std::vector<int> >::iterator itvm;
-//    for(itvm=bndref2face.begin();itvm!=bndref2face.end();itvm++)
-//    {
-//        std::cout << "check bndface = " << world_rank << " --> " << itvm->first << " suze " << itvm->second.size() << std::endl;
-//    }
+    
+
+    
+    
+    
     
     std::map<int,int>::iterator itt;
     for(itt=shellvert2ref.begin();itt!=shellvert2ref.end();itt++)
@@ -718,8 +722,7 @@ int main(int argc, char** argv)
     Array<int>* parmmg_iet_prisms                           = prsmLyr->getElementType();
     std::map<int,int> sharedVmap                            = prsmLyr->getSharedVertexMap();
 
-    Array<int>* ifnOUT_prism = new Array<int>(int_face2node_prism.size()+shared_face2node_prism.size(),8);
-
+    
     DistributedParallelState* distPrismIntVerts = new DistributedParallelState(xcn_prisms_int->getNrow(),comm);
     DistributedParallelState* distPrismShaVerts = new DistributedParallelState(xcn_prisms_shared->getNrow(),comm);
 
@@ -739,8 +742,35 @@ int main(int argc, char** argv)
             vertref2shell_prism[shellface2vertref[fhyb]] = EprismNew;
             foundU++;
         }
+        else
+        {
+           std::cout << "Fhyb NotFound-> " << fhyb << " " << world_rank << std::endl;
+        }
+        
         nshell++;
     }
+    
+    if(world_rank == 0)
+    {
+        int foundU2 = 0;
+        std::map<int,std::set<int> >::iterator itmms;
+        for(itmms=shellface2vertref.begin();itmms!=shellface2vertref.end();itmms++)
+        {
+            int fhyb      = itmms->first;
+
+            if(ushell.find(fhyb)!=ushell.end())
+            {
+                foundU2++;
+            }
+            else
+            {
+               std::cout << "Fhyb NotFound Reverse Test-> " << fhyb << " " << world_rank << std::endl;
+            }
+            
+            //nshell++;
+        }
+    }
+    
     
     
     //===============================================================================================
@@ -800,6 +830,7 @@ int main(int argc, char** argv)
          MPI_Finalize();
          exit(EXIT_FAILURE);
         }
+        delete[] tensor;
     }
     
    
@@ -809,8 +840,6 @@ int main(int argc, char** argv)
     int refer  = 0;
     int cref36 = 0;
     double* c0 = new double[3];
-    std::map<int,int> vidConsidered;
-    std::map<std::set<int>, int> faceUvids;
     int iref;
     int c13 = 0;
     int suc = 0;
@@ -875,11 +904,6 @@ int main(int argc, char** argv)
                         sft_t.insert(vertref);
                         
                     }
-
-//                    if(vertref2shell_prism.find(sf)!=vertref2shell_prism.end())
-//                    {
-//                        shelfound++;
-//                    }
                     
                     sft_t.clear();
                 }
@@ -947,9 +971,11 @@ int main(int argc, char** argv)
             MPI_Finalize();
             exit(EXIT_FAILURE);
         }
+        
+        delete[] P;
     }
     
-    int niter = 3;
+    int niter = 2;
     
     if( !PMMG_Set_iparameter( parmesh, PMMG_IPARAM_niter, niter ) ) {
       MPI_Finalize();
@@ -984,8 +1010,64 @@ int main(int argc, char** argv)
       exit(EXIT_FAILURE);
     };
     
-
     
+    
+    
+//    //======================================================================
+//    //======================================================================
+//    //======================================================================
+//
+//    // Destructor of redistribute functions;
+//
+//    delete element2node;
+//    std::map<int,Array<double>* >::iterator itdes;
+//    for(itdes = metric.begin();itdes != metric.end(); itdes++ )
+//    {
+//        delete itdes->second;
+//    }
+//
+//    for(int q=0;q<locVs.size();q++)
+//    {
+//        delete locVs[q];
+//    }
+//
+//    std::map<int,int*>::iterator itpdes;
+//    for(itpdes = face2node.begin();itpdes != face2node.end(); itpdes++ )
+//    {
+//        delete[] itpdes->second;
+//    }
+////    delete[] color_face;
+////    delete[] ntifc;
+////
+////
+////    shellface2vertref.clear();
+//    bndref2face.clear(); //not necessary
+//    face2element.clear(); //not necessary
+//    faces4parmmg.clear();
+//    globV2locV.clear();
+//    locV2globV.clear();
+//    locShF2globShF.clear();
+//    face2ref.clear();
+//    shell_tet2hybF.clear();
+//    shellvert2ref.clear();
+//    shellface2vertref.clear();
+//    shellvert2ref_local.clear();
+//    tetF2hybF.clear();
+//    tetV2tagV.clear();
+////    shellvertOriginalTag2ref_Glob.clear();
+//    bndref2face.clear();
+//
+//    //delete prsmLyr;
+//    //======================================================================
+//    //======================================================================
+//    //======================================================================
+
+    DistributedParallelState* distTetraB = new DistributedParallelState(nTetrahedra,comm);
+    DistributedParallelState* distPrismB = new DistributedParallelState(nPrisms,comm);
+    int ToTElements_prism_bef           = distPrismB->getNel();
+    int ToTElements_bef                 = distTetraB->getNel();
+    
+    //std::cout << "number of tets per rank  " << world_rank << " ("<<nTetrahedra<<", " << ToTElements_bef << ") (" << nPrisms <<", " << ToTElements_prism_bef <<")" << std::endl;
     
     int ierlib = PMMG_parmmglib_distributed( parmesh );
     
@@ -1624,7 +1706,7 @@ int main(int argc, char** argv)
         std::map<int,int> shelltag2tag;
         int hellofound = 0;
         
-        std::cout << "Start ID for tets on rank = " << curElID << std::endl;
+        //std::cout << "Start ID for tets on rank = " << curElID << std::endl;
         
         for ( k=0; k<nTetrahedraOUT; k++ )
         {
@@ -1824,7 +1906,14 @@ int main(int argc, char** argv)
 
             delete[] P;
         }
-        
+       
+        if(hellofound!=PMMG_Shell2Prism.size())
+        {
+            std::cout << "NOTIFIED !!!" << std::endl;
+        }
+        std::cout << world_rank << " --> " << rhshell.size() << " " << fmShell.size() << " " << hellofound << " " << PMMG_Shell2Prism.size() << std::endl;
+
+        //std::cout << "HELLO FOUND " << world_rank << ":: "<<shellface2vertref.size() << " " << ushell.size() << " " << foundU << " " <<vertref2shell_prism.size() << " " << prismFound << " " <<  hellofound << " " << PMMG_ShellFaces.size() << " " << PMMG_Shell2Prism.size() << std::endl;
         
         std::map<int,int> tag2shelltag_glob = AllGatherMap(tag2shelltag,comm);
         std::map<int,int> shelltag2tag_glob = AllGatherMap(shelltag2tag,comm);
@@ -2037,7 +2126,10 @@ int main(int argc, char** argv)
             ifnOUT->setVal(ftot,5,rh[fid]);
             ifnOUT->setVal(ftot,6,lh[fid]);
             ifnOUT->setVal(ftot,7,2);
-
+	    if(rh[fid] == 0)
+	    {
+		std::cout <<"Found the face -> " << fid << " " << world_rank << " " << lh[fid] << std::endl;
+	    }
             ftot++;
         }
         
@@ -2274,6 +2366,11 @@ int main(int argc, char** argv)
             ifnOUT->setVal(ftot,5,elRh);
             ifnOUT->setVal(ftot,6,elLh);
             ifnOUT->setVal(ftot,7,2);
+	    
+	    if(elRh == 0)
+            {    
+                std::cout <<"Found the face in shared -> " << fid << " " << world_rank << " " << elLh << std::endl;
+            } 
 
             ftot++;
         }
@@ -2359,6 +2456,7 @@ int main(int argc, char** argv)
             {
                 elRh = rh[fid];
                 elLh = lhshell[fid];
+		std::cout << "NotFound!" << rh[fid] << " " << lhshell[fid] << " " << rhshell[fid] << std::endl;
                 notsh++;
             }
             else
@@ -2407,12 +2505,20 @@ int main(int argc, char** argv)
             ifnOUT->setVal(ftot,5,elRh);
             ifnOUT->setVal(ftot,6,elLh);
             ifnOUT->setVal(ftot,7,2);
-            
+            if(elRh == 0)
+            {     
+                std::cout <<"Found the face in shell -> " << fid << " " << world_rank << " " << elLh << std::endl;
+            } 
+
             Vfaces.clear();
 
             ftot++;
         }
-        
+      
+        if(notsh != 0)
+	{
+		std::cout << world_rank << " found notsh " << std::endl;
+	} 
         
         std::map<int,int> shelltag2glob_glob = AllGatherMap(shelltag2glob,comm);
         
@@ -2498,6 +2604,9 @@ int main(int argc, char** argv)
         std::map<int,int> collect2;
         int cn = 0;
         int fshell = 0;
+        
+        Array<int>* ifnOUT_prism = new Array<int>(int_face2node_prism.size()+shared_face2node_prism.size(),8);
+        
         for( prit=int_face2node_prism.begin();prit!=int_face2node_prism.end();prit++)
         {
             int gfid    = prit->first;
@@ -2647,7 +2756,10 @@ int main(int argc, char** argv)
             ifnOUT_prism->setVal(fptot,5,rhp[gfid]);
             ifnOUT_prism->setVal(fptot,6,lhp[gfid]);
             ifnOUT_prism->setVal(fptot,7,2);
-
+	    if(rhp[gfid] == 0)
+            {     
+                std::cout <<"Found the face -> prism " << gfid << " " << world_rank << " " << lhp[gfid] << std::endl;
+            } 
             fptot++;
             pid++;
         }
@@ -2795,6 +2907,11 @@ int main(int argc, char** argv)
             ifnOUT_prism->setVal(fptot,6,lhp[gfid]);
             ifnOUT_prism->setVal(fptot,7,2);
             
+	    if(rhp[gfid] == 0)
+            {
+                std::cout <<"Found the face -> prism shared " << gfid << " " << world_rank << " " << lhp[gfid] << std::endl;
+            }
+
             fptot++;
             pid++;
         }
@@ -3184,16 +3301,17 @@ int main(int argc, char** argv)
         }
 
         int nPrismOUT = parmmg_iet_prisms->getNrow();
-        DistributedParallelState* distTetra      = new DistributedParallelState(nTetrahedraOUT,comm);
-        DistributedParallelState* distPrism      = new DistributedParallelState(nPrismOUT,comm);
+
         DistributedParallelState* distTetraVerts = new DistributedParallelState(xcn_parmmg->getNrow(),comm);
         DistributedParallelState* distPrismVerts = new DistributedParallelState(xcn_prisms_int->getNrow()+xcn_prisms_shared->getNrow(),comm);
         
         
+        DistributedParallelState* distTetra      = new DistributedParallelState(nTetrahedraOUT,comm);
+        DistributedParallelState* distPrism      = new DistributedParallelState(nPrismOUT,comm);
         int ToTElements_prism           = distPrism->getNel();
-        int ToTElements_offset_prism    = distPrism->getOffsets()[world_rank];
-        
         int ToTElements                 = distTetra->getNel();
+
+        int ToTElements_offset_prism    = distPrism->getOffsets()[world_rank];
         int ToTElements_offset          = distTetra->getOffsets()[world_rank];
         int nTotTetraVerts_v2           = distTetraVerts->getNel();
 

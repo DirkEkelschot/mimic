@@ -47,7 +47,7 @@ class RedistributePartitionObject{
                                          ParallelState* xcn_pstate,
                                          ParallelState* ife_pstate);
     
-        void GetFace2NodeRedistributedMesh(ParArray<int>* ife, int ncol, ParallelState* ife_pstate, int nGlob, MPI_Comm comm);
+        void GetFace2NodeRedistributedMesh(ParArray<int>* ife, ParArray<int>* if_ref, int ncol, ParallelState* ife_pstate, int nGlob, std::map<int,std::vector<int> > ushell, MPI_Comm comm);
     
         void GetFace2RankTetrahedraMesh();
     

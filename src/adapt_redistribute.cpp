@@ -77,8 +77,8 @@ RedistributePartitionObject::RedistributePartitionObject(US3D* us3d,
     
     //std::cout << "after world " << world_rank << " #elements " << ief_part_hybrid->getNrow() << " " << m_M_vmap.size() << std::endl;
     
-    GetFace2NodeRedistributedMesh(us3d->ifn, 3, ife_pstate,
-                                  nTetrahedraGlob,mpi_comm);
+    GetFace2NodeRedistributedMesh(us3d->ifn, us3d->if_ref, 3, ife_pstate,
+                                  nTetrahedraGlob, ushell, mpi_comm);
     
     GetFace2RankTetrahedraMesh();
     //GetShellVert2RefMap();
@@ -2372,7 +2372,7 @@ void RedistributePartitionObject::UpdateTetrahedraOnPartition(int nglob,
 
 
 
-void RedistributePartitionObject::GetFace2NodeRedistributedMesh(ParArray<int>* ife, int ncol, ParallelState* ife_pstate, int nGlob, MPI_Comm comm)
+void RedistributePartitionObject::GetFace2NodeRedistributedMesh(ParArray<int>* ife, ParArray<int>* if_ref, int ncol, ParallelState* ife_pstate, int nGlob, std::map<int,std::vector<int> > ushell, MPI_Comm comm)
 {
     
     //std::map<int,std::vector<int> > face2element;
@@ -2512,7 +2512,7 @@ void RedistributePartitionObject::GetFace2NodeRedistributedMesh(ParArray<int>* i
     int nloc_xcn = 0;
     std::map<int,int > recv_back_Nife;
     std::map<int,int* > recv_back_face_ids;
-    std::map<int,double* > recv_back_ife;
+    std::map<int,int* > recv_back_ife;
     std::map<int,int* > recv_back_ifeRef;
     int n_recv_back;
     
@@ -2523,15 +2523,23 @@ void RedistributePartitionObject::GetFace2NodeRedistributedMesh(ParArray<int>* i
             for (it = reqstd_F_IDs_per_rank.begin(); it != reqstd_F_IDs_per_rank.end(); it++)
             {
                 int nf_send             = it->second.size();
-                double* ife_send        = new double[nf_send*ncol];
-                double* ifeRef_send     = new double[nf_send*1];
+                int* ife_send        = new int[nf_send*ncol];
+                int* ifeRef_send     = new int[nf_send*1];
 
                 int offset_ife          = ife_pstate->getOffset(rank);
                 
                 for(int u=0;u<it->second.size();u++)
                 {
                     int faceID     = it->second[u];
-                    ifeRef_send[u] = ife->getVal(it->second[u]-offset_ife,4);
+                    //ifeRef_send[u] = ife->getVal(it->second[u]-offset_ife,4);
+                    if(ushell.find(faceID)!=ushell.end())
+                    {
+                        ifeRef_send[u] = 13;
+                    }
+                    else
+                    {
+                        ifeRef_send[u] = if_ref->getVal(it->second[u]-offset_ife,0);
+                    }
                     
                     for(int h=0;h<ncol;h++)
                     {
@@ -2544,7 +2552,7 @@ void RedistributePartitionObject::GetFace2NodeRedistributedMesh(ParArray<int>* i
                 
                 MPI_Send(&it->second[0], nf_send, MPI_INT, dest, 9876*7777+dest*888, comm);
 
-                MPI_Send(&ife_send[0], nf_send*ncol, MPI_DOUBLE, dest, 9876*6666+dest*8888, comm);
+                MPI_Send(&ife_send[0], nf_send*ncol, MPI_INT, dest, 9876*6666+dest*8888, comm);
                 
                 MPI_Send(&ifeRef_send[0], nf_send*1, MPI_INT, dest, 9876*9999+dest*8888, comm);
 
@@ -2555,12 +2563,12 @@ void RedistributePartitionObject::GetFace2NodeRedistributedMesh(ParArray<int>* i
          {
             MPI_Recv(&n_recv_back, 1, MPI_INT, q, 9876*6666+1000*rank, comm, MPI_STATUS_IGNORE);
              
-            double* recv_back_ife_arr   = new double[n_recv_back*ncol];
+            int* recv_back_ife_arr   = new int[n_recv_back*ncol];
             int*    recv_back_ids_arr   = new int[n_recv_back];
             int*  recv_back_ifeRef_arr  = new int[n_recv_back];
              
             MPI_Recv(&recv_back_ids_arr[0], n_recv_back, MPI_INT, q, 9876*7777+rank*888, comm, MPI_STATUS_IGNORE);
-            MPI_Recv(&recv_back_ife_arr[0], n_recv_back*ncol, MPI_DOUBLE, q, 9876*6666+rank*8888, comm, MPI_STATUS_IGNORE);
+            MPI_Recv(&recv_back_ife_arr[0], n_recv_back*ncol, MPI_INT, q, 9876*6666+rank*8888, comm, MPI_STATUS_IGNORE);
              MPI_Recv(&recv_back_ifeRef_arr[0], n_recv_back*1, MPI_INT, q, 9876*9999+rank*8888, comm, MPI_STATUS_IGNORE);
 
             recv_back_Nife[q]       = n_recv_back;
@@ -2588,7 +2596,7 @@ void RedistributePartitionObject::GetFace2NodeRedistributedMesh(ParArray<int>* i
             
             if(hybF2tetF.find(face_id)!=hybF2tetF.end())
             {
-                ftet = hybF2tetF[iter->first];
+                ftet = hybF2tetF[face_id];
                 face2ref_v2[ftet] = face_ref;
             }
             
