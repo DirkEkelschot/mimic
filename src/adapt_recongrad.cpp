@@ -38,8 +38,8 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_Vrt_US3D(Partition* Pa, std::map<i
    int lid = 0;
    double u_ijk, u_po;
     
-   int el_contr = 0;
-   int nadj_el = 0;
+   int el_contr = 1;
+   int nadj_el  = 0;
 
    std::map<int,int> LocElem2Nf = Pa->getLocElem2Nf();
    std::map<int,int> LocElem2Nv = Pa->getLocElem2Nv();

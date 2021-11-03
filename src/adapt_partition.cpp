@@ -597,7 +597,6 @@ void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief,
             TotRecvElement_NFs.push_back(part_tot_recv_elNFs_map[totrecv->first][r]);
             TotRecvElement_varia.push_back(part_tot_recv_varias_map[totrecv->first][r]);
             TotRecvElement_tett.push_back(part_tot_recv_tett_map[totrecv->first][r]);
-
         }
         TotNelem_recv = TotNelem_recv + totrecv->second.size();
     }
@@ -2252,7 +2251,7 @@ std::vector<double> Partition::PartitionAuxilaryData(Array<double>* U, MPI_Comm 
     int rank;
     MPI_Comm_rank(comm, &rank);
     std::map<int,std::vector<double> > aux_to_send_to_ranks;
-    std::map<int,double> elid_2_auxVal;
+    //std::map<int,double> elid_2_auxVal;
     std::vector<double> aux_on_rank;
     
 
@@ -2268,9 +2267,12 @@ std::vector<double> Partition::PartitionAuxilaryData(Array<double>* U, MPI_Comm 
         {
             aux_to_send_to_ranks[p_id].push_back(aux);
         }
-        
-        UauxElem.push_back(aux);
-        elid_2_auxVal[el_id] = aux;
+        else
+        {
+            UauxElem.push_back(aux);
+        }
+    
+        //elid_2_auxVal[el_id] = aux;
 
 
     }
@@ -2313,12 +2315,14 @@ std::vector<double> Partition::PartitionAuxilaryData(Array<double>* U, MPI_Comm 
     {
         for(int s=0;s<it2->second.size();s++)
         {
-            el_id = part_tot_recv_elIDs[it2->first][s];
+            //el_id = part_tot_recv_elIDs[it2->first][s];
             UauxElem.push_back(it2->second[s]);
-            elid_2_auxVal[el_id] = it2->second[s];
+            //elid_2_auxVal[el_id] = it2->second[s];
         }
     }
     
+    
+    /*
     // Once the aux data is send and received by all processors based on the partition array.
     // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     // reqstd_adj_ids_per_rank is data structure that is part of the Partition Object;
@@ -2372,7 +2376,7 @@ std::vector<double> Partition::PartitionAuxilaryData(Array<double>* U, MPI_Comm 
         }
     }
     
-    /*
+    
     recv_FromRanks_aux.clear();
     recv_adj_back_aux.clear();
     elid_2_auxVal.clear();
@@ -3174,6 +3178,8 @@ void Partition::CreatePartitionDomainTest()
     int lv,gv,nfaces,Nvface,ref,faceid;
     
     std::map<int,std::vector<int> > ushell;
+    std::map<int,Vert*> ushell_centroid;
+
     std::vector<int> ushell_vec;
     
     std::map<int,int> elem2Nf;
@@ -3190,7 +3196,7 @@ void Partition::CreatePartitionDomainTest()
     std::vector<int> left_tet;
     std::vector<int> right_prism;
     std::vector<int> shell_faceid;
-    
+    std::vector<Vert*> centroids;
     for(itm  = ief_part_map->i_map.begin();
         itm != ief_part_map->i_map.end();
         itm++)
@@ -3207,13 +3213,7 @@ void Partition::CreatePartitionDomainTest()
             {
                 ufaces.insert(faceid);
                 Nvface = if_Nv_part_map->i_map[faceid][0];
-//                if(ref != 0 && ref != 2)
-//                {
-//                    if(Nvface==4)
-//                    {
-//                        prism_BndFaces[ref].push_back(faceid);
-//                    }
-//                }
+
                 
                 el0    = ife_part_map->i_map[faceid][0];
                 el1    = ife_part_map->i_map[faceid][1];
@@ -3233,6 +3233,26 @@ void Partition::CreatePartitionDomainTest()
                             
                             ushell[faceid].push_back(el0);
                             ushell[faceid].push_back(el1);
+                            
+                            Vert* centroid = new Vert;
+
+                            for(int s=0;s<Nvface;s++)
+                            {
+                                int gvid = ife_part_map->i_map[faceid][s];
+                                int lvid = GlobalVert2LocalVert[gvid];
+                                
+                                centroid->x = centroid->x + LocalVerts[lvid]->x;
+                                centroid->y = centroid->y + LocalVerts[lvid]->y;
+                                centroid->z = centroid->z + LocalVerts[lvid]->z;
+                            }
+
+                            centroid->x = centroid->x / Nvface;
+                            centroid->y = centroid->y / Nvface;
+                            centroid->z = centroid->z / Nvface;
+                            centroids.push_back(centroid);
+
+                            //ushell_centroid[faceid] = centroid;
+
                         }
                         else
                         {
@@ -3242,6 +3262,27 @@ void Partition::CreatePartitionDomainTest()
                             
                             ushell[faceid].push_back(el1);
                             ushell[faceid].push_back(el0);
+                            
+                            double cx = 0.0;
+                            double cy = 0.0;
+                            double cz = 0.0;
+                            
+                            Vert* centroid = new Vert;
+                            for(int s=0;s<Nvface;s++)
+                            {
+                                int gvid = ife_part_map->i_map[faceid][s];
+                                int lvid = GlobalVert2LocalVert[gvid];
+                                
+                                centroid->x = centroid->x + LocalVerts[lvid]->x;
+                                centroid->y = centroid->y + LocalVerts[lvid]->y;
+                                centroid->z = centroid->z + LocalVerts[lvid]->z;
+                            }
+
+                            centroid->x = centroid->x / Nvface;
+                            centroid->y = centroid->y / Nvface;
+                            centroid->z = centroid->z / Nvface;
+                            centroids.push_back(centroid);
+                            //ushell_centroid[faceid] = centroid;
                         }
                     }
                 }
@@ -3253,22 +3294,34 @@ void Partition::CreatePartitionDomainTest()
     int* loc_lhtets      = new int[nLocShellF];
     int* loc_rhprisms    = new int[nLocShellF];
     int* loc_shellFid    = new int[nLocShellF];
-    
+    double* loc_centroids    = new double[nLocShellF*3];
+
     for(int q=0;q<nLocShellF;q++)
     {
         loc_lhtets[q] = left_tet[q];
         loc_rhprisms[q] = right_prism[q];
         loc_shellFid[q] = shell_faceid[q];
+        loc_centroids[q*3+0] = centroids[q]->x;
+        loc_centroids[q*3+1] = centroids[q]->y;
+        loc_centroids[q*3+2] = centroids[q]->z;
+        
+        delete centroids[q];
+        
     }
     
     DistributedParallelState* ltet = new DistributedParallelState(left_tet.size(),comm_p);
+    
+    DistributedParallelState* lcent = new DistributedParallelState(left_tet.size()*3,comm_p);
     
     int nShellFs   = ltet->getNel();
     int* lhtets    = new int[nShellFs];
     int* rhprisms  = new int[nShellFs];
     int* shellFid  = new int[nShellFs];
+    double* centroids_g  = new double[nShellFs*3];
+
     std::map<int,std::vector<int> > shallLayout;
-    
+    std::map<int,Vert* > shallLayout_centroid;
+
     MPI_Allgatherv(loc_lhtets,
                    nLocShellF,
                    MPI_INT,
@@ -3292,18 +3345,37 @@ void Partition::CreatePartitionDomainTest()
                    ltet->getNlocs(),
                    ltet->getOffsets(),
                    MPI_INT,comm_p);
+    
+    
+    MPI_Allgatherv(loc_centroids,
+                   nLocShellF*3,
+                   MPI_DOUBLE,
+                   centroids_g,
+                   lcent->getNlocs(),
+                   lcent->getOffsets(),
+                   MPI_INT,comm_p);
 //
+    
+    delete[] loc_centroids;
+    
     int sfid;
     for(int i=0;i<nShellFs;i++)
     {
         sfid = shellFid[i];
+        
         if(shallLayout.find(sfid)==shallLayout.end())
         {
             std::vector<int> TetPrism(2);
-            TetPrism[0] = lhtets[i];
-            TetPrism[1] = rhprisms[i];
-            shallLayout[sfid] = TetPrism;
+            TetPrism[0]                = lhtets[i];
+            TetPrism[1]                = rhprisms[i];
+            shallLayout[sfid]          = TetPrism;
             
+            Vert* vc = new Vert;
+            vc->x = centroids_g[i*3+0];
+            vc->x = centroids_g[i*3+1];
+            vc->x = centroids_g[i*3+2];
+            
+            shallLayout_centroid[sfid] = vc;
         }
     }
           
@@ -3376,6 +3448,7 @@ void Partition::CreatePartitionDomainTest()
     }
     
     pDom->ushell           = shallLayout;
+    pDom->ushell_centroid  = shallLayout_centroid;
 //    pDom->ncomm           = ncomm;
 //    pDom->faces_ref       = faces_ref;
 //    pDom->faces_part      = faces_part;

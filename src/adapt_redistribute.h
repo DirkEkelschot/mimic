@@ -78,6 +78,7 @@ class RedistributePartitionObject{
         std::map<int,int> GetVertTag2RefLocalMap();
         std::map<int,int > GetShellVert2RefMap_Local();
         std::map<int,int > GetShellVertTag2RefMap_Global();
+        std::map<int,Vert*> GetShellVertCoords2RefMap_Global();
         std::map<int,std::vector<int> > GetBndRef2FaceMap();
     private:
         MPI_Comm mpi_comm;
@@ -155,6 +156,7 @@ class RedistributePartitionObject{
         std::map<int,int> m_ShellVidConsidered;
         std::map<int,std::vector<int> > m_ShellFace2Vert;
         std::map<int,std::set<int> > m_ShellFace2VertRef;
+        std::map<int,Vert*> m_shellVertCoords2Ref;
 };
 
 #endif

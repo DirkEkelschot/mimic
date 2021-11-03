@@ -24,6 +24,25 @@ std::vector<double> ReadMetricInputs(const char* fn_metric)
 }
 
 
+double ReadStatisticsTimeFromRunInFileInParallel(const char* file_name, const char* run_name, MPI_Comm comm, MPI_Info info)
+{
+    int size;
+    MPI_Comm_size(comm, &size);
+
+    // Get the rank of the process;
+    int rank;
+    MPI_Comm_rank(comm, &rank);
+    herr_t ret;
+    double stime;
+    hid_t file_id        = H5Fopen(file_name, H5F_ACC_RDONLY,H5P_DEFAULT);
+    hid_t group_id       = H5Gopen(file_id,"solution",H5P_DEFAULT);
+    hid_t run_id         = H5Gopen(group_id,run_name,H5P_DEFAULT);
+    hid_t attr           = H5Aopen(run_id,"stats_time", H5P_DEFAULT);
+    ret                  = H5Aread(attr, H5T_NATIVE_DOUBLE, &stime);
+        
+    return stime;
+}
+
 
 
 
@@ -2641,16 +2660,77 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
     ParArray<int>* ifn = ReadDataSetFromFileInParallel<int>(fn_grid,"ifn",comm,info);
     ParArray<int>* ife = ReadDataSetFromFileInParallel<int>(fn_conn,"ife",comm,info);
 
-    
+    int Nel_loc = ien->getNrow();
+
     int Nel = ien->getNglob();
     ParArray<double>* interior;
+    ParArray<double>* mean;
+    ParArray<double>* stats;
     if(readFromStats==1)
     {
-        interior  = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_1","stats-mean",0,Nel,comm,info);
+        double time_stats = ReadStatisticsTimeFromRunInFileInParallel(fn_data,"run_1",comm,info);
+        
+        interior = new ParArray<double>(Nel,2,comm);
+        mean  = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_1","stats-mean",0,Nel,comm,info);
+
+        double rhoState,uState,vState,wState,TState,VtotState,aState,MState;
+        
+        if(rank == 0)
+        {
+            std::cout << "Statistics time = " << time_stats << std::endl;
+        }
+        Array<double>* vel_mean = new Array<double>(Nel_loc,3);
+        for(int u=0;u<Nel_loc;u++)
+        {
+            
+            rhoState = mean->getVal(u,0)/time_stats;
+            uState   = mean->getVal(u,1)/time_stats;
+            vState   = mean->getVal(u,2)/time_stats;
+            wState   = mean->getVal(u,3)/time_stats;
+            TState   = mean->getVal(u,4)/time_stats;
+            vel_mean->setVal(u,0,uState);
+            vel_mean->setVal(u,1,vState);
+            vel_mean->setVal(u,2,wState);
+            VtotState = sqrt(uState*uState+vState*vState+wState*wState);
+            aState   = sqrt(1.4*287.05*TState);
+            MState = VtotState/aState;
+            interior->setVal(u,1,MState);
+        }
+        
+        stats  = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_1","stats-stat",0,Nel,comm,info);
+        //std::cout << "stats size " << stats->getNrow() << " " << stats->getNcol() << std::endl;
+        double upup,vpvp,wpwp,tke;
+        std::vector<double> tkevec(Nel_loc);
+        for(int u=0;u<Nel_loc;u++)
+        {
+            upup = stats->getVal(u,0)/time_stats-vel_mean->getVal(u,0)*vel_mean->getVal(u,0);
+            vpvp = stats->getVal(u,1)/time_stats-vel_mean->getVal(u,1)*vel_mean->getVal(u,1);
+            wpwp = stats->getVal(u,2)/time_stats-vel_mean->getVal(u,2)*vel_mean->getVal(u,2);
+            tke = 0.5*(upup+vpvp+wpwp);
+            tkevec[u] = tke;
+        }
+        delete vel_mean;
+        
+        double tkeMax = *std::max_element(tkevec.begin(),tkevec.end());
+        double tkeMax_glob = 0.0;
+        MPI_Allreduce(&tkeMax, &tkeMax_glob, 1, MPI_DOUBLE, MPI_MAX, comm);
+        //std::cout << "tkeMax_glob " << tkeMax_glob << std::endl;
+        for(int u=0;u<Nel_loc;u++)
+        {
+            interior->setVal(u,0,tkevec[u]/tkeMax_glob);
+        }
+        
+        
+        
     }
     else{
         interior  = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_1","interior",0,Nel,comm,info);
     }
+    
+    
+    delete mean;
+    delete stats;
+    
     
     Array<double>* ghost        = ReadUS3DGhostCellsFromRun<double>(fn_data,"run_1","interior",Nel);
 
@@ -2820,6 +2900,10 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
             ie_Nf->setVal(i,0,6);
             check_hex = 1;
         }
+        if(iet->getVal(i,0)!=2 && iet->getVal(i,0)!=4 && iet->getVal(i,0)!=6)
+        {
+            std::cout << "What is this type " << iet->getVal(i,0) << std::endl;
+        }
     }
     
     int* colTetCount = new int[size];
@@ -2836,7 +2920,10 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
         }
     }
     
+    
     MPI_Allreduce(colTetCount,  RedcolTetCount,  size, MPI_INT, MPI_SUM, comm);
+    MPI_Allreduce(colTetCount,  RedcolTetCount,  size, MPI_INT, MPI_SUM, comm);
+    
     int offset_tetC = 0;
     for(int i=0;i<size;i++)
     {

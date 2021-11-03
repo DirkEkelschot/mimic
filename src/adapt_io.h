@@ -43,6 +43,8 @@ return(p_type);
 
 double* ReadDataSetDoubleFromFile(const char* file_name, const char* dataset_name);
 
+
+
 template<typename T>
 Array<T>* ReadDataSetFromFile(const char* file_name, const char* dataset_name)
 {
@@ -226,10 +228,14 @@ ParArray<T>* ReadDataSetFromRunInFileInParallel(const char* file_name, const cha
     int rank;
     MPI_Comm_rank(comm, &rank);
     herr_t ret;
+    double stime;
     hid_t file_id        = H5Fopen(file_name, H5F_ACC_RDONLY,H5P_DEFAULT);
     hid_t group_id       = H5Gopen(file_id,"solution",H5P_DEFAULT);
     hid_t run_id         = H5Gopen(group_id,run_name,H5P_DEFAULT);
     hid_t dset_id        = H5Dopen(run_id,dataset_name,H5P_DEFAULT);
+    hid_t attr           = H5Aopen(run_id,"stats_time", H5P_DEFAULT);
+    ret                  = H5Aread(attr, H5T_NATIVE_DOUBLE, &stime);
+    
     
     hid_t dspace         = H5Dget_space(dset_id);
     int ndims            = H5Sget_simple_extent_ndims(dspace);
@@ -626,7 +632,7 @@ Array<T>* ReadDataSetFromFileInParallelToAll(const char* file_name, const char* 
 
 std::vector<double> ReadMetricInputs(const char* fn_metric);
 
-
+double ReadStatisticsTimeFromRunInFileInParallel(const char* file_name, const char* run_name, MPI_Comm comm, MPI_Info info);
 
 void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh,MMG5_pSol mmgSol, US3D* us3d);
 

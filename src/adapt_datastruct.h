@@ -5,6 +5,15 @@
 #ifndef ADAPT_DATASTRUCT_H
 #define ADAPT_DATASTRUCT_H
 
+
+struct Vert
+{
+    double x=0.0;
+    double y=0.0;
+    double z=0.0;
+};
+
+
 struct Mesh{
     Array<double>* xcn;
     Array<int>* ief;
@@ -65,6 +74,7 @@ struct Vec3D
 struct Domain
 {
     std::map<int,std::vector<int> > ushell;
+    std::map<int,Vert* > ushell_centroid;
     int ncomm;
     std::vector<int> faces_ref;
     std::vector<std::vector<int> > faces_part;
@@ -128,12 +138,7 @@ public:
 };
 
 
-struct Vert
-{
-    double x=0.0;
-    double y=0.0;
-    double z=0.0;
-};
+
 
 
 

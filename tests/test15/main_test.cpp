@@ -18,6 +18,28 @@
 
 
 
+void OutputMesh_PMMG(int nV, double* VertOUT, int nE, int* tetraOUT, string fname)
+{
+    int pos;
+        
+    std::ofstream myfile;
+    myfile.open(fname);
+    myfile << "TITLE=\"new_volume.tec\"" << std::endl;
+    myfile <<"VARIABLES = \"X\", \"Y\", \"Z\"" << std::endl;
+    myfile <<"ZONE N = " << nV << ", E = " << nE << ", DATAPACKING = POINT, ZONETYPE = FETETRAHEDRON" << std::endl;
+
+    for(int i=0;i<nV;i++)
+    {
+        pos = 3*i;
+        myfile << VertOUT[pos] << " " <<VertOUT[pos+1] << " " << VertOUT[pos+2] <<  std::endl;
+    }
+    for(int i=0;i<nE;i++)
+    {
+        pos=4*i;
+        myfile << tetraOUT[pos] << " " << tetraOUT[pos+1]  << " " << tetraOUT[pos+2]  << " " << tetraOUT[pos+3]  << std::endl;
+    }
+    myfile.close();
+}
 
 
 std::map<int,int> AllGatherMap(std::map<int,int> mappie, MPI_Comm mpi_comm)
@@ -25,6 +47,7 @@ std::map<int,int> AllGatherMap(std::map<int,int> mappie, MPI_Comm mpi_comm)
     int mapSizeLoc = mappie.size();
     DistributedParallelState* distrimap = new DistributedParallelState(mapSizeLoc,mpi_comm);
     int mapSizeTot = distrimap->getNel();
+    
     int* key_loc = new int[mapSizeLoc];
     int* val_loc = new int[mapSizeLoc];
     int* key_tot = new int[mapSizeTot];
@@ -70,6 +93,82 @@ std::map<int,int> AllGatherMap(std::map<int,int> mappie, MPI_Comm mpi_comm)
         if(mappie_glob.find(key)==mappie_glob.end())
         {
         	mappie_glob[key] = val;
+        }
+    }
+    
+    return mappie_glob;
+}
+
+
+
+std::map<int,std::vector<double> > AllGatherMapDoubleVec(std::map<int,std::vector<double> > mappie, MPI_Comm mpi_comm)
+{
+    int mapSizeLoc = mappie.size();
+    DistributedParallelState* distrimap = new DistributedParallelState(mapSizeLoc,mpi_comm);
+    
+    DistributedParallelState* distrimapVal = new DistributedParallelState(mapSizeLoc*3,mpi_comm);
+    
+    int mapSizeTot = distrimap->getNel();
+    int* key_loc = new int[mapSizeLoc];
+    double* val_loc = new double[mapSizeLoc*3];
+    int* key_tot = new int[mapSizeTot];
+    double* val_tot = new double[mapSizeTot*3];
+    int i = 0;
+    
+    std::map<int,std::vector<double> >::iterator itred;
+    for(itred=mappie.begin();itred!=mappie.end();itred++)
+    {
+        key_loc[i] = itred->first;
+        int nrow   = itred->second.size();
+        for(int q=0;q<nrow;q++)
+        {
+            val_loc[i*3+q] = itred->second[q];
+            //std::cout << "itred->second[q] " << itred->second[q] << std::endl;
+        }
+        
+        i++;
+    }
+    
+    int* offsets = distrimap->getOffsets();
+    int* nlocs   = distrimap->getNlocs();
+    
+    
+    MPI_Allgatherv(key_loc,
+                   mapSizeLoc,
+                   MPI_INT,
+                   key_tot,
+                   nlocs,
+                   offsets,
+                   MPI_INT, mpi_comm);
+    
+    int* offsetsVal = distrimapVal->getOffsets();
+    int* nlocsVal   = distrimapVal->getNlocs();
+    
+    MPI_Allgatherv(val_loc,
+                   mapSizeLoc*3,
+                   MPI_DOUBLE,
+                   val_tot,
+                   nlocsVal,
+                   offsetsVal,
+                   MPI_DOUBLE, mpi_comm);
+    
+    int key,val;
+    std::map<int,std::vector<double> > mappie_glob;
+    for(int i=0;i<mapSizeTot;i++)
+    {
+        key = key_tot[i];
+        
+        std::vector<double> values(3);
+        for(int q=0;q<3;q++)
+        {
+            values[q] = val_tot[i*3+q];
+        }
+        
+        if(mappie_glob.find(key)==mappie_glob.end())
+        {
+            
+            mappie_glob[key] = values;
+            //std::cout << "itred->second[q] " << val[0] << " " << val[1] << " " << val[2] << std::endl;
         }
     }
     
@@ -184,23 +283,68 @@ int main(int argc, char** argv)
     int i,j,k;
     
     int ier,opt;
-    int debug = 1;
-    const char* fn_grid="../test_mesh/cylinder_hybrid/grid.h5";
-    const char* fn_conn="../test_mesh/cylinder_hybrid/conn.h5";
-    const char* fn_data="../test_mesh/cylinder_hybrid/data.h5";
+    int debug = 0;
+//    const char* fn_grid="../test_mesh/cylinder_hybrid/grid.h5";
+//    const char* fn_conn="../test_mesh/cylinder_hybrid/conn.h5";
+//    const char* fn_data="../test_mesh/cylinder_hybrid/data.h5";
     
-//    const char* fn_grid="msl_test2/grid.h5";
-//    const char* fn_conn="msl_test2/conn.h5";
-//    const char* fn_data="msl_test2/data.h5";
-    const char* fn_metric = "metric.inp";
+    const char* fn_grid="inputs/grid.h5";
+    const char* fn_conn="inputs/conn.h5";
+    const char* fn_data="inputs/data.h5";
+    const char* fn_metric = "inputs/metric.inp";
     
     std::vector<double> metric_inputs = ReadMetricInputs(fn_metric);
+
     
-    int ReadFromStats = 0;
-//    if(metric_inputs.size()==6)
-//    {
-//        ReadFromStats=metric_inputs[5];
-//    }
+    //===========================================================================
+    
+    double hgrad         = metric_inputs[0];
+    double hmin          = metric_inputs[1];
+    double hmax          = metric_inputs[2];
+    double MetScale      = metric_inputs[3];
+    int ReadFromStats    = metric_inputs[4];
+    int RunWakRefinement = metric_inputs[5];
+    double hwake         = metric_inputs[6];
+    int niter            = metric_inputs[7];
+    
+    if(world_rank == 0)
+    {
+        std::cout << "===================================================" << std::endl;
+        std::cout << "============== Metric parameters ==================" << std::endl;
+        std::cout << "===================================================" << std::endl;
+        std::cout << "Nproc	    = " << world_size << std::endl;
+        std::cout << "hgrad     = " << hgrad << std::endl;
+        std::cout << "hmin      = " << hmin << std::endl;
+        std::cout << "hmax      = " << hmax << std::endl;
+        std::cout << "MetScale  = " << MetScale << std::endl;
+        std::cout << "NiterPart = " << niter << std::endl;
+        if(ReadFromStats == 0)
+        {
+            std::cout << "Reading statistics? -> NO (5th entry in the metric.inp file is set to 0.)" << std::endl;
+            std::cout << "The metric is reconstructed based on instantaneous Mach number"<<std::endl;
+        }
+        if(ReadFromStats == 1)
+        {
+            std::cout << "Reading statistics? -> YES (5th entry in the metric.inp file is set to 1.)" << std::endl;
+            std::cout << "The metric is reconstructed based on the mean of Mach number."<<std::endl;
+
+        }
+        if(RunWakRefinement==0)
+        {
+            std::cout << "Wake refinement is switch OFF. (6th entry in the metric.inp file is set to 0. hwake, the 7th entry defined in the metric.inp file, is being ignored)" << std::endl;
+            
+        }
+        if(RunWakRefinement==1)
+        {
+            std::cout << "Wake refinement is switch ON with hwake = " << hwake << "(6th entry in the metric.inp file is set to 1 and hwake is set equal to the 7th entry defined in the metric.inp file.) " << std::endl;
+        }
+        
+        std::cout << "===================================================" << std::endl;
+        std::cout << "===================================================" << std::endl;
+        std::cout << "===================================================" << std::endl;
+        std::cout << "  " << std::endl;
+    }
+    //===========================================================================
     
     US3D* us3d    = ReadUS3DData(fn_conn,fn_grid,fn_data,ReadFromStats,comm,info);
     int Nve       = us3d->xcn->getNglob();
@@ -211,26 +355,24 @@ int main(int argc, char** argv)
     //Array<int>* ien_ref    = ReadDataSetFromFile<int>(fn_conn,"ien");
 
     Array<double>* Ui = new Array<double>(Nel_part,1);
+    Array<double>* TKEi = new Array<double>(Nel_part,1);
     int varia = 4;
-    double rhoState,uState,vState,wState,TState,VtotState,aState,MState;
+    double TKE, MState;
     for(int i=0;i<Nel_part;i++)
     {
-        rhoState  = us3d->interior->getVal(i,0);
-        uState    = us3d->interior->getVal(i,1);
-        vState    = us3d->interior->getVal(i,2);
-        wState    = us3d->interior->getVal(i,3);
-        TState    = us3d->interior->getVal(i,4);
-        VtotState = sqrt(uState*uState+vState*vState+wState*wState);
-        aState    = sqrt(1.4*287.05*TState);
-        MState    = VtotState/aState;
+        TKE      = us3d->interior->getVal(i,0);
+        MState   = us3d->interior->getVal(i,1);
         Ui->setVal(i,0,MState);
+        TKEi->setVal(i,0,TKE);
+
     }
     
     delete us3d->interior;
-
-    
+ 
+       
     ParallelState* ien_pstate               = new ParallelState(us3d->ien->getNglob(),comm);
     ParallelState* ife_pstate               = new ParallelState(us3d->ifn->getNglob(),comm);
+    
     ParallelState_Parmetis* parmetis_pstate = new ParallelState_Parmetis(us3d->ien,us3d->elTypes,us3d->ie_Nv,comm);
     ParallelState* xcn_pstate               = new ParallelState(us3d->xcn->getNglob(),comm);
     
@@ -242,18 +384,67 @@ int main(int argc, char** argv)
                                  us3d->ifn, us3d->ife, us3d->if_ref, us3d->if_Nv,
                                  parmetis_pstate, ien_pstate, ife_pstate,
                                  us3d->xcn, xcn_pstate, Ui, us3d->ie_tetCnt, comm);
-
+   
     std::vector<int> LocElem    = P->getLocElem();
     std::vector<double> Uvaria  = P->getLocElemVaria();
+    std::vector<double> Utke    = P->PartitionAuxilaryData(TKEi, comm);
+
     std::map<int,Array<double>*> Uvaria_map;
+    std::map<int,Array<double>*> Utke_map;
+    double UtkeV = 0.0;
     double UvariaV              = 0.0;
     for(int i=0;i<LocElem.size();i++)
     {
         int gid   = LocElem[i];
         UvariaV   = Uvaria[i];
+        UtkeV   = Utke[i];
+
         Array<double>* Uarr = new Array<double>(1,1);
         Uarr->setVal(0,0,UvariaV);
         Uvaria_map[gid] = Uarr;
+        Array<double>* Utke = new Array<double>(1,1);
+        Utke->setVal(0,0,UtkeV);
+        Utke_map[gid] = Utke;
+    }
+    
+    P->AddStateVecForAdjacentElements(Utke_map,1,comm);
+    std::map<int,Array<double>* > var_vmap = P->ReduceStateVecToAllVertices(Utke_map,1);
+    
+    
+    double sum      = 0.0;
+    double sum_dist = 0.0;
+    double di       = 0.0;
+    double uval     = 0.0;
+    double du       = 0.0;
+    
+    
+    std::map<int,Array<double>*> du_new;
+    std::map<int,std::map<int,double> > n2n = P->getNode2NodeMap();
+    std::map<int,std::map<int,double> >::iterator n2nit;
+
+    int vid,gvid;
+
+    for(n2nit=n2n.begin();n2nit!=n2n.end();n2nit++)
+    {
+        gvid       = n2nit->first;
+        
+        sum        = 0.0;
+        du         = 0.0;
+        sum_dist   = 0.0;
+        
+        std::map<int,double>::iterator n2dit;
+        for(n2dit=n2nit->second.begin();n2dit!=n2nit->second.end();n2dit++)
+        {
+            vid      = n2dit->first;
+            di       = n2dit->second;
+            sum_dist = sum_dist+di;
+            du       = du+var_vmap[vid]->getVal(0,0)*di;
+        }
+        
+        Array<double>* entry = new Array<double>(1,1);
+        
+        entry->setVal(0,0,du/sum_dist);
+        du_new[gvid] = entry;
     }
     
     Mesh_Topology* meshTopo      = new Mesh_Topology(P,comm);
@@ -269,7 +460,8 @@ int main(int argc, char** argv)
 
     P->AddStateVecForAdjacentElements(Uvaria_map,1,comm);
     
-    std::map<int,Array<double>* > var_vmap = P->ReduceStateVecToAllVertices(Uvaria_map,1);
+    std::map<int,Array<double>* > Mvar_vmap = P->ReduceStateVecToAllVertices(Uvaria_map,1);
+    
     std::map<int,Array<double>* >::iterator vm;
     Array<double>* gB = new Array<double>(us3d->ghost->getNrow(),1);
     for(int i=0;i<us3d->ghost->getNrow();i++)
@@ -280,13 +472,10 @@ int main(int argc, char** argv)
     int ngval;
     MPI_Allreduce(&ngho, &ngval, 1, MPI_INT, MPI_MAX, comm);
     
-    if(world_rank == 0)
-    {
-        std::cout << "ghost val = " << ngval << std::endl;
-    }
-    
-    
-    
+//    if(world_rank == 0)
+//    {
+//        std::cout << "ghost val = " << ngval << std::endl;
+//    }
     
     delete us3d->ghost;
     delete us3d->ien;
@@ -301,7 +490,9 @@ int main(int argc, char** argv)
 //  delete us3d->xcn;
     
     
-    std::map<int,Array<double>* > dUdXi = ComputedUdx_LSQ_Vrt_US3D(P,Uvaria_map,var_vmap,meshTopo,gB,comm);
+    std::map<int,Array<double>* > dUdXi = ComputedUdx_LSQ_Vrt_US3D(P,Uvaria_map,Mvar_vmap,meshTopo,gB,comm);
+    
+//    std::map<int,Array<double>* > dUdXi = ComputedUdx_LSQ_US3D(P,Uvaria_map,gB,comm);
     
     P->AddStateVecForAdjacentElements(dUdXi,3,comm);
     
@@ -336,6 +527,10 @@ int main(int argc, char** argv)
     std::map<int,Array<double>* > dU2dYi2 = ComputedUdx_LSQ_Vrt_US3D(P,dUidyi_map,dudy_vmap,meshTopo,gB,comm);
     std::map<int,Array<double>* > dU2dZi2 = ComputedUdx_LSQ_Vrt_US3D(P,dUidzi_map,dudz_vmap,meshTopo,gB,comm);
     
+//    std::map<int,Array<double>* > dU2dXi2 = ComputedUdx_LSQ_US3D(P,dUidxi_map,gB,comm);
+//    std::map<int,Array<double>* > dU2dYi2 = ComputedUdx_LSQ_US3D(P,dUidyi_map,gB,comm);
+//    std::map<int,Array<double>* > dU2dZi2 = ComputedUdx_LSQ_US3D(P,dUidzi_map,gB,comm);
+    
     for(grit=dUidxi_map.begin();grit!=dUidxi_map.end();grit++)
     {
         delete grit->second;
@@ -343,12 +538,12 @@ int main(int argc, char** argv)
         delete dUidzi_map[grit->first];
     }
     
-    for(grit=dudx_vmap.begin();grit!=dudx_vmap.end();grit++)
-    {
-        delete grit->second;
-        delete dudy_vmap[grit->first];
-        delete dudz_vmap[grit->first];
-    }
+//    for(grit=dudx_vmap.begin();grit!=dudx_vmap.end();grit++)
+//    {
+//        delete grit->second;
+//        delete dudy_vmap[grit->first];
+//        delete dudz_vmap[grit->first];
+//    }
     
     delete meshTopo;
     delete gB;
@@ -393,9 +588,8 @@ int main(int argc, char** argv)
     Array<double>* UR  = new Array<double>(3,3);
     //+++++++++++++++++++++++++++++++++++++++++++
     //++++  Scaling eigenvalues/eigenvectors ++++
-    double hmin         = metric_inputs[1];
-    double hmax         = metric_inputs[2];
-    double f            = metric_inputs[3];
+
+    double f            = MetScale;
     //+++++++++++++++++++++++++++++++++++++++++++
     //+++++++++++++++++++++++++++++++++++++++++++
     double cmplxty = 0.0;
@@ -476,19 +670,29 @@ int main(int argc, char** argv)
     
     
     cmplxty_red = Nve/cmplxty_red;
+
+    if(RunWakRefinement == 0)
+    {
+	ComputeMetric(P,metric_inputs,comm,hess_vmap,1.0,po);
+    }
+    if(RunWakRefinement == 1)
+    {
+        ComputeMetricWithWake(P, metric_inputs, comm, du_new, hess_vmap, 1.0, po, hwake);
+    }
     
-    ComputeMetric(P, metric_inputs, comm, hess_vmap, 1.0, po);
     //std::cout << "Done computing the metric"<<std::endl;
     //std::cout << "understand bitshift " << world_rank << "  " << (world_rank & (~(1 << 3)))<< std::endl;
     //std::vector<int> LocElem     = P->getLocElem();
-
     //================================================================================
     //================================================================================
     //================================================================================
     Domain* pDom = P->getPartitionDomain();
+    std::map<int,std::vector<int> > tetraLoc   = pDom->Tetras;
     std::map<int,std::vector<int> > tetraEl    = pDom->GTetras;
     std::map<int,std::vector<int> > prismEl    = pDom->GPrisms;
     std::map<int,std::vector<int> > ushell_o   = pDom->ushell;
+    std::map<int,Vert* > ushell_cen            = pDom->ushell_centroid;
+    //std::cout << world_rank << " ushell_cen.size()  " << ushell_cen.size() << std::endl;
     i_part_map* ief_part_map                   = P->getIEFpartmap();
     i_part_map* if_Nv_part_map                 = P->getIF_Nvpartmap();
     i_part_map* ifn_part_map                   = P->getIFNpartmap();
@@ -497,6 +701,8 @@ int main(int argc, char** argv)
     i_part_map* if_Erank_part_map			   = P->getIFERankpartmap();
     std::map<int,int> tag2locV_map      	   = P->getGlobalVert2LocalVert();
     std::vector<Vert*> LocVerts_part     	   = P->getLocalVerts();
+    std::map<int,int> lpartv2gv                = pDom->lpartv2gv;
+    std::vector<int> loc_part_verts            = pDom->loc_part_verts;
     //================================================================================
     //================================================================================
     //================================================================================
@@ -538,8 +744,6 @@ int main(int argc, char** argv)
         ifref_map[faceid]   = fref;
         if_Nv_map[faceid]   = fNv;
     }
-    
-    
     // ==== Copy required elementmaps ====
     std::map<int,std::vector<int> > ief_map;
     
@@ -587,7 +791,7 @@ int main(int argc, char** argv)
 		prisms[elemid] = prismNodes;
 	}
 	
-// ==== Copy required element2node maps for prisms ====
+    // ==== Copy required element2node maps for prisms ====
 	std::map<int,std::vector<int> > ushell;
 	for(itmm=ushell_o.begin();itmm!=ushell_o.end();itmm++)
 	{
@@ -625,7 +829,60 @@ int main(int argc, char** argv)
 
     //std::cout << "Copied all relevant data over " << std::endl;
 	
-	delete P;
+    //====================================================================
+
+    if(tetraLoc.size()!=0 && debug == 1)
+    {
+        std::ofstream myfilet;
+        myfilet.open("metricFieldGrad_" + std::to_string(world_rank) + ".dat");
+        myfilet << "TITLE=\"new_volume.tec\"" << std::endl;
+        myfilet <<"VARIABLES = \"X\", \"Y\", \"Z\", \"U\", \"M00\", \"M01\", \"M02\", \"M11\", \"M12\", \"M22\"" << std::endl;
+        myfilet <<"ZONE N = " << loc_part_verts.size() << ", E = " << tetraLoc.size() << ", DATAPACKING = POINT, ZONETYPE = FETETRAHEDRON" << std::endl;
+
+        for(int i=0;i<loc_part_verts.size();i++)
+        {
+            int loc_vid  = loc_part_verts[i];
+            int glob_vid = lpartv2gv[loc_vid];
+            myfilet << LocVerts[loc_vid]->x << " " <<
+                       LocVerts[loc_vid]->y << " " <<
+                       LocVerts[loc_vid]->z << " " <<
+                       Mvar_vmap[glob_vid]->getVal(0,0)  << " " <<
+            dudx_vmap[glob_vid]->getVal(0,0) << " " <<
+            dudy_vmap[glob_vid]->getVal(0,0) << " " <<
+            dudz_vmap[glob_vid]->getVal(0,0) << " " <<
+                       hess_vmap[glob_vid]->getVal(1,2) << " " <<
+                       hess_vmap[glob_vid]->getVal(0,1) << " " <<
+                       hess_vmap[glob_vid]->getVal(2,2) << std::endl;
+            
+    //        myfilet << LocVerts[loc_vid]->x << " " <<
+    //                   LocVerts[loc_vid]->y << " " <<
+    //                   LocVerts[loc_vid]->z << " " << std::endl;
+        }
+
+        std::map<int,std::vector<int> >::iterator itmm2;
+        for(itmm2=tetraLoc.begin();itmm2!=tetraLoc.end();itmm2++)
+        {
+            myfilet << itmm2->second[0]+1 << " " << itmm2->second[1]+1 << " "
+                    << itmm2->second[2]+1 << " " << itmm2->second[3]+1 <<  std::endl;
+        }
+
+        myfilet.close();
+        
+        delete P;
+    }
+    else
+    {
+        delete P;
+    }
+   //====================================================================
+    
+    
+    
+    
+    
+    
+    
+	
     
     //================================================================================
     //================================================================================
@@ -667,6 +924,7 @@ int main(int argc, char** argv)
     std::map<int,int> tetV2tagV						= tetra_distri->GetTet2TagVertMap();
     std::map<int,int> shellvertOriginalTag2ref_Glob = tetra_distri->GetShellVertTag2RefMap_Global();
     std::map<int,std::vector<int> > bndref2face     = tetra_distri->GetBndRef2FaceMap();
+    std::map<int,Vert*> shellVertCoord2Ref          = tetra_distri->GetShellVertCoords2RefMap_Global();
     std::map<int,int> shellvertTag2ref;
     std::map<int,int> shellvertTag2ref2;
 
@@ -736,7 +994,16 @@ int main(int argc, char** argv)
         int Etettag   = itmm->second[0];
         int Eprismtag = itmm->second[1];
         int EprismNew = tag2element_shell[Eprismtag];
-
+        std::set<int> testface;
+        testface.insert(1);
+        testface.insert(944);
+        testface.insert(1146);
+        
+        if(shellface2vertref[fhyb]==testface)
+        {
+            std::cout << "JIPPIE!! " << world_rank << std::endl;
+        }
+        
         if(shellface2vertref.find(fhyb)!=shellface2vertref.end())
         {
             vertref2shell_prism[shellface2vertref[fhyb]] = EprismNew;
@@ -764,7 +1031,7 @@ int main(int argc, char** argv)
             }
             else
             {
-               std::cout << "Fhyb NotFound Reverse Test-> " << fhyb << " " << world_rank << std::endl;
+               std::cout << "Fhyb NotFound Reverse Test-> " << fhyb << " " << world_rank  << std::endl;
             }
             
             //nshell++;
@@ -772,6 +1039,7 @@ int main(int argc, char** argv)
     }
     
     
+    //std::cout << "WOR " << world_rank << " " << vertref2shell_prism.size() << " " << ushell.size() << " shellface2vertref " << shellface2vertref.size() << " " << foundU <<std::endl;
     
     //===============================================================================================
     //===============================================================================================
@@ -804,11 +1072,8 @@ int main(int argc, char** argv)
         
         int vert = locV2globV[k];
 
-        int vref = 1;
-        
+        int vref = 86;
 
-
-        //std::cout << world_rank << " vref = " << vref << std::endl;
         if ( PMMG_Set_vertex(parmesh,vx,vy,vz, vref, k+1) != 1 )
         {
         MPI_Finalize();
@@ -846,6 +1111,15 @@ int main(int argc, char** argv)
     int buggi = 0;
     int shelfound = 0;
     int shelfound2 = 0;
+    int vertref = 86;
+    int flippie = -1;
+    
+    int locs = 0;
+    
+    std::map<int,int> shell_g2l;
+    std::vector<Vert*> unshellVin;
+    std::vector<std::vector<int> > unshellTin;
+
     for ( k=0; k<nTriangles; ++k )
     {
         int faceID  = faces4parmmg[k];
@@ -875,8 +1149,14 @@ int main(int argc, char** argv)
             exit(EXIT_FAILURE);
         }
         
+        
+        
+        
         if(refer == 13)
         {
+            flippie = -1;
+            double testerr;
+            double testerrStored;
             if(shell_tet2hybF.find(faceID)!=shell_tet2hybF.end())
             {
                 if(shell_tet2hybF[faceID]!=facetag)
@@ -886,24 +1166,53 @@ int main(int argc, char** argv)
                 else
                 {
                     std::set<int>::iterator its;
-                    std::set<int> sf    = shellface2vertref[facetag];
-                    
+                    std::set<int> sf = shellface2vertref[facetag];
+                    int inde = -1;
                     std::set<int> sft_t;
+                    flippie = -1;
+                    std::vector<int> row(3);
                     for(int u=0;u<3;u++)
                     {
+                        
                         int vid = face2node[faceID][u];
+                        row[u] = vid;
                         int vidg = globV2locV[vid];
                         double* c0 = new double[3];
                         c0[0] = locVs[vidg]->x;
                         c0[1] = locVs[vidg]->y;
                         c0[2] = locVs[vidg]->z;
-                        int vertref = shellvert2ref[vid];
+                        vertref = 86;
+                        if(shellvert2ref.find(vid)!=shellvert2ref.end())
+                        {
+                            vertref = shellvert2ref[vid];
+                        }
+                        //vertref = shellvert2ref[vid];
                         
-                        PMMG_Set_vertex( parmesh, c0[0], c0[1], c0[2], vertref, vidg+1 );
+                        
+                        if(shell_g2l.find(vid)==shell_g2l.end())
+                        {
+                            Vert* vsh = new Vert;
+                            vsh->x = c0[0];
+                            vsh->y = c0[1];
+                            vsh->z = c0[2];
+                            unshellVin.push_back(vsh);
+                            shell_g2l[vid] = locs;
+                            locs++;
+                        }
+                        
+                        if ( PMMG_Set_vertex(parmesh, c0[0], c0[1], c0[2], vertref, vidg+1) != 1 )
+                        {
+                        MPI_Finalize();
+                        exit(EXIT_FAILURE);
+                        }
+                        
+                        //PMMG_Set_vertex( parmesh, c0[0], c0[1], c0[2], vertref, vidg+1 );
 
                         sft_t.insert(vertref);
                         
                     }
+                    
+                    unshellTin.push_back(row);
                     
                     sft_t.clear();
                 }
@@ -914,6 +1223,97 @@ int main(int argc, char** argv)
     }
     
     
+    
+    if(unshellTin.size()!=0 && debug == 1)
+    {
+        ofstream myfile_INP;
+
+        string filename_shellINPUT = "inputShell_" + std::to_string(world_rank) + ".dat";
+
+        myfile_INP.open(filename_shellINPUT);
+        myfile_INP << "TITLE=\"inputShell.tec\"" << std::endl;
+        myfile_INP <<"VARIABLES = \"X\", \"Y\", \"Z\"" << std::endl;
+        //ZONE N = 64, E = 48, DATAPACKING = POINT, ZONETYPE = FEQUADRILATERAL
+        myfile_INP <<"ZONE N = " << unshellVin.size() << ", E = " << unshellTin.size() << ", DATAPACKING = POINT, ZONETYPE = FETRIANGLE" << std::endl;
+        for(int i=0;i<unshellVin.size();i++)
+        {
+          myfile_INP << unshellVin[i]->x << "   " << unshellVin[i]->y << "   " << unshellVin[i]->z << std::endl;
+        }
+
+        for(int i=0;i<unshellTin.size();i++)
+        {
+            int g0=unshellTin[i][0];
+            int g1=unshellTin[i][1];
+            int g2=unshellTin[i][2];
+            
+            int l0=shell_g2l[g0];
+            int l1=shell_g2l[g1];
+            int l2=shell_g2l[g2];
+            
+          myfile_INP << l0+1 << "    " << l1+1 << "   " << l2+1 << std::endl;
+        }
+        myfile_INP.close();
+    }
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    DistributedParallelState* sucDist = new DistributedParallelState(suc,comm);
+    
+    double* vertIN = new double[nVertices*3];
+    int* refIN = new int[nVertices];
+    int *requiredIN = (int*)calloc(MAX4(nVertices,nTetrahedra,nTriangles,nEdges),sizeof(int));
+
+    int *cornerIN = (int*)calloc(nVertices,sizeof(int));
+    int foundRrefIN    = 0;
+    std::vector<int> rfIN;
+    std::map<int,int> frfIN;
+    std::map<int,std::vector<double> > ref2coordinates;
+    for ( k=0; k<nVertices; k++ )
+    {
+          int pos = 3*k;
+          if ( PMMG_Get_vertex(parmesh,&(vertIN[pos]),&(vertIN[pos+1]),&(vertIN[pos+2]),
+                               &(refIN[k]),&(cornerIN[k]),&(requiredIN[k])) != 1 ) {
+            fprintf(inm,"Unable to get mesh vertex %d \n",k);
+            ier = PMMG_STRONGFAILURE;
+          }
+        int refi = refIN[k];
+        if(refi != -20 && refi != 0)
+        {
+            std::vector<double> coords(3);
+            coords[0] = vertIN[pos];
+            coords[1] = vertIN[pos+1];
+            coords[2] = vertIN[pos+2];
+            ref2coordinates[refi] = coords;
+        }
+        
+        if(world_rank == 6)
+        {
+            if(refIN[k]==1147)
+            {
+                std::cout << "ref = 1147 --> " << vertIN[pos] << ", " << vertIN[pos+1] << ", " << vertIN[pos+2] << std::endl;
+            }
+        }
+        
+        
+    }
+        
+    
+    std::map<int,std::vector<double> > ref2coordsAll = AllGatherMapDoubleVec(ref2coordinates,comm);
+
+    if(world_rank == 0)
+    {
+        std::cout << "ref2coordsAll = " << ref2coordsAll.size()  << std::endl;
+
+    }
     
     int API_mode = 0;
     
@@ -975,7 +1375,7 @@ int main(int argc, char** argv)
         delete[] P;
     }
     
-    int niter = 2;
+    
     
     if( !PMMG_Set_iparameter( parmesh, PMMG_IPARAM_niter, niter ) ) {
       MPI_Finalize();
@@ -983,7 +1383,14 @@ int main(int argc, char** argv)
     };
     
     
-    if ( PMMG_Set_dparameter(parmesh,PMMG_DPARAM_hgrad, 2.0) != 1 )
+    //if ( PMMG_Set_dparameter(parmesh,PMMG_DPARAM_hausd, 0.0001) != 1 )
+    //{
+    //    MPI_Finalize();
+    //    exit(EXIT_FAILURE);
+    //}
+    
+    
+    if ( PMMG_Set_dparameter(parmesh,PMMG_DPARAM_hgrad, hgrad) != 1 )
     {
         MPI_Finalize();
         exit(EXIT_FAILURE);
@@ -1006,6 +1413,12 @@ int main(int argc, char** argv)
     }
     
     if( !PMMG_Set_iparameter( parmesh, PMMG_IPARAM_globalNum, 1 ) ) {
+      MPI_Finalize();
+      exit(EXIT_FAILURE);
+    };
+    
+    
+    if( !PMMG_Set_iparameter( parmesh, PMMG_IPARAM_mem, 2000 ) ) {
       MPI_Finalize();
       exit(EXIT_FAILURE);
     };
@@ -1064,12 +1477,17 @@ int main(int argc, char** argv)
 
     DistributedParallelState* distTetraB = new DistributedParallelState(nTetrahedra,comm);
     DistributedParallelState* distPrismB = new DistributedParallelState(nPrisms,comm);
-    int ToTElements_prism_bef           = distPrismB->getNel();
+    int ToTElements_prism_bef            = distPrismB->getNel();
     int ToTElements_bef                 = distTetraB->getNel();
     
+    if(world_rank == 0)
+    {
+        std::cout << "Total elements = " << ToTElements_prism_bef << " " << ToTElements_bef << std::endl;
+    }
     //std::cout << "number of tets per rank  " << world_rank << " ("<<nTetrahedra<<", " << ToTElements_bef << ") (" << nPrisms <<", " << ToTElements_prism_bef <<")" << std::endl;
     
     int ierlib = PMMG_parmmglib_distributed( parmesh );
+    
     
     if(ierlib==0 && world_rank == 0)
     {
@@ -1079,6 +1497,8 @@ int main(int argc, char** argv)
     {
         std::cout << "FAILED to adapt the mesh in parallel! "<< std::endl;
     }
+    
+    
     
     int nVerticesOUT   = 0;
     int nTetrahedraOUT = 0;
@@ -1109,16 +1529,17 @@ int main(int argc, char** argv)
     }
     
     int *required = (int*)calloc(MAX4(nVerticesOUT,nTetrahedraOUT,nTrianglesOUT,nEdgesOUT),sizeof(int));
-    //int *refOUT = (int*)calloc(MAX4(nVerticesOUT,nTetrahedraOUT,nTrianglesOUT,nEdgesOUT),sizeof(int));
+    int *refOUT = (int*)calloc(MAX4(nVerticesOUT,nTetrahedraOUT,nTrianglesOUT,nEdgesOUT),sizeof(int));
     int *corner = (int*)calloc(nVerticesOUT,sizeof(int));
     int pos;
-    int *refOUT = new int[nVerticesOUT];
+    //int *refOUT = new int[nVerticesOUT];
 
     std::vector<std::vector<int> > outT;
     
     double *vertOUT = (double*)calloc((nVerticesOUT)*3,sizeof(double));
-    
-    for ( k=0; k<nVerticesOUT; k++ ) {
+    std::map<int,std::vector<double> > ref2coordinatesOUT;
+    for ( k=0; k<nVerticesOUT; k++ )
+    {
           pos = 3*k;
           if ( PMMG_Get_vertex(parmesh,&(vertOUT[pos]),&(vertOUT[pos+1]),&(vertOUT[pos+2]),
                                &(refOUT[k]),&(corner[k]),&(required[k])) != 1 ) {
@@ -1127,33 +1548,10 @@ int main(int argc, char** argv)
           }
     }
     
-    std::vector<int> rf;
-    int kn = 0;
-    int foundRref = 0;
-    std::map<int,int> frf;
-    for ( k=0; k<nVerticesOUT; k++ )
-    {
-        if(refOUT[k]!=0 && refOUT[k]!=1)
-        {
-            if(frf.find(refOUT[k]) == frf.end())
-            {
-                frf[refOUT[k]] = k;
-                rf.push_back(refOUT[k]);
-                foundRref++;
-            }
-        }
-    }
-    
-    std::map<int,int> outShellVerts = AllGatherMap(frf,comm);
-    
-    double minrf = *min_element(rf.begin(), rf.end());
-    double maxrf = *max_element(rf.begin(), rf.end());
 
-    //std::cout << "found Ref " << foundRref << " " << minrf << " " << maxrf << " " << world_rank << " " << outShellVerts.size() << std::endl;
     
     if(niter==0)
     {
-        
         std::cout << "Check the input and outputted shard faces." << std::endl;
         
         int **out_tria_loc;
@@ -1351,25 +1749,7 @@ int main(int argc, char** argv)
           out_tria_loc[icomm] = (int *) malloc(nitem_face_comm[icomm]*sizeof(int));
         ier = PMMG_Get_FaceCommunicator_faces(parmesh, out_tria_loc);
         
-//
-//        PMMG_pGrp      listgrp,grpI;
-//        listgrp         = parmesh->listgrp;
-//        grpI            = &listgrp[0];
-//        int            poi_id_int,poi_id_glo,imsh,k;
-//
-//        std::map<int,int> locSh2globSh;
-//        std::map<int,int> globSh2locSh;
-//
-//        std::map<int,int> globSh2Rank;
-//        for ( k = 0; k < grpI->nitem_int_node_comm; ++k )
-//        {
-//            poi_id_int = grpI->node2int_node_comm_index1[k];
-//            poi_id_glo = grpI->node2int_node_comm_index2[k];
-//            locSh2globSh[poi_id_int]=poi_id_glo;
-//            globSh2locSh[poi_id_int]=poi_id_int;
-//            globSh2Rank[poi_id_glo]=world_rank;
-//        }
-//
+
     
         // Check matching of input interface nodes with the set ones
         int *ref2       = (int*)calloc(nTrianglesOUT,sizeof(int));
@@ -1390,14 +1770,20 @@ int main(int argc, char** argv)
         std::set<std::set<int> > TotalFaces;
         std::set<std::set<int> > InteriorFaces;
         std::map<std::set<int>, int> PMMG_Shell2Prism;
-        std::map<int,std::vector<int> > PMMG_ShellFace;
+        //std::map<int,std::vector<int> > PMMG_ShellFace;
 
         int c36 = 0;
         int gv0,gv1,gv2;
         int prismFound = 0;
         std::map<std::set<int>, int> PMMG_ShellFaces;
         int faceCovered = 0;
+        double tolerance = 1.0e-16;
         std::vector<int> vref1;
+        
+        std::map<int,int> outshell_g2l;
+        std::vector<Vert*> outshellVerts;
+        std::vector<std::vector<int> > outshellT;
+        int locv = 0;
         for ( k=0; k<nTrianglesOUT; k++ )
         {
             pos = 3*k;
@@ -1432,29 +1818,176 @@ int main(int argc, char** argv)
             }
             if(ref2[k]==13)
             {
-                PMMG_ShellFaces[faceSh] = ref2[k];
+                std::vector<int> row(3);
                 
-                std::set<int> test_set;
-                test_set.insert(refOUT[triaNodes2[pos]-1]);
-                test_set.insert(refOUT[triaNodes2[pos+1]-1]);
-                test_set.insert(refOUT[triaNodes2[pos+2]-1]);
-//                std::vector<int> test_set_order;
-//                test_set_order.push_back(refOUT[triaNodes2[pos]-1]);
-//                test_set_order.push_back(refOUT[triaNodes2[pos+1]-1]);
-//                test_set_order.push_back(refOUT[triaNodes2[pos+2]-1]);
+                for(int vr=0;vr<3;vr++)
+                {
+                    row[vr] = triaNodes2[pos+vr];
+                    int vertid = triaNodes2[pos+vr];
+                    
+                    if(outshell_g2l.find(vertid)==outshell_g2l.end())
+                    {
+                        outshell_g2l[vertid] = locv;
+                        
+                        Vert* vout = new Vert;
+                        vout->x = vertOUT[(vertid-1)*3];
+                        vout->y = vertOUT[(vertid-1)*3+1];
+                        vout->z = vertOUT[(vertid-1)*3+2];
+                        outshellVerts.push_back(vout);
+                        
+                        locv++;
+                    }
+                }
+                
+                outshellT.push_back(row);
+                
+                
+                PMMG_ShellFaces[faceSh] = ref2[k];
+                int flipper = 0;
+
+
                 std::vector<int> shFace(3);
                 shFace[0] = triaNodes2[pos];
                 shFace[1] = triaNodes2[pos+1];
                 shFace[2] = triaNodes2[pos+2];
                 
+                
+                
+                
+                if(refOUT[triaNodes2[pos]-1]==86)
+                {
+                    clock_t t0,t1;
+                    t0 = clock();
+                    
+                    flipper = 1;
+                    int vertid = triaNodes2[pos]-1;
+                    Vert* vcon = new Vert;
+                    vcon->x = vertOUT[vertid*3];
+                    vcon->y = vertOUT[vertid*3+1];
+                    vcon->z = vertOUT[vertid*3+2];
+                                        
+                    std::map<int,Vert*>::iterator brutus;
+                    for(brutus=shellVertCoord2Ref.begin();brutus!=shellVertCoord2Ref.end();brutus++)
+                    {
+                        int vrtref = brutus->first;
+                        Vert* vrtCoord = brutus->second;
+                        
+                        double errx = fabs(vrtCoord->x - vcon->x);
+                        double erry = fabs(vrtCoord->y - vcon->y);
+                        double errz = fabs(vrtCoord->z - vcon->z);
+
+                        if(errx < tolerance && erry < tolerance && errz < tolerance)
+                        {
+                            refOUT[triaNodes2[pos]-1] = vrtref;
+                        }
+                    }
+                    
+                    
+                    
+                    t1 = clock();
+                    double duration = ( t1 - t0) / (double) CLOCKS_PER_SEC;
+                    std::cout << "Warning:: There is an issue with the ref value of vertex " << vertid << " on rank " << world_rank << std::endl;
+                    std::cout << "It is swapped back to the correct value by brute force which took " << duration << " seconds to find out of a set of " << shellVertCoord2Ref.size() << " vertices." << std::endl;
+                }
+                if(refOUT[triaNodes2[pos+1]-1]==86)
+                {
+                    
+                    clock_t t0,t1;
+                    t0 = clock();
+                    
+                    
+                    flipper = 1;
+
+                    int vertid = triaNodes2[pos+1]-1;
+                    Vert* vcon = new Vert;
+                    vcon->x = vertOUT[vertid*3];
+                    vcon->y = vertOUT[vertid*3+1];
+                    vcon->z = vertOUT[vertid*3+2];
+
+                    std::map<int,Vert*>::iterator brutus;
+                    for(brutus=shellVertCoord2Ref.begin();brutus!=shellVertCoord2Ref.end();brutus++)
+                    {
+                        int vrtref = brutus->first;
+                        Vert* vrtCoord = brutus->second;
+                        
+                        double errx = fabs(vrtCoord->x - vcon->x);
+                        double erry = fabs(vrtCoord->y - vcon->y);
+                        double errz = fabs(vrtCoord->z - vcon->z);
+                        if(errx < tolerance && erry < tolerance && errz < tolerance)
+                        {
+                            refOUT[triaNodes2[pos+1]-1] = vrtref;
+                        }
+                    }
+                    
+                    t1 = clock();
+                    double duration = ( t1 - t0) / (double) CLOCKS_PER_SEC;
+                    std::cout << "Warning:: There is an issue with the ref value of vertex " << vertid << " on rank " << world_rank << std::endl;
+                    std::cout << "It is swapped back to the correct value by brute force which took " << duration << " seconds to find out of a set of " << shellVertCoord2Ref.size() << " vertices." << std::endl;
+                    
+                }
+                if(refOUT[triaNodes2[pos+2]-1]==86)
+                {
+                    
+                    clock_t t0,t1;
+                    t0 = clock();
+                    
+                    
+                    flipper = 1;
+
+                    
+                    int vertid = triaNodes2[pos+2]-1;
+                    Vert* vcon = new Vert;
+                    vcon->x = vertOUT[vertid*3];
+                    vcon->y = vertOUT[vertid*3+1];
+                    vcon->z = vertOUT[vertid*3+2];
+
+                    std::map<int,Vert*>::iterator brutus;
+                    for(brutus=shellVertCoord2Ref.begin();brutus!=shellVertCoord2Ref.end();brutus++)
+                    {
+                        int vrtref = brutus->first;
+                        Vert* vrtCoord = brutus->second;
+                        
+                        double errx = fabs(vrtCoord->x - vcon->x);
+                        double erry = fabs(vrtCoord->y - vcon->y);
+                        double errz = fabs(vrtCoord->z - vcon->z);
+                        
+                        
+                        if(errx < tolerance && erry < tolerance && errz < tolerance)
+                        {
+                            refOUT[triaNodes2[pos+2]-1] = vrtref;
+                        }
+                    }
+                    
+                    t1 = clock();
+                    double duration = ( t1 - t0) / (double) CLOCKS_PER_SEC;
+                    std::cout << "Warning:: There is an issue with the ref value of vertex " << vertid << " on rank " << world_rank << std::endl;
+                    std::cout << "It is swapped back to the correct value by brute force which took " << duration << " seconds to find out of a set of " << shellVertCoord2Ref.size() << " vertices." << std::endl;
+                    
+                }
+                
+                
+                
+                
+                std::set<int> test_set;
+                test_set.insert(refOUT[triaNodes2[pos]-1]);
+                test_set.insert(refOUT[triaNodes2[pos+1]-1]);
+                test_set.insert(refOUT[triaNodes2[pos+2]-1]);
+                
+
+                
+                
+                
                 if(vertref2shell_prism.find(test_set)!=vertref2shell_prism.end())
                 {
                     PMMG_Shell2Prism[faceSh] = vertref2shell_prism[test_set];
-                    //std::cout << "vertref2shell_prism[test_set] " << vertref2shell_prism[test_set] << std::endl;
-                    PMMG_ShellFace[vertref2shell_prism[test_set]] = shFace;
                     prismFound++;
                 }
-//
+                else
+                {
+                    std::cout << "Error: Prism connectivity on the shell faces is not found!" << std::endl;
+                }
+
+                
                 test_set.clear();
                 
                 faceCovered++;
@@ -1466,7 +1999,48 @@ int main(int argc, char** argv)
             if ( required2 && required2[k] )  nreq2++;
         }
         
-        //std::cout << world_rank << " PMMG_ShellFaces size  " << PMMG_ShellFaces.size() << " prismFound-> " << prismFound << " " << faceCovered << " " << PMMG_Shell2Prism.size() <<  std::endl;
+        
+        if(outshellT.size()!=0 && debug == 1)
+        {
+            ofstream myfile_OUT;
+                       
+            string filename_shellOUT = "outputShell_" + std::to_string(world_rank) + ".dat";
+
+            myfile_OUT.open(filename_shellOUT);
+            myfile_OUT << "TITLE=\"outputShell.tec\"" << std::endl;
+            myfile_OUT <<"VARIABLES = \"X\", \"Y\", \"Z\"" << std::endl;
+            //ZONE N = 64, E = 48, DATAPACKING = POINT, ZONETYPE = FEQUADRILATERAL
+            myfile_OUT <<"ZONE N = " << outshellVerts.size() << ", E = " << outshellT.size() << ", DATAPACKING = POINT, ZONETYPE = FETRIANGLE" << std::endl;
+            for(int i=0;i<outshellVerts.size();i++)
+            {
+              myfile_OUT << outshellVerts[i]->x << "   " << outshellVerts[i]->y << "   " << outshellVerts[i]->z << std::endl;
+            }
+
+            for(int i=0;i<outshellT.size();i++)
+            {
+                int g0=outshellT[i][0];
+                int g1=outshellT[i][1];
+                int g2=outshellT[i][2];
+                
+                int l0=outshell_g2l[g0];
+                int l1=outshell_g2l[g1];
+                int l2=outshell_g2l[g2];
+                
+              myfile_OUT << l0+1 << "    " << l1+1 << "   " << l2+1 << std::endl;
+            }
+            myfile_OUT.close();
+        }
+        
+        
+        
+        
+        DistributedParallelState* pmmg_shellfacedist = new DistributedParallelState(PMMG_ShellFaces.size(),comm);
+        DistributedParallelState* PMMG_Shell2Prismdist = new DistributedParallelState(PMMG_Shell2Prism.size(),comm);
+        
+        if(PMMG_ShellFaces.size()!=PMMG_Shell2Prism.size())
+        {
+            std::cout << world_rank << " PMMG_ShellFaces size " << PMMG_ShellFaces.size() << " pmmg_shellfacedist->getNel() " << pmmg_shellfacedist->getNel() << " PMMG_Shell2Prismdist->getNel() = "<< PMMG_Shell2Prismdist->getNel() << " prismFound-> " << prismFound << " " << faceCovered << " " << PMMG_Shell2Prism.size() << " " << vertref2shell_prism.size() <<  std::endl;
+        }
         
         int itt2            = 0;
         int nTshared_owned  = 0;
@@ -1635,9 +2209,6 @@ int main(int argc, char** argv)
             tel++;
         }
 
-        
-        
-        
         int* tetraOUT = new int[nTetrahedraOUT*4];
         std::vector<std::vector<int> > tetrasOUT;
         std::vector<int> NonSharedVrts_vec;
@@ -1754,7 +2325,6 @@ int main(int argc, char** argv)
                 std::cout << "Error " << Vtet << std::endl;
             }
             
-            
             for(int u=0;u<4;u++)
             {
                 fv0 = loc2globVid[Elvrts[tetra_faces[u][0]]];
@@ -1766,10 +2336,13 @@ int main(int argc, char** argv)
                 Face.insert(fv1);
                 Face.insert(fv2);
                 
+                std::set<int> FaceRef;
+                
                 if(facemap.find(Face)==facemap.end())
                 {
                     facemap[Face] = fid;
                     std::vector<int> fce(3);
+                    
                     fce[0]  = fv0;
                     fce[1]  = fv1;
                     fce[2]  = fv2;
@@ -1907,11 +2480,30 @@ int main(int argc, char** argv)
             delete[] P;
         }
        
-        if(hellofound!=PMMG_Shell2Prism.size())
+        
+        
+        PMMG_Free_all(PMMG_ARG_start,
+                      PMMG_ARG_ppParMesh,&parmesh,
+                      PMMG_ARG_end);
+        
+        
+        if(nTetrahedraOUT!=0 && debug==1)
         {
-            std::cout << "NOTIFIED !!!" << std::endl;
+            string filename = "pmmg_" + std::to_string(world_rank) + ".dat";
+            OutputMesh_PMMG(nVerticesOUT,vertOUT,nTetrahedraOUT,tetraOUT,filename);
         }
-        std::cout << world_rank << " --> " << rhshell.size() << " " << fmShell.size() << " " << hellofound << " " << PMMG_Shell2Prism.size() << std::endl;
+
+        
+        
+        
+        
+        
+        
+        if(PMMG_Shell2Prism.size()!=PMMG_ShellFaces.size())
+        {
+            std::cout << "NOTIFIED !!! " << world_rank << " --> " << rhshell.size() << " " << fmShell.size() << " " << hellofound << " " << PMMG_Shell2Prism.size() << " " << PMMG_ShellFaces.size() << std::endl;
+        }
+       
 
         //std::cout << "HELLO FOUND " << world_rank << ":: "<<shellface2vertref.size() << " " << ushell.size() << " " << foundU << " " <<vertref2shell_prism.size() << " " << prismFound << " " <<  hellofound << " " << PMMG_ShellFaces.size() << " " << PMMG_Shell2Prism.size() << std::endl;
         
@@ -2391,9 +2983,11 @@ int main(int argc, char** argv)
             updateID[fid]   = ftot;
             ifnOUT->setVal(ftot,0,3);
             flag = -1;
+            
             VcF->x = 0.0;
             VcF->y = 0.0;
             VcF->z = 0.0;
+            
             std::vector<Vert*> Vfaces;
             std::vector<int> reference(3);
             for(int q=0;q<3;q++)
@@ -2412,11 +3006,19 @@ int main(int argc, char** argv)
                 
                 Vfaces.push_back(Vf);
                 
+//                if(reference[q] == 86)
+//                {
+//                    int pri = glob2locVid[itm->second[q]];
+//                    std::cout << "HuH ! -> " << fq[q] << " " << pri << " " << std::setprecision(16) << " ("<< Vf->x << ", " << Vf->y << ", " << Vf->z << ") " << std::endl;
+//                }
+                
                 if(LocationSharedVert_update.find(itm->second[q])!=LocationSharedVert_update.end())
                 {
                     fq[q] = LocationSharedVert_update[itm->second[q]];
                     
                     int shelltag = tag2shelltag_glob[itm->second[q]];
+                    
+                    
                     
                     if(shelltag2glob.find(shelltag)==shelltag2glob.end())
                     {
@@ -2424,6 +3026,7 @@ int main(int argc, char** argv)
                     }
                                         
                     flag = q;
+                    
                 }
                 else
                 {
@@ -2452,17 +3055,35 @@ int main(int argc, char** argv)
             int gv2 = fq[2];
             
             
-            if(rhshell.find(fid)==rhshell.end())
-            {
-                elRh = rh[fid];
-                elLh = lhshell[fid];
-		std::cout << "NotFound!" << rh[fid] << " " << lhshell[fid] << " " << rhshell[fid] << std::endl;
-                notsh++;
-            }
-            else
+            if(rhshell.find(fid)!=rhshell.end())
             {
                 elRh = rhshell[fid];
                 elLh = lhshell[fid];
+		
+            }
+            else
+            {
+                elRh = rh[fid];
+                elLh = lhshell[fid];
+                std::cout << "NotFound! -> " << rh[fid] << " " << lhshell[fid] << " " << rhshell.size() << " " << fmShell.size() << " " << std::endl;
+                for(int b=0;b<3;b++)
+                {
+                    int lvert = glob2locVid[itm->second[b]];
+                	std::cout << " ("  << reference[b] << ", " <<  fq[b] << ") ";
+                	if(reference[b] == 86)
+                	{
+
+                		std::cout << std::setprecision(16) << "not correct " << " ("<< vertOUT[(lvert-1)*3+0] << ", " << vertOUT[(lvert-1)*3+1] << ", " << vertOUT[(lvert-1)*3+2] << ") " << std::endl;
+                	}
+                    else
+                    {
+                        std::cout << std::setprecision(16) << "sup correct " << " ("<< vertOUT[(lvert-1)*3+0] << ", " << vertOUT[(lvert-1)*3+1] << ", " << vertOUT[(lvert-1)*3+2] << ") " << std::endl;
+                    }
+
+                }
+                std::cout << std::endl;
+                std::cout << "NotFound!" << rh[fid] << " " << lhshell[fid] << " " << rhshell.size() << " " << fmShell.size() << std::endl;
+                notsh++;
             }
             
             
@@ -3297,6 +3918,10 @@ int main(int argc, char** argv)
             nTotBCFaces_offset = nTotBCFaces_offset + NelTot_bci;
             nTotBCFaces        = nTotBCFaces + NelTot_bci;
             
+//            if(world_rank == 0 && bc_id == 3)
+//            {
+//                std::cout << "bcID and nBCFaces -> " << bc_id << " " << NelTot_bci << " " << pmmg_shellfacedist->getNel() << " " << PMMG_Shell2Prismdist->getNel() << " " << sucDist->getNel() << std::endl;
+//            }
             
         }
 
@@ -3401,7 +4026,7 @@ int main(int argc, char** argv)
         hid_t ret;
         hid_t plist_id = H5Pcreate(H5P_FILE_ACCESS);
         H5Pset_fapl_mpio(plist_id, comm, info);
-        hid_t file_id = H5Fcreate("par_grid.h5", H5F_ACC_TRUNC, H5P_DEFAULT, plist_id);
+        hid_t file_id = H5Fcreate("grid.h5", H5F_ACC_TRUNC, H5P_DEFAULT, plist_id);
 
         hid_t    dset_id;
         hid_t    filespace;
@@ -3711,9 +4336,10 @@ int main(int argc, char** argv)
         //===================================================================================
     }
     
-    
-     
-    
+    if(world_rank==0)
+    { 
+    	std::cout << "Finalizing process" << std::endl;     
+    }
     MPI_Finalize();
     
 }
