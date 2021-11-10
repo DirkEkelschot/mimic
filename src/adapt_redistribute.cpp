@@ -87,6 +87,45 @@ RedistributePartitionObject::RedistributePartitionObject(US3D* us3d,
     
 }
 
+// destructor
+RedistributePartitionObject::~RedistributePartitionObject()
+{
+    int nvrts = LocalVerts.size();
+    for(int i=0;i<nvrts;i++)
+    {
+        delete LocalVerts[i];
+    }
+    
+    std::map<int,int* >::iterator itm;
+    for(itm=face2node.begin();itm!=face2node.end();itm++)
+    {
+        delete[] itm->second;
+    }
+    
+    delete ElGids;
+    delete ien_part_tetra;
+    delete ien_part_hybrid;
+    delete ief_part_tetra;
+    delete ief_part_hybrid;
+    delete iefref_part_tetra;
+    
+    int nlfaces = LocalFaces.size();
+    for(int i=0;i<nlfaces;i++)
+    {
+        delete[] LocalFaces[i];
+    }
+    
+    
+    std::map<int,Array<double>* >::iterator itA;
+    for(itA=m_M_vmap.begin();itA!=m_M_vmap.end();itA++)
+    {
+        delete itA->second;
+    }
+    
+    delete m_part;
+    
+    
+}
 
 void RedistributePartitionObject::RebasePartitionObject(
                                                    std::map<int,std::vector<int> > tetras,

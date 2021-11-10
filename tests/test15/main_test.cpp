@@ -281,7 +281,8 @@ int main(int argc, char** argv)
     int world_rank;
     MPI_Comm_rank(comm, &world_rank);
     int i,j,k;
-    
+    clock_t t0_met = clock();
+
     int ier,opt;
     int debug = 0;
 //    const char* fn_grid="../test_mesh/cylinder_hybrid/grid.h5";
@@ -680,12 +681,21 @@ int main(int argc, char** argv)
         ComputeMetricWithWake(P, metric_inputs, comm, du_new, hess_vmap, 1.0, po, hwake);
     }
     
+    clock_t t1_met = clock();
+    double duration_met = ( t1_met - t0_met) / (double) CLOCKS_PER_SEC;
+    double dur_max_met;
+    MPI_Allreduce(&duration_met, &dur_max_met, 1, MPI_DOUBLE, MPI_MAX, comm);
+    
+    
+    
     //std::cout << "Done computing the metric"<<std::endl;
     //std::cout << "understand bitshift " << world_rank << "  " << (world_rank & (~(1 << 3)))<< std::endl;
     //std::vector<int> LocElem     = P->getLocElem();
     //================================================================================
     //================================================================================
     //================================================================================
+    
+    
     Domain* pDom = P->getPartitionDomain();
     std::map<int,std::vector<int> > tetraLoc   = pDom->Tetras;
     std::map<int,std::vector<int> > tetraEl    = pDom->GTetras;
@@ -888,6 +898,8 @@ int main(int argc, char** argv)
     //================================================================================
     //================================================================================
     
+    clock_t t0_redis = clock();
+    
     RedistributePartitionObject* tetra_distri = new RedistributePartitionObject(us3d,
     																			tetrahedra,
 																				iferank_map,
@@ -994,15 +1006,9 @@ int main(int argc, char** argv)
         int Etettag   = itmm->second[0];
         int Eprismtag = itmm->second[1];
         int EprismNew = tag2element_shell[Eprismtag];
-        std::set<int> testface;
-        testface.insert(1);
-        testface.insert(944);
-        testface.insert(1146);
         
-        if(shellface2vertref[fhyb]==testface)
-        {
-            std::cout << "JIPPIE!! " << world_rank << std::endl;
-        }
+        
+        
         
         if(shellface2vertref.find(fhyb)!=shellface2vertref.end())
         {
@@ -1017,26 +1023,32 @@ int main(int argc, char** argv)
         nshell++;
     }
     
-    if(world_rank == 0)
-    {
-        int foundU2 = 0;
-        std::map<int,std::set<int> >::iterator itmms;
-        for(itmms=shellface2vertref.begin();itmms!=shellface2vertref.end();itmms++)
-        {
-            int fhyb      = itmms->first;
-
-            if(ushell.find(fhyb)!=ushell.end())
-            {
-                foundU2++;
-            }
-            else
-            {
-               std::cout << "Fhyb NotFound Reverse Test-> " << fhyb << " " << world_rank  << std::endl;
-            }
-            
-            //nshell++;
-        }
-    }
+//    if(world_rank == 0)
+//    {
+//        int foundU2 = 0;
+//        std::map<int,std::set<int> >::iterator itmms;
+//        for(itmms=shellface2vertref.begin();itmms!=shellface2vertref.end();itmms++)
+//        {
+//            int fhyb      = itmms->first;
+//
+//            if(ushell.find(fhyb)!=ushell.end())
+//            {
+//                foundU2++;
+//            }
+//            else
+//            {
+//               std::cout << "Fhyb NotFound Reverse Test-> " << fhyb << " " << world_rank  << std::endl;
+//            }
+//
+//            //nshell++;
+//        }
+//    }
+    
+    
+    clock_t t1_redis = clock();
+    double duration_redis = ( t1_redis - t0_redis) / (double) CLOCKS_PER_SEC;
+    double dur_max_redis;
+    MPI_Allreduce(&duration_redis, &dur_max_redis, 1, MPI_DOUBLE, MPI_MAX, comm);
     
     
     //std::cout << "WOR " << world_rank << " " << vertref2shell_prism.size() << " " << ushell.size() << " shellface2vertref " << shellface2vertref.size() << " " << foundU <<std::endl;
@@ -1046,6 +1058,9 @@ int main(int argc, char** argv)
     //===============================================================================================
     
     
+    
+    clock_t t0_input = clock();
+
     PMMG_pParMesh   parmesh;
     PMMG_Init_parMesh(PMMG_ARG_start,
                       PMMG_ARG_ppParMesh,&parmesh,
@@ -1096,6 +1111,7 @@ int main(int argc, char** argv)
          exit(EXIT_FAILURE);
         }
         delete[] tensor;
+        //delete metric[vert];
     }
     
    
@@ -1295,13 +1311,7 @@ int main(int argc, char** argv)
             ref2coordinates[refi] = coords;
         }
         
-        if(world_rank == 6)
-        {
-            if(refIN[k]==1147)
-            {
-                std::cout << "ref = 1147 --> " << vertIN[pos] << ", " << vertIN[pos+1] << ", " << vertIN[pos+2] << std::endl;
-            }
-        }
+        
         
         
     }
@@ -1309,11 +1319,7 @@ int main(int argc, char** argv)
     
     std::map<int,std::vector<double> > ref2coordsAll = AllGatherMapDoubleVec(ref2coordinates,comm);
 
-    if(world_rank == 0)
-    {
-        std::cout << "ref2coordsAll = " << ref2coordsAll.size()  << std::endl;
-
-    }
+    
     
     int API_mode = 0;
     
@@ -1486,8 +1492,26 @@ int main(int argc, char** argv)
     }
     //std::cout << "number of tets per rank  " << world_rank << " ("<<nTetrahedra<<", " << ToTElements_bef << ") (" << nPrisms <<", " << ToTElements_prism_bef <<")" << std::endl;
     
+    clock_t t1_input = clock();
+    double duration_input = ( t1_input - t0_input) / (double) CLOCKS_PER_SEC;
+    double dur_max_input;
+    MPI_Allreduce(&duration_input, &dur_max_input, 1, MPI_DOUBLE, MPI_MAX, comm);
+        
+    
+    
+    delete tetra_distri;
+    
+    clock_t t0_adapt = clock();
+
     int ierlib = PMMG_parmmglib_distributed( parmesh );
     
+    clock_t t1_adapt = clock();
+    double duration_adapt = ( t1_adapt - t0_adapt) / (double) CLOCKS_PER_SEC;
+    double dur_max_adapt;
+    MPI_Allreduce(&duration_adapt, &dur_max_adapt, 1, MPI_DOUBLE, MPI_MAX, comm);
+    
+    
+    clock_t t0_ijk = clock();
     
     if(ierlib==0 && world_rank == 0)
     {
@@ -4336,8 +4360,17 @@ int main(int argc, char** argv)
         //===================================================================================
     }
     
+    clock_t t1_ijk = clock();
+    double duration = ( t1_ijk - t0_ijk) / (double) CLOCKS_PER_SEC;
+    double dur_max;
+    MPI_Allreduce(&duration, &dur_max, 1, MPI_DOUBLE, MPI_MAX, comm);
+    
     if(world_rank==0)
-    { 
+    {
+        std::cout << std::setprecision(16) << "Computing the metric takes " << dur_max_met << " seconds using " << world_size << " procs. " << std::endl;
+        std::cout << std::setprecision(16) << "Redistributing the tetrahedra takes " << dur_max_redis << " seconds using " << world_size << " procs. " << std::endl;
+        std::cout << std::setprecision(16) << "Adapting the tetrahedra takes " << dur_max_adapt << " seconds using " << world_size << " procs. " << std::endl;
+        std::cout << std::setprecision(16) << "Writing out the grid takes " << dur_max << " seconds using " << world_size << "procs. " << std::endl;
     	std::cout << "Finalizing process" << std::endl;     
     }
     MPI_Finalize();
