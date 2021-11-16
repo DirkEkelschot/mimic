@@ -1424,10 +1424,10 @@ int main(int argc, char** argv)
     };
     
     
-    if( !PMMG_Set_iparameter( parmesh, PMMG_IPARAM_mem, 2000 ) ) {
-      MPI_Finalize();
-      exit(EXIT_FAILURE);
-    };
+//    if( !PMMG_Set_iparameter( parmesh, PMMG_IPARAM_mem, 2000 ) ) {
+//      MPI_Finalize();
+//      exit(EXIT_FAILURE);
+//    };
     
     
     
@@ -4007,7 +4007,7 @@ int main(int argc, char** argv)
         adapt_zdefs->setVal(2,6,2);
         
         int qq  = 1;
-        int nb = 0;
+        int nb  = 0;
         int face_start = nTotIntFaces+1;
         int face_end;
         std::map<int,int>::iterator itr;
@@ -4133,7 +4133,7 @@ int main(int argc, char** argv)
         filespace = H5Dget_space(dset_id);
         H5Sselect_hyperslab(filespace, H5S_SELECT_SET, offsetH5, NULL, countH5, NULL);
         plist_id     = H5Pcreate(H5P_DATASET_XFER);
-        H5Pset_dxpl_mpio(plist_id, H5FD_MPIO_COLLECTIVE);
+        H5Pset_dxpl_mpio(plist_id, H5FD_MPIO_INDEPENDENT);
         
         status = H5Dwrite(dset_id, H5T_NATIVE_INT, memspace, filespace, plist_id, parmmg_iet_prisms->data);
         delete parmmg_iet_prisms;
@@ -4150,7 +4150,7 @@ int main(int argc, char** argv)
         //filespace = H5Dget_space(dset_id);
         H5Sselect_hyperslab(filespace, H5S_SELECT_SET, offsetH5, NULL, countH5, NULL);
         plist_id     = H5Pcreate(H5P_DATASET_XFER);
-        H5Pset_dxpl_mpio(plist_id, H5FD_MPIO_COLLECTIVE);
+        H5Pset_dxpl_mpio(plist_id, H5FD_MPIO_INDEPENDENT);
 
         status = H5Dwrite(dset_id, H5T_NATIVE_INT, memspace, filespace, plist_id, parmmg_iet->data);
         delete parmmg_iet;
@@ -4179,7 +4179,7 @@ int main(int argc, char** argv)
         filespace = H5Dget_space(dset_id);
         H5Sselect_hyperslab(filespace, H5S_SELECT_SET, offsetH5, NULL, countH5, NULL);
         plist_id     = H5Pcreate(H5P_DATASET_XFER);
-        H5Pset_dxpl_mpio(plist_id, H5FD_MPIO_COLLECTIVE);
+        H5Pset_dxpl_mpio(plist_id, H5FD_MPIO_INDEPENDENT);
         
         status = H5Dwrite(dset_id, H5T_NATIVE_DOUBLE, memspace, filespace, plist_id, xcn_prisms_int->data);
         delete xcn_prisms_int;
@@ -4203,7 +4203,7 @@ int main(int argc, char** argv)
         filespace = H5Dget_space(dset_id);
         H5Sselect_hyperslab(filespace, H5S_SELECT_SET, offsetH5, NULL, countH5, NULL);
         plist_id     = H5Pcreate(H5P_DATASET_XFER);
-        H5Pset_dxpl_mpio(plist_id, H5FD_MPIO_COLLECTIVE);
+        H5Pset_dxpl_mpio(plist_id, H5FD_MPIO_INDEPENDENT);
         
         status = H5Dwrite(dset_id, H5T_NATIVE_DOUBLE, memspace, filespace, plist_id, xcn_prisms_shared->data);
         //std::cout << "world " << nTotPrismIntVerts_v2 << " " << TotPrismVerts_offset_sha << " " << xcn_prisms_shared->getNrow() << std::endl;
@@ -4221,7 +4221,7 @@ int main(int argc, char** argv)
         //filespace = H5Dget_space(dset_id);
         H5Sselect_hyperslab(filespace, H5S_SELECT_SET, offsetH5, NULL, countH5, NULL);
         plist_id     = H5Pcreate(H5P_DATASET_XFER);
-        H5Pset_dxpl_mpio(plist_id, H5FD_MPIO_COLLECTIVE);
+        H5Pset_dxpl_mpio(plist_id, H5FD_MPIO_INDEPENDENT);
 
         status = H5Dwrite(dset_id, H5T_NATIVE_DOUBLE, memspace, filespace, plist_id, xcn_parmmg->data);
         delete xcn_parmmg;
@@ -4252,7 +4252,7 @@ int main(int argc, char** argv)
         filespace     = H5Dget_space(dset_id);
         H5Sselect_hyperslab(filespace, H5S_SELECT_SET, offsetH5, NULL, countH5, NULL);
         plist_id      = H5Pcreate(H5P_DATASET_XFER);
-        H5Pset_dxpl_mpio(plist_id, H5FD_MPIO_COLLECTIVE);
+        H5Pset_dxpl_mpio(plist_id, H5FD_MPIO_INDEPENDENT);
 //
         status = H5Dwrite(dset_id, H5T_NATIVE_INT, memspace, filespace,
                       plist_id, ifnOUT_prism->data);
@@ -4272,7 +4272,7 @@ int main(int argc, char** argv)
         filespace     = H5Dget_space(dset_id);
         H5Sselect_hyperslab(filespace, H5S_SELECT_SET, offsetH5, NULL, countH5, NULL);
         plist_id     = H5Pcreate(H5P_DATASET_XFER);
-        H5Pset_dxpl_mpio(plist_id, H5FD_MPIO_COLLECTIVE);
+        H5Pset_dxpl_mpio(plist_id, H5FD_MPIO_INDEPENDENT);
 //
         status = H5Dwrite(dset_id, H5T_NATIVE_INT, memspace, filespace,
                       plist_id, ifnOUT->data);
@@ -4303,7 +4303,7 @@ int main(int argc, char** argv)
             H5Sselect_hyperslab(filespace, H5S_SELECT_SET, offsetH5, NULL, countH5, NULL);
 
             plist_id     = H5Pcreate(H5P_DATASET_XFER);
-            H5Pset_dxpl_mpio(plist_id, H5FD_MPIO_COLLECTIVE);
+            H5Pset_dxpl_mpio(plist_id, H5FD_MPIO_INDEPENDENT);
     //
             status = H5Dwrite(dset_id, H5T_NATIVE_INT, memspace, filespace,
                           plist_id, ifn_bc_i->data);

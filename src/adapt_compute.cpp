@@ -1212,7 +1212,7 @@ void ComputeMetricWithWake(Partition* Pa, std::vector<double> metric_inputs,
         detRf = std::pow(detRf,pow);
         Array<double>* Habs  = new Array<double>(3,3);
 	
-        if(scale_vm[glob_vid]->getVal(0,0)>0.05)
+        if(scale_vm[glob_vid]->getVal(0,0)>0.0)
         {
             double wi    = scale_vm[glob_vid]->getVal(0,0);
             double wa    = 1.0-scale_vm[glob_vid]->getVal(0,0);

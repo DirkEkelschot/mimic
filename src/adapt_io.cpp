@@ -2937,14 +2937,15 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
     int pris=0;
     for(int i=0;i<nrow;i++)
     {
+        ie_tetCnt->setVal(i,0,-1);
+        
         if(iet->getVal(i,0)==2) // Tet
         {
-            ie_tetCnt->setVal(i,0,OffcolTetCount[i]+tett);
+            ie_tetCnt->setVal(i,0,OffcolTetCount[rank]+tett);
             tett++;
         }
         else
         {
-            ie_tetCnt->setVal(i,0,-1);
             pris++;
         }
     }

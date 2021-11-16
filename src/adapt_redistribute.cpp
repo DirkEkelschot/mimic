@@ -637,7 +637,6 @@ void RedistributePartitionObject::RebasePartitionObject(
     int Psend;
     while(adv<ns)
     {
-        
         int dist  = Nsending[adv];
         
         if(dist!=0)
@@ -648,16 +647,17 @@ void RedistributePartitionObject::RebasePartitionObject(
         std::vector<int> toRank;
         std::vector<int> NtoRank;
         //std::cout << Psend << " with " << dist << " sends -> ";
-        
+        int itte=0;
         while(dist!=0)
         {
 
             int PtoS = Preceiving[st];
 
             toRank.push_back(PtoS);
-
+            
             if(residual != 0)
             {
+                
                 if(dist>residual)
                 {
                     dist = dist - residual;
@@ -665,11 +665,18 @@ void RedistributePartitionObject::RebasePartitionObject(
                     residual = 0;
                     st++;
                 }
-                else
+                else if(dist<residual)
                 {
                     NtoRank.push_back(dist);
                     residual = residual - dist;
                     dist     = 0;
+                }
+                else if(dist==residual)
+                {
+                    NtoRank.push_back(dist);
+                    residual = residual - dist;
+                    dist     = 0;
+                    st++;
                 }
             }
             else if(dist>Nreceiving[st])
@@ -678,12 +685,21 @@ void RedistributePartitionObject::RebasePartitionObject(
                 NtoRank.push_back(Nreceiving[st]);
                 st++;
             }
-            else
+            else if(dist<Nreceiving[st])
+            {
+                NtoRank.push_back(dist);
+                residual   = Nreceiving[st]-dist;
+                dist       = 0;
+            }
+            else if(dist==Nreceiving[st])
             {
                 NtoRank.push_back(dist);
                 residual = Nreceiving[st]-dist;
+                st++;
                 dist = 0;
             }
+            
+            itte++;
         }
         
         //std::cout << std::endl;
