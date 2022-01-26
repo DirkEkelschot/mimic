@@ -3096,11 +3096,6 @@ i_part_map* Partition::getFace2EntityPerPartition(i_part_map* ief_part_map_input
                             ife_loc_inv[vrtid].push_back(face_req);
                         }
                     }
-                    
-                    if(ife_loc[face_req].size()>3)
-                    {
-                        std::cout << "Hoe dan " << std::endl;
-                    }
                 }
             }
         }
@@ -3217,12 +3212,21 @@ i_part_map* Partition::getFace2EntityPerPartition(i_part_map* ief_part_map_input
         for(int s=0;s<L;s++)
         {
             face_id = recv_back_face_ids[iter->first][s];
-            for(int r=0;r<ncol;r++)
+            
+            if(ife_loc.find(face_id)==ife_loc.end())
             {
-                ife_loc[face_id].push_back(recv_back_ife[iter->first][s*ncol+r]);
-                ife_loc_inv[recv_back_ife[iter->first][s*ncol+r]].push_back(face_id);
-                
+                for(int r=0;r<ncol;r++)
+                {
+                    int vrtid_n = recv_back_ife[iter->first][s*ncol+r];
+                    
+                    if(vrtid_n!=-1)
+                    {
+                        ife_loc[face_id].push_back(recv_back_ife[iter->first][s*ncol+r]);
+                        ife_loc_inv[recv_back_ife[iter->first][s*ncol+r]].push_back(face_id);
+                    }
+                }
             }
+            
         }
         ntotal=ntotal+L;
     }
