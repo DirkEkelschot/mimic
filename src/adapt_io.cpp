@@ -2643,6 +2643,24 @@ void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh,MMG5_pSol mmgSol, US3D* us3d)
 //}
 
 
+int ProvideBoundaryRef(int findex, std::map<int,std::vector<int> > ranges, int fref, int rank)
+{
+    std::map<int,std::vector<int> >::iterator it;
+    int retref;
+    for(it=ranges.begin();it!=ranges.end();it++)
+    {
+        int bndref = it->first;
+        int low    = it->second[0];
+        int high   = it->second[1];
+        
+        if(findex>=low && findex<=high)
+        {
+            retref = bndref;
+            return bndref;
+        }
+    }
+}
+
 US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data, int readFromStats, MPI_Comm comm, MPI_Info info)
 {
     int size;
@@ -2664,10 +2682,12 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
 
     int Nel = ien->getNglob();
     ParArray<double>* interior;
-    ParArray<double>* mean;
-    ParArray<double>* stats;
+
     if(readFromStats==1)
     {
+        ParArray<double>* mean;
+        ParArray<double>* stats;
+        
         double time_stats = ReadStatisticsTimeFromRunInFileInParallel(fn_data,"run_1",comm,info);
         
         interior = new ParArray<double>(Nel,2,comm);
@@ -2721,6 +2741,8 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
         }
         
         
+        delete mean;
+        delete stats;
         
     }
     else{
@@ -2728,8 +2750,7 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
     }
     
     
-    delete mean;
-    delete stats;
+
     
     
     Array<double>* ghost        = ReadUS3DGhostCellsFromRun<double>(fn_data,"run_1","interior",Nel);
@@ -2742,10 +2763,27 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
     std::map<int,std::vector<int> > bnd_face_map;
     // Collect boundary data;
     std::vector<int> bnd_m;
+    std::vector<int> low_range;
+    std::vector<int> high_range;
+    std::vector<int> ref_range;
+    
     int t=0;
-    for(int i=4;i<zdefs->getNrow();i++)
+    int gg=0;
+    std::map<int,std::vector<int> > ranges;
+    for(int i=2;i<zdefs->getNrow();i++)
     {
-        bnd_m.push_back(zdefs->getVal(i,3));
+        bnd_m.push_back(zdefs->getVal(i,5));
+        
+        low_range.push_back(zdefs->getVal(i,3)-1);
+        high_range.push_back(zdefs->getVal(i,4)-1);
+        ref_range.push_back(zdefs->getVal(i,5));
+        ranges[zdefs->getVal(i,5)].push_back(zdefs->getVal(i,3)-1);
+        ranges[zdefs->getVal(i,5)].push_back(zdefs->getVal(i,4)-1);
+        if(rank == 0)
+        {
+            std::cout << zdefs->getVal(i,5) << " " << zdefs->getVal(i,3)-1 << " " << zdefs->getVal(i,4)-1 << std::endl;
+        }
+        gg++;
     }
     bnd_m.push_back(zdefs->getVal(zdefs->getNrow()-1,4));
     
@@ -2834,17 +2872,30 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
     
     delete iee;
     
-    int nrow_fglob = ifn->getNglob();
-    int nrow_floc  = ifn->getNrow();
-    int ncol_ifn = 4;
-    int ncol_ife = 2;
+    int nrow_fglob  = ifn->getNglob();
+    int nrow_floc   = ifn->getNrow();
+    int ncol_ifn    = 4;
+    int ncol_ife    = 2;
     ParArray<int>* ifn_copy    = new ParArray<int>(nrow_fglob,ncol_ifn,comm);
     ParArray<int>* ife_copy    = new ParArray<int>(nrow_fglob,ncol_ife,comm);
     ParArray<int>* if_ref_copy = new ParArray<int>(nrow_fglob,1,comm);
     ParArray<int>* if_Nv_copy  = new ParArray<int>(nrow_fglob,1,comm);
-
+    int foffset                = if_ref_copy->getOffset(rank);
+    int fref2;
+    
+    int index_range = 0;
+    
     for(i=0;i<nrow_floc;i++)
     {
+        int fref   = ifn->getVal(i,7);
+        int index  = i + foffset;
+        int fref2  = ProvideBoundaryRef(index,ranges,fref,rank);
+        
+        if(fref!=fref2)
+        {
+            fref=fref2;
+        }
+        
         if_ref_copy->setVal(i,0,ifn->getVal(i,7));
         if_Nv_copy->setVal(i,0,ifn->getVal(i,0));
 
@@ -2856,6 +2907,320 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
         {
             ife_copy->setVal(i,j,ife->getVal(i,j)-1);
         }
+        //if(fref!=3 && fref!=13 && fref!=36 && fref!=7&&fref!=2)
+        //{
+        //    std::cout << "its wrong here already " << fref << std::endl;
+        //}
+    }
+    
+    
+//    for(int q=0;q<if_ref_copy->getNrow();q++)
+//    {
+//        if(if_ref_copy->getVal(q,0)!=3 && if_ref_copy->getVal(q,0)!=7 && if_ref_copy->getVal(q,0)!=10 && if_ref_copy->getVal(q,0)!=36 && if_ref_copy->getVal(q,0)!=2)
+//        {
+//            std::cout<<"while reading TEFFIE " << if_ref_copy->getVal(q,0) << std::endl;
+//        }
+//    }
+    
+    
+    delete ifn;
+    delete ife;
+    
+    ParArray<int>* ie_Nv    = new ParArray<int>(nglob,1,comm);
+    ParArray<int>* ie_Nf    = new ParArray<int>(nglob,1,comm);
+    
+    int check_hex = 0;
+    int check_tet = 0;
+    int check_pri = 0;
+    
+    int tetCount=0;
+    for(int i=0;i<nrow;i++)
+    {
+        if(iet->getVal(i,0)==2) // Tet
+        {
+            ie_Nv->setVal(i,0,4);
+            ie_Nf->setVal(i,0,4);
+            check_tet = 1;
+            tetCount++;
+        }
+        if(iet->getVal(i,0)==6) // Prism
+        {
+            ie_Nv->setVal(i,0,6);
+            ie_Nf->setVal(i,0,5);
+            check_pri = 1;
+        }
+        if(iet->getVal(i,0)==4) // Hex
+        {
+            ie_Nv->setVal(i,0,8);
+            ie_Nf->setVal(i,0,6);
+            check_hex = 1;
+        }
+        if(iet->getVal(i,0)!=2 && iet->getVal(i,0)!=4 && iet->getVal(i,0)!=6)
+        {
+            std::cout << "What is this type " << iet->getVal(i,0) << std::endl;
+        }
+    }
+    
+    int* colTetCount = new int[size];
+    int* RedcolTetCount = new int[size];
+    int* OffcolTetCount = new int[size];
+
+    for(int i=0;i<size;i++)
+    {
+        colTetCount[i]    = 0;
+        RedcolTetCount[i] = 0;
+        if(i==rank)
+        {
+            colTetCount[i] = tetCount;
+        }
+    }
+    
+    
+    MPI_Allreduce(colTetCount,  RedcolTetCount,  size, MPI_INT, MPI_SUM, comm);
+    MPI_Allreduce(colTetCount,  RedcolTetCount,  size, MPI_INT, MPI_SUM, comm);
+    
+    int offset_tetC = 0;
+    for(int i=0;i<size;i++)
+    {
+        OffcolTetCount[i] = offset_tetC;
+        offset_tetC = offset_tetC+RedcolTetCount[i];
+    }
+    
+    Array<int>* ie_tetCnt    = new Array<int>(nrow,1);
+
+    int tett=0;
+    int pris=0;
+    for(int i=0;i<nrow;i++)
+    {
+        ie_tetCnt->setVal(i,0,-1);
+        
+        if(iet->getVal(i,0)==2) // Tet
+        {
+            ie_tetCnt->setVal(i,0,OffcolTetCount[rank]+tett);
+            tett++;
+        }
+        else
+        {
+            pris++;
+        }
+    }
+    //std::cout << "before partitioning rank = " << rank << " #tets = " << tett << " #prisms " << pris << std::endl;
+    Array<int>* elTypes = new Array<int>(3,1);
+    elTypes->setVal(0,0,check_tet);
+    elTypes->setVal(1,0,check_pri);
+    elTypes->setVal(2,0,check_hex);
+    
+    delete[] OffcolTetCount;
+    us3d->xcn           = xcn;
+    us3d->elTypes       = elTypes;
+    us3d->ien           = ien_copy;
+    us3d->ief           = ief_copy;
+    us3d->iee           = iee_copy;
+    us3d->iet           = iet;
+    us3d->ie_Nv         = ie_Nv;
+    us3d->ie_Nf         = ie_Nf;
+    us3d->if_Nv         = if_Nv_copy;
+
+    us3d->ifn           = ifn_copy;
+    us3d->if_ref        = if_ref_copy;
+    us3d->ife           = ife_copy;
+    us3d->ie_tetCnt     = ie_tetCnt;
+    us3d->interior      = interior;
+    us3d->ghost         = ghost;
+    
+    us3d->znames        = znames_new;
+    us3d->zdefs         = zdefs;
+
+    //delete zdefs;
+    delete znames;
+    
+    //std::cout << interior->getNrow() << " " << interior->getNcol() << std::endl;
+    return us3d;
+}
+
+
+
+
+
+US3D* ReadUS3DGrid(const char* fn_conn, const char* fn_grid, int readFromStats, MPI_Comm comm, MPI_Info info)
+{
+    int size;
+    MPI_Comm_size(comm, &size);
+    // Get the rank of the process
+    int rank;
+    MPI_Comm_rank(comm, &rank);
+    US3D* us3d = new US3D;
+    ParArray<double>* xcn = ReadDataSetFromFileInParallel<double>(fn_grid,"xcn",comm,info);
+    //std::cout << "Reading from :: " << fn_conn << std::endl;
+    ParArray<int>* ien = ReadDataSetFromFileInParallel<int>(fn_conn,"ien",comm,info);
+    ParArray<int>* ief = ReadDataSetFromFileInParallel<int>(fn_conn,"ief",comm,info);
+    ParArray<int>* iee = ReadDataSetFromFileInParallel<int>(fn_conn,"iee",comm,info);
+    ParArray<int>* iet = ReadDataSetFromFileInParallel<int>(fn_grid,"iet",comm,info);
+    ParArray<int>* ifn = ReadDataSetFromFileInParallel<int>(fn_grid,"ifn",comm,info);
+    ParArray<int>* ife = ReadDataSetFromFileInParallel<int>(fn_conn,"ife",comm,info);
+
+    int Nel_loc = ien->getNrow();
+
+    int Nel = ien->getNglob();
+    ParArray<double>* interior = new ParArray<double>(1,1,comm);
+    Array<double>* ghost = new Array<double>(1,1);
+
+    
+    Array<int>*    zdefs        = ReadDataSetFromGroupFromFile<int>(fn_grid,"zones","zdefs");
+    Array<char>*  znames        = ReadDataSetFromGroupFromFile<char>(fn_grid,"zones","znames");
+    
+    
+    std::map<int,std::vector<int> > bnd_face_map;
+    // Collect boundary data;
+    std::vector<int> bnd_m;
+    std::vector<int> low_range;
+    std::vector<int> high_range;
+    std::vector<int> ref_range;
+    
+    int t=0;
+    int gg=0;
+    std::map<int,std::vector<int> > ranges;
+    for(int i=2;i<zdefs->getNrow();i++)
+    {
+        bnd_m.push_back(zdefs->getVal(i,5));
+        
+        low_range.push_back(zdefs->getVal(i,3)-1);
+        high_range.push_back(zdefs->getVal(i,4)-1);
+        ref_range.push_back(zdefs->getVal(i,5));
+        ranges[zdefs->getVal(i,5)].push_back(zdefs->getVal(i,3)-1);
+        ranges[zdefs->getVal(i,5)].push_back(zdefs->getVal(i,4)-1);
+        if(rank == 0)
+        {
+            std::cout << zdefs->getVal(i,5) << " " << zdefs->getVal(i,3)-1 << " " << zdefs->getVal(i,4)-1 << std::endl;
+        }
+        gg++;
+    }
+    bnd_m.push_back(zdefs->getVal(zdefs->getNrow()-1,4));
+    
+    if(rank == 0)
+    {
+       PlotBoundaryData(znames,zdefs);
+    }
+    
+    std::map<int,char*> znames_map;
+    Array<char>* znames_new = new Array<char>(znames->getNrow(),znames->getNcol());
+    for(int i=0;i<zdefs->getNrow();i++)
+    {
+        if(zdefs->getVal(i,5)!=1)
+        {
+            char* name = new char[znames->getNcol()];
+
+            for(int j=0;j<znames->getNcol();j++)
+            {
+               name[j]=znames->getVal(i,j);
+            }
+            znames_map[zdefs->getVal(i,5)] = name;
+        }
+    }
+    
+    // number of vertices
+    for(int j=0;j<znames->getNcol();j++)
+    {
+       znames_new->setVal(0,j,znames->getVal(0,j));
+    }
+    // number of cells
+    for(int j=0;j<znames->getNcol();j++)
+    {
+       znames_new->setVal(1,j,znames->getVal(1,j));
+    }
+    
+    std::map<int,char*>::iterator itch;
+    int c=2;
+    for(itch=znames_map.begin();itch!=znames_map.end();itch++)
+    {
+        int bid = itch->first;
+        for(int j=0;j<znames->getNcol();j++)
+        {
+            znames_new->setVal(c,j,znames_map[bid][j]);
+        }
+        c++;
+    }
+    
+    int i,j;
+    int nglob = ien->getNglob();
+    int nrow  = ien->getNrow();
+    int ncol  = ien->getNcol()-1;
+    //
+    ParArray<int>* ien_copy = new ParArray<int>(nglob,ncol,comm);
+    //
+    for(i=0;i<nrow;i++)
+    {
+        for(int j=0;j<ncol;j++)
+        {
+            ien_copy->setVal(i,j,ien->getVal(i,j+1)-1);
+        }
+    }
+    delete ien;
+    //
+    int ncol_ief = ief->getNcol()-1;
+    ParArray<int>* ief_copy = new ParArray<int>(nglob,ncol_ief,comm);
+
+    for(i=0;i<nrow;i++)
+    {
+        for(j=0;j<ncol_ief;j++)
+        {
+            ief_copy->setVal(i,j,fabs(ief->getVal(i,j+1))-1);
+        }
+    }
+    delete ief;
+    
+    int ncol_iee = iee->getNcol()-1;
+    ParArray<int>* iee_copy = new ParArray<int>(nglob,6,comm);
+    
+    for(i=0;i<nrow;i++)
+    {
+        for(j=0;j<ncol_iee;j++)
+        {
+            iee_copy->setVal(i,j,iee->getVal(i,j+1)-1);
+        }
+    }
+    
+    delete iee;
+    
+    int nrow_fglob  = ifn->getNglob();
+    int nrow_floc   = ifn->getNrow();
+    int ncol_ifn    = 4;
+    int ncol_ife    = 2;
+    ParArray<int>* ifn_copy    = new ParArray<int>(nrow_fglob,ncol_ifn,comm);
+    ParArray<int>* ife_copy    = new ParArray<int>(nrow_fglob,ncol_ife,comm);
+    ParArray<int>* if_ref_copy = new ParArray<int>(nrow_fglob,1,comm);
+    ParArray<int>* if_Nv_copy  = new ParArray<int>(nrow_fglob,1,comm);
+    int foffset                = if_ref_copy->getOffset(rank);
+    int fref2;
+    
+    int index_range = 0;
+    
+    for(i=0;i<nrow_floc;i++)
+    {
+        int fref   = ifn->getVal(i,7);
+        int index  = i + foffset;
+        int fref2  = ProvideBoundaryRef(index,ranges,fref,rank);
+        
+        if(fref!=fref2)
+        {
+            fref=fref2;
+        }
+        
+        if_ref_copy->setVal(i,0,ifn->getVal(i,7));
+        if_Nv_copy->setVal(i,0,ifn->getVal(i,0));
+
+        for(j=0;j<ncol_ifn;j++)
+        {
+            ifn_copy->setVal(i,j,ifn->getVal(i,j+1)-1);
+        }
+        for(j=0;j<ncol_ife;j++)
+        {
+            ife_copy->setVal(i,j,ife->getVal(i,j)-1);
+        }
+        //if(fref!=3 && fref!=13 && fref!=36 && fref!=7&&fref!=2)
+        //{
+        //    std::cout << "its wrong here already " << fref << std::endl;
+        //}
     }
     
     

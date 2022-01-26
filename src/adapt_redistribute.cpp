@@ -183,6 +183,10 @@ void RedistributePartitionObject::RebasePartitionObject(
             else
             {
                 ref = if_ref_part_map[gfid];
+                //if(ref!=3 && ref!=13 && ref!=36 && ref!=7&&ref!=2)
+                //{
+                //    std::cout << "wrong here already " << ref << std::endl;
+                //}
             }
             
             
@@ -190,6 +194,7 @@ void RedistributePartitionObject::RebasePartitionObject(
             {
                 gfid_set.insert(gfid);
                 face2ref[gfid] = ref;
+                
                 nLocalFaces++;
             }
             
@@ -1653,7 +1658,7 @@ void RedistributePartitionObject::UpdateTetrahedraOnPartition(int nglob,
     Array<int>* ief_part_tetra_update     = new Array<int>(nElexpctd,4);
     Array<int>* ief_part_hybrid_update    = new Array<int>(nElexpctd,4);
     Array<int>* iefref_part_tetra_update  = new Array<int>(nElexpctd,4);
-    //Array<int>* loc2globEL_update         = new Array<int>(nElexpctd,1);
+    //Array<int>* loc2globEL_update       = new Array<int>(nElexpctd,1);
     ParallelState* ien_pstate             = new ParallelState(nglob,mpi_comm);
 
     std::map<int,Array<double>* > M_vmap_copy_update;

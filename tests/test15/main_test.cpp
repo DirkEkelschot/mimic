@@ -420,7 +420,29 @@ int main(int argc, char** argv)
     
     
     std::map<int,Array<double>*> du_new;
-    std::map<int,std::map<int,double> > n2n = P->getNode2NodeMap();
+    clock_t t0v0_n2n = clock();
+    std::map<int,std::map<int,double> > n2n    = P->getNode2NodeMap();
+    clock_t t1v0_n2n = clock();
+    double duration_n2n_v0 = ( t1v0_n2n - t0v0_n2n) / (double) CLOCKS_PER_SEC;
+    double duration_n2n_v0_max;
+    MPI_Allreduce(&duration_n2n_v0, &duration_n2n_v0_max, 1, MPI_DOUBLE, MPI_MAX, comm);
+    
+    if(world_rank == 0)
+    {
+        std::cout << std::setprecision(16) << "n2n duration v0 = " << duration_n2n_v0_max << std::endl;
+    }
+    
+    clock_t t0_n2n = clock();
+    std::map<int,std::map<int,double> > n2n_v2 = P->getNode2NodeMap_V2();
+    clock_t t1_n2n = clock();
+    double duration_n2n = ( t1_n2n - t0_n2n) / (double) CLOCKS_PER_SEC;
+    double duration_n2n_max;
+    MPI_Allreduce(&duration_n2n, &duration_n2n_max, 1, MPI_DOUBLE, MPI_MAX, comm);
+    
+    if(world_rank == 0)
+    {
+        std::cout << std::setprecision(16) << "n2n duration v1 = " << duration_n2n_max << std::endl;
+    }
     std::map<int,std::map<int,double> >::iterator n2nit;
 
     int vid,gvid;
@@ -942,7 +964,12 @@ int main(int argc, char** argv)
 
     
 
+    std::map<int,std::vector<int> >::iterator bndtest;
     
+    //for(bndtest=bndref2face.begin();bndtest!=bndref2face.end();bndtest++)
+    //{
+    //    std::cout << "bcid => " << world_rank << " " << bndtest->first << " " << bndtest->second.size() << std::endl;
+    //}
     
     
     

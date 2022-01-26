@@ -38,8 +38,11 @@ class Mesh_Topology {
         std::map<int,std::vector<int> > getRef2Face();
         std::map<int,int> getVert2Ref();
         std::map<int,std::vector<int> > getRef2Vert();
+        std::map<int,std::vector<Vert*> > getVfacevector();
         Mesh_Topology_BL* getBLMeshTopology();
+    
     private:
+        std::map<int,std::vector<Vert*> > vfacevector;
         std::map<int,std::vector<Vec3D*> > normals;
         std::map<int,std::vector<Vec3D*> > rvector;
         std::map<int,std::vector<Vec3D*> > dxfxc;
