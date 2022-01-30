@@ -11,6 +11,7 @@ Partition::Partition(ParArray<int>* ien, ParArray<int>* iee, ParArray<int>* ief,
     ien_pstate = ien_parstate;
     xcn_pstate = xcn_parstate;
     ife_pstate = ife_parstate;
+    
     // This function computes the xadj and adjcny array and the part array which determines which element at current rank should be sent to other ranks.
     NelGlob = ien->getNglob();
     double t0 = MPI_Wtime();
@@ -49,14 +50,14 @@ Partition::Partition(ParArray<int>* ien, ParArray<int>* iee, ParArray<int>* ief,
 		}
 	}
 	
-
+   
 //	The element map needs to be generated first before the face maps!!!
     ief_part_map  = getElement2EntityPerPartition(ief,   Loc_Elem,  Loc_Elem_Nf,   comm);
     ien_part_map  = getElement2EntityPerPartition(ien,   Loc_Elem,  Loc_Elem_Nv,   comm);
     ieNf_part_map = getElement2EntityPerPartition(ie_Nf, Loc_Elem,  Loc_Elem_Nf,   comm);
     
-//    if_Erank_part_map   = getFace2EntityPerPartition(ief_part_map, iferank,   comm);
-//    if_Nv_part_map      = getFace2EntityPerPartition(ief_part_map, if_Nv  ,   comm);
+    if_Erank_part_map   = getFace2EntityPerPartition(ief_part_map, iferank,   comm);
+    if_Nv_part_map      = getFace2EntityPerPartition(ief_part_map, if_Nv  ,   comm);
     //ifn_part_map      = getFace2NodePerPartition(ifn      ,   comm);
     
     ifn_part_map        = getFace2EntityPerPartition(ief_part_map, ifn    ,   comm);
@@ -71,8 +72,8 @@ Partition::Partition(ParArray<int>* ien, ParArray<int>* iee, ParArray<int>* ief,
     }
    
     
-//    ife_part_map        = getFace2EntityPerPartition(ief_part_map, ife    ,   comm);
-//    if_ref_part_map     = getFace2EntityPerPartition(ief_part_map, if_ref ,   comm);
+    ife_part_map        = getFace2EntityPerPartition(ief_part_map, ife    ,   comm);
+    if_ref_part_map     = getFace2EntityPerPartition(ief_part_map, if_ref ,   comm);
 //
     delete iferank;
     itel_locadj = 0;
@@ -84,7 +85,8 @@ Partition::Partition(ParArray<int>* ien, ParArray<int>* iee, ParArray<int>* ief,
     iee_part_map  = getElement2EntityPerPartition(iee,   Loc_Elem,  Loc_Elem_Nf,   comm);
 
     getAdjacentElementLayer(ien, Loc_Elem, Loc_Elem_Nf, iee_part_map->i_map, part, xcn, U, comm);
-    
+    //std::cout << "nverts1 = " << rank <<  " -> "  << LocalVerts.size() << std::endl;
+
     //=======================================
     // Communicate the second adjaceny layer;
     //=======================================
@@ -107,9 +109,10 @@ Partition::Partition(ParArray<int>* ien, ParArray<int>* iee, ParArray<int>* ief,
             std::cout << "Not good ifn_adj " << std::endl;
         }
     }
-    /*
-    getAdjacentElementLayer(ien, LocAndAdj_Elem, LocAndAdj_Elem_Nf, iee_adj_part_map->i_map, part, xcn, U, comm);
     
+    getAdjacentElementLayer(ien, LocAndAdj_Elem, LocAndAdj_Elem_Nf, iee_adj_part_map->i_map, part, xcn, U, comm);
+    //std::cout << "nverts2 = " << rank <<  " -> "  << LocalVerts.size() << std::endl;
+
     //=======================================
     // Communicate the third adjaceny layer;
     //=======================================
@@ -125,6 +128,8 @@ Partition::Partition(ParArray<int>* ien, ParArray<int>* iee, ParArray<int>* ief,
 
     getAdjacentElementLayer(ien, LocAndAdj_Elem, LocAndAdj_Elem_Nf, iee_adj2_part_map->i_map, part, xcn, U, comm);
     
+    //std::cout << "nverts3 = " << rank <<  " -> "  << LocalVerts.size() << std::endl;
+    
     std::map<int,Vert*> elem2center;
     std::map<int,double> elem2volume;
     int nottjere=0;
@@ -132,7 +137,7 @@ Partition::Partition(ParArray<int>* ien, ParArray<int>* iee, ParArray<int>* ief,
     for(int i=0;i<LocAndAdj_Elem.size();i++)
     {
         int gid   = LocAndAdj_Elem[i];
-        int nvrts = ien_adj_part_map->i_map[gid].size();
+        int nvrts = ien_adj2_part_map->i_map[gid].size();
         if(nvrts!=4)
         {
             nottjere++;
@@ -140,7 +145,7 @@ Partition::Partition(ParArray<int>* ien, ParArray<int>* iee, ParArray<int>* ief,
         double* Pv = new double[nvrts*3];
         for(int q=0;q<nvrts;q++)
         {
-            int gvid = ien_adj_part_map->i_map[gid][q];
+            int gvid = ien_adj2_part_map->i_map[gid][q];
             int lvid = GlobalVert2LocalVert[gvid];
             Pv[q*3+0] = LocalVerts[lvid]->x;
             Pv[q*3+1] = LocalVerts[lvid]->y;
@@ -163,23 +168,33 @@ Partition::Partition(ParArray<int>* ien, ParArray<int>* iee, ParArray<int>* ief,
         delete[] Pv;
     }
     
-    node2elem_map = getNode2Element(iee_part_map,elem2center,elem2volume);
+    node2elemVol_map = getNode2Element_V2(iee_part_map,elem2center,elem2volume);
+    
     std::map<int,std::map<int,Vert*> >::iterator itvm;
     
     std::map<int,Vert*>::iterator itsm;
     int itsone = 0;
+    int checkedit=0;
+    
+    
     for(itvm=node2elem_map.begin();itvm!=node2elem_map.end();itvm++)
     {
         for(itsm=itvm->second.begin();itsm!=itvm->second.end();itsm++)
         {
+            int gel = itsm->first;
+            
+            if(ien_part_map->i_map.find(gel)==ien_part_map->i_map.end() &&
+               ien_adj_part_map->i_map.find(gel)!=ien_adj_part_map->i_map.end())
+            {
+                checkedit++;
+            }
             if(itsm->first==1)
             {
                 itsone++;
             }
         }
-        
     }
-    
+    std::cout << rank << " checkedit " << checkedit << " " << ien_part_map->i_map.size() << " " << ien_adj_part_map->i_map.size() << std::endl;
     //std::cout << "itsone " << rank << " " << itsone << std::endl;
 //    std::cout << "adj3 " << rank << " " << LocAndAdj_Elem.size() << " " << LocAndAdj_Elem_Nf.size() << std::endl;
     
@@ -194,10 +209,10 @@ Partition::Partition(ParArray<int>* ien, ParArray<int>* iee, ParArray<int>* ief,
     //=====================================================================================
     
     nLocAndAdj_Elem = LocAndAdj_Elem.size();
+    
+    /*
     //std::cout << rank << " check rang in partition " << nLocAndAdj_Elem << std::endl;
 
-
-    
 //    iee_adj_part_map = UpdateElement2EntityPerPartition(iee, LocAndAdj_Elem,    LocAndAdj_Elem_Nf,   comm);
 //
 //    getAdjacentElementLayer(ien, LocAndAdj_Elem, LocAndAdj_Elem_Nf, iee_adj_part_map->i_map, part, xcn, U, comm);
@@ -265,14 +280,16 @@ Partition::Partition(ParArray<int>* ien, ParArray<int>* iee, ParArray<int>* ief,
 //    std::cout << "Still found on rank " << rank << " -> " << stfound << " " << stfound2 << std::endl;
 //
 
-
+     */
     
     CreatePartitionDomainTest();
-    
+   
     //CreatePartitionDomain();
 //
-    nLocAndAdj_Elem = LocAndAdj_Elem.size();
-    */
+    //nLocAndAdj_Elem = LocAndAdj_Elem.size();
+    
+    
+   
     
 }
 
@@ -3096,11 +3113,6 @@ i_part_map* Partition::getFace2EntityPerPartition(i_part_map* ief_part_map_input
                             ife_loc_inv[vrtid].push_back(face_req);
                         }
                     }
-                    
-                    if(ife_loc[face_req].size()>3)
-                    {
-                        std::cout << "Hoe dan " << std::endl;
-                    }
                 }
             }
         }
@@ -3217,12 +3229,21 @@ i_part_map* Partition::getFace2EntityPerPartition(i_part_map* ief_part_map_input
         for(int s=0;s<L;s++)
         {
             face_id = recv_back_face_ids[iter->first][s];
-            for(int r=0;r<ncol;r++)
+            
+            if(ife_loc.find(face_id)==ife_loc.end())
             {
-                ife_loc[face_id].push_back(recv_back_ife[iter->first][s*ncol+r]);
-                ife_loc_inv[recv_back_ife[iter->first][s*ncol+r]].push_back(face_id);
-                
+                for(int r=0;r<ncol;r++)
+                {
+                    int vrtid_n = recv_back_ife[iter->first][s*ncol+r];
+                    
+                    if(vrtid_n!=-1)
+                    {
+                        ife_loc[face_id].push_back(recv_back_ife[iter->first][s*ncol+r]);
+                        ife_loc_inv[recv_back_ife[iter->first][s*ncol+r]].push_back(face_id);
+                    }
+                }
             }
+            
         }
         ntotal=ntotal+L;
     }
@@ -4026,8 +4047,7 @@ std::map<int,std::map<int,double> > Partition::getNode2NodeMap()
 //    return second_adj;
 //}
 
-
-std::map<int,std::map<int,Vert*> > Partition::getNode2Element(i_part_map* iee_part_map_input, std::map<int,Vert*> ElemCentroids, std::map<int,double> ElemVolumes)
+std::map<int,std::map<int,double> > Partition::getNode2Element_V2(i_part_map* iee_part_map_input, std::map<int,Vert*> ElemCentroids, std::map<int,double> ElemVolumes)
 {
     std::map<int,std::map<int,Vert*> > node2elem;
     std::map<int,std::map<int,double> > node2elemV;
@@ -4042,6 +4062,107 @@ std::map<int,std::map<int,Vert*> > Partition::getNode2Element(i_part_map* iee_pa
     int huh = 0;
     int Nel = part_global->getNrow();
     double volu = 0;
+    int itsright = 0;
+    int itsright2 = 0;
+    int neverhere = 0;
+    
+    for(ieet=iee_part_map_input->i_map.begin();ieet!=iee_part_map_input->i_map.end();ieet++)
+    {
+        int elID          = ieet->first;
+        int Nv            = LocElem2Nv[elID];
+        
+        for(int j=0;j<Nv;j++)
+        {
+            int gvid = ien_part_map->i_map[elID][j];
+            
+            if(node2elem[gvid].find(elID)==node2elem[gvid].end())
+            {
+                Vert* cent = ElemCentroids[elID];
+                volu = ElemVolumes[elID];
+                node2elem[gvid].insert(std::pair<int,Vert*>(elID,cent));
+                node2elemV[gvid].insert(std::pair<int,double>(elID,volu));
+
+            }
+        }
+        
+        int Nadj = ieet->second.size();
+
+        for(int p=0;p<Nadj;p++)
+        {
+            int adjID = ieet->second[p];
+            
+            if(adjID < Nel)
+            {
+                int Nv = ien_adj_part_map->i_map[adjID].size();
+                for(int j=0;j<Nv;j++)
+                {
+                    int gvid = ien_adj_part_map->i_map[adjID][j];
+                    
+                    if(node2elem[gvid].find(adjID)==node2elem[gvid].end())
+                    {
+                        Vert* cent = ElemCentroids[adjID];
+                        volu = ElemVolumes[adjID];
+                        node2elem[gvid].insert(std::pair<int,Vert*>(adjID,cent));
+                        node2elemV[gvid].insert(std::pair<int,double>(adjID,volu));
+                    }
+                }
+            }
+            
+            
+            
+            int Nadjadj = iee_adj2_part_map->i_map[adjID].size();
+
+            for(int s=0;s<Nadjadj;s++)
+            {
+                int adjadjID = iee_adj2_part_map->i_map[adjID][s];
+
+                if(adjadjID < Nel)
+                {
+                    int Nvadj    = ien_adj2_part_map->i_map[adjadjID].size();
+
+                    for(int j=0;j<Nvadj;j++)
+                    {
+                        int gvid2 = ien_adj2_part_map->i_map[adjadjID][j];
+
+                        if(node2elem[gvid2].find(adjadjID)==node2elem[gvid2].end())
+                        {
+                            Vert* cent = ElemCentroids[adjadjID];
+                            volu = ElemVolumes[adjadjID];
+                            //std::cout << "volu " << volu << std::endl;
+                            node2elem[gvid2].insert(std::pair<int,Vert*>(adjadjID,cent));
+                            node2elemV[gvid2].insert(std::pair<int,double>(adjadjID,volu));
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    node2elem_map = node2elem;
+    
+    return node2elemV;
+}
+
+
+std::map<int,std::map<int,double> > Partition::getNode2Element(i_part_map* iee_part_map_input, std::map<int,Vert*> ElemCentroids, std::map<int,double> ElemVolumes)
+{
+    
+    std::map<int,std::map<int,Vert*> > node2elem;
+    std::map<int,std::map<int,double> > node2elemV;
+
+    std::map<int,std::vector<int> > UsharedVrts;
+    std::set<int> UsharedVrts_set;
+    std::vector<int> UsharedVrts_vec;
+    std::vector<int> UsharedVrtsRanks_vec;
+    std::map<int,std::vector<int> > LocalSharedVert2Elem;
+    std::map<int,std::vector<int> >::iterator ieet;
+    int notthere = 0;
+    int huh = 0;
+    int Nel = part_global->getNrow();
+    double volu = 0;
+    int itsright = 0;
+    int itsright2 = 0;
+    int neverhere = 0;
     for(ieet=iee_part_map_input->i_map.begin();ieet!=iee_part_map_input->i_map.end();ieet++)
     {
         int elID          = ieet->first;
@@ -4070,6 +4191,12 @@ std::map<int,std::map<int,Vert*> > Partition::getNode2Element(i_part_map* iee_pa
             int r1    = part_global->getVal(adjID,0);
             int Nva   = ien_adj_part_map->i_map[adjID].size();
             
+            
+            if(ien_part_map->i_map.find(adjID)==ien_part_map->i_map.end())
+            {
+                itsright2++;
+            }
+            
             if(r1!=rank && adjID<Nel)
             {
                 int fid = ien_adj_part_map->i_map[adjID][p];
@@ -4078,11 +4205,6 @@ std::map<int,std::map<int,Vert*> > Partition::getNode2Element(i_part_map* iee_pa
                 for(int q=0;q<nvf;q++)
                 {
                     int vid = ifn_adj_part_map->i_map[fid][q];
-                    
-//                    if(vid == -1)
-//                    {
-//                        //std::cout << "Let me know here also vid " << r1 << " " << rank << " " << ifn_adj_part_map->i_map[fid].size() << " " << fid << " " << q << " " << nvf <<  std::endl;
-//                    }
                     
                     if(UsharedVrts_set.find(vid)==UsharedVrts_set.end())
                     {
@@ -4098,22 +4220,33 @@ std::map<int,std::map<int,Vert*> > Partition::getNode2Element(i_part_map* iee_pa
             }
             if(r1==rank && adjID<Nel)
             {
-                for(int j=0;j<4;j++)
+                neverhere++;
+                if(ien_part_map->i_map.find(adjID)!=ien_part_map->i_map.end())
                 {
-                        
+                    itsright++;
+                }
+                
+                int nvr = ien_adj_part_map->i_map[adjID].size();
+                for(int j=0;j<nvr;j++)
+                {
                     int gvid = ien_adj_part_map->i_map[adjID][j];
-
-                    if(node2elem[gvid].find(adjID)==node2elem[gvid].end())
+                    
+                    if(node2elem.find(gvid)!=node2elem.end())
                     {
-                        Vert* cent = ElemCentroids[adjID];
-                        volu = ElemVolumes[adjID];
-                        node2elem[gvid].insert(std::pair<int,Vert*>(adjID,cent));
-                        node2elemV[gvid].insert(std::pair<int,double>(elID,volu));
+                        if(node2elem[gvid].find(adjID)==node2elem[gvid].end())
+                        {
+                            Vert* cent = ElemCentroids[adjID];
+                            volu       = ElemVolumes[adjID];
+                            node2elem[gvid].insert(std::pair<int,Vert*>(adjID,cent));
+                            node2elemV[gvid].insert(std::pair<int,double>(elID,volu));
+                        }
                     }
                 }
             }
         }
     }
+    
+    std::cout << " itsright " << rank << " " << itsright << " " << itsright2 << " " << neverhere << std::endl;
     
     int nSharedVerts = UsharedVrts_vec.size();
     DistributedParallelState* distSharedVerts = new DistributedParallelState(nSharedVerts,comm_p);
@@ -4126,6 +4259,9 @@ std::map<int,std::map<int,Vert*> > Partition::getNode2Element(i_part_map* iee_pa
     
     DistributedParallelState* distSharedVertsRanks = new DistributedParallelState(nSharedVerts*2,comm_p);
     
+    //std::cout << UsharedVrtsRanks_vec.size() << " " << nSharedVerts*2 << std::endl;
+    
+    int Nt_UsharedVrtsRanks_vec  = UsharedVrtsRanks_vec.size();
     int Nt_shVertsRanks          = distSharedVertsRanks->getNel();
     int* shVertsRanks_nlocs      = distSharedVertsRanks->getNlocs();
     int* shVertsRanks_offsets    = distSharedVertsRanks->getOffsets();
@@ -4141,7 +4277,7 @@ std::map<int,std::map<int,Vert*> > Partition::getNode2Element(i_part_map* iee_pa
                    MPI_INT, comm_p);
     
     MPI_Allgatherv(&UsharedVrtsRanks_vec[0],
-                   Nt_shVertsRanks,
+                   Nt_UsharedVrtsRanks_vec,
                    MPI_INT,
                    Total_UsharedVrtsRanks_vec,
                    shVertsRanks_nlocs,
@@ -4215,7 +4351,7 @@ std::map<int,std::map<int,Vert*> > Partition::getNode2Element(i_part_map* iee_pa
         LocalSharedVert2Elem[its->first] = Elms;
     }
     
-     
+    
     ScheduleObj* part_schedule = DoScheduling(rank2req_vert,comm_p);
     
     std::map<int,std::vector<int> >  reqstd_Elids_per_rank;
@@ -4258,7 +4394,7 @@ std::map<int,std::map<int,Vert*> > Partition::getNode2Element(i_part_map* iee_pa
         }
     }
     
-    
+   
     
     int offset_xcn  = 0;
     int nloc_xcn    = 0;
@@ -4291,9 +4427,10 @@ std::map<int,std::map<int,Vert*> > Partition::getNode2Element(i_part_map* iee_pa
                 
                 
                 MPI_Send(&nEl, 1, MPI_INT, dest, 21119876+1000*dest, comm_p);
+                
                 MPI_Send(&centroid_send[0], nEl*3, MPI_DOUBLE, dest, 11119876+dest*8888, comm_p);
                 MPI_Send(&volumes_send[0], nEl, MPI_DOUBLE, dest, 21119876+dest*8888, comm_p);
-                MPI_Send(&it->second[0], it->second.size(), MPI_INT, dest, 118888*9876+dest*8888,comm_p);
+                MPI_Send(&it->second[0], it->second.size(), MPI_INT, dest, 8888*9876+dest*8888,comm_p);/**/
             }
         }
         if(part_schedule->RecvRankFromRank[q].find( rank ) != part_schedule->RecvRankFromRank[q].end())
@@ -4303,16 +4440,18 @@ std::map<int,std::map<int,Vert*> > Partition::getNode2Element(i_part_map* iee_pa
             std::vector<double> recv_back_vec(n_recv_el*3);
             std::vector<double> recv_back_volumes(n_recv_el);
             std::vector<int> recv_back_vec_ids(n_recv_el);
-
+             
             MPI_Recv(&recv_back_vec[0], n_recv_el*3, MPI_DOUBLE, q, 11119876+rank*8888, comm_p, MPI_STATUS_IGNORE);
-             MPI_Recv(&recv_back_volumes[0], n_recv_el, MPI_DOUBLE, q, 21119876+rank*8888, comm_p, MPI_STATUS_IGNORE);
-            MPI_Recv(&recv_back_vec_ids[0], n_recv_el, MPI_INT, q, 118888*9876+rank*8888, comm_p, MPI_STATUS_IGNORE);
-
+            MPI_Recv(&recv_back_volumes[0], n_recv_el, MPI_DOUBLE, q, 21119876+rank*8888, comm_p, MPI_STATUS_IGNORE);
+            MPI_Recv(&recv_back_vec_ids[0], n_recv_el, MPI_INT, q, 8888*9876+rank*8888, comm_p, MPI_STATUS_IGNORE);
+             
             recv_back_verts[q]      = recv_back_vec;
             recv_back_volus[q]      = recv_back_volumes;
             recv_back_verts_ids[q]  = recv_back_vec_ids;
          }
     }
+    
+    
     
     std::map<int,std::vector<int> >::iterator itm;
     std::map<int,std::vector<int> > recvBack_el2vertIDs;
@@ -4332,23 +4471,30 @@ std::map<int,std::map<int,Vert*> > Partition::getNode2Element(i_part_map* iee_pa
             {
                 int vidd = tovert[q];
                 
-                if(node2elem[vidd].find(elid)==node2elem[vidd].end())
+                if(node2elem.find(vidd)!=node2elem.end())
                 {
-                    Vert* cent = new Vert;
+                    if(node2elem[vidd].find(elid)==node2elem[vidd].end())
+                    {
+                        Vert* cent = new Vert;
 
-                    cent->x = recv_back_verts[rr][j*3+0];
-                    cent->y = recv_back_verts[rr][j*3+1];
-                    cent->z = recv_back_verts[rr][j*3+2];
-                    double Vol = recv_back_volus[rr][j];
-                    node2elem[vidd].insert(std::pair<int,Vert*>(elid,cent));
-                    node2elemV[vidd].insert(std::pair<int,double>(elid,Vol));
+                        cent->x = recv_back_verts[rr][j*3+0];
+                        cent->y = recv_back_verts[rr][j*3+1];
+                        cent->z = recv_back_verts[rr][j*3+2];
+                        double Vol = recv_back_volus[rr][j];
+                        node2elem[vidd].insert(std::pair<int,Vert*>(elid,cent));
+                        node2elemV[vidd].insert(std::pair<int,double>(elid,Vol));
 
+                    }
                 }
+                
             }
         }
     }
+    /**/
     
-    return node2elem;
+    node2elem_map = node2elem;
+    
+    return node2elemV;
     
     
     
@@ -4901,15 +5047,112 @@ std::map<int,double> Partition::ReduceFieldToAllVertices(std::map<int,double> Ua
 std::map<int,Array<double>* > Partition::ReduceStateVecToAllVertices(std::map<int,Array<double>* > UaddAdj, int nvar)
 {
     std::map<int,Array<double>* > Uvm;
-    std::map<int,std::vector<int> > v2e = pDom->vert2elem;
-    std::vector<int> glob_part_verts = pDom->glob_part_verts;
-    std::map<int,int> lv2gpv = pDom->lv2gpv;
+//    std::map<int,std::vector<int> > v2e = pDom->vert2elem;
+//    std::vector<int> glob_part_verts = pDom->glob_part_verts;
+//    std::map<int,int> lv2gpv = pDom->lv2gpv;
     int im = 0;
     int tel=0;
 //    std::map<int,std::vector<int> >::iterator itm;
     
     double* sum = new double[nvar];
+    std::map<int,std::vector<int> >::iterator itm;
     
+    for(itm=pDom->vert2elem.begin();itm!=pDom->vert2elem.end();itm++)
+    {
+        int gv = itm->first;
+
+        for(int l=0;l<nvar;l++)
+        {
+            sum[l] = 0.0;
+        }
+
+        for(int q=0;q<globVerts2globElem[gv].size();q++)
+        {
+            int gEl = globVerts2globElem[gv][q];
+            for(int l=0;l<nvar;l++)
+            {
+                sum[l] = sum[l] + UaddAdj[gEl]->getVal(l,0);
+            }
+        }
+        Array<double>* avg = new Array<double>(nvar,1);
+        for(int l=0;l<nvar;l++)
+        {
+            avg->setVal(l,0,sum[l]/globVerts2globElem[gv].size());
+        }
+
+        Uvm[gv]=avg;
+
+        im++;
+    }
+
+    int Nell = part_global->getNrow();
+
+//    std::map<int,std::map<int,double> >::iterator itmm;
+//    std::map<int,double>::iterator itmd;
+//
+//    double VolTot = 0.0;
+//    for(itmm=node2elemVol_map.begin();itmm!=node2elemVol_map.end();itmm++)
+//    {
+//        int gv = itmm->first;
+//        for(int l=0;l<nvar;l++)
+//        {
+//            sum[l] = 0.0;
+//        }
+//        std::map<int,double> elem2cent=itmm->second;
+//        tel     = 0;
+//        VolTot  = 0.0;
+//
+//        for(itmd=elem2cent.begin();itmd!=elem2cent.end();itmd++)
+//        {
+//            int gEl     = itmd->first;
+//            double Vol  = itmd->second;
+//
+//            if(UaddAdj.find(gEl)!=UaddAdj.end())
+//            {
+//                for(int l=0;l<nvar;l++)
+//                {
+//                    sum[l] = sum[l] + UaddAdj[gEl]->getVal(l,0);
+//                }
+//            }
+//            //std::cout << "Vol = " << gv << " " << gEl << " " << Vol << std::endl;
+//            VolTot = VolTot+Vol;
+//            tel++;
+//        }
+//        //std::cout << "VolTot = " << gv << " " << VolTot << std::endl;
+//
+//        Array<double>* avg = new Array<double>(nvar,1);
+//        for(int l=0;l<nvar;l++)
+//        {
+//            avg->setVal(l,0,sum[l]/tel);
+//        }
+//
+//        Uvm[gv]=avg;
+//
+//        im++;
+//    }
+    
+    
+    delete[] sum;
+    
+    return Uvm;
+
+}
+
+
+
+std::map<int,Array<double>* > Partition::ReduceStateVecToAllVertices_V2(std::map<int,Array<double>* > UaddAdj, int nvar)
+{
+    std::map<int,Array<double>* > Uvm;
+//    std::map<int,std::vector<int> > v2e = pDom->vert2elem;
+//    std::vector<int> glob_part_verts = pDom->glob_part_verts;
+//    std::map<int,int> lv2gpv = pDom->lv2gpv;
+    int im = 0;
+    int tel=0;
+//    std::map<int,std::vector<int> >::iterator itm;
+    
+    double* sum = new double[nvar];
+//    std::map<int,std::vector<int> >::iterator itm;
+//
 //    for(itm=pDom->vert2elem.begin();itm!=pDom->vert2elem.end();itm++)
 //    {
 //        int gv = itm->first;
@@ -4937,51 +5180,77 @@ std::map<int,Array<double>* > Partition::ReduceStateVecToAllVertices(std::map<in
 //
 //        im++;
 //    }
-    
-    
+
+    int Nell = part_global->getNrow();
+
     std::map<int,std::map<int,Vert*> >::iterator itmm;
-    std::map<int,Vert*>::iterator itm;
+    std::map<int,Vert*>::iterator itmd;
+
+    double VolTot   = 0.0;
+    double xcomp    = 0.0;
+    double ycomp    = 0.0;
+    double zcomp    = 0.0;
+    int outter      = 0;
+    int inner       = 0;
     for(itmm=node2elem_map.begin();itmm!=node2elem_map.end();itmm++)
     {
         int gv = itmm->first;
+        int lv = GlobalVert2LocalVert[gv];
+        
+        xcomp = LocalVerts[lv]->x;
+        ycomp = LocalVerts[lv]->y;
+        zcomp = LocalVerts[lv]->z;
         
         for(int l=0;l<nvar;l++)
         {
             sum[l] = 0.0;
         }
         
-        std::map<int,Vert*> elem2cent=itmm->second;
-        tel = 0;
-        std::cout << "gv = " << gv << " " << elem2cent.size() << std::endl;
+        std::map<int,Vert*> elem2cent     = itmm->second;
+        std::map<int,double> elem2centVol = node2elemVol_map[itmm->first];
+        tel               = 0;
+        double wiTot      = 0.0;
 
-        for(itm=elem2cent.begin();itm!=elem2cent.end();itm++)
+        for(itmd=elem2cent.begin();itmd!=elem2cent.end();itmd++)
         {
-            int gEl = itm->first;
-            //sum     = sum + UaddAdj[gEl];
-            for(int l=0;l<nvar;l++)
+            int gEl     = itmd->first;
+            int lEl     = GlobalElement2LocalElement[gEl];
+            
+            Vert* VrtEl = itmd->second;
+            double Vol  = elem2centVol[itmd->first];
+            
+            double wi = sqrt((VrtEl->x-xcomp)*(VrtEl->x-xcomp)+(VrtEl->y-ycomp)*(VrtEl->y-ycomp)+(VrtEl->z-zcomp)*(VrtEl->z-zcomp));
+                        
+            if(UaddAdj.find(gEl)!=UaddAdj.end())
             {
-                sum[l] = sum[l] + UaddAdj[gEl]->getVal(l,0);
+                for(int l=0;l<nvar;l++)
+                {
+                    sum[l] = sum[l] + UaddAdj[gEl]->getVal(l,0)*1.0/wi*Vol;
+                }
+            }
+            else
+            {
+                std::cout << "its not here " << std::endl;
             }
             
+            wiTot = wiTot+(1.0/wi)*Vol;
             tel++;
         }
-        
+
         Array<double>* avg = new Array<double>(nvar,1);
         for(int l=0;l<nvar;l++)
         {
-            avg->setVal(l,0,sum[l]/tel);
+            avg->setVal(l,0,sum[l]/wiTot);
         }
-
+        
         Uvm[gv]=avg;
 
         im++;
     }
     
-    
     delete[] sum;
     
     return Uvm;
-
 }
 
 

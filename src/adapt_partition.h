@@ -37,6 +37,7 @@ class Partition {
     std::map<int,double> ReduceFieldToVertices(std::map<int,double> Uelem);
     std::map<int,double> ReduceFieldToAllVertices(std::map<int,double> Uelem);
     std::map<int,Array<double>* > ReduceStateVecToAllVertices(std::map<int,Array<double>* > UaddAdj, int nvar);
+    std::map<int,Array<double>* > ReduceStateVecToAllVertices_V2(std::map<int,Array<double>* > UaddAdj, int nvar);
     std::map<int,Array<double>*> ReduceMetricToVertices(std::map<int,Array<double>* > Telem);
     std::map<int,int> getGlobalVert2GlobalElement();
     void GetPartitionFaceColorMaps();
@@ -115,7 +116,8 @@ class Partition {
     i_part_map* getIFREFpartmap();
     i_part_map* getIE_Nfpartmap();
     
-    std::map<int,std::map<int,Vert*> > getNode2Element(i_part_map* iee_part_map_input, std::map<int,Vert*> ElemCentroids, std::map<int,double> ElemVolumes);
+    std::map<int,std::map<int,double> > getNode2Element(i_part_map* iee_part_map_input, std::map<int,Vert*> ElemCentroids, std::map<int,double> ElemVolumes);
+    std::map<int,std::map<int,double> > getNode2Element_V2(i_part_map* iee_part_map_input, std::map<int,Vert*> ElemCentroids, std::map<int,double> ElemVolumes);
     
    private:
       MPI_Comm comm_p;
@@ -200,7 +202,8 @@ class Partition {
       std::map<int,std::vector<double> > part_tot_recv_varias;
       std::map<int,std::vector<int> > reqstd_adj_ids_per_rank;
       std::map<int,std::map<int,Vert*> > node2elem_map;
-    
+      std::map<int,std::map<int,double> > node2elemVol_map;
+
       i_part_map* if_Erank_part_map;
       i_part_map* if_Nv_part_map;
       i_part_map* ifn2_part_map;
