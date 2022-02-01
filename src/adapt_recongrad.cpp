@@ -286,16 +286,14 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_HO_US3D(Partition* Pa, std::map<in
     
    int Nel                      = Pa->getGlobalPartition()->getNrow();
    i_part_map*  ifn_vec         = Pa->getIFNpartmap();
-   i_part_map*  ifn_adj_vec     = Pa->getIFNADJpartmap();
-   i_part_map*  ifn_adj2_vec    = Pa->getIFNADJ2partmap();
     
    i_part_map* ief_part_map     = Pa->getIEFpartmap();
-   i_part_map* ief_adj_part_map = Pa->getIEFADJpartmap();
-   i_part_map* ief_adj2_part_map = Pa->getIEFADJ2partmap();
+//   i_part_map* ief_adj_part_map = Pa->getIEFADJpartmap();
+//   i_part_map* ief_adj2_part_map = Pa->getIEFADJ2partmap();
     
    i_part_map*  iee_vec         = Pa->getIEEpartmap();
-   i_part_map*  iee_adj_vec     = Pa->getIEEADJpartmap();
-   i_part_map*  iee_adj2_vec     = Pa->getIEEADJ2partmap();
+//   i_part_map*  iee_adj_vec     = Pa->getIEEADJpartmap();
+//   i_part_map*  iee_adj2_vec     = Pa->getIEEADJ2partmap();
     
    i_part_map* if_Nv_part_map   = Pa->getIF_Nvpartmap();
     
@@ -351,7 +349,6 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_HO_US3D(Partition* Pa, std::map<in
                
             if(vrt_collect.find(adjid)==vrt_collect.end() && adjid<Nel)
             {
-                
                 int NvPEladj    = gE2lV[adjid].size();
 
                 double* Padj = new double[NvPEladj*3];
@@ -409,13 +406,13 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_HO_US3D(Partition* Pa, std::map<in
             }
             
                
-            if(iee_adj_vec->i_map.find(adjid)!=iee_adj_vec->i_map.end())
+            if(iee_vec->i_map.find(adjid)!=iee_vec->i_map.end())
             {
-                int n_adjid = iee_adj_vec->i_map[adjid].size();
+                int n_adjid = iee_vec->i_map[adjid].size();
                    
                 for(int k=0;k<n_adjid;k++)
                 {
-                    int adjadj = iee_adj_vec->i_map[adjid][k];
+                    int adjadj = iee_vec->i_map[adjid][k];
                     
                     if(vrt_collect.find(adjadj)==vrt_collect.end() && adjadj<Nel && adjadj!=elID)
                     {
@@ -441,7 +438,7 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_HO_US3D(Partition* Pa, std::map<in
                     if(vrt_collect.find(adjadj)==vrt_collect.end() && adjadj>=Nel && adjadj!=elID)
                     {
                         
-                        int fid    = ief_adj_part_map->i_map[adjid][k];
+                        int fid    = ief_part_map->i_map[adjid][k];
                         int NvPerF = 3;
                         
                         Vert* Vc    = new Vert;
@@ -451,7 +448,7 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_HO_US3D(Partition* Pa, std::map<in
                         
                         for(int s=0;s<NvPerF;s++)
                         {
-                            int gvid = ifn_adj_vec->i_map[fid][s];
+                            int gvid = ifn_vec->i_map[fid][s];
                             int lvid = gV2lV[gvid];
 
                             Vc->x = Vc->x+LocalVs[lvid]->x;
@@ -465,7 +462,13 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_HO_US3D(Partition* Pa, std::map<in
                         
                         double rtje = sqrt(Vc->x*Vc->x+(Vc->y-0.5)*(Vc->y-0.5)+(Vc->z-0.5)*(Vc->z-0.5));
                         double Utje = 0.1*tanh(50*(rtje-0.5))+1.0;
-                        //double Utje    = 0.1*sin(50*Vc->x*Vc->z)+atan(0.1/((sin(5.0*Vc->y)-2.0*Vc->x*Vc->z)));
+                        
+                        double Utje_test = gbMap[adjadj];
+                        
+                        if(Utje_test!=Utje)
+                        {
+                            std::cout << "Error in boundary value adjadj" << Utje << " " << Utje_test << " " << adjadj << " " << Nel << " " << " ( " << Vc->x << " " << Vc->y << " " << Vc->z << ")" <<  std::endl;
+                        }
                         
                         vrt_collect[adjadj]  = Vc;
                         sol_collect[adjadj]  = Utje;
@@ -473,13 +476,13 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_HO_US3D(Partition* Pa, std::map<in
                         cntbnd++;
                     }
                     
-                    if(iee_adj2_vec->i_map.find(adjadj)!=iee_adj2_vec->i_map.end())
+                    if(iee_vec->i_map.find(adjadj)!=iee_vec->i_map.end())
                     {
-                        int n_adjadj = iee_adj2_vec->i_map[adjadj].size();
+                        int n_adjadj = iee_vec->i_map[adjadj].size();
                            
                         for(int k=0;k<n_adjadj;k++)
                         {
-                            int adjadjadj = iee_adj2_vec->i_map[adjadj][k];
+                            int adjadjadj = iee_vec->i_map[adjadj][k];
                             
                             if(vrt_collect.find(adjadjadj)==vrt_collect.end() && adjadjadj<Nel && adjadjadj!=elID)
                             {
@@ -504,8 +507,9 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_HO_US3D(Partition* Pa, std::map<in
                             }
                             if(vrt_collect.find(adjadjadj)==vrt_collect.end() && adjadjadj>=Nel && adjadjadj!=elID)
                             {
+                                //std::cout << "ief_part_map->i_map[adjadj].size() " << ief_part_map->i_map[adjadj].size() << std::endl;
                                 
-                                int fid    = ief_adj2_part_map->i_map[adjadj][k];
+                                int fid    = ief_part_map->i_map[adjadj][k];
                                 int NvPerF = 3;
                                 
                                 Vert* Vc = new Vert;
@@ -515,7 +519,7 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_HO_US3D(Partition* Pa, std::map<in
                                 
                                 for(int s=0;s<NvPerF;s++)
                                 {
-                                    int gvid = ifn_adj2_vec->i_map[fid][s];
+                                    int gvid = ifn_vec->i_map[fid][s];
                                     int lvid = gV2lV[gvid];
 
                                     Vc->x = Vc->x+LocalVs[lvid]->x;
@@ -529,7 +533,12 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_HO_US3D(Partition* Pa, std::map<in
                                 
                                 double rtje = sqrt(Vc->x*Vc->x+(Vc->y-0.5)*(Vc->y-0.5)+(Vc->z-0.5)*(Vc->z-0.5));
                                 double Utje = 0.1*tanh(50*(rtje-0.5))+1.0;
-                                //double Utje    = 0.1*sin(50*Vc->x*Vc->z)+atan(0.1/((sin(5.0*Vc->y)-2.0*Vc->x*Vc->z)));
+                                double Utje_test = gbMap[adjadjadj];
+                                
+                                if(Utje_test!=Utje)
+                                {
+                                    std::cout << "Error in boundary value adjadjadj" << Utje << " " << Utje_test << " " << adjadjadj << " " << Nel << " " << " ( " << Vc->x << " " << Vc->y << " " << Vc->z << ")" <<  std::endl;
+                                }
                                 
                                 vrt_collect[adjadjadj]  = Vc;
                                 sol_collect[adjadjadj]  = Utje;
@@ -825,6 +834,7 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_US3D(Partition* Pa, std::map<int,A
            {
                //std::cout << "Do we get here? " << std::endl;
                //int fid = gE2gF[elID][j];
+               
                int fid    = ief_part_map->i_map[elID][j];
                int NvPerF = if_Nv_part_map->i_map[fid][0];
                //std::cout << "NvPerF " << NvPerF << std::endl;
@@ -850,6 +860,13 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_US3D(Partition* Pa, std::map<int,A
                double rtje = sqrt(Vc->x*Vc->x+(Vc->y-0.5)*(Vc->y-0.5)+(Vc->z-0.5)*(Vc->z-0.5));
                double Utje = 0.1*tanh(50*(rtje-0.5))+1.0;
                //double Utje    = 0.1*sin(50*Vc->x*Vc->z)+atan(0.1/((sin(5.0*Vc->y)-2.0*Vc->x*Vc->z)));
+               
+               double Utje_test = gbMap[adjID];
+               
+               if(Utje_test!=Utje)
+               {
+                   std::cout << "Error in boundary value " << Utje << " " << Utje_test << " " << adjID << " " << Nel << " " << " ( " << Vc->x << " " << Vc->y << " " << Vc->z << ")" <<  std::endl;
+               }
                
                d = sqrt((Vc->x-Vijk->x)*(Vc->x-Vijk->x)+
                         (Vc->y-Vijk->y)*(Vc->y-Vijk->y)+

@@ -18,9 +18,16 @@ class Partition {
     void DeterminePartitionLayout(ParArray<int>* ien, ParallelState_Parmetis* pstate_parmetis, MPI_Comm comm);
     void DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief, ParArray<int>* ie_Nv, ParArray<int>* ie_Nf, ParArray<double>* xcn, Array<double>* U, Array<int>* tetCnt, MPI_Comm comm);
     void DetermineAdjacentElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief, ParArray<int>* part, ParArray<double>* xcn, Array<double>* U, MPI_Comm comm);
-    void getAdjacentElementLayer(ParArray<int>* ien,
+    
+    std::vector<int> getAdjacentElementLayer(ParArray<int>* ien,
                                  std::vector<int> Loc_Elem_input,
-                                 std::vector<int> Loc_Elem_Nf_input, std::map<int,std::vector<int> > iee_vec, ParArray<int>* part, ParArray<double>* xcn, Array<double>* U, MPI_Comm comm);
+                                 std::vector<int> Loc_Elem_Nf_input,
+                                            std::map<int,std::vector<int> > iee_vec, ParArray<int>* part, ParArray<double>* xcn, Array<double>* U, MPI_Comm comm);
+    
+    std::vector<int> UpdateAdjacentElementLayer(ParArray<int>* ien,
+                                                std::vector<int> Loc_Elem_Packed,
+                                            std::map<int,std::vector<int> > iee_vec, ParArray<int>* part, ParArray<double>* xcn, Array<double>* U, MPI_Comm comm);
+    
     void CreatePartitionDomain();
     void CreatePartitionDomainTest();
     std::vector<double> PartitionAuxilaryData(Array<double>* U, MPI_Comm comm);
@@ -31,6 +38,8 @@ class Partition {
     void AddStateVecForAdjacentVertices(std::map<int,Array<double>* > &Uv, int nvar, MPI_Comm comm);
     i_part_map* getElement2EntityPerPartition(ParArray<int>* iee, std::vector<int> Loc_Elem,  std::vector<int> Loc_Elem_Ne, MPI_Comm comm);
     i_part_map* UpdateElement2EntityPerPartition(ParArray<int>* iee, std::vector<int> LocAndAdj_Elem, std::vector<int> LocAndAdj_Elem_Ne, MPI_Comm comm);
+    void UpdateElement2EntityPerPartition_V2(ParArray<int>* iee, std::vector<int> LocAndAdj_Elem_Packed, int index, i_part_map* iee_part_map_input, MPI_Comm comm);
+    void UpdateFace2EntityPerPartition_V2(ParArray<int>* ife, std::vector<int> LocAndAdj_Elem_Packed, int index, i_part_map* ief_part_map_input, i_part_map* ifn_part_map_input, MPI_Comm comm);
     i_part_map* getFace2EntityPerPartition(i_part_map* ief_part_map_input, ParArray<int>* ife, MPI_Comm comm);
     i_part_map* getFace2NodePerPartition(ParArray<int>* ifn, MPI_Comm comm);
     Domain* getPartitionDomain();
