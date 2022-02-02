@@ -1120,7 +1120,7 @@ void ComputeMetricWithWake(Partition* Pa, std::vector<double> metric_inputs,
                    MPI_Comm comm,
                    std::map<int,Array<double>* > scale_vm,
                    std::map<int,Array<double>* > &Hess_vm,
-                   double sumvol, double po, double hwake)
+                   double sumvol, double po, double hwake, int recursive)
 {
     int size;
     MPI_Comm_size(comm, &size);
@@ -1145,17 +1145,34 @@ void ComputeMetricWithWake(Partition* Pa, std::vector<double> metric_inputs,
     {
         int glob_vid = itm->first;
 
-        Hmet[0] = Hess_vm[glob_vid]->getVal(0,0);
-        Hmet[1] = Hess_vm[glob_vid]->getVal(1,0);
-        Hmet[2] = Hess_vm[glob_vid]->getVal(2,0);
+        if(recursive == 0)
+        {
+            Hmet[0] = Hess_vm[glob_vid]->getVal(3,0);
+            Hmet[1] = Hess_vm[glob_vid]->getVal(4,0);
+            Hmet[2] = Hess_vm[glob_vid]->getVal(5,0);
 
-        Hmet[3] = Hess_vm[glob_vid]->getVal(1,0);
-        Hmet[4] = Hess_vm[glob_vid]->getVal(3,0);
-        Hmet[5] = Hess_vm[glob_vid]->getVal(4,0);
+            Hmet[3] = Hess_vm[glob_vid]->getVal(4,0);
+            Hmet[4] = Hess_vm[glob_vid]->getVal(6,0);
+            Hmet[5] = Hess_vm[glob_vid]->getVal(7,0);
 
-        Hmet[6] = Hess_vm[glob_vid]->getVal(2,0);
-        Hmet[7] = Hess_vm[glob_vid]->getVal(4,0);
-        Hmet[8] = Hess_vm[glob_vid]->getVal(5,0);
+            Hmet[6] = Hess_vm[glob_vid]->getVal(5,0);
+            Hmet[7] = Hess_vm[glob_vid]->getVal(7,0);
+            Hmet[8] = Hess_vm[glob_vid]->getVal(8,0);
+        }
+        if(recursive == 1)
+        {
+            Hmet[0] = Hess_vm[glob_vid]->getVal(0,0);
+            Hmet[1] = Hess_vm[glob_vid]->getVal(1,0);
+            Hmet[2] = Hess_vm[glob_vid]->getVal(2,0);
+
+            Hmet[3] = Hess_vm[glob_vid]->getVal(1,0);
+            Hmet[4] = Hess_vm[glob_vid]->getVal(3,0);
+            Hmet[5] = Hess_vm[glob_vid]->getVal(4,0);
+
+            Hmet[6] = Hess_vm[glob_vid]->getVal(2,0);
+            Hmet[7] = Hess_vm[glob_vid]->getVal(4,0);
+            Hmet[8] = Hess_vm[glob_vid]->getVal(5,0);
+        }
         
         //delete Hess_vm[glob_vid];
         
@@ -1278,7 +1295,7 @@ void ComputeMetricWithWake(Partition* Pa, std::vector<double> metric_inputs,
 void ComputeMetric(Partition* Pa, std::vector<double> metric_inputs,
                    MPI_Comm comm,
                    std::map<int,Array<double>* > &Hess_vm,
-                   double sumvol, double po)
+                   double sumvol, double po, int recursive)
 {
     int size;
     MPI_Comm_size(comm, &size);
@@ -1304,17 +1321,36 @@ void ComputeMetric(Partition* Pa, std::vector<double> metric_inputs,
     {
         int glob_vid = itm->first;
         
-        Hmet[0] = Hess_vm[glob_vid]->getVal(0,0);
-        Hmet[1] = Hess_vm[glob_vid]->getVal(1,0);
-        Hmet[2] = Hess_vm[glob_vid]->getVal(2,0);
+        if(recursive == 0)
+        {
+            Hmet[0] = Hess_vm[glob_vid]->getVal(3,0);
+            Hmet[1] = Hess_vm[glob_vid]->getVal(4,0);
+            Hmet[2] = Hess_vm[glob_vid]->getVal(5,0);
 
-        Hmet[3] = Hess_vm[glob_vid]->getVal(1,0);
-        Hmet[4] = Hess_vm[glob_vid]->getVal(3,0);
-        Hmet[5] = Hess_vm[glob_vid]->getVal(4,0);
+            Hmet[3] = Hess_vm[glob_vid]->getVal(4,0);
+            Hmet[4] = Hess_vm[glob_vid]->getVal(6,0);
+            Hmet[5] = Hess_vm[glob_vid]->getVal(7,0);
 
-        Hmet[6] = Hess_vm[glob_vid]->getVal(2,0);
-        Hmet[7] = Hess_vm[glob_vid]->getVal(4,0);
-        Hmet[8] = Hess_vm[glob_vid]->getVal(5,0);
+            Hmet[6] = Hess_vm[glob_vid]->getVal(5,0);
+            Hmet[7] = Hess_vm[glob_vid]->getVal(7,0);
+            Hmet[8] = Hess_vm[glob_vid]->getVal(8,0);
+        }
+        if(recursive == 1)
+        {
+            Hmet[0] = Hess_vm[glob_vid]->getVal(0,0);
+            Hmet[1] = Hess_vm[glob_vid]->getVal(1,0);
+            Hmet[2] = Hess_vm[glob_vid]->getVal(2,0);
+
+            Hmet[3] = Hess_vm[glob_vid]->getVal(1,0);
+            Hmet[4] = Hess_vm[glob_vid]->getVal(3,0);
+            Hmet[5] = Hess_vm[glob_vid]->getVal(4,0);
+
+            Hmet[6] = Hess_vm[glob_vid]->getVal(2,0);
+            Hmet[7] = Hess_vm[glob_vid]->getVal(4,0);
+            Hmet[8] = Hess_vm[glob_vid]->getVal(5,0);
+        }
+        
+        
         
         //delete Hess_vm[glob_vid];
         
@@ -1396,6 +1432,7 @@ void ComputeMetric(Partition* Pa, std::vector<double> metric_inputs,
         delete[] V;
         delete[] WR;
         delete[] WI;
+        
         i++;
     }
     int anitel_red;
@@ -1421,7 +1458,7 @@ Array<double>* ComputeFaceValues(Partition* P, Array<double>* U, MPI_Comm comm)
     
     nface = 6; // # hardcoded for hexes for now
     
-    std::vector<double> Uelem_all         = P->PartitionAuxilaryData(U, comm);
+    std::map<int,Array<double>* > Uelem_all = P->PartitionAuxilaryData(U, comm);
     std::map<int,int> gE2lE               = P->getGlobalElement2LocalElement();
     std::map<int,int> lE2gE               = P->getLocalElement2GlobalElement();
     std::map<int,std::vector<int> > gE2gF = P->getglobElem2globFaces();
@@ -1441,7 +1478,7 @@ Array<double>* ComputeFaceValues(Partition* P, Array<double>* U, MPI_Comm comm)
         {
             adjEl_id = adjcny[j];
             leid     = gE2lE[adjEl_id];
-            u_o      = Uelem_all[leid];
+            u_o      = Uelem_all[adjEl_id]->getVal(0,0);
             
             Uf->setVal(i,t,u_c-u_o);
             

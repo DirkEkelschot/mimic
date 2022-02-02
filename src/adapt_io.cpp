@@ -2745,8 +2745,27 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
         delete stats;
         
     }
-    else{
-        interior  = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_1","interior",0,Nel,comm,info);
+    if(readFromStats==0)
+    {
+        Array<double>* readdata  = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_1","interior",0,Nel,comm,info);
+        
+        interior = new ParArray<double>(Nel,1,comm);
+        double rhoState,uState,vState,wState,TState,VtotState,aState,MState;
+
+        for(int u=0;u<Nel_loc;u++)
+        {
+            rhoState = readdata->getVal(u,0);
+            uState   = readdata->getVal(u,1);
+            vState   = readdata->getVal(u,2);
+            wState   = readdata->getVal(u,3);
+            TState   = readdata->getVal(u,4);
+            VtotState = sqrt(uState*uState+vState*vState+wState*wState);
+            aState   = sqrt(1.4*287.05*TState);
+            MState = VtotState/aState;
+            interior->setVal(u,0,MState);
+        }
+        
+        delete readdata;
     }
     
     
@@ -2779,10 +2798,7 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
         ref_range.push_back(zdefs->getVal(i,5));
         ranges[zdefs->getVal(i,5)].push_back(zdefs->getVal(i,3)-1);
         ranges[zdefs->getVal(i,5)].push_back(zdefs->getVal(i,4)-1);
-        if(rank == 0)
-        {
-            std::cout << zdefs->getVal(i,5) << " " << zdefs->getVal(i,3)-1 << " " << zdefs->getVal(i,4)-1 << std::endl;
-        }
+        
         gg++;
     }
     bnd_m.push_back(zdefs->getVal(zdefs->getNrow()-1,4));
@@ -3089,10 +3105,10 @@ US3D* ReadUS3DGrid(const char* fn_conn, const char* fn_grid, int readFromStats, 
         ref_range.push_back(zdefs->getVal(i,5));
         ranges[zdefs->getVal(i,5)].push_back(zdefs->getVal(i,3)-1);
         ranges[zdefs->getVal(i,5)].push_back(zdefs->getVal(i,4)-1);
-        if(rank == 0)
-        {
-            std::cout << zdefs->getVal(i,5) << " " << zdefs->getVal(i,3)-1 << " " << zdefs->getVal(i,4)-1 << std::endl;
-        }
+//        if(rank == 0)
+//        {
+//            std::cout << zdefs->getVal(i,5) << " " << zdefs->getVal(i,3)-1 << " " << zdefs->getVal(i,4)-1 << std::endl;
+//        }
         gg++;
     }
     bnd_m.push_back(zdefs->getVal(zdefs->getNrow()-1,4));

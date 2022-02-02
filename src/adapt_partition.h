@@ -30,7 +30,7 @@ class Partition {
     
     void CreatePartitionDomain();
     void CreatePartitionDomainTest();
-    std::vector<double> PartitionAuxilaryData(Array<double>* U, MPI_Comm comm);
+    std::map<int,Array<double>* > PartitionAuxilaryData(Array<double>* U, MPI_Comm comm);
     std::map<int,double> CommunicateLocalDataUS3D(Array<double>* U, MPI_Comm comm);
     void AddStateForAdjacentElements(std::map<int,double> U, MPI_Comm comm);
     void AddStateVecForAdjacentElements(std::map<int,Array<double>* > &U, int nvar, MPI_Comm comm);
@@ -56,6 +56,7 @@ class Partition {
     std::map<int,int> getLocElem2Nv();
     std::map<int,int> getLocElem2Nf();
     std::vector<double> getLocElemVaria();
+    std::map<int,Array<double>* > getLocAndAdjElemVaria();
     int getnLoc_Elem();
     std::vector<int> getLocAndAdjElem();
     std::vector<int> getLocAndAdjElem_Nv();
@@ -143,6 +144,7 @@ class Partition {
       std::vector<int> LocAndAdj_Elem_Varia;
       std::map<int,int> LocElem2Nv;
       std::map<int,int> LocElem2Nf;
+      std::map<int,Array<double>* > LocAndAdjElemVaria;
       int NelGlob;
       int nloc;
       int eloc;
