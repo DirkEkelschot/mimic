@@ -293,7 +293,7 @@ int main(int argc, char** argv)
     const char* fn_conn="inputs/conn.h5";
     const char* fn_data="inputs/data.h5";
     const char* fn_metric = "inputs/metric.inp";
-    
+    // inputs 
     std::vector<double> metric_inputs = ReadMetricInputs(fn_metric);
 
     
