@@ -1,1 +1,2 @@
 *.vtk
+tests/test_mesh
