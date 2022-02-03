@@ -7,3 +7,4 @@ tests/test7/Nodes.ref
 tests/test12/mmg.mesh
 tests/test6/GuX.ref
 tests/test1/GuX.ref
+US3D_Routine/example/grid.h5
