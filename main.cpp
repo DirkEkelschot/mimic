@@ -96,7 +96,7 @@ int main(int argc, char** argv) {
         //========================================================================
         //========================================================================
         //========================================================================
-        
+        // input file.  
         const char* fn_metric = "metric.inp";
         std::vector<double> metric_inputs = ReadMetricInputs(fn_metric);
         int varia = 4;
