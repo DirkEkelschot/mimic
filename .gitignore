@@ -2,3 +2,4 @@
 tests/test_mesh
 tests/test6/grid.txt
 tests/test7/grid.txt
+tests/test7/Elements.ref
