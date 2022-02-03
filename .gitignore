@@ -4,3 +4,4 @@ tests/test6/grid.txt
 tests/test7/grid.txt
 tests/test7/Elements.ref
 tests/test7/Nodes.ref
+tests/test12/mmg.mesh
