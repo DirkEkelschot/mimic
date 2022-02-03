@@ -2643,7 +2643,7 @@ void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh,MMG5_pSol mmgSol, US3D* us3d)
 //}
 
 
-int ProvideBoundaryRef(int findex, std::map<int,std::vector<int> > ranges, int fref, int rank)
+void ProvideBoundaryRef(int findex, std::map<int,std::vector<int> > ranges, int fref, int rank)
 {
     std::map<int,std::vector<int> >::iterator it;
     int retref;
