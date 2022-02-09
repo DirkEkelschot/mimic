@@ -397,11 +397,21 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_HO_US3D(Partition* Pa, std::map<in
                 Vc->y = Vc->y/NvPerF;
                 Vc->z = Vc->z/NvPerF;
                 
+                Vec3D* r0 = new Vec3D;
+                r0->c0 = (Vface->x-Vijk->x);
+                r0->c1 = (Vface->y-Vijk->y);
+                r0->c2 = (Vface->z-Vijk->z);
+                
+                NegateVec3D(r0);
+                
+                Vc->x = Vc->x + r0->c0;
+                Vc->y = Vc->y + r0->c1;
+                Vc->z = Vc->z + r0->c2;
+                
 //                double rtje = sqrt(Vc->x*Vc->x+(Vc->y-0.5)*(Vc->y-0.5)+(Vc->z-0.5)*(Vc->z-0.5));
 //                double Utje = 0.1*tanh(50*(rtje-0.5))+1.0;
                 
                 double Utje = gbMap[adjid];
-		Utje = u_ijk; 
                 //double Utje    = 0.1*sin(50*Vc->x*Vc->z)+atan(0.1/((sin(5.0*Vc->y)-2.0*Vc->x*Vc->z)));
                 vrt_collect[adjid]  = Vc;
                 sol_collect[adjid]  = Utje;
@@ -465,8 +475,19 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_HO_US3D(Partition* Pa, std::map<in
                         Vc->y = Vc->y/NvPerF;
                         Vc->z = Vc->z/NvPerF;
                         
+                        Vec3D* r0 = new Vec3D;
+                        r0->c0 = (Vface->x-Vijk->x);
+                        r0->c1 = (Vface->y-Vijk->y);
+                        r0->c2 = (Vface->z-Vijk->z);
+                        
+                        NegateVec3D(r0);
+                        
+                        Vc->x = Vc->x + r0->c0;
+                        Vc->y = Vc->y + r0->c1;
+                        Vc->z = Vc->z + r0->c2;
+                        
                         double Utje = gbMap[adjadj];
-                        Utje = u_ijk;
+
                         vrt_collect[adjadj]  = Vc;
                         sol_collect[adjadj]  = Utje;
                         
@@ -527,8 +548,19 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_HO_US3D(Partition* Pa, std::map<in
                                 Vc->y = Vc->y/NvPerF;
                                 Vc->z = Vc->z/NvPerF;
                                 
+                                Vec3D* r0 = new Vec3D;
+                                r0->c0 = (Vface->x-Vijk->x);
+                                r0->c1 = (Vface->y-Vijk->y);
+                                r0->c2 = (Vface->z-Vijk->z);
+                                
+                                NegateVec3D(r0);
+                                
+                                Vc->x = Vc->x + r0->c0;
+                                Vc->y = Vc->y + r0->c1;
+                                Vc->z = Vc->z + r0->c2;
+                                
                                 double Utje = gbMap[adjadjadj];
-         			Utje = u_ijk;                       
+
                                 vrt_collect[adjadjadj]  = Vc;
                                 sol_collect[adjadjadj]  = Utje;
                                 
@@ -714,7 +746,9 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_HO_US3D(Partition* Pa, std::map<in
 
 
 
-std::map<int,Array<double>* > ComputedUdx_LSQ_US3D(Partition* Pa, std::map<int,Array<double>* > U, std::map<int,double> gbMap, MPI_Comm comm)
+std::map<int,Array<double>* > ComputedUdx_LSQ_US3D(Partition* Pa,
+                                                   std::map<int,Array<double>* > U, std::map<int,double> gbMap,
+                                                   MPI_Comm comm)
 {
    int world_size;
    MPI_Comm_size(comm, &world_size);
@@ -820,19 +854,16 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_US3D(Partition* Pa, std::map<int,A
            }
            else
            {
-               //std::cout << "Do we get here? " << std::endl;
-               //int fid = gE2gF[elID][j];
-               
+
                int fid    = ief_part_map->i_map[elID][j];
                int NvPerF = if_Nv_part_map->i_map[fid][0];
-               //std::cout << "NvPerF " << NvPerF << std::endl;
+
                Vc->x = 0.0;
                Vc->y = 0.0;
                Vc->z = 0.0;
                
                for(int s=0;s<NvPerF;s++)
                {
-                   //int gvid_o = ifn->getVal(fid,s);
                    int gvid = ifn_vec->i_map[fid][s];
                    int lvid = gV2lV[gvid];
 
@@ -846,10 +877,17 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_US3D(Partition* Pa, std::map<int,A
                Vc->y = Vc->y/NvPerF;
                Vc->z = Vc->z/NvPerF;
                
-//               double rtje = sqrt(Vc->x*Vc->x+(Vc->y-0.5)*(Vc->y-0.5)+(Vc->z-0.5)*(Vc->z-0.5));
-//               double Utje = 0.1*tanh(50*(rtje-0.5))+1.0;
-               //double Utje    = 0.1*sin(50*Vc->x*Vc->z)+atan(0.1/((sin(5.0*Vc->y)-2.0*Vc->x*Vc->z)));
+               Vec3D* r0 = new Vec3D;
+               r0->c0 = (Vface->x-Vijk->x);
+               r0->c1 = (Vface->y-Vijk->y);
+               r0->c2 = (Vface->z-Vijk->z);
                
+               NegateVec3D(r0);
+               
+               Vc->x = Vc->x + r0->c0;
+               Vc->y = Vc->y + r0->c1;
+               Vc->z = Vc->z + r0->c2;
+                              
                double Utje = gbMap[adjID];
                
                d = sqrt((Vc->x-Vijk->x)*(Vc->x-Vijk->x)+
@@ -857,19 +895,17 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_US3D(Partition* Pa, std::map<int,A
                         (Vc->z-Vijk->z)*(Vc->z-Vijk->z));
                
                u_po = Utje;
-               u_po = u_ijk;
-               //u_po = u_ijk;
-               //u_po = U[elID];
-               //double u_fpo = ghost->getVal(adjID-Nel,0);
-
+               
                Vrt->setVal(t,0,(1.0/d)*(Vc->x-Vijk->x));
                Vrt->setVal(t,1,(1.0/d)*(Vc->y-Vijk->y));
                Vrt->setVal(t,2,(1.0/d)*(Vc->z-Vijk->z));
                
                
                b->setVal(t,0,(1.0/d)*(u_po-u_ijk));
+               
+               delete r0;
+               
                t++;
-               //dist.push_back(d);
            }
            
            delete[] Padj;
@@ -1036,15 +1072,26 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_US3D_LargeStencil(Partition* Pa, s
                  Vc->y = Vc->y/NvPerF;
                  Vc->z = Vc->z/NvPerF;
                  
- //                double rtje = sqrt(Vc->x*Vc->x+(Vc->y-0.5)*(Vc->y-0.5)+(Vc->z-0.5)*(Vc->z-0.5));
- //                double Utje = 0.1*tanh(50*(rtje-0.5))+1.0;
                  
+                 Vec3D* r0 = new Vec3D;
+                 r0->c0 = (Vface->x-Vijk->x);
+                 r0->c1 = (Vface->y-Vijk->y);
+                 r0->c2 = (Vface->z-Vijk->z);
+                 
+                 NegateVec3D(r0);
+                 
+                 Vc->x = Vc->x + r0->c0;
+                 Vc->y = Vc->y + r0->c1;
+                 Vc->z = Vc->z + r0->c2;
+                                  
                  double Utje = gbMap[adjid];
-                 Utje = u_ijk;
                  
                  //double Utje    = 0.1*sin(50*Vc->x*Vc->z)+atan(0.1/((sin(5.0*Vc->y)-2.0*Vc->x*Vc->z)));
+                 
                  vrt_collect[adjid]  = Vc;
                  sol_collect[adjid]  = Utje;
+                 
+                 delete r0;
                  
                  cntbnd++;
     
@@ -1105,10 +1152,23 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_US3D_LargeStencil(Partition* Pa, s
                          Vc->y = Vc->y/NvPerF;
                          Vc->z = Vc->z/NvPerF;
                          
+                         Vec3D* r0 = new Vec3D;
+                         r0->c0 = (Vface->x-Vijk->x);
+                         r0->c1 = (Vface->y-Vijk->y);
+                         r0->c2 = (Vface->z-Vijk->z);
+                         
+                         NegateVec3D(r0);
+                         
+                         Vc->x = Vc->x + r0->c0;
+                         Vc->y = Vc->y + r0->c1;
+                         Vc->z = Vc->z + r0->c2;
+                         
                          double Utje = gbMap[adjadj];
-                         Utje = u_ijk;
+
                          vrt_collect[adjadj]  = Vc;
                          sol_collect[adjadj]  = Utje;
+                         
+                         delete r0;
                          
                          cntbnd++;
                      }
@@ -1167,10 +1227,23 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_US3D_LargeStencil(Partition* Pa, s
                                  Vc->y = Vc->y/NvPerF;
                                  Vc->z = Vc->z/NvPerF;
                                  
+                                 Vec3D* r0 = new Vec3D;
+                                 r0->c0 = (Vface->x-Vijk->x);
+                                 r0->c1 = (Vface->y-Vijk->y);
+                                 r0->c2 = (Vface->z-Vijk->z);
+                                 
+                                 NegateVec3D(r0);
+                                 
+                                 Vc->x = Vc->x + r0->c0;
+                                 Vc->y = Vc->y + r0->c1;
+                                 Vc->z = Vc->z + r0->c2;
+                                 
                                  double Utje = gbMap[adjadjadj];
-                                 Utje = u_ijk;
+
                                  vrt_collect[adjadjadj]  = Vc;
                                  sol_collect[adjadjadj]  = Utje;
+                                 
+                                 delete r0;
                                  
                                  cntbnd++;
                              }

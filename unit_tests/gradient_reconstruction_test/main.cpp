@@ -519,6 +519,18 @@ int main(int argc, char** argv)
                 vmx = vface->x/nvf;
                 vmy = vface->y/nvf;
                 vmz = vface->z/nvf;
+                
+                Vec3D* r0 = new Vec3D;
+                r0->c0 = (vmx-Vijk->x);
+                r0->c1 = (vmy-Vijk->y);
+                r0->c2 = (vmz-Vijk->z);
+                
+                NegateVec3D(r0);
+                
+                vmx = vmx + r0->c0;
+                vmy = vmy + r0->c1;
+                vmz = vmz + r0->c2;
+                
                 r = sqrt(vmx*vmx+(vmy-0.5)*(vmy-0.5)+(vmz-0.5)*(vmz-0.5));
                 U = 0.1*tanh(50*(r-0.5))+1.0;
                 gbMap[adjID]=U;
