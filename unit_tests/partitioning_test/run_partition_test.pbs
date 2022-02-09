@@ -1,0 +1,32 @@
+#PBS -S /bin/bash
+#PBS -N run_partition_test 
+#PBS -q devel
+#PBS -l select=1:ncpus=28:model=bro
+#PBS -l walltime=0:20:00
+#PBS -j oe
+#PBS -W group_list=e1305
+cd $PBS_O_WORKDIR
+export MPI_SHEPHERD=true
+
+#F_UFMTENDIAN=big
+#export F_UFMTENDIAN
+
+#FORT_BUFFERED=0
+#export FORT_BUFFERED
+
+OMP_NUM_THREADS=1
+export OMP_NUM_THREADS
+
+#MPI_BUFS_PER_PROC=512
+#export MPI_BUFS_PER_PROC
+
+#export LD_PRELOAD=/nasa/intel/Compiler/2018.0.128/compilers_and_libraries_2018.0.128/linux/mkl/lib/intel64_lin/libmkl_core.so:/nasa/intel/Compiler/2018.0.128/compilers_and_libraries_2018.0.128/linux/mkl/lib/intel64_lin/libmkl_sequential.so:$LD_PRELOAD
+
+# Load modules
+
+# Run eddy
+#env US3D_PLUGINS_PATH=/home1/dekelsch/plugins/multi-body_free-flight-master mpiexec -np 448 us3d --restart=data_restart2.h5 --data=data.h5 > us3d.out
+make
+unzip test_data.zip
+mpiexec -np 28 ../bin/partitioning_test > partitioning_test.log
+rm -rf test_data
