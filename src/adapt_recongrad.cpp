@@ -401,6 +401,7 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_HO_US3D(Partition* Pa, std::map<in
 //                double Utje = 0.1*tanh(50*(rtje-0.5))+1.0;
                 
                 double Utje = gbMap[adjid];
+		Utje = u_ijk; 
                 //double Utje    = 0.1*sin(50*Vc->x*Vc->z)+atan(0.1/((sin(5.0*Vc->y)-2.0*Vc->x*Vc->z)));
                 vrt_collect[adjid]  = Vc;
                 sol_collect[adjid]  = Utje;
@@ -465,7 +466,7 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_HO_US3D(Partition* Pa, std::map<in
                         Vc->z = Vc->z/NvPerF;
                         
                         double Utje = gbMap[adjadj];
-                        
+                        Utje = u_ijk;
                         vrt_collect[adjadj]  = Vc;
                         sol_collect[adjadj]  = Utje;
                         
@@ -527,7 +528,7 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_HO_US3D(Partition* Pa, std::map<in
                                 Vc->z = Vc->z/NvPerF;
                                 
                                 double Utje = gbMap[adjadjadj];
-                                
+         			Utje = u_ijk;                       
                                 vrt_collect[adjadjadj]  = Vc;
                                 sol_collect[adjadjadj]  = Utje;
                                 
@@ -789,8 +790,6 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_US3D(Partition* Pa, std::map<int,A
            //int NvPAdjEl = LocElem2Nv[adjID];
            double* Padj = new double[gE2lV[adjID].size()*3];
 
-           
-           
            if(adjID<Nel)
            {
                u_po = U[adjID]->getVal(0,0);
@@ -858,6 +857,7 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_US3D(Partition* Pa, std::map<int,A
                         (Vc->z-Vijk->z)*(Vc->z-Vijk->z));
                
                u_po = Utje;
+               u_po = u_ijk;
                //u_po = u_ijk;
                //u_po = U[elID];
                //double u_fpo = ghost->getVal(adjID-Nel,0);
@@ -903,6 +903,349 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_US3D(Partition* Pa, std::map<int,A
     delete Vc;
     
    return dudx_map;
+}
+
+
+
+
+std::map<int,Array<double>* > ComputedUdx_LSQ_US3D_LargeStencil(Partition* Pa, std::map<int,Array<double>* > Ue, std::map<int,double> gbMap, MPI_Comm comm)
+{
+    int world_size;
+    MPI_Comm_size(comm, &world_size);
+    // Get the rank of the process
+    int world_rank;
+    MPI_Comm_rank(comm, &world_rank);
+    std::vector<Vert*> LocalVs                 = Pa->getLocalVerts();
+    std::map<int,std::vector<int> > gE2lV      = Pa->getGlobElem2LocVerts();
+    std::map<int,std::vector<int> > gE2gF      = Pa->getglobElem2globFaces();
+    std::map<int,int> gV2lV                    = Pa->getGlobalVert2LocalVert();
+    std::map<int,int> gE2lE                    = Pa->getGlobalElement2LocalElement();
+    std::vector<int> Loc_Elem                  = Pa->getLocElem();
+    //std::map<int,std::vector<int> > scheme_E2V = meshTopo->getScheme_E2V();
+    int nLoc_Elem                              = Loc_Elem.size();
+     Array<int>* pg = Pa->getGlobalPartition();
+     
+    int Nel                      = Pa->getGlobalPartition()->getNrow();
+    i_part_map*  ifn_vec         = Pa->getIFNpartmap();
+     
+    i_part_map* ief_part_map     = Pa->getIEFpartmap();
+ //   i_part_map* ief_adj_part_map = Pa->getIEFADJpartmap();
+ //   i_part_map* ief_adj2_part_map = Pa->getIEFADJ2partmap();
+     
+    i_part_map*  iee_vec         = Pa->getIEEpartmap();
+ //   i_part_map*  iee_adj_vec     = Pa->getIEEADJpartmap();
+ //   i_part_map*  iee_adj2_vec     = Pa->getIEEADJ2partmap();
+     
+    i_part_map* if_Nv_part_map   = Pa->getIF_Nvpartmap();
+     
+
+ //   std::vector<std::vector<double> > iee_dist;
+ //   std::vector<double> dist;
+
+     
+    std::map<int,Array<double>* > dudx_map;
+    double d;
+    int loc_vid,adjID,elID;
+    int cou = 0;
+    Vert* Vc = new Vert;
+    Vert* Vadj = new Vert;
+    int lid = 0;
+    double u_ijk, u_po;
+     
+    int el_contr = 1;
+    int nadj_el  = 0;
+    int cntbnd = 0;
+    int cntbnd2 = 0;
+    int cntbnd3 = 0;
+    std::map<int,int> LocElem2Nf = Pa->getLocElem2Nf();
+    std::set<int> add2set_lay0;
+    std::set<int> add2set_layt;
+    std::map<int,Vert*> vrt_collect;
+    std::map<int,double> sol_collect;
+    std::set<int> add2set_lay1;
+    for(int i=0;i<nLoc_Elem;i++)
+     {
+         int bflip    = 0;
+         int elID     = Loc_Elem[i];
+         int NvPEl    = gE2lV[elID].size();
+         
+         double* Pijk = new double[NvPEl*3];
+         
+         for(int k=0;k<gE2lV[elID].size();k++)
+         {
+             loc_vid     = gE2lV[elID][k];
+             Pijk[k*3+0] = LocalVs[loc_vid]->x;
+             Pijk[k*3+1] = LocalVs[loc_vid]->y;
+             Pijk[k*3+2] = LocalVs[loc_vid]->z;
+         }
+         
+         Vert* Vijk   = ComputeCentroidCoord(Pijk,NvPEl);
+         u_ijk        = Ue[elID]->getVal(0,0);
+
+         int nadj_tot   = LocElem2Nf[elID];
+        
+         for(int j=0;j<nadj_tot;j++)
+         {
+             int adjid   = iee_vec->i_map[elID][j];
+                
+             if(vrt_collect.find(adjid)==vrt_collect.end() && adjid<Nel)
+             {
+                 int NvPEladj    = gE2lV[adjid].size();
+
+                 double* Padj = new double[NvPEladj*3];
+
+                 for(int k=0;k<gE2lV[adjid].size();k++)
+                 {
+                     loc_vid     = gE2lV[adjid][k];
+                     Padj[k*3+0] = LocalVs[loc_vid]->x;
+                     Padj[k*3+1] = LocalVs[loc_vid]->y;
+                     Padj[k*3+2] = LocalVs[loc_vid]->z;
+                 }
+
+                 Vert* Vadj = ComputeCentroidCoord(Padj,NvPEladj);
+                 
+                 delete[] Padj;
+                 
+                 vrt_collect[adjid]  = Vadj;
+                 sol_collect[adjid]  = Ue[adjid]->getVal(0,0);
+                 
+                 delete Vadj;
+                 
+             }
+             if(vrt_collect.find(adjid)==vrt_collect.end() && adjid>=Nel)
+             {
+                 int fid    = ief_part_map->i_map[elID][j];
+                 int NvPerF = if_Nv_part_map->i_map[fid][0];
+                 
+                 Vert* Vc = new Vert;
+                 Vc->x = 0.0;
+                 Vc->y = 0.0;
+                 Vc->z = 0.0;
+                 
+                 for(int s=0;s<NvPerF;s++)
+                 {
+                     int gvid = ifn_vec->i_map[fid][s];
+                     int lvid = gV2lV[gvid];
+
+                     Vc->x = Vc->x+LocalVs[lvid]->x;
+                     Vc->y = Vc->y+LocalVs[lvid]->y;
+                     Vc->z = Vc->z+LocalVs[lvid]->z;
+                 }
+
+                 Vc->x = Vc->x/NvPerF;
+                 Vc->y = Vc->y/NvPerF;
+                 Vc->z = Vc->z/NvPerF;
+                 
+ //                double rtje = sqrt(Vc->x*Vc->x+(Vc->y-0.5)*(Vc->y-0.5)+(Vc->z-0.5)*(Vc->z-0.5));
+ //                double Utje = 0.1*tanh(50*(rtje-0.5))+1.0;
+                 
+                 double Utje = gbMap[adjid];
+                 Utje = u_ijk;
+                 
+                 //double Utje    = 0.1*sin(50*Vc->x*Vc->z)+atan(0.1/((sin(5.0*Vc->y)-2.0*Vc->x*Vc->z)));
+                 vrt_collect[adjid]  = Vc;
+                 sol_collect[adjid]  = Utje;
+                 
+                 cntbnd++;
+    
+             }
+             
+                
+             if(iee_vec->i_map.find(adjid)!=iee_vec->i_map.end())
+             {
+                 int n_adjid = iee_vec->i_map[adjid].size();
+                    
+                 for(int k=0;k<n_adjid;k++)
+                 {
+                     int adjadj = iee_vec->i_map[adjid][k];
+                     
+                     if(vrt_collect.find(adjadj)==vrt_collect.end() && adjadj<Nel && adjadj!=elID)
+                     {
+                         int NvPEladjadj    = gE2lV[adjadj].size();
+                         double* Padjadj = new double[NvPEladjadj*3];
+
+                         for(int k=0;k<gE2lV[adjadj].size();k++)
+                         {
+                             loc_vid            = gE2lV[adjadj][k];
+                             Padjadj[k*3+0]     = LocalVs[loc_vid]->x;
+                             Padjadj[k*3+1]     = LocalVs[loc_vid]->y;
+                             Padjadj[k*3+2]     = LocalVs[loc_vid]->z;
+                         }
+                         
+                         Vert* Vadjadj          = ComputeCentroidCoord(Padjadj,NvPEladjadj);
+
+                         delete[] Padjadj;
+                         
+                         vrt_collect[adjadj] = Vadjadj;
+                         sol_collect[adjadj] = Ue[adjadj]->getVal(0,0);
+                         
+                     }
+                     if(vrt_collect.find(adjadj)==vrt_collect.end() && adjadj>=Nel && adjadj!=elID)
+                     {
+                         
+                         int fid    = ief_part_map->i_map[adjid][k];
+                         int NvPerF = 3;
+                         
+                         Vert* Vc    = new Vert;
+                         Vc->x       = 0.0;
+                         Vc->y       = 0.0;
+                         Vc->z       = 0.0;
+                         
+                         for(int s=0;s<NvPerF;s++)
+                         {
+                             int gvid = ifn_vec->i_map[fid][s];
+                             int lvid = gV2lV[gvid];
+
+                             Vc->x = Vc->x+LocalVs[lvid]->x;
+                             Vc->y = Vc->y+LocalVs[lvid]->y;
+                             Vc->z = Vc->z+LocalVs[lvid]->z;
+                         }
+
+                         Vc->x = Vc->x/NvPerF;
+                         Vc->y = Vc->y/NvPerF;
+                         Vc->z = Vc->z/NvPerF;
+                         
+                         double Utje = gbMap[adjadj];
+                         Utje = u_ijk;
+                         vrt_collect[adjadj]  = Vc;
+                         sol_collect[adjadj]  = Utje;
+                         
+                         cntbnd++;
+                     }
+                     
+                     if(iee_vec->i_map.find(adjadj)!=iee_vec->i_map.end())
+                     {
+                         int n_adjadj = iee_vec->i_map[adjadj].size();
+                            
+                         for(int k=0;k<n_adjadj;k++)
+                         {
+                             int adjadjadj = iee_vec->i_map[adjadj][k];
+                             
+                             if(vrt_collect.find(adjadjadj)==vrt_collect.end() && adjadjadj<Nel && adjadjadj!=elID)
+                             {
+                                 int NvPEladjadjadj    = gE2lV[adjadjadj].size();
+                                 double* Padjadjadj = new double[NvPEladjadjadj*3];
+
+                                 for(int k=0;k<gE2lV[adjadjadj].size();k++)
+                                 {
+                                     loc_vid            = gE2lV[adjadjadj][k];
+                                     Padjadjadj[k*3+0]     = LocalVs[loc_vid]->x;
+                                     Padjadjadj[k*3+1]     = LocalVs[loc_vid]->y;
+                                     Padjadjadj[k*3+2]     = LocalVs[loc_vid]->z;
+                                 }
+                                 
+                                 Vert* Vadjadjadj          = ComputeCentroidCoord(Padjadjadj,NvPEladjadjadj);
+
+                                 delete[] Padjadjadj;
+                                 
+                                 vrt_collect[adjadjadj] = Vadjadjadj;
+                                 sol_collect[adjadjadj] = Ue[adjadjadj]->getVal(0,0);
+                                 
+                             }
+                             if(vrt_collect.find(adjadjadj)==vrt_collect.end() && adjadjadj>=Nel && adjadjadj!=elID)
+                             {
+                                 
+                                 int fid    = ief_part_map->i_map[adjadj][k];
+                                 int NvPerF = 3;
+                                 
+                                 Vert* Vc = new Vert;
+                                 Vc->x = 0.0;
+                                 Vc->y = 0.0;
+                                 Vc->z = 0.0;
+                                 
+                                 for(int s=0;s<NvPerF;s++)
+                                 {
+                                     int gvid = ifn_vec->i_map[fid][s];
+                                     int lvid = gV2lV[gvid];
+
+                                     Vc->x = Vc->x+LocalVs[lvid]->x;
+                                     Vc->y = Vc->y+LocalVs[lvid]->y;
+                                     Vc->z = Vc->z+LocalVs[lvid]->z;
+                                 }
+
+                                 Vc->x = Vc->x/NvPerF;
+                                 Vc->y = Vc->y/NvPerF;
+                                 Vc->z = Vc->z/NvPerF;
+                                 
+                                 double Utje = gbMap[adjadjadj];
+                                 Utje = u_ijk;
+                                 vrt_collect[adjadjadj]  = Vc;
+                                 sol_collect[adjadjadj]  = Utje;
+                                 
+                                 cntbnd++;
+                             }
+                         }
+                     }
+                 }
+             }
+         }
+         
+         int Ndata = vrt_collect.size();
+         Array<double>* Vrt_T = new Array<double>(3,Ndata);
+         Array<double>* Vrt   = new Array<double>(Ndata,3);
+         Array<double>* bvec  = new Array<double>(Ndata,1);
+
+         for(int q=0;q<Ndata;q++)
+         {
+             for(int g=0;g<3;g++)
+             {
+                 Vrt_T->setVal(g,q,0.0);
+                 Vrt->setVal(q,g,0.0);
+             }
+         }
+
+         std::map<int,Vert*>::iterator vit;
+         int te = 0;
+
+         double a,b,c,h00,h01,h02,h10,h11,h12,h20,h21,h22;
+//            Vert->x,Vert->y,Vert-z;
+//            std::map<Vert*,double>
+         for(vit=vrt_collect.begin();vit!=vrt_collect.end();vit++)
+         {
+             double di = sqrt((vit->second->x-Vijk->x)*(vit->second->x-Vijk->x)+
+                              (vit->second->y-Vijk->y)*(vit->second->y-Vijk->y)+
+                              (vit->second->z-Vijk->z)*(vit->second->z-Vijk->z));
+
+             a = (vit->second->x - Vijk->x);
+             b = (vit->second->y - Vijk->y);
+             c = (vit->second->z - Vijk->z);
+             
+             Vrt->setVal(te,0,1.0/di*a);
+             Vrt->setVal(te,1,1.0/di*b);
+             Vrt->setVal(te,2,1.0/di*c);
+
+             double Udata = sol_collect[vit->first];
+
+             bvec->setVal(te,0,(1.0/di)*(Udata-u_ijk));
+
+             te++;
+         }
+
+         double* A_cm = new double[Ndata*3];
+         for(int s=0;s<Ndata;s++)
+         {
+             for(int g=0;g<3;g++)
+             {
+                 A_cm[g*Ndata+s] = Vrt->getVal(s,g);
+             }
+         }
+
+         Array<double>* x = SolveQR(A_cm,Ndata,3,bvec);
+
+         dudx_map[elID] = x;
+
+         delete[] A_cm;
+         delete[] Pijk;
+         delete Vrt_T;
+         delete Vrt;
+         delete bvec;
+
+         vrt_collect.clear();
+         sol_collect.clear();
+    }
+     
+     
+    return dudx_map;
 }
 
 

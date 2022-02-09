@@ -1458,7 +1458,7 @@ Array<double>* ComputeFaceValues(Partition* P, Array<double>* U, MPI_Comm comm)
     
     nface = 6; // # hardcoded for hexes for now
     
-    std::map<int,Array<double>* > Uelem_all = P->PartitionAuxilaryData(U, comm);
+    std::map<int,Array<double>* > Uelem_all;// = P->PartitionAuxilaryData(U, comm);
     std::map<int,int> gE2lE               = P->getGlobalElement2LocalElement();
     std::map<int,int> lE2gE               = P->getLocalElement2GlobalElement();
     std::map<int,std::vector<int> > gE2gF = P->getglobElem2globFaces();

@@ -18,10 +18,54 @@
 
 
 
+
+std::vector<std::vector<double> > ReadReferenceData(int world_rank)
+{
+    std::vector<std::vector<double> > output;
+    std::ifstream fin_v;
+    fin_v.open("testdata/compareValues_"+ std::to_string(world_rank) + ".txt");
+    
+    std::vector<double> row_v(6);
+    while(fin_v >> row_v[0] >> row_v[1] >> row_v[2] >> row_v[3] >> row_v[4] >> row_v[5])
+    {
+        output.push_back(row_v);
+    }
+    fin_v.close();
+    
+    return output;
+    
+}
+
+std::map<int,Array<double>*> ReadReferenceData2(int world_rank)
+{
+    std::map<int,Array<double>*> output;
+    std::ifstream fin_v;
+    fin_v.open("testdata/UVariaValues_"+ std::to_string(world_rank) + ".txt");
+    
+    std::vector<double> row_v(2);
+    while(fin_v >> row_v[0] >> row_v[1])
+    {
+        Array<double>* entry = new Array<double>(1,1);
+        entry->setVal(0,0,row_v[1]);
+        int key = (int) row_v[0];
+        output[key] = entry;
+        
+    }
+    fin_v.close();
+    
+    return output;
+    
+}
+
+
+
+
+
+
 void OutputMesh_PMMG(int nV, double* VertOUT, int nE, int* tetraOUT, string fname)
 {
     int pos;
-        
+    
     std::ofstream myfile;
     myfile.open(fname);
     myfile << "TITLE=\"new_volume.tec\"" << std::endl;
@@ -36,9 +80,69 @@ void OutputMesh_PMMG(int nV, double* VertOUT, int nE, int* tetraOUT, string fnam
     for(int i=0;i<nE;i++)
     {
         pos=4*i;
+        
         myfile << tetraOUT[pos] << " " << tetraOUT[pos+1]  << " " << tetraOUT[pos+2]  << " " << tetraOUT[pos+3]  << std::endl;
+        
     }
     myfile.close();
+
+}
+
+
+void OutputMesh_PMMG_V2(int nV, double* VertOUT, int nE, int* tetraOUT, string fname)
+{
+    int pos;
+    
+    std::vector<std::vector<int> > plotnodes;
+    for(int i=0;i<nE;i++)
+    {
+        pos=4*i;
+        if(VertOUT[(tetraOUT[pos]-1)*3+2]<0.0 &&
+           VertOUT[(tetraOUT[pos+1]-1)*3+2]<0.0 &&
+           VertOUT[(tetraOUT[pos+2]-1)*3+2]<0.0 &&
+           VertOUT[(tetraOUT[pos+3]-1)*3+2]<0.0)
+        {
+            std::vector<int> roww(4);
+            roww[0] = tetraOUT[pos];
+            roww[1] = tetraOUT[pos+1];
+            roww[2] = tetraOUT[pos+2];
+            roww[3] = tetraOUT[pos+3];
+            
+            plotnodes.push_back(roww);
+        }
+        
+    }
+        
+    if(plotnodes.size() > 0 )
+    {
+        std::ofstream myfile;
+        myfile.open(fname);
+        myfile << "TITLE=\"new_volume.tec\"" << std::endl;
+        myfile <<"VARIABLES = \"X\", \"Y\", \"Z\"" << std::endl;
+        myfile <<"ZONE N = " << nV << ", E = " << plotnodes.size() << ", DATAPACKING = POINT, ZONETYPE = FETETRAHEDRON" << std::endl;
+
+        for(int i=0;i<nV;i++)
+        {
+            pos = 3*i;
+            myfile << VertOUT[pos] << " " <<VertOUT[pos+1] << " " << VertOUT[pos+2] <<  std::endl;
+        }
+        for(int i=0;i<plotnodes.size();i++)
+        {
+            pos=4*i;
+    //        if(VertOUT[tetraOUT[pos]*3+2]>0.25 &&
+    //           VertOUT[tetraOUT[pos+1]*3+2]>0.25 &&
+    //           VertOUT[tetraOUT[pos+2]*3+2]>0.25 &&
+    //           VertOUT[tetraOUT[pos+3]*3+2]>0.25)
+    //        {
+            
+                //myfile << tetraOUT[pos] << " " << tetraOUT[pos+1]  << " " << tetraOUT[pos+2]  << " " << tetraOUT[pos+3]  << std::endl;
+            myfile << plotnodes[i][0] << " " << plotnodes[i][1]  << " " << plotnodes[i][2]  << " " << plotnodes[i][3]  << std::endl;
+    //        }
+            
+        }
+        myfile.close();
+    }
+    
 }
 
 
@@ -284,7 +388,7 @@ int main(int argc, char** argv)
     clock_t t0_met = clock();
 
     int ier,opt;
-    int debug = 0;
+    int debug = 1;
 //    const char* fn_grid="../test_mesh/cylinder_hybrid/grid.h5";
 //    const char* fn_conn="../test_mesh/cylinder_hybrid/conn.h5";
 //    const char* fn_data="../test_mesh/cylinder_hybrid/data.h5";
@@ -307,6 +411,8 @@ int main(int argc, char** argv)
     int RunWakRefinement = metric_inputs[5];
     double hwake         = metric_inputs[6];
     int niter            = metric_inputs[7];
+    int recursive	     = metric_inputs[8];
+    int extended         = metric_inputs[9];
     
     if(world_rank == 0)
     {
@@ -409,20 +515,63 @@ int main(int argc, char** argv)
     std::vector<int> LocElem                    = P->getLocElem();
     std::vector<double> Uvaria                  = P->getLocElemVaria();
     std::map<int,Array<double>*> Uvaria_map     = P->getLocAndAdjElemVaria();
-    std::map<int,Array<double>* > Mvar_vmap     = P->ReduceStateVecToAllVertices_V2(Uvaria_map,1);
+    
+    std::map<int,Array<double>*> Uvaria_map2;
+    double UvariaV              = 0.0;
+    for(int i=0;i<LocElem.size();i++)
+    {
+        int gid   = LocElem[i];
+        UvariaV   = Uvaria[i];
+
+        Array<double>* Uarr = new Array<double>(1,1);
+        Uarr->setVal(0,0,UvariaV);
+        Uvaria_map2[gid] = Uarr;
+    }
+    
+    P->AddStateVecForAdjacentElements(Uvaria_map2,1,comm);
+    
+//    std::map<int,Array<double>*> Uvaria_ref = ReadReferenceData2(world_rank);
+//
+//    std::map<int,Array<double>* >::iterator pltV;
+//    int correctVal = 0;
+//    int incorrectVal = 0;
+    int nothere = 0;
+//    for(pltV=Uvaria_map.begin();pltV!=Uvaria_map.end();pltV++)
+//    {
+//        if(Uvaria_ref.find(pltV->first)!=Uvaria_ref.end())
+//        {
+//            double err = fabs(pltV->second->getVal(0,0)-Uvaria_ref[pltV->first]->getVal(0,0));
+//            if(err > 1.0e-05)
+//            {
+//                std::cout << std::setprecision(16) << " Uvaria_map "<< pltV->first << " " << pltV->second->getVal(0,0) << " " << Uvaria_ref[pltV->first]->getVal(0,0)  << " " << err << std::endl;
+//                incorrectVal++;
+//            }
+//            else
+//            {
+//                correctVal++;
+//            }
+//        }
+//        else
+//        {
+//            nothere++;
+//        }
+//    }
+//
+//
+//    std::cout << "correct vs incorrect = " << world_rank << " " << correctVal << " " << nothere << " " << incorrectVal << "( " << Uvaria.size() << " " << Uvaria_map.size() << std::endl;
+//
+    //std::cout << "world rank " << world_rank <<  " " << Uvaria_map.size() << " " << Uvaria.size() << std::endl;
+    
+    std::map<int,Array<double>* > Mvar_vmap = P->ReduceStateVecToAllVertices_V2(Uvaria_map,1);
+
+    
     std::map<int,Array<double>*> Utke_map;
     std::map<int,Array<double>* >  TKE_vmap;
     
-    std::map<int,Array<double>* >::iterator pltV;
-    
-//    for(pltV=Mvar_vmap.begin();pltV!=Mvar_vmap.end();pltV++)
-//    {
-//        std::cout << " Mvar_vmap "<< pltV->first << " " << pltV->second->getVal(0,0) << std::endl;
-//    }
-   
+
     if(ReadFromStats==1)
     {
-        Utke_map       = P->PartitionAuxilaryData(TKEi, comm);
+        Utke_map = P->PartitionAuxilaryData(TKEi, comm);
         P->AddStateVecForAdjacentElements(Utke_map,1,comm);
         TKE_vmap = P->ReduceStateVecToAllVertices_V2(Utke_map,1);
     }
@@ -467,21 +616,45 @@ int main(int argc, char** argv)
     delete us3d->if_Nv;
 //  delete us3d->xcn;
     
+    std::map<int,Array<double>* > dudx_vmap;
+    std::map<int,Array<double>* > dudy_vmap;
+    std::map<int,Array<double>* > dudz_vmap;
     
     std::map<int,Array<double>* >::iterator itgg;
     std::map<int,Array<double>* > hess_vmap;
-    int recursive = 0;
+    
+    
     if(recursive == 0)
     {
+        if(world_rank == 0)
+	{
+		std::cout << "We are running extended WLSqGR..." << std::endl;
+	}
         std::map<int,Array<double>* > Hess_map = ComputedUdx_LSQ_HO_US3D(P,Uvaria_map,gbMap,comm);
         
         P->AddStateVecForAdjacentElements(Hess_map,9,comm);
 
         hess_vmap = P->ReduceStateVecToAllVertices_V2(Hess_map,9);
+        
+        for(itgg = hess_vmap.begin();itgg!=hess_vmap.end();itgg++)
+        {
+            Array<double>* dudx_v = new Array<double>(1,1);
+            dudx_v->setVal(0,0,itgg->second->getVal(0,0));
+            Array<double>* dudy_v = new Array<double>(1,1);
+            dudy_v->setVal(0,0,itgg->second->getVal(1,0));
+            Array<double>* dudz_v = new Array<double>(1,1);
+            dudz_v->setVal(0,0,itgg->second->getVal(2,0));
+            
+            dudx_vmap[itgg->first] = dudx_v;
+            dudy_vmap[itgg->first] = dudy_v;
+            dudz_vmap[itgg->first] = dudz_v;
+        }
+        
         double po = 6.0;
         if(RunWakRefinement == 0)
         {
             ComputeMetric(P,metric_inputs,comm,hess_vmap,1.0,po,recursive);
+
         }
         if(RunWakRefinement == 1)
         {
@@ -489,16 +662,48 @@ int main(int argc, char** argv)
         }
 
         std::map<int,Array<double>* >::iterator itgg;
+        
+        
+            
+            
         for(itgg=Hess_map.begin();itgg!=Hess_map.end();itgg++)
         {
             delete itgg->second;
         }
+        
+        
     }
     
 
     if(recursive == 1)
     {
-        std::map<int,Array<double>* > dUdXi = ComputedUdx_LSQ_US3D(P,Uvaria_map,gbMap,comm);
+        if(world_rank == 0)
+        {
+            std::cout << "We are running conventional WLSqGR recursively..." << std::endl;
+        }
+        
+        Mesh_Topology* meshTopo      = new Mesh_Topology(P,comm);
+        std::map<int,double> Volumes_tmp = meshTopo->getVol();
+        std::map<int,double> Volumes;
+        std::map<int,double>::iterator itc;
+        for(itc=Volumes_tmp.begin();itc!=Volumes_tmp.end();itc++)
+        {
+            int elid = itc->first;
+            int vol  = itc->second;
+            Volumes[elid] = vol;
+        }
+        
+        std::map<int,Array<double>* > dUdXi;
+
+        if(extended == 1)
+        {
+            dUdXi = ComputedUdx_LSQ_US3D_LargeStencil(P,Uvaria_map,gbMap,comm);
+        }
+        if(extended == 0)
+        {
+            dUdXi = ComputedUdx_LSQ_US3D(P,Uvaria_map,gbMap,comm);
+        }
+        
         P->AddStateVecForAdjacentElements(dUdXi,3,comm);
         
         std::map<int,Array<double>* >::iterator grit;
@@ -522,16 +727,28 @@ int main(int argc, char** argv)
             delete grit->second;
         }
         
-        std::map<int,Array<double>* > dU2dXi2 = ComputedUdx_LSQ_US3D(P,dUidxi_map,gbMap,comm);
-        std::map<int,Array<double>* > dU2dYi2 = ComputedUdx_LSQ_US3D(P,dUidyi_map,gbMap,comm);
-        std::map<int,Array<double>* > dU2dZi2 = ComputedUdx_LSQ_US3D(P,dUidzi_map,gbMap,comm);
+        dudx_vmap = P->ReduceStateVecToAllVertices_V2(dUidxi_map,1);
+        dudy_vmap = P->ReduceStateVecToAllVertices_V2(dUidyi_map,1);
+        dudz_vmap = P->ReduceStateVecToAllVertices_V2(dUidzi_map,1);
         
-        for(grit=dUidxi_map.begin();grit!=dUidxi_map.end();grit++)
+        std::map<int,Array<double>* > dU2dXi2;
+        std::map<int,Array<double>* > dU2dYi2;
+        std::map<int,Array<double>* > dU2dZi2;
+        
+        
+        if(extended == 1)
         {
-            delete grit->second;
-            delete dUidyi_map[grit->first];
-            delete dUidzi_map[grit->first];
+            dU2dXi2 = ComputedUdx_LSQ_US3D_LargeStencil(P,dUidxi_map,gbMap,comm);
+            dU2dYi2 = ComputedUdx_LSQ_US3D_LargeStencil(P,dUidyi_map,gbMap,comm);
+            dU2dZi2 = ComputedUdx_LSQ_US3D_LargeStencil(P,dUidzi_map,gbMap,comm);
         }
+        if(extended == 0)
+        {
+            dU2dXi2 = ComputedUdx_LSQ_US3D(P,dUidxi_map,gbMap,comm);
+            dU2dYi2 = ComputedUdx_LSQ_US3D(P,dUidyi_map,gbMap,comm);
+            dU2dZi2 = ComputedUdx_LSQ_US3D(P,dUidzi_map,gbMap,comm);
+        }
+        
         
         std::map<int,Array<double>* > Hess_map;
         
@@ -558,9 +775,19 @@ int main(int argc, char** argv)
             t++;
         }
         
+        for(grit=dUidxi_map.begin();grit!=dUidxi_map.end();grit++)
+        {
+            delete grit->second;
+            delete dUidyi_map[grit->first];
+            delete dUidzi_map[grit->first];
+        }
+        
         P->AddStateVecForAdjacentElements(Hess_map,6,comm);
-        std::map<int,Array<double>* > hess_vmap = P->ReduceStateVecToAllVertices_V2(Hess_map,6);
+        hess_vmap = P->ReduceStateVecToAllVertices_V2(Hess_map,6);
+        
+
         double po = 6.0;
+        
         if(RunWakRefinement == 0)
         {
             ComputeMetric(P,metric_inputs,comm,hess_vmap,1.0,po,recursive);
@@ -569,7 +796,7 @@ int main(int argc, char** argv)
         {
             ComputeMetricWithWake(P, metric_inputs, comm, TKE_vmap, hess_vmap, 1.0, po, hwake, recursive);
         }
-        
+                   
         for(itgg=Hess_map.begin();itgg!=Hess_map.end();itgg++)
         {
             delete itgg->second;
@@ -580,6 +807,7 @@ int main(int argc, char** argv)
     {
         std::cout << " Done computing the metric " << std::endl;
     }
+    //std::cout << "Mvar_vmap " << Mvar_vmap.size() << std::endl;
     
     //std::vector<int> LocElem     = P->getLocElem();
     //================================================================================
@@ -734,40 +962,76 @@ int main(int argc, char** argv)
 
     if(tetraLoc.size()!=0 && debug == 1)
     {
-//        std::ofstream myfilet;
-//        myfilet.open("metricFieldGrad_" + std::to_string(world_rank) + ".dat");
-//        myfilet << "TITLE=\"new_volume.tec\"" << std::endl;
-//        myfilet <<"VARIABLES = \"X\", \"Y\", \"Z\", \"U\", \"M00\", \"M01\", \"M02\", \"M11\", \"M12\", \"M22\"" << std::endl;
-//        myfilet <<"ZONE N = " << loc_part_verts.size() << ", E = " << tetraLoc.size() << ", DATAPACKING = POINT, ZONETYPE = FETETRAHEDRON" << std::endl;
-//
+        std::ofstream myfilet;
+        myfilet.open("metricFieldGrad_" + std::to_string(world_rank) + ".dat");
+        myfilet << "TITLE=\"new_volume.tec\"" << std::endl;
+        myfilet <<"VARIABLES = \"X\", \"Y\", \"Z\", \"U\", \"G0\", \"G1\", \"G2\", \"M00\", \"M01\", \"M02\", \"M11\", \"M12\", \"M22\"" << std::endl;
+        //myfilet <<"VARIABLES = \"X\", \"Y\", \"Z\", \"U\"" << std::endl;
+        myfilet <<"ZONE N = " << loc_part_verts.size() << ", E = " << tetraLoc.size() << ", DATAPACKING = POINT, ZONETYPE = FETETRAHEDRON" << std::endl;
+
+        for(int i=0;i<loc_part_verts.size();i++)
+        {
+            int loc_vid  = loc_part_verts[i];
+            int glob_vid = lpartv2gv[loc_vid];
+            myfilet << LocVerts[loc_vid]->x << " " <<
+                       LocVerts[loc_vid]->y << " " <<
+                       LocVerts[loc_vid]->z << " " <<
+                       Mvar_vmap[glob_vid]->getVal(0,0)  << " " <<
+                       dudx_vmap[glob_vid]->getVal(0,0) << " " <<
+                       dudy_vmap[glob_vid]->getVal(0,0) << " " <<
+                       dudz_vmap[glob_vid]->getVal(0,0) << " " <<
+                       hess_vmap[glob_vid]->getVal(0,0) << " " <<
+                       hess_vmap[glob_vid]->getVal(0,1) << " " <<
+                       hess_vmap[glob_vid]->getVal(0,2) << " " <<
+                       hess_vmap[glob_vid]->getVal(1,1) << " " <<
+                       hess_vmap[glob_vid]->getVal(1,2) << " " <<
+                       hess_vmap[glob_vid]->getVal(2,2) << std::endl;
+            
+//            myfilet << LocVerts[loc_vid]->x << " " <<
+//                       LocVerts[loc_vid]->y << " " <<
+//                       LocVerts[loc_vid]->z << " " <<
+//                       Mvar_vmap[glob_vid]->getVal(0,0) << std::endl;
+
+    //        myfilet << LocVerts[loc_vid]->x << " " <<
+    //                   LocVerts[loc_vid]->y << " " <<
+    //                   LocVerts[loc_vid]->z << " " << std::endl;
+        }
+
+        std::map<int,std::vector<int> >::iterator itmm2;
+        for(itmm2=tetraLoc.begin();itmm2!=tetraLoc.end();itmm2++)
+        {
+            myfilet << itmm2->second[0]+1 << " " << itmm2->second[1]+1 << " "
+                    << itmm2->second[2]+1 << " " << itmm2->second[3]+1 <<  std::endl;
+        }
+
+        myfilet.close();
+        
+        
+        
+//        std::vector<std::vector<double> > refdata = ReadReferenceData(world_rank);
+//        
+//        std::ofstream myfilet2;
+//        myfilet2.open("compareValuesWrong_" + std::to_string(world_rank) + ".txt");
 //        for(int i=0;i<loc_part_verts.size();i++)
 //        {
 //            int loc_vid  = loc_part_verts[i];
 //            int glob_vid = lpartv2gv[loc_vid];
-//            myfilet << LocVerts[loc_vid]->x << " " <<
-//                       LocVerts[loc_vid]->y << " " <<
-//                       LocVerts[loc_vid]->z << " " <<
-//                       Mvar_vmap[glob_vid]->getVal(0,0)  << " " <<
-//            dudx_vmap[glob_vid]->getVal(0,0) << " " <<
-//            dudy_vmap[glob_vid]->getVal(0,0) << " " <<
-//            dudz_vmap[glob_vid]->getVal(0,0) << " " <<
-//                       hess_vmap[glob_vid]->getVal(1,2) << " " <<
-//                       hess_vmap[glob_vid]->getVal(0,1) << " " <<
-//                       hess_vmap[glob_vid]->getVal(2,2) << std::endl;
+//            int ref0     = (int) refdata[i][0]-loc_vid;
+//            int ref1     = (int) refdata[i][1]-glob_vid;
+//            double ref2  = refdata[i][2]-LocVerts[loc_vid]->x;
+//            double ref3  = refdata[i][3]-LocVerts[loc_vid]->y;
+//            double ref4  = refdata[i][4]-LocVerts[loc_vid]->z;
+//            double ref5  = refdata[i][5]-Mvar_vmap[glob_vid]->getVal(0,0);
+//            
+////            if(ref0 != 0 || ref1 !=0 && world_rank == 0)
+////            {
+////                std::cout << world_rank << " " << i << " " << ref0 << " " << ref1 << " " << ref2 << " " << ref3 << " " << ref4 << " " << ref5 <<std::endl;
+////            }
 //
-//    //        myfilet << LocVerts[loc_vid]->x << " " <<
-//    //                   LocVerts[loc_vid]->y << " " <<
-//    //                   LocVerts[loc_vid]->z << " " << std::endl;
+//            myfilet2 <<loc_vid << " " << glob_vid << " " << LocVerts[loc_vid]->x << " " << LocVerts[loc_vid]->y << " " << LocVerts[loc_vid]->z << " " << Mvar_vmap[glob_vid]->getVal(0,0)  << std::endl;
 //        }
-//
-//        std::map<int,std::vector<int> >::iterator itmm2;
-//        for(itmm2=tetraLoc.begin();itmm2!=tetraLoc.end();itmm2++)
-//        {
-//            myfilet << itmm2->second[0]+1 << " " << itmm2->second[1]+1 << " "
-//                    << itmm2->second[2]+1 << " " << itmm2->second[3]+1 <<  std::endl;
-//        }
-//
-//        myfilet.close();
+//        myfilet2.close();
+        
         
         delete P;
     }
@@ -778,19 +1042,8 @@ int main(int argc, char** argv)
    //====================================================================
     
     
-    
-    
-    
-    
-    
-	
-    
-    //================================================================================
-    //================================================================================
-    //================================================================================
-    
     clock_t t0_redis = clock();
-    
+
     RedistributePartitionObject* tetra_distri = new RedistributePartitionObject(us3d,
     																			tetrahedra,
 																				iferank_map,
@@ -1400,7 +1653,7 @@ int main(int argc, char** argv)
     clock_t t0_adapt = clock();
 
     int ierlib = PMMG_parmmglib_distributed( parmesh );
-    /**/
+   
     clock_t t1_adapt = clock();
     double duration_adapt = ( t1_adapt - t0_adapt) / (double) CLOCKS_PER_SEC;
     double dur_max_adapt;
@@ -2410,7 +2663,7 @@ int main(int argc, char** argv)
         if(nTetrahedraOUT!=0 && debug==1)
         {
             string filename = "pmmg_" + std::to_string(world_rank) + ".dat";
-            OutputMesh_PMMG(nVerticesOUT,vertOUT,nTetrahedraOUT,tetraOUT,filename);
+            OutputMesh_PMMG_V2(nVerticesOUT,vertOUT,nTetrahedraOUT,tetraOUT,filename);
         }
 
         
@@ -4269,7 +4522,7 @@ int main(int argc, char** argv)
         std::cout << std::setprecision(16) << "Writing out the grid takes " << dur_max << " seconds using " << world_size << "procs. " << std::endl;
     	std::cout << "Finalizing process" << std::endl;     
     }
-    
+    /**/
     
     MPI_Finalize();
     
