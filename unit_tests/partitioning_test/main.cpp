@@ -559,7 +559,7 @@ int main(int argc, char** argv)
             std::cout << "Partitioning test has FAILED." << " " << incorrectValGlobal << std::endl;
             std::ofstream myfile;
             myfile.open("partition_test.FAILED");
-            myfile << "SUCCES!" << std::endl;
+            myfile << "FAILED!" << std::endl;
             myfile.close();
         }
     }

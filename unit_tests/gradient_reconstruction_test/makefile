@@ -1,8 +1,8 @@
 TESTBIN = ../bin
 
 SRC_OBJ = ../../src/*.cpp
-TES_OBJ = main_test.cpp
-TEST    = grad_recon
+TES_OBJ = main.cpp
+TEST    = gradientReconstruction_test
 
 include ../../module.mk
 

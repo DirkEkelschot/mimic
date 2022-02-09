@@ -645,6 +645,20 @@ int main(int argc, char** argv)
         if(total_error < 1.0e-16)
         {
             std::cout << "The gradient reconstruction tests have PASSED!" << std::endl;
+	    std::cout << "Partitioning test has PASSED." << std::endl;
+            
+            std::ofstream myfile;
+            myfile.open("gradient_reconstruction_test.PASSED");
+            myfile << "SUCCES!" << std::endl;
+            myfile.close();
+        }
+	else
+        {
+            std::cout << "The gradient reconstruction tests have FAILED. " << total_error <<  std::endl;
+            std::ofstream myfile;
+            myfile.open("gradient_reconstruction.FAILED");
+            myfile << "FAILED! error = " << total_error << std::endl;
+            myfile.close();
         }
         
     }
