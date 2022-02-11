@@ -129,7 +129,7 @@ Mesh_Topology::Mesh_Topology(Partition* Pa, MPI_Comm comm)
 
                 rvector[gEl].push_back(rf);
                 dr[gEl].push_back(d);
-                delete Vpo;
+                //delete Vpo;
                 delete[] Po;
                 
                 for(int k=0;k<Nvadj;k++)
@@ -253,6 +253,9 @@ Mesh_Topology::Mesh_Topology(Partition* Pa, MPI_Comm comm)
             {
                 fid = ief_part_map->i_map[gEl][o];
                 int NvPerF = if_Nv_part_map->i_map[fid][0];
+                
+                double* F = new double[NvPerF*3];
+
                 double rdotn;
                 Vert* Vface = new Vert;
                 Vface->x = 0.0;
@@ -273,6 +276,10 @@ Mesh_Topology::Mesh_Topology(Partition* Pa, MPI_Comm comm)
                     V->x    = locVerts[lvid]->x;
                     V->y    = locVerts[lvid]->y;
                     V->z    = locVerts[lvid]->z;
+                    
+                    F[s*3+0] = V->x;
+                    F[s*3+1] = V->y;
+                    F[s*3+2] = V->z;
                     
                     face.push_back(V);
                 }
@@ -316,6 +323,8 @@ Mesh_Topology::Mesh_Topology(Partition* Pa, MPI_Comm comm)
                     }
 
                     rdotn = DotVec3D(r0,n0);
+                    
+                    ds0 = ComputeTriSurfaceArea(F);
                     //delete rf;
                 }
 
@@ -338,6 +347,8 @@ Mesh_Topology::Mesh_Topology(Partition* Pa, MPI_Comm comm)
                     }
                     
                     double rdotn = DotVec3D(r0,n0);
+                    
+                    ds0 = ComputeTriSurfaceArea(F);
                 }
                 
                 Vec3D* reflect = new Vec3D;
@@ -364,8 +375,10 @@ Mesh_Topology::Mesh_Topology(Partition* Pa, MPI_Comm comm)
                 dr[gEl].push_back(d);
                 normals[gEl].push_back(n0);
                 dxfxc[gEl].push_back(r0);
-                
+                dS[gEl].push_back(ds0);
                 face.clear();
+                
+                delete[] F;
             }
         }
         vs.clear();

@@ -95,7 +95,7 @@ std::map<int,Array<double>* > Py_ComputedUdx_LSQ_US3D(std::vector<Vert* > LocalV
                b->setVal(t,0,(1.0/d)*(u_po-u_ijk));
                //std::cout << "internal guys because  " << adjID << " < " << Nel << " " << u_po << " " << u_ijk << " " << d << std::endl;
 
-               delete Vadj;
+               //delete Vadj;
                dist.push_back(d);
                t++;
 
@@ -1205,7 +1205,7 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_HO_US3D(Partition* Pa, std::map<in
                 vrt_collect[adjid]  = Vadj;
                 sol_collect[adjid]  = Ue[adjid]->getVal(0,0);
                 
-                delete Vadj;
+                //delete Vadj;
                 
             }
             if(vrt_collect.find(adjid)==vrt_collect.end() && adjid>=Nel)
@@ -2129,7 +2129,7 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_US3D_LargeStencil(Partition* Pa, s
                  vrt_collect[adjid]  = Vadj;
                  sol_collect[adjid]  = Ue[adjid]->getVal(0,0);
                  
-                 delete Vadj;
+                 //delete Vadj;
                  
              }
              if(vrt_collect.find(adjid)==vrt_collect.end() && adjid>=Nel)
