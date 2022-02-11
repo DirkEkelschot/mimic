@@ -1282,7 +1282,7 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_HO_US3D(Partition* Pa, std::map<in
 
                 //double Utje    = 0.1*sin(50*Vc->x*Vc->z)+atan(0.1/((sin(5.0*Vc->y)-2.0*Vc->x*Vc->z)));
                 vrt_collect[adjid]  = Vc;
-                sol_collect[adjid]  = Utje;
+                sol_collect[adjid]  = Utje_test;
                 
                 if(fabs(Utje_test-Utje)>1.0e-06)
                 {
@@ -1409,7 +1409,7 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_HO_US3D(Partition* Pa, std::map<in
                         double Utje = 0.1*tanh(50*(r-0.5))+1.0;
 
                         vrt_collect[adjadj]  = Vc;
-                        sol_collect[adjadj]  = Utje;
+                        sol_collect[adjadj]  = Utje_test;
                         
                         if(fabs(Utje_test-Utje)>1.0e-06)
                         {
@@ -1542,7 +1542,7 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_HO_US3D(Partition* Pa, std::map<in
                                 double Utje = 0.1*tanh(50*(r-0.5))+1.0;
                                 
                                 vrt_collect[adjadjadj]  = Vc;
-                                sol_collect[adjadjadj]  = Utje;
+                                sol_collect[adjadjadj]  = Utje_test;
                                 
                                 if(fabs(Utje_test-Utje)>1.0e-06)
                                 {

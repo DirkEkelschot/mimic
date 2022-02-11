@@ -1,7 +1,7 @@
 #PBS -S /bin/bash
 #PBS -N run_partition_test 
 #PBS -q devel
-#PBS -l select=1:ncpus=28:model=bro
+#PBS -l select=10:ncpus=28:model=bro
 #PBS -l walltime=1:20:00
 #PBS -j oe
 #PBS -W group_list=e1305

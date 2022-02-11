@@ -413,6 +413,11 @@ int main(int argc, char** argv)
                                  parmetis_pstate,
                                  ien_pstate, ife_pstate,
                                  us3d->xcn, xcn_pstate, Ui, us3d->ie_tetCnt, comm);
+    if(world_rank == 0)
+    {
+        std::cout << "Done Partitioning..." << std::endl;
+    }
+
     
     std::vector<int> LocElem    = P->getLocElem();
     std::vector<int> LocAndAdjElem    = P->getLocAndAdjElem();
@@ -434,6 +439,13 @@ int main(int argc, char** argv)
     std::map<int,Array<double>*> dU2dxzAnalytical;
     
     std::map<int,double> gbMap;
+    std::map<int,double> gbMap_dUdx;
+    std::map<int,double> gbMap_dUdy;
+    std::map<int,double> gbMap_dUdz;
+    std::map<int,double> gbMap_dU2dx2;
+    std::map<int,double> gbMap_dU2dxy;
+    std::map<int,double> gbMap_dU2dxz;
+    
     std::vector<Vert*> face;
     double rdotn;
     Vec3D* v0 = new Vec3D;
@@ -441,7 +453,7 @@ int main(int argc, char** argv)
     Vec3D* n0 = new Vec3D;
     int loc_vid;
     std::map<int,std::vector<int> > gE2lV = P->getGlobElem2LocVerts();
-
+    double dUdx,dUdy,dUdz,dU2dx2,dU2dxy,dU2dxz;
     for(int i=0;i<LocElem.size();i++)
     {
         int gid   = LocElem[i];
@@ -476,12 +488,12 @@ int main(int argc, char** argv)
         double r    = sqrt(vmx*vmx+(vmy-0.5)*(vmy-0.5)+(vmz-0.5)*(vmz-0.5));
         double U    = 0.1*tanh(50*(r-0.5))+1.0;
         
-        double dUdx = 5*vmx/(r*cosh(50*(r-0.5))*cosh(50*(r-0.5)));
-        double dUdy = 5*(vmy-0.5)/(r*cosh(50*(r-0.5))*cosh(50*(r-0.5)));
-        double dUdz = 5*(vmz-0.5)/(r*cosh(50*(r-0.5))*cosh(50*(r-0.5)));
-        double dU2dx2 = (5*(-100*vmx*vmx*r*tanh(50*(r-0.5)))+(vmy-0.5)*(vmy-0.5)+(vmz-0.5)*(vmz-0.5))/(cosh(50*(r-0.5))*cosh(50*(r-0.5))*pow(r,3.0/2.0));
-        double dU2dxy =  5*vmx*(vmy-0.5)*(-1.0/(pow(r*r,3.0/2.0))-100*tanh(50*(r-0.5))/(r*r))/(cosh(50*(r-0.5))*cosh(50*(r-0.5)));
-        double dU2dxz = 5*vmx*(vmz-0.5)*(-1.0/(pow(r*r,3.0/2.0))-100*tanh(50*(r-0.5))/(r*r))/(cosh(50*(r-0.5))*cosh(50*(r-0.5)));
+        dUdx = 5*vmx/(r*cosh(50*(r-0.5))*cosh(50*(r-0.5)));
+        dUdy = 5*(vmy-0.5)/(r*cosh(50*(r-0.5))*cosh(50*(r-0.5)));
+        dUdz = 5*(vmz-0.5)/(r*cosh(50*(r-0.5))*cosh(50*(r-0.5)));
+        dU2dx2 = (5*(-100*vmx*vmx*r*tanh(50*(r-0.5)))+(vmy-0.5)*(vmy-0.5)+(vmz-0.5)*(vmz-0.5))/(cosh(50*(r-0.5))*cosh(50*(r-0.5))*pow(r,3.0/2.0));
+        dU2dxy =  5*vmx*(vmy-0.5)*(-1.0/(pow(r*r,3.0/2.0))-100*tanh(50*(r-0.5))/(r*r))/(cosh(50*(r-0.5))*cosh(50*(r-0.5)));
+        dU2dxz = 5*vmx*(vmz-0.5)*(-1.0/(pow(r*r,3.0/2.0))-100*tanh(50*(r-0.5))/(r*r))/(cosh(50*(r-0.5))*cosh(50*(r-0.5)));
 
         Array<double>* Uarr = new Array<double>(1,1);
         Uarr->setVal(0,0,U);
@@ -570,8 +582,22 @@ int main(int argc, char** argv)
                 
                 r = sqrt(vgx*vgx+(vgy-0.5)*(vgy-0.5)+(vgz-0.5)*(vgz-0.5));
                 U = 0.1*tanh(50*(r-0.5))+1.0;
+                dUdx = 5*vgx/(r*cosh(50*(r-0.5))*cosh(50*(r-0.5)));
+                dUdy = 5*(vgy-0.5)/(r*cosh(50*(r-0.5))*cosh(50*(r-0.5)));
+                dUdz = 5*(vgz-0.5)/(r*cosh(50*(r-0.5))*cosh(50*(r-0.5)));
+                
+                dU2dx2 = (5*(-100*vgx*vgx*r*tanh(50*(r-0.5)))+(vgy-0.5)*(vgy-0.5)+(vgz-0.5)*(vgz-0.5))/(cosh(50*(r-0.5))*cosh(50*(r-0.5))*pow(r,3.0/2.0));
+                dU2dxy =  5*vgx*(vgy-0.5)*(-1.0/(pow(r*r,3.0/2.0))-100*tanh(50*(r-0.5))/(r*r))/(cosh(50*(r-0.5))*cosh(50*(r-0.5)));
+                dU2dxz = 5*vgx*(vmz-0.5)*(-1.0/(pow(r*r,3.0/2.0))-100*tanh(50*(r-0.5))/(r*r))/(cosh(50*(r-0.5))*cosh(50*(r-0.5)));
                 
                 gbMap[adjID]=U;
+                gbMap_dUdx[adjID]=dUdx;
+                gbMap_dUdy[adjID]=dUdy;
+                gbMap_dUdz[adjID]=dUdz;
+                
+                gbMap_dU2dx2[adjID]=dU2dx2;
+                gbMap_dU2dxy[adjID]=dU2dxy;
+                gbMap_dU2dxz[adjID]=dU2dxz;
                 face.clear();
             }
             
@@ -656,14 +682,24 @@ int main(int argc, char** argv)
                         
                         r = sqrt(vgx*vgx+(vgy-0.5)*(vgy-0.5)+(vgz-0.5)*(vgz-0.5));
                         U = 0.1*tanh(50*(r-0.5))+1.0;
+                        dUdx = 5*vgx/(r*cosh(50*(r-0.5))*cosh(50*(r-0.5)));
+                        dUdy = 5*(vgy-0.5)/(r*cosh(50*(r-0.5))*cosh(50*(r-0.5)));
+                        dUdz = 5*(vgz-0.5)/(r*cosh(50*(r-0.5))*cosh(50*(r-0.5)));
                         
-                        if(adjadjID==829601)
-                        {
-                            std::cout << "failed l2 main :: " << U << " " << fid << " " << VadjadjID->x << " " << VadjadjID->y << " " << VadjadjID->z << std::endl;
-
-                        }
+                        dU2dx2 = (5*(-100*vgx*vgx*r*tanh(50*(r-0.5)))+(vgy-0.5)*(vgy-0.5)+(vgz-0.5)*(vgz-0.5))/(cosh(50*(r-0.5))*cosh(50*(r-0.5))*pow(r,3.0/2.0));
+                        dU2dxy =  5*vgx*(vgy-0.5)*(-1.0/(pow(r*r,3.0/2.0))-100*tanh(50*(r-0.5))/(r*r))/(cosh(50*(r-0.5))*cosh(50*(r-0.5)));
+                        dU2dxz = 5*vgx*(vmz-0.5)*(-1.0/(pow(r*r,3.0/2.0))-100*tanh(50*(r-0.5))/(r*r))/(cosh(50*(r-0.5))*cosh(50*(r-0.5)));
                         
                         gbMap[adjadjID]=U;
+                        
+                        gbMap_dUdx[adjadjID]=dUdx;
+                        gbMap_dUdy[adjadjID]=dUdy;
+                        gbMap_dUdz[adjadjID]=dUdz;
+                        
+                        gbMap_dU2dx2[adjadjID]=dU2dx2;
+                        gbMap_dU2dxy[adjadjID]=dU2dxy;
+                        gbMap_dU2dxz[adjadjID]=dU2dxz;
+                        
                         face.clear();
                     }
                     
@@ -749,8 +785,23 @@ int main(int argc, char** argv)
 
                                 r = sqrt(vgx*vgx+(vgy-0.5)*(vgy-0.5)+(vgz-0.5)*(vgz-0.5));
                                 U = 0.1*tanh(50*(r-0.5))+1.0;
-
+                                dUdx = 5*vgx/(r*cosh(50*(r-0.5))*cosh(50*(r-0.5)));
+                                dUdy = 5*(vgy-0.5)/(r*cosh(50*(r-0.5))*cosh(50*(r-0.5)));
+                                dUdz = 5*(vgz-0.5)/(r*cosh(50*(r-0.5))*cosh(50*(r-0.5)));
+                                
+                                dU2dx2 = (5*(-100*vgx*vgx*r*tanh(50*(r-0.5)))+(vgy-0.5)*(vgy-0.5)+(vgz-0.5)*(vgz-0.5))/(cosh(50*(r-0.5))*cosh(50*(r-0.5))*pow(r,3.0/2.0));
+                                dU2dxy =  5*vgx*(vgy-0.5)*(-1.0/(pow(r*r,3.0/2.0))-100*tanh(50*(r-0.5))/(r*r))/(cosh(50*(r-0.5))*cosh(50*(r-0.5)));
+                                dU2dxz = 5*vgx*(vmz-0.5)*(-1.0/(pow(r*r,3.0/2.0))-100*tanh(50*(r-0.5))/(r*r))/(cosh(50*(r-0.5))*cosh(50*(r-0.5)));
+                                
                                 gbMap[adjadjadjID]=U;
+                                
+                                gbMap_dUdx[adjadjadjID]=dUdx;
+                                gbMap_dUdy[adjadjadjID]=dUdy;
+                                gbMap_dUdz[adjadjadjID]=dUdz;
+                                
+                                gbMap_dU2dx2[adjadjadjID]=dU2dx2;
+                                gbMap_dU2dxy[adjadjadjID]=dU2dxy;
+                                gbMap_dU2dxz[adjadjadjID]=dU2dxz;
                                 face.clear();
                             }
                         }
@@ -760,6 +811,12 @@ int main(int argc, char** argv)
         }
     }
 
+    if(world_rank == 0)
+    {
+        std::cout << "Done Preparing Boundary Data..." << std::endl;
+    }
+
+    
     double sum      = 0.0;
     double sum_dist = 0.0;
     double di       = 0.0;
@@ -790,7 +847,7 @@ int main(int argc, char** argv)
     std::map<int,Array<double>* > dUdXi_LS  = ComputedUdx_LSQ_US3D_LargeStencil(P,Uvaria_map,meshTopo,gbMap,comm);
     std::map<int,Array<double>* > dUdXi     = ComputedUdx_LSQ_US3D(P,Uvaria_map,meshTopo,gbMap,comm);
     std::map<int,Array<double>* > dUdXi_mgg = ComputedUdx_MGG(P,Uvaria_map,meshTopo,gbMap,comm);
-    
+    std::map<int,Array<double>* > dUdx_lsqv1;
     std::map<int,Array<double>* >::iterator itsol;
     double L2_dudx_lsq_1   = 0.0;
     double L2_dudx_mgg     = 0.0;
@@ -803,6 +860,9 @@ int main(int argc, char** argv)
     {
         int elId = itsol->first;
         
+        Array<double>* entry=new Array<double>(1,1);
+        entry->setVal(0,0,dUdXi[elId]->getVal(0,0));
+        dUdx_lsqv1[elId] = entry;
         L2_dudx_lsq_1   = L2_dudx_lsq_1+(dUdXi[elId]->getVal(0,0)-dUdxAnalytical[elId]->getVal(0,0))*(dUdXi[elId]->getVal(0,0)-dUdxAnalytical[elId]->getVal(0,0));
         L2_dudx_mgg     = L2_dudx_mgg+(dUdXi_mgg[elId]->getVal(0,0)-dUdxAnalytical[elId]->getVal(0,0))*(dUdXi_mgg[elId]->getVal(0,0)-dUdxAnalytical[elId]->getVal(0,0));
         L2_dudx_lsq_2   = L2_dudx_lsq_2+(itsol->second->getVal(0,0)-dUdxAnalytical[elId]->getVal(0,0))*(itsol->second->getVal(0,0)-dUdxAnalytical[elId]->getVal(0,0));
@@ -827,8 +887,8 @@ int main(int argc, char** argv)
     int Nell_tot;
     MPI_Allreduce(&Nell, &Nell_tot, 1, MPI_INT, MPI_SUM, comm);
     
-    P->AddStateVecForAdjacentElements(dUdXi,1,comm);
-    std::map<int,Array<double>* > dU2dXi2   = ComputedUdx_LSQ_US3D(P,dUdXi,meshTopo,gbMap,comm);
+    P->AddStateVecForAdjacentElements(dUdx_lsqv1,1,comm);
+    std::map<int,Array<double>* > dU2dXi2   = ComputedUdx_LSQ_US3D(P,dUdx_lsqv1,meshTopo,gbMap_dUdx,comm);
     int Nell2 = 0;
     double L2_d2udx2_lsq_1 = 0.0;
     double L2_d2udxy_lsq_1 = 0.0;
