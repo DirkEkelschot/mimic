@@ -93,9 +93,7 @@ int binarySearch(int* arr, int low, int high, int key)
 
 
 
-
-
-std::vector<int> FindDuplicatesInParallel_Vec(std::vector<int> arr, int arr_size, int glob_size, MPI_Comm comm)
+std::vector<int> FindDuplicatesInParallel_VecV2(std::vector<int> arr, int arr_size, int glob_size, MPI_Comm comm)
 {
     int size;
     MPI_Comm_size(comm, &size);
@@ -173,6 +171,7 @@ std::vector<int> FindDuplicatesInParallel_Vec(std::vector<int> arr, int arr_size
     delete pv;
     return duplicates;
 }
+
 
 std::vector<int> FindDuplicatesInParallel(int* arr, int arr_size, int glob_size, MPI_Comm comm)
 {
@@ -339,8 +338,9 @@ int* mergeSort(int height, int id, int* localArray, int size, MPI_Comm comm, int
     while (myHeight < height) { // not yet at top
         parent = (id & (~(1 << myHeight)));
 
-        if (parent == id) { // left child
-            rightChild = (id | (1 << myHeight));
+        if (parent == id)
+        { // left child
+              rightChild = (id | (1 << myHeight));
 
               // allocate memory and receive array of right child
               
@@ -389,7 +389,10 @@ int* mergeSort(int height, int id, int* localArray, int size, MPI_Comm comm, int
     return globalArray;
 }
 
-
+//std::vector<int> MergeAndSort(std::vector<int> localArray, std::vector<int> globalArray, MPI_Comm comm)
+//{
+//
+//}
 
 std::vector<int> mergeSort_vec(int height, int rank, std::vector<int> localArray, int size, MPI_Comm comm, std::vector<int> globalArray){
     
@@ -508,6 +511,18 @@ void TestFindRank(MPI_Comm comm)
     }
     
 }
+
+
+
+
+
+
+
+
+
+
+
+
 
 //void ParallelSortTest_v2()
 //{

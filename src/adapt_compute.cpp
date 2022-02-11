@@ -514,6 +514,7 @@ Vert* ComputeCenterCoord(double*P, int np)
     double eta = 0;
     double mu  = 0;
     double ksi = 0;
+    
     V->x = 0.0;
     V->y = 0.0;
     V->z = 0.0;
@@ -687,6 +688,101 @@ double* ComputeJAtCenter(double*P, int np)
 //}
 
 
+double GetQualityTetrahedra(double* P)
+{
+    double       h1,h2,h3,h4,h5,h6,det,vol,rap,v1,v2,v3,num;
+    double       cal,abx,aby,abz,acx,acy,acz,adx,ady,adz;
+    double       bcx,bcy,bcz,bdx,bdy,bdz,cdx,cdy,cdz;
+    
+
+    /* average metric */
+    double mm[6];
+    mm[0] = 1.0;
+    mm[1] = 0.0;
+    mm[2] = 0.0;
+    mm[3] = 1.0;
+    mm[4] = 0.0;
+    mm[5] = 1.0;
+    
+    double* a = new double[3];
+    a[0] = P[0*3+0];    a[1] = P[0*3+1];    a[2] = P[0*3+2];
+    double* b = new double[3];
+    b[0] = P[1*3+0];    b[1] = P[1*3+1];    b[2] = P[1*3+2];
+    double* c = new double[3];
+    c[0] = P[2*3+0];    c[1] = P[2*3+1];    c[2] = P[2*3+2];
+    double* d = new double[3];
+    d[0] = P[3*3+0];    d[1] = P[3*3+1];    d[2] = P[3*3+2];
+    
+
+    /* volume */
+    abx = b[0] - a[0];
+    aby = b[1] - a[1];
+    abz = b[2] - a[2];
+
+    acx = c[0] - a[0];
+    acy = c[1] - a[1];
+    acz = c[2] - a[2];
+
+    adx = d[0] - a[0];
+    ady = d[1] - a[1];
+    adz = d[2] - a[2];
+
+    bcx = c[0] - b[0];
+    bcy = c[1] - b[1];
+    bcz = c[2] - b[2];
+
+    bdx = d[0] - b[0];
+    bdy = d[1] - b[1];
+    bdz = d[2] - b[2];
+
+    cdx = d[0] - c[0];
+    cdy = d[1] - c[1];
+    cdz = d[2] - c[2];
+    
+    delete[] a;
+    delete[] b;
+    delete[] c;
+    delete[] d;
+
+    v1  = acy*adz - acz*ady;
+    v2  = acz*adx - acx*adz;
+    v3  = acx*ady - acy*adx;
+    vol = abx * v1 + aby * v2 + abz * v3;
+    if ( vol <= 0. )  return 0.0;
+
+    det = mm[0] * ( mm[3]*mm[5] - mm[4]*mm[4]) \
+      - mm[1] * ( mm[1]*mm[5] - mm[2]*mm[4]) \
+      + mm[2] * ( mm[1]*mm[4] - mm[2]*mm[3]);
+    if ( det < 1.0e-200 )   {
+      return 0.0;
+    }
+    det = sqrt(det) * vol;
+
+    /* edge lengths */
+    h1 = mm[0]*abx*abx + mm[3]*aby*aby + mm[5]*abz*abz
+      + 2.0*(mm[1]*abx*aby + mm[2]*abx*abz + mm[4]*aby*abz);
+    h2 =  mm[0]*acx*acx + mm[3]*acy*acy + mm[5]*acz*acz
+      + 2.0*(mm[1]*acx*acy + mm[2]*acx*acz + mm[4]*acy*acz);
+    h3 = mm[0]*adx*adx + mm[3]*ady*ady + mm[5]*adz*adz
+      + 2.0*(mm[1]*adx*ady + mm[2]*adx*adz + mm[4]*ady*adz);
+    h4 =  mm[0]*bcx*bcx + mm[3]*bcy*bcy + mm[5]*bcz*bcz
+      + 2.0*(mm[1]*bcx*bcy + mm[2]*bcx*bcz + mm[4]*bcy*bcz);
+    h5 =  mm[0]*bdx*bdx + mm[3]*bdy*bdy + mm[5]*bdz*bdz
+      + 2.0*(mm[1]*bdx*bdy + mm[2]*bdx*bdz + mm[4]*bdy*bdz);
+    h6 =  mm[0]*cdx*cdx + mm[3]*cdy*cdy + mm[5]*cdz*cdz
+      + 2.0*(mm[1]*cdx*cdy + mm[2]*cdx*cdz + mm[4]*cdy*cdz);
+
+    /* quality */
+    rap = h1 + h2 + h3 + h4 + h5 + h6;
+    num = sqrt(rap) * rap;
+
+    cal = det / num;
+
+
+    
+    return cal;
+}
+
 Array<double>* ComputeJAtCenter_tet_v2(double*P)
 {
 
@@ -840,14 +936,6 @@ double ComputeDeterminantJ(double*P, int np)
     
 }
 
-
-Array<double>* ComputeHessian(Partition_old* pa)
-{
-    int ndim = pa->ndim;
-    Array<double>* H = new Array<double>(pa->ien->getNrow(),ndim);
-    
-    return H;
-}
 
 
 Array<double>* ComputeDeterminantofJacobian(ParArray<int>* ien, Array<double>* xcn)
@@ -1028,11 +1116,186 @@ void UnitTestJacobian()
 
 
 
-void ComputeMetric(Partition* Pa, std::vector<double> metric_inputs,
+void ComputeMetricWithWake(Partition* Pa, std::vector<double> metric_inputs,
                    MPI_Comm comm,
                    std::map<int,Array<double>* > scale_vm,
                    std::map<int,Array<double>* > &Hess_vm,
-                   double sumvol, double po)
+                   double sumvol, double po, double hwake, int recursive)
+{
+    int size;
+    MPI_Comm_size(comm, &size);
+    // Get the rank of the process
+    int rank;
+    MPI_Comm_rank(comm, &rank);
+    //+++++++++++++++++++++++++++++++++++++++++++
+    //++++  Scaling eigenvalues/eigenvectors ++++
+    double hmin         = metric_inputs[1];
+    double hmax         = metric_inputs[2];
+    double f            = metric_inputs[3];
+    //+++++++++++++++++++++++++++++++++++++++++++
+    //+++++++++++++++++++++++++++++++++++++++++++
+    double* Hmet = new double[9];
+
+    std::map<int,Array<double>*>::iterator itm;
+    int i = 0;
+    double Lambdamax,Lambdamin;
+    std::vector<int> eignval(3);
+    int anitel = 0;
+    for(itm=Hess_vm.begin();itm!=Hess_vm.end();itm++)
+    {
+        int glob_vid = itm->first;
+
+        if(recursive == 0)
+        {
+            Hmet[0] = Hess_vm[glob_vid]->getVal(3,0);
+            Hmet[1] = Hess_vm[glob_vid]->getVal(4,0);
+            Hmet[2] = Hess_vm[glob_vid]->getVal(5,0);
+
+            Hmet[3] = Hess_vm[glob_vid]->getVal(4,0);
+            Hmet[4] = Hess_vm[glob_vid]->getVal(6,0);
+            Hmet[5] = Hess_vm[glob_vid]->getVal(7,0);
+
+            Hmet[6] = Hess_vm[glob_vid]->getVal(5,0);
+            Hmet[7] = Hess_vm[glob_vid]->getVal(7,0);
+            Hmet[8] = Hess_vm[glob_vid]->getVal(8,0);
+        }
+        if(recursive == 1)
+        {
+            Hmet[0] = Hess_vm[glob_vid]->getVal(0,0);
+            Hmet[1] = Hess_vm[glob_vid]->getVal(1,0);
+            Hmet[2] = Hess_vm[glob_vid]->getVal(2,0);
+
+            Hmet[3] = Hess_vm[glob_vid]->getVal(1,0);
+            Hmet[4] = Hess_vm[glob_vid]->getVal(3,0);
+            Hmet[5] = Hess_vm[glob_vid]->getVal(4,0);
+
+            Hmet[6] = Hess_vm[glob_vid]->getVal(2,0);
+            Hmet[7] = Hess_vm[glob_vid]->getVal(4,0);
+            Hmet[8] = Hess_vm[glob_vid]->getVal(5,0);
+        }
+        
+        //delete Hess_vm[glob_vid];
+        
+        double * WR = new double[3];
+        double * WI = new double[3];
+        double * V  = new double[3*3];
+        double * iV = new double[3*3];
+        double* WRn = new double[3];
+
+        Array<double>* DR  = new Array<double>(3,3);
+        Array<double>* UR  = new Array<double>(3,3);
+        for(int j=0;j<3;j++)
+        {
+            WR[j]  = 0.0;
+            WRn[j] = 0.0;
+            WI[j]  = 0.0;
+
+            for(int k=0;k<3;k++)
+            {
+                DR->setVal(j,k,0.0);
+                V[j*3+k] = 0.0;
+                iV[j*3+k] = 0.0;
+            }
+        }
+        
+        Eig* eig = ComputeEigenDecomp(3, Hmet);
+        
+        eignval[0] =  std::min(std::max(f*fabs(eig->Dre[0]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
+        eignval[1] =  std::min(std::max(f*fabs(eig->Dre[1]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
+        eignval[2] =  std::min(std::max(f*fabs(eig->Dre[2]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
+        
+        Lambdamax = *std::max_element(eignval.begin(),eignval.end());
+        Lambdamin = *std::min_element(eignval.begin(),eignval.end());
+        
+        DR->setVal(0,0,eignval[0]);DR->setVal(0,1,0.0);DR->setVal(0,1,0.0);
+        DR->setVal(1,0,0.0);DR->setVal(1,1,eignval[1]);DR->setVal(1,2,0.0);
+        DR->setVal(2,0,0.0);DR->setVal(2,1,0.0);DR->setVal(2,2,eignval[2]);
+        UR->setVal(0,0,eig->V[0]);UR->setVal(0,1,eig->V[1]);UR->setVal(0,2,eig->V[2]);
+        UR->setVal(1,0,eig->V[3]);UR->setVal(1,1,eig->V[4]);UR->setVal(1,2,eig->V[5]);
+        UR->setVal(2,0,eig->V[6]);UR->setVal(2,1,eig->V[7]);UR->setVal(2,2,eig->V[8]);
+
+        Array<double>* iVR = MatInv(UR);
+        Array<double>* Rs = MatMul(UR,DR);
+        Array<double>* Rf = MatMul(Rs,iVR);
+        
+        double detRf = Rf->getVal(0,0)*(Rf->getVal(1,1)*Rf->getVal(2,2)-Rf->getVal(2,1)*Rf->getVal(1,2))
+                      -Rf->getVal(0,1)*(Rf->getVal(1,0)*Rf->getVal(2,2)-Rf->getVal(2,0)*Rf->getVal(1,2))
+                      +Rf->getVal(0,2)*(Rf->getVal(1,0)*Rf->getVal(2,1)-Rf->getVal(2,0)*Rf->getVal(1,1));
+        
+        
+        double pow = -1.0/(2.0*po+3.0);
+        double eigRat = Lambdamin/Lambdamax;
+        
+        detRf = std::pow(detRf,pow);
+        Array<double>* Habs  = new Array<double>(3,3);
+	
+        if(scale_vm[glob_vid]->getVal(0,0)>0.0)
+        {
+            double wi    = scale_vm[glob_vid]->getVal(0,0);
+            double wa    = 1.0-scale_vm[glob_vid]->getVal(0,0);
+//            
+//            wi = 0.0;
+//            wa = 1.0;
+            double hiso  = hwake;
+           
+            //std::cout << wi << " " << wa << std::endl;
+	    
+            Habs->setVal(0,0,wi/(hiso*hiso)+wa*sumvol*detRf*Rf->getVal(0,0));
+            Habs->setVal(0,1,wa*sumvol*detRf*Rf->getVal(0,1));
+            Habs->setVal(0,2,wa*sumvol*detRf*Rf->getVal(0,2));
+            
+            Habs->setVal(1,0,wa*sumvol*detRf*Rf->getVal(1,0));
+            Habs->setVal(1,1,wi/(hiso*hiso)+wa*sumvol*detRf*Rf->getVal(1,1));
+            Habs->setVal(1,2,wa*sumvol*detRf*Rf->getVal(1,2));
+
+            Habs->setVal(2,0,wa*sumvol*detRf*Rf->getVal(2,0));
+            Habs->setVal(2,1,wa*sumvol*detRf*Rf->getVal(2,1));
+            Habs->setVal(2,2,wi/(hiso*hiso)+wa*sumvol*detRf*Rf->getVal(2,2));
+            
+            anitel++;
+        }
+        else
+        {
+            Habs->setVal(0,0,sumvol*detRf*Rf->getVal(0,0));
+            Habs->setVal(0,1,sumvol*detRf*Rf->getVal(0,1));
+            Habs->setVal(0,2,sumvol*detRf*Rf->getVal(0,2));
+            
+            Habs->setVal(1,0,sumvol*detRf*Rf->getVal(1,0));
+            Habs->setVal(1,1,sumvol*detRf*Rf->getVal(1,1));
+            Habs->setVal(1,2,sumvol*detRf*Rf->getVal(1,2));
+
+            Habs->setVal(2,0,sumvol*detRf*Rf->getVal(2,0));
+            Habs->setVal(2,1,sumvol*detRf*Rf->getVal(2,1));
+            Habs->setVal(2,2,sumvol*detRf*Rf->getVal(2,2));
+        }
+        
+        Hess_vm[glob_vid]=Habs;
+        
+        delete Rf;
+        delete DR;
+        delete UR;
+        delete Rs;
+        //delete Rf;
+
+        delete[] iV;
+        delete[] V;
+        delete[] WR;
+        delete[] WI;
+        i++;
+    }
+    int anitel_red;
+    MPI_Allreduce(&anitel, &anitel_red, 1, MPI_INT, MPI_SUM, comm);
+
+    delete[] Hmet;
+}
+
+
+
+
+void ComputeMetric(Partition* Pa, std::vector<double> metric_inputs,
+                   MPI_Comm comm,
+                   std::map<int,Array<double>* > &Hess_vm,
+                   double sumvol, double po, int recursive)
 {
     int size;
     MPI_Comm_size(comm, &size);
@@ -1053,28 +1316,41 @@ void ComputeMetric(Partition* Pa, std::vector<double> metric_inputs,
     double fiso = 0.01;
     double Lambdamax,Lambdamin;
     std::vector<int> eignval(3);
-    double hwake = 0.02;
     int anitel = 0;
     for(itm=Hess_vm.begin();itm!=Hess_vm.end();itm++)
     {
         int glob_vid = itm->first;
-//        if(scale_vm[glob_vid]->getVal(0,0)<0.0)
-//        {
-//            std::cout << "Mach " << scale_vm[glob_vid]->getVal(0,0) << std::endl;
-//
-//        }
         
-        Hmet[0] = Hess_vm[glob_vid]->getVal(0,0);
-        Hmet[1] = Hess_vm[glob_vid]->getVal(1,0);
-        Hmet[2] = Hess_vm[glob_vid]->getVal(2,0);
+        if(recursive == 0)
+        {
+            Hmet[0] = Hess_vm[glob_vid]->getVal(3,0);
+            Hmet[1] = Hess_vm[glob_vid]->getVal(4,0);
+            Hmet[2] = Hess_vm[glob_vid]->getVal(5,0);
 
-        Hmet[3] = Hess_vm[glob_vid]->getVal(1,0);
-        Hmet[4] = Hess_vm[glob_vid]->getVal(3,0);
-        Hmet[5] = Hess_vm[glob_vid]->getVal(4,0);
+            Hmet[3] = Hess_vm[glob_vid]->getVal(4,0);
+            Hmet[4] = Hess_vm[glob_vid]->getVal(6,0);
+            Hmet[5] = Hess_vm[glob_vid]->getVal(7,0);
 
-        Hmet[6] = Hess_vm[glob_vid]->getVal(2,0);
-        Hmet[7] = Hess_vm[glob_vid]->getVal(4,0);
-        Hmet[8] = Hess_vm[glob_vid]->getVal(5,0);
+            Hmet[6] = Hess_vm[glob_vid]->getVal(5,0);
+            Hmet[7] = Hess_vm[glob_vid]->getVal(7,0);
+            Hmet[8] = Hess_vm[glob_vid]->getVal(8,0);
+        }
+        if(recursive == 1)
+        {
+            Hmet[0] = Hess_vm[glob_vid]->getVal(0,0);
+            Hmet[1] = Hess_vm[glob_vid]->getVal(1,0);
+            Hmet[2] = Hess_vm[glob_vid]->getVal(2,0);
+
+            Hmet[3] = Hess_vm[glob_vid]->getVal(1,0);
+            Hmet[4] = Hess_vm[glob_vid]->getVal(3,0);
+            Hmet[5] = Hess_vm[glob_vid]->getVal(4,0);
+
+            Hmet[6] = Hess_vm[glob_vid]->getVal(2,0);
+            Hmet[7] = Hess_vm[glob_vid]->getVal(4,0);
+            Hmet[8] = Hess_vm[glob_vid]->getVal(5,0);
+        }
+        
+        
         
         //delete Hess_vm[glob_vid];
         
@@ -1131,44 +1407,17 @@ void ComputeMetric(Partition* Pa, std::vector<double> metric_inputs,
         detRf = std::pow(detRf,pow);
         Array<double>* Habs  = new Array<double>(3,3);
 
-        if(scale_vm[glob_vid]->getVal(0,0)<1.0)
-        {
-            double wi    = 1.0-scale_vm[glob_vid]->getVal(0,0);
-            double wa    = scale_vm[glob_vid]->getVal(0,0);
-            double hiso  = hwake;//(Lambdamax-hwake)*scale_vm[glob_vid]->getVal(0,0)+hwake;
-            
-            Habs->setVal(0,0,wi/(hiso*hiso)+wa*sumvol*detRf*Rf->getVal(0,0));
-            Habs->setVal(0,1,wa*sumvol*detRf*Rf->getVal(0,1));
-            Habs->setVal(0,2,wa*sumvol*detRf*Rf->getVal(0,2));
-            
-            Habs->setVal(1,0,wa*sumvol*detRf*Rf->getVal(1,0));
-            Habs->setVal(1,1,wi/(hiso*hiso)+wa*sumvol*detRf*Rf->getVal(1,1));
-            Habs->setVal(1,2,wa*sumvol*detRf*Rf->getVal(1,2));
-
-            Habs->setVal(2,0,wa*sumvol*detRf*Rf->getVal(2,0));
-            Habs->setVal(2,1,wa*sumvol*detRf*Rf->getVal(2,1));
-            Habs->setVal(2,2,wi/(hiso*hiso)+wa*sumvol*detRf*Rf->getVal(2,2));
-            
-            anitel++;
-        }
-        else
-        {
-            Habs->setVal(0,0,sumvol*detRf*Rf->getVal(0,0));
-            Habs->setVal(0,1,sumvol*detRf*Rf->getVal(0,1));
-            Habs->setVal(0,2,sumvol*detRf*Rf->getVal(0,2));
-            
-            Habs->setVal(1,0,sumvol*detRf*Rf->getVal(1,0));
-            Habs->setVal(1,1,sumvol*detRf*Rf->getVal(1,1));
-            Habs->setVal(1,2,sumvol*detRf*Rf->getVal(1,2));
-
-            Habs->setVal(2,0,sumvol*detRf*Rf->getVal(2,0));
-            Habs->setVal(2,1,sumvol*detRf*Rf->getVal(2,1));
-            Habs->setVal(2,2,sumvol*detRf*Rf->getVal(2,2));
-        }
+        Habs->setVal(0,0,sumvol*detRf*Rf->getVal(0,0));
+        Habs->setVal(0,1,sumvol*detRf*Rf->getVal(0,1));
+        Habs->setVal(0,2,sumvol*detRf*Rf->getVal(0,2));
         
-        
-        
+        Habs->setVal(1,0,sumvol*detRf*Rf->getVal(1,0));
+        Habs->setVal(1,1,sumvol*detRf*Rf->getVal(1,1));
+        Habs->setVal(1,2,sumvol*detRf*Rf->getVal(1,2));
 
+        Habs->setVal(2,0,sumvol*detRf*Rf->getVal(2,0));
+        Habs->setVal(2,1,sumvol*detRf*Rf->getVal(2,1));
+        Habs->setVal(2,2,sumvol*detRf*Rf->getVal(2,2));
         
         
         Hess_vm[glob_vid]=Habs;
@@ -1183,16 +1432,12 @@ void ComputeMetric(Partition* Pa, std::vector<double> metric_inputs,
         delete[] V;
         delete[] WR;
         delete[] WI;
+        
         i++;
     }
     int anitel_red;
     MPI_Allreduce(&anitel, &anitel_red, 1, MPI_INT, MPI_SUM, comm);
-    if(rank == 0)
-    {
-
-    std::cout << "anitel_red " << anitel_red << std::endl;
-
-    }
+    
     delete[] Hmet;
 }
 
@@ -1213,7 +1458,7 @@ Array<double>* ComputeFaceValues(Partition* P, Array<double>* U, MPI_Comm comm)
     
     nface = 6; // # hardcoded for hexes for now
     
-    std::vector<double> Uelem_all         = P->PartitionAuxilaryData(U, comm);
+    std::map<int,Array<double>* > Uelem_all;// = P->PartitionAuxilaryData(U, comm);
     std::map<int,int> gE2lE               = P->getGlobalElement2LocalElement();
     std::map<int,int> lE2gE               = P->getLocalElement2GlobalElement();
     std::map<int,std::vector<int> > gE2gF = P->getglobElem2globFaces();
@@ -1233,7 +1478,7 @@ Array<double>* ComputeFaceValues(Partition* P, Array<double>* U, MPI_Comm comm)
         {
             adjEl_id = adjcny[j];
             leid     = gE2lE[adjEl_id];
-            u_o      = Uelem_all[leid];
+            u_o      = Uelem_all[adjEl_id]->getVal(0,0);
             
             Uf->setVal(i,t,u_c-u_o);
             

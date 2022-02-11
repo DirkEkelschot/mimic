@@ -1,9 +1,60 @@
 #include "adapt_geometry.h"
-#include "adapt_datatype.h"
 #include "adapt_datastruct.h"
 #include "adapt_compute.h"
 #include <math.h>
 
+double CheckFaceOrientation(Vert* VcF, std::vector<Vert*> Vfaces, Vert* Vijk)
+{
+    Vec3D* vnul = new Vec3D;
+    Vec3D* vone = new Vec3D;
+    Vec3D* rnul = new Vec3D;
+    
+
+    double Lr0 = sqrt((VcF->x-Vijk->x)*(VcF->x-Vijk->x)
+                      +(VcF->y-Vijk->y)*(VcF->y-Vijk->y)
+                      +(VcF->z-Vijk->z)*(VcF->z-Vijk->z));
+    
+    rnul->c0 = (VcF->x-Vijk->x)/Lr0;
+    rnul->c1 = (VcF->y-Vijk->y)/Lr0;
+    rnul->c2 = (VcF->z-Vijk->z)/Lr0;
+
+
+    double orient0  = 1.0;
+    int nppf = Vfaces.size();
+    
+    if(nppf==3) // triangle
+    {
+        vnul->c0 = Vfaces[1]->x-Vfaces[0]->x;
+        vnul->c1 = Vfaces[1]->y-Vfaces[0]->y;
+        vnul->c2 = Vfaces[1]->z-Vfaces[0]->z;
+
+        vone->c0 = Vfaces[2]->x-Vfaces[0]->x;
+        vone->c1 = Vfaces[2]->y-Vfaces[0]->y;
+        vone->c2 = Vfaces[2]->z-Vfaces[0]->z;
+        
+        Vec3D* n0       = ComputeSurfaceNormal(vnul,vone);
+        orient0         = DotVec3D(rnul,n0);
+    }
+    if(nppf==4) // quad
+    {
+        vnul->c0 = Vfaces[1]->x-Vfaces[0]->x;
+        vnul->c1 = Vfaces[1]->y-Vfaces[0]->y;
+        vnul->c2 = Vfaces[1]->z-Vfaces[0]->z;
+
+        vone->c0 = Vfaces[3]->x-Vfaces[0]->x;
+        vone->c1 = Vfaces[3]->y-Vfaces[0]->y;
+        vone->c2 = Vfaces[3]->z-Vfaces[0]->z;
+        
+        Vec3D* n0 = ComputeSurfaceNormal(vnul,vone);
+        orient0   = DotVec3D(rnul,n0);
+    }
+    
+    delete rnul;
+    delete vone;
+    delete vnul;
+    
+    return orient0;
+}
 
 Vec3D* ComputeSurfaceNormal(Vec3D* a, Vec3D* b)
 {

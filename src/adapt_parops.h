@@ -1,6 +1,5 @@
 #include "adapt.h"
 #include "adapt_partition.h"
-#include "adapt_datatype.h"
 #include "adapt_io.h"
 
 #ifndef ADAPT_PAROPS_H
@@ -102,6 +101,9 @@ Mesh* ReduceMeshToRoot(ParArray<int>* ien,
                        ParArray<int>* ife,
                        ParArray<int>* if_ref,
                        MPI_Comm comm, MPI_Info info);
+
+
+Array<int>* GatherTetrahedraOnRoot(std::map<int,std::vector<int> > Ate, MPI_Comm comm, MPI_Info info);
 
 std::map<int,std::vector<int> > GatherElementsOnRoot(std::map<int,std::vector<int> >Apr, std::map<int,std::vector<int> > Ate, MPI_Comm comm, MPI_Info info);
 #endif

@@ -6,6 +6,7 @@
 #ifndef ADAPT_RECONGRAD_H
 #define ADAPT_RECONGRAD_H
 
+
 std::map<int,Array<double>* > Py_ComputedUdx_LSQ_US3D(std::vector<Vert* > LocalVs,
                                                       std::map<int,std::vector<int> > gE2lV,
                                                       std::map<int,int> gV2lV,
@@ -20,10 +21,15 @@ std::map<int,Array<double>* > Py_ComputedUdx_LSQ_US3D(std::vector<Vert* > LocalV
                                                       std::map<int,Array<double>* > UState,
                                                       Array<double>* ghost, MPI_Comm comm);
 
-std::map<int,Array<double>* > ComputedUdx_LSQ_Vrt_US3D(Partition* Pa, std::map<int,Array<double>* > Ue, std::map<int,double> Uv, Mesh_Topology* meshTopo, Array<double>* ghost, MPI_Comm comm);
+std::map<int,Array<double>* > ComputedUdx_LSQ_HO_US3D(Partition* Pa, std::map<int,Array<double>* > Ue, Mesh_Topology* meshTopo, std::map<int,double> gbMap, MPI_Comm comm);
 
-std::map<int,Array<double>* >  ComputedUdx_LSQ_US3D(Partition* Pa, std::map<int,Array<double>* > U, Array<double>* ghost, MPI_Comm comm);
 
-std::map<int,Array<double>* > ComputedUdx_MGG(Partition* Pa, std::map<int,double> U,
-                               Mesh_Topology* meshTopo, Array<double>* ghost, MPI_Comm comm);
+std::map<int,Array<double>* > ComputedUdx_LSQ_Vrt_US3D(Partition* Pa, std::map<int,Array<double>* > Ue, std::map<int,Array<double>* > Uv, Mesh_Topology* meshTopo, std::map<int,double> gbMap, MPI_Comm comm);
+
+std::map<int,Array<double>* > ComputedUdx_LSQ_US3D_LargeStencil(Partition* Pa, std::map<int,Array<double>* > Ue, Mesh_Topology* meshTopo, std::map<int,double> gbMap, MPI_Comm comm);
+
+std::map<int,Array<double>* >  ComputedUdx_LSQ_US3D(Partition* Pa, std::map<int,Array<double>* > U, Mesh_Topology* meshTopo, std::map<int,double> gbMap, MPI_Comm comm);
+
+std::map<int,Array<double>* > ComputedUdx_MGG(Partition* Pa, std::map<int,Array<double>*> U,
+                               Mesh_Topology* meshTopo, std::map<int,double> gbMap, MPI_Comm comm);
 #endif

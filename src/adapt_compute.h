@@ -1,6 +1,5 @@
 #include "adapt_datastruct.h"
 #include "adapt_partition.h"
-#include "adapt_datatype.h"
 #include "adapt_math.h"
 #include "adapt.h"
 
@@ -50,6 +49,8 @@ extern "C" {
 double* ComputeJAtCenter(double*P, int np);
 }
 
+double GetQualityTetrahedra(double* P);
+
 double ComputeDeterminantJ_tet(double*P);
 
 double ComputeDeterminantJ(double*P, int np);
@@ -66,10 +67,15 @@ double* ComputeVolumeCellsReducedToVerts(Array<double>* xcn, Array<int>* ien);
 
 void UnitTestJacobian();
 
-void ComputeMetric(Partition* Pa, std::vector<double> metric_inputs, MPI_Comm comm,
+void ComputeMetricWithWake(Partition* Pa, std::vector<double> metric_inputs,
+                   MPI_Comm comm,
                    std::map<int,Array<double>* > scale_vm,
                    std::map<int,Array<double>* > &Hess_vm,
-                   double sumvol, double po);
+                           double sumvol, double po, double hwake, int recursive);
+
+void ComputeMetric(Partition* Pa, std::vector<double> metric_inputs, MPI_Comm comm,
+                   std::map<int,Array<double>* > &Hess_vm,
+                   double sumvol, double po, int recursive);
 
 Array<double>* ComputeFaceValues(Partition* P, Array<double>* U, MPI_Comm comm);
 

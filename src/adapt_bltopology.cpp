@@ -526,7 +526,6 @@ Mesh_Topology_BL* ExtractBoundaryLayerMeshFromShell(std::vector<std::vector<int>
         {
             elid_cur = elid1;
         }
-        //layer.push_back(elid_cur);
         
         std::set<int> local_faces;
         
@@ -534,15 +533,12 @@ Mesh_Topology_BL* ExtractBoundaryLayerMeshFromShell(std::vector<std::vector<int>
         for(int k=0;k<8;k++)
         {
            loc_vid     = ien_g->getVal(elid_cur,k);
-           // std::cout << loc_vid << " ";
            Pijk_id[k]  = loc_vid;
            Pijk[k*3+0] = xcn_g->getVal(loc_vid,0);
            Pijk[k*3+1] = xcn_g->getVal(loc_vid,1);
            Pijk[k*3+2] = xcn_g->getVal(loc_vid,2);
         }
-        //std::cout << std::endl;
-        //int changed = ChkHexorient(Pijk,Pijk_id);
-//
+
         Vert* Vijk = ComputeCenterCoord(Pijk, 8);
         
         Vface->x=0.0;
@@ -663,6 +659,7 @@ Mesh_Topology_BL* ExtractBoundaryLayerMeshFromShell(std::vector<std::vector<int>
         v_t1->c0 = xcn_g->getVal(tri_0n[2],0)-xcn_g->getVal(tri_0n[0],0);
         v_t1->c1 = xcn_g->getVal(tri_0n[2],1)-xcn_g->getVal(tri_0n[0],1);
         v_t1->c2 = xcn_g->getVal(tri_0n[2],2)-xcn_g->getVal(tri_0n[0],2);
+        
         //Vec3D* n_t0_v1 = ComputeSurfaceNormal(v_t0,v_t1);
         //double orient_t0_check = DotVec3D(r0,n_t0_v1);
         
