@@ -40,6 +40,7 @@ class Mesh_Topology {
         std::map<int,std::vector<int> > getRef2Vert();
         std::map<int,std::vector<Vert*> > getVfacevector();
         Mesh_Topology_BL* getBLMeshTopology();
+        std::map<int,Vert*> getGhostVerts();
     
     private:
         std::map<int,std::vector<Vert*> > vfacevector;
@@ -60,7 +61,7 @@ class Mesh_Topology {
         std::map<int,std::vector<int> > BLlayers; 
         Mesh_Topology_BL* mesh_topo_bl;
         std::map<int,std::vector<int> > E2V_scheme;
-        
+        std::map<int,Vert*> ghostVerts;
     
         MPI_Comm c;
 };

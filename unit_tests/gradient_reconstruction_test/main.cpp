@@ -434,9 +434,17 @@ int main(int argc, char** argv)
     std::map<int,Array<double>*> dU2dxzAnalytical;
     
     std::map<int,double> gbMap;
-    for(int i=0;i<LocAndAdjElem.size();i++)
+    std::vector<Vert*> face;
+    double rdotn;
+    Vec3D* v0 = new Vec3D;
+    Vec3D* v1 = new Vec3D;
+    Vec3D* n0 = new Vec3D;
+    int loc_vid;
+    std::map<int,std::vector<int> > gE2lV = P->getGlobElem2LocVerts();
+
+    for(int i=0;i<LocElem.size();i++)
     {
-        int gid   = LocAndAdjElem[i];
+        int gid   = LocElem[i];
         int nvrts = ien_pmap->i_map[gid].size();
         double* Pv = new double[nvrts*3];
         for(int q=0;q<nvrts;q++)
@@ -448,16 +456,16 @@ int main(int argc, char** argv)
             Pv[q*3+2] = locVs[lvid]->z;
         }
         
-        Vert* Vm = ComputeCentroidCoord(Pv,nvrts);
+        Vert* Vijk = ComputeCentroidCoord(Pv,nvrts);
 
 //        double U    = 0.1*sin(50*Vm->x*Vm->z)+atan(0.1/((sin(5.0*Vm->y)-2.0*Vm->x*Vm->z)));
 //        double nom  = (Vm->x*Vm->x*Vm->z*Vm->z-Vm->x*Vm->z*sin(5.0*Vm->y)+0.25*sin(5.0*Vm->y)*sin(5.0*Vm->y)+0.0025);
 //        double dUdx = 0.05*Vm->z/nom+0.5*Vm->z*cos(5.0*Vm->x*Vm->z);
         //double dUdy = -0.125*cos(5.0*Vm->y)/nom;
         //double dUdz = 0.05*Vm->x/nom+0.5*Vm->x*cos(5.0*Vm->x*Vm->z);
-        double vmx = Vm->x;
-        double vmy = Vm->y;
-        double vmz = Vm->z;
+        double vmx = Vijk->x;
+        double vmy = Vijk->y;
+        double vmz = Vijk->z;
 
 //        double U = 2.0*vmx*vmx+0.5*vmy+0.25*vmz;
 //        double dUdx = 4.0*vmx;
@@ -465,8 +473,9 @@ int main(int argc, char** argv)
 //        double dUdz = 0.25;
 //        double dU2dx2 = 4.0;
         // sqrt(x*x+(y-0.5)*(y-0.5)+(z-0.5)*(z-0.5))
-        double r = sqrt(vmx*vmx+(vmy-0.5)*(vmy-0.5)+(vmz-0.5)*(vmz-0.5));
-        double U = 0.1*tanh(50*(r-0.5))+1.0;
+        double r    = sqrt(vmx*vmx+(vmy-0.5)*(vmy-0.5)+(vmz-0.5)*(vmz-0.5));
+        double U    = 0.1*tanh(50*(r-0.5))+1.0;
+        
         double dUdx = 5*vmx/(r*cosh(50*(r-0.5))*cosh(50*(r-0.5)));
         double dUdy = 5*(vmy-0.5)/(r*cosh(50*(r-0.5))*cosh(50*(r-0.5)));
         double dUdz = 5*(vmz-0.5)/(r*cosh(50*(r-0.5))*cosh(50*(r-0.5)));
@@ -501,8 +510,8 @@ int main(int argc, char** argv)
         for(int j=0;j<nadj;j++)
         {
             int adjID = iee_pmap->i_map[gid][j];
-
-            if(adjID >= Nel_glob)
+            
+            if(adjID>=Nel_glob)
             {
                 int fid = ief_pmap->i_map[gid][j];
                 int nvf = ifn_pmap->i_map[fid].size();
@@ -515,29 +524,242 @@ int main(int argc, char** argv)
                     vface->x = vface->x + locVs[lvid]->x;
                     vface->y = vface->y + locVs[lvid]->y;
                     vface->z = vface->z + locVs[lvid]->z;
+                    
+                    Vert* V = new Vert;
+                    V->x    = locVs[lvid]->x;
+                    V->y    = locVs[lvid]->y;
+                    V->z    = locVs[lvid]->z;
+                    face.push_back(V);
                 }
-                vmx = vface->x/nvf;
-                vmy = vface->y/nvf;
-                vmz = vface->z/nvf;
+                
+                vface->x = vface->x/nvf;
+                vface->y = vface->y/nvf;
+                vface->z = vface->z/nvf;
                 
                 Vec3D* r0 = new Vec3D;
-                r0->c0 = (vmx-Vijk->x);
-                r0->c1 = (vmy-Vijk->y);
-                r0->c2 = (vmz-Vijk->z);
+                r0->c0 = (vface->x-Vijk->x);
+                r0->c1 = (vface->y-Vijk->y);
+                r0->c2 = (vface->z-Vijk->z);
                 
-                NegateVec3D(r0);
+                v0->c0 = face[1]->x-face[0]->x;
+                v0->c1 = face[1]->y-face[0]->y;
+                v0->c2 = face[1]->z-face[0]->z;
+
+                v1->c0 = face[2]->x-face[0]->x;
+                v1->c1 = face[2]->y-face[0]->y;
+                v1->c2 = face[2]->z-face[0]->z;
                 
-                vmx = vmx + r0->c0;
-                vmy = vmy + r0->c1;
-                vmz = vmz + r0->c2;
+                n0 = ComputeSurfaceNormal(v0,v1);
+                double orient0   = DotVec3D(r0,n0);
                 
-                r = sqrt(vmx*vmx+(vmy-0.5)*(vmy-0.5)+(vmz-0.5)*(vmz-0.5));
+                if(orient0<0.0)
+                {
+                    NegateVec3D(n0);
+                }
+                
+                rdotn = DotVec3D(r0,n0);
+                
+                Vec3D* reflect = new Vec3D;
+                reflect->c0 = r0->c0-2.0*(rdotn)*n0->c0;
+                reflect->c1 = r0->c1-2.0*(rdotn)*n0->c1;
+                reflect->c2 = r0->c2-2.0*(rdotn)*n0->c2;
+                
+                double vgx = vface->x - reflect->c0;
+                double vgy = vface->y - reflect->c1;
+                double vgz = vface->z - reflect->c2;
+                
+                r = sqrt(vgx*vgx+(vgy-0.5)*(vgy-0.5)+(vgz-0.5)*(vgz-0.5));
                 U = 0.1*tanh(50*(r-0.5))+1.0;
+                
                 gbMap[adjID]=U;
+                face.clear();
+            }
+            
+            if(iee_pmap->i_map.find(adjID)!=iee_pmap->i_map.end())
+            {
+                int NadjadjID = iee_pmap->i_map[adjID].size();
+                
+                int NvPadjadjID = gE2lV[adjID].size();
+                double* PadjadjID = new double[NvPadjadjID*3];
+                
+                for(int k=0;k<NvPadjadjID;k++)
+                {
+                    loc_vid     = gE2lV[adjID][k];
+                    PadjadjID[k*3+0] = locVs[loc_vid]->x;
+                    PadjadjID[k*3+1] = locVs[loc_vid]->y;
+                    PadjadjID[k*3+2] = locVs[loc_vid]->z;
+                }
+                
+                Vert* VadjadjID   = ComputeCentroidCoord(PadjadjID,NvPadjadjID);
+                
+                delete[] PadjadjID;
+                
+                for(int k=0;k<NadjadjID;k++)
+                {
+                    int adjadjID = iee_pmap->i_map[adjID][k];
+                    
+                    if(adjadjID>=Nel_glob)
+                    {
+                        int fid = ief_pmap->i_map[adjID][k];
+                        int nvf = ifn_pmap->i_map[fid].size();
+                        Vert* vface = new Vert;
+                        for(int k=0;k<nvf;k++)
+                        {
+                            int gvid = ifn_pmap->i_map[fid][k];
+                            int lvid = gV2lV[gvid];
+                            vface->x = vface->x + locVs[lvid]->x;
+                            vface->y = vface->y + locVs[lvid]->y;
+                            vface->z = vface->z + locVs[lvid]->z;
+                            
+                            Vert* V = new Vert;
+                            V->x    = locVs[lvid]->x;
+                            V->y    = locVs[lvid]->y;
+                            V->z    = locVs[lvid]->z;
+                            face.push_back(V);
+                        }
+                        
+                        vface->x = vface->x/nvf;
+                        vface->y = vface->y/nvf;
+                        vface->z = vface->z/nvf;
+                        
+                        Vec3D* r0 = new Vec3D;
+                        r0->c0 = (vface->x-VadjadjID->x);
+                        r0->c1 = (vface->y-VadjadjID->y);
+                        r0->c2 = (vface->z-VadjadjID->z);
+                        
+                        v0->c0 = face[1]->x-face[0]->x;
+                        v0->c1 = face[1]->y-face[0]->y;
+                        v0->c2 = face[1]->z-face[0]->z;
+
+                        v1->c0 = face[2]->x-face[0]->x;
+                        v1->c1 = face[2]->y-face[0]->y;
+                        v1->c2 = face[2]->z-face[0]->z;
+                        
+                        n0 = ComputeSurfaceNormal(v0,v1);
+                        double orient0   = DotVec3D(r0,n0);
+                        
+                        if(orient0<0.0)
+                        {
+                            NegateVec3D(n0);
+                        }
+                        
+                        rdotn = DotVec3D(r0,n0);
+                        
+                        Vec3D* reflect = new Vec3D;
+                        reflect->c0 = r0->c0-2.0*(rdotn)*n0->c0;
+                        reflect->c1 = r0->c1-2.0*(rdotn)*n0->c1;
+                        reflect->c2 = r0->c2-2.0*(rdotn)*n0->c2;
+                        
+                        double vgx = vface->x - reflect->c0;
+                        double vgy = vface->y - reflect->c1;
+                        double vgz = vface->z - reflect->c2;
+                        
+                        r = sqrt(vgx*vgx+(vgy-0.5)*(vgy-0.5)+(vgz-0.5)*(vgz-0.5));
+                        U = 0.1*tanh(50*(r-0.5))+1.0;
+                        
+                        if(adjadjID==829601)
+                        {
+                            std::cout << "failed l2 main :: " << U << " " << fid << " " << VadjadjID->x << " " << VadjadjID->y << " " << VadjadjID->z << std::endl;
+
+                        }
+                        
+                        gbMap[adjadjID]=U;
+                        face.clear();
+                    }
+                    
+                    if(iee_pmap->i_map.find(adjadjID)!=iee_pmap->i_map.end())
+                    {
+                        int NadjadjadjID = iee_pmap->i_map[adjadjID].size();
+//
+                        int NvPadjadjadjID = gE2lV[adjadjID].size();
+                        double* PadjadjadjID = new double[NvPadjadjadjID*3];
+
+                        for(int k=0;k<NvPadjadjadjID;k++)
+                        {
+                            loc_vid     = gE2lV[adjadjID][k];
+                            PadjadjadjID[k*3+0] = locVs[loc_vid]->x;
+                            PadjadjadjID[k*3+1] = locVs[loc_vid]->y;
+                            PadjadjadjID[k*3+2] = locVs[loc_vid]->z;
+                        }
+
+                        Vert* VadjadjadjID   = ComputeCentroidCoord(PadjadjadjID,NvPadjadjadjID);
+//
+                        delete[] PadjadjadjID;
+
+
+                        for(int f=0;f<NadjadjadjID;f++)
+                        {
+                            int adjadjadjID = iee_pmap->i_map[adjadjID][f];
+
+                            if(adjadjadjID>=Nel_glob)
+                            {
+                                int fid = ief_pmap->i_map[adjadjID][f];
+                                int nvf = ifn_pmap->i_map[fid].size();
+                                Vert* vface = new Vert;
+                                for(int ve=0;ve<nvf;ve++)
+                                {
+                                    int gvid = ifn_pmap->i_map[fid][ve];
+                                    int lvid = gV2lV[gvid];
+                                    vface->x = vface->x + locVs[lvid]->x;
+                                    vface->y = vface->y + locVs[lvid]->y;
+                                    vface->z = vface->z + locVs[lvid]->z;
+
+                                    Vert* V = new Vert;
+                                    V->x    = locVs[lvid]->x;
+                                    V->y    = locVs[lvid]->y;
+                                    V->z    = locVs[lvid]->z;
+                                    face.push_back(V);
+                                }
+
+                                vface->x = vface->x/nvf;
+                                vface->y = vface->y/nvf;
+                                vface->z = vface->z/nvf;
+
+                                Vec3D* r0 = new Vec3D;
+                                r0->c0 = (vface->x-VadjadjadjID->x);
+                                r0->c1 = (vface->y-VadjadjadjID->y);
+                                r0->c2 = (vface->z-VadjadjadjID->z);
+
+                                v0->c0 = face[1]->x-face[0]->x;
+                                v0->c1 = face[1]->y-face[0]->y;
+                                v0->c2 = face[1]->z-face[0]->z;
+
+                                v1->c0 = face[2]->x-face[0]->x;
+                                v1->c1 = face[2]->y-face[0]->y;
+                                v1->c2 = face[2]->z-face[0]->z;
+
+                                n0 = ComputeSurfaceNormal(v0,v1);
+                                double orient0   = DotVec3D(r0,n0);
+
+                                if(orient0<0.0)
+                                {
+                                    NegateVec3D(n0);
+                                }
+
+                                rdotn = DotVec3D(r0,n0);
+
+                                Vec3D* reflect = new Vec3D;
+                                reflect->c0 = r0->c0-2.0*(rdotn)*n0->c0;
+                                reflect->c1 = r0->c1-2.0*(rdotn)*n0->c1;
+                                reflect->c2 = r0->c2-2.0*(rdotn)*n0->c2;
+
+                                double vgx = vface->x - reflect->c0;
+                                double vgy = vface->y - reflect->c1;
+                                double vgz = vface->z - reflect->c2;
+
+                                r = sqrt(vgx*vgx+(vgy-0.5)*(vgy-0.5)+(vgz-0.5)*(vgz-0.5));
+                                U = 0.1*tanh(50*(r-0.5))+1.0;
+
+                                gbMap[adjadjadjID]=U;
+                                face.clear();
+                            }
+                        }
+                    }
+                }
             }
         }
     }
-    //std::cout << "check ghsost = " << world_rank << " " << gbMap.size() << std::endl;
+
     double sum      = 0.0;
     double sum_dist = 0.0;
     double di       = 0.0;
@@ -548,7 +770,7 @@ int main(int argc, char** argv)
 
     P->AddStateVecForAdjacentElements(Uvaria_map,1,comm);
         
-    std::map<int,Array<double>* > Mvar_vmap = P->ReduceStateVecToAllVertices_V2(Uvaria_map,1);
+    std::map<int,Array<double>* > Mvar_vmap = P->ReduceStateVecToAllVertices(Uvaria_map,1);
     
     std::map<int,Array<double>* >::iterator vm;
     
@@ -564,8 +786,9 @@ int main(int argc, char** argv)
     delete us3d->if_Nv;
 //  delete us3d->xcn;
     
-    std::map<int,Array<double>* > dUdXi_HO  = ComputedUdx_LSQ_HO_US3D(P,Uvaria_map,gbMap,comm);
-    std::map<int,Array<double>* > dUdXi     = ComputedUdx_LSQ_US3D(P,Uvaria_map,gbMap,comm);
+    std::map<int,Array<double>* > dUdXi_HO  = ComputedUdx_LSQ_HO_US3D(P,Uvaria_map,meshTopo,gbMap,comm);
+    std::map<int,Array<double>* > dUdXi_LS  = ComputedUdx_LSQ_US3D_LargeStencil(P,Uvaria_map,meshTopo,gbMap,comm);
+    std::map<int,Array<double>* > dUdXi     = ComputedUdx_LSQ_US3D(P,Uvaria_map,meshTopo,gbMap,comm);
     std::map<int,Array<double>* > dUdXi_mgg = ComputedUdx_MGG(P,Uvaria_map,meshTopo,gbMap,comm);
     
     std::map<int,Array<double>* >::iterator itsol;
@@ -605,7 +828,7 @@ int main(int argc, char** argv)
     MPI_Allreduce(&Nell, &Nell_tot, 1, MPI_INT, MPI_SUM, comm);
     
     P->AddStateVecForAdjacentElements(dUdXi,1,comm);
-    std::map<int,Array<double>* > dU2dXi2   = ComputedUdx_LSQ_US3D(P,dUdXi,gbMap,comm);
+    std::map<int,Array<double>* > dU2dXi2   = ComputedUdx_LSQ_US3D(P,dUdXi,meshTopo,gbMap,comm);
     int Nell2 = 0;
     double L2_d2udx2_lsq_1 = 0.0;
     double L2_d2udxy_lsq_1 = 0.0;
@@ -678,22 +901,22 @@ int main(int argc, char** argv)
     std::map<int,std::vector<int> >::iterator ienit;
     
     P->AddStateVecForAdjacentElements(dUdXi_HO,9,comm);
-    std::map<int,Array<double>* > dudx_ho_vmap = P->ReduceStateVecToAllVertices_V2(dUdXi_HO,9);
+    std::map<int,Array<double>* > dudx_ho_vmap = P->ReduceStateVecToAllVertices(dUdXi_HO,9);
     
     P->AddStateVecForAdjacentElements(dUdXi_mgg,3,comm);
-    std::map<int,Array<double>* > dudx_mgg_vmap = P->ReduceStateVecToAllVertices_V2(dUdXi_mgg,3);
+    std::map<int,Array<double>* > dudx_mgg_vmap = P->ReduceStateVecToAllVertices(dUdXi_mgg,3);
     
     P->AddStateVecForAdjacentElements(dUdXi,3,comm);
-    std::map<int,Array<double>* > dudx_vmap = P->ReduceStateVecToAllVertices_V2(dUdXi,3);
+    std::map<int,Array<double>* > dudx_vmap = P->ReduceStateVecToAllVertices(dUdXi,3);
     
     P->AddStateVecForAdjacentElements(dU2dXi2,3,comm);
-    std::map<int,Array<double>* > du2dx2_vmap = P->ReduceStateVecToAllVertices_V2(dU2dXi2,3);
+    std::map<int,Array<double>* > du2dx2_vmap = P->ReduceStateVecToAllVertices(dU2dXi2,3);
 
     P->AddStateVecForAdjacentElements(dUdxAnalytical,1,comm);
-    std::map<int,Array<double>* > dudx_a_vmap = P->ReduceStateVecToAllVertices_V2(dUdxAnalytical,1);
+    std::map<int,Array<double>* > dudx_a_vmap = P->ReduceStateVecToAllVertices(dUdxAnalytical,1);
     
     P->AddStateVecForAdjacentElements(dU2dx2Analytical,1,comm);
-    std::map<int,Array<double>* > du2dx2_a_vmap = P->ReduceStateVecToAllVertices_V2(dU2dx2Analytical,1);
+    std::map<int,Array<double>* > du2dx2_a_vmap = P->ReduceStateVecToAllVertices(dU2dx2Analytical,1);
     
     std::set<int> gv_set;
     std::vector<int> lverts;

@@ -73,9 +73,10 @@ Partition::Partition(ParArray<int>* ien, ParArray<int>* iee, ParArray<int>* ief,
 
     std::vector<int> adjElemLayer = getAdjacentElementLayer(ien, Loc_Elem, Loc_Elem_Nf, iee_part_map->i_map, part, xcn, U, comm);
     
-    int nLayer = 1;
+    int nLayer = 2;
     vloc = LocalVerts.size();
-    
+    //std::cout << "LocAndAdj_Elem.size() before " << rank << " " << LocAndAdj_Elem.size() << " " << iee_part_map->i_map.size() << std::endl;
+
     for(int la=0;la<nLayer;la++)
     {
         std::vector<int> adjElemLayer_la = adjElemLayer;
@@ -93,61 +94,81 @@ Partition::Partition(ParArray<int>* ien, ParArray<int>* iee, ParArray<int>* ief,
         adjElemLayer =  UpdateAdjacentElementLayer(ien, adjElemLayer_la, iee_part_map->i_map, part, xcn, U, comm);
     }
     
+    // std::cout << "LocAndAdj_Elem.size() after " << rank << " " << LocAndAdj_Elem.size() << " " << iee_part_map->i_map.size() << std::endl;
 
     std::map<int,Vert*> elem2center;
     std::map<int,double> elem2volume;
     int nottjere=0;
     double Volm;
+    int notFound;
+    int volZero = 0;
     for(int i=0;i<LocAndAdj_Elem.size();i++)
     {
         int gid   = LocAndAdj_Elem[i];
-        int nvrts = ien_part_map->i_map[gid].size();
-        int nface = iee_part_map->i_map[gid].size();
+//        int nvrts = LocAndAdj_Elem_Nv[i];
+//        int nface = LocAndAdj_Elem_Nf[i];
         
-        double* Pv = new double[nvrts*3];
-        for(int q=0;q<nvrts;q++)
+        if(ien_part_map->i_map.find(gid)==ien_part_map->i_map.end())
         {
-            int gvid = ien_part_map->i_map[gid][q];
-            int lvid = GlobalVert2LocalVert[gvid];
+            int nvrts = ien_part_map->i_map[gid].size();
+            int nface = iee_part_map->i_map[gid].size();
 
-            Pv[q*3+0] = LocalVerts[lvid]->x;
-            Pv[q*3+1] = LocalVerts[lvid]->y;
-            Pv[q*3+2] = LocalVerts[lvid]->z;
-        }
+            double* Pv = new double[nvrts*3];
 
-        Vert* Vm = ComputeCentroidCoord(Pv,nvrts);
-
-        if(nface == 4)
-        {
-            Volm = ComputeVolumeTetCell(Pv);
-        }
-        if(nface == 5)
-        {
-            Volm = ComputeVolumePrismCell(Pv);
-            //std::cout << "computing prism volume " << Volm << std::endl;
-        }
-
-        if(Volm == 0)
-        {
-            std::cout << "================================================="<<std::endl;
-            std::cout << "nface = " << nface << " " << gid << " " << nvrts << std::endl;
             for(int q=0;q<nvrts;q++)
             {
-                int gvid = ien_part_map->i_map[gid][q];
-                std::cout << Pv[q*3+0] << " " << Pv[q*3+1] << " " << Pv[q*3+1] << " " << ien_part_map->i_map[gid][q] << " " << GlobalVert2LocalVert[gvid] << std::endl;
+                int gvid  = ien_part_map->i_map[gid][q];
+                int lvid  = GlobalVert2LocalVert[gvid];
+
+                Pv[q*3+0] = LocalVerts[lvid]->x;
+                Pv[q*3+1] = LocalVerts[lvid]->y;
+                Pv[q*3+2] = LocalVerts[lvid]->z;
             }
+            
+            Vert* Vm = ComputeCentroidCoord(Pv,nvrts);
             if(nface == 4)
             {
-                std::cout << "tet Vol " << ComputeVolumeTetCell(Pv) << std::endl;
-
+                Volm = ComputeVolumeTetCell(Pv);
             }
-            std::cout << "================================================="<<std::endl;
+            if(nface == 5)
+            {
+                Volm = ComputeVolumePrismCell(Pv);
+                //std::cout << "computing prism volume " << Volm << std::endl;
+            }
+
+            if(Volm == 0)
+            {
+                volZero++;
+                
+    //            std::cout << "================================================="<<std::endl;
+    //            std::cout << "nface = " << nface << " " << gid << " " << nvrts << std::endl;
+    //            for(int q=0;q<nvrts;q++)
+    //            {
+    //                int gvid  = globElem2locVerts[gid][q];
+    //                int lvid  = GlobalVert2LocalVert[gvid];
+    //
+    //                std::cout << Pv[q*3+0] << " " << Pv[q*3+1] << " " << Pv[q*3+1] << " " << gvid << " " << GlobalVert2LocalVert[gvid] << std::endl;
+    //            }
+    //            if(nface == 4)
+    //            {
+    //                std::cout << "tet Vol " << ComputeVolumeTetCell(Pv) << std::endl;
+    //            }
+    //            std::cout << "================================================="<<std::endl;
+            }
+            elem2center[gid] = Vm;
+            elem2volume[gid] = Volm;
+            delete[] Pv;
         }
-        elem2center[gid] = Vm;
-        elem2volume[gid] = Volm;
-        delete[] Pv;
+        
+
+
+        
     }
     
+    if(volZero!=0)
+    {
+        std::cout << "volZero " << volZero << " on Rank " << rank << std::endl;
+    }
     node2elemVol_map = getNode2Element_V2(iee_part_map,elem2center,elem2volume);
     
     nLocAndAdj_Elem = LocAndAdj_Elem.size();
@@ -1423,66 +1444,51 @@ std::vector<int> Partition::getAdjacentElementLayer(ParArray<int>* ien,
 
     //std::cout << "TotNelem_adj_recv " << TotNelem_adj_recv << " should be equal to " << TotNrho_adj_recv << std::endl;
     //std::cout << " Compare " <<  TotNelem_adj_recv << " " << itel << " " << adj_rhos.size() << std::endl;
-    int cnt_v_adj = 0;
-    int cnt_f_adj = 0;
-    
-    int offv = 0;
-    int offf = 0;
-    for(int i=0;i<itel;i++)
+
+    for(int i=0;i<adj_verts.size();i++)
     {
-        int Nv = NvPEl_rb[i];
-        int Nf = NfPEl_rb[i];
-        
-        for(int k=0;k<Nv;k++)
+        int v_id_n = adj_verts[i];
+        r = FindRank(new_V_offsets,size,v_id_n);
+
+        if(unique_vertIDs_on_rank_set.find( v_id_n ) == unique_vertIDs_on_rank_set.end()) // add the required unique vertex for current rank.
         {
-            //std::cout << offv+k << " " << adj_verts.size() << std::endl;
-            int v_id_n = adj_verts[offv+k];
-            
-            r = FindRank(new_V_offsets,size,v_id_n);
+            unique_vertIDs_on_rank_set.insert(v_id_n);
+            //unique_verts_on_rank_vec.push_back(v_id_n);
+            //part_v.push_back(r);
 
-            if(unique_vertIDs_on_rank_set.find( v_id_n ) == unique_vertIDs_on_rank_set.end()) // add the required unique vertex for current rank.
+            if (r!=rank)// check whether this vertex is already present on current rank. if vertex is present on other rank, add it to vertIDs_on_rank map.
             {
-                unique_vertIDs_on_rank_set.insert(v_id_n);
-                //unique_verts_on_rank_vec.push_back(v_id_n);
-                //part_v.push_back(r);
-
-                if (r!=rank)// check whether this vertex is already present on current rank. if vertex is present on other rank, add it to vertIDs_on_rank map.
-                {
-                    rank2req_vert[r].push_back(v_id_n); // add vertex to rank2req_vert map.
-                }
-                else
-                {
-                    vertIDs_on_rank.push_back(v_id_n); // add the vertex to list that is already available on rank.
-                    vloc_tmp++;
-                }
+                rank2req_vert[r].push_back(v_id_n); // add vertex to rank2req_vert map.
+            }
+            else
+            {
+                vertIDs_on_rank.push_back(v_id_n); // add the vertex to list that is already available on rank.
+                vloc_tmp++;
             }
         }
+    }
+    
+    for(int i=0;i<adj_faces.size();i++)
+    {
+        int f_id_n = adj_faces[i];
 
-        for(int k=0;k<Nf;k++)
+        if(unique_faceIDs_on_rank_set.find( f_id_n ) == unique_faceIDs_on_rank_set.end()) // add the required unique vertex for current rank.
         {
-            int f_id_n = adj_faces[offf+k];
+            unique_faceIDs_on_rank_set.insert(f_id_n);
+            faceIDs_on_rank.push_back(f_id_n); // add the vertex to list that is already available on rank.
+            floc_tmp++;
 
-            if(unique_faceIDs_on_rank_set.find( f_id_n ) == unique_faceIDs_on_rank_set.end()) // add the required unique vertex for current rank.
+            if (r!=rank)// check whether this vertex is already present on current rank. if vertex is present on other rank, add it to vertIDs_on_rank map.
             {
-                unique_faceIDs_on_rank_set.insert(f_id_n);
+                rank2req_face[r].push_back(f_id_n); // add vertex to rank2req_vert map.
+            }
+            else
+            {
                 faceIDs_on_rank.push_back(f_id_n); // add the vertex to list that is already available on rank.
                 floc_tmp++;
-
-                if (r!=rank)// check whether this vertex is already present on current rank. if vertex is present on other rank, add it to vertIDs_on_rank map.
-                {
-                    rank2req_face[r].push_back(f_id_n); // add vertex to rank2req_vert map.
-                }
-                else
-                {
-                    faceIDs_on_rank.push_back(f_id_n); // add the vertex to list that is already available on rank.
-                    floc_tmp++;
-                }
             }
         }
-        offv = offv+Nv;
-        offf = offf+Nf;
-        //part_elem2verts.push_back(elem);
-        //elem_set.insert(TotAdj_El_IDs[i]);
+        
     }
     
     
@@ -1610,20 +1616,23 @@ std::vector<int> Partition::getAdjacentElementLayer(ParArray<int>* ien,
        for(m=0;m<vloc_tmp;m++)
        {
            gvid = vertIDs_on_rank[m];
-           Vert* V = new Vert;
 
-           V->x = xcn->getVal(gvid-xcn_o,0);
-           V->y = xcn->getVal(gvid-xcn_o,1);
-           V->z = xcn->getVal(gvid-xcn_o,2);
+           if(GlobalVert2LocalVert.find(gvid)==GlobalVert2LocalVert.end())
+           {
+               Vert* V = new Vert;
 
-           LocalVerts.push_back(V);
-           LocalVert2GlobalVert[lvid] = gvid;
-           GlobalVert2LocalVert[gvid] = lvid;
-           lvid++;
+               V->x = xcn->getVal(gvid-xcn_o,0);
+               V->y = xcn->getVal(gvid-xcn_o,1);
+               V->z = xcn->getVal(gvid-xcn_o,2);
+               
+               LocalVert2GlobalVert[lvid] = gvid;
+               GlobalVert2LocalVert[gvid] = lvid;
+               LocalVerts.push_back(V);
+               lvid++;
+           }
        }
 
        //int o = 3*vloc_tmp;
-       m = 0;
        int u = 0;
        for(it_f=recv_back_verts.begin();it_f!=recv_back_verts.end();it_f++)
        {
@@ -1631,22 +1640,24 @@ std::vector<int> Partition::getAdjacentElementLayer(ParArray<int>* ien,
 
            for(u=0;u<Nv;u++)
            {
-               gvid = rank2req_vert[it_f->first][u];
+               gvid = recv_back_verts_ids[it_f->first][u];
                
-               Vert* V = new Vert;
+               if(GlobalVert2LocalVert.find(gvid)==GlobalVert2LocalVert.end())
+               {
+                   Vert* V = new Vert;
 
-               V->x = it_f->second[u*3+0];
-               V->y = it_f->second[u*3+1];
-               V->z = it_f->second[u*3+2];
+                   V->x = it_f->second[u*3+0];
+                   V->y = it_f->second[u*3+1];
+                   V->z = it_f->second[u*3+2];
 
-               LocalVerts.push_back(V);
+                   LocalVerts.push_back(V);
 
-               LocalVert2GlobalVert[lvid]=gvid;
-               GlobalVert2LocalVert[gvid]=lvid;
-
-               m++;
-               lvid++;
-           }
+                   LocalVert2GlobalVert[lvid]=gvid;
+                   GlobalVert2LocalVert[gvid]=lvid;
+                   
+                   lvid++;
+               }
+            }
        }
 
        nLoc_Verts = LocalVerts.size();
@@ -1687,6 +1698,7 @@ std::vector<int> Partition::getAdjacentElementLayer(ParArray<int>* ien,
     double varia_v = 0.0;
     std::set<int> LocAdjElemSet;
     std::vector<int> adjElLayer(3*itel);
+    int offvv = 0;
     for(int m=0;m<adj_elements_vec.size();m++)
     {
         el_id = adj_elements_vec[m];
@@ -1716,7 +1728,7 @@ std::vector<int> Partition::getAdjacentElementLayer(ParArray<int>* ien,
 
         for(int p=0;p<Nv;p++)
         {
-            glob_v = adj_verts[cnv];
+            glob_v = adj_verts[offvv+p];
             loc_v  = GlobalVert2LocalVert[glob_v];
             //LocalElem2GlobalVert->setVal(m+o,p,glob_v);
             //LocalElem2LocalVert->setVal(m+o,p,loc_v);
@@ -1740,6 +1752,7 @@ std::vector<int> Partition::getAdjacentElementLayer(ParArray<int>* ien,
             cnf++;
         }
         
+        offvv = offvv+Nv;
         LocalElem2GlobalVert.push_back(tmp_globv);
         LocalElem2LocalVert.push_back(tmp_locv);
         tmp_globv.clear();
@@ -2075,69 +2088,52 @@ std::vector<int> Partition::UpdateAdjacentElementLayer(ParArray<int>* ien, std::
 
     //std::cout << "TotNelem_adj_recv " << TotNelem_adj_recv << " should be equal to " << TotNrho_adj_recv << std::endl;
     //std::cout << " Compare " <<  TotNelem_adj_recv << " " << itel << " " << adj_rhos.size() << std::endl;
-    int cnt_v_adj = 0;
-    int cnt_f_adj = 0;
     
-    int offv = 0;
-    int offf = 0;
-    for(int i=0;i<itel;i++)
+    for(int i=0;i<adj_verts.size();i++)
     {
-        int Nv = NvPEl_rb[i];
-        int Nf = NfPEl_rb[i];
-        for(int k=0;k<Nv;k++)
+        int v_id_n = adj_verts[i];
+        r = FindRank(new_V_offsets,size,v_id_n);
+
+        if(unique_vertIDs_on_rank_set.find( v_id_n ) == unique_vertIDs_on_rank_set.end()) // add the required unique vertex for current rank.
         {
-            //std::cout << offv+k << " " << adj_verts.size() << std::endl;
-            int v_id_n = adj_verts[offv+k];
-            
-            r = FindRank(new_V_offsets,size,v_id_n);
+            unique_vertIDs_on_rank_set.insert(v_id_n);
+            //unique_verts_on_rank_vec.push_back(v_id_n);
+            //part_v.push_back(r);
 
-            if(unique_vertIDs_on_rank_set.find( v_id_n ) == unique_vertIDs_on_rank_set.end()) // add the required unique vertex for current rank.
+            if (r!=rank)// check whether this vertex is already present on current rank. if vertex is present on other rank, add it to vertIDs_on_rank map.
             {
-                unique_vertIDs_on_rank_set.insert(v_id_n);
-                //unique_verts_on_rank_vec.push_back(v_id_n);
-                //part_v.push_back(r);
-
-                if (r!=rank)// check whether this vertex is already present on current rank. if vertex is present on other rank, add it to vertIDs_on_rank map.
-                {
-                    rank2req_vert[r].push_back(v_id_n); // add vertex to rank2req_vert map.
-                }
-                else
-                {
-                    vertIDs_on_rank.push_back(v_id_n); // add the vertex to list that is already available on rank.
-                    vloc_tmp++;
-                }
+                rank2req_vert[r].push_back(v_id_n); // add vertex to rank2req_vert map.
+            }
+            else
+            {
+                vertIDs_on_rank.push_back(v_id_n); // add the vertex to list that is already available on rank.
+                vloc_tmp++;
             }
         }
-
-        for(int k=0;k<Nf;k++)
-        {
-            int f_id_n = adj_faces[offf+k];
-
-            if(unique_faceIDs_on_rank_set.find( f_id_n ) == unique_faceIDs_on_rank_set.end()) // add the required unique vertex for current rank.
-            {
-                unique_faceIDs_on_rank_set.insert(f_id_n);
-                faceIDs_on_rank.push_back(f_id_n); // add the vertex to list that is already available on rank.
-                floc_tmp++;
-
-                if (r!=rank)// check whether this vertex is already present on current rank. if vertex is present on other rank, add it to vertIDs_on_rank map.
-                {
-                    rank2req_face[r].push_back(f_id_n); // add vertex to rank2req_vert map.
-                }
-                else
-                {
-                    faceIDs_on_rank.push_back(f_id_n); // add the vertex to list that is already available on rank.
-                    floc_tmp++;
-                }
-            }
-        }
-        offv = offv+Nv;
-        offf = offf+Nf;
-        //part_elem2verts.push_back(elem);
-        //elem_set.insert(TotAdj_El_IDs[i]);
     }
     
-    
+    for(int i=0;i<adj_faces.size();i++)
+    {
+        int f_id_n = adj_faces[i];
 
+        if(unique_faceIDs_on_rank_set.find( f_id_n ) == unique_faceIDs_on_rank_set.end()) // add the required unique vertex for current rank.
+        {
+            unique_faceIDs_on_rank_set.insert(f_id_n);
+            faceIDs_on_rank.push_back(f_id_n); // add the vertex to list that is already available on rank.
+            floc_tmp++;
+
+            if (r!=rank)// check whether this vertex is already present on current rank. if vertex is present on other rank, add it to vertIDs_on_rank map.
+            {
+                rank2req_face[r].push_back(f_id_n); // add vertex to rank2req_vert map.
+            }
+            else
+            {
+                faceIDs_on_rank.push_back(f_id_n); // add the vertex to list that is already available on rank.
+                floc_tmp++;
+            }
+        }
+    }
+    
     // ==========================================================================================
        // ==========================================================================================
        // ==========================================================================================
@@ -2338,6 +2334,7 @@ std::vector<int> Partition::UpdateAdjacentElementLayer(ParArray<int>* ien, std::
     double varia_v = 0.0;
     std::set<int> LocAdjElemSet;
     std::vector<int> adjElLayer(3*itel);
+    int offvv = 0;
     for(int m=0;m<itel;m++)
     {
         el_id = adj_elements_vec[m];
@@ -2367,11 +2364,12 @@ std::vector<int> Partition::UpdateAdjacentElementLayer(ParArray<int>* ien, std::
         //LocAndAdj_Elem_Varia.push_back(varia_v);
 //      U0Elem->setVal(m+o,0,rho_v);
 //      ElemPart->setVal(m+o,0,el_id);
-
+        
         for(int p=0;p<Nv;p++)
         {
-            glob_v = adj_verts[cnv];
+            glob_v = adj_verts[offvv+p];
             loc_v  = GlobalVert2LocalVert[glob_v];
+
             //LocalElem2GlobalVert->setVal(m+o,p,glob_v);
             //LocalElem2LocalVert->setVal(m+o,p,loc_v);
             tmp_globv.push_back(glob_v);
@@ -2393,7 +2391,7 @@ std::vector<int> Partition::UpdateAdjacentElementLayer(ParArray<int>* ien, std::
             globFace2GlobalElements[glob_f].push_back(el_id);
             cnf++;
         }
-        
+        offvv=offvv+Nv;
         LocalElem2GlobalVert.push_back(tmp_globv);
         LocalElem2LocalVert.push_back(tmp_locv);
         tmp_globv.clear();
@@ -5042,11 +5040,11 @@ std::map<int,std::map<int,double> > Partition::getNode2Element_V2(i_part_map* ie
             {
                 Vert* cent = ElemCentroids[elID];
                 volu = ElemVolumes[elID];
-                if(volu == 0)
-                {
-                    std::cout << "elID/volu "<< elID << "  "<< volu << std::endl;
-
-                }
+//                if(volu == 0)
+//                {
+//                    std::cout << "elID/volu "<< elID << "  "<< volu << std::endl;
+//
+//                }
                 node2elem[gvid].insert(std::pair<int,Vert*>(elID,cent));
                 node2elemV[gvid].insert(std::pair<int,double>(elID,volu));
 
@@ -5070,10 +5068,10 @@ std::map<int,std::map<int,double> > Partition::getNode2Element_V2(i_part_map* ie
                     {
                         Vert* cent = ElemCentroids[adjID];
                         volu = ElemVolumes[adjID];
-                        if(volu == 0)
-                        {
-                            std::cout << "adjID/volu "<< adjID << "  "<< volu << std::endl;
-                        }
+//                        if(volu == 0)
+//                        {
+//                            std::cout << "adjID/volu "<< adjID << "  "<< volu << std::endl;
+//                        }
                         node2elem[gvid].insert(std::pair<int,Vert*>(adjID,cent));
                         node2elemV[gvid].insert(std::pair<int,double>(adjID,volu));
                     }
@@ -6120,7 +6118,6 @@ std::map<int,Array<double>* > Partition::ReduceStateVecToAllVertices_V2(std::map
         for(itmd=elem2cent.begin();itmd!=elem2cent.end();itmd++)
         {
             int gEl     = itmd->first;
-            int lEl     = GlobalElement2LocalElement[gEl];
             
             Vert* VrtEl = itmd->second;
             double Vol  = elem2centVol[itmd->first];
