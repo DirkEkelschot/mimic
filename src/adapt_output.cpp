@@ -2,7 +2,7 @@
 
 using namespace std;
 
-/*
+
 void OutputBoundaryLayerPrisms(Array<double>* xcn_g, Mesh_Topology_BL* BLmesh, MPI_Comm comm,string fname)
 {
     int world_size;
@@ -28,23 +28,22 @@ void OutputBoundaryLayerPrisms(Array<double>* xcn_g, Mesh_Topology_BL* BLmesh, M
     int TotNumFaceNodes = 0;
     int numit = 0;
     std::map<std::set<int>,int> face2ID;
+
     for(iter=BLmesh->BLlayersElements.begin();iter!=BLmesh->BLlayersElements.end();iter++)
     {
         numit=iter->second.size();
-        
+
         for(int p=0;p<numit;p++)
         {
             std::vector<int> prism = iter->second[p]->GlobalNodes;
             
             int gElID = iter->second[p]->globID;
-            
             for(int q=0;q<prism.size();q++)
             {
                 if(unique_prism_verts.find(prism[q])==unique_prism_verts.end())
                 {
                     unique_prism_verts.insert(prism[q]);
                     u_prism_v.push_back(prism[q]);
-                    //local_prisms->setVal(npr,q,lvid);
                     gv2lv_prisms[prism[q]] = lvid;
                     lvid++;
                 }
@@ -63,7 +62,9 @@ void OutputBoundaryLayerPrisms(Array<double>* xcn_g, Mesh_Topology_BL* BLmesh, M
                 for(int q=0;q<itm->second.size();q++)
                 {
                     face.insert(itm->second[q]);
+                    //std::cout << itm->second[q] << " ";
                 }
+                //std::cout << std::endl;
                 if(unique_faces.find(face)==unique_faces.end())
                 {
                     unique_faces.insert(face);
@@ -265,7 +266,7 @@ void OutputBoundaryLayerPrisms(Array<double>* xcn_g, Mesh_Topology_BL* BLmesh, M
     U_BndNodes_Vec.clear();
     
 }
-*/
+/**/
 void OutputMesh_MMG_Slice(MMG5_pMesh mmgMesh, int offset, int Nel, string fname)
 {
     int cnt = 0;

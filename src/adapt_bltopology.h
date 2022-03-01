@@ -5,6 +5,8 @@
 #include "adapt_geometry.h"
 #include "adapt_topology.h"
 #include "adapt_output.h"
+
+
 struct BLShellInfo{
   
     std::map<int,int> ShellFace2BFace;
@@ -15,13 +17,22 @@ struct BLShellInfo{
     std::map<int,std::map<int,int> > ShellFace2ShellVert2OppositeBoundaryVerts;
     Array<int>* ShellRef;
     std::map<int,std::vector<int> > BLlayers;
+    std::set<int> shellVrts;
     std::set<int> elements_set;
 };
 
 
-BLShellInfo* FindOuterShellBoundaryLayerMesh(int wall_id, int nLayer,
-                                             Array<double>* xcn_g, Array<int>* ien_g, Array<int>* ief_g, Array<int>* ife_g, Array<int>* ifn_g,
-                                             ParallelState* xcn_pstate, ParallelState* ien_pstate, std::map<int,std::vector<int> > bnd_face_map, std::map<int,int> vert_ref_map, MPI_Comm comm);
+BLShellInfo* GetBoundaryLayerVolume(int wall_id, int nLayer,
+                                             Array<double>* xcn_g, Array<int>* ien_g, Array<int>* iee_g, Array<int>* ief_g, Array<int>* ife_g, Array<int>* ifn_g,
+                                             std::map<int,std::vector<int> > bnd_face_map, std::map<int,int> vert_ref_map, MPI_Comm comm);
 
-Mesh_Topology_BL* ExtractBoundaryLayerMeshFromShell(std::vector<std::vector<int> > u_tris, BLShellInfo* BLshell, int wall_id, int nLayer, Array<double>* xcn_g, Array<int>* ien_g, Array<int>* ief_g, Array<int>* ife_g, Array<int>* ifn_g, ParallelState* xcn_pstate, ParallelState* ien_pstate, std::map<int,std::vector<int> > bnd_face_map, std::map<std::set<int>,int> tria_ref_map, std::map<std::set<int>,int> quad_ref_map,  MPI_Comm comm);
+BLShellInfo* FindOuterShellBoundaryLayerMesh_V2(int wall_id, int nLayer,
+                                             Array<double>* xcn_g, Array<int>* ien_g, Array<int>* iee_g, Array<int>* ief_g, Array<int>* ife_g, Array<int>* ifn_g,
+                                             std::map<int,std::vector<int> > bnd_face_map, std::map<int,int> vert_ref_map, MPI_Comm comm);
+
+BLShellInfo* FindOuterShellBoundaryLayerMesh(int wall_id, int nLayer,
+                                             Array<double>* xcn_g, Array<int>* ien_g, Array<int>* iee_g, Array<int>* ief_g, Array<int>* ife_g, Array<int>* ifn_g,
+                                             std::map<int,std::vector<int> > bnd_face_map, std::map<int,int> vert_ref_map, MPI_Comm comm);
+
+Mesh_Topology_BL* ExtractBoundaryLayerMeshFromShell(std::vector<std::vector<int> > u_tris, BLShellInfo* BLshell, int wall_id, int nLayer, Array<double>* xcn_g, Array<int>* ien_g, Array<int>* ief_g, Array<int>* ife_g, Array<int>* ifn_g, std::map<int,std::vector<int> > bnd_face_map, std::map<std::set<int>,int> tria_ref_map, std::map<std::set<int>,int> quad_ref_map,  MPI_Comm comm);
 

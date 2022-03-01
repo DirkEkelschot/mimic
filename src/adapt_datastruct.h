@@ -6,6 +6,20 @@
 #define ADAPT_DATASTRUCT_H
 
 
+
+struct Element{
+    
+    int globID;
+    std::vector<int> GlobalNodes;
+    
+    std::map<int,std::vector<int> > GlobalFace2GlobalNode;
+    std::map<int,std::vector<int> > GlobalFace2LocalNode;
+    
+    std::map<int,std::vector<int> > LocalFace2GlobalNode;
+    std::map<int,std::vector<int> > LocalFace2LocalNode;
+};
+
+
 struct Vert
 {
     double x=0.0;

@@ -14,6 +14,9 @@ struct Mesh_Topology_BL{
     std::map<int,std::vector<std::vector<int> > > BLlayersPrisms;
     std::map<int,std::vector<std::vector<int> > > bcQuad;
     std::map<int,std::vector<std::vector<int> > > bcTria;
+    std::map<int,std::vector<Element* > > BLlayersElements;
+    std::vector<std::vector<int> > BndFaces;
+
 };
 
 
