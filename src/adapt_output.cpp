@@ -32,14 +32,17 @@ void OutputBoundaryLayerPrisms(Array<double>* xcn_g, Mesh_Topology_BL* BLmesh, M
     for(iter=BLmesh->BLlayersElements.begin();iter!=BLmesh->BLlayersElements.end();iter++)
     {
         numit=iter->second.size();
-
+        
         for(int p=0;p<numit;p++)
         {
             std::vector<int> prism = iter->second[p]->GlobalNodes;
             
             int gElID = iter->second[p]->globID;
+            //std::cout << "primsq = ";
             for(int q=0;q<prism.size();q++)
             {
+                //std::cout << prism[q] << " ";
+                
                 if(unique_prism_verts.find(prism[q])==unique_prism_verts.end())
                 {
                     unique_prism_verts.insert(prism[q]);
@@ -52,6 +55,8 @@ void OutputBoundaryLayerPrisms(Array<double>* xcn_g, Mesh_Topology_BL* BLmesh, M
 //                    local_prisms->setVal(npr,q,gv2lv_prisms[prism[q]]);
 //                }
             }
+            
+            //std::cout << std::endl;
            
             std::map<int,std::vector<int> > LF2GN = iter->second[p]->LocalFace2GlobalNode;
 //

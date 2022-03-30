@@ -986,15 +986,6 @@ int main(int argc, char** argv)
                        hess_vmap[glob_vid]->getVal(1,1) << " " <<
                        hess_vmap[glob_vid]->getVal(1,2) << " " <<
                        hess_vmap[glob_vid]->getVal(2,2) << std::endl;
-            
-//            myfilet << LocVerts[loc_vid]->x << " " <<
-//                       LocVerts[loc_vid]->y << " " <<
-//                       LocVerts[loc_vid]->z << " " <<
-//                       Mvar_vmap[glob_vid]->getVal(0,0) << std::endl;
-
-    //        myfilet << LocVerts[loc_vid]->x << " " <<
-    //                   LocVerts[loc_vid]->y << " " <<
-    //                   LocVerts[loc_vid]->z << " " << std::endl;
         }
 
         std::map<int,std::vector<int> >::iterator itmm2;
@@ -1752,7 +1743,7 @@ int main(int argc, char** argv)
           faceNodes2[icomm] = (int *) malloc(3*ntifc[icomm]*sizeof(int));
           for( i = 0; i < ntifc[icomm]; i++ ) {
               
-            int faceID = ifc_tria_loc[icomm][i]-1;
+            int faceID  = ifc_tria_loc[icomm][i]-1;
             int faceID2 = locShF2globShF[faceID];
 
             v0 = face2node[faceID2][0];
@@ -3526,7 +3517,6 @@ int main(int argc, char** argv)
                     ifnOUT_prism->setVal(fptot,3,fce[2]);
                     ifnOUT_prism->setVal(fptot,4,fce[1]);
                 }
-                
             }
             else
             {
@@ -3845,8 +3835,6 @@ int main(int argc, char** argv)
             {
                 int sk = 0;
 
-
-                
                 for(int q=0;q<Nbfp;q++)
 				{
 					int bcface = pbcmap[bc_id][q];

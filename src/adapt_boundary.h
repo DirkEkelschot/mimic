@@ -13,11 +13,13 @@ class BoundaryMap {
         std::map<std::set<int>,int> getTriaRefMap();
         std::map<std::set<int>,int> getQuadRefMap();
         std::map<int,int> getNodeRefMap();
+        std::vector<int> getWallFaces();
     private:
         std::map<int,std::vector<int> > bnd_face_map;
         std::map<std::set<int>,int> tria_ref_map;
         std::map<std::set<int>,int> quad_ref_map;
         std::map<int,int> node_ref_map;
+        std::vector<int> wall_faces;
 };
 
 #endif

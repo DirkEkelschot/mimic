@@ -1191,7 +1191,10 @@ void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh, MMG5_pSol mmgSol, US3D* us3d)
 }
 
 
-void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh,MMG5_pSol mmgSol, US3D* us3d)
+void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh,
+                              MMG5_pSol mmgSol,
+                              US3D* us3d,
+                              std::set<int> duplicate_hexes)
 {
     std::map<int,std::vector<int> > ref2bface;
     std::map<int,std::vector<int> > ref2bqface;
@@ -1255,6 +1258,16 @@ void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh,MMG5_pSol mmgSol, US3D* us3d)
             face.clear();
         }
     }
+    
+    std::set<int>::iterator itsd;
+    
+    for(itsd=duplicate_hexes.begin();itsd!=duplicate_hexes.end();itsd++)
+    {
+        int elid = *itsd;
+    }
+    
+    
+    
     
     
     std::map<int,int> bnd_Ntri;
@@ -1470,8 +1483,6 @@ void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh,MMG5_pSol mmgSol, US3D* us3d)
         face3.clear();
         
     }
-    
-    
 
     // local face2vert_map for a prism in mmg {0,1,2,0},{3,5,4,3},{1,4,5,2},{0,2,5,3},{0,3,4,1} };
 
@@ -1592,6 +1603,16 @@ void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh,MMG5_pSol mmgSol, US3D* us3d)
         qface2.clear();
          
     }
+    
+    
+    // Do the same for the duplicate hexes.
+    
+    
+    
+    
+    
+    
+    
     
     //====================================================================================
     //====================================================================================

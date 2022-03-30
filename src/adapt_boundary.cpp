@@ -30,6 +30,10 @@ BoundaryMap::BoundaryMap(Array<int>* ifn, Array<int>* if_ref)
         {
             bnd_face_map[ref].push_back(faceid);
         }
+        if(ref == 3)
+        {
+            wall_faces.push_back(faceid);
+        }
         
 //        for(int j=0;j<4;j++)
 //        {
@@ -109,6 +113,11 @@ std::map<std::set<int>,int> BoundaryMap::getQuadRefMap()
 std::map<int,int> BoundaryMap::getNodeRefMap()
 {
     return node_ref_map;
+}
+
+std::vector<int> BoundaryMap::getWallFaces()
+{
+    return wall_faces;
 }
 
 

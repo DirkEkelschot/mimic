@@ -634,7 +634,7 @@ std::vector<double> ReadMetricInputs(const char* fn_metric);
 
 double ReadStatisticsTimeFromRunInFileInParallel(const char* file_name, const char* run_name, MPI_Comm comm, MPI_Info info);
 
-void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh,MMG5_pSol mmgSol, US3D* us3d);
+void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh,MMG5_pSol mmgSol, US3D* us3d, std::set<int> duplicate_hexes);
 
 void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh,MMG5_pSol mmgSol, US3D* us3d);
 
