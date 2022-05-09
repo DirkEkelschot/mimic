@@ -95,7 +95,7 @@ std::map<int,Array<double>* > Py_ComputedUdx_LSQ_US3D(std::vector<Vert* > LocalV
                b->setVal(t,0,(1.0/d)*(u_po-u_ijk));
                //std::cout << "internal guys because  " << adjID << " < " << Nel << " " << u_po << " " << u_ijk << " " << d << std::endl;
 
-               //delete Vadj;
+               delete Vadj;
                dist.push_back(d);
                t++;
 
@@ -338,7 +338,7 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_Vrt_US3D(Partition* Pa, std::map<i
 //                   double rtje = sqrt(Vc->x*Vc->x+(Vc->y-0.5)*(Vc->y-0.5)+(Vc->z-0.5)*(Vc->z-0.5));
 //                   double Utje = 0.1*tanh(50*(rtje-0.5))+1.0;
                    
-                   double Utje = gbMap[elID];
+                   double Utje = u_ijk;
                    //double Utje    = 0.1*sin(50*Vc->x*Vc->z)+atan(0.1/((sin(5.0*Vc->y)-2.0*Vc->x*Vc->z)));
                    
                    u_po = Utje;
@@ -388,8 +388,12 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_Vrt_US3D(Partition* Pa, std::map<i
            for(int j=0;j<nadj_vrts;j++)
            {
                int gvid    = vrts[j];
-               double Uvrt = Uv[gvid]->getVal(0,0);
-
+               double Uvrt = u_ijk;
+               if(Uv.find(gvid)!=Uv.end())
+               {
+                    Uvrt = Uv[gvid]->getVal(0,0);
+               }
+                
                int lvid = gV2lV[gvid];
 
                Vadj->x = LocalVs[lvid]->x;
@@ -1127,7 +1131,7 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_HO_US3D(Partition* Pa, std::map<in
     
    i_part_map* if_Nv_part_map   = Pa->getIF_Nvpartmap();
     
-
+   i_part_map*  ien_part_map         = Pa->getIENpartmap();
 //   std::vector<std::vector<double> > iee_dist;
 //   std::vector<double> dist;
 
@@ -1157,6 +1161,7 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_HO_US3D(Partition* Pa, std::map<in
     Vec3D* n0 = new Vec3D;
     Vec3D* v0 = new Vec3D;
     Vec3D* v1 = new Vec3D;
+    int nandet=0;int nandet2=0;
    for(int i=0;i<nLoc_Elem;i++)
     {
         int bflip    = 0;
@@ -1178,7 +1183,7 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_HO_US3D(Partition* Pa, std::map<in
 
         delete[] Pijk;
         
-        int nadj_tot   = LocElem2Nf[elID];
+        int nadj_tot   = iee_vec->i_map[elID].size();
        
         for(int j=0;j<nadj_tot;j++)
         {
@@ -1186,11 +1191,11 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_HO_US3D(Partition* Pa, std::map<in
                
             if(vrt_collect.find(adjid)==vrt_collect.end() && adjid<Nel)
             {
-                int NvPEladj    = gE2lV[adjid].size();
+                int NvPEladj    = ien_part_map->i_map[adjid].size();
 
                 double* Padj = new double[NvPEladj*3];
 
-                for(int k=0;k<gE2lV[adjid].size();k++)
+                for(int k=0;k<ien_part_map->i_map[adjid].size();k++)
                 {
                     loc_vid     = gE2lV[adjid][k];
                     Padj[k*3+0] = LocalVs[loc_vid]->x;
@@ -1273,21 +1278,22 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_HO_US3D(Partition* Pa, std::map<in
 //                double rtje = sqrt(Vc->x*Vc->x+(Vc->y-0.5)*(Vc->y-0.5)+(Vc->z-0.5)*(Vc->z-0.5));
 //                double Utje = 0.1*tanh(50*(rtje-0.5))+1.0;
                 
-                double Utje_test = gbMap[adjid];
-                double vgx = Vc->x;
-                double vgy = Vc->y;
-                double vgz = Vc->z;
-                double r = sqrt(vgx*vgx+(vgy-0.5)*(vgy-0.5)+(vgz-0.5)*(vgz-0.5));
-                double Utje = 0.1*tanh(50*(r-0.5))+1.0;
+                //double Utje_test = gbMap[adjid];
+                double Utje_test = u_ijk;
+//                double vgx = Vc->x;
+//                double vgy = Vc->y;
+//                double vgz = Vc->z;
+//                double r = sqrt(vgx*vgx+(vgy-0.5)*(vgy-0.5)+(vgz-0.5)*(vgz-0.5));
+//                double Utje = 0.1*tanh(50*(r-0.5))+1.0;
 
                 //double Utje    = 0.1*sin(50*Vc->x*Vc->z)+atan(0.1/((sin(5.0*Vc->y)-2.0*Vc->x*Vc->z)));
-                vrt_collect[adjid]  = Vc;
-                sol_collect[adjid]  = Utje_test;
+                //vrt_collect[adjid]  = Vc;
+                //sol_collect[adjid]  = Utje_test;
                 
-                if(fabs(Utje_test-Utje)>1.0e-06)
-                {
-                    std::cout << "failed l1 :: " << Utje_test << " " << Utje << " " << fabs(Utje_test-Utje) << std::endl;
-                }
+//                if(fabs(Utje_test-Utje)>1.0e-06)
+//                {
+//                    std::cout << "failed l1 :: " << Utje_test << " " << Utje << " " << fabs(Utje_test-Utje) << std::endl;
+//                }
                 
                 face.clear();
                 cntbnd++;
@@ -1401,20 +1407,21 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_HO_US3D(Partition* Pa, std::map<in
                         Vc->y = Vc->y - reflect->c1;
                         Vc->z = Vc->z - reflect->c2;
                         
-                        double Utje_test = gbMap[adjadj];
-                        double vgx = Vc->x;
-                        double vgy = Vc->y;
-                        double vgz = Vc->z;
-                        double r = sqrt(vgx*vgx+(vgy-0.5)*(vgy-0.5)+(vgz-0.5)*(vgz-0.5));
-                        double Utje = 0.1*tanh(50*(r-0.5))+1.0;
+                        //double Utje_test = gbMap[adjadj];
+                        double Utje_test = u_ijk;
+//                        double vgx = Vc->x;
+//                        double vgy = Vc->y;
+//                        double vgz = Vc->z;
+//                        double r = sqrt(vgx*vgx+(vgy-0.5)*(vgy-0.5)+(vgz-0.5)*(vgz-0.5));
+//                        double Utje = 0.1*tanh(50*(r-0.5))+1.0;
 
-                        vrt_collect[adjadj]  = Vc;
-                        sol_collect[adjadj]  = Utje_test;
+                        //vrt_collect[adjadj]  = Vc;
+                        //sol_collect[adjadj]  = Utje_test;
                         
-                        if(fabs(Utje_test-Utje)>1.0e-06)
-                        {
-                            std::cout << "failed l2 :: " << Utje_test << " " << Utje << " " << fabs(Utje_test-Utje) << " " << adjadj << std::endl;
-                        }
+//                        if(fabs(Utje_test-Utje)>1.0e-06)
+//                        {
+//                            std::cout << "failed l2 :: " << Utje_test << " " << Utje << " " << fabs(Utje_test-Utje) << " " << adjadj << std::endl;
+//                        }
 
                         
                         cntbnd++;
@@ -1531,23 +1538,23 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_HO_US3D(Partition* Pa, std::map<in
                                 Vc->z = Vc->z - reflect->c2;
                                 
                                 //double Utje = gbMap[adjadjadj];
-                                double Utje_test = gbMap[adjadjadj];
+                                //double Utje_test = gbMap[adjadjadj];
+                                double Utje_test = u_ijk;
                                 
                                 
+//                                double vgx = Vc->x;
+//                                double vgy = Vc->y;
+//                                double vgz = Vc->z;
+//                                double r = sqrt(vgx*vgx+(vgy-0.5)*(vgy-0.5)+(vgz-0.5)*(vgz-0.5));
+//                                double Utje = 0.1*tanh(50*(r-0.5))+1.0;
                                 
-                                double vgx = Vc->x;
-                                double vgy = Vc->y;
-                                double vgz = Vc->z;
-                                double r = sqrt(vgx*vgx+(vgy-0.5)*(vgy-0.5)+(vgz-0.5)*(vgz-0.5));
-                                double Utje = 0.1*tanh(50*(r-0.5))+1.0;
+                                //vrt_collect[adjadjadj]  = Vc;
+                                //sol_collect[adjadjadj]  = Utje_test;
                                 
-                                vrt_collect[adjadjadj]  = Vc;
-                                sol_collect[adjadjadj]  = Utje_test;
-                                
-                                if(fabs(Utje_test-Utje)>1.0e-06)
-                                {
-                                    std::cout << "failed l3 :: " << Utje_test << " " << Utje << " " << fabs(Utje_test-Utje) << std::endl;
-                                }
+//                                if(fabs(Utje_test-Utje)>1.0e-06)
+//                                {
+//                                    std::cout << "failed l3 :: " << Utje_test << " " << Utje << " " << fabs(Utje_test-Utje) << std::endl;
+//                                }
                                 face.clear();
                                 
                                 cntbnd++;
@@ -1643,8 +1650,16 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_HO_US3D(Partition* Pa, std::map<in
             }
 
             Array<double>* x = SolveQR(A_cm,Ndata,9,bvec);
-
-
+//            if(world_rank == 705)
+//            {
+//                std::cout << "rank705Na " << x->getVal(0,0) << " " << x->getVal(1,0) << " " << x->getVal(2,0) << std::endl;
+//            }
+            if(std::isnan(x->getVal(0,0)) || std::isnan(x->getVal(1,0)) || std::isnan(x->getVal(2,0)))
+            {
+                std::cout << "NaN!!! = " << Ndata << std::endl;
+                nandet++;
+            }
+            
             dudx_map[elID] = x;
 
             delete[] A_cm;
@@ -1713,7 +1728,11 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_HO_US3D(Partition* Pa, std::map<in
             Array<double>* x = SolveQR(A_cm,Ndata,3,bvec);
             
             dudx_map[elID] = x;
-            
+            if(std::isnan(x->getVal(0,0)) || std::isnan(x->getVal(1,0)) || std::isnan(x->getVal(2,0)))
+            {
+                std::cout << "NaN!!! = " << Ndata << std::endl;
+                nandet2++;
+            }
             delete[] A_cm;
             //delete[] Pijk;
             delete Vrt_T;
@@ -1725,6 +1744,7 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_HO_US3D(Partition* Pa, std::map<in
         sol_collect.clear();
    }
     
+    //std::cout << "nandet _ per rank " << world_rank << " :: " << nandet << " " << nandet2 << std::endl;
     
    return dudx_map;
 }
@@ -1973,7 +1993,7 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_US3D(Partition* Pa,
                }
                
                double Utje = gbMap[adjID];
-               
+               Utje = u_ijk;
                d = sqrt((Vc->x-Vijk->x)*(Vc->x-Vijk->x)+
                         (Vc->y-Vijk->y)*(Vc->y-Vijk->y)+
                         (Vc->z-Vijk->z)*(Vc->z-Vijk->z));
@@ -2030,6 +2050,8 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_US3D(Partition* Pa,
 
 std::map<int,Array<double>* > ComputedUdx_LSQ_US3D_LargeStencil(Partition* Pa, std::map<int,Array<double>* > Ue, Mesh_Topology* meshTopo, std::map<int,double> gbMap, MPI_Comm comm)
 {
+    int nanMat = 0;
+    int nandet=0;int nandet2=0;
     int world_size;
     MPI_Comm_size(comm, &world_size);
     // Get the rank of the process
@@ -2045,7 +2067,6 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_US3D_LargeStencil(Partition* Pa, s
     int nLoc_Elem                              = Loc_Elem.size();
      Array<int>* pg = Pa->getGlobalPartition();
      
-    int Nel                      = Pa->getGlobalPartition()->getNrow();
     i_part_map*  ifn_vec         = Pa->getIFNpartmap();
      
     i_part_map* ief_part_map     = Pa->getIEFpartmap();
@@ -2062,7 +2083,7 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_US3D_LargeStencil(Partition* Pa, s
  //   std::vector<std::vector<double> > iee_dist;
  //   std::vector<double> dist;
 
-     
+    int Nel = Pa->getLocalPartition()->getNglob();
     std::map<int,Array<double>* > dudx_map;
     double d;
     int loc_vid,adjID,elID;
@@ -2080,15 +2101,17 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_US3D_LargeStencil(Partition* Pa, s
     std::map<int,int> LocElem2Nf = Pa->getLocElem2Nf();
     std::set<int> add2set_lay0;
     std::set<int> add2set_layt;
-    std::map<int,Vert*> vrt_collect;
     std::map<int,double> sol_collect;
     std::set<int> add2set_lay1;
+
     for(int i=0;i<nLoc_Elem;i++)
      {
          int bflip    = 0;
          int elID     = Loc_Elem[i];
          int NvPEl    = gE2lV[elID].size();
          
+         std::map<int,Vert*> vrt_collect;
+
          double* Pijk = new double[NvPEl*3];
          
          for(int k=0;k<gE2lV[elID].size();k++)
@@ -2108,9 +2131,9 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_US3D_LargeStencil(Partition* Pa, s
          {
              int adjid   = iee_vec->i_map[elID][j];
                 
-             if(vrt_collect.find(adjid)==vrt_collect.end() && adjid<Nel)
+             if(vrt_collect.find(adjid)==vrt_collect.end() && adjid<Nel && adjid!=elID)
              {
-                 int NvPEladj    = gE2lV[adjid].size();
+                 int NvPEladj = gE2lV[adjid].size();
 
                  double* Padj = new double[NvPEladj*3];
 
@@ -2124,6 +2147,21 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_US3D_LargeStencil(Partition* Pa, s
 
                  Vert* Vadj = ComputeCentroidCoord(Padj,NvPEladj);
                  
+                 double errorx = fabs(Vadj->x-Vijk->x);
+                 double errory = fabs(Vadj->y-Vijk->y);
+                 double errorz = fabs(Vadj->z-Vijk->z);
+                 double errortot = sqrt(errorx*errorx+errory*errory+errorz*errorz);
+                 
+//                 if(errortot<1.0e-05)
+//                 {
+//                     std::cout << "Vadj " << errortot << std::endl;
+//                 }
+//
+//                 if(adjid==8624102 && elID == 10659844)
+//                 {
+//                     std::cout << "Vadj " << Vadj->x << " " << Vadj->y << " " << Vadj->z << " i " << i << std::endl;
+//                 }
+                 
                  delete[] Padj;
                  
                  vrt_collect[adjid]  = Vadj;
@@ -2132,7 +2170,7 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_US3D_LargeStencil(Partition* Pa, s
                  //delete Vadj;
                  
              }
-             if(vrt_collect.find(adjid)==vrt_collect.end() && adjid>=Nel)
+             if(vrt_collect.find(adjid)==vrt_collect.end() && adjid>=Nel && adjid!=elID)
              {
                  int fid    = ief_part_map->i_map[elID][j];
                  int NvPerF = if_Nv_part_map->i_map[fid][0];
@@ -2168,12 +2206,12 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_US3D_LargeStencil(Partition* Pa, s
                  Vc->y = Vc->y + r0->c1;
                  Vc->z = Vc->z + r0->c2;
                                   
-                 double Utje = gbMap[adjid];
+                 double Utje = u_ijk;//gbMap[adjid];
                  
                  //double Utje    = 0.1*sin(50*Vc->x*Vc->z)+atan(0.1/((sin(5.0*Vc->y)-2.0*Vc->x*Vc->z)));
                  
-                 vrt_collect[adjid]  = Vc;
-                 sol_collect[adjid]  = Utje;
+                 //vrt_collect[adjid]  = Vc;
+                 //sol_collect[adjid]  = Utje;
                  
                  delete r0;
                  
@@ -2182,7 +2220,7 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_US3D_LargeStencil(Partition* Pa, s
              }
              
                 
-             if(iee_vec->i_map.find(adjid)!=iee_vec->i_map.end())
+             if(iee_vec->i_map.find(adjid)!=iee_vec->i_map.end() && adjid!=elID)
              {
                  int n_adjid = iee_vec->i_map[adjid].size();
                     
@@ -2204,7 +2242,21 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_US3D_LargeStencil(Partition* Pa, s
                          }
                          
                          Vert* Vadjadj          = ComputeCentroidCoord(Padjadj,NvPEladjadj);
-
+                         double errorx = fabs(Vadjadj->x-Vijk->x);
+                         double errory = fabs(Vadjadj->y-Vijk->y);
+                         double errorz = fabs(Vadjadj->z-Vijk->z);
+                         double errortot = sqrt(errorx*errorx+errory*errory+errorz*errorz);
+                         
+//                         if(errortot<1.0e-05)
+//                         {
+//                             std::cout << "Vadjadj " << errortot << std::endl;
+//                         }
+//
+//                         if(adjadj==8624102 && elID == 10659844)
+//                         {
+//                             std::cout << "Vadjadj " << Vadjadj->x << " " << Vadjadj->y << " " << Vadjadj->z << " i " << i << std::endl;
+//                         }
+                         
                          delete[] Padjadj;
                          
                          vrt_collect[adjadj] = Vadjadj;
@@ -2247,17 +2299,17 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_US3D_LargeStencil(Partition* Pa, s
                          Vc->y = Vc->y + r0->c1;
                          Vc->z = Vc->z + r0->c2;
                          
-                         double Utje = gbMap[adjadj];
+                         double Utje = u_ijk;//gbMap[adjadj];
 
-                         vrt_collect[adjadj]  = Vc;
-                         sol_collect[adjadj]  = Utje;
+                         //vrt_collect[adjadj]  = Vc;
+                         //sol_collect[adjadj]  = Utje;
                          
                          delete r0;
                          
                          cntbnd++;
                      }
                      
-                     if(iee_vec->i_map.find(adjadj)!=iee_vec->i_map.end())
+                     if(iee_vec->i_map.find(adjadj)!=iee_vec->i_map.end() && adjadj!=elID)
                      {
                          int n_adjadj = iee_vec->i_map[adjadj].size();
                             
@@ -2272,14 +2324,28 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_US3D_LargeStencil(Partition* Pa, s
 
                                  for(int k=0;k<gE2lV[adjadjadj].size();k++)
                                  {
-                                     loc_vid            = gE2lV[adjadjadj][k];
+                                     loc_vid               = gE2lV[adjadjadj][k];
                                      Padjadjadj[k*3+0]     = LocalVs[loc_vid]->x;
                                      Padjadjadj[k*3+1]     = LocalVs[loc_vid]->y;
                                      Padjadjadj[k*3+2]     = LocalVs[loc_vid]->z;
                                  }
                                  
                                  Vert* Vadjadjadj          = ComputeCentroidCoord(Padjadjadj,NvPEladjadjadj);
-
+                                 
+                                 double errorx = fabs(Vadjadjadj->x-Vijk->x);
+                                 double errory = fabs(Vadjadjadj->y-Vijk->y);
+                                 double errorz = fabs(Vadjadjadj->z-Vijk->z);
+                                 double errortot = sqrt(errorx*errorx+errory*errory+errorz*errorz);
+                                 
+//                                 if(errortot<1.0e-05)
+//                                 {
+//                                     std::cout << "Vadjadjadj " << errortot << std::endl;
+//                                 }
+//
+//                                 if(adjadjadj==8624102 && elID == 10659844)
+//                                 {
+//                                     std::cout << "Vadjadjadj " << Vadjadjadj->x << " " << Vadjadjadj->y << " " << Vadjadjadj->z << " i " << i << std::endl;
+//                                 }
                                  delete[] Padjadjadj;
                                  
                                  vrt_collect[adjadjadj] = Vadjadjadj;
@@ -2322,10 +2388,10 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_US3D_LargeStencil(Partition* Pa, s
                                  Vc->y = Vc->y + r0->c1;
                                  Vc->z = Vc->z + r0->c2;
                                  
-                                 double Utje = gbMap[adjadjadj];
+                                 double Utje = u_ijk;//gbMap[adjadjadj];
 
-                                 vrt_collect[adjadjadj]  = Vc;
-                                 sol_collect[adjadjadj]  = Utje;
+                                 //vrt_collect[adjadjadj]  = Vc;
+                                 //sol_collect[adjadjadj]  = Utje;
                                  
                                  delete r0;
                                  
@@ -2374,7 +2440,20 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_US3D_LargeStencil(Partition* Pa, s
              double Udata = sol_collect[vit->first];
 
              bvec->setVal(te,0,(1.0/di)*(Udata-u_ijk));
-
+             
+             double errorx = fabs(vit->second->x-Vijk->x);
+             double errory = fabs(vit->second->y-Vijk->y);
+             double errorz = fabs(vit->second->z-Vijk->z);
+             
+             double errortot = sqrt(errorx*errorx+errory*errory+errorz*errorz);
+             
+//             if(elID == 10659844 && vit->first==8624102)
+//             {
+//                 std::cout << "Why di = zero (" << vit->second->x << ", " << Vijk->x << ") (" << vit->second->y << ", " << Vijk->y << ") ("  << vit->second->z << ", " << Vijk->z << ")" << " " << errortot << " " << elID << " " << vit->first << " " << Nel << " i " << i << std::endl;
+//             }
+             
+             //delete vit->second;
+             
              te++;
          }
 
@@ -2384,11 +2463,25 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_US3D_LargeStencil(Partition* Pa, s
              for(int g=0;g<3;g++)
              {
                  A_cm[g*Ndata+s] = Vrt->getVal(s,g);
+                 if(std::isnan(Vrt->getVal(s,g)))
+                 {
+                     nanMat++;
+                 }
              }
          }
 
          Array<double>* x = SolveQR(A_cm,Ndata,3,bvec);
-
+         
+//         if(world_rank == 705)
+//         {
+//             std::cout << "rank705Na " << x->getVal(0,0) << " " << x->getVal(1,0) << " " << x->getVal(2,0) << " " << Ndata << std::endl;
+//         }
+         
+         if(std::isnan(x->getVal(0,0)) || std::isnan(x->getVal(1,0)) || std::isnan(x->getVal(2,0)))
+         {
+             std::cout << "NaN!!! = " << Ndata << std::endl;
+             nandet++;
+         }
          dudx_map[elID] = x;
 
          delete[] A_cm;
@@ -2396,12 +2489,15 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_US3D_LargeStencil(Partition* Pa, s
          delete Vrt_T;
          delete Vrt;
          delete bvec;
-
+//         for(vit=vrt_collect.begin();vit!=vrt_collect.end();vit++)
+//         {
+//             delete vit->second;
+//         }
          vrt_collect.clear();
          sol_collect.clear();
     }
      
-     
+    //std::cout << "nanMatnanMat " << nanMat << std::endl;
     return dudx_map;
 }
 

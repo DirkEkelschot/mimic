@@ -1139,7 +1139,7 @@ void ComputeMetricWithWake(Partition* Pa, std::vector<double> metric_inputs,
     std::map<int,Array<double>*>::iterator itm;
     int i = 0;
     double Lambdamax,Lambdamin;
-    std::vector<int> eignval(3);
+    std::vector<double> eignval(3);
     int anitel = 0;
     for(itm=Hess_vm.begin();itm!=Hess_vm.end();itm++)
     {
@@ -1229,7 +1229,7 @@ void ComputeMetricWithWake(Partition* Pa, std::vector<double> metric_inputs,
         detRf = std::pow(detRf,pow);
         Array<double>* Habs  = new Array<double>(3,3);
 	
-        if(scale_vm[glob_vid]->getVal(0,0)>0.0)
+        if(scale_vm[glob_vid]->getVal(0,0)>0.1)
         {
             double wi    = scale_vm[glob_vid]->getVal(0,0);
             double wa    = 1.0-scale_vm[glob_vid]->getVal(0,0);
@@ -1315,7 +1315,7 @@ void ComputeMetric(Partition* Pa, std::vector<double> metric_inputs,
     int i = 0;
     double fiso = 0.01;
     double Lambdamax,Lambdamin;
-    std::vector<int> eignval(3);
+    std::vector<double> eignval(3);
     int anitel = 0;
     for(itm=Hess_vm.begin();itm!=Hess_vm.end();itm++)
     {
@@ -1418,14 +1418,27 @@ void ComputeMetric(Partition* Pa, std::vector<double> metric_inputs,
         Habs->setVal(2,0,sumvol*detRf*Rf->getVal(2,0));
         Habs->setVal(2,1,sumvol*detRf*Rf->getVal(2,1));
         Habs->setVal(2,2,sumvol*detRf*Rf->getVal(2,2));
+/*        
+        Array<double>* Habs  = new Array<double>(3,3);
+	Habs->setVal(0,0,f*1.0);
+        Habs->setVal(0,1,0.0);
+        Habs->setVal(0,2,0.0);
         
+        Habs->setVal(1,0,0.0);
+        Habs->setVal(1,1,f*1.0);
+        Habs->setVal(1,2,0.0);
+
+        Habs->setVal(2,0,0.0);
+        Habs->setVal(2,1,0.0);
+        Habs->setVal(2,2,f*1.0);
         
+  */      
         Hess_vm[glob_vid]=Habs;
         
-        delete Rf;
+   //     delete Rf;
         delete DR;
         delete UR;
-        delete Rs;
+    //    delete Rs;
         //delete Rf;
 
         delete[] iV;

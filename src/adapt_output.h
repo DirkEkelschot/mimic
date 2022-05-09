@@ -6,6 +6,7 @@
 #include "adapt_topology.h"
 #include "mmg/mmgs/libmmgs.h"
 #include "mmg/mmg3d/libmmg3d.h"
+#include "adapt_boundary.h"
 
 #ifndef ADAPT_OUTPUT_H
 #define ADAPT_OUTPUT_H
@@ -18,7 +19,7 @@ void OutputMesh_MMG(MMG5_pMesh mmgMesh, int offset, int Nel, string fname);
 void OutputMesh_MMG_Slice(MMG5_pMesh mmgMesh, int offset, int Nel, string fname);
 void OutputBoundaryID_MMG(MMG5_pMesh mmgMesh, std::map<int,std::vector<int> > ref2bface, int bndID);
 
-void OutputBoundaryID(Partition* P, Mesh_Topology* meshTopo, US3D* us3d, int bndID);
+void OutputBoundaryID(Partition* Pa, int bndID, int rankie);
 
 void PlotBoundaryData(Array<char>* znames, Array<int>* zdefs);
 

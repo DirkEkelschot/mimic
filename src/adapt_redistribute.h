@@ -54,7 +54,7 @@ class RedistributePartitionObject{
     
         std::map<int,Array<double>* > GetVert2MetricMap();
         Array<int>* GetElement2NodeMap();
-        std::map<int,int* > GetFace2NodeMap();
+        std::map<int,std::vector<int> > GetFace2NodeMap();
         std::map<int,std::vector<int> > GetFace2ElementMap();
         std::vector<Vert*> GetLocalVertices();
         int** GetFace2LocalNode();
@@ -89,7 +89,7 @@ class RedistributePartitionObject{
         Array<int>* ien_part_hybrid;
         Array<int>* ief_part_tetra;
         Array<int>* ief_part_hybrid;
-        std::map<int,int*> face2node;
+        std::map<int,std::vector<int> > face2node;
         std::map<int,std::vector<int> > face2element;
 
     

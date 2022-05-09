@@ -73,14 +73,23 @@ Partition::Partition(ParArray<int>* ien, ParArray<int>* iee, ParArray<int>* ief,
 
     std::vector<int> adjElemLayer = getAdjacentElementLayer(ien, Loc_Elem, Loc_Elem_Nf, iee_part_map->i_map, part, xcn, U, comm);
     
-    int nLayer = 2;
-    vloc = LocalVerts.size();
+    int nLayer = 1;
+    
     //std::cout << "LocAndAdj_Elem.size() before " << rank << " " << LocAndAdj_Elem.size() << " " << iee_part_map->i_map.size() << std::endl;
-
+    
     for(int la=0;la<nLayer;la++)
     {
-        std::vector<int> adjElemLayer_la = adjElemLayer;
-
+        vloc = LocalVerts.size();
+        
+        std::vector<int> adjElemLayer_la(adjElemLayer.size());
+        
+        for(int y=0;y<adjElemLayer.size();y++)
+        {
+            adjElemLayer_la[y] = adjElemLayer[y];
+        }
+        
+        adjElemLayer.clear();
+        
         UpdateElement2EntityPerPartition_V2(iee, adjElemLayer_la, 2, iee_part_map,   comm);
         UpdateElement2EntityPerPartition_V2(ien, adjElemLayer_la, 1, ien_part_map,   comm);
         UpdateElement2EntityPerPartition_V2(ief, adjElemLayer_la, 2, ief_part_map,   comm);
@@ -108,7 +117,7 @@ Partition::Partition(ParArray<int>* ien, ParArray<int>* iee, ParArray<int>* ief,
 //        int nvrts = LocAndAdj_Elem_Nv[i];
 //        int nface = LocAndAdj_Elem_Nf[i];
         
-        if(ien_part_map->i_map.find(gid)==ien_part_map->i_map.end())
+        if(ien_part_map->i_map.find(gid)!=ien_part_map->i_map.end())
         {
             int nvrts = ien_part_map->i_map[gid].size();
             int nface = iee_part_map->i_map[gid].size();
@@ -155,6 +164,7 @@ Partition::Partition(ParArray<int>* ien, ParArray<int>* iee, ParArray<int>* ief,
     //            }
     //            std::cout << "================================================="<<std::endl;
             }
+            
             elem2center[gid] = Vm;
             elem2volume[gid] = Volm;
             delete[] Pv;
@@ -2617,7 +2627,8 @@ void Partition::AddStateForAdjacentElements(std::map<int,double> U, MPI_Comm com
 
 void Partition::AddStateVecForAdjacentElements(std::map<int,Array<double>* > &U, int nvar, MPI_Comm comm)
 {
-    
+    int nanhere =0;
+    int nothere = 0;
     int floc_tmp = 0;
     int vloc_tmp = 0;
     int q=0;
@@ -2736,7 +2747,19 @@ void Partition::AddStateVecForAdjacentElements(std::map<int,Array<double>* > &U,
                 {
                     for(int s=0;s<nvar;s++)
                     {
+                        if(U.find(it->second[u])==U.end())
+                        {
+                            nothere++;
+                        }
+                        
                         iee_send[u*nvar+s]=U[it->second[u]]->getVal(s,0);
+                        
+                        if(std::isnan(U[it->second[u]]->getVal(s,0)))
+                        {
+                            nanhere++;
+                        }
+                        
+                        
                     }
                 }
 
@@ -2747,7 +2770,7 @@ void Partition::AddStateVecForAdjacentElements(std::map<int,Array<double>* > &U,
 
                 MPI_Send(&iee_send[0], ne_send*nvar, MPI_DOUBLE, dest, 9876*6666+dest*8888, comm);
 
-                delete[] iee_send;
+                //delete[] iee_send;
             }
         }
         if(iee_schedule->RecvRankFromRank[q].find( rank ) != iee_schedule->RecvRankFromRank[q].end())
@@ -2766,6 +2789,8 @@ void Partition::AddStateVecForAdjacentElements(std::map<int,Array<double>* > &U,
 
          }
     }
+    
+    //std::cout << " nanhere  " << rank << " " << nanhere << " " << nothere << std::endl;
     
 //
     std::map<int,int >::iterator iter;
@@ -3969,8 +3994,11 @@ i_part_map* Partition::getFace2EntityPerPartition(i_part_map* ief_part_map_input
                     
                     if(vrtid_n!=-1)
                     {
-                        ife_loc[face_id].push_back(recv_back_ife[iter->first][s*ncol+r]);
-                        ife_loc_inv[recv_back_ife[iter->first][s*ncol+r]].push_back(face_id);
+//                        if(ife_loc.find(face_id)==ife_loc.end())
+//                        {
+                            ife_loc[face_id].push_back(recv_back_ife[iter->first][s*ncol+r]);
+                            ife_loc_inv[recv_back_ife[iter->first][s*ncol+r]].push_back(face_id);
+//                        }
                     }
                 }
             }
@@ -4182,7 +4210,7 @@ void Partition::UpdateFace2EntityPerPartition_V2(ParArray<int>* ife, std::vector
         {
             face_id = recv_back_face_ids[iter->first][s];
             
-            if(ife_loc.find(face_id)==ife_loc.end())
+            if(ifn_part_map_input->i_map.find(face_id)==ifn_part_map_input->i_map.end())
             {
                 for(int r=0;r<ncol;r++)
                 {
@@ -5036,7 +5064,7 @@ std::map<int,std::map<int,double> > Partition::getNode2Element_V2(i_part_map* ie
         {
             int gvid = ien_part_map->i_map[elID][j];
             
-            if(node2elem[gvid].find(elID)==node2elem[gvid].end())
+            if(node2elem_map[gvid].find(elID)==node2elem_map[gvid].end())
             {
                 Vert* cent = ElemCentroids[elID];
                 volu = ElemVolumes[elID];
@@ -5045,7 +5073,7 @@ std::map<int,std::map<int,double> > Partition::getNode2Element_V2(i_part_map* ie
 //                    std::cout << "elID/volu "<< elID << "  "<< volu << std::endl;
 //
 //                }
-                node2elem[gvid].insert(std::pair<int,Vert*>(elID,cent));
+                node2elem_map[gvid].insert(std::pair<int,Vert*>(elID,cent));
                 node2elemV[gvid].insert(std::pair<int,double>(elID,volu));
 
             }
@@ -5064,7 +5092,7 @@ std::map<int,std::map<int,double> > Partition::getNode2Element_V2(i_part_map* ie
                 {
                     int gvid = ien_part_map->i_map[adjID][j];
                     
-                    if(node2elem[gvid].find(adjID)==node2elem[gvid].end())
+                    if(node2elem_map[gvid].find(adjID)==node2elem_map[gvid].end() && adjID!=elID)
                     {
                         Vert* cent = ElemCentroids[adjID];
                         volu = ElemVolumes[adjID];
@@ -5072,7 +5100,7 @@ std::map<int,std::map<int,double> > Partition::getNode2Element_V2(i_part_map* ie
 //                        {
 //                            std::cout << "adjID/volu "<< adjID << "  "<< volu << std::endl;
 //                        }
-                        node2elem[gvid].insert(std::pair<int,Vert*>(adjID,cent));
+                        node2elem_map[gvid].insert(std::pair<int,Vert*>(adjID,cent));
                         node2elemV[gvid].insert(std::pair<int,double>(adjID,volu));
                     }
                 }
@@ -5095,7 +5123,7 @@ std::map<int,std::map<int,double> > Partition::getNode2Element_V2(i_part_map* ie
                         int gvid2 = ien_part_map->i_map[adjadjID][j];
 
                         fou = 0;
-                        if(node2elem[gvid2].find(adjadjID)==node2elem[gvid2].end())
+                        if(node2elem_map[gvid2].find(adjadjID)==node2elem_map[gvid2].end() && adjadjID!=elID)
                         {
                             Vert* cent = ElemCentroids[adjadjID];
                             volu       = ElemVolumes[adjadjID];
@@ -5108,7 +5136,7 @@ std::map<int,std::map<int,double> > Partition::getNode2Element_V2(i_part_map* ie
 //                                std::cout << "adjadjID/volu "<< adjadjID << "  "<< volu << " " << fou <<  std::endl;
 //                            }
                             //std::cout << "volu " << volu << std::endl;
-                            node2elem[gvid2].insert(std::pair<int,Vert*>(adjadjID,cent));
+                            node2elem_map[gvid2].insert(std::pair<int,Vert*>(adjadjID,cent));
                             node2elemV[gvid2].insert(std::pair<int,double>(adjadjID,volu));
                         }
                     }
@@ -5117,367 +5145,366 @@ std::map<int,std::map<int,double> > Partition::getNode2Element_V2(i_part_map* ie
         }
     }
     
-    node2elem_map = node2elem;
+    //node2elem_map = node2elem;
     
     return node2elemV;
 }
 
 
-std::map<int,std::map<int,double> > Partition::getNode2Element(i_part_map* iee_part_map_input, std::map<int,Vert*> ElemCentroids, std::map<int,double> ElemVolumes)
-{
-    
-    std::map<int,std::map<int,Vert*> > node2elem;
-    std::map<int,std::map<int,double> > node2elemV;
-
-    std::map<int,std::vector<int> > UsharedVrts;
-    std::set<int> UsharedVrts_set;
-    std::vector<int> UsharedVrts_vec;
-    std::vector<int> UsharedVrtsRanks_vec;
-    std::map<int,std::vector<int> > LocalSharedVert2Elem;
-    std::map<int,std::vector<int> >::iterator ieet;
-    int notthere = 0;
-    int huh = 0;
-    int Nel = part_global->getNrow();
-    double volu = 0;
-    int itsright = 0;
-    int itsright2 = 0;
-    int neverhere = 0;
-    for(ieet=iee_part_map_input->i_map.begin();ieet!=iee_part_map_input->i_map.end();ieet++)
-    {
-        int elID          = ieet->first;
-        int Nadj          = ieet->second.size();
-        int Nv            = LocElem2Nv[elID];
-        
-        //Collect the available node2node map for all the elements that live on rank;
-        
-        for(int j=0;j<Nv;j++)
-        {
-            int gvid = ien_part_map->i_map[elID][j];
-            
-            if(node2elem[gvid].find(elID)==node2elem[gvid].end())
-            {
-                Vert* cent = ElemCentroids[elID];
-                volu = ElemVolumes[elID];
-                node2elem[gvid].insert(std::pair<int,Vert*>(elID,cent));
-                node2elemV[gvid].insert(std::pair<int,double>(elID,volu));
-
-            }
-        }
-        
-        for(int p=0;p<Nadj;p++)
-        {
-            int adjID = ieet->second[p];
-            int r1    = part_global->getVal(adjID,0);
-            int Nva   = ien_adj_part_map->i_map[adjID].size();
-            
-            
-            if(ien_part_map->i_map.find(adjID)==ien_part_map->i_map.end())
-            {
-                itsright2++;
-            }
-            
-            if(r1!=rank && adjID<Nel)
-            {
-                int fid = ien_adj_part_map->i_map[adjID][p];
-                int nvf = ifn_adj_part_map->i_map[fid].size();
-                
-                for(int q=0;q<nvf;q++)
-                {
-                    int vid = ifn_adj_part_map->i_map[fid][q];
-                    
-                    if(UsharedVrts_set.find(vid)==UsharedVrts_set.end())
-                    {
-                        UsharedVrts_set.insert(vid);
-                        UsharedVrts_vec.push_back(vid);
-                        UsharedVrtsRanks_vec.push_back(elID);
-                        UsharedVrtsRanks_vec.push_back(adjID);
-                        
-                        LocalSharedVert2Elem[vid].push_back(elID);
-                        LocalSharedVert2Elem[vid].push_back(adjID);
-                    }
-                }
-            }
-            if(r1==rank && adjID<Nel)
-            {
-                neverhere++;
-                if(ien_part_map->i_map.find(adjID)!=ien_part_map->i_map.end())
-                {
-                    itsright++;
-                }
-                
-                int nvr = ien_adj_part_map->i_map[adjID].size();
-                for(int j=0;j<nvr;j++)
-                {
-                    int gvid = ien_adj_part_map->i_map[adjID][j];
-                    
-                    if(node2elem.find(gvid)!=node2elem.end())
-                    {
-                        if(node2elem[gvid].find(adjID)==node2elem[gvid].end())
-                        {
-                            Vert* cent = ElemCentroids[adjID];
-                            volu       = ElemVolumes[adjID];
-                            node2elem[gvid].insert(std::pair<int,Vert*>(adjID,cent));
-                            node2elemV[gvid].insert(std::pair<int,double>(elID,volu));
-                        }
-                    }
-                }
-            }
-        }
-    }
-    
-    std::cout << " itsright " << rank << " " << itsright << " " << itsright2 << " " << neverhere << std::endl;
-    
-    int nSharedVerts = UsharedVrts_vec.size();
-    DistributedParallelState* distSharedVerts = new DistributedParallelState(nSharedVerts,comm_p);
-
-    int Nt_shVerts               = distSharedVerts->getNel();
-    int* shVerts_nlocs           = distSharedVerts->getNlocs();
-    int* shVerts_offsets         = distSharedVerts->getOffsets();
-    
-    int* TotalSharedVerts        = new int[Nt_shVerts];
-    
-    DistributedParallelState* distSharedVertsRanks = new DistributedParallelState(nSharedVerts*2,comm_p);
-    
-    //std::cout << UsharedVrtsRanks_vec.size() << " " << nSharedVerts*2 << std::endl;
-    
-    int Nt_UsharedVrtsRanks_vec  = UsharedVrtsRanks_vec.size();
-    int Nt_shVertsRanks          = distSharedVertsRanks->getNel();
-    int* shVertsRanks_nlocs      = distSharedVertsRanks->getNlocs();
-    int* shVertsRanks_offsets    = distSharedVertsRanks->getOffsets();
-    
-    int* Total_UsharedVrtsRanks_vec = new int[Nt_shVertsRanks];
-    
-    MPI_Allgatherv(&UsharedVrts_vec[0],
-                   nSharedVerts,
-                   MPI_INT,
-                   TotalSharedVerts,
-                   shVerts_nlocs,
-                   shVerts_offsets,
-                   MPI_INT, comm_p);
-    
-    MPI_Allgatherv(&UsharedVrtsRanks_vec[0],
-                   Nt_UsharedVrtsRanks_vec,
-                   MPI_INT,
-                   Total_UsharedVrtsRanks_vec,
-                   shVertsRanks_nlocs,
-                   shVertsRanks_offsets,
-                   MPI_INT, comm_p);
-    
-    std::map<int,std::set<int> > v2elmIDs;
-    
-    for(int i=0;i<Nt_shVerts;i++)
-    {
-        int key  = TotalSharedVerts[i];
-        int val0 = Total_UsharedVrtsRanks_vec[i*2+0];
-        int val1 = Total_UsharedVrtsRanks_vec[i*2+1];
-        
-        if(v2elmIDs[key].find(val0)==v2elmIDs[key].end())
-        {
-            v2elmIDs[key].insert(val0);
-        }
-        if(v2elmIDs[key].find(val1)==v2elmIDs[key].end())
-        {
-            v2elmIDs[key].insert(val1);
-        }
-    }
-    
-    
-    
-    std::map<int,std::vector<int> >::iterator its;
-    int tel = 0;
-    std::map<int,std::vector<int> > rank2req_vert;
-    int telmore = 0;
-    std::map<int,int> NotOnPart;
-    std::map<int,std::set<int> > vert2elem_requested;
-    std::map<int,std::vector<int> > elem2vert;
-    for(its=LocalSharedVert2Elem.begin();its!=LocalSharedVert2Elem.end();its++)
-    {
-        int vertid                = its->first;
-        std::vector<int> Elms     = its->second;
-        
-        if(v2elmIDs.find(vertid) != v2elmIDs.end())
-        {
-            std::set<int>::iterator its;
-            std::vector<int>::iterator it;
-           
-            for(its=v2elmIDs[vertid].begin();its!=v2elmIDs[vertid].end();its++)
-            {
-                int elemid = *its;
-               
-                if(GlobalElement2LocalElement.find(elemid)==GlobalElement2LocalElement.end()
-                   && elemid < part_global->getNrow())
-                {
-
-                    int reqRank = part_global->getVal(elemid,0);
-                    
-                    if(reqRank!=rank)
-                    {
-                        vert2elem_requested[vertid].insert(elemid);
-                        rank2req_vert[reqRank].push_back(elemid);
-                        elem2vert[elemid].push_back(vertid);
-                        NotOnPart[elemid] = reqRank;
-                    }
-                }
-                
-                it = find (Elms.begin(), Elms.end(), elemid);
-
-                if(it==Elms.end())
-                {
-                    Elms.push_back(elemid);
-                }
-            }
-        }
-        LocalSharedVert2Elem[its->first] = Elms;
-    }
-    
-    
-    ScheduleObj* part_schedule = DoScheduling(rank2req_vert,comm_p);
-    
-    std::map<int,std::vector<int> >  reqstd_Elids_per_rank;
-    std::map<int,std::vector<int> >  reqstd_NvertPerElids_per_rank;
-    std::map<int,std::vector<int> >  reqstd_ActualVids_per_rank;
-
-    std::map<int,std::vector<int> >::iterator it;
-    int n_reqstd_ids;
-    int n_reqstd_acids;
-    std::map<int,std::vector<int> >  nv_stored_map;
-    std::map<int,std::vector<int> > nvert_id_map;
-    for(int q=0;q<size;q++)
-    {
-        if(rank==q)
-        {
-            int i=0;
-            for (it = rank2req_vert.begin(); it != rank2req_vert.end(); it++)
-            {
-                int n_req_el            = it->second.size();
-                int dest                = it->first;
-                                
-                //MPI_Send(&dest, 1, MPI_INT, dest, 9876+10*dest, comm);
-                
-                MPI_Send(&n_req_el, 1, MPI_INT, dest, 11119876+10*dest, comm_p);
-                            
-                MPI_Send(&it->second[0], n_req_el, MPI_INT, dest, 11119876*2+dest*2, comm_p);
-                
-                i++;
-            }
-        }
-        else if (part_schedule->SendFromRank2Rank[q].find( rank ) != part_schedule->SendFromRank2Rank[q].end())
-        {
-            MPI_Recv(&n_reqstd_ids, 1, MPI_INT, q, 11119876+10*rank, comm_p, MPI_STATUS_IGNORE);
-
-            std::vector<int> recv_reqstd_ids(n_reqstd_ids);
-            
-            MPI_Recv(&recv_reqstd_ids[0], n_reqstd_ids, MPI_INT, q, 11119876*2+2*rank, comm_p, MPI_STATUS_IGNORE);
-            
-            reqstd_Elids_per_rank[q]         = recv_reqstd_ids;
-        }
-    }
-    
-   
-    
-    int offset_xcn  = 0;
-    int nloc_xcn    = 0;
-    std::map<int,std::vector<double> > recv_back_verts;
-    std::map<int,std::vector<double> > recv_back_volus;
-    std::map<int,std::vector<int> > recv_back_verts_ids;
-    int n_recv_back;
-    int n_recv_el;
-    
-    for(int q=0;q<size;q++)
-    {
-        if(rank == q)
-        {
-            for (it = reqstd_Elids_per_rank.begin(); it != reqstd_Elids_per_rank.end(); it++)
-            {
-                int dest     = it->first;
-                int nEl_send = it->second.size();
-                int nEl      = it->second.size();
-
-                std::vector<double> centroid_send(nEl_send*3);
-                std::vector<double> volumes_send(nEl_send);
-
-                for(int u=0;u<nEl_send;u++)
-                {
-                    volumes_send[u] = ElemVolumes[it->second[u]];
-                    centroid_send[u*3+0] = ElemCentroids[it->second[u]]->x;
-                    centroid_send[u*3+1] = ElemCentroids[it->second[u]]->y;
-                    centroid_send[u*3+2] = ElemCentroids[it->second[u]]->z;
-                }
-                
-                
-                MPI_Send(&nEl, 1, MPI_INT, dest, 21119876+1000*dest, comm_p);
-                
-                MPI_Send(&centroid_send[0], nEl*3, MPI_DOUBLE, dest, 11119876+dest*8888, comm_p);
-                MPI_Send(&volumes_send[0], nEl, MPI_DOUBLE, dest, 21119876+dest*8888, comm_p);
-                MPI_Send(&it->second[0], it->second.size(), MPI_INT, dest, 8888*9876+dest*8888,comm_p);/**/
-            }
-        }
-        if(part_schedule->RecvRankFromRank[q].find( rank ) != part_schedule->RecvRankFromRank[q].end())
-         {
-            MPI_Recv(&n_recv_el, 1, MPI_INT, q, 21119876+1000*rank, comm_p, MPI_STATUS_IGNORE);
-
-            std::vector<double> recv_back_vec(n_recv_el*3);
-            std::vector<double> recv_back_volumes(n_recv_el);
-            std::vector<int> recv_back_vec_ids(n_recv_el);
-             
-            MPI_Recv(&recv_back_vec[0], n_recv_el*3, MPI_DOUBLE, q, 11119876+rank*8888, comm_p, MPI_STATUS_IGNORE);
-            MPI_Recv(&recv_back_volumes[0], n_recv_el, MPI_DOUBLE, q, 21119876+rank*8888, comm_p, MPI_STATUS_IGNORE);
-            MPI_Recv(&recv_back_vec_ids[0], n_recv_el, MPI_INT, q, 8888*9876+rank*8888, comm_p, MPI_STATUS_IGNORE);
-             
-            recv_back_verts[q]      = recv_back_vec;
-            recv_back_volus[q]      = recv_back_volumes;
-            recv_back_verts_ids[q]  = recv_back_vec_ids;
-         }
-    }
-    
-    
-    
-    std::map<int,std::vector<int> >::iterator itm;
-    std::map<int,std::vector<int> > recvBack_el2vertIDs;
-    
-    for(itm=rank2req_vert.begin();itm!=rank2req_vert.end();itm++)
-    {
-        int rr   = itm->first;
-        int nel  = itm->second.size();
-
-        for(int j=0;j<nel;j++)
-        {
-            int elid = itm->second[j];
-
-            std::vector<int> tovert = elem2vert[elid];
-            
-            for(int q=0;q<tovert.size();q++)
-            {
-                int vidd = tovert[q];
-                
-                if(node2elem.find(vidd)!=node2elem.end())
-                {
-                    if(node2elem[vidd].find(elid)==node2elem[vidd].end())
-                    {
-                        Vert* cent = new Vert;
-
-                        cent->x = recv_back_verts[rr][j*3+0];
-                        cent->y = recv_back_verts[rr][j*3+1];
-                        cent->z = recv_back_verts[rr][j*3+2];
-                        double Vol = recv_back_volus[rr][j];
-                        node2elem[vidd].insert(std::pair<int,Vert*>(elid,cent));
-                        node2elemV[vidd].insert(std::pair<int,double>(elid,Vol));
-
-                    }
-                }
-                
-            }
-        }
-    }
-    /**/
-    
-    node2elem_map = node2elem;
-    
-    return node2elemV;
-    
-    
-    
-}
+//std::map<int,std::map<int,double> > Partition::getNode2Element(i_part_map* iee_part_map_input, std::map<int,Vert*> ElemCentroids, std::map<int,double> ElemVolumes)
+//{
+//
+//    std::map<int,std::map<int,double> > node2elemV;
+//
+//    std::map<int,std::vector<int> > UsharedVrts;
+//    std::set<int> UsharedVrts_set;
+//    std::vector<int> UsharedVrts_vec;
+//    std::vector<int> UsharedVrtsRanks_vec;
+//    std::map<int,std::vector<int> > LocalSharedVert2Elem;
+//    std::map<int,std::vector<int> >::iterator ieet;
+//    int notthere = 0;
+//    int huh = 0;
+//    int Nel = part_global->getNrow();
+//    double volu = 0;
+//    int itsright = 0;
+//    int itsright2 = 0;
+//    int neverhere = 0;
+//    for(ieet=iee_part_map_input->i_map.begin();ieet!=iee_part_map_input->i_map.end();ieet++)
+//    {
+//        int elID          = ieet->first;
+//        int Nadj          = ieet->second.size();
+//        int Nv            = LocElem2Nv[elID];
+//
+//        //Collect the available node2node map for all the elements that live on rank;
+//
+//        for(int j=0;j<Nv;j++)
+//        {
+//            int gvid = ien_part_map->i_map[elID][j];
+//
+//            if(node2elem_map[gvid].find(elID)==node2elem_map[gvid].end())
+//            {
+//                Vert* cent = ElemCentroids[elID];
+//                volu = ElemVolumes[elID];
+//                node2elem_map[gvid].insert(std::pair<int,Vert*>(elID,cent));
+//                node2elemV[gvid].insert(std::pair<int,double>(elID,volu));
+//
+//            }
+//        }
+//
+//        for(int p=0;p<Nadj;p++)
+//        {
+//            int adjID = ieet->second[p];
+//            int r1    = part_global->getVal(adjID,0);
+//            int Nva   = ien_adj_part_map->i_map[adjID].size();
+//
+//
+//            if(ien_part_map->i_map.find(adjID)==ien_part_map->i_map.end())
+//            {
+//                itsright2++;
+//            }
+//
+//            if(r1!=rank && adjID<Nel)
+//            {
+//                int fid = ien_adj_part_map->i_map[adjID][p];
+//                int nvf = ifn_adj_part_map->i_map[fid].size();
+//
+//                for(int q=0;q<nvf;q++)
+//                {
+//                    int vid = ifn_adj_part_map->i_map[fid][q];
+//
+//                    if(UsharedVrts_set.find(vid)==UsharedVrts_set.end())
+//                    {
+//                        UsharedVrts_set.insert(vid);
+//                        UsharedVrts_vec.push_back(vid);
+//                        UsharedVrtsRanks_vec.push_back(elID);
+//                        UsharedVrtsRanks_vec.push_back(adjID);
+//
+//                        LocalSharedVert2Elem[vid].push_back(elID);
+//                        LocalSharedVert2Elem[vid].push_back(adjID);
+//                    }
+//                }
+//            }
+//            if(r1==rank && adjID<Nel)
+//            {
+//                neverhere++;
+//                if(ien_part_map->i_map.find(adjID)!=ien_part_map->i_map.end())
+//                {
+//                    itsright++;
+//                }
+//
+//                int nvr = ien_adj_part_map->i_map[adjID].size();
+//                for(int j=0;j<nvr;j++)
+//                {
+//                    int gvid = ien_adj_part_map->i_map[adjID][j];
+//
+//                    if(node2elem_map.find(gvid)!=node2elem_map.end())
+//                    {
+//                        if(node2elem_map[gvid].find(adjID)==node2elem_map[gvid].end())
+//                        {
+//                            Vert* cent = ElemCentroids[adjID];
+//                            volu       = ElemVolumes[adjID];
+//                            node2elem_map[gvid].insert(std::pair<int,Vert*>(adjID,cent));
+//                            node2elemV[gvid].insert(std::pair<int,double>(elID,volu));
+//                        }
+//                    }
+//                }
+//            }
+//        }
+//    }
+//
+//    std::cout << " itsright " << rank << " " << itsright << " " << itsright2 << " " << neverhere << std::endl;
+//
+//    int nSharedVerts = UsharedVrts_vec.size();
+//    DistributedParallelState* distSharedVerts = new DistributedParallelState(nSharedVerts,comm_p);
+//
+//    int Nt_shVerts               = distSharedVerts->getNel();
+//    int* shVerts_nlocs           = distSharedVerts->getNlocs();
+//    int* shVerts_offsets         = distSharedVerts->getOffsets();
+//
+//    int* TotalSharedVerts        = new int[Nt_shVerts];
+//
+//    DistributedParallelState* distSharedVertsRanks = new DistributedParallelState(nSharedVerts*2,comm_p);
+//
+//    //std::cout << UsharedVrtsRanks_vec.size() << " " << nSharedVerts*2 << std::endl;
+//
+//    int Nt_UsharedVrtsRanks_vec  = UsharedVrtsRanks_vec.size();
+//    int Nt_shVertsRanks          = distSharedVertsRanks->getNel();
+//    int* shVertsRanks_nlocs      = distSharedVertsRanks->getNlocs();
+//    int* shVertsRanks_offsets    = distSharedVertsRanks->getOffsets();
+//
+//    int* Total_UsharedVrtsRanks_vec = new int[Nt_shVertsRanks];
+//
+//    MPI_Allgatherv(&UsharedVrts_vec[0],
+//                   nSharedVerts,
+//                   MPI_INT,
+//                   TotalSharedVerts,
+//                   shVerts_nlocs,
+//                   shVerts_offsets,
+//                   MPI_INT, comm_p);
+//
+//    MPI_Allgatherv(&UsharedVrtsRanks_vec[0],
+//                   Nt_UsharedVrtsRanks_vec,
+//                   MPI_INT,
+//                   Total_UsharedVrtsRanks_vec,
+//                   shVertsRanks_nlocs,
+//                   shVertsRanks_offsets,
+//                   MPI_INT, comm_p);
+//
+//    std::map<int,std::set<int> > v2elmIDs;
+//
+//    for(int i=0;i<Nt_shVerts;i++)
+//    {
+//        int key  = TotalSharedVerts[i];
+//        int val0 = Total_UsharedVrtsRanks_vec[i*2+0];
+//        int val1 = Total_UsharedVrtsRanks_vec[i*2+1];
+//
+//        if(v2elmIDs[key].find(val0)==v2elmIDs[key].end())
+//        {
+//            v2elmIDs[key].insert(val0);
+//        }
+//        if(v2elmIDs[key].find(val1)==v2elmIDs[key].end())
+//        {
+//            v2elmIDs[key].insert(val1);
+//        }
+//    }
+//
+//
+//
+//    std::map<int,std::vector<int> >::iterator its;
+//    int tel = 0;
+//    std::map<int,std::vector<int> > rank2req_vert;
+//    int telmore = 0;
+//    std::map<int,int> NotOnPart;
+//    std::map<int,std::set<int> > vert2elem_requested;
+//    std::map<int,std::vector<int> > elem2vert;
+//    for(its=LocalSharedVert2Elem.begin();its!=LocalSharedVert2Elem.end();its++)
+//    {
+//        int vertid                = its->first;
+//        std::vector<int> Elms     = its->second;
+//
+//        if(v2elmIDs.find(vertid) != v2elmIDs.end())
+//        {
+//            std::set<int>::iterator its;
+//            std::vector<int>::iterator it;
+//
+//            for(its=v2elmIDs[vertid].begin();its!=v2elmIDs[vertid].end();its++)
+//            {
+//                int elemid = *its;
+//
+//                if(GlobalElement2LocalElement.find(elemid)==GlobalElement2LocalElement.end()
+//                   && elemid < part_global->getNrow())
+//                {
+//
+//                    int reqRank = part_global->getVal(elemid,0);
+//
+//                    if(reqRank!=rank)
+//                    {
+//                        vert2elem_requested[vertid].insert(elemid);
+//                        rank2req_vert[reqRank].push_back(elemid);
+//                        elem2vert[elemid].push_back(vertid);
+//                        NotOnPart[elemid] = reqRank;
+//                    }
+//                }
+//
+//                it = find (Elms.begin(), Elms.end(), elemid);
+//
+//                if(it==Elms.end())
+//                {
+//                    Elms.push_back(elemid);
+//                }
+//            }
+//        }
+//        LocalSharedVert2Elem[its->first] = Elms;
+//    }
+//
+//
+//    ScheduleObj* part_schedule = DoScheduling(rank2req_vert,comm_p);
+//
+//    std::map<int,std::vector<int> >  reqstd_Elids_per_rank;
+//    std::map<int,std::vector<int> >  reqstd_NvertPerElids_per_rank;
+//    std::map<int,std::vector<int> >  reqstd_ActualVids_per_rank;
+//
+//    std::map<int,std::vector<int> >::iterator it;
+//    int n_reqstd_ids;
+//    int n_reqstd_acids;
+//    std::map<int,std::vector<int> >  nv_stored_map;
+//    std::map<int,std::vector<int> > nvert_id_map;
+//    for(int q=0;q<size;q++)
+//    {
+//        if(rank==q)
+//        {
+//            int i=0;
+//            for (it = rank2req_vert.begin(); it != rank2req_vert.end(); it++)
+//            {
+//                int n_req_el            = it->second.size();
+//                int dest                = it->first;
+//
+//                //MPI_Send(&dest, 1, MPI_INT, dest, 9876+10*dest, comm);
+//
+//                MPI_Send(&n_req_el, 1, MPI_INT, dest, 11119876+10*dest, comm_p);
+//
+//                MPI_Send(&it->second[0], n_req_el, MPI_INT, dest, 11119876*2+dest*2, comm_p);
+//
+//                i++;
+//            }
+//        }
+//        else if (part_schedule->SendFromRank2Rank[q].find( rank ) != part_schedule->SendFromRank2Rank[q].end())
+//        {
+//            MPI_Recv(&n_reqstd_ids, 1, MPI_INT, q, 11119876+10*rank, comm_p, MPI_STATUS_IGNORE);
+//
+//            std::vector<int> recv_reqstd_ids(n_reqstd_ids);
+//
+//            MPI_Recv(&recv_reqstd_ids[0], n_reqstd_ids, MPI_INT, q, 11119876*2+2*rank, comm_p, MPI_STATUS_IGNORE);
+//
+//            reqstd_Elids_per_rank[q]         = recv_reqstd_ids;
+//        }
+//    }
+//
+//
+//
+//    int offset_xcn  = 0;
+//    int nloc_xcn    = 0;
+//    std::map<int,std::vector<double> > recv_back_verts;
+//    std::map<int,std::vector<double> > recv_back_volus;
+//    std::map<int,std::vector<int> > recv_back_verts_ids;
+//    int n_recv_back;
+//    int n_recv_el;
+//
+//    for(int q=0;q<size;q++)
+//    {
+//        if(rank == q)
+//        {
+//            for (it = reqstd_Elids_per_rank.begin(); it != reqstd_Elids_per_rank.end(); it++)
+//            {
+//                int dest     = it->first;
+//                int nEl_send = it->second.size();
+//                int nEl      = it->second.size();
+//
+//                std::vector<double> centroid_send(nEl_send*3);
+//                std::vector<double> volumes_send(nEl_send);
+//
+//                for(int u=0;u<nEl_send;u++)
+//                {
+//                    volumes_send[u] = ElemVolumes[it->second[u]];
+//                    centroid_send[u*3+0] = ElemCentroids[it->second[u]]->x;
+//                    centroid_send[u*3+1] = ElemCentroids[it->second[u]]->y;
+//                    centroid_send[u*3+2] = ElemCentroids[it->second[u]]->z;
+//                }
+//
+//
+//                MPI_Send(&nEl, 1, MPI_INT, dest, 21119876+1000*dest, comm_p);
+//
+//                MPI_Send(&centroid_send[0], nEl*3, MPI_DOUBLE, dest, 11119876+dest*8888, comm_p);
+//                MPI_Send(&volumes_send[0], nEl, MPI_DOUBLE, dest, 21119876+dest*8888, comm_p);
+//                MPI_Send(&it->second[0], it->second.size(), MPI_INT, dest, 8888*9876+dest*8888,comm_p);/**/
+//            }
+//        }
+//        if(part_schedule->RecvRankFromRank[q].find( rank ) != part_schedule->RecvRankFromRank[q].end())
+//         {
+//            MPI_Recv(&n_recv_el, 1, MPI_INT, q, 21119876+1000*rank, comm_p, MPI_STATUS_IGNORE);
+//
+//            std::vector<double> recv_back_vec(n_recv_el*3);
+//            std::vector<double> recv_back_volumes(n_recv_el);
+//            std::vector<int> recv_back_vec_ids(n_recv_el);
+//
+//            MPI_Recv(&recv_back_vec[0], n_recv_el*3, MPI_DOUBLE, q, 11119876+rank*8888, comm_p, MPI_STATUS_IGNORE);
+//            MPI_Recv(&recv_back_volumes[0], n_recv_el, MPI_DOUBLE, q, 21119876+rank*8888, comm_p, MPI_STATUS_IGNORE);
+//            MPI_Recv(&recv_back_vec_ids[0], n_recv_el, MPI_INT, q, 8888*9876+rank*8888, comm_p, MPI_STATUS_IGNORE);
+//
+//            recv_back_verts[q]      = recv_back_vec;
+//            recv_back_volus[q]      = recv_back_volumes;
+//            recv_back_verts_ids[q]  = recv_back_vec_ids;
+//         }
+//    }
+//
+//
+//
+//    std::map<int,std::vector<int> >::iterator itm;
+//    std::map<int,std::vector<int> > recvBack_el2vertIDs;
+//
+//    for(itm=rank2req_vert.begin();itm!=rank2req_vert.end();itm++)
+//    {
+//        int rr   = itm->first;
+//        int nel  = itm->second.size();
+//
+//        for(int j=0;j<nel;j++)
+//        {
+//            int elid = itm->second[j];
+//
+//            std::vector<int> tovert = elem2vert[elid];
+//
+//            for(int q=0;q<tovert.size();q++)
+//            {
+//                int vidd = tovert[q];
+//
+//                if(node2elem_map.find(vidd)!=node2elem_map.end())
+//                {
+//                    if(node2elem_map[vidd].find(elid)==node2elem_map[vidd].end())
+//                    {
+//                        Vert* cent = new Vert;
+//
+//                        cent->x = recv_back_verts[rr][j*3+0];
+//                        cent->y = recv_back_verts[rr][j*3+1];
+//                        cent->z = recv_back_verts[rr][j*3+2];
+//                        double Vol = recv_back_volus[rr][j];
+//                        node2elem_map[vidd].insert(std::pair<int,Vert*>(elid,cent));
+//                        node2elemV[vidd].insert(std::pair<int,double>(elid,Vol));
+//
+//                    }
+//                }
+//
+//            }
+//        }
+//    }
+//    /**/
+//
+//    //node2elem_map = node2elem;
+//
+//    return node2elemV;
+//
+//
+//
+//}
 
 
 std::map<int,std::map<int,double> > Partition::getNode2NodeMap_V2()
@@ -6122,7 +6149,16 @@ std::map<int,Array<double>* > Partition::ReduceStateVecToAllVertices_V2(std::map
             Vert* VrtEl = itmd->second;
             double Vol  = elem2centVol[itmd->first];
             
-            double wi = sqrt((VrtEl->x-xcomp)*(VrtEl->x-xcomp)+(VrtEl->y-ycomp)*(VrtEl->y-ycomp)+(VrtEl->z-zcomp)*(VrtEl->z-zcomp));
+            //double error_r = fabs((VrtEl->x-xcomp)*(VrtEl->x-xcomp)+(VrtEl->y-ycomp)*(VrtEl->y-ycomp)+(VrtEl->z-zcomp)*(VrtEl->z-zcomp));
+            
+//            if(error_r<1.0e-05)
+//            {
+//                std::cout << "error_r " << error_r << std::endl;
+//            }
+            //double wi = 1.0;
+            double wi = sqrt((VrtEl->x-xcomp)*(VrtEl->x-xcomp)
+                            +(VrtEl->y-ycomp)*(VrtEl->y-ycomp)
+                            +(VrtEl->z-zcomp)*(VrtEl->z-zcomp));
                         
             if(UaddAdj.find(gEl)!=UaddAdj.end() && gEl<Nell)
             {

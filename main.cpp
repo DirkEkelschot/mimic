@@ -1062,7 +1062,7 @@ int main(int argc, char** argv)
     int nFaces                                      = tetra_distri->GetNBoundaryFaces();
     std::vector<Vert*> locVs                        = tetra_distri->GetLocalVertices();
     std::vector<int> faces4parmmg                   = tetra_distri->GetFaces4ParMMG();
-    std::map<int,int*> face2node                    = tetra_distri->GetFace2NodeMap();
+    std::map<int,std::vector<int> > face2node                    = tetra_distri->GetFace2NodeMap();
     std::map<int,std::vector<int> > face2element    = tetra_distri->GetFace2ElementMap();
     std::map<int,int> globV2locV                    = tetra_distri->GetGlobalVert2LocalVertMap();
     std::map<int,int> locV2globV                    = tetra_distri->GetLocalVert2GlobalVertMap();

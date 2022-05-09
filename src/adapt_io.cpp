@@ -2712,9 +2712,11 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
             vel_mean->setVal(u,1,vState);
             vel_mean->setVal(u,2,wState);
             VtotState = sqrt(uState*uState+vState*vState+wState*wState);
-            aState   = sqrt(1.4*287.05*TState);
+            //aState   = sqrt(1.4*287.05*TState);
+	    aState   = sqrt(1.29*188.92*TState);
             MState = VtotState/aState;
             interior->setVal(u,1,MState);
+	    //std::cout << "rhoState" << rhoState << " uState " << uState << " vState " << vState << " wState " << wState << " TState " << TState << " MState " << MState << std::endl;   
         }
         
         stats  = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_1","stats-stat",0,Nel,comm,info);
