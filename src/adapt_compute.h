@@ -75,7 +75,7 @@ void ComputeMetricWithWake(Partition* Pa, std::vector<double> metric_inputs,
 
 void ComputeMetric(Partition* Pa, std::vector<double> metric_inputs, MPI_Comm comm,
                    std::map<int,Array<double>* > &Hess_vm,
-                   double sumvol, double po, int recursive);
+                   double sumvol, double po, int recursive, int extended);
 
 Array<double>* ComputeFaceValues(Partition* P, Array<double>* U, MPI_Comm comm);
 

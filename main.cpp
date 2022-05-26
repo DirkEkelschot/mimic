@@ -532,33 +532,33 @@ int main(int argc, char** argv)
     
 //    std::map<int,Array<double>*> Uvaria_ref = ReadReferenceData2(world_rank);
 //
-//    std::map<int,Array<double>* >::iterator pltV;
-//    int correctVal = 0;
-//    int incorrectVal = 0;
+    std::map<int,Array<double>* >::iterator pltV;
+    int correctVal = 0;
+    int incorrectVal = 0;
     int nothere = 0;
-//    for(pltV=Uvaria_map.begin();pltV!=Uvaria_map.end();pltV++)
-//    {
-//        if(Uvaria_ref.find(pltV->first)!=Uvaria_ref.end())
-//        {
-//            double err = fabs(pltV->second->getVal(0,0)-Uvaria_ref[pltV->first]->getVal(0,0));
-//            if(err > 1.0e-05)
-//            {
-//                std::cout << std::setprecision(16) << " Uvaria_map "<< pltV->first << " " << pltV->second->getVal(0,0) << " " << Uvaria_ref[pltV->first]->getVal(0,0)  << " " << err << std::endl;
-//                incorrectVal++;
-//            }
-//            else
-//            {
-//                correctVal++;
-//            }
-//        }
-//        else
-//        {
-//            nothere++;
-//        }
-//    }
+    for(pltV=Uvaria_map.begin();pltV!=Uvaria_map.end();pltV++)
+    {
+        if(Uvaria_map2.find(pltV->first)!=Uvaria_map2.end())
+        {
+            double err = fabs(pltV->second->getVal(0,0)-Uvaria_map2[pltV->first]->getVal(0,0));
+            if(err > 1.0e-05)
+            {
+                std::cout << std::setprecision(16) << " Uvaria_map "<< pltV->first << " " << pltV->second->getVal(0,0) << " " << Uvaria_map2[pltV->first]->getVal(0,0)  << " " << err << std::endl;
+                incorrectVal++;
+            }
+            else
+            {
+                correctVal++;
+            }
+        }
+        else
+        {
+            nothere++;
+        }
+    }
 //
 //
-//    std::cout << "correct vs incorrect = " << world_rank << " " << correctVal << " " << nothere << " " << incorrectVal << "( " << Uvaria.size() << " " << Uvaria_map.size() << std::endl;
+    std::cout << "correct vs incorrect = " << world_rank << " " << correctVal << " " << nothere << " " << incorrectVal << "( " << Uvaria_map2.size() << " " << Uvaria_map.size() << std::endl;
 //
     //std::cout << "world rank " << world_rank <<  " " << Uvaria_map.size() << " " << Uvaria.size() << std::endl;
     
@@ -654,7 +654,7 @@ int main(int argc, char** argv)
         double po = 6.0;
         if(RunWakRefinement == 0)
         {
-            ComputeMetric(P,metric_inputs,comm,hess_vmap,1.0,po,recursive);
+            ComputeMetric(P,metric_inputs,comm,hess_vmap,1.0,po,recursive,extended);
 
         }
         if(RunWakRefinement == 1)
@@ -701,7 +701,9 @@ int main(int argc, char** argv)
         }
         if(extended == 0)
         {
-            dUdXi = ComputedUdx_LSQ_US3D(P,Uvaria_map,meshTopo,gbMap,comm);
+            dUdXi = ComputedUdx_LSQ_US3D(P,Uvaria_map2,meshTopo,gbMap,comm);
+//            dUdXi = ComputedUdx_LSQ_Vrt_US3D(P,Uvaria_map,Mvar_vmap,meshTopo,gbMap,comm);
+
         }
         
         P->AddStateVecForAdjacentElements(dUdXi,3,comm);
@@ -744,9 +746,14 @@ int main(int argc, char** argv)
         }
         if(extended == 0)
         {
+            
             dU2dXi2 = ComputedUdx_LSQ_US3D(P,dUidxi_map,meshTopo,gbMap,comm);
             dU2dYi2 = ComputedUdx_LSQ_US3D(P,dUidyi_map,meshTopo,gbMap,comm);
             dU2dZi2 = ComputedUdx_LSQ_US3D(P,dUidzi_map,meshTopo,gbMap,comm);
+            
+//            dU2dXi2 = ComputedUdx_LSQ_Vrt_US3D(P,dUidxi_map,dudx_vmap,meshTopo,gbMap,comm);
+//            dU2dYi2 = ComputedUdx_LSQ_Vrt_US3D(P,dUidyi_map,dudy_vmap,meshTopo,gbMap,comm);
+//            dU2dZi2 = ComputedUdx_LSQ_Vrt_US3D(P,dUidzi_map,dudz_vmap,meshTopo,gbMap,comm);
         }
         
         
@@ -790,7 +797,7 @@ int main(int argc, char** argv)
         
         if(RunWakRefinement == 0)
         {
-            ComputeMetric(P,metric_inputs,comm,hess_vmap,1.0,po,recursive);
+            ComputeMetric(P,metric_inputs,comm,hess_vmap,1.0,po,recursive,extended);
         }
         if(RunWakRefinement == 1)
         {
@@ -1284,7 +1291,9 @@ int main(int argc, char** argv)
     std::map<int,int> shell_g2l;
     std::vector<Vert*> unshellVin;
     std::vector<std::vector<int> > unshellTin;
-
+    int outflowFound = 0;
+    int inflowFound = 0;
+    int shellFound = 0;
     for ( k=0; k<nTriangles; ++k )
     {
         int faceID  = faces4parmmg[k];
@@ -1305,6 +1314,19 @@ int main(int argc, char** argv)
         else
         {
             refer   = 0;
+        }
+        
+        if(refer == 36)
+        {
+            outflowFound++;
+        }
+        if(refer == 10)
+        {
+            inflowFound++;
+        }
+        if(refer == 13)
+        {
+            shellFound++;
         }
         
         
@@ -1387,7 +1409,17 @@ int main(int argc, char** argv)
         }
     }
     
-    
+    int outflowFound_sum = 0;
+    int inflowFound_sum = 0;
+    int shellFound_sum = 0;
+    MPI_Allreduce(&outflowFound, &outflowFound_sum, 1, MPI_INT, MPI_SUM, comm);
+    MPI_Allreduce(&inflowFound, &inflowFound_sum, 1, MPI_INT, MPI_SUM, comm);
+    MPI_Allreduce(&shellFound, &shellFound_sum, 1, MPI_INT, MPI_SUM, comm);
+    if(world_rank == 0)
+    {
+        std::cout << " Outflow: " << outflowFound_sum << " Inflow: " << inflowFound_sum << " Shell: " << shellFound_sum << std::endl;
+
+    }
     
     if(unshellTin.size()!=0 && debug == 1)
     {

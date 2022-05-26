@@ -16,7 +16,7 @@ include(platforms_cmake/MacOSX_Dirk_work.cmake)
 
 #set(LIBRARY_OUTPUT_PATH lib/)
 
-set(SRC src/adapt_parops.cpp src/adapt_bltopology.cpp src/adapt_boundary.cpp src/adapt_output.cpp src/adapt_compute.cpp src/adapt_schedule.cpp src/adapt_operations.cpp src/hex2tet.cpp src/adapt_geometry.cpp src/adapt_math.cpp src/adapt_io.cpp src/adapt_recongrad.cpp src/adapt_topology.cpp src/adapt_partition.cpp main.cpp)
+set(SRC src/adapt_parops.cpp src/adapt_bltopology.cpp src/adapt_boundary.cpp src/adapt_output.cpp src/adapt_compute.cpp src/adapt_schedule.cpp src/adapt_operations.cpp src/hex2tet.cpp src/adapt_geometry.cpp src/adapt_math.cpp src/adapt_io.cpp src/adapt_recongrad.cpp src/adapt_topology.cpp src/adapt_partition.cpp src/adapt_prismaticlayer.cpp src/adapt_redistribute.cpp src/adapt_prismaticlayer.cpp src/adapt_parstate.cpp src/adapt_distri_parstate.cpp main.cpp)
 
 #set(EXECUTABLE_OUTPUT_PATH bin/)
 set(COMPILE_FLAGS ${COMPILE_FLAGS} ${MPI_COMPILE_FLAGS})

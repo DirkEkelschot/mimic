@@ -1295,7 +1295,7 @@ void ComputeMetricWithWake(Partition* Pa, std::vector<double> metric_inputs,
 void ComputeMetric(Partition* Pa, std::vector<double> metric_inputs,
                    MPI_Comm comm,
                    std::map<int,Array<double>* > &Hess_vm,
-                   double sumvol, double po, int recursive)
+                   double sumvol, double po, int recursive, int extended)
 {
     int size;
     MPI_Comm_size(comm, &size);
@@ -1321,7 +1321,7 @@ void ComputeMetric(Partition* Pa, std::vector<double> metric_inputs,
     {
         int glob_vid = itm->first;
         
-        if(recursive == 0)
+        if(recursive == 0 && extended == 1)
         {
             Hmet[0] = Hess_vm[glob_vid]->getVal(3,0);
             Hmet[1] = Hess_vm[glob_vid]->getVal(4,0);
@@ -1418,7 +1418,7 @@ void ComputeMetric(Partition* Pa, std::vector<double> metric_inputs,
         Habs->setVal(2,0,sumvol*detRf*Rf->getVal(2,0));
         Habs->setVal(2,1,sumvol*detRf*Rf->getVal(2,1));
         Habs->setVal(2,2,sumvol*detRf*Rf->getVal(2,2));
-/*        
+/*     
         Array<double>* Habs  = new Array<double>(3,3);
 	Habs->setVal(0,0,f*1.0);
         Habs->setVal(0,1,0.0);
@@ -1431,8 +1431,8 @@ void ComputeMetric(Partition* Pa, std::vector<double> metric_inputs,
         Habs->setVal(2,0,0.0);
         Habs->setVal(2,1,0.0);
         Habs->setVal(2,2,f*1.0);
+*/        
         
-  */      
         Hess_vm[glob_vid]=Habs;
         
    //     delete Rf;

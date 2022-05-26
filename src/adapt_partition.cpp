@@ -73,7 +73,7 @@ Partition::Partition(ParArray<int>* ien, ParArray<int>* iee, ParArray<int>* ief,
 
     std::vector<int> adjElemLayer = getAdjacentElementLayer(ien, Loc_Elem, Loc_Elem_Nf, iee_part_map->i_map, part, xcn, U, comm);
     
-    int nLayer = 1;
+    int nLayer = 4;
     
     //std::cout << "LocAndAdj_Elem.size() before " << rank << " " << LocAndAdj_Elem.size() << " " << iee_part_map->i_map.size() << std::endl;
     

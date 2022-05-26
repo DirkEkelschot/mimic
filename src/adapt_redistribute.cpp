@@ -291,7 +291,7 @@ void RedistributePartitionObject::RebasePartitionObject(
     }
 
     int nSharedVerts = UniqueSharedVertsOnRank.size();
-    std::cout << "nSharedVerts Check " << nSharedVerts << " " << nLocalVerts << " " << world_rank << std::endl;
+    
     DistributedParallelState* distSharedVerts = new DistributedParallelState(nSharedVerts,mpi_comm);
     
     int Nt_shVerts               = distSharedVerts->getNel();
@@ -807,7 +807,6 @@ void RedistributePartitionObject::RebasePartitionObject(
     int c       = 0;
     int if_ref  = 0;
     
-    std::cout << "optimalSize ori " << world_rank << " " << optimalSize << std::endl;
 
     Array<int>* new_GidEl   = new Array<int>(optimalSize,4);
     Array<int>* new_ien     = new Array<int>(optimalSize,4);
@@ -3101,7 +3100,6 @@ void RedistributePartitionObject::GetFace2RankTetrahedraMesh()
         m_ntifc[icomm]          = itc->second.size();
         m_ifc_tria_loc[icomm]   = (int *) malloc(itc->second.size()*sizeof(int));
         m_ifc_tria_glo[icomm]  = (int *) malloc(itc->second.size()*sizeof(int));
-        std::cout << world_rank << " " << itc->first << " " << itc->second.size() << " " << icomm << std::endl;
 
         for(int q=0;q<itc->second.size();q++)
         {
