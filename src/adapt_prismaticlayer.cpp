@@ -86,8 +86,8 @@ PrismaticLayer::PrismaticLayer(std::map<int,std::vector<int> > elements,
             {
                 ufaces.insert(gfid);
 
-                el0    = ife_part_map[gfid][0];
-                el1    = ife_part_map[gfid][1];
+//                el0    = ife_part_map[gfid][0];
+//                el1    = ife_part_map[gfid][1];
 
                 r0 	   = if_Erank_part_map[gfid][0];
                 r1 	   = if_Erank_part_map[gfid][1];

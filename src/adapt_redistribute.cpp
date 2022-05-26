@@ -225,8 +225,8 @@ void RedistributePartitionObject::RebasePartitionObject(
             {
                 ufaces.insert(gfid);
 
-                el0    = ife_part_map[gfid][0];
-                el1    = ife_part_map[gfid][1];
+//                el0    = ife_part_map[gfid][0];
+//                el1    = ife_part_map[gfid][1];
                 
                 r0 	   = iferank_part_map[gfid][0];
                 r1 	   = iferank_part_map[gfid][1];
@@ -300,6 +300,7 @@ void RedistributePartitionObject::RebasePartitionObject(
     
     int* TotalSharedVerts        = new int[Nt_shVerts];
     int* TotalSharedVerts_RankID = new int[Nt_shVerts];
+    
     int* TotalSharedFaces        = new int[Nt_shFaces];
     int* TotalSharedFaces_RankID = new int[Nt_shFaces];
     
@@ -1495,9 +1496,13 @@ void RedistributePartitionObject::RebasePartitionObject(
     delete[] old_ntets_red;
     delete[] toS;
     delete[] toR;
+    
+    delete[] nNonSharedArray;
     delete[] nNonSharedVertsArrayOff;
-    delete[] nNonSharedFacesArrayOff;
     delete[] NewGlobVertCountPerRank;
+    
+    delete[] nNonSharedFacesArray;
+    delete[] nNonSharedFacesArrayOff;
     delete[] NewGlobFaceCountPerRank;
     delete[] Psending;
     delete[] Nsending;
@@ -1542,7 +1547,11 @@ void RedistributePartitionObject::RebasePartitionObject(
         file3.close();
     }
     
+    delete[] TotalSharedVerts;
+    delete[] TotalSharedVerts_RankID;
     
+    delete[] TotalSharedFaces;
+    delete[] TotalSharedFaces_RankID;
     
     
 }
@@ -2147,12 +2156,6 @@ void RedistributePartitionObject::UpdateTetrahedraOnPartition(int nglob,
     
     int onrank_before = on_rank;
     int sum2 = 0;
-    
-    
-    
-    
-    
-    
     
     for(int i=0;i<TotNelem_recv;i++)
     {
@@ -2962,8 +2965,8 @@ void RedistributePartitionObject::GetFace2RankTetrahedraMesh()
     std::map<int,int> b2l_g;
     int Bvid=0,lBvid;
     int Svid=0,lSvid;
-    std::vector<Vert*> svs;
-    std::vector<Vert*> bvs;
+    //std::vector<Vert*> svs;
+    //std::vector<Vert*> bvs;
     std::map<int,int> v2ref;
     int ref;
     int f = 0;
@@ -3000,13 +3003,13 @@ void RedistributePartitionObject::GetFace2RankTetrahedraMesh()
 
                         lSvid = m_globV2locV[vid];
 
-                        Vert* sv = new Vert;
-                        sv->x = locVs[lSvid]->x;
-                        sv->y = locVs[lSvid]->y;
-                        sv->z = locVs[lSvid]->z;
+//                        Vert* sv = new Vert;
+//                        sv->x = locVs[lSvid]->x;
+//                        sv->y = locVs[lSvid]->y;
+//                        sv->z = locVs[lSvid]->z;
 
                         sface[u]=Svid;
-                        svs.push_back(sv);
+                        //svs.push_back(sv);
                         Svid++;
                     }
                     else
@@ -3052,13 +3055,13 @@ void RedistributePartitionObject::GetFace2RankTetrahedraMesh()
                         g2l_b[vid]   = Bvid;
                         b2l_g[Bvid]  = vid;
                         lBvid        = m_globV2locV[vid];
-                        Vert* bv     = new Vert;
-                        bv->x        = locVs[lBvid]->x;
-                        bv->y        = locVs[lBvid]->y;
-                        bv->z        = locVs[lBvid]->z;
+//                        Vert* bv     = new Vert;
+//                        bv->x        = locVs[lBvid]->x;
+//                        bv->y        = locVs[lBvid]->y;
+//                        bv->z        = locVs[lBvid]->z;
                         bface[u]     = Bvid;
                         
-                        bvs.push_back(bv);
+                        //bvs.push_back(bv);
                         Bvid++;
                     }
                     else
@@ -3309,6 +3312,11 @@ std::map<int,int> RedistributePartitionObject::GetShellTet2HybFaceMap()
             m_shell_tet2hyb[ftet_tot[i]] = fhyb_tot[i];
         }
     }
+    
+    delete[] ftet_tot;
+    delete[] fhyb_tot;
+    delete[] ftet_loc;
+    delete[] fhyb_loc;
     
     return m_shell_tet2hyb;
     

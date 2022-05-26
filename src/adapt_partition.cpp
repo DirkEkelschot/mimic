@@ -5517,6 +5517,7 @@ std::map<int,std::map<int,double> > Partition::getNode2NodeMap_V2()
     int gvidt,gvid,gel,Nv,Nf;
     Vert* V0 = new Vert;
     Vert* V1 = new Vert;
+
     
 //    int size;
 //    int rank;
@@ -5981,7 +5982,8 @@ std::map<int,std::map<int,double> > Partition::getNode2NodeMap_V2()
     
     //Get the vertices that are not overlapped:
     */
-    
+    delete V0;
+    delete V1;
     return node2node;
 }
 

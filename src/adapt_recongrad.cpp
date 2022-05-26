@@ -1745,6 +1745,8 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_HO_US3D(Partition* Pa, std::map<in
    }
     
     //std::cout << "nandet _ per rank " << world_rank << " :: " << nandet << " " << nandet2 << std::endl;
+    delete Vc;
+    delete Vadj;
     
    return dudx_map;
 }

@@ -532,33 +532,33 @@ int main(int argc, char** argv)
     
 //    std::map<int,Array<double>*> Uvaria_ref = ReadReferenceData2(world_rank);
 //
-    std::map<int,Array<double>* >::iterator pltV;
-    int correctVal = 0;
-    int incorrectVal = 0;
-    int nothere = 0;
-    for(pltV=Uvaria_map.begin();pltV!=Uvaria_map.end();pltV++)
-    {
-        if(Uvaria_map2.find(pltV->first)!=Uvaria_map2.end())
-        {
-            double err = fabs(pltV->second->getVal(0,0)-Uvaria_map2[pltV->first]->getVal(0,0));
-            if(err > 1.0e-05)
-            {
-                std::cout << std::setprecision(16) << " Uvaria_map "<< pltV->first << " " << pltV->second->getVal(0,0) << " " << Uvaria_map2[pltV->first]->getVal(0,0)  << " " << err << std::endl;
-                incorrectVal++;
-            }
-            else
-            {
-                correctVal++;
-            }
-        }
-        else
-        {
-            nothere++;
-        }
-    }
+//    std::map<int,Array<double>* >::iterator pltV;
+//    int correctVal = 0;
+//    int incorrectVal = 0;
+//    int nothere = 0;
+//    for(pltV=Uvaria_map.begin();pltV!=Uvaria_map.end();pltV++)
+//    {
+//        if(Uvaria_map2.find(pltV->first)!=Uvaria_map2.end())
+//        {
+//            double err = fabs(pltV->second->getVal(0,0)-Uvaria_map2[pltV->first]->getVal(0,0));
+//            if(err > 1.0e-05)
+//            {
+//                std::cout << std::setprecision(16) << " Uvaria_map "<< pltV->first << " " << pltV->second->getVal(0,0) << " " << Uvaria_map2[pltV->first]->getVal(0,0)  << " " << err << std::endl;
+//                incorrectVal++;
+//            }
+//            else
+//            {
+//                correctVal++;
+//            }
+//        }
+//        else
+//        {
+//            nothere++;
+//        }
+//    }
 //
 //
-    std::cout << "correct vs incorrect = " << world_rank << " " << correctVal << " " << nothere << " " << incorrectVal << "( " << Uvaria_map2.size() << " " << Uvaria_map.size() << std::endl;
+//    std::cout << "correct vs incorrect = " << world_rank << " " << correctVal << " " << nothere << " " << incorrectVal << "( " << Uvaria_map2.size() << " " << Uvaria_map.size() << std::endl;
 //
     //std::cout << "world rank " << world_rank <<  " " << Uvaria_map.size() << " " << Uvaria.size() << std::endl;
     
@@ -678,10 +678,7 @@ int main(int argc, char** argv)
 
     if(recursive == 1)
     {
-        if(world_rank == 0)
-        {
-            std::cout << "We are running conventional WLSqGR recursively..." << std::endl;
-        }
+        
         
         std::map<int,double> Volumes_tmp = meshTopo->getVol();
         std::map<int,double> Volumes;
@@ -697,10 +694,20 @@ int main(int argc, char** argv)
 
         if(extended == 1)
         {
+            if(world_rank == 0)
+            {
+                std::cout << "We are running WLSqGR recursively with an extended reconstruction scheme..." << std::endl;
+            }
+            
             dUdXi = ComputedUdx_LSQ_US3D_LargeStencil(P,Uvaria_map,meshTopo,gbMap,comm);
         }
         if(extended == 0)
         {
+            if(world_rank == 0)
+            {
+                std::cout << "We are running WLSqGR recursively with an conventional reconstruction scheme..." << std::endl;
+            }
+            
             dUdXi = ComputedUdx_LSQ_US3D(P,Uvaria_map2,meshTopo,gbMap,comm);
 //            dUdXi = ComputedUdx_LSQ_Vrt_US3D(P,Uvaria_map,Mvar_vmap,meshTopo,gbMap,comm);
 
@@ -993,15 +1000,6 @@ int main(int argc, char** argv)
                        hess_vmap[glob_vid]->getVal(1,1) << " " <<
                        hess_vmap[glob_vid]->getVal(1,2) << " " <<
                        hess_vmap[glob_vid]->getVal(2,2) << std::endl;
-            
-//            myfilet << LocVerts[loc_vid]->x << " " <<
-//                       LocVerts[loc_vid]->y << " " <<
-//                       LocVerts[loc_vid]->z << " " <<
-//                       Mvar_vmap[glob_vid]->getVal(0,0) << std::endl;
-
-    //        myfilet << LocVerts[loc_vid]->x << " " <<
-    //                   LocVerts[loc_vid]->y << " " <<
-    //                   LocVerts[loc_vid]->z << " " << std::endl;
         }
 
         std::map<int,std::vector<int> >::iterator itmm2;
@@ -1012,33 +1010,6 @@ int main(int argc, char** argv)
         }
 
         myfilet.close();
-        
-        
-        
-//        std::vector<std::vector<double> > refdata = ReadReferenceData(world_rank);
-//        
-//        std::ofstream myfilet2;
-//        myfilet2.open("compareValuesWrong_" + std::to_string(world_rank) + ".txt");
-//        for(int i=0;i<loc_part_verts.size();i++)
-//        {
-//            int loc_vid  = loc_part_verts[i];
-//            int glob_vid = lpartv2gv[loc_vid];
-//            int ref0     = (int) refdata[i][0]-loc_vid;
-//            int ref1     = (int) refdata[i][1]-glob_vid;
-//            double ref2  = refdata[i][2]-LocVerts[loc_vid]->x;
-//            double ref3  = refdata[i][3]-LocVerts[loc_vid]->y;
-//            double ref4  = refdata[i][4]-LocVerts[loc_vid]->z;
-//            double ref5  = refdata[i][5]-Mvar_vmap[glob_vid]->getVal(0,0);
-//            
-////            if(ref0 != 0 || ref1 !=0 && world_rank == 0)
-////            {
-////                std::cout << world_rank << " " << i << " " << ref0 << " " << ref1 << " " << ref2 << " " << ref3 << " " << ref4 << " " << ref5 <<std::endl;
-////            }
-//
-//            myfilet2 <<loc_vid << " " << glob_vid << " " << LocVerts[loc_vid]->x << " " << LocVerts[loc_vid]->y << " " << LocVerts[loc_vid]->z << " " << Mvar_vmap[glob_vid]->getVal(0,0)  << std::endl;
-//        }
-//        myfilet2.close();
-        
         
         delete P;
     }
@@ -1095,13 +1066,6 @@ int main(int argc, char** argv)
 
     std::map<int,std::vector<int> >::iterator bndtest;
     
-    //for(bndtest=bndref2face.begin();bndtest!=bndref2face.end();bndtest++)
-    //{
-    //    std::cout << "bcid => " << world_rank << " " << bndtest->first << " " << bndtest->second.size() << std::endl;
-    //}
-    
-    
-    
     std::map<int,int>::iterator itt;
     for(itt=shellvert2ref.begin();itt!=shellvert2ref.end();itt++)
     {
@@ -1146,7 +1110,7 @@ int main(int argc, char** argv)
     Array<double>* xcn_prisms_shared                        = prsmLyr->getSharedCoordinates();
     std::map<int,int> SharedVertsNotOwned                   = prsmLyr->getNotOwnedSharedVerticesMap();
     Array<int>* parmmg_iet_prisms                           = prsmLyr->getElementType();
-    std::map<int,int> sharedVmap                            = prsmLyr->getSharedVertexMap();
+    //std::map<int,int> sharedVmap                            = prsmLyr->getSharedVertexMap();
 
     
     DistributedParallelState* distPrismIntVerts = new DistributedParallelState(xcn_prisms_int->getNrow(),comm);
@@ -1162,10 +1126,7 @@ int main(int argc, char** argv)
         int Etettag   = itmm->second[0];
         int Eprismtag = itmm->second[1];
         int EprismNew = tag2element_shell[Eprismtag];
-        
-        
-        
-        
+    
         if(shellface2vertref.find(fhyb)!=shellface2vertref.end())
         {
             vertref2shell_prism[shellface2vertref[fhyb]] = EprismNew;
@@ -1178,27 +1139,6 @@ int main(int argc, char** argv)
         
         nshell++;
     }
-    
-//    if(world_rank == 0)
-//    {
-//        int foundU2 = 0;
-//        std::map<int,std::set<int> >::iterator itmms;
-//        for(itmms=shellface2vertref.begin();itmms!=shellface2vertref.end();itmms++)
-//        {
-//            int fhyb      = itmms->first;
-//
-//            if(ushell.find(fhyb)!=ushell.end())
-//            {
-//                foundU2++;
-//            }
-//            else
-//            {
-//               std::cout << "Fhyb NotFound Reverse Test-> " << fhyb << " " << world_rank  << std::endl;
-//            }
-//
-//            //nshell++;
-//        }
-//    }
     
     
     clock_t t1_redis = clock();
@@ -1276,7 +1216,7 @@ int main(int argc, char** argv)
     int teller = 0;
     int refer  = 0;
     int cref36 = 0;
-    double* c0 = new double[3];
+    //double* c0 = new double[3];
     int iref;
     int c13 = 0;
     int suc = 0;
@@ -1341,7 +1281,7 @@ int main(int argc, char** argv)
         
         if(refer == 13)
         {
-            flippie = -1;
+            //flippie = -1;
             double testerr;
             double testerrStored;
             if(shell_tet2hybF.find(faceID)!=shell_tet2hybF.end())
@@ -1356,7 +1296,7 @@ int main(int argc, char** argv)
                     std::set<int> sf = shellface2vertref[facetag];
                     int inde = -1;
                     std::set<int> sft_t;
-                    flippie = -1;
+                    //flippie = -1;
                     std::vector<int> row(3);
                     for(int u=0;u<3;u++)
                     {
@@ -1364,7 +1304,8 @@ int main(int argc, char** argv)
                         int vid = face2node[faceID][u];
                         row[u] = vid;
                         int vidg = globV2locV[vid];
-                        double* c0 = new double[3];
+                        //double* c0 = new double[3];
+                        std::vector<double> c0(3);
                         c0[0] = locVs[vidg]->x;
                         c0[1] = locVs[vidg]->y;
                         c0[2] = locVs[vidg]->z;
@@ -1392,6 +1333,7 @@ int main(int argc, char** argv)
                         MPI_Finalize();
                         exit(EXIT_FAILURE);
                         }
+                        
                         
                         //PMMG_Set_vertex( parmesh, c0[0], c0[1], c0[2], vertref, vidg+1 );
 
@@ -1452,53 +1394,38 @@ int main(int argc, char** argv)
         myfile_INP.close();
     }
     
+//    DistributedParallelState* sucDist = new DistributedParallelState(suc,comm);
     
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    DistributedParallelState* sucDist = new DistributedParallelState(suc,comm);
-    
-    double* vertIN = new double[nVertices*3];
-    int* refIN = new int[nVertices];
-    int *requiredIN = (int*)calloc(MAX4(nVertices,nTetrahedra,nTriangles,nEdges),sizeof(int));
-
-    int *cornerIN = (int*)calloc(nVertices,sizeof(int));
-    int foundRrefIN    = 0;
-    std::vector<int> rfIN;
-    std::map<int,int> frfIN;
-    std::map<int,std::vector<double> > ref2coordinates;
-    for ( k=0; k<nVertices; k++ )
-    {
-          int pos = 3*k;
-          if ( PMMG_Get_vertex(parmesh,&(vertIN[pos]),&(vertIN[pos+1]),&(vertIN[pos+2]),
-                               &(refIN[k]),&(cornerIN[k]),&(requiredIN[k])) != 1 ) {
-            fprintf(inm,"Unable to get mesh vertex %d \n",k);
-            ier = PMMG_STRONGFAILURE;
-          }
-        int refi = refIN[k];
-        if(refi != -20 && refi != 0)
-        {
-            std::vector<double> coords(3);
-            coords[0] = vertIN[pos];
-            coords[1] = vertIN[pos+1];
-            coords[2] = vertIN[pos+2];
-            ref2coordinates[refi] = coords;
-        }
-        
-        
-        
-        
-    }
+//    double* vertIN = new double[nVertices*3];
+//    int* refIN = new int[nVertices];
+//    int *requiredIN = (int*)calloc(MAX4(nVertices,nTetrahedra,nTriangles,nEdges),sizeof(int));
+//
+//    int *cornerIN = (int*)calloc(nVertices,sizeof(int));
+//    int foundRrefIN    = 0;
+//    std::vector<int> rfIN;
+//    std::map<int,int> frfIN;
+//    std::map<int,std::vector<double> > ref2coordinates;
+//    for ( k=0; k<nVertices; k++ )
+//    {
+//          int pos = 3*k;
+//          if ( PMMG_Get_vertex(parmesh,&(vertIN[pos]),&(vertIN[pos+1]),&(vertIN[pos+2]),
+//                               &(refIN[k]),&(cornerIN[k]),&(requiredIN[k])) != 1 ) {
+//            fprintf(inm,"Unable to get mesh vertex %d \n",k);
+//            ier = PMMG_STRONGFAILURE;
+//          }
+//        int refi = refIN[k];
+//        if(refi != -20 && refi != 0)
+//        {
+//            std::vector<double> coords(3);
+//            coords[0] = vertIN[pos];
+//            coords[1] = vertIN[pos+1];
+//            coords[2] = vertIN[pos+2];
+//            ref2coordinates[refi] = coords;
+//        }
+//    }
         
     
-    std::map<int,std::vector<double> > ref2coordsAll = AllGatherMapDoubleVec(ref2coordinates,comm);
+    //std::map<int,std::vector<double> > ref2coordsAll = AllGatherMapDoubleVec(ref2coordinates,comm);
 
     
     
@@ -1742,7 +1669,7 @@ int main(int argc, char** argv)
     std::vector<std::vector<int> > outT;
     
     double *vertOUT = (double*)calloc((nVerticesOUT)*3,sizeof(double));
-    std::map<int,std::vector<double> > ref2coordinatesOUT;
+    //std::map<int,std::vector<double> > ref2coordinatesOUT;
     for ( k=0; k<nVerticesOUT; k++ )
     {
           pos = 3*k;
@@ -2392,6 +2319,11 @@ int main(int argc, char** argv)
             }
         }
         
+        delete[] OwnedVertsDistri;
+        delete[] OwnedVertsDistriRank;
+        delete[] PMMG_SharedVertsOwned_arr;
+        delete[] PMMG_SharedVertsOwnedRank_arr;
+        
         std::map<int,std::vector<int> > ActualOwnedVertDistr_map_update;
 
         std::map<int,std::vector<int> >::iterator itm;
@@ -2685,7 +2617,7 @@ int main(int argc, char** argv)
             delete[] P;
         }
        
-        
+        delete[] refTET;
         
         PMMG_Free_all(PMMG_ARG_start,
                       PMMG_ARG_ppParMesh,&parmesh,
@@ -3064,9 +2996,9 @@ int main(int argc, char** argv)
             }
         }
         
-        DistributedParallelState* rhafter  = new DistributedParallelState(rh.size(),comm);
-        DistributedParallelState* lhafter  = new DistributedParallelState(lh.size(),comm);
-        DistributedParallelState* adjafter = new DistributedParallelState(adjElements.size(),comm);
+        //DistributedParallelState* rhafter  = new DistributedParallelState(rh.size(),comm);
+        //DistributedParallelState* lhafter  = new DistributedParallelState(lh.size(),comm);
+        //DistributedParallelState* adjafter = new DistributedParallelState(adjElements.size(),comm);
         
         int nothere =  0;
         int elLh    = -1;

@@ -3,7 +3,7 @@
 cmake_minimum_required(VERSION 3.1...3.16)
 
 # set the project name and version
-project(ADAPT VERSION 1.0)
+project(MIMIC VERSION 1.0)
 
 
 # specify the C++ standard
