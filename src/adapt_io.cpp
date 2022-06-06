@@ -164,7 +164,7 @@ void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh, MMG5_pSol mmgSol, US3D* us3d)
     hid_t plist_id = H5Pcreate(H5P_FILE_ACCESS);
     plist_id               = H5P_DEFAULT;
     //H5Pset_fapl_mpio(plist_id, comm, info);
-    hid_t file_id = H5Fcreate("grid_madam.h5", H5F_ACC_TRUNC, H5P_DEFAULT, plist_id);
+    hid_t file_id = H5Fcreate("grid.h5", H5F_ACC_TRUNC, H5P_DEFAULT, plist_id);
     H5Pclose(plist_id);
     hid_t status;
     hid_t att_space;
@@ -1306,7 +1306,7 @@ void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh,MMG5_pSol mmgSol, US3D* us3d)
     hid_t plist_id = H5Pcreate(H5P_FILE_ACCESS);
     plist_id               = H5P_DEFAULT;
     //H5Pset_fapl_mpio(plist_id, comm, info);
-    hid_t file_id = H5Fcreate("grid_madam.h5", H5F_ACC_TRUNC, H5P_DEFAULT, plist_id);
+    hid_t file_id = H5Fcreate("grid.h5", H5F_ACC_TRUNC, H5P_DEFAULT, plist_id);
     H5Pclose(plist_id);
     hid_t status;
     hid_t att_space;

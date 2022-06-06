@@ -1,10 +1,558 @@
 #include "adapt_bltopology.h"
 
 
-BLShellInfo* FindOuterShellBoundaryLayerMesh(int wall_id, int nLayer,
-                            Array<double>* xcn_g, Array<int>* ien_g,
+BLShellInfo* GetBoundaryLayerVolume(int wall_id, int nLayer,
+                                    Array<double>* xcn_g, Array<int>* ien_g, Array<int>* iee_g,
+                                    Array<int>* ief_g, Array<int>* ife_g, Array<int>* ifn_g,
+                                    std::map<int,std::vector<int> > bnd_face_map,
+                                    std::map<int,int> vert_ref_map, MPI_Comm comm)
+{
+    BLShellInfo* BLinfo = new BLShellInfo;
+    BLinfo->ShellRef = new Array<int>(xcn_g->getNrow(),1);
+    int te1=0;
+    int te2=0;
+    int te3=0;
+    for(int i=0;i<xcn_g->getNrow();i++)
+    {
+        if(vert_ref_map.find(i)!=vert_ref_map.end())
+        {
+            BLinfo->ShellRef->setVal(i,0,100+vert_ref_map[i]);
+        }
+        else
+        {
+            BLinfo->ShellRef->setVal(i,0,-3);
+        }
+    }
+    
+    std::vector<std::vector<int> > outer_shell_elements;
+    int world_size;
+    MPI_Comm_size(comm, &world_size);
+    // Get the rank of the process
+    int world_rank;
+    MPI_Comm_rank(comm, &world_rank);
+
+    std::vector<double> dp(6);
+    std::vector<Vec3D*> dpvec(6);
+    //std::cout << "Determining outer shell of BL mesh..." << std::endl;
+    clock_t start;
+    start = std::clock();
+    int* Pijk_id = new int[8];
+    double* Pijk = new double[8*3];
+    int elid_cur,elid_next;
+    int t=0;
+    int loc_vid;
+    int bvid,opposite_bvid;
+    int bvid_b;
+    int fv1_b;
+    int fv2_b;
+    int fv3_b;
+    int glob_el_id = 0;
+    Vert* Vface2  = new Vert;
+    Vec3D* r00 = new Vec3D;
+    Vec3D* v00 = new Vec3D;
+    Vec3D* v11 = new Vec3D;
+    Vert* Vface  = new Vert;
+    Vert* V  = new Vert;
+    int nbface = 0;
+    Vec3D* NextFace2OriginalElem = new Vec3D;
+    Vec3D* NextElem2OriginalFace = new Vec3D;
+    Vert* VadjMinAngle = new Vert;
+    int elprev = -1;
+    int pfid = -1;
+    int j;
+    int fid;
+    for(int bf=0;bf<bnd_face_map[wall_id].size();bf++)
+    {
+        std::vector<int> layer;
+
+        int bfaceid = bnd_face_map[wall_id][bf];
+        int faceid  = bfaceid;
+        int elid0   = ife_g->getVal(faceid,0);
+        int elid1   = ife_g->getVal(faceid,1);
+
+        if(elid0<ien_g->getNrow())
+        {
+            elid_cur = elid0;
+        }
+        else
+        {
+            elid_cur = elid1;
+        }
+        
+        for(int c=0;c<nLayer;c++)
+        {
+            for(int j=0;j<6;j++)
+            {
+                int testface_id = ief_g->getVal(elid_cur,j);
+                
+                if(testface_id == faceid)
+                {
+                    fid = j;
+                }
+            }
+            
+            if(fid==0)
+            {
+                pfid = 1;
+            }
+            if(fid==1)
+            {
+                pfid = 0;
+            }
+            if(fid==2)
+            {
+                pfid = 3;
+            }
+            if(fid==3)
+            {
+                pfid = 2;
+            }
+            if(fid==4)
+            {
+                pfid = 5;
+            }
+            if(fid==5)
+            {
+                pfid = 4;
+            }
+            
+            int elnext = iee_g->getVal(elid_cur,pfid);
+            
+            elid_cur = elnext;
+            
+            layer.push_back(elid_cur);
+        }
+        
+        
+        
+        
+        
+        BLinfo->BLlayers[bfaceid]=layer;
+        if(layer.size()!=21)
+        {
+            std::cout << "layers = " << layer.size() << " :: ";
+            for(int t=0;t<layer.size();t++)
+            {
+                std::cout << layer[t] << " ";
+            }
+            std::cout << std::endl;
+        }
+        
+        
+    }
+    
+//    delete[] Pijk;
+//    delete[] Pijk_id;
+//
+//    delete r00;
+//    delete v00;
+//    delete v11;
+//    delete Vface2;
+//    delete Vface;
+//    delete V;
+    
+    double duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
+    std::cout << "Timing extracting outer shell BL mesh = " << duration << std::endl;
+    std::map<int,std::vector<int> >::iterator itt;
+    
+    std::cout << "before " << BLinfo->elements_set.size() << std::endl;
+
+    for(itt=BLinfo->BLlayers.begin();itt!=BLinfo->BLlayers.end();itt++)
+    {
+        //std::cout << itt->first << " :: " << itt->second.size() <<  " == ";
+        
+        for(int q=0;q<itt->second.size();q++)
+        {
+            if(BLinfo->elements_set.find(itt->second[q])==BLinfo->elements_set.end())
+            {
+                BLinfo->elements_set.insert(itt->second[q]);
+                //std::cout << itt->second[q] << ", ";
+            }
+        }
+        //std::cout << endl;
+    }
+
+    std::cout << "after " << BLinfo->elements_set.size() << std::endl;
+    return BLinfo;
+}
+
+
+BLShellInfo* FindOuterShellBoundaryLayerMesh_V2(int wall_id, int nLayer,
+                            Array<double>* xcn_g, Array<int>* ien_g, Array<int>* iee_g,
                             Array<int>* ief_g, Array<int>* ife_g, Array<int>* ifn_g,
-                            ParallelState* xcn_pstate, ParallelState* ien_pstate,
+                            std::map<int,std::vector<int> > bnd_face_map,
+                            std::map<int,int> vert_ref_map, MPI_Comm comm)
+{
+    BLShellInfo* BLinfo = new BLShellInfo;
+    BLinfo->ShellRef = new Array<int>(xcn_g->getNrow(),1);
+    int te1=0;
+    int te2=0;
+    int te3=0;
+    for(int i=0;i<xcn_g->getNrow();i++)
+    {
+        
+        BLinfo->ShellRef->setVal(i,0,3);
+
+        
+//        if(vert_ref_map.find(i)!=vert_ref_map.end())
+//        {
+//            BLinfo->ShellRef->setVal(i,0,100+vert_ref_map[i]);
+//        }
+//        else
+//        {
+//            BLinfo->ShellRef->setVal(i,0,-3);
+//        }
+    }
+    
+    std::vector<std::vector<int> > outer_shell_elements;
+    int world_size;
+    MPI_Comm_size(comm, &world_size);
+    // Get the rank of the process
+    int world_rank;
+    MPI_Comm_rank(comm, &world_rank);
+
+    std::vector<double> dp(6);
+    std::vector<Vec3D*> dpvec(6);
+    //std::cout << "Determining outer shell of BL mesh..." << std::endl;
+    clock_t start;
+    start = std::clock();
+    int* Pijk_id = new int[8];
+    double* Pijk = new double[8*3];
+    int elid_cur,elid_next;
+    int t=0;
+    int loc_vid;
+    int bvid,opposite_anchor;
+    int bvid_b;
+
+    int glob_el_id = 0;
+    Vert* Vface2  = new Vert;
+    Vec3D* r00 = new Vec3D;
+    Vec3D* v00 = new Vec3D;
+    Vec3D* v11 = new Vec3D;
+    Vert* Vface  = new Vert;
+    Vert* V  = new Vert;
+    int nbface = 0;
+    Vec3D* NextFace2OriginalElem = new Vec3D;
+    Vec3D* NextElem2OriginalFace = new Vec3D;
+    Vert* VadjMinAngle = new Vert;
+    int elprev = -1;
+    //for(int bf=0;bf<1;bf++)
+    int check_f_id;
+    int pfid;
+    int fv0_b;
+    int fv1_b;
+    int fv2_b;
+    int fv3_b;
+    std::vector<int> bface_vertids(4);
+    std::cout << "Extracting started  " << bnd_face_map[wall_id].size() << std::endl;
+    for(int bf=0;bf<bnd_face_map[wall_id].size();bf++)
+    {
+
+        int bfaceid = bnd_face_map[wall_id][bf];
+        int faceid  = bfaceid;
+        int elid0   = ife_g->getVal(faceid,0);
+        int elid1   = ife_g->getVal(faceid,1);
+
+        fv1_b = ifn_g->getVal(faceid,1);
+        fv2_b = ifn_g->getVal(faceid,2);
+        fv3_b = ifn_g->getVal(faceid,3);
+        
+        if(elid0<ien_g->getNrow())
+        {
+            elid_cur = elid0;
+        }
+        else
+        {
+            elid_cur = elid1;
+        }
+        
+        BLinfo->BLlayers[bfaceid].push_back(elid_cur);
+        
+        Vert* VoriginalElem = new Vert;
+        VoriginalElem->x = 0.0;
+        VoriginalElem->y = 0.0;
+        VoriginalElem->z = 0.0;
+        
+        for(int k=0;k<8;k++)
+        {
+            loc_vid     = ien_g->getVal(elid_cur,k);
+            VoriginalElem->x = VoriginalElem->x+xcn_g->getVal(loc_vid,0);
+            VoriginalElem->y = VoriginalElem->y+xcn_g->getVal(loc_vid,1);
+            VoriginalElem->z = VoriginalElem->z+xcn_g->getVal(loc_vid,2);
+        }
+
+        VoriginalElem->x = VoriginalElem->x/8.0;
+        VoriginalElem->y = VoriginalElem->y/8.0;
+        VoriginalElem->z = VoriginalElem->z/8.0;
+        
+        Vert* VoriginalFace = new Vert;
+        VoriginalFace->x = 0.0;
+        VoriginalFace->y = 0.0;
+        VoriginalFace->z = 0.0;
+        //std::cout << "face = ";
+        std::vector<Vert*> face;
+        std::vector<Vert*> face_turned(4);
+        for(int k=0;k<4;k++)
+        {
+            loc_vid = ifn_g->getVal(faceid,k);
+
+            VoriginalFace->x = VoriginalFace->x+xcn_g->getVal(loc_vid,0);
+            VoriginalFace->y = VoriginalFace->y+xcn_g->getVal(loc_vid,1);
+            VoriginalFace->z = VoriginalFace->z+xcn_g->getVal(loc_vid,2);
+            
+            Vert* V  = new Vert;
+
+            V->x = xcn_g->getVal(loc_vid,0);
+            V->y = xcn_g->getVal(loc_vid,1);
+            V->z = xcn_g->getVal(loc_vid,2);
+            
+            face.push_back(V);
+        }
+        
+        VoriginalFace->x = VoriginalFace->x/4.0;
+        VoriginalFace->y = VoriginalFace->y/4.0;
+        VoriginalFace->z = VoriginalFace->z/4.0;
+        int bvid_b       = ifn_g->getVal(faceid,0);
+        int anchor_vert  = bvid_b;
+        std::set<int> conn_anchor;
+        conn_anchor.insert(ifn_g->getVal(faceid,0));
+        conn_anchor.insert(ifn_g->getVal(faceid,1));
+        conn_anchor.insert(ifn_g->getVal(faceid,3));
+        
+        bface_vertids[0] = ifn_g->getVal(faceid,0);
+        bface_vertids[1] = ifn_g->getVal(faceid,1);
+        bface_vertids[2] = ifn_g->getVal(faceid,2);
+        bface_vertids[3] = ifn_g->getVal(faceid,3);
+        
+        Vec3D* r0 = new Vec3D;
+        r0->c0 = (VoriginalFace->x-VoriginalElem->x);
+        r0->c1 = (VoriginalFace->y-VoriginalElem->y);
+        r0->c2 = (VoriginalFace->z-VoriginalElem->z);
+        Vec3D* v0 = new Vec3D;
+        v0->c0 = face[1]->x-face[0]->x;
+        v0->c1 = face[1]->y-face[0]->y;
+        v0->c2 = face[1]->z-face[0]->z;
+        Vec3D* v1 = new Vec3D;
+        v1->c0 = face[3]->x-face[0]->x;
+        v1->c1 = face[3]->y-face[0]->y;
+        v1->c2 = face[3]->z-face[0]->z;
+        Vec3D* nbf     = ComputeSurfaceNormal(v0,v1);
+        double orient0 = DotVec3D(r0,nbf);
+        
+        if(orient0<0.0)
+        {
+            NegateVec3D(nbf);
+            face_turned[0] = face[0];
+            face_turned[1] = face[3];
+            face_turned[2] = face[2];
+            face_turned[3] = face[1];
+        }
+        else
+        {
+            face_turned[0] = face[0];
+            face_turned[1] = face[1];
+            face_turned[2] = face[2];
+            face_turned[3] = face[3];
+        }
+        face.clear();
+        
+        int copy_bface = bfaceid;
+
+        for(int c=0;c<nLayer;c++)
+        {
+            
+            std::map<int,std::set<int> > local_node2node_element;
+            std::vector<std::map<int,std::set<int> > > local_node2node_face(6);
+            std::vector<std::map<int,int> > local_node2opponode_face(6);
+            
+            for(int k=0;k<6;k++)
+            {
+                int el_adj_id  = iee_g->getVal(elid_cur,k);
+                
+                int face_id = ief_g->getVal(elid_cur,k);
+ 
+                if(face_id == copy_bface)
+                {
+                    check_f_id = k;
+                }
+                
+                local_node2node_element[ifn_g->getVal(face_id,0)].insert(ifn_g->getVal(face_id,1));
+                local_node2node_element[ifn_g->getVal(face_id,0)].insert(ifn_g->getVal(face_id,3));
+                local_node2node_element[ifn_g->getVal(face_id,1)].insert(ifn_g->getVal(face_id,0));
+                local_node2node_element[ifn_g->getVal(face_id,1)].insert(ifn_g->getVal(face_id,2));
+                local_node2node_element[ifn_g->getVal(face_id,2)].insert(ifn_g->getVal(face_id,1));
+                local_node2node_element[ifn_g->getVal(face_id,2)].insert(ifn_g->getVal(face_id,3));
+                local_node2node_element[ifn_g->getVal(face_id,3)].insert(ifn_g->getVal(face_id,2));
+                local_node2node_element[ifn_g->getVal(face_id,3)].insert(ifn_g->getVal(face_id,0));
+                
+                local_node2node_face[k][ifn_g->getVal(face_id,0)].insert(ifn_g->getVal(face_id,1));
+                local_node2node_face[k][ifn_g->getVal(face_id,0)].insert(ifn_g->getVal(face_id,3));
+                local_node2node_face[k][ifn_g->getVal(face_id,1)].insert(ifn_g->getVal(face_id,0));
+                local_node2node_face[k][ifn_g->getVal(face_id,1)].insert(ifn_g->getVal(face_id,2));
+                local_node2node_face[k][ifn_g->getVal(face_id,2)].insert(ifn_g->getVal(face_id,1));
+                local_node2node_face[k][ifn_g->getVal(face_id,2)].insert(ifn_g->getVal(face_id,3));
+                local_node2node_face[k][ifn_g->getVal(face_id,3)].insert(ifn_g->getVal(face_id,2));
+                local_node2node_face[k][ifn_g->getVal(face_id,3)].insert(ifn_g->getVal(face_id,0));
+                
+                local_node2opponode_face[k][ifn_g->getVal(face_id,0)]=ifn_g->getVal(face_id,2);
+                local_node2opponode_face[k][ifn_g->getVal(face_id,1)]=ifn_g->getVal(face_id,3);
+                local_node2opponode_face[k][ifn_g->getVal(face_id,2)]=ifn_g->getVal(face_id,0);
+                local_node2opponode_face[k][ifn_g->getVal(face_id,3)]=ifn_g->getVal(face_id,1);
+            }
+            
+            std::set<int>::iterator its;
+            for(its=local_node2node_element[anchor_vert].begin();
+                its!=local_node2node_element[anchor_vert].end();
+                its++)
+            {
+                if(conn_anchor.find(*its)==conn_anchor.end())
+                {
+                    opposite_anchor = *its;
+                }
+            }
+            
+            switch(check_f_id) {
+                case 0:
+                    pfid = 1;
+                    break;
+                case 1:
+                    pfid = 0;
+                    break;
+                case 2:
+                    pfid = 3;
+                    break;
+                case 3:
+                    pfid = 2;
+                    break;
+                case 4:
+                    pfid = 5;
+                    break;
+                case 5:
+                    pfid = 4;
+                    break;
+                default :
+                    cout << "Error in determining opposite face in FindOuterShellBoundaryLayerMesh_V2()." << endl;
+            }
+            
+            int max_index       = pfid;
+            int elpicked        = iee_g->getVal(elid_cur,max_index);
+            int fapicked        = ief_g->getVal(elid_cur,max_index);
+        
+            std::map<int,std::set<int> > node2node_face = local_node2node_face[max_index];
+            std::set<int>::iterator itu;
+            std::vector<int>opposite_tri(3);
+            opposite_tri[0] = opposite_anchor;
+            int l = 1;
+            int iser = 0;
+            if(node2node_face.find(opposite_anchor)!=node2node_face.end())
+            {
+                iser = 1;
+            }
+            
+            //std::cout << "check c again " << c << " " << node2node_face.size() << " " << iser << " " << max_index << std::endl;
+
+            for(itu=node2node_face[opposite_anchor].begin();
+                itu!=node2node_face[opposite_anchor].end();
+                itu++)
+            {
+                opposite_tri[l] = *itu;
+                //std::cout << "c - nlayer = opposite_anchor " << opposite_anchor << " " << opposite_tri[l] << " " << l << " c = "<< c << " " << nLayer << " node2node_face " << node2node_face.size() << std::endl;
+                
+                l++;
+            }
+            
+            if(c<nLayer-1)
+            {
+                BLinfo->BLlayers[bfaceid].push_back(elpicked);
+            }
+            
+            if(c==nLayer-1)
+            {
+                for(int u=0;u<4;u++)
+                {
+                    int vInterFaceID              = ifn_g->getVal(fapicked,u);
+                    BLinfo->shellVrts.insert(vInterFaceID);
+                }
+                
+                int fid_new = fapicked;
+                BLinfo->ShellRef->setVal(ifn_g->getVal(fid_new,0),0,999);
+                BLinfo->ShellRef->setVal(ifn_g->getVal(fid_new,1),0,999);
+                BLinfo->ShellRef->setVal(ifn_g->getVal(fid_new,2),0,999);
+                BLinfo->ShellRef->setVal(ifn_g->getVal(fid_new,3),0,999);
+                
+                std::set<int> ShellTri0;
+                ShellTri0.insert(ifn_g->getVal(fid_new,0));
+                ShellTri0.insert(ifn_g->getVal(fid_new,1));
+                ShellTri0.insert(ifn_g->getVal(fid_new,3));
+                BLinfo->ShellTri2FaceID[ShellTri0] = fid_new;
+                std::set<int> ShellTri1;
+                ShellTri1.insert(ifn_g->getVal(fid_new,1));
+                ShellTri1.insert(ifn_g->getVal(fid_new,2));
+                ShellTri1.insert(ifn_g->getVal(fid_new,3));
+                BLinfo->ShellTri2FaceID[ShellTri1] = fid_new;
+                std::set<int> ShellTri2;
+                ShellTri2.insert(ifn_g->getVal(fid_new,0));
+                ShellTri2.insert(ifn_g->getVal(fid_new,1));
+                ShellTri2.insert(ifn_g->getVal(fid_new,2));
+                BLinfo->ShellTri2FaceID[ShellTri2] = fid_new;
+                std::set<int> ShellTri3;
+                ShellTri3.insert(ifn_g->getVal(fid_new,2));
+                ShellTri3.insert(ifn_g->getVal(fid_new,3));
+                ShellTri3.insert(ifn_g->getVal(fid_new,0));
+                BLinfo->ShellTri2FaceID[ShellTri3] = fid_new;
+                
+                BLinfo->ShellFace2BFace[fid_new] = bfaceid;
+                BLinfo->BFace2ShellFace[bfaceid] = fid_new;
+                
+                std::map<int,int> opposite_verts;
+                opposite_verts[opposite_tri[0]]  = bvid_b;
+                opposite_verts[opposite_tri[1]]  = fv1_b;
+                opposite_verts[opposite_tri[2]]  = fv3_b;
+                opposite_verts[local_node2opponode_face[max_index][opposite_anchor]]  = fv2_b;
+                
+                //std::cout << "opposite_verts (" << opposite_tri[0] << ", " << opposite_verts[opposite_tri[0]] << ") " << " (" << opposite_tri[1] << " " << opposite_verts[opposite_tri[1]] << ") (" << opposite_tri[2] << " " << opposite_verts[opposite_tri[2]] << ") " << std::endl;
+                
+                BLinfo->ShellFace2ShellVert2OppositeBoundaryVerts[fid_new] = opposite_verts;
+                
+            }
+            
+            anchor_vert = opposite_tri[0];
+            
+            conn_anchor.clear();
+            //bvid = opposite_tri[0];
+            conn_anchor.insert(opposite_tri[1]);
+            conn_anchor.insert(opposite_tri[2]);
+            
+            local_node2node_element.clear();
+            local_node2node_face.clear();
+            local_node2opponode_face.clear();
+            
+            copy_bface = fapicked;
+            elid_cur   = elpicked;
+        }
+    }
+
+    double duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
+    std::cout << "Timing extracting outer shell BL mesh = " << duration << std::endl;
+    std::map<int,std::vector<int> >::iterator itt;
+    
+    for(itt=BLinfo->BLlayers.begin();itt!=BLinfo->BLlayers.end();itt++)
+    {
+        for(int q=0;q<itt->second.size();q++)
+        {
+            if(BLinfo->elements_set.find(itt->second[q])==BLinfo->elements_set.end())
+            {
+                BLinfo->elements_set.insert(itt->second[q]);
+            }
+        }
+    }
+
+    return BLinfo;
+}
+
+BLShellInfo* FindOuterShellBoundaryLayerMesh(int wall_id, int nLayer,
+                            Array<double>* xcn_g, Array<int>* ien_g, Array<int>* iee_g,
+                            Array<int>* ief_g, Array<int>* ife_g, Array<int>* ifn_g,
                             std::map<int,std::vector<int> > bnd_face_map,
                             std::map<int,int> vert_ref_map, MPI_Comm comm)
 {
@@ -54,10 +602,17 @@ BLShellInfo* FindOuterShellBoundaryLayerMesh(int wall_id, int nLayer,
     Vec3D* v11 = new Vec3D;
     Vert* Vface  = new Vert;
     Vert* V  = new Vert;
-
+    int nbface = 0;
+    Vec3D* NextFace2OriginalElem = new Vec3D;
+    Vec3D* NextElem2OriginalFace = new Vec3D;
+    Vert* VadjMinAngle = new Vert;
+    int elprev = -1;
+    //for(int bf=0;bf<1;bf++)
+    int check_f_id;
+    int pfid;
+    std::cout << "Extracting started  " << bnd_face_map[wall_id].size() << std::endl;
     for(int bf=0;bf<bnd_face_map[wall_id].size();bf++)
     {
-        std::vector<int> layer;
 
         int bfaceid = bnd_face_map[wall_id][bf];
         int faceid  = bfaceid;
@@ -73,61 +628,58 @@ BLShellInfo* FindOuterShellBoundaryLayerMesh(int wall_id, int nLayer,
             elid_cur = elid1;
         }
         
-        layer.push_back(elid_cur);
-        std::set<int> local_faces;
-
+        BLinfo->BLlayers[bfaceid].push_back(elid_cur);
+        
+        Vert* VoriginalElem = new Vert;
+        VoriginalElem->x = 0.0;
+        VoriginalElem->y = 0.0;
+        VoriginalElem->z = 0.0;
+        
         for(int k=0;k<8;k++)
         {
-           loc_vid     = ien_g->getVal(elid_cur,k);
-           Pijk_id[k]  = loc_vid;
-           Pijk[k*3+0] = xcn_g->getVal(loc_vid,0);
-           Pijk[k*3+1] = xcn_g->getVal(loc_vid,1);
-           Pijk[k*3+2] = xcn_g->getVal(loc_vid,2);
+            loc_vid     = ien_g->getVal(elid_cur,k);
+            VoriginalElem->x = VoriginalElem->x+xcn_g->getVal(loc_vid,0);
+            VoriginalElem->y = VoriginalElem->y+xcn_g->getVal(loc_vid,1);
+            VoriginalElem->z = VoriginalElem->z+xcn_g->getVal(loc_vid,2);
         }
+
+        VoriginalElem->x = VoriginalElem->x/8.0;
+        VoriginalElem->y = VoriginalElem->y/8.0;
+        VoriginalElem->z = VoriginalElem->z/8.0;
         
-        Vert* Vijk = ComputeCenterCoord(Pijk, 8);
-        
+        Vert* VoriginalFace = new Vert;
+        VoriginalFace->x = 0.0;
+        VoriginalFace->y = 0.0;
+        VoriginalFace->z = 0.0;
+        //std::cout << "face = ";
         std::vector<Vert*> face;
         std::vector<Vert*> face_turned(4);
-        std::vector<Vert*> face_turned2(4);
-        std::set<int> conn_bvid;
-        
-        Vface->x = 0.0;
-        Vface->y = 0.0;
-        Vface->z = 0.0;
-        
-        for(int r=0;r<4;r++)
+        for(int k=0;k<4;k++)
         {
-            int vid  = ifn_g->getVal(faceid,r);
-            if(r==0)
-            {
-                bvid = vid;
-            }
-            V->x     = xcn_g->getVal(vid,0);
-            V->y     = xcn_g->getVal(vid,1);
-            V->z     = xcn_g->getVal(vid,2);
-            Vface->x = Vface->x+V->x;
-            Vface->y = Vface->y+V->y;
-            Vface->z = Vface->z+V->z;
+            loc_vid = ifn_g->getVal(faceid,k);
+
+            VoriginalFace->x = VoriginalFace->x+xcn_g->getVal(loc_vid,0);
+            VoriginalFace->y = VoriginalFace->y+xcn_g->getVal(loc_vid,1);
+            VoriginalFace->z = VoriginalFace->z+xcn_g->getVal(loc_vid,2);
+            
+            Vert* V  = new Vert;
+
+            V->x = xcn_g->getVal(loc_vid,0);
+            V->y = xcn_g->getVal(loc_vid,1);
+            V->z = xcn_g->getVal(loc_vid,2);
+            
             face.push_back(V);
         }
         
-        conn_bvid.insert(ifn_g->getVal(faceid,1));
-        conn_bvid.insert(ifn_g->getVal(faceid,3));
-        bvid_b = bvid;
-        fv1_b = ifn_g->getVal(faceid,1);
-        fv2_b = ifn_g->getVal(faceid,2);
-        fv3_b = ifn_g->getVal(faceid,3);
+
+        VoriginalFace->x = VoriginalFace->x/4.0;
+        VoriginalFace->y = VoriginalFace->y/4.0;
+        VoriginalFace->z = VoriginalFace->z/4.0;
         
-        
-        Vface->x = Vface->x/4.0;
-        Vface->y = Vface->y/4.0;
-        Vface->z = Vface->z/4.0;
-                        
         Vec3D* r0 = new Vec3D;
-        r0->c0 = (Vface->x-Vijk->x);
-        r0->c1 = (Vface->y-Vijk->y);
-        r0->c2 = (Vface->z-Vijk->z);
+        r0->c0 = (VoriginalFace->x-VoriginalElem->x);
+        r0->c1 = (VoriginalFace->y-VoriginalElem->y);
+        r0->c2 = (VoriginalFace->z-VoriginalElem->z);
         Vec3D* v0 = new Vec3D;
         v0->c0 = face[1]->x-face[0]->x;
         v0->c1 = face[1]->y-face[0]->y;
@@ -136,249 +688,243 @@ BLShellInfo* FindOuterShellBoundaryLayerMesh(int wall_id, int nLayer,
         v1->c0 = face[3]->x-face[0]->x;
         v1->c1 = face[3]->y-face[0]->y;
         v1->c2 = face[3]->z-face[0]->z;
-        
         Vec3D* nbf     = ComputeSurfaceNormal(v0,v1);
         double orient0 = DotVec3D(r0,nbf);
         
         if(orient0<0.0)
         {
             NegateVec3D(nbf);
+            face_turned[0] = face[0];
+            face_turned[1] = face[3];
+            face_turned[2] = face[2];
+            face_turned[3] = face[1];
+        }
+        else
+        {
+            face_turned[0] = face[0];
+            face_turned[1] = face[1];
+            face_turned[2] = face[2];
+            face_turned[3] = face[3];
         }
         face.clear();
         
-        std::vector<std::map<int,std::set<int> > > layer_locN2NEl;
+        int copy_bface = bfaceid;
+
         for(int c=0;c<nLayer;c++)
         {
-            for(int k=0;k<8;k++)
-            {
-               loc_vid     = ien_g->getVal(elid_cur,k);
-               Pijk[k*3+0] = xcn_g->getVal(loc_vid,0);
-               Pijk[k*3+1] = xcn_g->getVal(loc_vid,1);
-               Pijk[k*3+2] = xcn_g->getVal(loc_vid,2);
-            }
-        
-            Vert* Vijk_i = ComputeCenterCoord(Pijk, 8);
-            std::vector<std::vector<int> > face_id_stored(6);
-            std::vector<std::vector<Vert*> > face_stored(6);
-            std::map<int,std::set<int> > local_node2node_element;
-            std::vector<std::map<int,std::set<int> > > local_node2node_face(6);
-            std::vector<std::map<int,int> > local_node2opponode_face(6);
+            std::vector<double> angles;
+            std::vector<int> eladjs;
+            std::vector<int> faadjs;
+            std::vector<int> faLocadjs;
+
+            
+            std::vector<Vert*> elVerts;
+            std::vector<Vert*> faVerts;
+            std::vector<Vec3D*> normals;
             for(int k=0;k<6;k++)
             {
-                int fid = ief_g->getVal(elid_cur,k);
+                int el_adj_id  = iee_g->getVal(elid_cur,k);
                 
-                Vface2->x = 0.0;
-                Vface2->y = 0.0;
-                Vface2->z = 0.0;
-                std::vector<int> faceVert_IDs(4);
-                std::vector<Vert*> face2;
-                for(int r=0;r<4;r++)
+                int face_id = ief_g->getVal(elid_cur,k);
+ 
+                if(face_id == copy_bface)
                 {
-                    int vid  = ifn_g->getVal(fid,r);
-                    
-                    Vert* V  = new Vert;
-                    V->x     = xcn_g->getVal(vid,0);
-                    V->y     = xcn_g->getVal(vid,1);
-                    V->z     = xcn_g->getVal(vid,2);
-                    Vface2->x = Vface2->x+V->x;
-                    Vface2->y = Vface2->y+V->y;
-                    Vface2->z = Vface2->z+V->z;
-                    face2.push_back(V);
-                    
-                    faceVert_IDs[r] = vid;
+                    check_f_id = k;
                 }
                 
-                local_node2node_element[ifn_g->getVal(fid,0)].insert(ifn_g->getVal(fid,1));
-                local_node2node_element[ifn_g->getVal(fid,0)].insert(ifn_g->getVal(fid,3));
-                local_node2node_element[ifn_g->getVal(fid,1)].insert(ifn_g->getVal(fid,0));
-                local_node2node_element[ifn_g->getVal(fid,1)].insert(ifn_g->getVal(fid,2));
-                local_node2node_element[ifn_g->getVal(fid,2)].insert(ifn_g->getVal(fid,1));
-                local_node2node_element[ifn_g->getVal(fid,2)].insert(ifn_g->getVal(fid,3));
-                local_node2node_element[ifn_g->getVal(fid,3)].insert(ifn_g->getVal(fid,2));
-                local_node2node_element[ifn_g->getVal(fid,3)].insert(ifn_g->getVal(fid,0));
+                Vert* Vface = new Vert;
+                Vface->x = 0.0;
+                Vface->y = 0.0;
+                Vface->z = 0.0;
                 
-                local_node2node_face[k][ifn_g->getVal(fid,0)].insert(ifn_g->getVal(fid,1));
-                local_node2node_face[k][ifn_g->getVal(fid,0)].insert(ifn_g->getVal(fid,3));
-                local_node2node_face[k][ifn_g->getVal(fid,1)].insert(ifn_g->getVal(fid,0));
-                local_node2node_face[k][ifn_g->getVal(fid,1)].insert(ifn_g->getVal(fid,2));
-                local_node2node_face[k][ifn_g->getVal(fid,2)].insert(ifn_g->getVal(fid,1));
-                local_node2node_face[k][ifn_g->getVal(fid,2)].insert(ifn_g->getVal(fid,3));
-                local_node2node_face[k][ifn_g->getVal(fid,3)].insert(ifn_g->getVal(fid,2));
-                local_node2node_face[k][ifn_g->getVal(fid,3)].insert(ifn_g->getVal(fid,0));
+                std::vector<Vert*> face2;
                 
-                local_node2opponode_face[k][ifn_g->getVal(fid,0)]=ifn_g->getVal(fid,2);
-                local_node2opponode_face[k][ifn_g->getVal(fid,1)]=ifn_g->getVal(fid,3);
-                local_node2opponode_face[k][ifn_g->getVal(fid,2)]=ifn_g->getVal(fid,0);
-                local_node2opponode_face[k][ifn_g->getVal(fid,3)]=ifn_g->getVal(fid,1);
-                //layer_locN2NEl.push_back(local_node2node_element);
-                Vface2->x = Vface2->x/4.0;
-                Vface2->y = Vface2->y/4.0;
-                Vface2->z = Vface2->z/4.0;
-                                
-                r00->c0 = (Vface2->x-Vijk_i->x);
-                r00->c1 = (Vface2->y-Vijk_i->y);
-                r00->c2 = (Vface2->z-Vijk_i->z);
+                for(int s=0;s<4;s++)
+                {
+                    loc_vid  = ifn_g->getVal(face_id,s);
+                    Vface->x = Vface->x + xcn_g->getVal(loc_vid,0);
+                    Vface->y = Vface->y + xcn_g->getVal(loc_vid,1);
+                    Vface->z = Vface->z + xcn_g->getVal(loc_vid,2);
+                    
+                    Vert* V  = new Vert;
+                    V->x     = xcn_g->getVal(loc_vid,0);
+                    V->y     = xcn_g->getVal(loc_vid,1);
+                    V->z     = xcn_g->getVal(loc_vid,2);
+                    face2.push_back(V);
 
+                }
+                Vface->x = Vface->x/4.0;
+                Vface->y = Vface->y/4.0;
+                Vface->z = Vface->z/4.0;
+                
+                Vec3D* r00 = new Vec3D;
+                r00->c0 = (Vface->x-VoriginalElem->x);
+                r00->c1 = (Vface->y-VoriginalElem->y);
+                r00->c2 = (Vface->z-VoriginalElem->z);
+                Vec3D* v00 = new Vec3D;
                 v00->c0 = face2[1]->x-face2[0]->x;
                 v00->c1 = face2[1]->y-face2[0]->y;
                 v00->c2 = face2[1]->z-face2[0]->z;
-
+                Vec3D* v11 = new Vec3D;
                 v11->c0 = face2[3]->x-face2[0]->x;
                 v11->c1 = face2[3]->y-face2[0]->y;
                 v11->c2 = face2[3]->z-face2[0]->z;
                 
                 Vec3D* n00        = ComputeSurfaceNormal(v00,v11);
                 double orient00   = DotVec3D(r00,n00);
-                
+                dp[k]             = DotVec3D(nbf,n00);
+            
                 if(orient00<0.0)
                 {
                     NegateVec3D(n00);
                 }
+            
+                angles.push_back(DotVec3D(nbf,n00));
+                normals.push_back(n00);
                 
-                dp[k]               =   DotVec3D(nbf,n00);
-                dpvec[k]            =   n00;
-                face2.clear();
-                faceVert_IDs.clear();
-            }
-            
-            std::set<int>::iterator its;
-            for(its=local_node2node_element[bvid].begin();its!=local_node2node_element[bvid].end();its++)
-            {
-                if(conn_bvid.find(*its)==conn_bvid.end())
+                Vert* Velem = new Vert;
+                Velem->x = 0.0;
+                Velem->y = 0.0;
+                Velem->z = 0.0;
+                for(int f=0;f<8;f++)
                 {
-                    opposite_bvid = *its;
+                    loc_vid     = ien_g->getVal(el_adj_id,f);
+                    Velem->x    = Velem->x + xcn_g->getVal(loc_vid,0);
+                    Velem->y    = Velem->y + xcn_g->getVal(loc_vid,1);
+                    Velem->z    = Velem->z + xcn_g->getVal(loc_vid,2);
                 }
+
+                Velem->x        = Velem->x/8.0;
+                Velem->y        = Velem->y/8.0;
+                Velem->z        = Velem->z/8.0;
+
+                eladjs.push_back(el_adj_id);
+                faadjs.push_back(face_id);
+                faLocadjs.push_back(k);
+                elVerts.push_back(Velem);
+                faVerts.push_back(Vface);
+                face2.clear();
+                                
             }
-        
-            int min_index  = std::min_element(dp.begin(),dp.end())-dp.begin();
-            //double min_val = *std::min_element(dp.begin(),dp.end());
-            int fid_new    = ief_g->getVal(elid_cur,min_index);
-            nbf            = dpvec[min_index];
+                
             
-            std::map<int,std::set<int> > node2node_face = local_node2node_face[min_index];
-            std::set<int>::iterator itu;
-            std::vector<int>opposite_tri(3);
-            opposite_tri[0] = opposite_bvid;
-            int l = 1;
-            for(itu=node2node_face[opposite_bvid].begin();itu!=node2node_face[opposite_bvid].end();itu++)
+            if(check_f_id==0)
             {
-                opposite_tri[l] = *itu;
-                l++;
+                pfid = 1;
             }
-
-            NegateVec3D(nbf);
-
-            int gEl0=ife_g->getVal(fid_new,0);
-            int gEl1=ife_g->getVal(fid_new,1);
-
-            if(gEl0==elid_cur)
+            if(check_f_id==1)
             {
-                elid_next = gEl1;
+                pfid = 0;
             }
-            else if(gEl1==elid_cur)
+            if(check_f_id==2)
             {
-                elid_next = gEl0;
+                pfid = 3;
             }
+            if(check_f_id==3)
+            {
+                pfid = 2;
+            }
+            if(check_f_id==4)
+            {
+                pfid = 5;
+            }
+            if(check_f_id==5)
+            {
+                pfid = 4;
+            }
+            
+            std::vector<double>::iterator result = std::min_element(angles.begin(),angles.end());
+            
+            int max_index       = std::distance(angles.begin(), result);
+            double min_val      = *std::min_element(angles.begin(),angles.end());
+            
+            int elpicked        = eladjs[max_index];
+            int fapicked        = faadjs[max_index];
+            int localFpicked    = faLocadjs[max_index];
+            //std::cout << "fapicked " << fapicked << " " << elpicked << " minval " << min_val << std::endl;
+//            //std::cout << "fac picked " << fapicked << " --> ";
+//            for(int g=0;g<4;g++)
+//            {
+//                std::cout << ifn_g->getVal(fapicked,g) << " ";
+//            }
+//            std::cout << std::endl;
+//
+            VoriginalElem->x    = elVerts[max_index]->x;
+            VoriginalElem->y    = elVerts[max_index]->y;
+            VoriginalElem->z    = elVerts[max_index]->z;
+                
+            VoriginalFace->x    = faVerts[max_index]->x;
+            VoriginalFace->y    = faVerts[max_index]->y;
+            VoriginalFace->z    = faVerts[max_index]->z;
+            
+            nbf->c0 = -normals[max_index]->c0;
+            nbf->c1 = -normals[max_index]->c1;
+            nbf->c2 = -normals[max_index]->c2;
+            
             if(c<nLayer-1)
             {
-                layer.push_back(elid_next);
-            }
-            
-            //int changed = ChkHexorient(Pijk,Pijk_id);
-            
-            if(c==nLayer-1)
-            {
-                BLinfo->ShellRef->setVal(ifn_g->getVal(fid_new,0),0,-1);
-                BLinfo->ShellRef->setVal(ifn_g->getVal(fid_new,1),0,-1);
-                BLinfo->ShellRef->setVal(ifn_g->getVal(fid_new,2),0,-1);
-                BLinfo->ShellRef->setVal(ifn_g->getVal(fid_new,3),0,-1);
-                std::set<int> ShellTri0;
-                ShellTri0.insert(ifn_g->getVal(fid_new,0));
-                ShellTri0.insert(ifn_g->getVal(fid_new,1));
-                ShellTri0.insert(ifn_g->getVal(fid_new,3));
-                BLinfo->ShellTri2FaceID[ShellTri0] = fid_new;
-                std::set<int> ShellTri1;
-                ShellTri1.insert(ifn_g->getVal(fid_new,1));
-                ShellTri1.insert(ifn_g->getVal(fid_new,2));
-                ShellTri1.insert(ifn_g->getVal(fid_new,3));
-                BLinfo->ShellTri2FaceID[ShellTri1] = fid_new;
-                std::set<int> ShellTri2;
-                ShellTri2.insert(ifn_g->getVal(fid_new,0));
-                ShellTri2.insert(ifn_g->getVal(fid_new,1));
-                ShellTri2.insert(ifn_g->getVal(fid_new,2));
-                BLinfo->ShellTri2FaceID[ShellTri2] = fid_new;
-                std::set<int> ShellTri3;
-                ShellTri3.insert(ifn_g->getVal(fid_new,2));
-                ShellTri3.insert(ifn_g->getVal(fid_new,3));
-                ShellTri3.insert(ifn_g->getVal(fid_new,0));
-                BLinfo->ShellTri2FaceID[ShellTri3] = fid_new;
-                
-                //            bvid > opposite_bvid
-                //            fv1 > opposite_tri[1];
-                //            fv3 > opposite_tri[2];
-                //            fv2 > local_node2opponode_face[min_index][opposite_bvid]
-                std::map<int,int> opposite_verts;
-                
-//                opposite_verts[bvid_b] = opposite_bvid;
-//                opposite_verts[fv1_b]  = opposite_tri[1];
-//                opposite_verts[fv3_b]  = opposite_tri[2];
-//                opposite_verts[fv2_b]  = local_node2opponode_face[min_index][opposite_bvid];
-                
-                opposite_verts[opposite_bvid]    = bvid_b;
-                opposite_verts[opposite_tri[1]]  = fv1_b;
-                opposite_verts[opposite_tri[2]]  = fv3_b;
-                opposite_verts[local_node2opponode_face[min_index][opposite_bvid]]  = fv2_b;
-                
-                BLinfo->ShellFace2ShellVert2OppositeBoundaryVerts[fid_new] = opposite_verts;
-                BLinfo->ShellFace2BFace[fid_new] = bfaceid;
-                BLinfo->BFace2ShellFace[bfaceid] = fid_new;
-                std::vector<int> fe(2);
-                fe[0] = elid_cur;
-                fe[1] = elid_next;
-                outer_shell_elements.push_back(fe);
-                opposite_verts.clear();
-            }
-            
-            conn_bvid.clear();
-            bvid = opposite_tri[0];
-            conn_bvid.insert(opposite_tri[1]);
-            conn_bvid.insert(opposite_tri[2]);
-            
-            elid_cur = elid_next;
-            BLinfo->BLlayers[bfaceid]=layer;
+                BLinfo->BLlayers[bfaceid].push_back(elpicked);
 
-            delete Vijk_i;
+            }
+            std::cout << "local faces " <<  check_f_id << " " << localFpicked << " " << max_index << std::endl;
+            
+            copy_bface = fapicked;
+            
+            //elprev   = elid_cur;
+            elid_cur = elpicked;
+            
+            //std::cout << "elid_cur " << elid_cur << std::endl;
+            angles.clear();
+            eladjs.clear();
+            faadjs.clear();
+            faLocadjs.clear();
+            //elVerts.clear();
+            //normals.clear();
+            faVerts.clear();
         }
+    
         
         
     }
-    delete[] Pijk;
-    delete[] Pijk_id;
     
-    delete r00;
-    delete v00;
-    delete v11;
-    delete Vface2;
-    delete Vface;
-    delete V;
+//    delete[] Pijk;
+//    delete[] Pijk_id;
+//
+//    delete r00;
+//    delete v00;
+//    delete v11;
+//    delete Vface2;
+//    delete Vface;
+//    delete V;
     
     double duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
     std::cout << "Timing extracting outer shell BL mesh = " << duration << std::endl;
     std::map<int,std::vector<int> >::iterator itt;
+    
+    std::cout << "before " << BLinfo->elements_set.size() << std::endl;
+
     for(itt=BLinfo->BLlayers.begin();itt!=BLinfo->BLlayers.end();itt++)
     {
+        //std::cout << itt->first << " :: " << itt->second.size() <<  " == "<<std::endl;
+        
         for(int q=0;q<itt->second.size();q++)
         {
-            BLinfo->elements_set.insert(itt->second[q]);
+            if(BLinfo->elements_set.find(itt->second[q])==BLinfo->elements_set.end())
+            {
+                BLinfo->elements_set.insert(itt->second[q]);
+                //std::cout << itt->second[q] << ", ";
+            }
         }
+        //std::cout << endl;
     }
 
+    std::cout << "after " << BLinfo->elements_set.size() << std::endl;
     return BLinfo;
 }
 
 
 
-Mesh_Topology_BL* ExtractBoundaryLayerMeshFromShell(std::vector<std::vector<int> > u_tris, BLShellInfo* BLshell, int wall_id, int nLayer, Array<double>* xcn_g, Array<int>* ien_g, Array<int>* ief_g, Array<int>* ife_g, Array<int>* ifn_g, ParallelState* xcn_pstate, ParallelState* ien_pstate, std::map<int,std::vector<int> > bnd_face_map, std::map<std::set<int>,int> tria_ref_map, std::map<std::set<int>,int> quad_ref_map,  MPI_Comm comm)
+Mesh_Topology_BL* ExtractBoundaryLayerMeshFromShell(std::vector<std::vector<int> > u_tris, BLShellInfo* BLshell, int wall_id, int nLayer, Array<double>* xcn_g, Array<int>* ien_g, Array<int>* ief_g, Array<int>* ife_g, Array<int>* ifn_g, std::map<int,std::vector<int> > bnd_face_map, std::map<std::set<int>,int> tria_ref_map, std::map<std::set<int>,int> quad_ref_map,  MPI_Comm comm)
 {
     Mesh_Topology_BL* mesh_topology_bl = new Mesh_Topology_BL;
     int world_size;
@@ -441,16 +987,20 @@ Mesh_Topology_BL* ExtractBoundaryLayerMeshFromShell(std::vector<std::vector<int>
     Vec3D* v00 = new Vec3D;
     Vec3D* v11 = new Vec3D;
     
+    int fv1_b,fv2_b,fv3_b;
     
     for(int bf=0;bf<bnd_face_map[wall_id].size();bf++)
     {
-        
         int bvid=-1,obvid_i=-1,opposite_bvid=-1;
         std::vector<int> layer;
         int bfaceid      = bnd_face_map[wall_id][bf];
         int shell_faceid = BLshell->BFace2ShellFace[bfaceid];
+        fv1_b = ifn_g->getVal(bfaceid,1);
+        fv2_b = ifn_g->getVal(bfaceid,2);
+        fv3_b = ifn_g->getVal(bfaceid,3);
         int triID0 = shellfaceID2triID[shell_faceid][0];
         int triID1 = shellfaceID2triID[shell_faceid][1];
+        
         std::vector<int> tri_shell_0 = u_tris[triID0];
         std::vector<int> tri_shell_1 = u_tris[triID1];
         
@@ -461,14 +1011,18 @@ Mesh_Topology_BL* ExtractBoundaryLayerMeshFromShell(std::vector<std::vector<int>
         tri_bound_0[0] = BLshell->ShellFace2ShellVert2OppositeBoundaryVerts[shell_faceid][tri_shell_0[0]];
         tri_bound_0[1] = BLshell->ShellFace2ShellVert2OppositeBoundaryVerts[shell_faceid][tri_shell_0[1]];
         tri_bound_0[2] = BLshell->ShellFace2ShellVert2OppositeBoundaryVerts[shell_faceid][tri_shell_0[2]];
+        
         std::vector<int> tri_bound_1(3);
         tri_bound_1[0] = BLshell->ShellFace2ShellVert2OppositeBoundaryVerts[shell_faceid][tri_shell_1[0]];
         tri_bound_1[1] = BLshell->ShellFace2ShellVert2OppositeBoundaryVerts[shell_faceid][tri_shell_1[1]];
         tri_bound_1[2] = BLshell->ShellFace2ShellVert2OppositeBoundaryVerts[shell_faceid][tri_shell_1[2]];
         
-//        std::cout << "bound tri0 " << tri_bound_0[0] << " " <<  tri_bound_0[1] << " " <<  tri_bound_0[2] << std::endl;
-//        std::cout << "bound tri1 " << tri_bound_1[0] << " " <<  tri_bound_1[1] << " " <<  tri_bound_1[2] << std::endl;
-        
+//        std::cout << "tri_shell_0 " << shell_faceid   << " --- " << tri_shell_0[0] << " " << tri_shell_0[0] << " " << tri_shell_0[2] << std::endl;
+//        std::cout << "tri_shell_1 " << tri_shell_1[0] << "     " << tri_shell_1[0]  << " " << tri_shell_1[2] << std::endl;
+//
+//        std::cout << "bound tri0 " << tri_bound_0[0] << " " << tri_bound_0[1] << " " << tri_bound_0[2] << std::endl;
+//        std::cout << "bound tri1 " << tri_bound_1[0] << " " << tri_bound_1[1] << " " << tri_bound_1[2] << std::endl;
+//
         //std::cout << "BFF "<< bf << " " << bfaceid << " " << wall_id << std::endl; 
         
         
@@ -480,10 +1034,12 @@ Mesh_Topology_BL* ExtractBoundaryLayerMeshFromShell(std::vector<std::vector<int>
         for(int v=0;v<3;v++)
         {
             int fid0 = tri_bound_0[v];
+            //std::cout << "tri_bound_0 (" << tri_bound_0[v] << " " << tri_shell_0[v] << ") ";
             if(std::find(tri_bound_1.begin(), tri_bound_1.end(), fid0) != tri_bound_1.end())
             {
                 conn_bvid.insert(fid0);
             }
+            //std::cout << std::endl;
         }
         for(int v=0;v<3;v++)
         {
@@ -563,7 +1119,8 @@ Mesh_Topology_BL* ExtractBoundaryLayerMeshFromShell(std::vector<std::vector<int>
         }
         std::vector<int> tri0(3);
         std::vector<int> tri1(3);
-        
+        //std::cout << "End loop " << tri_0n[0] << " " << tri_0n[1] << " " << tri_0n[2] << std::endl;
+       
         v_t0->c0 = xcn_g->getVal(tri_0n[1],0)-xcn_g->getVal(tri_0n[0],0);
         v_t0->c1 = xcn_g->getVal(tri_0n[1],1)-xcn_g->getVal(tri_0n[0],1);
         v_t0->c2 = xcn_g->getVal(tri_0n[1],2)-xcn_g->getVal(tri_0n[0],2);
@@ -585,10 +1142,12 @@ Mesh_Topology_BL* ExtractBoundaryLayerMeshFromShell(std::vector<std::vector<int>
         tri0[0] = tri_0n[0];
         tri0[1] = tri_0n[1];
         tri0[2] = tri_0n[2];
+        mesh_topology_bl->BndFaces.push_back(tri0);
 
         tri1[0] = tri_1n[0];
         tri1[1] = tri_1n[1];
         tri1[2] = tri_1n[2];
+        mesh_topology_bl->BndFaces.push_back(tri1);
         
         Vface->x = Vface->x/4.0;
         Vface->y = Vface->y/4.0;
@@ -625,8 +1184,6 @@ Mesh_Topology_BL* ExtractBoundaryLayerMeshFromShell(std::vector<std::vector<int>
         {
             fc1++;
         }
-        //std::cout << "First Check " << orient_t0 << " " << orient_t1 << std::endl;
-        
         if(orient_t0<0.0)
         {
             tri_0n_tmp[0] = tri_0n[0];
@@ -679,6 +1236,8 @@ Mesh_Topology_BL* ExtractBoundaryLayerMeshFromShell(std::vector<std::vector<int>
         prism0[1] = tri_0n[1];
         prism0[2] = tri_0n[2];
         
+        //std::cout << "prism0[0] " << prism0[0] << " " << prism0[1] << " " << prism0[2] << std::endl;
+        
         prism1[0] = tri_1n[0];
         prism1[1] = tri_1n[1];
         prism1[2] = tri_1n[2];
@@ -721,9 +1280,11 @@ Mesh_Topology_BL* ExtractBoundaryLayerMeshFromShell(std::vector<std::vector<int>
         }
         face.clear();
         std::vector<std::vector<int> > PPrisms(nLayer*2);
+        std::vector<Element*> PElements(nLayer*2);
+
         for(int c=0;c<nLayer;c++)
         {
-            
+
             for(int k=0;k<8;k++)
             {
                loc_vid     = ien_g->getVal(elid_cur,k);
@@ -790,8 +1351,6 @@ Mesh_Topology_BL* ExtractBoundaryLayerMeshFromShell(std::vector<std::vector<int>
                 Vface2->x = Vface2->x/4.0;
                 Vface2->y = Vface2->y/4.0;
                 Vface2->z = Vface2->z/4.0;
-                                
-
                 
                 r00->c0 = (Vface2->x-Vijk->x);
                 r00->c1 = (Vface2->y-Vijk->y);
@@ -807,7 +1366,6 @@ Mesh_Topology_BL* ExtractBoundaryLayerMeshFromShell(std::vector<std::vector<int>
                 
                 Vec3D* n00        = ComputeSurfaceNormal(v00,v11);
                 double orient00   = DotVec3D(r00,n00);
-                
                 
                 if(orient00<0.0)
                 {
@@ -825,7 +1383,6 @@ Mesh_Topology_BL* ExtractBoundaryLayerMeshFromShell(std::vector<std::vector<int>
                     face_turned2[3] = face2[3];
                 }
                 
-                
                 face_stored[k]      =   face_turned2;
                 dp[k]               =   DotVec3D(nbf,n00);
                 dpvec[k]            =   n00;
@@ -840,7 +1397,8 @@ Mesh_Topology_BL* ExtractBoundaryLayerMeshFromShell(std::vector<std::vector<int>
                     opposite_bvid = *itset;
                 }
             }
-        
+            
+            
             int min_index  = std::min_element(dp.begin(),dp.end())-dp.begin();
             //double min_val = *std::min_element(dp.begin(),dp.end());
 
@@ -979,6 +1537,16 @@ Mesh_Topology_BL* ExtractBoundaryLayerMeshFromShell(std::vector<std::vector<int>
             prismStored0[0] = prism0[0];prismStored0[1] = prism0[1];prismStored0[2] = prism0[2];
             prismStored0[3] = prism0[3];prismStored0[4] = prism0[4];prismStored0[5] = prism0[5];
 
+            Element* P0     = new Element;
+            P0->GlobalNodes = prismStored0;
+            P0->globID      = glob_el_id;
+            
+            P0->LocalFace2GlobalNode[0].push_back(prismStored0[0]);
+            P0->LocalFace2GlobalNode[0].push_back(prismStored0[1]);
+            P0->LocalFace2GlobalNode[0].push_back(prismStored0[2]);
+            
+            
+            
             // local face2vert_map for a prism in mmg {0,1,2,0},{3,5,4,3},{1,4,5,2},{0,2,5,3},{0,3,4,1} };
             tria0.insert(prismStored0[0]);
             tria0.insert(prismStored0[1]);
@@ -992,7 +1560,12 @@ Mesh_Topology_BL* ExtractBoundaryLayerMeshFromShell(std::vector<std::vector<int>
                 bctria[2] = prismStored0[2];
                 mesh_topology_bl->bcTria[ref0].push_back(bctria);
             }
-        
+            
+            P0->LocalFace2GlobalNode[1].push_back(prismStored0[3]);
+            P0->LocalFace2GlobalNode[1].push_back(prismStored0[4]);
+            P0->LocalFace2GlobalNode[1].push_back(prismStored0[5]);
+            
+            
             // local face2vert_map for a prism in mmg {0,1,2,0},{3,5,4,3},{1,4,5,2},{0,2,5,3},{0,3,4,1} };
             tria1.insert(prismStored0[3]);
             tria1.insert(prismStored0[4]);
@@ -1007,6 +1580,11 @@ Mesh_Topology_BL* ExtractBoundaryLayerMeshFromShell(std::vector<std::vector<int>
                 mesh_topology_bl->bcTria[ref1].push_back(bctria);
             }
             
+            P0->LocalFace2GlobalNode[2].push_back(prismStored0[0]);
+            P0->LocalFace2GlobalNode[2].push_back(prismStored0[2]);
+            P0->LocalFace2GlobalNode[2].push_back(prismStored0[4]);
+            P0->LocalFace2GlobalNode[2].push_back(prismStored0[3]);
+        
             // local face2vert_map for a prism in mmg {0,1,2,0},{3,5,4,3},{1,4,5,2},{0,2,5,3},{0,3,4,1} };
             quad0.insert(prismStored0[0]);
             quad0.insert(prismStored0[2]);
@@ -1023,6 +1601,11 @@ Mesh_Topology_BL* ExtractBoundaryLayerMeshFromShell(std::vector<std::vector<int>
                 mesh_topology_bl->bcQuad[ref0].push_back(bcquad);
             }
         
+            P0->LocalFace2GlobalNode[3].push_back(prismStored0[1]);
+            P0->LocalFace2GlobalNode[3].push_back(prismStored0[5]);
+            P0->LocalFace2GlobalNode[3].push_back(prismStored0[4]);
+            P0->LocalFace2GlobalNode[3].push_back(prismStored0[2]);
+            
             // local face2vert_map for a prism in mmg {0,1,2,0},{3,5,4,3},{1,4,5,2},{0,2,5,3},{0,3,4,1} };
             quad1.insert(prismStored0[1]);
             quad1.insert(prismStored0[5]);
@@ -1041,6 +1624,11 @@ Mesh_Topology_BL* ExtractBoundaryLayerMeshFromShell(std::vector<std::vector<int>
 
             }
         
+            P0->LocalFace2GlobalNode[4].push_back(prismStored0[0]);
+            P0->LocalFace2GlobalNode[4].push_back(prismStored0[3]);
+            P0->LocalFace2GlobalNode[4].push_back(prismStored0[5]);
+            P0->LocalFace2GlobalNode[4].push_back(prismStored0[1]);
+            
             // local face2vert_map for a prism in mmg {0,1,2,0},{3,5,4,3},{1,4,5,2},{0,2,5,3},{0,3,4,1} };
             quad2.insert(prismStored0[0]);
             quad2.insert(prismStored0[3]);
@@ -1070,6 +1658,13 @@ Mesh_Topology_BL* ExtractBoundaryLayerMeshFromShell(std::vector<std::vector<int>
             prismStored1[0] = prism1[0];prismStored1[1] = prism1[1];prismStored1[2] = prism1[2];
             prismStored1[3] = prism1[3];prismStored1[4] = prism1[4];prismStored1[5] = prism1[5];
             
+            Element* P1     = new Element;
+            P1->GlobalNodes = prismStored1;
+            P1->globID      = glob_el_id;
+            
+            P1->LocalFace2GlobalNode[0].push_back(prismStored1[0]);
+            P1->LocalFace2GlobalNode[0].push_back(prismStored1[1]);
+            P1->LocalFace2GlobalNode[0].push_back(prismStored1[2]);
             
             // local face2vert_map for a prism in mmg {0,1,2,0},{3,5,4,3},{1,4,5,2},{0,2,5,3},{0,3,4,1} };
             tria0.insert(prismStored1[0]);
@@ -1085,6 +1680,10 @@ Mesh_Topology_BL* ExtractBoundaryLayerMeshFromShell(std::vector<std::vector<int>
                 mesh_topology_bl->bcTria[ref0].push_back(bctria);
             }
             
+            P1->LocalFace2GlobalNode[1].push_back(prismStored1[3]);
+            P1->LocalFace2GlobalNode[1].push_back(prismStored1[4]);
+            P1->LocalFace2GlobalNode[1].push_back(prismStored1[5]);
+            
             // local face2vert_map for a prism in mmg {0,1,2,0},{3,5,4,3},{1,4,5,2},{0,2,5,3},{0,3,4,1} };
             tria1.insert(prismStored1[3]);
             tria1.insert(prismStored1[4]);
@@ -1098,6 +1697,11 @@ Mesh_Topology_BL* ExtractBoundaryLayerMeshFromShell(std::vector<std::vector<int>
                 bctria[2] = prismStored1[5];
                 mesh_topology_bl->bcTria[ref1].push_back(bctria);
             }
+            
+            P1->LocalFace2GlobalNode[2].push_back(prismStored1[0]);
+            P1->LocalFace2GlobalNode[2].push_back(prismStored1[2]);
+            P1->LocalFace2GlobalNode[2].push_back(prismStored1[4]);
+            P1->LocalFace2GlobalNode[2].push_back(prismStored1[3]);
 
             // local face2vert_map for a prism in mmg {0,1,2,0},{3,5,4,3},{1,4,5,2},{0,2,5,3},{0,3,4,1} };
             quad0.insert(prismStored1[0]);
@@ -1115,6 +1719,11 @@ Mesh_Topology_BL* ExtractBoundaryLayerMeshFromShell(std::vector<std::vector<int>
                 mesh_topology_bl->bcQuad[ref0].push_back(bcquad);
 
             }
+            
+            P1->LocalFace2GlobalNode[3].push_back(prismStored1[1]);
+            P1->LocalFace2GlobalNode[3].push_back(prismStored1[5]);
+            P1->LocalFace2GlobalNode[3].push_back(prismStored1[4]);
+            P1->LocalFace2GlobalNode[3].push_back(prismStored1[2]);
 
             // local face2vert_map for a prism in mmg {0,1,2,0},{3,5,4,3},{1,4,5,2},{0,2,5,3},{0,3,4,1} };
             quad1.insert(prismStored1[1]);
@@ -1133,6 +1742,11 @@ Mesh_Topology_BL* ExtractBoundaryLayerMeshFromShell(std::vector<std::vector<int>
                 mesh_topology_bl->bcQuad[ref1].push_back(bcquad);
 
             }
+            
+            P1->LocalFace2GlobalNode[4].push_back(prismStored1[0]);
+            P1->LocalFace2GlobalNode[4].push_back(prismStored1[3]);
+            P1->LocalFace2GlobalNode[4].push_back(prismStored1[5]);
+            P1->LocalFace2GlobalNode[4].push_back(prismStored1[1]);
             
             // local face2vert_map for a prism in mmg {0,1,2,0},{3,5,4,3},{1,4,5,2},{0,2,5,3},{0,3,4,1} };
             quad2.insert(prismStored1[0]);
@@ -1159,6 +1773,9 @@ Mesh_Topology_BL* ExtractBoundaryLayerMeshFromShell(std::vector<std::vector<int>
             
             glob_el_id = glob_el_id+1;
 
+            PElements[c*2+0]=P0;
+            PElements[c*2+1]=P1;
+            
             PPrisms[c*2+0] = prismStored0;
             PPrisms[c*2+1] = prismStored1;
 
@@ -1197,26 +1814,28 @@ Mesh_Topology_BL* ExtractBoundaryLayerMeshFromShell(std::vector<std::vector<int>
             
             delete n_toppo0;
             delete n_toppo10;
+            
         }
 //        prism0.clear();
 //        prism1.clear();
         mesh_topology_bl->BLlayersPrisms[bfaceid]=PPrisms;
         //mesh_topology_bl->BLlayers[bfaceid]=layer;
+        mesh_topology_bl->BLlayersElements[bfaceid]=PElements;
         mesh_topology_bl->Nprisms = mesh_topology_bl->Nprisms+PPrisms.size();
-        
-        delete Vijk;
+        /* */
+        ///delete Vijk;
     }
     
-    delete[] Pijk_id;
-    delete[] Pijk;
-    delete r00;
-    delete v00;
-    delete v11;
-    delete Vface2;
-    delete v_t0;
-    delete v_t1;
-    delete v_t10;
-    delete v_t11;
+//    delete[] Pijk_id;
+//    delete[] Pijk;
+//    delete r00;
+//    delete v00;
+//    delete v11;
+//    delete Vface2;
+//    delete v_t0;
+//    delete v_t1;
+//    delete v_t10;
+//    delete v_t11;
     
     double duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
     std::cout << "Timing for extracting BL mesh = " << duration << std::endl;
