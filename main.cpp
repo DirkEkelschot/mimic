@@ -517,7 +517,8 @@ int main(int argc, char** argv)
     std::vector<int> LocElem                    = P->getLocElem();
     std::vector<double> Uvaria                  = P->getLocElemVaria();
     std::map<int,Array<double>*> Uvaria_map     = P->getLocAndAdjElemVaria();
-    
+    std::map<int,std::map<int,double> >  n2n    = P->getNode2NodeMap();
+
     std::map<int,Array<double>*> Uvaria_map2;
     double UvariaV              = 0.0;
     for(int i=0;i<LocElem.size();i++)
@@ -819,6 +820,86 @@ int main(int argc, char** argv)
         }
     }
     
+    std::map<int,Array<double>* > hess_vmap_new;// = hess_vmap;
+    double m00,m01,m02,m10,m11,m12,m20,m21,m22;
+    double sum_dist;
+    int vid;
+    double di;
+    std::map<int,Array<double>* >::iterator hessit;
+    std::map<int,double>::iterator itn2n;
+    int howmany = 0;
+    
+    for(hessit=hess_vmap.begin();hessit!=hess_vmap.end();hessit++)
+    {
+        int gvid       = hessit->first;
+
+        //sum        = 0.0;
+        //du         = 0.0;
+
+        std::map<int,double>::iterator n2dit;
+
+        if(n2n.find(gvid)!=n2n.end())
+        {
+            sum_dist   = 0.0;
+            m00 = 0.0;m01 = 0.0;m02 = 0.0;
+            m12 = 0.0;m11 = 0.0;m12 = 0.0;
+            m20 = 0.0;m12 = 0.0;m22 = 0.0;
+
+            std::map<int,double> n2nmap = n2n[gvid];
+            //std::cout << "n2nmap.size " << n2nmap.size() << std::endl;
+            for(itn2n=n2nmap.begin();itn2n!=n2nmap.end();itn2n++)
+            {
+                vid       = itn2n->first;
+                di        = itn2n->second;
+
+                if(hess_vmap.find(vid)!=hess_vmap.end())
+                {
+                    sum_dist  = sum_dist+di;
+
+                    m00       = m00+hess_vmap[vid]->getVal(0,0)*di;
+                    m01       = m01+hess_vmap[vid]->getVal(0,1)*di;
+                    m02       = m02+hess_vmap[vid]->getVal(0,2)*di;
+                    m10       = m10+hess_vmap[vid]->getVal(1,0)*di;
+                    m11       = m11+hess_vmap[vid]->getVal(1,1)*di;
+                    m12       = m12+hess_vmap[vid]->getVal(1,2)*di;
+                    m20       = m20+hess_vmap[vid]->getVal(2,0)*di;
+                    m21       = m21+hess_vmap[vid]->getVal(2,1)*di;
+                    m22       = m22+hess_vmap[vid]->getVal(2,2)*di;
+                }
+            }
+
+            Array<double>* HabsNew = new Array<double>(3,3);
+
+            HabsNew->setVal(0,0,m00/sum_dist);
+            HabsNew->setVal(0,1,m01/sum_dist);
+            HabsNew->setVal(0,2,m02/sum_dist);
+            HabsNew->setVal(1,0,m10/sum_dist);
+            HabsNew->setVal(1,1,m11/sum_dist);
+            HabsNew->setVal(1,2,m12/sum_dist);
+            HabsNew->setVal(2,0,m20/sum_dist);
+            HabsNew->setVal(2,1,m21/sum_dist);
+            HabsNew->setVal(2,2,m22/sum_dist);
+
+            hess_vmap_new[gvid] = HabsNew;
+            //hess_vmap_new[gvid] = hess_vmap[gvid];
+        }
+        else
+        {
+            hess_vmap_new[gvid] = hess_vmap[gvid];
+            howmany++;
+        }
+    }
+    
+    
+    /**/
+    //std::cout << "WorldRank " << world_rank << " " << howmany << " " << hess_vmap_new.size() << std::endl;
+
+
+    for(itgg=hess_vmap.begin();itgg!=hess_vmap.end();itgg++)
+    {
+        delete itgg->second;
+    }
+    
     if(world_rank == 0)
     {
         std::cout << " Done computing the metric " << std::endl;
@@ -996,12 +1077,12 @@ int main(int argc, char** argv)
                        dudx_vmap[glob_vid]->getVal(0,0) << " " <<
                        dudy_vmap[glob_vid]->getVal(0,0) << " " <<
                        dudz_vmap[glob_vid]->getVal(0,0) << " " <<
-                       hess_vmap[glob_vid]->getVal(0,0) << " " <<
-                       hess_vmap[glob_vid]->getVal(0,1) << " " <<
-                       hess_vmap[glob_vid]->getVal(0,2) << " " <<
-                       hess_vmap[glob_vid]->getVal(1,1) << " " <<
-                       hess_vmap[glob_vid]->getVal(1,2) << " " <<
-                       hess_vmap[glob_vid]->getVal(2,2) << std::endl;
+                       hess_vmap_new[glob_vid]->getVal(0,0) << " " <<
+                       hess_vmap_new[glob_vid]->getVal(0,1) << " " <<
+                       hess_vmap_new[glob_vid]->getVal(0,2) << " " <<
+                       hess_vmap_new[glob_vid]->getVal(1,1) << " " <<
+                       hess_vmap_new[glob_vid]->getVal(1,2) << " " <<
+                       hess_vmap_new[glob_vid]->getVal(2,2) << std::endl;
         }
 
         std::map<int,std::vector<int> >::iterator itmm2;
@@ -1032,7 +1113,7 @@ int main(int argc, char** argv)
                                                                                 ife_map,
                                                                                 ifref_map,
                                                                                 ushell,
-                                                                                hess_vmap, comm);
+                                                                                hess_vmap_new, comm);
     
     
     Array<int>* element2node                        = tetra_distri->GetElement2NodeMap();

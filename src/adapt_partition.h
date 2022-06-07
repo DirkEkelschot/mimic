@@ -76,7 +76,8 @@ class Partition {
     std::map<int,std::map<int,double> > getNode2NodeMap_V2();
     std::map<int,std::set<int> > getSecondLayerAdjacency();
     Vert* getLocalVert(int v_loc_id);
-    
+    void ComputeNode2NodeMap();
+    void ComputeNode2NodeMap_V2();
     std::vector<std::vector<int> > getLocalElem2GlobalVert();
     std::vector<std::vector<int> > getLocalElem2LocalVert();
     
@@ -214,7 +215,7 @@ class Partition {
       std::map<int,std::vector<int> > reqstd_adj_ids_per_rank;
       std::map<int,std::map<int,Vert*> > node2elem_map;
       std::map<int,std::map<int,double> > node2elemVol_map;
-
+      std::map<int,std::map<int,double> > node2node_map;
       i_part_map* if_Erank_part_map;
       i_part_map* if_Nv_part_map;
       i_part_map* ifn2_part_map;
