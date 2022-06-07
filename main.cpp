@@ -407,12 +407,13 @@ int main(int argc, char** argv)
     double hmin          = metric_inputs[1];
     double hmax          = metric_inputs[2];
     double MetScale      = metric_inputs[3];
-    int ReadFromStats    = metric_inputs[4];
-    int RunWakRefinement = metric_inputs[5];
-    double hwake         = metric_inputs[6];
-    int niter            = metric_inputs[7];
-    int recursive	     = metric_inputs[8];
-    int extended         = metric_inputs[9];
+    double hausd         = metric_inputs[4];
+    int ReadFromStats    = metric_inputs[5];
+    int RunWakRefinement = metric_inputs[6];
+    double hwake         = metric_inputs[7];
+    int niter            = metric_inputs[8];
+    int recursive	     = metric_inputs[9];
+    int extended         = metric_inputs[10];
     
     if(world_rank == 0)
     {
@@ -424,6 +425,7 @@ int main(int argc, char** argv)
         std::cout << "hmin      = " << hmin << std::endl;
         std::cout << "hmax      = " << hmax << std::endl;
         std::cout << "MetScale  = " << MetScale << std::endl;
+        std::cout << "Hausdorff = " << hausd << std::endl;
         std::cout << "NiterPart = " << niter << std::endl;
         if(ReadFromStats == 0)
         {
@@ -1497,11 +1499,11 @@ int main(int argc, char** argv)
     };
     
     
-    //if ( PMMG_Set_dparameter(parmesh,PMMG_DPARAM_hausd, 0.0001) != 1 )
-    //{
-    //    MPI_Finalize();
-    //    exit(EXIT_FAILURE);
-    //}
+    if ( PMMG_Set_dparameter(parmesh,PMMG_DPARAM_hausd, hausd) != 1 )
+    {
+        MPI_Finalize();
+        exit(EXIT_FAILURE);
+    }
     
     
     if ( PMMG_Set_dparameter(parmesh,PMMG_DPARAM_hgrad, hgrad) != 1 )
