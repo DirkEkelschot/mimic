@@ -23,6 +23,7 @@ std::map<int,Array<double>* > Py_ComputedUdx_LSQ_US3D(std::vector<Vert* > LocalV
 
 std::map<int,Array<double>* > ComputedUdx_LSQ_HO_US3D(Partition* Pa, std::map<int,Array<double>* > Ue, Mesh_Topology* meshTopo, std::map<int,double> gbMap, MPI_Comm comm);
 
+std::map<int,Array<double>* > ComputedUdx_LSQ_LS_US3D(Partition* Pa, std::map<int,Array<double>* > Ue, Mesh_Topology* meshTopo, std::map<int,double> gbMap, MPI_Comm comm);
 
 std::map<int,Array<double>* > ComputedUdx_LSQ_Vrt_US3D(Partition* Pa, std::map<int,Array<double>* > Ue, std::map<int,Array<double>* > Uv, Mesh_Topology* meshTopo, std::map<int,double> gbMap, MPI_Comm comm);
 

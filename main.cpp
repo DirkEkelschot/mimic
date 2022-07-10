@@ -402,7 +402,7 @@ int main(int argc, char** argv)
 
     
     //===========================================================================
-    
+    int StateVar = 0;
     double hgrad         = metric_inputs[0];
     double hmin          = metric_inputs[1];
     double hmax          = metric_inputs[2];
@@ -414,7 +414,7 @@ int main(int argc, char** argv)
     int niter            = metric_inputs[8];
     int recursive	     = metric_inputs[9];
     int extended         = metric_inputs[10];
-    
+    StateVar         = metric_inputs[11]; 
     if(world_rank == 0)
     {
         std::cout << "===================================================" << std::endl;
@@ -447,7 +447,14 @@ int main(int argc, char** argv)
         {
             std::cout << "Wake refinement is switch ON with hwake = " << hwake << "(6th entry in the metric.inp file is set to 1 and hwake is set equal to the 7th entry defined in the metric.inp file.) " << std::endl;
         }
-        
+        if(StateVar == 0)
+	{
+	    std::cout << "We are adapting based on the Mach number."<<std::endl;
+	}
+	if(StateVar == 1)
+	{
+	    std::cout << "We are adapting based on the static Temperature." << std::endl;
+        }
         std::cout << "===================================================" << std::endl;
         std::cout << "===================================================" << std::endl;
         std::cout << "===================================================" << std::endl;
@@ -455,7 +462,7 @@ int main(int argc, char** argv)
     }
     //===========================================================================
     
-    US3D* us3d    = ReadUS3DData(fn_conn,fn_grid,fn_data,ReadFromStats,comm,info);
+    US3D* us3d    = ReadUS3DData(fn_conn,fn_grid,fn_data,ReadFromStats,StateVar,comm,info);
     int Nve       = us3d->xcn->getNglob();
     
     int Nel_part  = us3d->ien->getNrow();
@@ -583,26 +590,11 @@ int main(int argc, char** argv)
     std::vector<int> LocAndAdjElem = P->getLocAndAdjElem();
     i_part_map* iee_pmap            = P->getIEEpartmap();
     int Nel_glob  = us3d->ien->getNglob();
-    std::set<int> test_set;
-    for(int i=0;i<LocAndAdjElem.size();i++)
+    
+    for(int i=0;i<gB->getNrow();i++)
     {
-        int gid   = LocAndAdjElem[i];
-        int nadj = iee_pmap->i_map[gid].size();
-
-        for(int j=0;j<nadj;j++)
-        {
-            int adjID = iee_pmap->i_map[gid][j];
-
-            if(adjID >= Nel_glob)
-            {
-                gbMap[adjID]=gB->getVal(adjID-Nel_glob,0);
-            }
-        }
-        
-        if(test_set.find(gid)==test_set.end())
-        {
-            test_set.insert(gid);
-        }
+        int eid = Nel_glob+i;
+        gbMap[eid]=gB->getVal(i,0);
     }
     
     delete gB;
@@ -631,9 +623,10 @@ int main(int argc, char** argv)
     if(recursive == 0)
     {
         if(world_rank == 0)
-	{
-		std::cout << "We are running extended WLSqGR..." << std::endl;
-	}
+        {
+            std::cout << "We are running extended WLSqGR..." << std::endl;
+        }
+        
         std::map<int,Array<double>* > Hess_map = ComputedUdx_LSQ_HO_US3D(P,Uvaria_map,meshTopo,gbMap,comm);
         
         P->AddStateVecForAdjacentElements(Hess_map,9,comm);
@@ -702,7 +695,7 @@ int main(int argc, char** argv)
                 std::cout << "We are running WLSqGR recursively with an extended reconstruction scheme..." << std::endl;
             }
             
-            dUdXi = ComputedUdx_LSQ_US3D_LargeStencil(P,Uvaria_map,meshTopo,gbMap,comm);
+            dUdXi = ComputedUdx_LSQ_LS_US3D(P,Uvaria_map,meshTopo,gbMap,comm);
         }
         if(extended == 0)
         {
@@ -750,9 +743,9 @@ int main(int argc, char** argv)
         
         if(extended == 1)
         {
-            dU2dXi2 = ComputedUdx_LSQ_US3D_LargeStencil(P,dUidxi_map,meshTopo,gbMap,comm);
-            dU2dYi2 = ComputedUdx_LSQ_US3D_LargeStencil(P,dUidyi_map,meshTopo,gbMap,comm);
-            dU2dZi2 = ComputedUdx_LSQ_US3D_LargeStencil(P,dUidzi_map,meshTopo,gbMap,comm);
+            dU2dXi2 = ComputedUdx_LSQ_LS_US3D(P,dUidxi_map,meshTopo,gbMap,comm);
+            dU2dYi2 = ComputedUdx_LSQ_LS_US3D(P,dUidyi_map,meshTopo,gbMap,comm);
+            dU2dZi2 = ComputedUdx_LSQ_LS_US3D(P,dUidzi_map,meshTopo,gbMap,comm);
         }
         if(extended == 0)
         {
@@ -802,7 +795,6 @@ int main(int argc, char** argv)
         P->AddStateVecForAdjacentElements(Hess_map,6,comm);
         hess_vmap = P->ReduceStateVecToAllVertices_V2(Hess_map,6);
         
-
         double po = 6.0;
         
         if(RunWakRefinement == 0)
@@ -895,10 +887,10 @@ int main(int argc, char** argv)
     //std::cout << "WorldRank " << world_rank << " " << howmany << " " << hess_vmap_new.size() << std::endl;
 
 
-    for(itgg=hess_vmap.begin();itgg!=hess_vmap.end();itgg++)
-    {
-        delete itgg->second;
-    }
+//    for(itgg=hess_vmap.begin();itgg!=hess_vmap.end();itgg++)
+//    {
+//        delete itgg->second;
+//    }
     
     if(world_rank == 0)
     {

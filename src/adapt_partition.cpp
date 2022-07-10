@@ -184,6 +184,8 @@ Partition::Partition(ParArray<int>* ien, ParArray<int>* iee, ParArray<int>* ief,
     nLocAndAdj_Elem = LocAndAdj_Elem.size();
 
     CreatePartitionDomainTest();
+    
+    ComputeNode2NodeMap();
     /**/
     //CreatePartitionDomain();
 //

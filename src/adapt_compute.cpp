@@ -1283,6 +1283,7 @@ void ComputeMetricWithWake(Partition* Pa, std::vector<double> metric_inputs,
         delete[] WI;
         i++;
     }
+    
     int anitel_red;
     MPI_Allreduce(&anitel, &anitel_red, 1, MPI_INT, MPI_SUM, comm);
 
@@ -1321,7 +1322,7 @@ void ComputeMetric(Partition* Pa, std::vector<double> metric_inputs,
     {
         int glob_vid = itm->first;
         
-        if(recursive == 0 && extended == 1)
+        if(Hess_vm[glob_vid]->getNrow()==9)
         {
             Hmet[0] = Hess_vm[glob_vid]->getVal(3,0);
             Hmet[1] = Hess_vm[glob_vid]->getVal(4,0);
@@ -1335,7 +1336,7 @@ void ComputeMetric(Partition* Pa, std::vector<double> metric_inputs,
             Hmet[7] = Hess_vm[glob_vid]->getVal(7,0);
             Hmet[8] = Hess_vm[glob_vid]->getVal(8,0);
         }
-        if(recursive == 1)
+        if(Hess_vm[glob_vid]->getNrow()==6)
         {
             Hmet[0] = Hess_vm[glob_vid]->getVal(0,0);
             Hmet[1] = Hess_vm[glob_vid]->getVal(1,0);

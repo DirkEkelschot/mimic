@@ -2661,7 +2661,7 @@ int ProvideBoundaryRef(int findex, std::map<int,std::vector<int> > ranges, int f
     }
 }
 
-US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data, int readFromStats, MPI_Comm comm, MPI_Info info)
+US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data, int readFromStats, int StateVar, MPI_Comm comm, MPI_Info info)
 {
     int size;
     MPI_Comm_size(comm, &size);
@@ -2715,7 +2715,14 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
             //aState   = sqrt(1.4*287.05*TState);
 	    aState   = sqrt(1.29*188.92*TState);
             MState = VtotState/aState;
-            interior->setVal(u,1,MState);
+ 	    if(StateVar==0)
+	    {
+            	interior->setVal(u,1,MState);
+	    }
+	    if(StateVar==1)
+	    {
+		interior->setVal(u,1,TState);
+	    }
 	    //std::cout << "rhoState" << rhoState << " uState " << uState << " vState " << vState << " wState " << wState << " TState " << TState << " MState " << MState << std::endl;   
         }
         
