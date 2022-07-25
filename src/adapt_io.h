@@ -644,7 +644,7 @@ int ProvideBoundaryRef(int findex, std::map<int,std::vector<int> > ranges, int f
 US3D* ReadUS3DGrid(const char* fn_conn, const char* fn_grid, int ReadFromStats, MPI_Comm comm, MPI_Info info);
 
 
-US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data, int ReadFromStats, int StateVar, MPI_Comm comm, MPI_Info info);
+US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data, int ReadFromStats, int StateVar, int GasType, MPI_Comm comm, MPI_Info info);
 
 
 

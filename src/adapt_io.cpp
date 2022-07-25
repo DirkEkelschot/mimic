@@ -2661,7 +2661,7 @@ int ProvideBoundaryRef(int findex, std::map<int,std::vector<int> > ranges, int f
     }
 }
 
-US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data, int readFromStats, int StateVar, MPI_Comm comm, MPI_Info info)
+US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data, int readFromStats, int StateVar, int GasType, MPI_Comm comm, MPI_Info info)
 {
     int size;
     MPI_Comm_size(comm, &size);
@@ -2685,96 +2685,150 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
 
     if(readFromStats==1)
     {
-        ParArray<double>* mean;
-        ParArray<double>* stats;
-        
-        double time_stats = ReadStatisticsTimeFromRunInFileInParallel(fn_data,"run_1",comm,info);
-        
-        interior = new ParArray<double>(Nel,2,comm);
-        mean  = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_1","stats-mean",0,Nel,comm,info);
-
-        double rhoState,uState,vState,wState,TState,VtotState,aState,MState;
-        
-        if(rank == 0)
+        if(GasType==0)
         {
-            std::cout << "Statistics time = " << time_stats << std::endl;
-        }
-        Array<double>* vel_mean = new Array<double>(Nel_loc,3);
-        for(int u=0;u<Nel_loc;u++)
-        {
+            ParArray<double>* mean;
+            ParArray<double>* stats;
             
-            rhoState = mean->getVal(u,0)/time_stats;
-            uState   = mean->getVal(u,1)/time_stats;
-            vState   = mean->getVal(u,2)/time_stats;
-            wState   = mean->getVal(u,3)/time_stats;
-            TState   = mean->getVal(u,4)/time_stats;
-            vel_mean->setVal(u,0,uState);
-            vel_mean->setVal(u,1,vState);
-            vel_mean->setVal(u,2,wState);
-            VtotState = sqrt(uState*uState+vState*vState+wState*wState);
-            //aState   = sqrt(1.4*287.05*TState);
-	    aState   = sqrt(1.29*188.92*TState);
-            MState = VtotState/aState;
- 	    if(StateVar==0)
-	    {
-            	interior->setVal(u,1,MState);
-	    }
-	    if(StateVar==1)
-	    {
-		interior->setVal(u,1,TState);
-	    }
-	    //std::cout << "rhoState" << rhoState << " uState " << uState << " vState " << vState << " wState " << wState << " TState " << TState << " MState " << MState << std::endl;   
+            double time_stats = ReadStatisticsTimeFromRunInFileInParallel(fn_data,"run_1",comm,info);
+            
+            interior = new ParArray<double>(Nel,2,comm);
+            mean  = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_1","stats-mean",0,Nel,comm,info);
+
+            double rhoState,uState,vState,wState,TState,VtotState,aState,MState;
+            
+            if(rank == 0)
+            {
+                std::cout << "Statistics time = " << time_stats << std::endl;
+            }
+            Array<double>* vel_mean = new Array<double>(Nel_loc,3);
+            for(int u=0;u<Nel_loc;u++)
+            {
+                
+                rhoState = mean->getVal(u,0)/time_stats;
+                uState   = mean->getVal(u,1)/time_stats;
+                vState   = mean->getVal(u,2)/time_stats;
+                wState   = mean->getVal(u,3)/time_stats;
+                TState   = mean->getVal(u,4)/time_stats;
+                vel_mean->setVal(u,0,uState);
+                vel_mean->setVal(u,1,vState);
+                vel_mean->setVal(u,2,wState);
+                VtotState = sqrt(uState*uState+vState*vState+wState*wState);
+                //aState   = sqrt(1.4*287.05*TState);
+            aState   = sqrt(1.29*188.92*TState);
+                MState = VtotState/aState;
+             if(StateVar==0)
+            {
+                    interior->setVal(u,1,MState);
+            }
+            if(StateVar==1)
+            {
+            interior->setVal(u,1,TState);
+            }
+            //std::cout << "rhoState" << rhoState << " uState " << uState << " vState " << vState << " wState " << wState << " TState " << TState << " MState " << MState << std::endl;
+            }
+            
+            stats  = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_1","stats-stat",0,Nel,comm,info);
+            //std::cout << "stats size " << stats->getNrow() << " " << stats->getNcol() << std::endl;
+            double upup,vpvp,wpwp,tke;
+            std::vector<double> tkevec(Nel_loc);
+            for(int u=0;u<Nel_loc;u++)
+            {
+                upup = stats->getVal(u,0)/time_stats-vel_mean->getVal(u,0)*vel_mean->getVal(u,0);
+                vpvp = stats->getVal(u,1)/time_stats-vel_mean->getVal(u,1)*vel_mean->getVal(u,1);
+                wpwp = stats->getVal(u,2)/time_stats-vel_mean->getVal(u,2)*vel_mean->getVal(u,2);
+                tke = 0.5*(upup+vpvp+wpwp);
+                tkevec[u] = tke;
+            }
+            delete vel_mean;
+            
+            double tkeMax = *std::max_element(tkevec.begin(),tkevec.end());
+            double tkeMax_glob = 0.0;
+            MPI_Allreduce(&tkeMax, &tkeMax_glob, 1, MPI_DOUBLE, MPI_MAX, comm);
+            //std::cout << "tkeMax_glob " << tkeMax_glob << std::endl;
+            for(int u=0;u<Nel_loc;u++)
+            {
+                interior->setVal(u,0,tkevec[u]/tkeMax_glob);
+            }
+            
+            
+            delete mean;
+            delete stats;
         }
         
-        stats  = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_1","stats-stat",0,Nel,comm,info);
-        //std::cout << "stats size " << stats->getNrow() << " " << stats->getNcol() << std::endl;
-        double upup,vpvp,wpwp,tke;
-        std::vector<double> tkevec(Nel_loc);
-        for(int u=0;u<Nel_loc;u++)
+        
+        if(GasType == 1)
         {
-            upup = stats->getVal(u,0)/time_stats-vel_mean->getVal(u,0)*vel_mean->getVal(u,0);
-            vpvp = stats->getVal(u,1)/time_stats-vel_mean->getVal(u,1)*vel_mean->getVal(u,1);
-            wpwp = stats->getVal(u,2)/time_stats-vel_mean->getVal(u,2)*vel_mean->getVal(u,2);
-            tke = 0.5*(upup+vpvp+wpwp);
-            tkevec[u] = tke;
+            ParArray<double>* mean;
+            ParArray<double>* stats;
+            
+            double time_stats = ReadStatisticsTimeFromRunInFileInParallel(fn_data,"run_1",comm,info);
+            
+            interior = new ParArray<double>(Nel,2,comm);
+            mean  = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_1","stats-mean",0,Nel,comm,info);
+
+            double rhoState,uState,vState,wState,TState,VtotState,aState,MState;
+            
+            if(rank == 0)
+            {
+                std::cout << "Statistics time = " << time_stats << std::endl;
+            }
+            Array<double>* vel_mean = new Array<double>(Nel_loc,3);
+            for(int u=0;u<Nel_loc;u++)
+            {
+                TState   = mean->getVal(u,0)/time_stats;
+                interior->setVal(u,0,TState);
+                interior->setVal(u,1,TState);
+            }
+            
+            
+            
+            delete mean;
+            delete stats;
         }
-        delete vel_mean;
-        
-        double tkeMax = *std::max_element(tkevec.begin(),tkevec.end());
-        double tkeMax_glob = 0.0;
-        MPI_Allreduce(&tkeMax, &tkeMax_glob, 1, MPI_DOUBLE, MPI_MAX, comm);
-        //std::cout << "tkeMax_glob " << tkeMax_glob << std::endl;
-        for(int u=0;u<Nel_loc;u++)
-        {
-            interior->setVal(u,0,tkevec[u]/tkeMax_glob);
-        }
-        
-        
-        delete mean;
-        delete stats;
-        
     }
     if(readFromStats==0)
     {
-        Array<double>* readdata  = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_1","interior",0,Nel,comm,info);
-        
-        interior = new ParArray<double>(Nel,1,comm);
-        double rhoState,uState,vState,wState,TState,VtotState,aState,MState;
-
-        for(int u=0;u<Nel_loc;u++)
+        if(GasType == 0)
         {
-            rhoState = readdata->getVal(u,0);
-            uState   = readdata->getVal(u,1);
-            vState   = readdata->getVal(u,2);
-            wState   = readdata->getVal(u,3);
-            TState   = readdata->getVal(u,4);
-            VtotState = sqrt(uState*uState+vState*vState+wState*wState);
-            aState   = sqrt(1.4*287.05*TState);
-            MState = VtotState/aState;
-            interior->setVal(u,0,MState);
+            Array<double>* readdata  = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_1","interior",0,Nel,comm,info);
+            
+            interior = new ParArray<double>(Nel,1,comm);
+            double rhoState,uState,vState,wState,TState,VtotState,aState,MState;
+
+            for(int u=0;u<Nel_loc;u++)
+            {
+                rhoState = readdata->getVal(u,0);
+                uState   = readdata->getVal(u,1);
+                vState   = readdata->getVal(u,2);
+                wState   = readdata->getVal(u,3);
+                TState   = readdata->getVal(u,4);
+                VtotState = sqrt(uState*uState+vState*vState+wState*wState);
+                aState   = sqrt(1.4*287.05*TState);
+                MState = VtotState/aState;
+                interior->setVal(u,0,MState);
+            }
+            
+            delete readdata;
         }
         
-        delete readdata;
+        if(GasType == 1)
+        {
+            Array<double>* readdata  = ReadDataSetFromRunInFileInParallel<double>(fn_data,"run_1","interior",0,Nel,comm,info);
+            
+            interior = new ParArray<double>(Nel,1,comm);
+            double rhoState,uState,vState,wState,TState,VtotState,aState,MState;
+
+            for(int u=0;u<Nel_loc;u++)
+            {
+                TState = readdata->getVal(u,0);
+               
+                interior->setVal(u,0,TState);
+            }
+            
+            delete readdata;
+        }
+        
     }
     
     

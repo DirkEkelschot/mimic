@@ -414,7 +414,8 @@ int main(int argc, char** argv)
     int niter            = metric_inputs[8];
     int recursive	     = metric_inputs[9];
     int extended         = metric_inputs[10];
-    StateVar         = metric_inputs[11]; 
+    StateVar             = metric_inputs[11];
+    int GasType          = metric_inputs[12];
     if(world_rank == 0)
     {
         std::cout << "===================================================" << std::endl;
@@ -427,6 +428,8 @@ int main(int argc, char** argv)
         std::cout << "MetScale  = " << MetScale << std::endl;
         std::cout << "Hausdorff = " << hausd << std::endl;
         std::cout << "NiterPart = " << niter << std::endl;
+        std::cout << "StateVar = "  << StateVar << std::endl;
+        std::cout << "GasType = "   << GasType << std::endl;
         if(ReadFromStats == 0)
         {
             std::cout << "Reading statistics? -> NO (5th entry in the metric.inp file is set to 0.)" << std::endl;
@@ -462,7 +465,7 @@ int main(int argc, char** argv)
     }
     //===========================================================================
     
-    US3D* us3d    = ReadUS3DData(fn_conn,fn_grid,fn_data,ReadFromStats,StateVar,comm,info);
+    US3D* us3d    = ReadUS3DData(fn_conn,fn_grid,fn_data,ReadFromStats,StateVar,GasType,comm,info);
     int Nve       = us3d->xcn->getNglob();
     
     int Nel_part  = us3d->ien->getNrow();
