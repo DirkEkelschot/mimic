@@ -1497,12 +1497,13 @@ int main(int argc, char** argv)
     std::set<int> vert_set;
     
     int prismTris[2][3] = {{0, 1, 4}, {3, 2, 5}};
-    std::set<int> facesDone;
+    std::set<std::set<int> > facesDone;
     std::map<int,int> vertex_set;
     int nodeId = 0;
     
     std::map<int,std::vector<int> > newPrisms;
     std::map<int,std::map<int,std::vector<double> > > newPrismsCoords;
+    
     for(itm=plines->ElementLines.begin();itm!=plines->ElementLines.end();itm++)
     {
         int nprismOnLine = itm->second.size();
@@ -1512,6 +1513,7 @@ int main(int argc, char** argv)
             int elId = itm->second[q];
             std::vector<int> nodes(6);
             std::vector<int> orig_nodes(6);
+            
             orig_nodes[0] = us3d->ien->getVal(elId,3);
             orig_nodes[1] = us3d->ien->getVal(elId,5);
             orig_nodes[2] = us3d->ien->getVal(elId,2);
@@ -1522,6 +1524,7 @@ int main(int argc, char** argv)
             
             std::map<int,std::vector<double> > coordmap;
             std::map<int,std::vector<double> > coordmap_orig;
+            
             for(int v=0;v<6;v++)
             {
                 int vertexid = orig_nodes[v];
@@ -1534,24 +1537,28 @@ int main(int argc, char** argv)
                 coordmap_orig[vertexid] = Coords;
             }
             
+            std::set<int> face0;
+            face0.insert(orig_nodes[0]);
+            face0.insert(orig_nodes[4]);
+            face0.insert(orig_nodes[1]);
+            std::set<int> face1;
+            face1.insert(orig_nodes[3]);
+            face1.insert(orig_nodes[5]);
+            face1.insert(orig_nodes[2]);
+            
             std::vector<int> facespelem = plines->Element2Faces[elId];
             
             //std::cout << "facespelem " << facespelem[0] << " " << facespelem[1] << std::endl;
             
-            if(facesDone.find(facespelem[0])!=facesDone.end() &&
-               facesDone.find(facespelem[1])!=facesDone.end())
+            if(facesDone.find(face0)!=facesDone.end() &&
+               facesDone.find(face1)!=facesDone.end())
             {
                 std::cout << "ERROR: Both faces are process already..." << std::endl;
             }
             
-            if(facesDone.find(facespelem[0])==facesDone.end() &&
-               facesDone.find(facespelem[1])==facesDone.end())
+            if(facesDone.find(face0)==facesDone.end() &&
+               facesDone.find(face1)==facesDone.end())
             {
-                if(elId == 197343)
-                {
-                    std::cout << " 0not 1not " << facespelem[0]<< " " << facespelem[1] << std::endl;
-                }
-                
                 for (j = 0; j < 2; ++j)
                 {
                     for (k = 0; k < 3; ++k)
@@ -1573,22 +1580,17 @@ int main(int argc, char** argv)
                     }
                 }
 
-                facesDone.insert(facespelem[0]);
-                facesDone.insert(facespelem[1]);
+                facesDone.insert(face0);
+                facesDone.insert(face1);
             }
             
-            if(facesDone.find(facespelem[0])!=facesDone.end() &&
-               facesDone.find(facespelem[1])==facesDone.end())
+            if(facesDone.find(face0)!=facesDone.end() &&
+               facesDone.find(face1)==facesDone.end())
             {
                 int tmp1[3] = {orig_nodes[prismTris[0][0]],
                                orig_nodes[prismTris[0][1]],
                                orig_nodes[prismTris[0][2]]};
                 
-                
-                if(elId == 197343)
-                {
-                    std::cout << " 0found 1not" << std::endl;
-                }
                 int tmp2[3] = {0, 1, 2};
                 
                 if (tmp1[0] > tmp1[1])
@@ -1612,23 +1614,10 @@ int main(int argc, char** argv)
                 for(j = 0; j < 3; ++j)
                 {
                     int vid = orig_nodes[prismTris[0][tmp2[j]]];
-                    
-                    if(elId == 197343)
-                    {
-                        if(vertex_set.find(vid)==vertex_set.end())
-                        {
-                            std::cout << vid << " not yet in set " << std::endl;
-                        }
-                        //std::cout << nodes[prismTris[0][tmp2[j]]] << " ";
-                    }
-                    
                     nodes[prismTris[0][tmp2[j]]] = vertex_set[vid];
 
                 }
-                if(elId == 197343)
-                {
-                    std::cout << std::endl;
-                }
+                
                 // Renumber this face so that highest ID matches.
                 for (j = 0; j < 3; ++j)
                 {
@@ -1651,25 +1640,15 @@ int main(int argc, char** argv)
                     }
                 }
 
-                if(elId == 197343)
-                {
-                    std::cout << nodes[0] << " " << nodes[1] << " " << nodes[2] << " " << nodes[3] << " " << nodes[4] << " " << nodes[5] << std::endl;
-                }
-                
-                facesDone.insert(facespelem[1]);
+                facesDone.insert(face1);
                 
             }
-            if(facesDone.find(facespelem[0])==facesDone.end() &&
-               facesDone.find(facespelem[1])!=facesDone.end())
+            if(facesDone.find(face0)==facesDone.end() &&
+               facesDone.find(face1)!=facesDone.end())
             {
                 int tmp1[3] = {orig_nodes[prismTris[1][0]],
                                orig_nodes[prismTris[1][1]],
                                orig_nodes[prismTris[1][2]]};
-                
-                if(elId == 197343)
-                {
-                    std::cout << " 1found 0not" << std::endl;
-                }
                 
                 int tmp2[3] = {0, 1, 2};
                 
@@ -1720,43 +1699,13 @@ int main(int argc, char** argv)
                     }
                 }
 
-                facesDone.insert(facespelem[0]);
+                facesDone.insert(face0);
             }
-            //std::cout << "newPrisms[elId] " <<elId << " :: " << nodes[0] << " "<< nodes[1] << " "<< nodes[2] << " "<< nodes[3] << " "<< nodes[4] << " "<< nodes[5] << std::endl;
             
             newPrisms[elId]       = nodes;
             newPrismsCoords[elId] = coordmap;
         }
     }
-    
-    std::map<int,std::vector<int> >::iterator itpr;
-    
-    for(itpr=newPrisms.begin();itpr!=newPrisms.end();itpr++)
-    {
-        int elid = itpr->first;
-        std::vector<int> nodes = itpr->second;
-        std::map<int,std::vector<double> > coordinates = newPrismsCoords[elid];
-        std::vector<std::vector<double> > elem_coords;
-        for (int j = 0; j < nodes.size(); ++j)
-        {
-            int vid  = nodes[j];
-            
-            std::vector<double> coord = coordinates[vid];
-            
-            elem_coords.push_back(coord);
-        }
-        
-        //std::cout << std::endl;
-        //std::cout << "Prism nodes before " << nodes[0] << " "<< nodes[1] << " "<< nodes[2] << " "<< nodes[3] << " "<< nodes[4] << " "<< nodes[5] << std::endl;
-        
-        NekElement* prism = SetPrism(nodes,elem_coords);
-        
-        //std::cout << "Prism nodes after " << nodes[0] << " "<< nodes[1] << " "<< nodes[2] << " "<< nodes[3] << " "<< nodes[4] << " "<< nodes[5] << std::endl;
-        
-    }
-    
-    std::cout << "Done checking Prisms" << std::endl;
-    
     
     
     int eId   = 0;
@@ -1779,9 +1728,159 @@ int main(int argc, char** argv)
     int s = 0;
     // Orient the elements correctly:
     
+    
+    int notCor = 0;
+    
     std::vector<NekElement*> mesh(nEl);
     std::map<int,std::map<int,int> > el2_l2g_edge;
-    int notCor = 0;
+
+    std::map<int,std::vector<int> >::iterator itpr;
+    int badRotPrism = 0;
+    for(itpr=newPrisms.begin();itpr!=newPrisms.end();itpr++)
+    {
+        int elid = itpr->first;
+        std::vector<int> nodes = itpr->second;
+        std::map<int,std::vector<double> > coordinates = newPrismsCoords[elid];
+        std::vector<std::vector<double> > elem_coords;
+        for (int j = 0; j < nodes.size(); ++j)
+        {
+            int vid  = nodes[j];
+            
+            std::vector<double> coord = coordinates[vid];
+            
+            elem_coords.push_back(coord);
+        }
+    
+        NekElement* prism = SetPrism(nodes,elem_coords);
+        
+        mesh[elid]      = prism;
+        bool checkPrism = CheckPrismRotation(prism,elid);
+        
+        if(checkPrism==false)
+        {
+            badRotPrism++;
+        }
+        
+        std::vector<std::vector<int> > edges = prism->m_edges;
+        std::vector<int> gpedges(9);
+        std::map<std::set<int> ,int> loc_Edges;
+        std::map<int ,int> loc2glob_Edges;
+        std::map<int,int> Prism_l2g_edge;
+        
+        for(int s=0;s<9;s++)
+        {
+            std::set<int> edgeset;
+            for(int k=0;k<2;k++)
+            {
+                int vvid = edges[s][k];
+                edgeset.insert(vvid);
+            }
+            
+            if(edge_set.find(edgeset)==edge_set.end())
+            {
+                edge_set[edgeset]  = eId;
+                edge_map[eId]      = edges[s];
+                gpedges[s]         = eId;
+                Prism_l2g_edge[s]  = eId;
+                eId++;
+            }
+            else
+            {
+                int eIdn           = edge_set[edgeset];
+                gpedges[s]         = eIdn;
+                Prism_l2g_edge[s]  = eIdn;
+            }
+        }
+        
+        el2_l2g_edge[elid] = Prism_l2g_edge;
+    }
+    
+    
+    
+    int TetWRong = 0;
+    for(int i=0;i<nEl;i++)
+    {
+        if(us3d->iet->getVal(i,0)==2)
+        {
+            std::vector<int> nodes(4);
+            nodes[0] = us3d->ien->getVal(i,0);
+            nodes[1] = us3d->ien->getVal(i,1);
+            nodes[2] = us3d->ien->getVal(i,2);
+            nodes[3] = us3d->ien->getVal(i,3);
+            
+            std::vector<std::vector<double> > nodesCoords;
+            
+            for (int j = 0; j < 4; ++j)
+            {
+                int vid  = nodes[j];
+                
+                if(vertex_set.find(vid)==vertex_set.end())
+                {
+                    vertex_set[vid] = nodeId;
+                    nodes[j] = nodeId;
+                    nodeId++;
+                }
+                else
+                {
+                    int nodeIdn = vertex_set[vid];
+                    nodes[j] = nodeId;
+                }
+                
+                
+                std::vector<double> Coords(3);
+                Coords[0] = us3d->xcn->getVal(vid,0);
+                Coords[1] = us3d->xcn->getVal(vid,1);
+                Coords[2] = us3d->xcn->getVal(vid,2);
+                
+                nodesCoords.push_back(Coords);
+
+            }
+            
+            NekElement* tet = SetTetrahedron(nodes,nodesCoords);
+           
+            mesh[i] = tet;
+            std::vector<std::vector<int> > edges = tet->m_edges;
+            std::map<int,int> Tet_l2g_edge;
+            std::vector<int> gedges(6);
+            for(s=0;s<6;s++)
+            {
+                std::set<int> eset;
+                for(int k=0;k<2;k++)
+                {
+                    eset.insert(edges[s][k]);
+                }
+                if(edge_set.find(eset)==edge_set.end())
+                {
+                    edge_set[eset]  = eId;
+                    edge_map[eId]   = edges[s];
+                    gedges[s]       = eId;
+                    Tet_l2g_edge[s] = eId;
+                    eId++;
+                }
+                else
+                {
+                    int eIdn        = edge_set[eset];
+                    gedges[s]       = eIdn;
+                    Tet_l2g_edge[s] = eIdn;
+
+                }
+            }
+            el2_l2g_edge[i] = Tet_l2g_edge;
+            
+            bool checkTet = CheckTetRotation(tet,i);
+            if(checkTet==false)
+            {
+                TetWRong++;
+            }
+            
+        }
+    }
+    
+    
+    std::cout << "Done checking Prisms " << badRotPrism << " " << TetWRong << " " << facesDone.size() << std::endl;
+    
+    
+    
     for(int i=0;i<nEl;i++)
     {
         if(us3d->iet->getVal(i,0)==2)
@@ -1992,24 +2091,6 @@ int main(int argc, char** argv)
         
         element_map[i] = gfaces_copy;
     }
-
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
     
     std::cout << "number of edges " << edge_map.size() << std::endl;
     std::cout << "number of faces " << face_map.size() << " " << face_set.size()  << " " << us3d->ifn->getNrow() << std::endl;
