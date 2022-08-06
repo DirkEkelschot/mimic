@@ -1,6 +1,9 @@
+
+<DOMAIN> C[0-1] </DOMAIN>
+</GEOMETRY>
 <EXPANSIONS>
-    <E COMPOSITE="C[0]" NUMMODES="3" TYPE="GAUSS_LAGRANGE" FIELDS="rho,rhou,rhov,rhow, E" />
-    <E COMPOSITE="C[1]" NUMMODES="3" TYPE="GAUSS_LAGRANGE" FIELDS="rho,rhou,rhov,rhow, E" />
+    <E COMPOSITE="C[0]" NUMMODES="3" TYPE="MODIFIED" FIELDS="rho,rhou,rhov,rhow, E" />
+    <E COMPOSITE="C[1]" NUMMODES="3" TYPE="MODIFIED" FIELDS="rho,rhou,rhov,rhow, E" />
 </EXPANSIONS>
 <CONDITIONS>
 
@@ -53,6 +56,7 @@
             <B ID="2">  C[4]  </B>
             <B ID="3">  C[5]  </B>
         </BOUNDARYREGIONS>
+       <BOUNDARYCONDITIONS>
         <REGION REF="0">
                 <D VAR="rho"  USERDEFINEDTYPE="WallViscous" VALUE="0" />
                 <D VAR="rhou" USERDEFINEDTYPE="WallViscous" VALUE="0" />
@@ -84,10 +88,10 @@
             </REGION>
     </BOUNDARYCONDITIONS>
     <FUNCTION NAME="InitialConditions">
-        <F VAR="rho"  USERDEFINEDTYPE="rhoInf" VALUE="0" />
-        <F VAR="rhou" USERDEFINEDTYPE="rhoInf*uInf" VALUE="0" />
-        <F VAR="rhov" USERDEFINEDTYPE="rhoInf*vInf" VALUE="0" />
-        <F VAR="rhow" USERDEFINEDTYPE="rhoInf*wInf" VALUE="0" />
-        <F VAR="E"    USERDEFINEDTYPE="pInf / (Gamma - 1) + 0.5 * rhoInf * (uInf * uInf + vInf * vInf)" VALUE="0" />
+        <E VAR="rho"  USERDEFINEDTYPE="rhoInf" VALUE="0" />
+        <E VAR="rhou" USERDEFINEDTYPE="rhoInf*uInf" VALUE="0" />
+        <E VAR="rhov" USERDEFINEDTYPE="rhoInf*vInf" VALUE="0" />
+        <E VAR="rhow" USERDEFINEDTYPE="rhoInf*wInf" VALUE="0" />
+        <E VAR="E"    USERDEFINEDTYPE="pInf / (Gamma - 1) + 0.5 * rhoInf * (uInf * uInf + vInf * vInf)" VALUE="0" />
     </FUNCTION>
 </CONDITIONS>
