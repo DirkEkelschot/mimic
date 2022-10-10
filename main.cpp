@@ -365,11 +365,201 @@ std::map<int,std::vector<double> > AllGatherMapDoubleVec(std::map<int,std::vecto
 
 
 
+void ParseEquals(const std::string &line, std::string &lhs,
+                                std::string &rhs)
+{
+    /// Pull out lhs and rhs and eliminate any spaces.
+    size_t beg = line.find_first_not_of(" ");
+    size_t end = line.find_first_of("=");
+    // Check for no parameter name
+    if (beg == end)
+        throw 1;
+    // Check for no parameter value
+    if (end != line.find_last_of("="))
+        throw 1;
+    // Check for no equals sign
+    if (end == std::string::npos)
+        throw 1;
+
+    lhs = line.substr(line.find_first_not_of(" "), end - beg);
+    lhs = lhs.substr(0, lhs.find_last_not_of(" ") + 1);
+    rhs = line.substr(line.find_last_of("=") + 1);
+    rhs = rhs.substr(rhs.find_first_not_of(" "));
+    rhs = rhs.substr(0, rhs.find_last_not_of(" ") + 1);
+}
 
 
+struct Inputs{
+    double hgrad;
+    double hmin;
+    double hmax;
+    double MetScale;
+    double hausd;
+    int ReadFromStats;
+    int RunWakRefinement;
+    double hwake;
+    int niter;
+    int recursive;
+    int extended;
+    int StateVar;
+};
 
 
-
+Inputs* ReadXmlFile(const char* filename)
+{
+    TiXmlDocument *m_xmlDoc = new TiXmlDocument;
+    TiXmlDocument doc( filename );
+    Inputs* inp = new Inputs;
+    doc.LoadFile();
+    
+    TiXmlHandle hDoc(&doc);
+    
+//    TiXmlHandle docHandle(m_xmlDoc);
+    
+//    TiXmlElement *e;
+//
+//    e = doc->FirstChildElement("METRIC").Element();
+//
+//    TiXmlElement *parametersElement =
+//        conditions->FirstChildElement("PARAMETERS");
+    
+    TiXmlElement *xmlMetric = doc.FirstChildElement("METRIC");
+    
+    
+    TiXmlElement *xmlParam = xmlMetric->FirstChildElement("PARAMETERS");
+    
+    std::map<std::string,double> param_map;
+    if (xmlParam)
+    {
+        TiXmlElement *parameter = xmlParam->FirstChildElement("P");
+        
+        while (parameter)
+        {
+            TiXmlNode *node = parameter->FirstChild();
+            
+            std::string line = node->ToText()->Value(), lhs, rhs;
+            
+            try
+            {
+                ParseEquals(line, lhs, rhs);
+            }
+            catch (...)
+            {
+                std::cout << "Error reading metric.xml " << std::endl;
+            }
+            
+            if (!lhs.empty() && !rhs.empty())
+            {
+                double value = std::stod(rhs);
+                param_map[lhs] = value;
+                
+            }
+            parameter = parameter->NextSiblingElement();
+        }
+    }
+    
+    if(param_map.find("hMinimum")!=param_map.end())
+    {
+        inp->hmin = param_map["hMinimum"];
+    }
+    else
+    {
+        std::cout << "Error: hMinimum is not defined in metric.xml." << std::endl;
+    }
+    if(param_map.find("hMaximum")!=param_map.end())
+    {
+        inp->hmax = param_map["hMaximum"];
+    }
+    else
+    {
+        std::cout << "Error: hMaximum is not defined in metric.xml." << std::endl;
+    }
+    if(param_map.find("hGradation")!=param_map.end())
+    {
+        inp->hgrad = param_map["hGradation"];
+    }
+    else
+    {
+        std::cout << "Error: hGradation is not defined in metric.xml." << std::endl;
+    }
+    if(param_map.find("Scaling")!=param_map.end())
+    {
+        inp->MetScale = param_map["Scaling"];
+    }
+    else
+    {
+        std::cout << "Error: Scaling is not defined in metric.xml." << std::endl;
+    }
+    if(param_map.find("HausDorff")!=param_map.end())
+    {
+        inp->hausd = param_map["HausDorff"];
+    }
+    else
+    {
+        std::cout << "Error: HausDorff is not defined in metric.xml." << std::endl;
+    }
+    if(param_map.find("nIterations")!=param_map.end())
+    {
+        inp->niter = param_map["nIterations"];
+    }
+    else
+    {
+        std::cout << "Error: nIterations is not defined in metric.xml." << std::endl;
+    }
+    if(param_map.find("RecursiveReconstruction")!=param_map.end())
+    {
+        inp->recursive = param_map["RecursiveReconstruction"];
+    }
+    else
+    {
+        std::cout << "Error: RecursiveReconstruction is not defined in metric.xml." << std::endl;
+    }
+    
+    if(param_map.find("ExtendedScheme")!=param_map.end())
+    {
+        inp->extended = param_map["ExtendedScheme"];
+    }
+    else
+    {
+        std::cout << "Error: RecursiveReconstruction is not defined in metric.xml." << std::endl;
+    }
+    
+    if(param_map.find("UseStatistics")!=param_map.end())
+    {
+        inp->ReadFromStats = param_map["UseStatistics"];
+    }
+    else
+    {
+        std::cout << "Error: UseStatistics is not defined in metric.xml." << std::endl;
+    }
+    if(param_map.find("WakeRefinement")!=param_map.end())
+    {
+        inp->RunWakRefinement = param_map["WakeRefinement"];
+    }
+    else
+    {
+        std::cout << "Error: WakeRefinement is not defined in metric.xml." << std::endl;
+    }
+    if(param_map.find("hWake")!=param_map.end())
+    {
+        inp->hwake = param_map["hWake"];
+    }
+    else
+    {
+        std::cout << "Error: hWake is not defined in metric.xml." << std::endl;
+    }
+    if(param_map.find("StateVariable")!=param_map.end())
+    {
+        inp->StateVar = param_map["StateVariable"];
+    }
+    else
+    {
+        std::cout << "Error: StateVariable is not defined in metric.xml." << std::endl;
+    }
+    
+    
+    return inp;
+}
 
 
 
@@ -393,65 +583,83 @@ int main(int argc, char** argv)
 //    const char* fn_conn="../test_mesh/cylinder_hybrid/conn.h5";
 //    const char* fn_data="../test_mesh/cylinder_hybrid/data.h5";
     
-    const char* fn_grid="inputs/grid.h5";
-    const char* fn_conn="inputs/conn.h5";
-    const char* fn_data="inputs/data.h5";
-    const char* fn_metric = "inputs/metric.inp";
-    // inputs 
-    std::vector<double> metric_inputs = ReadMetricInputs(fn_metric);
+    const char* fn_grid="../inputs/grid.h5";
+    const char* fn_conn="../inputs/conn.h5";
+    const char* fn_data="../inputs/data.h5";
+    const char* fn_metric="../inputs/metric.inp";
+    
+    Inputs* inputs = ReadXmlFile("../inputs/metric.xml");
+
+    
+    
+    
+//    TiXmlElement *parametersElement =
+//        conditions->FirstChildElement("PARAMETERS");
+    
+
+    
+//    TiXmlHandle docHandle(m_xmlDoc);
+//    TiXmlElement *e;
+//    e = docHandle.FirstChildElement("NEKTAR")
+//            .FirstChildElement("CONDITIONS")
+//            .Element();
+    
+    
+    
+    //std::vector<double> metric_inputs = ReadMetricInputs(fn_metric);
 
     
     //===========================================================================
-    int StateVar = 0;
-    double hgrad         = metric_inputs[0];
-    double hmin          = metric_inputs[1];
-    double hmax          = metric_inputs[2];
-    double MetScale      = metric_inputs[3];
-    double hausd         = metric_inputs[4];
-    int ReadFromStats    = metric_inputs[5];
-    int RunWakRefinement = metric_inputs[6];
-    double hwake         = metric_inputs[7];
-    int niter            = metric_inputs[8];
-    int recursive	     = metric_inputs[9];
-    int extended         = metric_inputs[10];
-    StateVar         = metric_inputs[11]; 
+//    int StateVar = 0;
+//    double hgrad         = metric_inputs[0];
+//    double hmin          = metric_inputs[1];
+//    double hmax          = metric_inputs[2];
+//    double MetScale      = metric_inputs[3];
+//    double hausd         = metric_inputs[4];
+//    int ReadFromStats    = metric_inputs[5];
+//    int RunWakRefinement = metric_inputs[6];
+//    double hwake         = metric_inputs[7];
+//    int niter            = metric_inputs[8];
+//    int recursive	     = metric_inputs[9];
+//    int extended         = metric_inputs[10];
+//    StateVar         = metric_inputs[11];
     if(world_rank == 0)
     {
         std::cout << "===================================================" << std::endl;
         std::cout << "============== Metric parameters ==================" << std::endl;
         std::cout << "===================================================" << std::endl;
         std::cout << "Nproc	    = " << world_size << std::endl;
-        std::cout << "hgrad     = " << hgrad << std::endl;
-        std::cout << "hmin      = " << hmin << std::endl;
-        std::cout << "hmax      = " << hmax << std::endl;
-        std::cout << "MetScale  = " << MetScale << std::endl;
-        std::cout << "Hausdorff = " << hausd << std::endl;
-        std::cout << "NiterPart = " << niter << std::endl;
-        if(ReadFromStats == 0)
+        std::cout << "hgrad     = " << inputs->hgrad << std::endl;
+        std::cout << "hmin      = " << inputs->hmin << std::endl;
+        std::cout << "hmax      = " << inputs->hmax << std::endl;
+        std::cout << "MetScale  = " << inputs->MetScale << std::endl;
+        std::cout << "Hausdorff = " << inputs->hausd << std::endl;
+        std::cout << "NiterPart = " << inputs->niter << std::endl;
+        if(inputs->ReadFromStats == 0)
         {
             std::cout << "Reading statistics? -> NO (5th entry in the metric.inp file is set to 0.)" << std::endl;
             std::cout << "The metric is reconstructed based on instantaneous Mach number"<<std::endl;
         }
-        if(ReadFromStats == 1)
+        if(inputs->ReadFromStats == 1)
         {
             std::cout << "Reading statistics? -> YES (5th entry in the metric.inp file is set to 1.)" << std::endl;
             std::cout << "The metric is reconstructed based on the mean of Mach number."<<std::endl;
 
         }
-        if(RunWakRefinement==0)
+        if(inputs->RunWakRefinement==0)
         {
             std::cout << "Wake refinement is switch OFF. (6th entry in the metric.inp file is set to 0. hwake, the 7th entry defined in the metric.inp file, is being ignored)" << std::endl;
             
         }
-        if(RunWakRefinement==1)
+        if(inputs->RunWakRefinement==1)
         {
-            std::cout << "Wake refinement is switch ON with hwake = " << hwake << "(6th entry in the metric.inp file is set to 1 and hwake is set equal to the 7th entry defined in the metric.inp file.) " << std::endl;
+            std::cout << "Wake refinement is switch ON with hwake = " << inputs->hwake << "(6th entry in the metric.inp file is set to 1 and hwake is set equal to the 7th entry defined in the metric.inp file.) " << std::endl;
         }
-        if(StateVar == 0)
+        if(inputs->StateVar == 0)
 	{
 	    std::cout << "We are adapting based on the Mach number."<<std::endl;
 	}
-	if(StateVar == 1)
+	if(inputs->StateVar == 1)
 	{
 	    std::cout << "We are adapting based on the static Temperature." << std::endl;
         }
@@ -462,7 +670,7 @@ int main(int argc, char** argv)
     }
     //===========================================================================
     
-    US3D* us3d    = ReadUS3DData(fn_conn,fn_grid,fn_data,ReadFromStats,StateVar,comm,info);
+    US3D* us3d    = ReadUS3DData(fn_conn,fn_grid,fn_data,inputs->ReadFromStats,inputs->StateVar,comm,info);
     int Nve       = us3d->xcn->getNglob();
     
     int Nel_part  = us3d->ien->getNrow();
@@ -472,7 +680,7 @@ int main(int argc, char** argv)
     int varia = 4;
     double TKE, MState;
     
-    if(ReadFromStats==0)
+    if(inputs->ReadFromStats==0)
     {
         for(int i=0;i<Nel_part;i++)
         {
@@ -481,7 +689,7 @@ int main(int argc, char** argv)
         }
     }
     
-    if(ReadFromStats==1)
+    if(inputs->ReadFromStats==1)
     {
         TKEi = new Array<double>(Nel_part,1);
 
@@ -515,7 +723,7 @@ int main(int argc, char** argv)
     clock_t t;
     double tn = 0.0;
     t = clock();
-      
+    
     Partition* P = new Partition(us3d->ien, us3d->iee, us3d->ief, us3d->ie_Nv , us3d->ie_Nf,
                                  us3d->ifn, us3d->ife, us3d->if_ref, us3d->if_Nv,
                                  parmetis_pstate, ien_pstate, ife_pstate,
@@ -579,7 +787,7 @@ int main(int argc, char** argv)
     std::map<int,Array<double>* >  TKE_vmap;
     
 
-    if(ReadFromStats==1)
+    if(inputs->ReadFromStats==1)
     {
         Utke_map = P->PartitionAuxilaryData(TKEi, comm);
         P->AddStateVecForAdjacentElements(Utke_map,1,comm);
@@ -620,7 +828,7 @@ int main(int argc, char** argv)
     
     Mesh_Topology* meshTopo      = new Mesh_Topology(P,comm);
 
-    if(recursive == 0)
+    if(inputs->recursive == 0)
     {
         if(world_rank == 0)
         {
@@ -648,14 +856,14 @@ int main(int argc, char** argv)
         }
         
         double po = 6.0;
-        if(RunWakRefinement == 0)
+        if(inputs->RunWakRefinement == 0)
         {
-            ComputeMetric(P,metric_inputs,comm,hess_vmap,1.0,po,recursive,extended);
+            ComputeMetric(P,comm,hess_vmap,1.0,po,inputs->recursive,inputs->extended,inputs->hmin,inputs->hmax,inputs->MetScale);
 
         }
-        if(RunWakRefinement == 1)
+        if(inputs->RunWakRefinement == 1)
         {
-            ComputeMetricWithWake(P, metric_inputs, comm, TKE_vmap, hess_vmap, 1.0, po, hwake, recursive);
+            ComputeMetricWithWake(P, comm, TKE_vmap, hess_vmap, 1.0, po, inputs->hwake, inputs->recursive,inputs->hmin,inputs->hmax,inputs->MetScale);
         }
 
         std::map<int,Array<double>* >::iterator itgg;
@@ -672,7 +880,7 @@ int main(int argc, char** argv)
     }
     
 
-    if(recursive == 1)
+    if(inputs->recursive == 1)
     {
         
         
@@ -688,7 +896,7 @@ int main(int argc, char** argv)
         
         std::map<int,Array<double>* > dUdXi;
 
-        if(extended == 1)
+        if(inputs->extended == 1)
         {
             if(world_rank == 0)
             {
@@ -697,7 +905,7 @@ int main(int argc, char** argv)
             
             dUdXi = ComputedUdx_LSQ_LS_US3D(P,Uvaria_map,meshTopo,gbMap,comm);
         }
-        if(extended == 0)
+        if(inputs->extended == 0)
         {
             if(world_rank == 0)
             {
@@ -741,13 +949,13 @@ int main(int argc, char** argv)
         std::map<int,Array<double>* > dU2dZi2;
         
         
-        if(extended == 1)
+        if(inputs->extended == 1)
         {
             dU2dXi2 = ComputedUdx_LSQ_LS_US3D(P,dUidxi_map,meshTopo,gbMap,comm);
             dU2dYi2 = ComputedUdx_LSQ_LS_US3D(P,dUidyi_map,meshTopo,gbMap,comm);
             dU2dZi2 = ComputedUdx_LSQ_LS_US3D(P,dUidzi_map,meshTopo,gbMap,comm);
         }
-        if(extended == 0)
+        if(inputs->extended == 0)
         {
             
             dU2dXi2 = ComputedUdx_LSQ_US3D(P,dUidxi_map,meshTopo,gbMap,comm);
@@ -797,13 +1005,13 @@ int main(int argc, char** argv)
         
         double po = 6.0;
         
-        if(RunWakRefinement == 0)
+        if(inputs->RunWakRefinement == 0)
         {
-            ComputeMetric(P,metric_inputs,comm,hess_vmap,1.0,po,recursive,extended);
+            ComputeMetric(P,comm,hess_vmap,1.0,po,inputs->recursive,inputs->extended,inputs->hmin,inputs->hmax,inputs->MetScale);
         }
-        if(RunWakRefinement == 1)
+        if(inputs->RunWakRefinement == 1)
         {
-            ComputeMetricWithWake(P, metric_inputs, comm, TKE_vmap, hess_vmap, 1.0, po, hwake, recursive);
+            ComputeMetricWithWake(P, comm, TKE_vmap, hess_vmap, 1.0, po, inputs->hwake, inputs->recursive,inputs->hmin,inputs->hmax,inputs->MetScale);
         }
                    
         for(itgg=Hess_map.begin();itgg!=Hess_map.end();itgg++)
@@ -883,7 +1091,7 @@ int main(int argc, char** argv)
     }
     
     
-    /**/
+
     //std::cout << "WorldRank " << world_rank << " " << howmany << " " << hess_vmap_new.size() << std::endl;
 
 
@@ -1566,20 +1774,20 @@ int main(int argc, char** argv)
     
     
     
-    if( !PMMG_Set_iparameter( parmesh, PMMG_IPARAM_niter, niter ) ) {
+    if( !PMMG_Set_iparameter( parmesh, PMMG_IPARAM_niter, inputs->niter ) ) {
       MPI_Finalize();
       exit(EXIT_FAILURE);
     };
     
     
-    if ( PMMG_Set_dparameter(parmesh,PMMG_DPARAM_hausd, hausd) != 1 )
+    if ( PMMG_Set_dparameter(parmesh,PMMG_DPARAM_hausd, inputs->hausd) != 1 )
     {
         MPI_Finalize();
         exit(EXIT_FAILURE);
     }
     
     
-    if ( PMMG_Set_dparameter(parmesh,PMMG_DPARAM_hgrad, hgrad) != 1 )
+    if ( PMMG_Set_dparameter(parmesh,PMMG_DPARAM_hgrad, inputs->hgrad) != 1 )
     {
         MPI_Finalize();
         exit(EXIT_FAILURE);
@@ -1757,7 +1965,7 @@ int main(int argc, char** argv)
     
 
     
-    if(niter==0)
+    if(inputs->niter==0)
     {
         std::cout << "Check the input and outputted shard faces." << std::endl;
         
@@ -2930,12 +3138,13 @@ int main(int argc, char** argv)
             ifnOUT->setVal(ftot,5,rh[fid]);
             ifnOUT->setVal(ftot,6,lh[fid]);
             ifnOUT->setVal(ftot,7,2);
-	    if(rh[fid] == 0)
-	    {
-		std::cout <<"Found the face -> " << fid << " " << world_rank << " " << lh[fid] << std::endl;
-	    }
-            ftot++;
-        }
+            
+            if(rh[fid] == 0)
+            {
+            std::cout <<"Found the face -> " << fid << " " << world_rank << " " << lh[fid] << std::endl;
+            }
+                ftot++;
+            }
         
         //Color_SharedOwned
         
@@ -3589,7 +3798,8 @@ int main(int argc, char** argv)
             ifnOUT_prism->setVal(fptot,5,rhp[gfid]);
             ifnOUT_prism->setVal(fptot,6,lhp[gfid]);
             ifnOUT_prism->setVal(fptot,7,2);
-	    if(rhp[gfid] == 0)
+            
+            if(rhp[gfid] == 0)
             {     
                 std::cout <<"Found the face -> prism " << gfid << " " << world_rank << " " << lhp[gfid] << std::endl;
             } 
@@ -4561,6 +4771,7 @@ int main(int argc, char** argv)
         std::cout << std::setprecision(16) << "Writing out the grid takes " << dur_max << " seconds using " << world_size << "procs. " << std::endl;
     	std::cout << "Finalizing process" << std::endl;     
     }
+    
     /**/
     
     MPI_Finalize();

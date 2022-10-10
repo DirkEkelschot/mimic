@@ -16,12 +16,12 @@ include(../../platforms_cmake/MacOSX_Dirk_work.cmake)
 
 #set(LIBRARY_OUTPUT_PATH lib/)
 
-set(SRC ../../src/adapt_parops.cpp ../../src/adapt_bltopology.cpp ../../src/adapt_boundary.cpp ../../src/adapt_output.cpp ../../src/adapt_compute.cpp ../../src/adapt_schedule.cpp ../../src/adapt_operations.cpp ../../src/hex2tet.cpp ../../src/adapt_geometry.cpp ../../src/adapt_math.cpp ../../src/adapt_io.cpp ../../src/adapt_recongrad.cpp ../../src/adapt_topology.cpp ../../src/adapt_partition.cpp ../../src/adapt_prismaticlayer.cpp ../../src/adapt_redistribute.cpp ../../src/adapt_prismaticlayer.cpp ../../src/adapt_parstate.cpp ../../src/adapt_distri_parstate.cpp main.cpp)
+set(SRC ../../src/NekFace.cpp ../../src/tinyxmlparser.cpp ../../src/tinyxmlerror.cpp ../../src/tinystr.cpp ../../src/tinyxml.cpp ../../src/adapt_parops.cpp ../../src/adapt_bltopology.cpp ../../src/adapt_boundary.cpp ../../src/adapt_output.cpp ../../src/adapt_compute.cpp ../../src/adapt_schedule.cpp ../../src/adapt_operations.cpp ../../src/hex2tet.cpp ../../src/adapt_geometry.cpp ../../src/adapt_math.cpp ../../src/adapt_io.cpp ../../src/adapt_recongrad.cpp ../../src/adapt_topology.cpp ../../src/adapt_partition.cpp ../../src/adapt_prismaticlayer.cpp ../../src/adapt_redistribute.cpp ../../src/adapt_prismaticlayer.cpp ../../src/adapt_parstate.cpp ../../src/adapt_distri_parstate.cpp main.cpp)
 
 #set(EXECUTABLE_OUTPUT_PATH bin/)
 set(COMPILE_FLAGS ${COMPILE_FLAGS} ${MPI_COMPILE_FLAGS})
 
-add_executable(writexml ${SRC})
+add_executable(us3d2nektar ${SRC})
 
 #find_package(MPI REQUIRED)
 #include_directories(SYSTEM ${MPI_INCLUDE_PATH})
@@ -29,6 +29,14 @@ add_executable(writexml ${SRC})
 
 find_package(LAPACK)
 
+#find_path(XML_INCLUDE_DIR PATHS "${DEFAULT_XML_ROOT}")
+#if(NOT EXISTS "${XML_INCLUDE_DIR}")
+#  message(FATAL_ERROR "tinyxml include dir not found")
+#endif()
+
+set(Boost_INCLUDE_DIR /Users/dekelsch/Software/boost_1_71_0)
+set(Boost_LIBRARY_DIR /Users/dekelsch/Software/boost_1_71_0/stage/lib)
+find_package(Boost COMPONENTS system filesystem REQUIRED)
 
 find_path(MMGS_INCLUDE_DIR /mmg/mmgs/libmmgs.h PATHS "${DEFAULT_MMG_ROOT}/include")
 if(NOT EXISTS "${MMGS_INCLUDE_DIR}")
@@ -53,11 +61,6 @@ endif()
 find_path(PARMETIS_INCLUDE_DIR parmetis.h PATHS "${DEFAULT_PARMETIS_ROOT}/include")
 if(NOT EXISTS "${PARMETIS_INCLUDE_DIR}")
   message(FATAL_ERROR "parmetis include dir not found")
-endif()
-
-find_path(TINYXML_INCLUDE_DIR tinyxml.h PATHS "${DEFAULT_TINYXML_ROOT}")
-if(NOT EXISTS "${TINYXML_INCLUDE_DIR}")
-  message(FATAL_ERROR "tinyxml include dir not found")
 endif()
 
 find_path(METIS_INCLUDE_DIR metis.h PATHS "${DEFAULT_METIS_ROOT}/include")
@@ -105,24 +108,25 @@ endif()
 
 set(PARMETIS_LIBRARIES ${PARMETIS_LIBRARY} ${METIS_LIBRARY})
 set(PARMETIS_INCLUDE_DIRS ${PARMETIS_INCLUDE_DIR} ${METIS_INCLUDE_DIR})
-
 include_directories(${PARMETIS_INCLUDE_DIRS})
 include_directories(${HDF5_INCLUDE_DIR})
 include_directories(${MMGS_INCLUDE_DIR})
 include_directories(${MMG3D_INCLUDE_DIR})
 include_directories(${PARMMG_INCLUDE_DIR})
 include_directories(${MPI_INCLUDE_DIR})
-include_directories(${TINYXML_INCLUDE_DIR})
+include_directories(${Boost_INCLUDE_DIR})
+link_directories(${Boost_LIBRARY_DIR})
 
 #list(APPEND EXTERNAL_LIB ${PARMETIS_LIBRARIES})
 #list(APPEND EXTERNAL_LIB ${HDF5_LIBRARY})
 
-target_link_libraries(writexml ${MMG_LIBRARY})
-target_link_libraries(writexml ${PARMMG_LIBRARY})
-target_link_libraries(writexml ${HDF5_LIBRARY})
-target_link_libraries(writexml ${PARMETIS_LIBRARIES})
-target_link_libraries(writexml ${MPI_LIBRARY})
-target_link_libraries(writexml ${LAPACK_LIBRARIES})
+target_link_libraries(us3d2nektar ${MMG_LIBRARY})
+target_link_libraries(us3d2nektar ${PARMMG_LIBRARY})
+target_link_libraries(us3d2nektar ${HDF5_LIBRARY})
+target_link_libraries(us3d2nektar ${PARMETIS_LIBRARIES})
+target_link_libraries(us3d2nektar ${MPI_LIBRARY})
+target_link_libraries(us3d2nektar ${LAPACK_LIBRARIES})
+target_link_libraries(us3d2nektar ${Boost_LIBRARIES} )
 
 #====== Adding the external libraries here ======
 

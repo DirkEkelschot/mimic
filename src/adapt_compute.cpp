@@ -1116,11 +1116,11 @@ void UnitTestJacobian()
 
 
 
-void ComputeMetricWithWake(Partition* Pa, std::vector<double> metric_inputs,
+void ComputeMetricWithWake(Partition* Pa,
                    MPI_Comm comm,
                    std::map<int,Array<double>* > scale_vm,
                    std::map<int,Array<double>* > &Hess_vm,
-                   double sumvol, double po, double hwake, int recursive)
+                   double sumvol, double po, double hwake, int recursive, double hmin, double hmax, double MetScale)
 {
     int size;
     MPI_Comm_size(comm, &size);
@@ -1129,9 +1129,7 @@ void ComputeMetricWithWake(Partition* Pa, std::vector<double> metric_inputs,
     MPI_Comm_rank(comm, &rank);
     //+++++++++++++++++++++++++++++++++++++++++++
     //++++  Scaling eigenvalues/eigenvectors ++++
-    double hmin         = metric_inputs[1];
-    double hmax         = metric_inputs[2];
-    double f            = metric_inputs[3];
+
     //+++++++++++++++++++++++++++++++++++++++++++
     //+++++++++++++++++++++++++++++++++++++++++++
     double* Hmet = new double[9];
@@ -1200,9 +1198,9 @@ void ComputeMetricWithWake(Partition* Pa, std::vector<double> metric_inputs,
         
         Eig* eig = ComputeEigenDecomp(3, Hmet);
         
-        eignval[0] =  std::min(std::max(f*fabs(eig->Dre[0]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
-        eignval[1] =  std::min(std::max(f*fabs(eig->Dre[1]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
-        eignval[2] =  std::min(std::max(f*fabs(eig->Dre[2]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
+        eignval[0] =  std::min(std::max(MetScale*fabs(eig->Dre[0]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
+        eignval[1] =  std::min(std::max(MetScale*fabs(eig->Dre[1]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
+        eignval[2] =  std::min(std::max(MetScale*fabs(eig->Dre[2]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
         
         Lambdamax = *std::max_element(eignval.begin(),eignval.end());
         Lambdamin = *std::min_element(eignval.begin(),eignval.end());
@@ -1293,10 +1291,8 @@ void ComputeMetricWithWake(Partition* Pa, std::vector<double> metric_inputs,
 
 
 
-void ComputeMetric(Partition* Pa, std::vector<double> metric_inputs,
-                   MPI_Comm comm,
-                   std::map<int,Array<double>* > &Hess_vm,
-                   double sumvol, double po, int recursive, int extended)
+void ComputeMetric(Partition* Pa, MPI_Comm comm, std::map<int,Array<double>* > &Hess_vm,
+                   double sumvol, double po, int recursive, int extended, double hmin, double hmax, double MetScale)
 {
     int size;
     MPI_Comm_size(comm, &size);
@@ -1305,9 +1301,6 @@ void ComputeMetric(Partition* Pa, std::vector<double> metric_inputs,
     MPI_Comm_rank(comm, &rank);
     //+++++++++++++++++++++++++++++++++++++++++++
     //++++  Scaling eigenvalues/eigenvectors ++++
-    double hmin         = metric_inputs[1];
-    double hmax         = metric_inputs[2];
-    double f            = metric_inputs[3];
     //+++++++++++++++++++++++++++++++++++++++++++
     //+++++++++++++++++++++++++++++++++++++++++++
     double* Hmet = new double[9];
@@ -1379,9 +1372,9 @@ void ComputeMetric(Partition* Pa, std::vector<double> metric_inputs,
         
         Eig* eig = ComputeEigenDecomp(3, Hmet);
         
-        eignval[0] =  std::min(std::max(f*fabs(eig->Dre[0]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
-        eignval[1] =  std::min(std::max(f*fabs(eig->Dre[1]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
-        eignval[2] =  std::min(std::max(f*fabs(eig->Dre[2]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
+        eignval[0] =  std::min(std::max(MetScale*fabs(eig->Dre[0]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
+        eignval[1] =  std::min(std::max(MetScale*fabs(eig->Dre[1]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
+        eignval[2] =  std::min(std::max(MetScale*fabs(eig->Dre[2]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
         
         Lambdamax = *std::max_element(eignval.begin(),eignval.end());
         Lambdamin = *std::min_element(eignval.begin(),eignval.end());

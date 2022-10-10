@@ -67,15 +67,15 @@ double* ComputeVolumeCellsReducedToVerts(Array<double>* xcn, Array<int>* ien);
 
 void UnitTestJacobian();
 
-void ComputeMetricWithWake(Partition* Pa, std::vector<double> metric_inputs,
+void ComputeMetricWithWake(Partition* Pa,
                    MPI_Comm comm,
                    std::map<int,Array<double>* > scale_vm,
                    std::map<int,Array<double>* > &Hess_vm,
-                           double sumvol, double po, double hwake, int recursive);
+                           double sumvol, double po, double hwake, int recursive, double hmin, double hmax, double MetScale);
 
-void ComputeMetric(Partition* Pa, std::vector<double> metric_inputs, MPI_Comm comm,
+void ComputeMetric(Partition* Pa, MPI_Comm comm,
                    std::map<int,Array<double>* > &Hess_vm,
-                   double sumvol, double po, int recursive, int extended);
+                   double sumvol, double po, int recursive, int extended, double hmin, double hmax, double MetScale);
 
 Array<double>* ComputeFaceValues(Partition* P, Array<double>* U, MPI_Comm comm);
 

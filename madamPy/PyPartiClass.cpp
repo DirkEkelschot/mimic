@@ -4,7 +4,7 @@
 #define MPICH_SKIP_MPICXX 1
 #define OMPI_SKIP_MPICXX  1
 #include <numpy/arrayobject.h>
-#include <CGAL/Simple_cartesian.h>
+//#include <CGAL/Simple_cartesian.h>
 #include <cstdio>
 #include <stdlib.h>
 #include <time.h>
@@ -18,8 +18,8 @@
 #include "../src/adapt_recongrad.h"
 //using transformation::Parti;
 
-typedef CGAL::Simple_cartesian<double> Kernel;
-typedef Kernel::Point_2 Point_2;
+//typedef CGAL::Simple_cartesian<double> Kernel;
+//typedef Kernel::Point_2 Point_2;
 
 
 

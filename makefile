@@ -3,7 +3,7 @@ OBJ = $(SRC)/*.cpp
 SRC = src
 BIN = bin
 MAIN_OBJ = main.cpp
-EXEC = adapt
+EXEC = mimic
 TESTBIN = tests/bin
 TEST1 = tests/test1
 TEST2 = tests/test2
@@ -14,7 +14,8 @@ include module.mk
 all:		install
 	
 install:	makebin
-		$(CC) $(CXXFLAGS) $(OBJ) $(MAIN_OBJ) -o $(BIN)/adapt $(LDFLAGS) $(LDLIBS)
+		$(CC) $(CXXFLAGS) $(OBJ) $(MAIN_OBJ) -c $(LDLIBS)
+		$(CC) -o mimic *.o $(LDFLAGS) $(LDLIBS)
 		cp -r $(BIN)/$(EXEC) .
 
 makebin:

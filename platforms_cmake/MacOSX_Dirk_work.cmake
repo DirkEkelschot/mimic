@@ -5,3 +5,5 @@ set (DEFAULT_METIS_ROOT /Users/dekelsch/Software/parmetis-4.0.3/metis/metis-inst
 set (DEFAULT_MPI_ROOT /Users/dekelsch/Software/mpich-3.3.1/mpich-3.1.1-install)
 set (DEFAULT_MMG_ROOT /Users/dekelsch/Software/mmg_0805/build)
 set (DEFAULT_PARMMG_ROOT /Users/dekelsch/Software/parmmg_0805/build)
+set (DEFAULT_BOOST_ROOT /Users/dekelsch/Software/boost_1_71_0)
+set (DEFAULT_XML_ROOT /Users/dekelsch/Software/tinyxml)

@@ -17,7 +17,7 @@ Partition::Partition(ParArray<int>* ien, ParArray<int>* iee, ParArray<int>* ief,
     double t0 = MPI_Wtime();
     // This routine essentially determines based on the current element layout what the ideal layout should be.
     DeterminePartitionLayout(ien, pstate_parmetis, comm);
-
+    
     double t1 = MPI_Wtime();
     double time_layout = t1-t0;
     double max_time_layout = 0.0;
@@ -104,7 +104,7 @@ Partition::Partition(ParArray<int>* ien, ParArray<int>* iee, ParArray<int>* ief,
     }
     
     // std::cout << "LocAndAdj_Elem.size() after " << rank << " " << LocAndAdj_Elem.size() << " " << iee_part_map->i_map.size() << std::endl;
-
+    
     std::map<int,Vert*> elem2center;
     std::map<int,double> elem2volume;
     int nottjere=0;
@@ -169,10 +169,6 @@ Partition::Partition(ParArray<int>* ien, ParArray<int>* iee, ParArray<int>* ief,
             elem2volume[gid] = Volm;
             delete[] Pv;
         }
-        
-
-
-        
     }
     
     if(volZero!=0)
@@ -4756,11 +4752,13 @@ void Partition::CreatePartitionDomainTest()
     int* lhtets    = new int[nShellFs];
     int* rhprisms  = new int[nShellFs];
     int* shellFid  = new int[nShellFs];
-    double* centroids_g  = new double[nShellFs*3];
+    double* centroids_g  = new double[lcent->getNel()];
 
     std::map<int,std::vector<int> > shallLayout;
     std::map<int,Vert* > shallLayout_centroid;
 
+   
+     
     MPI_Allgatherv(loc_lhtets,
                    nLocShellF,
                    MPI_INT,
@@ -4785,7 +4783,7 @@ void Partition::CreatePartitionDomainTest()
                    ltet->getOffsets(),
                    MPI_INT,comm_p);
     
-    
+    /*
     MPI_Allgatherv(loc_centroids,
                    nLocShellF*3,
                    MPI_DOUBLE,
@@ -4793,9 +4791,10 @@ void Partition::CreatePartitionDomainTest()
                    lcent->getNlocs(),
                    lcent->getOffsets(),
                    MPI_INT,comm_p);
+     */
 //
     
-    delete[] loc_centroids;
+    //delete[] loc_centroids;
     
     int sfid;
     for(int i=0;i<nShellFs;i++)
@@ -4809,15 +4808,15 @@ void Partition::CreatePartitionDomainTest()
             TetPrism[1]                = rhprisms[i];
             shallLayout[sfid]          = TetPrism;
             
-            Vert* vc = new Vert;
-            vc->x = centroids_g[i*3+0];
-            vc->x = centroids_g[i*3+1];
-            vc->x = centroids_g[i*3+2];
-            
-            shallLayout_centroid[sfid] = vc;
+//            Vert* vc = new Vert;
+//            vc->x = centroids_g[i*3+0];
+//            vc->x = centroids_g[i*3+1];
+//            vc->x = centroids_g[i*3+2];
+//            
+//            shallLayout_centroid[sfid] = vc;
         }
     }
-
+    /**/
     elem2Nf.clear();
 //
 //
@@ -4893,10 +4892,10 @@ void Partition::CreatePartitionDomainTest()
     //pDom->ushell           = shallLayout;
 
     
-    pDom->ushell           = shallLayout;
+    //pDom->ushell           = shallLayout;
     
     
-    pDom->ushell_centroid  = shallLayout_centroid;
+    //pDom->ushell_centroid  = shallLayout_centroid;
      
      
 //    pDom->ncomm           = ncomm;
@@ -5943,33 +5942,35 @@ void Partition::ComputeNode2NodeMap_V2()
          }
     }
     
-    std::map<int,std::vector<int> >::iterator itv;
+//    std::map<int,std::vector<int> >::iterator itv;
     
-    for(itv=recv_back_verts_ids.begin();itv!=recv_back_verts_ids.end();itv++)
-    {
-        int from_rank = itv->first;
-        int nvrts_rcv = itv->second.size();
-
-        for(int q=0;q<nvrts_rcv;q++)
-        {
-            int gvid = itv->second[q];
-
-            if(gvid!=gvidt && node2node_map[gvid].find(gvidt)==node2node_map[gvid].end())
-            {
-                Vert* vrt = new Vert;
-                vrt->x = recv_back_verts[from_rank][q*3+0];
-                vrt->y = recv_back_verts[from_rank][q*3+1];
-                vrt->z = recv_back_verts[from_rank][q*3+2];
-
-                double dist = sqrt((vrt->x-V1->x)*(V0->x-V1->x)
-                            +(V0->y-V1->y)*(V0->y-V1->y)
-                            +(V0->z-V1->z)*(V0->z-V1->z));
-
-                node2node_map[gvid].insert(std::pair<int,double>(gvidt,dist));
-
-            }
-        }
-    }
+//    for(itv=recv_back_verts_ids.begin();itv!=recv_back_verts_ids.end();itv++)
+//    {
+//        int from_rank = itv->first;
+//        int nvrts_rcv = itv->second.size();
+//
+//        for(int q=0;q<nvrts_rcv;q++)
+//        {
+//            int gvid = itv->second[q];
+//
+//            if(gvid!=gvidt && node2node_map[gvid].find(gvidt)==node2node_map[gvid].end())
+//            {
+//                Vert* vrt = new Vert;
+//                vrt->x = recv_back_verts[from_rank][q*3+0];
+//                vrt->y = recv_back_verts[from_rank][q*3+1];
+//                vrt->z = recv_back_verts[from_rank][q*3+2];
+//
+//                double dist = sqrt((vrt->x-V1->x)*(V0->x-V1->x)
+//                            +(V0->y-V1->y)*(V0->y-V1->y)
+//                            +(V0->z-V1->z)*(V0->z-V1->z));
+//
+//                node2node_map[gvid].insert(std::pair<int,double>(gvidt,dist));
+//
+//            }
+//        }
+//    }
+    
+    
 //
 //    gvidt = ien_part_map->i_map[elid][j];
 
@@ -6201,7 +6202,7 @@ std::map<int,Array<double>* > Partition::ReduceStateVecToAllVertices_V2(std::map
             int gEl     = itmd->first;
             
             Vert* VrtEl = itmd->second;
-            double Vol  = elem2centVol[itmd->first];
+//            double Vol  = elem2centVol[itmd->first];
             
             //double error_r = fabs((VrtEl->x-xcomp)*(VrtEl->x-xcomp)+(VrtEl->y-ycomp)*(VrtEl->y-ycomp)+(VrtEl->z-zcomp)*(VrtEl->z-zcomp));
             
@@ -6210,9 +6211,9 @@ std::map<int,Array<double>* > Partition::ReduceStateVecToAllVertices_V2(std::map
 //                std::cout << "error_r " << error_r << std::endl;
 //            }
             //double wi = 1.0;
-            double wi = sqrt((VrtEl->x-xcomp)*(VrtEl->x-xcomp)
-                            +(VrtEl->y-ycomp)*(VrtEl->y-ycomp)
-                            +(VrtEl->z-zcomp)*(VrtEl->z-zcomp));
+//            double wi = sqrt((VrtEl->x-xcomp)*(VrtEl->x-xcomp)
+//                            +(VrtEl->y-ycomp)*(VrtEl->y-ycomp)
+//                            +(VrtEl->z-zcomp)*(VrtEl->z-zcomp));
                         
             if(UaddAdj.find(gEl)!=UaddAdj.end() && gEl<Nell)
             {

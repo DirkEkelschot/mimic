@@ -8,18 +8,16 @@ MPI4PY_INCLUDE = ${shell ${PYTHON} -c 'import mpi4py; print( mpi4py.get_include(
 PYTHON_INCLUDE = /Users/dekelsch/homebrew/Cellar/python\@3.7/3.7.12/Frameworks/Python.framework/Versions/3.7/include/python3.7m/
 PYTHON_LIB = /Users/dekelsch/homebrew/Cellar/python\@3.7/3.7.12/Frameworks/Python.framework/Versions/3.7/lib
 
-
-
-include ../module.mk
+#include ../module.mk
 
 MPICC = mpic++
 BREW = $(HOME)/homebrew/Cellar
 CXXFLAGS += -fPIC
 LDFLAGS += -L${PYTHON_LIB} -shared -ldl -framework CoreFoundation -lpython3.7m 
-SOURCES=energy.cpp ../src/*.cpp
+SOURCES=energy.cpp
 .PHONY: build 
-build: PartiClass.so
-PartiClass.so: PyPartiClass.cpp
+build: Cpp2Py.so
+Cpp2Py.so: Cpp2Py.cpp
 	${MPICC} ${CXXFLAGS} -I${NUMPY_INCLUDE} -I${MPI4PY_INCLUDE} -I${PYTHON_INCLUDE} -o $@ $< $(SOURCES) ${LDFLAGS} ${LDLIBS}
 
 MPIEXEC = mpiexec
@@ -27,7 +25,7 @@ NP_FLAG = -n
 NP = 4
 .PHONY: test
 test: build
-	${MPIEXEC} -f hostfile ${NP_FLAG} ${NP} ${PYTHON} run_partiClass.py
+	${MPIEXEC} -f hostfile ${NP_FLAG} ${NP} ${PYTHON} run_energy.py
 
 
 .PHONY: clean

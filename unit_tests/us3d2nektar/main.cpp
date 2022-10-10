@@ -7,7 +7,8 @@
 #include "../../src/adapt_redistribute.h"
 #include "../../src/adapt_DefinePrismMesh.h"
 #include "../../src/adapt_prismaticlayer.h"
-#include <boost/core/ignore_unused.hpp>
+#include "../../src/NekFace.h"
+//#include <boost/core/ignore_unused.hpp>
 #include <iomanip>
 #include <sstream>
 
@@ -56,7 +57,6 @@ std::vector<double> ComputeCentroid(std::vector<std::vector<double> > elemcoords
     
     return cent;
 }
-
 
 
 void WriteXmlFile(const char*  filename,Array<double>* xcn,std::map<int,std::vector<int> > edgeMap,std::map<int,std::vector<int> > element_map,Array<int>* zdefs,std::map<int,std::vector<int> > faceMap,Array<int>* ief,std::map<int,std::vector<int> > BoundaryComposites)
@@ -347,516 +347,48 @@ void WriteXmlFile(const char*  filename,Array<double>* xcn,std::map<int,std::vec
             exit( 1 );
         }
     }
-    
 
-
-
-    
-    
-    
     doc.SaveFile();
 
 }
 
 
 
-//vector<int> PrismReordering(std::vector<int> pe)
+
+
+//std::size_t ComputeFaceHash(std::vector<int> Face)
 //{
-//    const int order = 1;
-//    const int n     = order - 1;
-//
-//    int i;
-//    vector<int> mapping(6);
-//
-//    // To get from Gmsh -> Nektar++ prism, coordinates axes are
-//    // different; need to mirror in the triangular faces, and then
-//    // reorder vertices to make ordering anticlockwise on base quad.
-//    static int nekToGmshVerts[6] = {3, 4, 1, 0, 5, 2};
-//    // Inverse (gmsh vert -> Nektar++ vert): 3->0, 4->1, 1->2, 0->3, 5->4, 2->5
-//
-//    for (i = 0; i < 6; ++i)
-//    {
-//        mapping[i] = nekToGmshVerts[i];
+//    sort(Face.begin(),Face.end());
+//    std::size_t seed = 0;
+//    std::hash<int> hasher;
+//    for (int i : Face) {
+//        seed ^= hasher(i) + 0x9e3779b9 + (seed<<6) + (seed>>2);
 //    }
+//    return seed;
+//}
 //
-//    if (order == 1)
-//    {
-//        return mapping;
-//    }
 //
-//    // Curvilinear edges.
-//    mapping.resize(6 + 9 * n);
+//std::size_t ComputeFaceHash_V2(std::vector<int> Face)
+//{
+//    sort(Face.begin(),Face.end());
 //
-//    // Nektar++ edges:
-//    //   0 =    1 =    2 =    3 =    4 =    5 =    6 =    7 =    8 =
-//    //   {0,1}, {1,2}, {3,2}, {0,3}, {0,4}, {1,4}, {2,5}, {3,5}, {4,5}
-//    // Gmsh edges (from Geo/MPrism.h of Gmsh source):
-//    //   {0,1}, {0,2}, {0,3}, {1,2}, {1,4}, {2,5}, {3,4}, {3,5}, {4,5}
-//    // Apply inverse of gmshToNekVerts map:
-//    //   {3,2}, {3,5}, {3,0}, {2,5}, {2,1}, {5,4}, {0,1}, {0,4}, {1,4}
-//    // Nektar++ mapping (negative indicates reverse orientation):
-//
-//    //   = 2    = 7    = -3   = 6    = -1   = -8   = 0    = 4    = 5
-//    static int gmshToNekEdge[9] = {2, 7, 3, 6, 1, 8, 0, 4, 5};
-//    static int gmshToNekRev[9]  = {0, 0, 1, 0, 1, 1, 0, 0, 0};
-//
-//    // Reorder edges.
-//    int offset, cnt = 6;
-//    for (i = 0; i < 9; ++i)
-//    {
-//        offset = 6 + n * gmshToNekEdge[i];
-//
-//        if (gmshToNekRev[i])
-//        {
-//            for (int j = 0; j < n; ++j)
-//            {
-//                mapping[offset + n - j - 1] = cnt++;
-//            }
-//        }
-//        else
-//        {
-//            for (int j = 0; j < n; ++j)
-//            {
-//                mapping[offset + j] = cnt++;
-//            }
-//        }
-//    }
-//
-////    if (conf.m_faceNodes == false)
+//    size_t hash = 0;
+//    hash_range(hash,Face.begin(),Face.end());
+////    if(Face.size()==3)
 ////    {
-////        return mapping;
+////        hash_combine(hash, Face[0], Face[1], Face[2]);
+////    }
+////
+////    if(Face.size()==4)
+////    {
+////        hash_combine(hash, Face[0], Face[1], Face[2], Face[3]);
 ////    }
 //
-//    int nTriInt  = n * (n - 1) / 2;
-//    int nQuadInt = n * n;
-//
-//    // Nektar++ faces:
-//    //   0 = {0,1,2,3}, 1 = {0,1,4}, 2 = {1,2,5,4}, 3 = {3,2,5}, 4 = {0,3,5,4}
-//    // Gmsh faces (from Geo/MPrism.h of Gmsh source):
-//    //   {0,2,1}, {3,4,5}, {0,1,4,3}, {0,3,5,2}, {1,2,5,4}
-//    // Apply inverse of gmshToNekVerts map:
-//    //   {3,5,2}, {0,1,4}, {3,2,1,0}, {3,0,4,5}, {2,5,4,1}
-//    //   = 3      = 1      = 0        = 4        = 2
-//    // This gives gmsh -> Nektar++ faces:
-//    static int gmshToNekFace[5] = {3, 1, 0, 4, 2};
-//
-//    // Face offsets
-//    vector<int> offsets(5), offsets2(5);
-//    offset = 6 + 9 * n;
-//
-//    // Offsets in the gmsh order: face ordering is TTQQQ
-//    offsets[0] = offset;
-//    offsets[1] = offset + nTriInt;
-//    offsets[2] = offset + 2 * nTriInt;
-//    offsets[3] = offset + 2 * nTriInt + nQuadInt;
-//    offsets[4] = offset + 2 * nTriInt + 2 * nQuadInt;
-//
-//    // Offsets in the Nektar++ order: face ordering is QTQTQ
-//    offsets2[0] = offset;
-//    offsets2[1] = offset + nQuadInt;
-//    offsets2[2] = offset + nQuadInt + nTriInt;
-//    offsets2[3] = offset + 2 * nQuadInt + nTriInt;
-//    offsets2[4] = offset + 2 * nQuadInt + 2 * nTriInt;
-//
-//    mapping.resize(6 + 9 * n + 3 * nQuadInt + 2 * nTriInt);
-//
-//    offset = 6 + 9 * n;
-//
-//    vector<int> triVertId(3);
-//    triVertId[0] = 0;
-//    triVertId[1] = 1;
-//    triVertId[2] = 2;
-//
-//    vector<int> quadVertId(4);
-//    quadVertId[0] = 0;
-//    quadVertId[1] = 1;
-//    quadVertId[2] = 2;
-//    quadVertId[3] = 3;
-//
-//    for (i = 0; i < 5; ++i)
-//    {
-//        int face    = gmshToNekFace[i];
-//        int offset2 = offsets[i];
-//        offset      = offsets2[face];
-//
-//        bool tri = i < 2;
-//        int nFacePts = tri ? nTriInt : nQuadInt;
-//
-//        if (nFacePts == 0)
-//        {
-//            continue;
-//        }
-//
-//        // Create a list of interior face nodes for this face only.
-//        vector<int> faceNodes(nFacePts);
-//        vector<int> toAlign(tri ? 3 : 4);
-//        for (int j = 0; j < nFacePts; ++j)
-//        {
-//            faceNodes[j] = offset2 + j;
-//        }
-//
-//        if (tri)
-//        {
-//            // Now get the reordering of this face, which puts Gmsh
-//            // recursive ordering into Nektar++ row-by-row order.
-//            vector<int> tmp = triTensorNodeOrdering(faceNodes, n - 1);
-//            HOTriangle<int> hoTri(triVertId, tmp);
-//
-//            // Apply reorientation
-//            if (i == 0)
-//            {
-//                // Triangle verts {0,2,1} --> {0,1,2}
-//                toAlign[0] = 0;
-//                toAlign[1] = 2;
-//                toAlign[2] = 1;
-//                hoTri.Align(toAlign);
-//            }
-//
-//            // Fill in mapping.
-//            for (int j = 0; j < nTriInt; ++j)
-//            {
-//                mapping[offset + j] = hoTri.surfVerts[j];
-//            }
-//        }
-//        else
-//        {
-//            vector<int> tmp = quadTensorNodeOrdering(faceNodes, n);
-//            HOQuadrilateral<int> hoQuad(quadVertId, tmp);
-//
-//            // Apply reorientation
-//            if (i == 2)
-//            {
-//                toAlign[0] = 3;
-//                toAlign[1] = 2;
-//                toAlign[2] = 1;
-//                toAlign[3] = 0;
-//            }
-//            else if (i == 3)
-//            {
-//                toAlign[0] = 1;
-//                toAlign[1] = 0;
-//                toAlign[2] = 3;
-//                toAlign[3] = 2;
-//            }
-//            else if (i == 4)
-//            {
-//                toAlign[0] = 3;
-//                toAlign[1] = 0;
-//                toAlign[2] = 1;
-//                toAlign[3] = 2;
-//            }
-//
-//            hoQuad.Align(toAlign);
-//
-//            // Fill in mapping.
-//            for (int j = 0; j < nQuadInt; ++j)
-//            {
-//                mapping[offset + j] = hoQuad.surfVerts[j];
-//            }
-//        }
-//    }
-//
-////    if (conf.m_volumeNodes == false)
-////    {
-////        return mapping;
-////    }
-//
-//    // Interior points
-//    offset = offsets[4] + nQuadInt;
-//    vector<int> intPoints, tmp;
-//
-//    for (int i = offset; i < (order+1) * (order+1) * (order+2) / 2; ++i)
-//    {
-//        intPoints.push_back(i);
-//    }
-//
-//    // Reorder interior points
-//    tmp = prismTensorNodeOrdering(intPoints, order - 1, log);
-//    mapping.insert(mapping.end(), tmp.begin(), tmp.end());
-//
-//    return mapping;
+//    return hash;
 //}
 
 
 
-
-//vector<int> TetReordering(std::vector<int> )
-//{
-//    const int order = 1;
-//    const int n     = order - 1;
-//    const int n2    = n * (n - 1) / 2;
-//
-//    int i, j;
-//    vector<int> mapping(4);
-//
-//    // Copy vertices.
-//    for (i = 0; i < 4; ++i)
-//    {
-//        mapping[i] = i;
-//    }
-//
-//    if (order == 1)
-//    {
-//        return mapping;
-//    }
-//
-//    // Curvilinear edges.
-//    mapping.resize(4 + 6 * n);
-//
-//    // Curvilinear edges.
-//    static int gmshToNekEdge[6] = {0, 1, 2, 3, 5, 4};
-//    static int gmshToNekRev[6]  = {0, 0, 1, 1, 1, 1};
-//
-//    // Reorder edges.
-//    int offset, cnt = 4;
-//    for (i = 0; i < 6; ++i)
-//    {
-//        offset = 4 + n * gmshToNekEdge[i];
-//
-//        if (gmshToNekRev[i])
-//        {
-//            for (int j = 0; j < n; ++j)
-//            {
-//                mapping[offset + n - j - 1] = cnt++;
-//            }
-//        }
-//        else
-//        {
-//            for (int j = 0; j < n; ++j)
-//            {
-//                mapping[offset + j] = cnt++;
-//            }
-//        }
-//    }
-//
-////    if (conf.m_faceNodes == false || n2 == 0)
-////    {
-////        return mapping;
-////    }
-//
-//    // Curvilinear faces.
-//    mapping.resize(4 + 6 * n + 4 * n2);
-//
-//    static int gmshToNekFace[4] = {0, 1, 3, 2};
-//
-//    vector<int> triVertId(3);
-//    triVertId[0] = 0;
-//    triVertId[1] = 1;
-//    triVertId[2] = 2;
-//
-//    // Loop over Gmsh faces
-//    for (i = 0; i < 4; ++i)
-//    {
-//        int face    = gmshToNekFace[i];
-//        int offset2 = 4 + 6 * n + i * n2;
-//        offset      = 4 + 6 * n + face * n2;
-//
-//        // Create a list of interior face nodes for this face only.
-//        vector<int> faceNodes(n2);
-//        vector<int> toAlign(3);
-//        for (j = 0; j < n2; ++j)
-//        {
-//            faceNodes[j] = offset2 + j;
-//        }
-//
-//        // Now get the reordering of this face, which puts Gmsh
-//        // recursive ordering into Nektar++ row-by-row order.
-//        vector<int> tmp = triTensorNodeOrdering(faceNodes, n - 1);
-//        HOTriangle<int> hoTri(triVertId, tmp);
-//
-//        // Apply reorientation
-//        if (i == 0 || i == 2)
-//        {
-//            // Triangle verts {0,2,1} --> {0,1,2}
-//            toAlign[0] = 0;
-//            toAlign[1] = 2;
-//            toAlign[2] = 1;
-//            hoTri.Align(toAlign);
-//        }
-//        else if (i == 3)
-//        {
-//            // Triangle verts {1,2,0} --> {0,1,2}
-//            toAlign[0] = 1;
-//            toAlign[1] = 2;
-//            toAlign[2] = 0;
-//            hoTri.Align(toAlign);
-//        }
-//
-//        // Fill in mapping.
-//        for (j = 0; j < n2; ++j)
-//        {
-//            mapping[offset + j] = hoTri.surfVerts[j];
-//        }
-//    }
-//
-////    if (conf.m_volumeNodes == false)
-////    {
-////        return mapping;
-////    }
-//
-//    const int nInt = (order - 3) * (order - 2) * (order - 1) / 6;
-//    if (nInt <= 0)
-//    {
-//        return mapping;
-//    }
-//
-//    if (nInt == 1)
-//    {
-//        mapping.push_back(mapping.size());
-//        return mapping;
-//    }
-//
-//    int ntot = (order+1)*(order+2)*(order+3)/6;
-//    vector<int> interior;
-//
-//    for (int i = 4 + 6 * n + 4 * n2; i < ntot; ++i)
-//    {
-//        interior.push_back(i);
-//    }
-//
-//    if (interior.size() > 0)
-//    {
-//        interior = tetTensorNodeOrdering(interior, order-3);
-//    }
-//
-//    mapping.insert(mapping.end(), interior.begin(), interior.end());
-//
-//    return mapping;
-//}
-
-
-inline void hash_combine(std::size_t& seed)
-{
-    boost::ignore_unused(seed);
-}
-//
-//
-template <typename T, typename... Args>
-inline void hash_combine(std::size_t& seed, const T& v, Args... args)
-{
-    std::hash<T> hasher;
-    seed ^= hasher(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-    hash_combine(seed, args...);
-}
-
-template <typename T, typename... Args>
-inline std::size_t hash_combine(const T& v, Args... args)
-{
-    boost::ignore_unused(v);
-    std::size_t seed = 0;
-    hash_combine(seed, args...);
-    return seed;
-}
-//
-template<typename Iter>
-std::size_t hash_range(Iter first, Iter last)
-{
-    std::size_t seed = 0;
-    for(; first != last; ++first)
-    {
-        hash_combine(seed, *first);
-    }
-    return seed;
-}
-//
-template<typename Iter>
-void hash_range(std::size_t &seed, Iter first, Iter last)
-{
-    hash_combine(seed, hash_range(first, last));
-}
-//
-//struct EnumHash
-//{
-//    template <typename T>
-//    std::size_t operator()(T t) const
-//    {
-//        return static_cast<std::size_t>(t);
-//    }
-//};
-//
-//struct PairHash {
-//    template <class T1, class T2>
-//    std::size_t operator()(const std::pair<T1, T2> &p) const
-//    {
-//        std::size_t seed = 0;
-//        auto h1 = std::hash<T1>{}(p.first);
-//        auto h2 = std::hash<T2>{}(p.second);
-//        hash_combine(seed, h1, h2);
-//        return seed;
-//    }
-//};
-//
-//
-
-std::size_t ComputeFaceHash(std::vector<int> Face)
-{
-    sort(Face.begin(),Face.end());
-    std::size_t seed = 0;
-    std::hash<int> hasher;
-    for (int i : Face) {
-        seed ^= hasher(i) + 0x9e3779b9 + (seed<<6) + (seed>>2);
-    }
-    return seed;
-}
-
-
-std::size_t ComputeFaceHash_V2(std::vector<int> Face)
-{
-    sort(Face.begin(),Face.end());
-    
-    size_t hash = 0;
-    hash_range(hash,Face.begin(),Face.end());
-//    if(Face.size()==3)
-//    {
-//        hash_combine(hash, Face[0], Face[1], Face[2]);
-//    }
-//
-//    if(Face.size()==4)
-//    {
-//        hash_combine(hash, Face[0], Face[1], Face[2], Face[3]);
-//    }
-    
-    return hash;
-}
-
-
-struct VectorHash {
-    size_t operator()(const std::vector<int>& v) const {
-        
-        //sort(v.begin(),v.end());
-        
-        std::hash<int> hasher;
-        size_t seed = 0;
-        for (int i : v) {
-            seed ^= hasher(i) + 0x9e3779b9 + (seed<<6) + (seed>>2);
-        }
-        return seed;
-    }
-};
-typedef std::unordered_set<std::vector<int>, VectorHash> MySet;
-
-
-struct FaceHash : std::unary_function<std::vector<int>, std::size_t>
-{
-    std::size_t operator()(std::vector<int> const &vf) const
-    {
-        unsigned int nVert = vf.size();
-        std::size_t seed = 0;
-        std::vector<unsigned int> ids(nVert);
-
-        for (int i = 0; i < nVert; ++i)
-        {
-            ids[i] = vf[i];
-        }
-
-        //std::sort(ids.begin(), ids.end());
-        hash_range(seed, ids.begin(), ids.end());
-
-        return seed;
-    }
-};
-typedef std::unordered_set<std::vector<int>, FaceHash> FaceSet;
-//
 
 struct NekElement{
     std::map<int,std::vector<double> > nodesCoordMap;
@@ -1791,7 +1323,10 @@ struct PrismLines{
     std::map<int,std::vector<int> > Element2Faces;
     std::map<int,std::vector<int> > FaceLines;
     std::map<std::set<int>,std::vector<int> > shellFaces2Element;
-    std::map<std::set<int>,int > shellFaces2WallFace;
+    FaceSet faceSet_shell;
+    FaceSetPointer FaceSetPointer_shell;
+    std::map<int,std::vector<int> > shellF_map;
+    std::map<int,int > shellFaces2WallFace;
     std::map<int,int> Element2ShellFace;
     std::map<int,int > WallFace2ShellFace;
     std::map<int,int > ShellFace2WallFace;
@@ -1812,7 +1347,7 @@ PrismLines* GetPrismLines_V2(US3D* us3d, std::vector<int> wallfaces)
 //    std::map<int,int> Prism2WallFace;
 //    std::map<int,std::vector<int> > FaceLines;
     std::map<int,std::map<int,std::vector<int> > > Lnodes;
-    
+    int shellFid = 0;
     
     for(int wf=0;wf<wallfaces.size();wf++)
     {
@@ -2111,7 +1646,26 @@ PrismLines* GetPrismLines_V2(US3D* us3d, std::vector<int> wallfaces)
                 shellface.insert(us3d->ifn->getVal(nextFaceId,1));
                 shellface.insert(us3d->ifn->getVal(nextFaceId,2));
                 plines->shellFaces2Element[shellface] = ShellElem;
-                plines->shellFaces2WallFace[shellface] = wallfaces[wf];
+
+                
+                
+                std::vector<int> shellfaceVec(3);
+                shellfaceVec[0] = us3d->ifn->getVal(nextFaceId,0);
+                shellfaceVec[1] = us3d->ifn->getVal(nextFaceId,1);
+                shellfaceVec[2] = us3d->ifn->getVal(nextFaceId,2);
+                NekFace f2e(shellfaceVec);
+                pair<FaceSet::iterator, bool> testIns;
+                testIns = plines->faceSet_shell.insert(f2e);
+                
+                if(testIns.second)
+                {
+                    f2e.SetFaceID(shellFid);
+                    plines->shellF_map[shellFid] = ShellElem;
+                    plines->shellFaces2WallFace[shellFid] = wallfaces[wf];
+
+                    shellFid++;
+                }
+                
 //                WallFace2ShellFace[wallfaces[wf]] = nextFaceId;
 //                ShellFace2WallFace[shellface]     = wallfaces[wf];
             }
@@ -2176,8 +1730,8 @@ PrismLines* GetPrismLines(US3D* us3d, std::vector<int> wallfaces)
 //    std::map<int,std::vector<int> > FaceLines;
     
     std::map<int,std::map<int,std::vector<int> > > Lnodes;
-    
-    
+    int shellFid = 0;
+    int shellFid2 = 0;
     for(int wf=0;wf<wallfaces.size();wf++)
     {
         
@@ -2306,7 +1860,41 @@ PrismLines* GetPrismLines(US3D* us3d, std::vector<int> wallfaces)
                 shellface.insert(us3d->ifn->getVal(nextFaceId,1));
                 shellface.insert(us3d->ifn->getVal(nextFaceId,2));
                 plines->shellFaces2Element[shellface] = ShellElem;
-                plines->shellFaces2WallFace[shellface] = wallfaces[wf];
+                
+                std::vector<int> shellfaceVec(3);
+                shellfaceVec[0] = us3d->ifn->getVal(nextFaceId,0);
+                shellfaceVec[1] = us3d->ifn->getVal(nextFaceId,1);
+                shellfaceVec[2] = us3d->ifn->getVal(nextFaceId,2);
+//                NekFace f2e(shellfaceVec);
+//                pair<FaceSet::iterator, bool> testIns;
+//                testIns = plines->faceSet_shell.insert(f2e);
+//
+//                if(testIns.second)
+//                {
+//                    f2e.SetFaceID(shellFid);
+//                    plines->shellF_map[shellFid] = ShellElem;
+//
+//                    shellFid++;
+//                }
+                
+                
+                FaceSharedPtr f2ePointer = std::shared_ptr<NekFace>(new NekFace(shellfaceVec));
+                
+                pair<FaceSetPointer::iterator, bool> testInsPointer;
+                testInsPointer = plines->FaceSetPointer_shell.insert(f2ePointer);
+                
+                if(testInsPointer.second)
+                {
+                    (*testInsPointer.first)->SetFaceID(shellFid2);
+                    plines->shellFaces2WallFace[shellFid2] = wallfaces[wf];
+
+                    plines->shellF_map[shellFid2] = ShellElem;
+                    
+                    shellFid2++;
+                }
+                
+                
+                
 //                WallFace2ShellFace[wallfaces[wf]] = nextFaceId;
 //                ShellFace2WallFace[shellface]     = wallfaces[wf];
             }
@@ -2333,83 +1921,83 @@ PrismLines* GetPrismLines(US3D* us3d, std::vector<int> wallfaces)
 }
 
 
-struct FaceMap{
-    std::map<int,std::vector<int> > Faces;
-    std::map<int,std::vector<int> > collisions;
-};
+//struct FaceMap{
+//    std::map<int,std::vector<int> > Faces;
+//    std::map<int,std::vector<int> > collisions;
+//};
+//
+//void HashFaceToFaceMap(FaceMap* &fmap, std::vector<int> face)
+//{
+//    int dupl = 0;
+//    int addnew = 0;
+//    int nv = face.size();
+//    std::vector<int> tmp(nv);
+//    for(int i=0;i<nv;i++)
+//    {
+//        tmp[i] = face[i];
+//
+//    }
+//    sort(tmp.begin(),tmp.end());
+//
+//    size_t HA = ComputeFaceHash_V2(tmp);
+//
+//    if(fmap->Faces.find(HA) == fmap->Faces.end())
+//    {
+//        fmap->Faces[HA] = face;
+//    }
+//    else
+//    {
+//        std::vector<int> triCom = fmap->Faces[HA];
+//        int err = 0;
+//        for(int i = 0;i < face.size();i++)
+//        {
+//            err = err + (face[i]-triCom[i]);
+//        }
+//
+//        if(err==0)
+//        {
+//            dupl++;
+//        }
+//        else
+//        {
+//            if(fmap->collisions.find(HA)==fmap->collisions.end())
+//            {
+//                fmap->collisions[HA] = face;
+//                addnew++;
+//            }
+//        }
+//    }
+//}
 
-void HashFaceToFaceMap(FaceMap* &fmap, std::vector<int> face)
-{
-    int dupl = 0;
-    int addnew = 0;
-    int nv = face.size();
-    std::vector<int> tmp(nv);
-    for(int i=0;i<nv;i++)
-    {
-        tmp[i] = face[i];
-
-    }
-    sort(tmp.begin(),tmp.end());
-
-    size_t HA = ComputeFaceHash_V2(tmp);
-    
-    if(fmap->Faces.find(HA) == fmap->Faces.end())
-    {
-        fmap->Faces[HA] = face;
-    }
-    else
-    {
-        std::vector<int> triCom = fmap->Faces[HA];
-        int err = 0;
-        for(int i = 0;i < face.size();i++)
-        {
-            err = err + (face[i]-triCom[i]);
-        }
-
-        if(err==0)
-        {
-            dupl++;
-        }
-        else
-        {
-            if(fmap->collisions.find(HA)==fmap->collisions.end())
-            {
-                fmap->collisions[HA] = face;
-                addnew++;
-            }
-        }
-    }
-}
-
-std::vector<int> GetFaceFromMap(FaceMap* fmap, size_t key)
-{
-    std::vector<int> face;
-    
-    if(fmap->Faces.find(key)!=fmap->Faces.end())
-    {
-        
-        
-    }
-    
-    
-    if(fmap->collisions.find(key)!=fmap->collisions.end())
-    {
-        face = fmap->collisions[key];
-    }
-    else
-    {
-        if(fmap->Faces.find(key)!=fmap->Faces.end())
-        {
-            face = fmap->Faces[key];
-        }
-        else
-        {
-            std::cout << "Warning: " << key << " is not in FaceMap" << std::endl;
-        }
-    }
-    
-    return face;
-}
+//std::vector<int> GetFaceFromMap(FaceMap* fmap, size_t key)
+//{
+//    std::vector<int> face;
+//
+//    if(fmap->Faces.find(key)!=fmap->Faces.end())
+//    {
+//
+//
+//    }
+//
+//
+//    if(fmap->collisions.find(key)!=fmap->collisions.end())
+//    {
+//        face = fmap->collisions[key];
+//    }
+//    else
+//    {
+//        if(fmap->Faces.find(key)!=fmap->Faces.end())
+//        {
+//            face = fmap->Faces[key];
+//        }
+//        else
+//        {
+//            std::cout << "Warning: " << key << " is not in FaceMap" << std::endl;
+//        }
+//    }
+//
+//    return face;
+//}
 
 std::vector<double> NodeCurl(std::vector<double> nodeOr, std::vector<double> node)
 {
@@ -3155,6 +2743,11 @@ std::map<int,std::vector<int> > ActualResetNodes(US3D* us3d, std::map<int,int> P
 }
 
 
+//struct NekElem{
+//    std::vector<FaceSharedPtr>;
+//};
+
+
 int main(int argc, char** argv)
 {
     MPI_Init(NULL, NULL);
@@ -3214,9 +2807,9 @@ int main(int argc, char** argv)
 //  const char* fn_conn="../test_mesh/cylinder_hybrid/conn.h5";
 //  const char* fn_data="../test_mesh/cylinder_hybrid/data.h5";
     
-    const char* fn_grid     =    "inputs/grid.h5";
-    const char* fn_conn     =    "inputs/conn.h5";
-    const char* fn_metric   =    "inputs/metric.inp";
+    const char* fn_grid     =    "../inputs/grid.h5";
+    const char* fn_conn     =    "../inputs/conn.h5";
+    const char* fn_metric   =    "../inputs/metric.inp";
     
     std::vector<double> metric_inputs = ReadMetricInputs(fn_metric);
     
@@ -3256,7 +2849,7 @@ int main(int argc, char** argv)
     std::cout << "PrismTransferMap  " << PrismTransferMap.size() << " " << TetTransferMap.size() << std::endl;
     std::cout << "TetTransferMap  " << TetTransferMap.size() << " " << TetTransferMap.size() << std::endl;
 
-    FaceSet m_ShellFaceSet;
+//    FaceSet m_ShellFaceSet;
 
     const char*  filename ="extrude.xml";
     
@@ -3309,13 +2902,13 @@ int main(int argc, char** argv)
                 {
                     faceVec[j] = us3d->ifn->getVal(i,j);
                 }
-                pair<FaceSet::iterator, bool> testIns;
-                testIns = m_ShellFaceSet.insert(faceVec);
-                
-                if(testIns.second)
-                {
-                    facetel++;
-                }
+//                pair<FaceSet::iterator, bool> testIns;
+//                testIns = m_ShellFaceSet.insert(faceVec);
+//
+//                if(testIns.second)
+//                {
+//                    facetel++;
+//                }
             }
         }
 //
@@ -3561,11 +3154,24 @@ int main(int argc, char** argv)
     int BadPrisms = 0;
     int BadTets = 0;
     int teller = 0;
-    
+    FaceSet m_FaceSet;
+    FaceSetPointer m_FaceSetPointer;
     int cntshell = 0;
+    std::map<int,std::vector<int> > face_map2;
     std::map<int,int> WallFace2PrismElem;
     std::map<int,std::vector<int> > shellMapOrientVerts;
     std::map<int,std::vector<int> > shellMapOrientEdges;
+    int fidid = 0;
+    int fcid = 0;
+    int FId = 0;
+    std::map<int,NekFace*> face_map4;
+    std::map<int,NekFace*> face_map5;
+    std::set<std::vector<int> > face_map3;
+    int dupl = 0;
+    int cntdu = 0;
+    std::set<int> hashset;
+    int foundd =0;
+    int facF = 0;
     for(itmesh=tetrahedra.begin();itmesh!=tetrahedra.end();itmesh++)
     {
         int elid = itmesh->first;
@@ -3581,16 +3187,18 @@ int main(int argc, char** argv)
             int nEdges = faceEdges[q].size();
             int nVrts  = faceVerts[q].size();
             std::vector<int> face2edge(nEdges);
+            std::vector<int> face2edge_copy(nEdges);
             std::set<int> face2edge_set;
             std::set<int> faceverts_set;
             std::set<int> faceOverts_set;
+            std::vector<int> faceOverts_vec;
             std::vector<std::vector<double> > faceCoords;
 
             for(int p=0;p<nVrts;p++)
             {
                 int ovid = new2old_v[vert_map_inv[faceVerts[q][p]]];
                 faceOverts_set.insert(ovid);
-
+                faceOverts_vec.push_back(ovid);
                 std::vector<double> coords(3);
                 coords[0] = us3d->xcn->getVal(ovid,0);
                 coords[1] = us3d->xcn->getVal(ovid,1);
@@ -3615,26 +3223,182 @@ int main(int argc, char** argv)
 
 
                 face2edge[p] = geid;
+                face2edge_copy[p] = geid;
                 face2edge_set.insert(geid);
                 gEdge2lEdgeMap[geid] = p;
             }
+            
+//            std::cout << "face2edge " << face2edge.size() << std::endl;
+            NekFace* nf = new NekFace(face2edge);
+            int fhash   = nf->GetFaceHash();
+//            std::cout << "fhas " << fhash << std::endl;
+            
+            if(face_map2.find(fhash)==face_map2.end())
+            {
+                face_map2[fidid] = face2edge;
+                nf->SetFaceID(fidid);
+                fidid++;
+            }
+            
+            if(face_map4.find(fhash)==face_map4.end())
+            {
+                face_map4[fhash] = nf;
+                nf->SetFaceID(FId);
+                face_map5[FId] = nf;
+                FId++;
+            }
+            else
+            {
+                NekFace* nfc = face_map4[fhash];
+                
+                std::vector<int> f_c1(nf->GetEdgeIDs().size());
+                std::vector<int> f_c2(nfc->GetEdgeIDs().size());
+                
+                for(int u=0;u<nf->GetEdgeIDs().size();u++)
+                {
+                    f_c1[u] = nf->GetEdgeIDs()[u];
+                    f_c2[u] = nfc->GetEdgeIDs()[u];
+                }
+                
+                sort(f_c1.begin(),f_c1.end());
+                sort(f_c2.begin(),f_c2.end());
+                
+                if((f_c1[0]==f_c2[0]) &&
+                   (f_c1[1]==f_c2[1]) &&
+                   (f_c1[2]==f_c2[2]))
+                {
+                    dupl++;
+                }
+                else
+                {
+//                    std::cout << " 1 " << f_c1[0] << " " << f_c1[1] << " " << f_c1[2] << std::endl;
+//                    std::cout << " 2 " << f_c2[0] << " " << f_c2[1] << " " << f_c2[2] << std::endl;
+                    
+                    nf->SetFaceID(FId);
+                    face_map5[FId] = nf;
+                    
+                    cntdu++;
+                    FId++;
+                }
+            }
+            
+            
+            
+            FaceSharedPtr sharedFPointer = std::shared_ptr<NekFace>(new NekFace(face2edge));
+            
+            
+//            NekFace* sharedF = new NekFace(face2edge);
+            NekFace sharedF(face2edge);
+            pair<FaceSet::iterator, bool> testIns;
+            testIns = m_FaceSet.insert(sharedF);
+            
+            pair<FaceSetPointer::iterator, bool> testInsPointer;
+            testInsPointer = m_FaceSetPointer.insert(sharedFPointer);
 
+            
+//            if(m_FaceSet.find(sharedF)!=m_FaceSet.end())
+//            {
+//                facF++;
+//            }
+//            if(testIns.second)
+//            {
+//                foundd++;
+//            }
+            
+//            NekFace* sharedF = new NekFace(face2edge);
+//            NekFace sharedF(face2edge);
+//            sort(face2edge_copy.begin(),face2edge_copy.end());
+//
+//            if(face_map3.find(face2edge_copy)==face_map3.end())
+//            {
+//                face_map3.insert(face2edge_copy);
+//                fcid++;
+//            }
+
+            
+            
+//            FaceSharedPtr sharedF2 = std::shared_ptr<NekFace>(new NekFace(face2edge_copy));
+            
+//            NekFace* sharedF2 = new NekFace(face2edge_copy);
+
+
+//            pair<FaceSet::iterator, bool> testIns;
+//            testIns = m_FaceSet.insert(sharedF2);
+//
+//            int fhash2 = sharedF2->GetFaceHash();
+//            if(hashset.find(fhash2)==hashset.end())
+//            {
+//                hashset.insert(fhash2);
+//            }
+//
+//            if(testIns.second)
+//            {
+////              std::cout << "FaceHash " << sharedF->GetFaceHash() << std::endl;
+//                sharedF->SetFaceID(facetel);
+//                facetel++;
+//            }
+//            else
+//            {
+//
+//            }
+            
+            
+//          else
+//          {
+//              std::cout << "Duplicate " << sharedF->GetFaceID() << std::endl;
+//          }
+            
+            
             if(face_set.find(face2edge_set)==face_set.end())
             {
                 face_set[face2edge_set] = gfid;
                 face_map[gfid] = face2edge;
                 gfaces_copy[q] = gfid;
 
+                
                 if(refFaceMap.find(faceOverts_set)!=refFaceMap.end())
                 {
                     int faceRef = refFaceMap[faceOverts_set];
                     BoundaryComposites[faceRef].push_back(gfid);
                 }
                 
-                if(plines->shellFaces2Element.find(faceOverts_set)!=plines->shellFaces2Element.end())
+                
+                NekFace F(face2edge);
+                if(m_FaceSet.find(F)!=m_FaceSet.end())
                 {
-                    std::vector<int> ElPrismConnect = plines->shellFaces2Element[faceOverts_set];
-                    int wallface                    = plines->shellFaces2WallFace[faceOverts_set];
+                    facF++;
+                }
+                
+//                FaceSharedPtr f2ePointer = std::shared_ptr<NekFace>(new NekFace(f2e));
+//
+//                pair<FaceSetPointer::iterator, bool> testInsPointer;
+//                testInsPointer = plines->FaceSetPointer_shell.insert(f2ePointer);
+//
+//                if(testInsPointer.second)
+//                {
+//                    (*testInsPointer.first)->SetFaceID(shellFid);
+//
+//                    plines->shellF_map[shellFid2] = ShellElem;
+//
+//                    shellFid2++;
+//                }
+                
+                FaceSharedPtr f2ePointer = std::shared_ptr<NekFace>(new NekFace(faceOverts_vec));
+                FaceSetPointer::iterator testInsPointer = plines->FaceSetPointer_shell.find(f2ePointer);
+                
+                
+//                if(plines->shellFaces2Element.find(faceOverts_set)!=plines->shellFaces2Element.end())
+                if(testInsPointer!=plines->FaceSetPointer_shell.end())
+                {
+                    
+                    int shellFid = (*testInsPointer)->GetFaceID();
+                    
+                    //std::cout << "shellFid " << shellFid << " " << plines->FaceSetPointer_shell.size() << std::endl;
+                    
+                    std::vector<int> ElPrismConnect = plines->shellF_map[shellFid];
+                    
+                    std::vector<int> ElPrismConnect2 = plines->shellFaces2Element[faceOverts_set];
+                    int wallface                     = plines->shellFaces2WallFace[shellFid];
                     
                     int pelem = ElPrismConnect[0];
                     
@@ -3697,6 +3461,7 @@ int main(int argc, char** argv)
         teller++;
     }
     
+    std::cout << "m_FaceSet " << m_FaceSet.size() << " " << face_map.size() << " " << face_map2.size() << " " << facetel << " " << face_map3.size() << " " << face_map4.size() << " " << face_map5.size() << " " << dupl << " " << cntdu  << " " << hashset.size() << " foundd " << foundd << " " << facF << " " << m_FaceSetPointer.size() << std::endl;
     
     std::cout << "cntshell " << cntshell << std::endl;
     
