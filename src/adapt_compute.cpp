@@ -1317,6 +1317,7 @@ void ComputeMetric(Partition* Pa, MPI_Comm comm, std::map<int,Array<double>* > &
         
         if(Hess_vm[glob_vid]->getNrow()==9)
         {
+	    //std::cout << "Hexx" << glob_vid << " " << Hess_vm[glob_vid]->getVal(3,0) << " "  << Hess_vm[glob_vid]->getVal(3,0) << " " << Hess_vm[glob_vid]->getVal(5,0) << " " << Hess_vm[glob_vid]->getVal(7,0) << " " << Hess_vm[glob_vid]->getVal(8,0) << std::endl; 
             Hmet[0] = Hess_vm[glob_vid]->getVal(3,0);
             Hmet[1] = Hess_vm[glob_vid]->getVal(4,0);
             Hmet[2] = Hess_vm[glob_vid]->getVal(5,0);
@@ -1426,7 +1427,7 @@ void ComputeMetric(Partition* Pa, MPI_Comm comm, std::map<int,Array<double>* > &
         Habs->setVal(2,1,0.0);
         Habs->setVal(2,2,f*1.0);
 */        
-        
+        //std::cout << "Habs " <<  Habs->getVal(0,0) << " " << Habs->getVal(0,1) << " " << Habs->getVal(0,2) << " " << Habs->getVal(1,1) << " " << Habs->getVal(1,2) << " " << Habs->getVal(2,2) << std::endl; 
         Hess_vm[glob_vid]=Habs;
         
    //     delete Rf;

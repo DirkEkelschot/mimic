@@ -2617,8 +2617,8 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_US3D(Partition* Pa,
                    isZero++;
                }
                
-               double Utje = gbMap[adjID];
-               
+//               double Utje = gbMap[adjID];
+               double Utje = u_ijk;
                d = sqrt((Vc->x-Vijk->x)*(Vc->x-Vijk->x)+
                         (Vc->y-Vijk->y)*(Vc->y-Vijk->y)+
                         (Vc->z-Vijk->z)*(Vc->z-Vijk->z));

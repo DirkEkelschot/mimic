@@ -709,6 +709,7 @@ int main(int argc, char** argv)
     for(int i=0;i<us3d->ghost->getNrow();i++)
     {
         gB->setVal(i,0,us3d->ghost->getVal(i,varia));
+    	//std::cout << "ghost " << i << " " << us3d->ghost->getVal(i,varia) << std::endl;
     }
     int ngho = us3d->ghost->getNrow();
     int ngval;
@@ -936,7 +937,7 @@ int main(int argc, char** argv)
             dUidxi_map[grit->first]=dUdx_E;
             dUidyi_map[grit->first]=dUdy_E;
             dUidzi_map[grit->first]=dUdz_E;
-            
+     	    std::cout << "grad " << grit->first << " " << dUdx_E->getVal(0,0) << " " << dUdy_E->getVal(0,0) << " " << dUdz_E->getVal(0,0) << std::endl;       
             delete grit->second;
         }
         
@@ -1028,7 +1029,7 @@ int main(int argc, char** argv)
     std::map<int,Array<double>* >::iterator hessit;
     std::map<int,double>::iterator itn2n;
     int howmany = 0;
-    
+    std::cout << "hess_vmap size =  " << hess_vmap.size() << std::endl; 
     for(hessit=hess_vmap.begin();hessit!=hess_vmap.end();hessit++)
     {
         int gvid       = hessit->first;
@@ -1067,7 +1068,7 @@ int main(int argc, char** argv)
                     m22       = m22+hess_vmap[vid]->getVal(2,2)*di;
                 }
             }
-
+	    //std::cout << "di " << gvid << " " << sum_dist << " " << n2nmap.size() << " --->" << m00 << " " << m01 << " " << m02 << " " << m11 << " " << m12 << " " << m22 << std::endl;
             Array<double>* HabsNew = new Array<double>(3,3);
 
             HabsNew->setVal(0,0,m00/sum_dist);
