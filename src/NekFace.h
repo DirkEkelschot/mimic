@@ -1,4 +1,5 @@
 #include "adapt.h"
+#include <memory>
 #include "adapt_array.h"
 #include "adapt_hashutils.h"
 

@@ -4892,7 +4892,7 @@ void Partition::CreatePartitionDomainTest()
     //pDom->ushell           = shallLayout;
 
     
-    //pDom->ushell           = shallLayout;
+    pDom->ushell           = shallLayout;
     
     
     //pDom->ushell_centroid  = shallLayout_centroid;

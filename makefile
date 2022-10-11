@@ -14,8 +14,7 @@ include module.mk
 all:		install
 	
 install:	makebin
-		$(CC) $(CXXFLAGS) $(OBJ) $(MAIN_OBJ) -c $(LDLIBS)
-		$(CC) -o mimic *.o $(LDFLAGS) $(LDLIBS)
+		$(CC) $(CXXFLAGS) $(OBJ) $(MAIN_OBJ) -o $(BIN)/$(EXEC) $(LDFLAGS) $(LDLIBS)
 		cp -r $(BIN)/$(EXEC) .
 
 makebin:
@@ -25,4 +24,4 @@ test:
 		make -C $(TEST2)
 		make -C $(TEST3)
 clean:
-		rm -rf $(EXEC) *.dat $(SRC)/*.o $(SRC)/*.mod $(BIN) $(TESTBIN) grid_madam.h5
+		rm -rf $(EXEC) *.dat $(SRC)/*.o $(SRC)/*.mod $(BIN) $(TESTBIN) grid.h5
