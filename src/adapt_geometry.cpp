@@ -118,7 +118,9 @@ double ComputeTriSurfaceArea(double* P)
     
     double A = sqrt(p*(p-a)*(p-b)*(p-c));
     
-    delete v0,v1,v2;
+    delete v0;
+    delete v1;
+    delete v2;
     
     return A;
 }

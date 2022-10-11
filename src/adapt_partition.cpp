@@ -1121,7 +1121,6 @@ void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief,
     
     
     delete part_schedule;
-    part_schedule_elem;
     
     TotRecvElement_IDs.clear();
     part_tot_recv_elIDs_map.clear();
