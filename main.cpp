@@ -937,7 +937,6 @@ int main(int argc, char** argv)
             dUidxi_map[grit->first]=dUdx_E;
             dUidyi_map[grit->first]=dUdy_E;
             dUidzi_map[grit->first]=dUdz_E;
-     	    std::cout << "grad " << grit->first << " " << dUdx_E->getVal(0,0) << " " << dUdy_E->getVal(0,0) << " " << dUdz_E->getVal(0,0) << std::endl;       
             delete grit->second;
         }
         
