@@ -13,18 +13,25 @@ NekFace::NekFace(std::vector<int> eid)
 NekFace::~NekFace()
 {
 }
-    
-int NekFace::GetFaceID() const
-{
-    return m_id;
-}
 std::vector<int> NekFace::GetEdgeIDs() const
 {
     return m_eId;
 }
+int NekFace::GetFaceID() const
+{
+    return m_id;
+}
 void NekFace::SetFaceID(int idje)
 {
     m_id = idje;
+}
+void NekFace::SetFaceRef(int ref)
+{
+    m_ref = ref;
+}
+int NekFace::GetFaceRef() const
+{
+    return m_ref;
 }
 std::size_t NekFace::ComputeFaceHash(std::vector<int> Face) const
 {

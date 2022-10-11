@@ -1,6 +1,4 @@
-
 #include <boost/core/ignore_unused.hpp>
-
 
 inline void hash_combine(std::size_t &seed)
 {

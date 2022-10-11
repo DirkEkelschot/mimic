@@ -16,7 +16,7 @@ include(platforms_cmake/MacOSX_Dirk_work.cmake)
 
 #set(LIBRARY_OUTPUT_PATH lib/)
 
-set(SRC src/tinyxmlparser.cpp src/tinyxmlerror.cpp src/tinystr.cpp src/tinyxml.cpp src/adapt_parops.cpp src/adapt_bltopology.cpp src/adapt_boundary.cpp src/adapt_output.cpp src/adapt_compute.cpp src/adapt_schedule.cpp src/adapt_operations.cpp src/hex2tet.cpp src/adapt_geometry.cpp src/adapt_math.cpp src/adapt_io.cpp src/adapt_recongrad.cpp src/adapt_topology.cpp src/adapt_partition.cpp src/adapt_prismaticlayer.cpp src/adapt_redistribute.cpp src/adapt_prismaticlayer.cpp src/adapt_parstate.cpp src/adapt_distri_parstate.cpp main.cpp)
+set(SRC src/NekFace.cpp src/tinyxmlparser.cpp src/tinyxmlerror.cpp src/tinystr.cpp src/tinyxml.cpp src/adapt_parops.cpp src/adapt_bltopology.cpp src/adapt_boundary.cpp src/adapt_output.cpp src/adapt_compute.cpp src/adapt_schedule.cpp src/adapt_operations.cpp src/hex2tet.cpp src/adapt_geometry.cpp src/adapt_math.cpp src/adapt_io.cpp src/adapt_recongrad.cpp src/adapt_topology.cpp src/adapt_partition.cpp src/adapt_prismaticlayer.cpp src/adapt_redistribute.cpp src/adapt_prismaticlayer.cpp src/adapt_parstate.cpp src/adapt_distri_parstate.cpp main.cpp)
 
 #set(EXECUTABLE_OUTPUT_PATH bin/)
 set(COMPILE_FLAGS ${COMPILE_FLAGS} ${MPI_COMPILE_FLAGS})
@@ -28,6 +28,10 @@ add_executable(mimic ${SRC})
 #list(APPEND EXTERNAL_LIB ${MPI_LIBRARIES})
 
 find_package(LAPACK)
+
+set(Boost_INCLUDE_DIR /Users/dekelsch/Software/boost_1_71_0)
+set(Boost_LIBRARY_DIR /Users/dekelsch/Software/boost_1_71_0/stage/lib)
+find_package(Boost COMPONENTS system filesystem REQUIRED)
 
 #find_path(XML_INCLUDE_DIR PATHS "${DEFAULT_XML_ROOT}")
 #if(NOT EXISTS "${XML_INCLUDE_DIR}")
@@ -110,6 +114,8 @@ include_directories(${MMGS_INCLUDE_DIR})
 include_directories(${MMG3D_INCLUDE_DIR})
 include_directories(${PARMMG_INCLUDE_DIR})
 include_directories(${MPI_INCLUDE_DIR})
+include_directories(${Boost_INCLUDE_DIR})
+link_directories(${Boost_LIBRARY_DIR})
 
 #list(APPEND EXTERNAL_LIB ${PARMETIS_LIBRARIES})
 #list(APPEND EXTERNAL_LIB ${HDF5_LIBRARY})
@@ -120,6 +126,7 @@ target_link_libraries(mimic ${HDF5_LIBRARY})
 target_link_libraries(mimic ${PARMETIS_LIBRARIES})
 target_link_libraries(mimic ${MPI_LIBRARY})
 target_link_libraries(mimic ${LAPACK_LIBRARIES})
+target_link_libraries(mimic ${Boost_LIBRARIES} )
 #====== Adding the external libraries here ======
 
 
