@@ -33,6 +33,22 @@ int NekFace::GetFaceRef() const
 {
     return m_ref;
 }
+void NekFace::SetFaceLeftElement(int le)
+{
+    m_le = le;
+}
+void NekFace::SetFaceRightElement(int re)
+{
+    m_re = re;
+}
+int NekFace::GetFaceLeftElement() const
+{
+    return m_le;
+}
+int NekFace::GetFaceRightElement() const
+{
+    return m_re;
+}
 std::size_t NekFace::ComputeFaceHash(std::vector<int> Face) const
 {
     sort(Face.begin(),Face.end());

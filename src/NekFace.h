@@ -15,6 +15,10 @@ class NekFace {
         void SetFaceRef(int ref);
         std::size_t ComputeFaceHash(std::vector<int> Face) const;
         std::size_t GetFaceHash();
+        void SetFaceLeftElement(int le);
+        void SetFaceRightElement(int re);
+        int GetFaceLeftElement() const;
+        int GetFaceRightElement() const;
         bool operator==(const NekFace& otherFace) const;
 //        bool operator<(const NekFace& otherFace);
 
@@ -24,6 +28,8 @@ class NekFace {
         int m_id;
         int m_seed;
         int m_ref;
+        int m_le;
+        int m_re;
 };
 
 typedef std::shared_ptr<NekFace> FaceSharedPtr;

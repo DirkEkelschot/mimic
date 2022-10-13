@@ -1401,7 +1401,8 @@ int main(int argc, char** argv)
 
     int foundU = 0;
     
-    std::map<std::set<int>, int > vertref2shell_prism;
+    //std::map<std::set<int>, int > vertref2shell_prism;
+    FaceSetPointer m_PMMG_RefsOnShell_2_Prism;
     int nshell = 0;
     for(itmm=ushell.begin();itmm!=ushell.end();itmm++)
     {
@@ -1412,7 +1413,25 @@ int main(int argc, char** argv)
     
         if(shellface2vertref.find(fhyb)!=shellface2vertref.end())
         {
-            vertref2shell_prism[shellface2vertref[fhyb]] = EprismNew;
+            std::set<int>::iterator its;
+            std::vector<int> refs(shellface2vertref[fhyb].size());
+            int c = 0;
+            for(its=shellface2vertref[fhyb].begin();
+                its!=shellface2vertref[fhyb].end();its++)
+            {
+                refs[c] = *its;
+                c++;
+            }
+            FaceSharedPtr RefFacePointer = std::shared_ptr<NekFace>(new NekFace(refs));
+            pair<FaceSetPointer::iterator, bool> testInsPointer;
+            testInsPointer = m_PMMG_RefsOnShell_2_Prism.insert(RefFacePointer);
+            
+            if(testInsPointer.second)
+            {
+                (*testInsPointer.first)->SetFaceLeftElement(EprismNew);
+            }
+            
+            //vertref2shell_prism[shellface2vertref[fhyb]] = EprismNew;
             foundU++;
         }
         else
@@ -1943,8 +1962,16 @@ int main(int argc, char** argv)
         globIDs.push_back(nodeGloNumber);
     }
     
-    int *required = (int*)calloc(MAX4(nVerticesOUT,nTetrahedraOUT,nTrianglesOUT,nEdgesOUT),sizeof(int));
-    int *refOUT = (int*)calloc(MAX4(nVerticesOUT,nTetrahedraOUT,nTrianglesOUT,nEdgesOUT),sizeof(int));
+    int *required = (int*)calloc(MAX4(nVerticesOUT,
+                                      nTetrahedraOUT,
+                                      nTrianglesOUT,
+                                      nEdgesOUT),sizeof(int));
+    
+    int *refOUT = (int*)calloc(MAX4(nVerticesOUT,
+                                    nTetrahedraOUT,
+                                    nTrianglesOUT,
+                                    nEdgesOUT),sizeof(int));
+    
     int *corner = (int*)calloc(nVerticesOUT,sizeof(int));
     int pos;
     //int *refOUT = new int[nVerticesOUT];
@@ -2107,13 +2134,10 @@ int main(int argc, char** argv)
                 {
                     int ft = out_tria_loc[icomm][i];
 
-                    std::set<int> faceSh;
-
                     for(int k=0;k<3;k++)
                     {
                         int vt3 = triaNodes2[3*(ft-1)+k];
                         faceNodes_out[icomm][3*i+k] = triaNodes2[3*(ft-1)+k];
-                        faceSh.insert(vt3);
                         if(sharedVert.find(vt3)==sharedVert.end())
                         {
                             sharedVert[vt3] = lvt;
@@ -2182,7 +2206,8 @@ int main(int argc, char** argv)
         
         FaceSetPointer m_PMMG_Face2RefPointer;
         
-        std::map<std::set<int>, int> PMMG_Shell2Prism;
+        //std::map<std::set<int>, int> PMMG_Shell2Prism;
+        FaceSetPointer m_PMMG_ShellFace2PrismPointer;
 
         int c36 = 0;
         int gv0,gv1,gv2;
@@ -2321,6 +2346,8 @@ int main(int argc, char** argv)
                     double duration = ( t1 - t0) / (double) CLOCKS_PER_SEC;
                     std::cout << "Warning:: There is an issue with the ref value of vertex " << vertid << " on rank " << world_rank << std::endl;
                     std::cout << "It is swapped back to the correct value by brute force which took " << duration << " seconds to find out of a set of " << shellVertCoord2Ref.size() << " vertices." << std::endl;
+                    
+                    
                 }
                 if(refOUT[triaNodes2[pos+1]-1]==86)
                 {
@@ -2395,23 +2422,32 @@ int main(int argc, char** argv)
                     std::cout << "It is swapped back to the correct value by brute force which took " << duration << " seconds to find out of a set of " << shellVertCoord2Ref.size() << " vertices." << std::endl;
                 }
                 
-                std::set<int> test_set;
-                test_set.insert(refOUT[triaNodes2[pos]-1]);
-                test_set.insert(refOUT[triaNodes2[pos+1]-1]);
-                test_set.insert(refOUT[triaNodes2[pos+2]-1]);
                 
-                if(vertref2shell_prism.find(test_set)!=vertref2shell_prism.end())
+                std::vector<int> refOnFace(3);
+                refOnFace[0] = refOUT[triaNodes2[pos]-1];
+                refOnFace[1] = refOUT[triaNodes2[pos+1]-1];
+                refOnFace[2] = refOUT[triaNodes2[pos+2]-1];
+                
+                FaceSharedPtr RefOnFacePointer              = std::shared_ptr<NekFace>(new NekFace(refOnFace));
+                FaceSetPointer::iterator RefsOnShellPointer = m_PMMG_RefsOnShell_2_Prism.find(RefOnFacePointer);
+
+                // Mechanism to match up the shell faces from the adapted tetrahedra to the fixed prisms.
+                if(RefsOnShellPointer!=m_PMMG_RefsOnShell_2_Prism.end())
                 {
-                    PMMG_Shell2Prism[faceSh] = vertref2shell_prism[test_set];
-                    prismFound++;
-                }
-                else
-                {
-                    std::cout << "Error: Prism connectivity on the shell faces is not found!" << std::endl;
+                    int PrismID = (*RefsOnShellPointer)->GetFaceLeftElement();
+                    
+                    
+                    FaceSharedPtr FacePointer = std::shared_ptr<NekFace>(new NekFace(faceShVec));
+                    
+                    pair<FaceSetPointer::iterator, bool> Shell2PrismPointer;
+                    Shell2PrismPointer = m_PMMG_ShellFace2PrismPointer.insert(FacePointer);
+                    
+                    if(Shell2PrismPointer.second)
+                    {
+                        (*Shell2PrismPointer.first)->SetFaceLeftElement(PrismID);
+                    }
                 }
 
-                
-                test_set.clear();
                 
                 faceCovered++;
                 // Need to catch the references here //
@@ -2458,11 +2494,11 @@ int main(int argc, char** argv)
         
         
         DistributedParallelState* pmmg_shellfacedist = new DistributedParallelState(m_PMMG_ShellFacePointer.size(),comm);
-        DistributedParallelState* PMMG_Shell2Prismdist = new DistributedParallelState(PMMG_Shell2Prism.size(),comm);
+        DistributedParallelState* PMMG_Shell2Prismdist = new DistributedParallelState(m_PMMG_ShellFace2PrismPointer.size(),comm);
         
-        if(m_PMMG_ShellFacePointer.size()!=PMMG_Shell2Prism.size())
+        if(m_PMMG_ShellFacePointer.size()!=m_PMMG_ShellFace2PrismPointer.size())
         {
-            std::cout << world_rank << " m_PMMG_ShellFacePointer size " << m_PMMG_ShellFacePointer.size() << " pmmg_shellfacedist->getNel() " << pmmg_shellfacedist->getNel() << " PMMG_Shell2Prismdist->getNel() = "<< PMMG_Shell2Prismdist->getNel() << " prismFound-> " << prismFound << " " << faceCovered << " " << PMMG_Shell2Prism.size() << " " << vertref2shell_prism.size() <<  std::endl;
+            std::cout << world_rank << " m_PMMG_ShellFacePointer size " << m_PMMG_ShellFacePointer.size() << " pmmg_shellfacedist->getNel() " << pmmg_shellfacedist->getNel() << " PMMG_Shell2Prismdist->getNel() = "<< PMMG_Shell2Prismdist->getNel() << " prismFound-> " << prismFound << " " << faceCovered << " " << m_PMMG_ShellFace2PrismPointer.size() <<  std::endl;
         }
         
         int itt2            = 0;
@@ -2471,9 +2507,8 @@ int main(int argc, char** argv)
         int vt,ft,gvt,gft;
         
         FaceSetPointer m_PMMG_SharedFacePointer;
-        
-        std::map<std::set<int>, int> PMMG_SharedFaces;
-        std::map<std::set<int>, int> PMMG_SharedFacesOwned;
+        FaceSetPointer m_PMMG_OwnedSharedFacePointer;
+
         std::set<int> PMMG_SharedVertsOwned;
         int nPartFace = 0;
         std::map<int,int> rank2icomm;
@@ -2521,17 +2556,22 @@ int main(int argc, char** argv)
                         }
                     }
                     
-                    
                     Color_SharedOwned[color_face_out[icomm]].push_back(i);
-                    PMMG_SharedFacesOwned[faceSh]=ft;
-                    PMMG_SharedFaces[faceSh]=ft;
                     
                     FaceSharedPtr sharedFacePointer = std::shared_ptr<NekFace>(new NekFace(faceShVec));
-                    pair<FaceSetPointer::iterator, bool> testInsPointer;
-                    testInsPointer = m_PMMG_SharedFacePointer.insert(sharedFacePointer);
-                    if(testInsPointer.second)
+                    pair<FaceSetPointer::iterator, bool> SharedFPointer;
+                    SharedFPointer      = m_PMMG_SharedFacePointer.insert(sharedFacePointer);
+                    pair<FaceSetPointer::iterator, bool> OwnedSharedFPointer;
+                    OwnedSharedFPointer = m_PMMG_OwnedSharedFacePointer.insert(sharedFacePointer);
+                    
+                    if(SharedFPointer.second)
                     {
-                        (*testInsPointer.first)->SetFaceID(ft);
+                        (*SharedFPointer.first)->SetFaceID(ft);
+                    }
+                    
+                    if(OwnedSharedFPointer.second)
+                    {
+                        (*OwnedSharedFPointer.first)->SetFaceID(ft);
                     }
                     
                     faceSh.clear();
@@ -2556,10 +2596,10 @@ int main(int argc, char** argv)
                             PMMG_SharedVertices.insert(gvt);
                         }
                     }
-                    if(PMMG_SharedFaces.find(faceSh)==PMMG_SharedFaces.end())
-                    {
-                        PMMG_SharedFaces[faceSh]=ft;
-                    }
+//                    if(PMMG_SharedFaces.find(faceSh)==PMMG_SharedFaces.end())
+//                    {
+//                        PMMG_SharedFaces[faceSh]=ft;
+//                    }
                     
                     
                     FaceSharedPtr sharedFacePointer = std::shared_ptr<NekFace>(new NekFace(faceShVec));
@@ -2576,7 +2616,7 @@ int main(int argc, char** argv)
         }
        
         
-        std::cout << world_rank << " m_PMMG_SharedFacePointer " << m_PMMG_SharedFacePointer.size() << " " << PMMG_SharedFaces.size() << std::endl;
+        //std::cout << world_rank << " m_PMMG_SharedFacePointer " << m_PMMG_SharedFacePointer.size() << " " << PMMG_SharedFaces.size() << std::endl;
         
         
         int nLocallyOwnedVerts                      = PMMG_SharedVertsOwned.size();
@@ -2683,23 +2723,20 @@ int main(int argc, char** argv)
         
         std::map<int,std::vector<int> > ienOUT;
         
-        std::map<int,std::vector<int> > fmBnd;
-        std::map<int,std::vector<int> > fmInt;
-        std::map<int,std::vector<int> > fmSha;
+        
+        std::map<int,FaceSharedPtr> BoundaryFaces;
+        std::map<int,FaceSharedPtr> InternalFaces;
+        std::map<int,FaceSharedPtr> SharedFaces;
         std::map<int,std::vector<int> > fmShell;
         std::map<int,std::vector<int> > fm;
         
         FaceSetPointer m_FaceSetPointer;
-        std::map<int,std::set<int> > facemap_inv;
         std::map<int,std::vector<int> > bcmap;
         
         std::map<int,std::vector<int> > pfmInt;
         std::map<int,std::vector<int> > pfmSha;
         std::map<int,std::vector<int> > pfm;
         
-        std::map<std::set<int>, int> pfacemap;
-        std::map<int,std::set<int> > pfacemap_inv;
-
         Array<int>* parmmg_iet = new Array<int>(nTetrahedraOUT,1);
         int q;
         
@@ -2845,23 +2882,26 @@ int main(int argc, char** argv)
                     
                     fm[fid] = fce;
                     
-                    FaceSetPointer::iterator testInsPointer      = m_PMMG_SharedFacePointer.find(f2ePointer);
-                    FaceSetPointer::iterator testShellPointer    = m_PMMG_ShellFacePointer.find(f2ePointer);
-                    FaceSetPointer::iterator testFace2RefPointer = m_PMMG_Face2RefPointer.find(f2ePointer);
+                    FaceSetPointer::iterator SharedFPointer         = m_PMMG_SharedFacePointer.find(f2ePointer);
+                    FaceSetPointer::iterator OwnedSharedFPointer    = m_PMMG_OwnedSharedFacePointer.find(f2ePointer);
+                    FaceSetPointer::iterator testShellPointer       = m_PMMG_ShellFacePointer.find(f2ePointer);
+                    FaceSetPointer::iterator testFace2RefPointer    = m_PMMG_Face2RefPointer.find(f2ePointer);
+                    FaceSetPointer::iterator testShell2PrismPointer = m_PMMG_ShellFace2PrismPointer.find(f2ePointer);
 
-                    if(testInsPointer != m_PMMG_SharedFacePointer.end())
+                    if(SharedFPointer != m_PMMG_SharedFacePointer.end())
                     {
-                        lshf                     = (*testInsPointer)->GetFaceID();
+                        lshf                     = (*SharedFPointer)->GetFaceID();
                         locShF2globShF[lshf]     = fid;
                         lhsh[fid]                = curElID;
                     }
                     
                     
-                    if(testInsPointer == m_PMMG_SharedFacePointer.end()
+                    if(SharedFPointer == m_PMMG_SharedFacePointer.end()
                        && testFace2RefPointer == m_PMMG_Face2RefPointer.end()
                        && testShellPointer == m_PMMG_ShellFacePointer.end())
                     {
-                        fmInt[fid]  = fce;
+                        InternalFaces[fid] = (*testInsPointer.first);
+                        //fmInt[fid]  = fce;
                         lh[fid]     = curElID;
                         
                         for(int s=0;s<3;s++)
@@ -2878,9 +2918,11 @@ int main(int argc, char** argv)
                     
                     
                     
-                    if(PMMG_SharedFacesOwned.find(Face) != PMMG_SharedFacesOwned.end())
+                    if(OwnedSharedFPointer != m_PMMG_OwnedSharedFacePointer.end())
                     {
-                        fmSha[fid]               = fce;
+                        
+                        SharedFaces[fid]         = (*testInsPointer.first);
+                        //fmSha[fid]               = fce;
                         lhshown[fid]             = curElID;
                     }
                     
@@ -2889,14 +2931,12 @@ int main(int argc, char** argv)
                     {
                         fmShell[fid]        = fce;
                         lhshell[fid]        = curElID;
+                       
                         
-                        if(PMMG_Shell2Prism.find(Face)!=PMMG_Shell2Prism.end())
+                        if(testShell2PrismPointer != m_PMMG_ShellFace2PrismPointer.end())
                         {
-                            rhshell[fid] = PMMG_Shell2Prism[Face];
-                            //std::cout << "Do we find it ? " << PMMG_Shell2Prism[Face] << std::endl;
-
-                            // std::cout << "rhshell[fid] "  << rhshell[fid] << std::endl;
-                            
+                            rhshell[fid] = (*testShell2PrismPointer)->GetFaceLeftElement();
+                        
                             for(int y=0;y<3;y++)
                             {
                                 int shelltag = refOUT[Elvrts[tetra_faces[u][y]]-1];
@@ -2910,11 +2950,6 @@ int main(int argc, char** argv)
                             }
                             
                             hellofound++;
-                            
-                        }
-                        else
-                        {
-                            
                         }
                     }
                     
@@ -2922,9 +2957,10 @@ int main(int argc, char** argv)
                     
                     if(testFace2RefPointer != m_PMMG_Face2RefPointer.end())
                     {
-                        int FaceRef             = (*testFace2RefPointer)->GetFaceRef();
+                        int FaceRef         = (*testFace2RefPointer)->GetFaceRef();
                         
-                        fmBnd[fid]          = fce;
+                        BoundaryFaces[fid] = f2ePointer;
+                        //fmBnd[fid]          = fce;
                         lhbnd[fid]          = curElID;
                         bcmap[FaceRef].push_back(fid);
                     }
@@ -2961,22 +2997,19 @@ int main(int argc, char** argv)
         }
 
         
+        std::cout << "BoundaryFaces " << BoundaryFaces.size() << std::endl;
         
         
         
-        
-        
-        if(PMMG_Shell2Prism.size()!=m_PMMG_ShellFacePointer.size())
+        if(m_PMMG_ShellFace2PrismPointer.size()!=m_PMMG_ShellFacePointer.size())
         {
-            std::cout << "NOTIFIED !!! " << world_rank << " --> " << rhshell.size() << " " << fmShell.size() << " " << hellofound << " " << PMMG_Shell2Prism.size() << " " << m_PMMG_ShellFacePointer.size() << std::endl;
+            std::cout << "NOTIFIED !!! " << world_rank << " --> " << rhshell.size() << " " << fmShell.size() << " " << hellofound << " " << m_PMMG_ShellFace2PrismPointer.size() << " " << m_PMMG_ShellFacePointer.size() << std::endl;
         }
        
-
-        //std::cout << "HELLO FOUND " << world_rank << ":: "<<shellface2vertref.size() << " " << ushell.size() << " " << foundU << " " <<vertref2shell_prism.size() << " " << prismFound << " " <<  hellofound << " " << m_PMMG_ShellFacePointer.size() << " " << PMMG_Shell2Prism.size() << std::endl;
         
         std::map<int,int> tag2shelltag_glob = AllGatherMap(tag2shelltag,comm);
         std::map<int,int> shelltag2tag_glob = AllGatherMap(shelltag2tag,comm);
-        //std::cout << negit << " normals are pointing inwards. " << tag2shelltag.size() << " " << tag2shelltag_glob.size() << " vs " << shelltag2tag_glob.size() << " " << hellofound << " on rnk " << world_rank << std::endl;
+
         int nLocIntVrts         = NonSharedVrts.size();
         int nLocShVrts          = ActualOwnedVertDistr_map_update[world_rank].size();
         int nLocTotVrts         = nLocIntVrts+nLocShVrts;
@@ -3083,9 +3116,9 @@ int main(int argc, char** argv)
         }
     
         int nBndFaces       = m_PMMG_Face2RefPointer.size();
-        int nShaFaces       = PMMG_SharedFacesOwned.size();
-        int nIntFaces       = fmInt.size();
-        int nLocFaceNBnd    = fmInt.size()+fmSha.size()+fmShell.size();
+        int nShaFaces       = m_PMMG_OwnedSharedFacePointer.size();
+        int nIntFaces       = InternalFaces.size();
+        int nLocFaceNBnd    = InternalFaces.size()+SharedFaces.size()+fmShell.size();
         Array<int>* ifnOUT  = new Array<int>(nLocFaceNBnd,8);
         std::map<int,int> updateID;
         int ftot            =  0;
@@ -3093,7 +3126,7 @@ int main(int argc, char** argv)
         int flag            = -1;
         int flagged         =  0;
         
-        //std::cout <<  "right-handed " << world_rank << " " << rh.size() << " " << nShaFaces << " VS " << fmInt.size() << " " << fmSha.size() << " " << fmShell.size() << std::endl;
+        //std::cout <<  "right-handed " << world_rank << " " << rh.size() << " " << nShaFaces << " VS " << InternalFaces.size() << " " << SharedFaces.size() << " " << fmShell.size() << std::endl;
         
         int nothere2 = 0;
         
@@ -3104,9 +3137,12 @@ int main(int argc, char** argv)
         Vert* Vijk = new Vert;
         Vert* VcF = new Vert;
 
-        for(itm=fmInt.begin();itm!=fmInt.end();itm++)
+        std::map<int,FaceSharedPtr>::iterator itf;
+        //        for(itm=fmInt.begin();itm!=fmInt.end();itm++)
+
+        for(itf=InternalFaces.begin();itf!=InternalFaces.end();itf++)
         {
-            fid             = itm->first;
+            fid             = itf->first;
             updateID[fid]   = ftot;
             ifnOUT->setVal(ftot,0,3);
             flag            = -1;
@@ -3114,9 +3150,13 @@ int main(int argc, char** argv)
             VcF->x = 0.0;
             VcF->y = 0.0;
             VcF->z = 0.0;
+            
+            std::vector<int> edges = InternalFaces[fid]->GetEdgeIDs();
             for(int q=0;q<3;q++)
             {
-                int lvert = glob2locVid[itm->second[q]];
+                int vertexID = InternalFaces[fid]->GetEdgeIDs()[q];
+
+                int lvert = glob2locVid[vertexID];
                 Vert* Vf = new Vert;
                 Vf->x  = vertOUT[(lvert-1)*3+0];
                 Vf->y  = vertOUT[(lvert-1)*3+1];
@@ -3129,14 +3169,14 @@ int main(int argc, char** argv)
                 Vfaces.push_back(Vf);
                 
                 
-                if(LocationSharedVert_update.find(itm->second[q])!=LocationSharedVert_update.end())
+                if(LocationSharedVert_update.find(vertexID)!=LocationSharedVert_update.end())
                 {
-                    fq[q] = LocationSharedVert_update[itm->second[q]];
+                    fq[q] = LocationSharedVert_update[vertexID];
                     flag  = q;
                 }
                 else
                 {
-                    fq[q] = tag2glob[itm->second[q]];
+                    fq[q] = tag2glob[vertexID];
                 }
             }
             
@@ -3337,9 +3377,11 @@ int main(int argc, char** argv)
         int buthere =  0;
         
         int ftot_inter = ftot;
-        for(itm=fmSha.begin();itm!=fmSha.end();itm++)
+        //for(itm=fmSha.begin();itm!=fmSha.end();itm++)
+
+        for(itf=SharedFaces.begin();itf!=SharedFaces.end();itf++)
         {
-            fid             = itm->first;
+            fid             = itf->first;
             updateID[fid]   = ftot;
             ifnOUT->setVal(ftot,0,3);
             flag = -1;
@@ -3349,7 +3391,7 @@ int main(int argc, char** argv)
             VcF->z = 0.0;
             for(int q=0;q<3;q++)
             {
-                int lvert = glob2locVid[itm->second[q]];
+                int lvert = glob2locVid[itf->second->GetEdgeIDs()[q]];
                 Vert* Vf = new Vert;
                 Vf->x  = vertOUT[(lvert-1)*3+0];
                 Vf->y  = vertOUT[(lvert-1)*3+1];
@@ -3362,14 +3404,14 @@ int main(int argc, char** argv)
                 Vfaces.push_back(Vf);
                 
                 
-                if(LocationSharedVert_update.find(itm->second[q])!=LocationSharedVert_update.end())
+                if(LocationSharedVert_update.find(itf->second->GetEdgeIDs()[q])!=LocationSharedVert_update.end())
                 {
-                    fq[q] = LocationSharedVert_update[itm->second[q]];
+                    fq[q] = LocationSharedVert_update[itf->second->GetEdgeIDs()[q]];
                     flag = q;
                 }
                 else
                 {
-                    fq[q] = tag2glob[itm->second[q]];
+                    fq[q] = tag2glob[itf->second->GetEdgeIDs()[q]];
                 }
             }
             
@@ -4302,10 +4344,12 @@ int main(int argc, char** argv)
                     VcF->y = 0.0;
                     VcF->z = 0.0;
                     flag = -1;
+
                     for(int w=0;w<3;w++)
                     {
+                        int vertexID = BoundaryFaces[bcface]->GetEdgeIDs()[w];
+                        int lvert = glob2locVid[vertexID];
                         
-                        int lvert = glob2locVid[fmBnd[bcface][w]];
                         Vert* Vf = new Vert;
                         Vf->x  = vertOUT[(lvert-1)*3+0];
                         Vf->y  = vertOUT[(lvert-1)*3+1];
@@ -4317,10 +4361,10 @@ int main(int argc, char** argv)
                         
                         Vfaces.push_back(Vf);
                         
-                        if(LocationSharedVert_update.find(fmBnd[bcface][w])!=LocationSharedVert_update.end())
+                        if(LocationSharedVert_update.find(vertexID)!=LocationSharedVert_update.end())
                         {
-                            fq[w] = LocationSharedVert_update[fmBnd[bcface][w]];
-                            ifn_bc_i->setVal(fbc,w+1,LocationSharedVert_update[fmBnd[bcface][w]]);
+                            fq[w] = LocationSharedVert_update[vertexID];
+                            ifn_bc_i->setVal(fbc,w+1,LocationSharedVert_update[vertexID]);
                             if(ifn_bc_i->getVal(fbc,w+1)==0)
                             {
                                 std::cout << " TET Boundary V zero in the tet local LocationSharedVert_update " << world_rank << " " << fbc << std::endl;
@@ -4329,8 +4373,8 @@ int main(int argc, char** argv)
                         }
                         else
                         {
-                            fq[w] = tag2glob[fmBnd[bcface][w]];
-                            ifn_bc_i->setVal(fbc,w+1,tag2glob[fmBnd[bcface][w]]);
+                            fq[w] = tag2glob[vertexID];
+                            ifn_bc_i->setVal(fbc,w+1,tag2glob[vertexID]);
                             if(ifn_bc_i->getVal(fbc,w+1)==0)
                             {
                                 std::cout << " TET Boundary V zero in the tet local tag2glob " << world_rank << " " << fbc << std::endl;
@@ -4338,6 +4382,7 @@ int main(int argc, char** argv)
                         }
                     }
                     
+                    //std::cout << std::endl;
                     int elLh = lhbnd[bcface];
                     
                     Vijk->x = 0.0;
