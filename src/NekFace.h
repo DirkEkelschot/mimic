@@ -19,9 +19,11 @@ class NekFace {
         void SetFaceRightElement(int re);
         int GetFaceLeftElement() const;
         int GetFaceRightElement() const;
+        bool GetHandled() const;
+        void SetHandled(bool H);
         bool operator==(const NekFace& otherFace) const;
 //        bool operator<(const NekFace& otherFace);
-
+        
       
      private:
         std::vector<int> m_eId;
@@ -30,6 +32,7 @@ class NekFace {
         int m_ref;
         int m_le;
         int m_re;
+        bool handled;
 };
 
 typedef std::shared_ptr<NekFace> FaceSharedPtr;

@@ -177,13 +177,13 @@ BLShellInfo* GetBoundaryLayerVolume(int wall_id, int nLayer,
 }
 
 
-BLShellInfo* FindOuterShellBoundaryLayerMesh_V2(int wall_id, int nLayer,
+void FindOuterShellBoundaryLayerMesh_V2(BLShellInfo* BLinfo, int wall_id, int nLayer,
                             Array<double>* xcn_g, Array<int>* ien_g, Array<int>* iee_g,
                             Array<int>* ief_g, Array<int>* ife_g, Array<int>* ifn_g,
                             std::map<int,std::vector<int> > bnd_face_map,
                             std::map<int,int> vert_ref_map, MPI_Comm comm)
 {
-    BLShellInfo* BLinfo = new BLShellInfo;
+//    BLShellInfo* BLinfo = new BLShellInfo;
     BLinfo->ShellRef = new Array<int>(xcn_g->getNrow(),1);
     int te1=0;
     int te2=0;
@@ -547,7 +547,7 @@ BLShellInfo* FindOuterShellBoundaryLayerMesh_V2(int wall_id, int nLayer,
         }
     }
 
-    return BLinfo;
+    //return BLinfo;
 }
 
 BLShellInfo* FindOuterShellBoundaryLayerMesh(int wall_id, int nLayer,
@@ -924,9 +924,9 @@ BLShellInfo* FindOuterShellBoundaryLayerMesh(int wall_id, int nLayer,
 
 
 
-Mesh_Topology_BL* ExtractBoundaryLayerMeshFromShell(std::vector<std::vector<int> > u_tris, BLShellInfo* BLshell, int wall_id, int nLayer, Array<double>* xcn_g, Array<int>* ien_g, Array<int>* ief_g, Array<int>* ife_g, Array<int>* ifn_g, std::map<int,std::vector<int> > bnd_face_map, std::map<std::set<int>,int> tria_ref_map, std::map<std::set<int>,int> quad_ref_map,  MPI_Comm comm)
+void ExtractBoundaryLayerMeshFromShell(Mesh_Topology_BL* mesh_topology_bl,std::vector<std::vector<int> > u_tris, BLShellInfo* BLshell, int wall_id, int nLayer, Array<double>* xcn_g, Array<int>* ien_g, Array<int>* ief_g, Array<int>* ife_g, Array<int>* ifn_g, std::map<int,std::vector<int> > bnd_face_map, std::map<std::set<int>,int> tria_ref_map, std::map<std::set<int>,int> quad_ref_map,  MPI_Comm comm)
 {
-    Mesh_Topology_BL* mesh_topology_bl = new Mesh_Topology_BL;
+    //Mesh_Topology_BL* mesh_topology_bl = new Mesh_Topology_BL;
     int world_size;
     MPI_Comm_size(comm, &world_size);
     // Get the rank of the process
@@ -964,7 +964,7 @@ Mesh_Topology_BL* ExtractBoundaryLayerMeshFromShell(std::vector<std::vector<int>
 
     std::vector<int> prismStored0(6);
     std::vector<int> prismStored1(6);
-    mesh_topology_bl->Nprisms = 0;
+    //mesh_topology_bl->Nprisms = 0;
     int glob_el_id = 0;
     std::map<int,int> bface2shellface = BLshell->BFace2ShellFace;
     std::map<std::set<int>,int> shelltri2shellface = BLshell->ShellTri2FaceID;
@@ -1850,5 +1850,5 @@ Mesh_Topology_BL* ExtractBoundaryLayerMeshFromShell(std::vector<std::vector<int>
 //    }
     //OutputBLElementsOnRoot(xcn_g,ien_g,elements,comm,"BL_Root_NEW");
        
-    return mesh_topology_bl;
+    //return mesh_topology_bl;
 }

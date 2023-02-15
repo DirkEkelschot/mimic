@@ -1735,11 +1735,10 @@ PrismLines* GetPrismLines(US3D* us3d, std::vector<int> wallfaces)
     for(int wf=0;wf<wallfaces.size();wf++)
     {
         
-        
+    	int te = 0;
         int wfid     = wallfaces[wf];
         int elid0    = us3d->ife->getVal(wfid,0);
         int elid1    = us3d->ife->getVal(wfid,1);
-        
         std::vector<int> PrismLine;
         std::vector<int> FaceLine;
         std::map<int, std::vector<int> > PrismLineNodes;
@@ -1755,6 +1754,8 @@ PrismLines* GetPrismLines(US3D* us3d, std::vector<int> wallfaces)
         
         int tetFound = 0;
         
+        
+        
         while(tetFound==0)
         {
             PrismLine.push_back(el_cur);
@@ -1762,7 +1763,8 @@ PrismLines* GetPrismLines(US3D* us3d, std::vector<int> wallfaces)
             plines->Prism2WallFace[el_cur] = wfid;
             
             std::vector<int> prismsVerts(6);
-            
+            std::vector<int> ThisPrismsVerts(6);
+
             prismsVerts[0] = us3d->ien->getVal(el_cur,0);
             prismsVerts[1] = us3d->ien->getVal(el_cur,1);
             prismsVerts[2] = us3d->ien->getVal(el_cur,2);
@@ -1770,6 +1772,12 @@ PrismLines* GetPrismLines(US3D* us3d, std::vector<int> wallfaces)
             prismsVerts[4] = us3d->ien->getVal(el_cur,4);
             prismsVerts[5] = us3d->ien->getVal(el_cur,5);
             
+            
+            prismsVerts[0] = us3d->ifn->getVal(wfid,0);
+			prismsVerts[1] = us3d->ifn->getVal(wfid,1);
+			prismsVerts[2] = us3d->ifn->getVal(wfid,2);
+                    
+                    
             PrismLineNodes[el_cur] = prismsVerts;
             
             int testFaceId;
@@ -1846,7 +1854,13 @@ PrismLines* GetPrismLines(US3D* us3d, std::vector<int> wallfaces)
 
             int ntype = us3d->iet->getVal(nextElemId,0);
 
+            prismsVerts[3] = us3d->ifn->getVal(nextFaceId,0);
+            prismsVerts[4] = us3d->ifn->getVal(nextFaceId,1);
+            prismsVerts[5] = us3d->ifn->getVal(nextFaceId,2);
             
+            std::cout << "ThisPrismVerts " << ThisPrismsVerts[0] << " " << ThisPrismsVerts[1] << " " << ThisPrismsVerts[2] << " " << ThisPrismsVerts[3] << " " << ThisPrismsVerts[4] << " " << ThisPrismsVerts[5] << std::endl;
+            std::cout << "PrismVerts " << prismsVerts[0] << " " << prismsVerts[1] << " " << prismsVerts[2] << " " << prismsVerts[3] << " " << prismsVerts[4] << " " << prismsVerts[5] << std::endl;
+
             if(ntype==2)
             {
                 tetFound = 1;
@@ -1907,6 +1921,7 @@ PrismLines* GetPrismLines(US3D* us3d, std::vector<int> wallfaces)
             plines->Element2Faces[el_cur] = facesPerElement;
             el_cur = nextElemId;
             wfid   = nextFaceId;
+            te++;
             
             
         }
@@ -2915,7 +2930,7 @@ int main(int argc, char** argv)
 //        pair<FaceSet::iterator, bool> testIns;
 //        testIns = m_mesh->m_faceSet.insert(elmt[i]->GetFace(j));
 //
-        if(fref == 3)
+        if(fref == 3 || fref == 14)
         {
             wallfaces.push_back(i);
         }
@@ -2927,17 +2942,14 @@ int main(int argc, char** argv)
     std::map<int,std::vector<std::vector<int> > > ElementFace2NodeMap;
     std::map<int,int> new2old_v;
     std::map<int,int> old2new_v;
-    std::map<int,std::vector<int> > ResettedElementNodes = ActualResetNodes(us3d,PrismTransferMap,TetTransferMap,new2old_v,old2new_v);
     
     PrismLines* plines = GetPrismLines(us3d,wallfaces);
     
+    std::map<int,std::vector<int> > ResettedElementNodes = ActualResetNodes(us3d,PrismTransferMap,TetTransferMap,new2old_v,old2new_v);
+    
     std::map<int,std::vector<int> > ElementNodes = ResetNodes(us3d,ResettedElementNodes,new2old_v,TetTransferMap,plines,vert_map,vert_map_inv,ElementFace2NodeMap);
     
-    
-    
-    
     std::map<int,NekElement*> mesh;
-    
     std::map<int,NekElement*> prisms;
     std::map<int,NekElement*> tetrahedra;
     
@@ -3492,6 +3504,12 @@ int main(int argc, char** argv)
             if(LineNodes.find(elidStart)!=LineNodes.end())
             {
                 std::vector<int> Lnodes = LineNodes[elidStart];
+                
+//                if(q==0)
+//                {
+//                	std::cout << Lnodes[0] << " " << Lnodes[1] << " " << Lnodes[2] 
+//					  << " " << Lnodes[3] << " " << Lnodes[4] << " " << Lnodes[5] << std::endl;
+//                }
                 
                 std::map<int,int> oppositeNodes;
                 oppositeNodes[vert_map[old2new_v[Lnodes[0]]]] = vert_map[old2new_v[Lnodes[3]]];

@@ -636,6 +636,8 @@ double ReadStatisticsTimeFromRunInFileInParallel(const char* file_name, const ch
 
 void WriteUS3DGridFromMMG_it0(MMG5_pMesh mmgMesh,MMG5_pSol mmgSol, US3D* us3d);
 
+void WriteUS3DGridFromMMG_it0_NEW(MMG5_pMesh mmgMesh,MMG5_pSol mmgSol, US3D* us3d);
+
 void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh,MMG5_pSol mmgSol, US3D* us3d);
 
 //US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data, MPI_Comm comm, MPI_Info info);

@@ -89,6 +89,10 @@ void OutputMesh_PMMG(int nV, double* VertOUT, int nE, int* tetraOUT, string fnam
 }
 
 
+
+
+
+
 void OutputMesh_PMMG_V2(int nV, double* VertOUT, int nE, int* tetraOUT, string fname)
 {
     int pos;
@@ -582,14 +586,15 @@ int main(int argc, char** argv)
 //    const char* fn_grid="../test_mesh/cylinder_hybrid/grid.h5";
 //    const char* fn_conn="../test_mesh/cylinder_hybrid/conn.h5";
 //    const char* fn_data="../test_mesh/cylinder_hybrid/data.h5";
-    
     const char* fn_grid="inputs/grid.h5";
+
     const char* fn_conn="inputs/conn.h5";
     const char* fn_data="inputs/data.h5";
     const char* fn_metric="inputs/metric.inp";
-    
+
     Inputs* inputs = ReadXmlFile("inputs/metric.xml");
 
+    
     
     
     
@@ -2997,7 +3002,7 @@ int main(int argc, char** argv)
         }
 
         
-        std::cout << "BoundaryFaces " << BoundaryFaces.size() << std::endl;
+        //std::cout << "BoundaryFaces " << BoundaryFaces.size() << std::endl;
         
         
         

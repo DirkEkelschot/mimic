@@ -4,7 +4,7 @@
 #include "../../src/adapt_bltopology.h"
 
 
-int main(int argc, char** argv)
+int main(int argc, char* argv[])
 {
     MPI_Init(NULL, NULL);
     FILE            *inm;
@@ -75,12 +75,21 @@ int main(int argc, char** argv)
 //    }
     
     
-    
+    int nPrmsNormal = 0;
     
     int wall_id     = 3;
-    int nPrmsNormal = 100;
+    int wall_id2    = 14;
     
-    
+    if (argc < 2)
+    {
+        std::cout << "ERROR: Please provide the desired number of prisms in normal direction with respect to the wall." << std::endl;
+        return 1;
+    }
+    else
+    {
+        nPrmsNormal = atoi(argv[1]);
+    }
+
     if(nPrmsNormal>0)
     {
         int counter = 0;
@@ -90,9 +99,11 @@ int main(int argc, char** argv)
         std::map<std::set<int>,int> quad_ref_map     = bmap->getQuadRefMap();
         
         std::map<int,int> vert_ref_map = bmap->getNodeRefMap();
+        BLShellInfo* BLshell = new BLShellInfo;
         
-        BLShellInfo* BLshell = FindOuterShellBoundaryLayerMesh_V2(wall_id, nPrmsNormal,us3d->xcn,us3d->ien,us3d->iee,us3d->ief,us3d->ife,us3d->ifn, bnd_face_map,vert_ref_map,comm);
+        FindOuterShellBoundaryLayerMesh_V2(BLshell,wall_id, nPrmsNormal,us3d->xcn,us3d->ien,us3d->iee,us3d->ief,us3d->ife,us3d->ifn, bnd_face_map,vert_ref_map,comm);
         
+        FindOuterShellBoundaryLayerMesh_V2(BLshell,wall_id2, nPrmsNormal,us3d->xcn,us3d->ien,us3d->iee,us3d->ief,us3d->ife,us3d->ifn, bnd_face_map,vert_ref_map,comm);
         
         if(debug == 1)
         {
@@ -139,8 +150,8 @@ int main(int argc, char** argv)
         
         
         int nbHex       =  us3d->ien->getNrow();
-        int nbPrisms    =  bnd_face_map[wall_id].size()*(nPrmsNormal)*2;
-        int nbHexsNew   = (nbHex-bnd_face_map[wall_id].size()*(nPrmsNormal));
+        int nbPrisms    =  (bnd_face_map[wall_id2].size()+bnd_face_map[wall_id].size())*(nPrmsNormal)*2;
+        int nbHexsNew   = (nbHex-(bnd_face_map[wall_id2].size()+bnd_face_map[wall_id].size())*(nPrmsNormal));
         
         int ith = 0;
         std::set<int> u_tet_vert;
@@ -278,6 +289,7 @@ int main(int argc, char** argv)
         
         std::cout << "Cut each hexahedral up into 6 tetrahedra..."<<std::endl;
         //we need to do this in order to determine the orientation of the triangles at the shell interface and trace back how we need to tesselate the wall boundary into triangles so that they match eachothers orientation.
+        
         int ret = H2T_cuthex(mmgMesh_TET, &hed22, hexTabNew, adjahexNew, nbHexsNew);
         
         if(debug == 1)
@@ -468,9 +480,15 @@ int main(int argc, char** argv)
         }
         
         std::cout << "Extracting the prismatic boundary layer mesh... " << unique_shell_tris.size() <<std::endl;
+        Mesh_Topology_BL* mesh_topo_bl2 = new Mesh_Topology_BL;
+        mesh_topo_bl2->Nprisms = 0;
+
         
-        Mesh_Topology_BL* mesh_topo_bl2 =  ExtractBoundaryLayerMeshFromShell(u_tris, BLshell, wall_id, nPrmsNormal, us3d->xcn, us3d->ien, us3d->ief, us3d->ife, us3d->ifn, bnd_face_map, tria_ref_map, quad_ref_map, comm);
+        ExtractBoundaryLayerMeshFromShell(mesh_topo_bl2,u_tris, BLshell, wall_id, nPrmsNormal, us3d->xcn, us3d->ien, us3d->ief, us3d->ife, us3d->ifn, bnd_face_map, tria_ref_map, quad_ref_map, comm);
         
+        ExtractBoundaryLayerMeshFromShell(mesh_topo_bl2,u_tris, BLshell, wall_id2, nPrmsNormal, us3d->xcn, us3d->ien, us3d->ief, us3d->ife, us3d->ifn, bnd_face_map, tria_ref_map, quad_ref_map, comm);
+        
+        std::cout << "mesh_topo_bl2->Nprisms " << mesh_topo_bl2->Nprisms << std::endl;
         if(debug == 1)
         {
             std::cout << "Outputting the prismatic boundary layer mesh in ---> BoundaryLayerMesh_0.dat" <<std::endl;
@@ -1252,29 +1270,23 @@ int main(int argc, char** argv)
             mmgMesh_hyb->point[i+1].c[2] = us3d->xcn->getVal(i,2);
         }
         std::cout << "mmgMesh_hyb->np - " << mmgMesh_hyb->np << std::endl;
-        std::map<int,double*>::iterator v2m;
+        std::map<int,std::vector<int> >::iterator v2m;
         std::map<int,int> locNew2globNew;
         std::map<int,int> globNew2locNew;
         int p = 0;
-//        for(v2m=newvert2metric.begin();v2m!=newvert2metric.end();v2m++)
-//        {
-//            mmgMesh_hyb->point[nbVertices+p+1].c[0] = mmgMesh_TET->point[v2m->first].c[0];
-//            mmgMesh_hyb->point[nbVertices+p+1].c[1] = mmgMesh_TET->point[v2m->first].c[1];
-//            mmgMesh_hyb->point[nbVertices+p+1].c[2] = mmgMesh_TET->point[v2m->first].c[2];
-//
-//            m11 = v2m->second[0];
-//            m12 = v2m->second[1];
-//            m13 = v2m->second[2];
-//            m22 = v2m->second[3];
-//            m23 = v2m->second[4];
-//            m33 = v2m->second[5];
-//
-//            locNew2globNew[nbVertices+p+1] = v2m->first;
-//            globNew2locNew[v2m->first]     = nbVertices+p+1;
-//            if ( MMG3D_Set_tensorSol(mmgSol_hyb, m11,m12,m13,m22,m23,m33,nbVertices+p+1) != 1 ) exit(EXIT_FAILURE);
-//
-//            p++;
-//        }
+        
+        for(v2m=newvert2vert.begin();v2m!=newvert2vert.end();v2m++)
+        {
+            mmgMesh_hyb->point[nbVertices+p+1].c[0] = mmgMesh_TET->point[v2m->first].c[0];
+            mmgMesh_hyb->point[nbVertices+p+1].c[1] = mmgMesh_TET->point[v2m->first].c[1];
+            mmgMesh_hyb->point[nbVertices+p+1].c[2] = mmgMesh_TET->point[v2m->first].c[2];
+
+            locNew2globNew[nbVertices+p+1] = v2m->first;
+            globNew2locNew[v2m->first]     = nbVertices+p+1;
+            //if ( MMG3D_Set_tensorSol(mmgSol_hyb, m11,m12,m13,m22,m23,m33,nbVertices+p+1) != 1 ) exit(EXIT_FAILURE);
+
+            p++;
+        }
         
         int here=0;
         int nel_tets4real = 0;
@@ -1513,14 +1525,21 @@ int main(int argc, char** argv)
                        MMG5_ARG_end);
         
         std::cout<<"Started writing the adapted hybrid mesh in US3D format..."<<std::endl;
+//        WriteUS3DGridFromMMG_it0_NEW(mmgMesh_hyb, mmgSol_hyb, us3d);
         WriteUS3DGridFromMMG_it0(mmgMesh_hyb, mmgSol_hyb, us3d);
         std::cout<<"Finished writing the adapted hybrid mesh in US3D format..."<<std::endl;
         //
     
         
         
-        /**/
+  
     }
+    else
+    {
+        std::cout << "Please specify the number of prisms in normal direction from the wall." << std::endl;
+    }
+     
+    
     
     MPI_Finalize();
     

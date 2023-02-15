@@ -9,6 +9,8 @@ NekFace::NekFace(std::vector<int> eid)
     {
         m_eId.push_back(eid[i]);
     }
+    
+    handled = false;
 }
 NekFace::~NekFace()
 {
@@ -49,6 +51,15 @@ int NekFace::GetFaceRightElement() const
 {
     return m_re;
 }
+void NekFace::SetHandled(bool H)
+{
+    handled = H;
+}
+bool NekFace::GetHandled() const
+{
+    return handled;
+}
+
 std::size_t NekFace::ComputeFaceHash(std::vector<int> Face) const
 {
     sort(Face.begin(),Face.end());
