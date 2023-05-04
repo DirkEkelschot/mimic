@@ -59,7 +59,14 @@ std::vector<double> ComputeCentroid(std::vector<std::vector<double> > elemcoords
 }
 
 
-void WriteXmlFile(const char*  filename,Array<double>* xcn,std::map<int,std::vector<int> > edgeMap,std::map<int,std::vector<int> > element_map,Array<int>* zdefs,std::map<int,std::vector<int> > faceMap,Array<int>* ief,std::map<int,std::vector<int> > BoundaryComposites)
+void WriteXmlFile(const char*  filename,
+		Array<double>* xcn,
+		std::map<int,std::vector<int> > edgeMap,
+		std::map<int,std::vector<int> > element_map,
+		Array<int>* zdefs,
+		std::map<int,std::vector<int> > faceMap,
+		Array<int>* ief,std::map<int,
+		std::vector<int> > BoundaryComposites)
 {
     TiXmlDocument doc(filename);
     TiXmlDeclaration *decl = new TiXmlDeclaration("1.0", "utf-8", "");
@@ -154,6 +161,7 @@ void WriteXmlFile(const char*  filename,Array<double>* xcn,std::map<int,std::vec
 
     for(itelem=element_map.begin();itelem!=element_map.end();itelem++)
     {
+    			
         if(itelem->second.size()==4)
         {
             std::stringstream s;
@@ -167,16 +175,17 @@ void WriteXmlFile(const char*  filename,Array<double>* xcn,std::map<int,std::vec
         }
         if(itelem->second.size()==5)
         {
+//        	std::cout << "ARE WE HERE " << std::endl;
             std::stringstream s;
             s << itelem->second[0] << " " << itelem->second[1] << " " << itelem->second[2] << " " << itelem->second[3] << " " << itelem->second[4];
-            if(itelem->first == 602 || itelem->first == 175238)
-            {
-                std::cout << "hiero = " << itelem->second[0] << " " << itelem->second[1] << " " << itelem->second[2] << " " << itelem->second[3] << " " << itelem->second[4] << std::endl;
-            }
-            if(itelem->second[0]==1914 && itelem->second[1]==1915 && itelem->second[2]==1916 && itelem->second[3]==1907 && itelem->second[4]==1917)
-            {
-                std::cout << "YESSIR " << itelem->first << std::endl;
-            }
+//            if(itelem->first == 602 || itelem->first == 175238)
+//            {
+//                std::cout << "hiero = " << itelem->second[0] << " " << itelem->second[1] << " " << itelem->second[2] << " " << itelem->second[3] << " " << itelem->second[4] << std::endl;
+//            }
+//            if(itelem->second[0]==1914 && itelem->second[1]==1915 && itelem->second[2]==1916 && itelem->second[3]==1907 && itelem->second[4]==1917)
+//            {
+//                std::cout << "YESSIR " << itelem->first << std::endl;
+//            }
             TiXmlElement *e = new TiXmlElement("R");
             e->SetAttribute("ID",itelem->first);
             TiXmlText *vList = new TiXmlText(s.str().c_str());
@@ -1735,10 +1744,11 @@ PrismLines* GetPrismLines(US3D* us3d, std::vector<int> wallfaces)
     for(int wf=0;wf<wallfaces.size();wf++)
     {
         
-    	int te = 0;
+        
         int wfid     = wallfaces[wf];
         int elid0    = us3d->ife->getVal(wfid,0);
         int elid1    = us3d->ife->getVal(wfid,1);
+        
         std::vector<int> PrismLine;
         std::vector<int> FaceLine;
         std::map<int, std::vector<int> > PrismLineNodes;
@@ -1754,8 +1764,6 @@ PrismLines* GetPrismLines(US3D* us3d, std::vector<int> wallfaces)
         
         int tetFound = 0;
         
-        
-        
         while(tetFound==0)
         {
             PrismLine.push_back(el_cur);
@@ -1763,21 +1771,22 @@ PrismLines* GetPrismLines(US3D* us3d, std::vector<int> wallfaces)
             plines->Prism2WallFace[el_cur] = wfid;
             
             std::vector<int> prismsVerts(6);
-            std::vector<int> ThisPrismsVerts(6);
+            
+            std::vector<int> SinglePrismVerts(6);
 
+            
+            
             prismsVerts[0] = us3d->ien->getVal(el_cur,0);
             prismsVerts[1] = us3d->ien->getVal(el_cur,1);
             prismsVerts[2] = us3d->ien->getVal(el_cur,2);
             prismsVerts[3] = us3d->ien->getVal(el_cur,3);
             prismsVerts[4] = us3d->ien->getVal(el_cur,4);
             prismsVerts[5] = us3d->ien->getVal(el_cur,5);
+//            
+//            prismsVerts[0] = us3d->ifn->getVal(wfid,0);
+//            prismsVerts[1] = us3d->ifn->getVal(wfid,1);
+//            prismsVerts[2] = us3d->ifn->getVal(wfid,2);
             
-            
-            prismsVerts[0] = us3d->ifn->getVal(wfid,0);
-			prismsVerts[1] = us3d->ifn->getVal(wfid,1);
-			prismsVerts[2] = us3d->ifn->getVal(wfid,2);
-                    
-                    
             PrismLineNodes[el_cur] = prismsVerts;
             
             int testFaceId;
@@ -1843,6 +1852,11 @@ PrismLines* GetPrismLines(US3D* us3d, std::vector<int> wallfaces)
             int nextElemId_0 = us3d->ife->getVal(nextFaceId,0);
             int nextElemId_1 = us3d->ife->getVal(nextFaceId,1);
             
+            
+//            prismsVerts[3] = us3d->ifn->getVal(nextFaceId,0);
+//            prismsVerts[4] = us3d->ifn->getVal(nextFaceId,1);
+//            prismsVerts[5] = us3d->ifn->getVal(nextFaceId,2);
+            
             if(nextElemId_0 == el_cur)
             {
                 nextElemId = nextElemId_1;
@@ -1854,13 +1868,7 @@ PrismLines* GetPrismLines(US3D* us3d, std::vector<int> wallfaces)
 
             int ntype = us3d->iet->getVal(nextElemId,0);
 
-            prismsVerts[3] = us3d->ifn->getVal(nextFaceId,0);
-            prismsVerts[4] = us3d->ifn->getVal(nextFaceId,1);
-            prismsVerts[5] = us3d->ifn->getVal(nextFaceId,2);
             
-            std::cout << "ThisPrismVerts " << ThisPrismsVerts[0] << " " << ThisPrismsVerts[1] << " " << ThisPrismsVerts[2] << " " << ThisPrismsVerts[3] << " " << ThisPrismsVerts[4] << " " << ThisPrismsVerts[5] << std::endl;
-            std::cout << "PrismVerts " << prismsVerts[0] << " " << prismsVerts[1] << " " << prismsVerts[2] << " " << prismsVerts[3] << " " << prismsVerts[4] << " " << prismsVerts[5] << std::endl;
-
             if(ntype==2)
             {
                 tetFound = 1;
@@ -1921,7 +1929,6 @@ PrismLines* GetPrismLines(US3D* us3d, std::vector<int> wallfaces)
             plines->Element2Faces[el_cur] = facesPerElement;
             el_cur = nextElemId;
             wfid   = nextFaceId;
-            te++;
             
             
         }
@@ -3505,12 +3512,6 @@ int main(int argc, char** argv)
             {
                 std::vector<int> Lnodes = LineNodes[elidStart];
                 
-//                if(q==0)
-//                {
-//                	std::cout << Lnodes[0] << " " << Lnodes[1] << " " << Lnodes[2] 
-//					  << " " << Lnodes[3] << " " << Lnodes[4] << " " << Lnodes[5] << std::endl;
-//                }
-                
                 std::map<int,int> oppositeNodes;
                 oppositeNodes[vert_map[old2new_v[Lnodes[0]]]] = vert_map[old2new_v[Lnodes[3]]];
                 oppositeNodes[vert_map[old2new_v[Lnodes[1]]]] = vert_map[old2new_v[Lnodes[4]]];
@@ -3531,6 +3532,7 @@ int main(int argc, char** argv)
             
                 std::vector<std::vector<double> > coords;
                 std::map<int,std::vector<double> > coordMap;
+                
                 for(int i=0;i<prismNodes.size();i++)
                 {
                     int ovid = new2old_v[vert_map_inv[prismNodes[i]]];
@@ -3546,6 +3548,12 @@ int main(int argc, char** argv)
                                 
                 NekElement* prism   = SetPrism(prismNodes,coords,prmsID,0);
                 prisms[prmsID]  = prism;
+                
+                if(prmsID==83273)
+                {
+                	
+                }
+                
                 
                 std::vector<int> testFCopy(3);
                 testFCopy[0] = oppositeNodes[testF[0]];

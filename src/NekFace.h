@@ -7,9 +7,11 @@ class NekFace {
     public:
         NekFace();
         NekFace(std::vector<int> eid);
+        NekFace(std::vector<int> eid, std::vector<int> vcuts);
         ~NekFace();
         int GetFaceID() const;
         std::vector<int> GetEdgeIDs() const;
+        std::map<int,int> GetVcuts() const;
         void SetFaceID(int idje);
         int GetFaceRef() const;
         void SetFaceRef(int ref);
@@ -33,6 +35,7 @@ class NekFace {
         int m_le;
         int m_re;
         bool handled;
+        std::map<int,int> m_vcuts;
 };
 
 typedef std::shared_ptr<NekFace> FaceSharedPtr;

@@ -1,6 +1,7 @@
 #include "NekFace.h"
 
 NekFace::NekFace(){}
+
 NekFace::NekFace(std::vector<int> eid)
 {
     int nEdges = eid.size();
@@ -12,12 +13,31 @@ NekFace::NekFace(std::vector<int> eid)
     
     handled = false;
 }
+
+NekFace::NekFace(std::vector<int> eid, std::vector<int> vcuts)
+{
+    int nEdges = eid.size();
+    
+    for(int i=0;i<eid.size();i++)
+    {
+        m_eId.push_back(eid[i]);
+        m_vcuts[eid[i]] = vcuts[i];
+    }
+    
+    handled = false;
+}
+
+
 NekFace::~NekFace()
 {
 }
 std::vector<int> NekFace::GetEdgeIDs() const
 {
     return m_eId;
+}
+std::map<int,int> NekFace::GetVcuts() const
+{
+    return m_vcuts;
 }
 int NekFace::GetFaceID() const
 {

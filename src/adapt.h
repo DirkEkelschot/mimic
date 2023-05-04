@@ -25,6 +25,7 @@
 #include <parmetis.h>
 #include <hdf5.h>
 #include "tinyxml.h"
+#include "cgnslib.h"
 #include "mmg/mmgs/libmmgs.h"
 #include "mmg/mmg3d/libmmg3d.h"
 #include "parmmg/libparmmg.h"

@@ -155,6 +155,11 @@ void WriteXmlFile(const char*  filename,Array<double>* xcn,std::map<int,std::vec
 
     for(itelem=element_map.begin();itelem!=element_map.end();itelem++)
     {
+    	
+//    	std::cout << "itelem->second.size() " << itelem->second.size() << std::endl;
+
+    	
+    	
         if(itelem->second.size()==4)
         {
             std::stringstream s;
@@ -1494,7 +1499,7 @@ NekElement* SetPrismV3(std::vector<int> nodes, std::vector<std::vector<double> >
     if(face_edges[2][2] == -1) {std::cout << "face_edges[2][2] == -1" << std::endl;}
     if(face_edges[3][2] == -1) {std::cout << "face_edges[3][2] == -1" << std::endl;}
     if(face_edges[4][2] == -1) {std::cout << "face_edges[4][2] == -1" << std::endl;}
-//    // std::cout << "m_orientation " << m_orientation << std::endl;
+//   std::cout << "m_orientation " << m_orientation << std::endl;
     int tmp[9][2];
     
     tmp[0][0] = prism->m_edges[face_edges[0][0]][0];
@@ -2076,9 +2081,9 @@ PrismLines* GetPrismLines(US3D* us3d,
         SinglePrismVerts[1] = us3d->ifn->getVal(wfid,1);
         SinglePrismVerts[2] = us3d->ifn->getVal(wfid,2);
         
-//        SinglePrismVerts[0] = us3d->ien->getVal(el_cur,0);
-//        SinglePrismVerts[1] = us3d->ien->getVal(el_cur,1);
-//        SinglePrismVerts[2] = us3d->ien->getVal(el_cur,2);
+//      SinglePrismVerts[0] = us3d->ien->getVal(el_cur,0);
+//      SinglePrismVerts[1] = us3d->ien->getVal(el_cur,1);
+//      SinglePrismVerts[2] = us3d->ien->getVal(el_cur,2);
         
         std::vector<int> wallfaceVec(3);
         wallfaceVec[0] = us3d->ifn->getVal(wfid,0);
@@ -2187,11 +2192,12 @@ PrismLines* GetPrismLines(US3D* us3d,
                 ShellElem[0] = el_cur;
                 ShellElem[1] = nextElemId;
                 std::set<int> shellface;
+                
                 shellface.insert(us3d->ifn->getVal(nextFaceId,0));
                 shellface.insert(us3d->ifn->getVal(nextFaceId,1));
                 shellface.insert(us3d->ifn->getVal(nextFaceId,2));
                 plines->shellFaces2Element[shellface] = ShellElem;
-                
+          
                 std::vector<int> shellfaceVec(3);
 //              shellfaceVec[0] = us3d->ien->getVal(el_cur,3);
 //              shellfaceVec[1] = us3d->ien->getVal(el_cur,4);
@@ -2230,7 +2236,6 @@ PrismLines* GetPrismLines(US3D* us3d,
                 }
                 std::vector<double> cent = ComputeCentroid(Coords);
                 
-                
                 std::vector<double> FaceCentroid0(3);
                 FaceCentroid0[0] = 0.0;
                 FaceCentroid0[1] = 0.0;
@@ -2241,25 +2246,69 @@ PrismLines* GetPrismLines(US3D* us3d,
                 FaceCentroid1[2] = 0.0;
                 std::vector<std::vector<double> > Face0;
                 std::vector<std::vector<double> > Face1;
+                
                 for(int p=0;p<3;p++)
                 {
                     vector<double> F0Coord(3);
-                    F0Coord[0] = us3d->xcn->getVal(SinglePrismVerts[0*3+p],0);
-                    F0Coord[1] = us3d->xcn->getVal(SinglePrismVerts[0*3+p],1);
-                    F0Coord[2] = us3d->xcn->getVal(SinglePrismVerts[0*3+p],2);
-                    FaceCentroid0[0] = FaceCentroid0[0] + us3d->xcn->getVal(SinglePrismVerts[0*3+p],0);
-                    FaceCentroid0[1] = FaceCentroid0[1] + us3d->xcn->getVal(SinglePrismVerts[0*3+p],1);
-                    FaceCentroid0[2] = FaceCentroid0[2] + us3d->xcn->getVal(SinglePrismVerts[0*3+p],2);
+                    F0Coord[0] 			= us3d->xcn->getVal(SinglePrismVerts[0*3+p],0);
+                    F0Coord[1] 			= us3d->xcn->getVal(SinglePrismVerts[0*3+p],1);
+                    F0Coord[2] 			= us3d->xcn->getVal(SinglePrismVerts[0*3+p],2);
+                    FaceCentroid0[0] 	= FaceCentroid0[0] + us3d->xcn->getVal(SinglePrismVerts[0*3+p],0);
+                    FaceCentroid0[1] 	= FaceCentroid0[1] + us3d->xcn->getVal(SinglePrismVerts[0*3+p],1);
+                    FaceCentroid0[2] 	= FaceCentroid0[2] + us3d->xcn->getVal(SinglePrismVerts[0*3+p],2);
                     Face0.push_back(F0Coord);
                     vector<double> F1Coord(3);
-                    F1Coord[0] = us3d->xcn->getVal(SinglePrismVerts[1*3+p],0);
-                    F1Coord[1] = us3d->xcn->getVal(SinglePrismVerts[1*3+p],1);
-                    F1Coord[2] = us3d->xcn->getVal(SinglePrismVerts[1*3+p],2);
-                    FaceCentroid1[0] = FaceCentroid1[0] + us3d->xcn->getVal(SinglePrismVerts[1*3+p],0);
-                    FaceCentroid1[1] = FaceCentroid1[1] + us3d->xcn->getVal(SinglePrismVerts[1*3+p],1);
-                    FaceCentroid1[2] = FaceCentroid1[2] + us3d->xcn->getVal(SinglePrismVerts[1*3+p],2);
+                    F1Coord[0] 			= us3d->xcn->getVal(SinglePrismVerts[1*3+p],0);
+                    F1Coord[1] 			= us3d->xcn->getVal(SinglePrismVerts[1*3+p],1);
+                    F1Coord[2] 			= us3d->xcn->getVal(SinglePrismVerts[1*3+p],2);
+                    FaceCentroid1[0] 	= FaceCentroid1[0] + us3d->xcn->getVal(SinglePrismVerts[1*3+p],0);
+                    FaceCentroid1[1] 	= FaceCentroid1[1] + us3d->xcn->getVal(SinglePrismVerts[1*3+p],1);
+                    FaceCentroid1[2] 	= FaceCentroid1[2] + us3d->xcn->getVal(SinglePrismVerts[1*3+p],2);
                     Face1.push_back(F1Coord);
                 }
+                
+				Vec3D* vecf0_0 = new Vec3D;
+				vecf0_0->c0 = Face0[1][0]-Face0[0][0];
+				vecf0_0->c1 = Face0[1][1]-Face0[0][1];
+				vecf0_0->c2 = Face0[1][2]-Face0[0][2];
+				Vec3D* vecf0_1 = new Vec3D;
+				vecf0_1->c0 = Face0[2][0]-Face0[0][0];
+				vecf0_1->c1 = Face0[2][1]-Face0[0][1];
+				vecf0_1->c2 = Face0[2][2]-Face0[0][2];
+				
+				Vec3D* nf0 = ComputeSurfaceNormal(vecf0_0,vecf0_1);
+				
+				Vec3D* vecf1_0 = new Vec3D;
+				vecf1_0->c0 = Face1[1][0]-Face1[0][0];
+				vecf1_0->c1 = Face1[1][1]-Face1[0][1];
+				vecf1_0->c2 = Face1[1][2]-Face1[0][2];
+				Vec3D* vecf1_1 = new Vec3D;
+				vecf1_1->c0 = Face1[2][0]-Face1[0][0];
+				vecf1_1->c1 = Face1[2][1]-Face1[0][1];
+				vecf1_1->c2 = Face1[2][2]-Face1[0][2];
+				
+				Vec3D* nf1 = ComputeSurfaceNormal(vecf1_0,vecf1_1);
+				
+				
+				
+				Vec3D* vecf0 = new Vec3D;
+				vecf0->c0 = -FaceCentroid0[0]+cent[0];
+				vecf0->c1 = -FaceCentroid0[1]+cent[1];
+				vecf0->c2 = -FaceCentroid0[2]+cent[2];
+								
+								
+				Vec3D* vecf1 = new Vec3D;
+				vecf1->c0 = -FaceCentroid1[0]+cent[0];
+				vecf1->c1 = -FaceCentroid1[1]+cent[1];
+				vecf1->c2 = -FaceCentroid1[2]+cent[2];
+				
+				double orientf0 = DotVec3D(vecf0,nf0);
+				double orientf1 = DotVec3D(vecf1,nf1);
+				
+				//std::cout << "wdd " << orientf0 << " " << orientf1 << std::endl;
+				
+//				double orient0_test = DotVec3D(r0,nbf);
+//				double orient0_next = DotVec3D(nbf,nbf_next);
                 
                 //=============TESTING=================
                 
@@ -2276,6 +2325,7 @@ PrismLines* GetPrismLines(US3D* us3d,
                     double F1vxRef = Face1[p][0];
                     double F1vyRef = Face1[p][1];
                     double F1vzRef = Face1[p][2];
+                    
                     std::vector<Vec3D*> oris0;
                     std::vector<Vec3D*> oris1;
                     
@@ -3580,8 +3630,8 @@ int main(int argc, char** argv)
 //  const char* fn_conn="../test_mesh/cylinder_hybrid/conn.h5";
 //  const char* fn_data="../test_mesh/cylinder_hybrid/data.h5";
     
-    const char* fn_grid     =    "inputs_new/grid.h5";
-    const char* fn_conn     =    "inputs_new/conn.h5";
+    const char* fn_grid     =    "inputs/grid.h5";
+    const char* fn_conn     =    "inputs/conn.h5";
     //const char* fn_metric   =    "inputs_new/metric.inp";
     
     //std::vector<double> metric_inputs = ReadMetricInputs(fn_metric);
@@ -3917,10 +3967,10 @@ int main(int argc, char** argv)
                 coordMap[Nodes[i]] = crd;
                 coords.push_back(crd);
             }
-            //// std::cout << std::endl;
+// std::cout << std::endl;
 //            if(newPrismID == 55667)
 //            {
-                //// std::cout << std::endl;
+// std::cout << std::endl;
 //            }
             //// std::cout << std::endl;
             NekElement* prism = SetPrism(Nodes,coords,newPrismID,1);
@@ -3940,7 +3990,7 @@ int main(int argc, char** argv)
     std::map<int,NekElement*>::iterator itmesh;
     std::map<int,std::map<int,int> > el2_l2g_edge;
     
-    // ===================== Setting up the edges =====================
+//====================== Setting up the edges =====================
     
 //    for(itmesh=mesh.begin();itmesh!=mesh.end();itmesh++)
 //    {
@@ -4401,6 +4451,10 @@ int main(int argc, char** argv)
     int cntr=0;
     int f1cnt=0;
     int f2cnt=0;
+    int pos = 0;
+    int neg = 0;
+    int pos2 = 0;
+    int neg2 = 0;
     for(itm=plines->SinglePrismVertsPerWallFace.begin();
         itm!=plines->SinglePrismVertsPerWallFace.end();
         itm++)
@@ -4422,13 +4476,12 @@ int main(int argc, char** argv)
             
         //    std::map<int,std::vector<int> > LineNodes = plines->ElementLinesNodes[wf];
         
-//        if(LineNodes.find(elidStart)!=LineNodes.end())
+//        if(Li Nodes.find(elidStart)!=LineNodes.end())
 //        {
-            std::vector<int> Lnodes = itm->second;//LineNodes[elidStart];
-            
-            
-            std::cout << Lnodes[0] << " " << Lnodes[1] << " " << Lnodes[2] 
-            					  << " " << Lnodes[3] << " " << Lnodes[4] << " " << Lnodes[5] << std::endl;
+            std::vector<int> Lnodes = itm->second; //LineNodes[elidStart];
+                       
+//            std::cout << Lnodes[0] << " " << Lnodes[1] << " " << Lnodes[2] 
+//            					  << " " << Lnodes[3] << " " << Lnodes[4] << " " << Lnodes[5] << std::endl;
             
             std::map<int,int> oppositeNodes;
             oppositeNodes[vert_map[old2new_v[Lnodes[0]]]] = vert_map[old2new_v[Lnodes[3]]];
@@ -4450,22 +4503,117 @@ int main(int argc, char** argv)
             std::vector<std::vector<double> > coords;
             std::map<int,std::vector<double> > coordMap;
             
+            
+            
+            
+            
+            
+            std::map<int,std::vector<double> > vertmap;
+            
             for(int i=0;i<prismNodes.size();i++)
             {
                 int ovid = new2old_v[vert_map_inv[prismNodes[i]]];
+                
                 
                 std::vector<double> crd(3);
                 crd[0] = us3d->xcn->getVal(ovid,0);
                 crd[1] = us3d->xcn->getVal(ovid,1);
                 crd[2] = us3d->xcn->getVal(ovid,2);
+                
+                vertmap[prismNodes[i]] = crd;
+                
                 coordMap[prismNodes[i]] = crd;
                 coords.push_back(crd);
             }
-            if(prmsID==55667)
-            {
-                // std::cout <<std::endl;
-            }
-            // int newPrismID = PrismTransferMap[elidStart];
+            
+            
+            //======================================
+			   std::vector<double> cent = ComputeCentroid(coords);
+			   
+			   std::vector<double> FaceCentroid0(3);
+			   FaceCentroid0[0] = 0.0;
+			   FaceCentroid0[1] = 0.0;
+			   FaceCentroid0[2] = 0.0;
+			   std::vector<double> FaceCentroid1(3);
+			   FaceCentroid1[0] = 0.0;
+			   FaceCentroid1[1] = 0.0;
+			   FaceCentroid1[2] = 0.0;
+			   std::vector<std::vector<double> > Face0;
+			   std::vector<std::vector<double> > Face1;
+			   std::vector<std::vector<int> > locmap;
+			   int faceVertMap[2][3] = {{0, 1, 4},
+										{3, 2, 5}};
+			   
+			   for(int p=0;p<3;p++)
+			   {
+				   vector<double> F0Coord(3);
+				   F0Coord[0] 			= vertmap[prismNodes[p]][0];
+				   F0Coord[1] 			= vertmap[prismNodes[p]][1];
+				   F0Coord[2] 			= vertmap[prismNodes[p]][2];
+				   FaceCentroid0[0] 	= FaceCentroid0[0] + F0Coord[0];
+				   FaceCentroid0[1] 	= FaceCentroid0[1] + F0Coord[1];
+				   FaceCentroid0[2] 	= FaceCentroid0[2] + F0Coord[2];
+				   Face0.push_back(F0Coord);
+				   vector<double> F1Coord(3);
+				   F1Coord[0] 			= vertmap[prismNodes[3+p]][0];
+				   F1Coord[1] 			= vertmap[prismNodes[3+p]][1];
+				   F1Coord[2] 			= vertmap[prismNodes[3+p]][2];
+				   FaceCentroid1[0] 	= FaceCentroid1[0] + F1Coord[0];
+				   FaceCentroid1[1] 	= FaceCentroid1[1] + F1Coord[1];
+				   FaceCentroid1[2] 	= FaceCentroid1[2] + F1Coord[2];
+				   Face1.push_back(F1Coord);
+			   }
+			   
+			Vec3D* vecf0_0 = new Vec3D;
+			vecf0_0->c0 = Face0[1][0]-Face0[0][0];
+			vecf0_0->c1 = Face0[1][1]-Face0[0][1];
+			vecf0_0->c2 = Face0[1][2]-Face0[0][2];
+			Vec3D* vecf0_1 = new Vec3D;
+			vecf0_1->c0 = Face0[2][0]-Face0[0][0];
+			vecf0_1->c1 = Face0[2][1]-Face0[0][1];
+			vecf0_1->c2 = Face0[2][2]-Face0[0][2];
+			
+			Vec3D* nf0 = ComputeSurfaceNormal(vecf0_0,vecf0_1);
+			
+			Vec3D* vecf1_0 = new Vec3D;
+			vecf1_0->c0 = Face1[1][0]-Face1[0][0];
+			vecf1_0->c1 = Face1[1][1]-Face1[0][1];
+			vecf1_0->c2 = Face1[1][2]-Face1[0][2];
+			Vec3D* vecf1_1 = new Vec3D;
+			vecf1_1->c0 = Face1[2][0]-Face1[0][0];
+			vecf1_1->c1 = Face1[2][1]-Face1[0][1];
+			vecf1_1->c2 = Face1[2][2]-Face1[0][2];
+			
+			Vec3D* nf1 = ComputeSurfaceNormal(vecf1_0,vecf1_1);
+			
+			Vec3D* vecf0 = new Vec3D;
+			vecf0->c0 = -FaceCentroid0[0]+cent[0];
+			vecf0->c1 = -FaceCentroid0[1]+cent[1];
+			vecf0->c2 = -FaceCentroid0[2]+cent[2];
+							
+							
+			Vec3D* vecf1 = new Vec3D;
+			vecf1->c0 = -FaceCentroid1[0]+cent[0];
+			vecf1->c1 = -FaceCentroid1[1]+cent[1];
+			vecf1->c2 = -FaceCentroid1[2]+cent[2];
+			
+			double orientf0 = DotVec3D(vecf0,nf0);
+			double orientf1 = DotVec3D(vecf1,nf1);
+			if(orientf0> 0 || orientf1 > 0)
+			{
+				pos++;
+				std::cout << "wdd2 " << prmsID << " " << orientf0 << " " << orientf1 << std::endl;
+			}
+			else
+			{
+				neg++;
+			}
+            
+			//OrientPrism(prismNodes);
+            
+			
+			
+			
                             
             NekElement* prism   = SetPrism(prismNodes,coords,prmsID,0);
             prisms[prmsID]      = prism;
@@ -4478,6 +4626,95 @@ int main(int argc, char** argv)
             testF[0] = testFCopy[0];
             testF[1] = testFCopy[1];
             testF[2] = testFCopy[2];
+
+            
+            
+            //======================================
+//            std::vector<double> cent = ComputeCentroid(coords);
+            
+//            std::vector<double> FaceCentroid0(3);
+            FaceCentroid0[0] = 0.0;
+            FaceCentroid0[1] = 0.0;
+            FaceCentroid0[2] = 0.0;
+//            std::vector<double> FaceCentroid1(3);
+            FaceCentroid1[0] = 0.0;
+            FaceCentroid1[1] = 0.0;
+            FaceCentroid1[2] = 0.0;
+//            std::vector<std::vector<double> > Face0;
+//            std::vector<std::vector<double> > Face1;
+//            std::vector<std::vector<int> > locmap;
+//           int faceVertMap[2][3] = {{0, 1, 4},
+//                                     {3, 2, 5}};
+            
+    		Face0.clear();
+    		Face1.clear();
+            for(int p=0;p<3;p++)
+            {
+                vector<double> F0Coord(3);
+                F0Coord[0] 			= prism->nodesCoords[faceVertMap[0][p]][0];
+                F0Coord[1] 			= prism->nodesCoords[faceVertMap[0][p]][1];
+                F0Coord[2] 			= prism->nodesCoords[faceVertMap[0][p]][2];
+                FaceCentroid0[0] 	= FaceCentroid0[0] + F0Coord[0];
+                FaceCentroid0[1] 	= FaceCentroid0[1] + F0Coord[1];
+                FaceCentroid0[2] 	= FaceCentroid0[2] + F0Coord[2];
+                Face0.push_back(F0Coord);
+                vector<double> F1Coord(3);
+                F1Coord[0] 			= prism->nodesCoords[faceVertMap[1][p]][0];
+                F1Coord[1] 			= prism->nodesCoords[faceVertMap[1][p]][1];
+                F1Coord[2] 			= prism->nodesCoords[faceVertMap[1][p]][2];
+                FaceCentroid1[0] 	= FaceCentroid1[0] + F1Coord[0];
+                FaceCentroid1[1] 	= FaceCentroid1[1] + F1Coord[1];
+                FaceCentroid1[2] 	= FaceCentroid1[2] + F1Coord[2];
+                Face1.push_back(F1Coord);
+            }
+            
+//			Vec3D* vecf0_0 = new Vec3D;
+			vecf0_0->c0 = Face0[1][0]-Face0[0][0];
+			vecf0_0->c1 = Face0[1][1]-Face0[0][1];
+			vecf0_0->c2 = Face0[1][2]-Face0[0][2];
+//			Vec3D* vecf0_1 = new Vec3D;
+			vecf0_1->c0 = Face0[2][0]-Face0[0][0];
+			vecf0_1->c1 = Face0[2][1]-Face0[0][1];
+			vecf0_1->c2 = Face0[2][2]-Face0[0][2];
+			
+			nf0 = ComputeSurfaceNormal(vecf0_0,vecf0_1);
+			
+//			Vec3D* vecf1_0 = new Vec3D;
+			vecf1_0->c0 = Face1[1][0]-Face1[0][0];
+			vecf1_0->c1 = Face1[1][1]-Face1[0][1];
+			vecf1_0->c2 = Face1[1][2]-Face1[0][2];
+//			Vec3D* vecf1_1 = new Vec3D;
+			vecf1_1->c0 = Face1[2][0]-Face1[0][0];
+			vecf1_1->c1 = Face1[2][1]-Face1[0][1];
+			vecf1_1->c2 = Face1[2][2]-Face1[0][2];
+			
+			nf1 = ComputeSurfaceNormal(vecf1_0,vecf1_1);
+			
+//			Vec3D* vecf0 = new Vec3D;
+			vecf0->c0 = -FaceCentroid0[0]+cent[0];
+			vecf0->c1 = -FaceCentroid0[1]+cent[1];
+			vecf0->c2 = -FaceCentroid0[2]+cent[2];
+							
+							
+//			Vec3D* vecf1 = new Vec3D;
+			vecf1->c0 = -FaceCentroid1[0]+cent[0];
+			vecf1->c1 = -FaceCentroid1[1]+cent[1];
+			vecf1->c2 = -FaceCentroid1[2]+cent[2];
+			
+			orientf0 = DotVec3D(vecf0,nf0);
+			orientf1 = DotVec3D(vecf1,nf1);
+			if(orientf0> 0 || orientf1 > 0)
+			{
+				pos2++;
+				//std::cout << "wdd2 " << prmsID << " " << orientf0 << " " << orientf1 << std::endl;
+			}
+			else
+			{
+				neg2++;
+			}
+			//std::cout << "wdd2 " << prmsID << " " << orientf0 << " " << orientf1 << std::endl;
+
+            //======================================
             
             prmsID++;
             
@@ -4486,7 +4723,8 @@ int main(int argc, char** argv)
         //}
     }
     
-   
+    std::cout << "neg vs pos " << neg << " vs " << pos << std::endl; 
+    std::cout << "neg2 vs pos2 " << neg2 << " vs " << pos2 << std::endl; 
     //// std::cout << "Fs  " << f1cnt << " " << f2cnt << std::endl;
     int pit = 0;
     for(itmesh=prisms.begin();itmesh!=prisms.end();itmesh++)
@@ -4523,6 +4761,9 @@ int main(int argc, char** argv)
 //            el2_l2g_edge[nid] = Tet_l2g_edge;
 //
 //        }
+        
+        
+        
         if(elem->nodes.size()==6)
         {
             std::vector<std::vector<int> > edges = elem->m_edges;
@@ -4542,10 +4783,6 @@ int main(int argc, char** argv)
                     edge_map[eId]      = edges[s];
                     Prism_l2g_edge[s]  = eId;
                     
-//                    if(pit==0)
-//                    {
-//                        // std::cout << "eId " << eId << " " <<  eId << std::endl;
-//                    }
                     eId++;
                 }
                 else
@@ -4607,21 +4844,11 @@ int main(int argc, char** argv)
                 for(int r=0;r<2;r++)
                 {
                     edge.insert(faceEdges[q][p][r]);
-
                 }
 
                 int geid = edge_set[edge];
 
-//                if(geid == 69686)
-//                {
-//                    // std::cout << "69686  " << p << " " << nEdges << std::endl;
-//
-//                    for(int r=0;r<2;r++)
-//                    {
-//                        // std::cout << faceEdges[q][p][r] << " ";
-//                    }
-//                    // std::cout << std::endl;
-//                }
+
                 face2edge[p] = geid;
                 face2edge_set.insert(geid);
                 gEdge2lEdgeMap[geid] = p;
@@ -4633,28 +4860,12 @@ int main(int argc, char** argv)
                 face_map[gfid] = face2edge;
                 gfaces_copy[q] = gfid;
                 
-//                if(gfid == 114639 || gfid == 114640 || gfid == 114641)
-//                {
-//                    int nv = face2edge.size();
-//                    // std::cout << "GFID = " << gfid << " :: and elid " << elid << " >> ";
-//                    for(int u=0;u<nv;u++)
-//                    {
-//                        // std::cout << face2edge[u] << " ";
-//                    }
-//
-//                    // std::cout << std::endl;
-//
-//                }
 
                 if(refFaceMap.find(faceOverts_set)!=refFaceMap.end())
                 {
                     int faceRef = refFaceMap[faceOverts_set];
                     BoundaryComposites[faceRef].push_back(gfid);
                 }
-                
-                
-                
-                
                 
                 std::vector<double> cent = ComputeCentroid(faceCoords);
 
@@ -4670,7 +4881,13 @@ int main(int argc, char** argv)
         }
 
         element_map[elid] = gfaces_copy;
-
+        
+        if(elid==83273)
+		{
+			std::cout << "prismNodes "<< gfaces_copy[0] << " " << gfaces_copy[1] << " " << gfaces_copy[2] << " " << gfaces_copy[3] << " " << gfaces_copy[4] << std::endl;
+		}
+        
+//      std::cout << "elid " << elid << std::endl;
         if(itmesh->second->nodes.size()==4)
         {
             bool checkTet = CheckTetRotation(itmesh->second,elid);
