@@ -10,7 +10,7 @@ project(MIMIC VERSION 1.0)
 #set(CMAKE_CXX_STANDARD 11)
 #set(CMAKE_CXX_STANDARD_REQUIRED True)
 
-include(../../platforms_cmake/MacOSX_Dirk_work.cmake)
+include(../../platforms_cmake/MacOSX_Dirk_work_serialHDF5.cmake)
 
 #set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c++11 -Wno-dev)
 
