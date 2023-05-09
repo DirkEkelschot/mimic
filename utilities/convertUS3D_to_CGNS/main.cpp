@@ -1158,7 +1158,7 @@ int main(int argc, char* argv[])
 	   /* */
 	   //std::cout << "ier = " << ier << std::endl;
 	   cg_close(index_file);
-	  
+	   MPI_Finalize();  
 	   std::cout << "\nSuccessfully wrote grid to file mesh2.cgns\n" << std::endl;
 	   /**/
 	   
