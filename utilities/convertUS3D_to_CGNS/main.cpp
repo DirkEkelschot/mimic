@@ -24,8 +24,8 @@ int main(int argc, char* argv[])
 	int world_rank;
 	MPI_Comm_rank(comm, &world_rank);
 	
-    const char* fn_grid   = "inputs_adapt/grid.h5";
-    const char* fn_conn   = "inputs_adapt/conn.h5";
+    const char* fn_grid   = "inputs_prak/grid.h5";
+    const char* fn_conn   = "inputs_prak/conn.h5";
     int ReadFromStats = 0;
     US3D* us3d       = ReadUS3DGrid(fn_conn,fn_grid,ReadFromStats,comm,info);
     int nvrt_og      = us3d->xcn->getNrow();
@@ -134,6 +134,16 @@ int main(int argc, char* argv[])
 			}
     	}
 	}
+
+    delete us3d->ife;
+    delete us3d->iet;
+    delete us3d->ghost;
+    delete us3d->ien;
+    delete us3d->iee;
+    delete us3d->ie_Nv;
+
+
+//  delete us3d->xcn;
     
     std::map<int,std::vector<int> >::iterator itm;
 //    std::map<int,int>::iterator itr;
@@ -153,7 +163,9 @@ int main(int argc, char* argv[])
     std::map<int,int> uvrt_g2l_prism;
     int loc_vrt_id_prism = 0;
     int loc_prism = 0;
-    std::vector<std::vector<double> > coordsPrisms;
+    
+    std::vector<int> coordsPrisms;
+    //std::vector<std::vector<double> > coordsPrisms;
     int* interface_prism = new int[interface_nodes.size()];
     std::map<int,std::vector<int> > bnd_prism;
     std::set<int> bnd_set_p;
@@ -170,11 +182,11 @@ int main(int argc, char* argv[])
 				uvrt_g2l_prism[itm->second[j]] = loc_vrt_id_prism+1;
 				prism_write[loc_prism*6+j] = loc_vrt_id_prism+1;
 				
-				std::vector<double> coords(3);
-				coords[0] = us3d->xcn->getVal(itm->second[j],0);
-				coords[1] = us3d->xcn->getVal(itm->second[j],1);
-				coords[2] = us3d->xcn->getVal(itm->second[j],2);
-				coordsPrisms.push_back(coords);
+//				std::vector<double> coords(3);
+//				coords[0] = us3d->xcn->getVal(itm->second[j],0);
+//				coords[1] = us3d->xcn->getVal(itm->second[j],1);
+//				coords[2] = us3d->xcn->getVal(itm->second[j],2);
+				coordsPrisms.push_back(itm->second[j]);
 				
 				if(interface_nodes.find(itm->second[j])!=interface_nodes.end())
 				{
@@ -189,15 +201,6 @@ int main(int argc, char* argv[])
 				int loc_v = uvrt_g2l_prism[itm->second[j]];
 				prism_write[loc_prism*6+j] = loc_v;
 			}
-			
-//			if(bndMap.find(itm->second[j])!=bndMap.end() &&
-//					bnd_set_p.find(itm->second[j])==bnd_set_p.end())
-//			{
-//				bnd_set_p.insert(itm->second[j]);
-//				int loc_v = uvrt_g2l_prism[itm->second[j]];
-//				int ref   = bndMap[itm->second[j]];
-//				bnd_prism[ref].push_back(loc_v);
-//			}
 		}
 		
 		loc_prism++;
@@ -273,34 +276,7 @@ int main(int argc, char* argv[])
 
 	std::map<int,std::vector<int> >::iterator itbb;
 		
-		
-//	for(itbb=bnd_prism.begin();itbb!=bnd_prism.end();itbb++)
-//	{
-//		std::cout << itbb->first << " -> " << itbb->second.size() << " :: ";
-//		for(int q=0;q<itbb->second.size();q++)
-//		{
-//			std::cout << itbb->second[q] << " ";
-//		}
-//		std::cout << std::endl;
-//		
-//	}
-		
-		
-	cgsize_t n_prism_end = loc_prism;
-	
-	int nvrt_prism = uvrt_g2l_prism.size();
 
-	double coordXPrism[nvrt_prism];
-	double coordYPrism[nvrt_prism];
-	double coordZPrism[nvrt_prism];
-
-	for(int i=0;i<nvrt_prism;i++)
-	{
-		coordXPrism[i] = coordsPrisms[i][0];
-		coordYPrism[i] = coordsPrisms[i][1];
-		coordZPrism[i] = coordsPrisms[i][2];
-	}
-	
 	//=============================================================
 	//=============================================================
 	//=============================================================
@@ -313,7 +289,8 @@ int main(int argc, char* argv[])
 	std::map<int,int> uvrt_g2l_tetra;
 	int loc_vrt_id_tetra = 0;
 	int loc_tetra = 0;
-	std::vector<std::vector<double> > coordstetras;
+	std::vector<int> coordstetras;
+	//std::vector<std::vector<double> > coordstetras;
     int* interface_tetra = new int[interface_nodes.size()];
     std::map<int,std::vector<int> > bnd_tetra;
     std::map<int,std::vector<int> > IntFc_Tri_Tetra;
@@ -330,11 +307,11 @@ int main(int argc, char* argv[])
 				uvrt_g2l_tetra[itm->second[j]] = loc_vrt_id_tetra+1;
 				tetra_write[loc_tetra*4+j] = loc_vrt_id_tetra+1;
 				
-				std::vector<double> coords(3);
-				coords[0] = us3d->xcn->getVal(itm->second[j],0);
-				coords[1] = us3d->xcn->getVal(itm->second[j],1);
-				coords[2] = us3d->xcn->getVal(itm->second[j],2);
-				coordstetras.push_back(coords);
+//				std::vector<double> coords(3);
+//				coords[0] = us3d->xcn->getVal(itm->second[j],0);
+//				coords[1] = us3d->xcn->getVal(itm->second[j],1);
+//				coords[2] = us3d->xcn->getVal(itm->second[j],2);
+				coordstetras.push_back(itm->second[j]);
 				if(interface_nodes.find(itm->second[j])!=interface_nodes.end())
 				{
 					int loc_i = interface_nodes[itm->second[j]];
@@ -415,6 +392,34 @@ int main(int argc, char* argv[])
 		}
 	}
 	
+	
+	delete us3d->ifn;
+    delete us3d->if_Nv;
+	delete us3d->ie_Nf;
+	delete us3d->if_ref;
+	
+	cgsize_t n_prism_end = loc_prism;
+		
+	int nvrt_prism = uvrt_g2l_prism.size();
+
+//	double coordXPrism[nvrt_prism];
+//	double coordYPrism[nvrt_prism];
+//	double coordZPrism[nvrt_prism];
+	
+	double* coordXPrism = new double[nvrt_prism];
+	double* coordYPrism = new double[nvrt_prism];
+	double* coordZPrism = new double[nvrt_prism];
+
+	for(int i=0;i<nvrt_prism;i++)
+	{
+		coordXPrism[i] = us3d->xcn->getVal(coordsPrisms[i],0);
+		coordYPrism[i] = us3d->xcn->getVal(coordsPrisms[i],1);
+		coordZPrism[i] = us3d->xcn->getVal(coordsPrisms[i],2);
+	}
+		
+		
+		
+	
 	cgsize_t n_tetra_end = loc_tetra;
 		
 	int nvrt_tetra = uvrt_g2l_tetra.size();
@@ -425,15 +430,19 @@ int main(int argc, char* argv[])
 	for(int i=0;i<nvrt_tetra;i++)
 	{
 		
-		coordXtetra[i] = coordstetras[i][0];
-		coordYtetra[i] = coordstetras[i][1];
-		coordZtetra[i] = coordstetras[i][2];
+		coordXtetra[i] = us3d->xcn->getVal(coordstetras[i],0);
+		coordYtetra[i] = us3d->xcn->getVal(coordstetras[i],1);
+		coordZtetra[i] = us3d->xcn->getVal(coordstetras[i],2);
+//		
+//		coordXtetra[i] = coordstetras[i][0];
+//		coordYtetra[i] = coordstetras[i][1];
+//		coordZtetra[i] = coordstetras[i][2];
 	}
 	
 	std::map<int,int>::iterator it;
 
 	
-	
+
 	
 	
 
@@ -1146,9 +1155,10 @@ int main(int argc, char* argv[])
 	   {
 		   std::cout << "interface = " << interface_tetra[q] << " " << interface_prism[q] << std::endl;
 	   }
-	   */
+	   /* */
 	   //std::cout << "ier = " << ier << std::endl;
 	   cg_close(index_file);
+	  
 	   std::cout << "\nSuccessfully wrote grid to file mesh2.cgns\n" << std::endl;
 	   /**/
 	   
