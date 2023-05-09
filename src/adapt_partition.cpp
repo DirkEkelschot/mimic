@@ -4594,12 +4594,14 @@ void Partition::CreatePartitionDomainTest()
     std::map<int,std::vector<int> > Hexes;
     std::map<int,std::vector<int> > Prisms;
     std::map<int,std::vector<int> > Tetras;
+    std::map<int,std::vector<int> > Pyramids;
     
     std::map<int,std::vector<int> > GElements;
     std::map<int,std::vector<int> > GHexes;
     std::map<int,std::vector<int> > GPrisms;
     std::map<int,std::vector<int> > GTetras;
-    
+    std::map<int,std::vector<int> > GPyramids;
+
     std::set<int> ufaces;
     std::set<int> uvrts;
     
@@ -4629,7 +4631,7 @@ void Partition::CreatePartitionDomainTest()
 //    int y36 = 0;
     //std::map<int,std::vector<int> > prism_BndFaces;
     std::vector<int> left_tet;
-    std::vector<int> right_prism;
+    std::vector<int> right_elem;
     std::vector<int> shell_faceid;
     std::vector<Vert*> centroids;
     
@@ -4653,6 +4655,8 @@ void Partition::CreatePartitionDomainTest()
                 
                 if(el0<NelGlob && el1<NelGlob)
                 {
+                	// This actually works even when we consider pyramids since both prisms and pyramids have 5 faces.
+                	// Perhaps a more consistent measure is looking at the element type.
                     Nf0    = elem2Nf[el0];
                     Nf1    = elem2Nf[el1];
                     
@@ -4661,7 +4665,7 @@ void Partition::CreatePartitionDomainTest()
                         if(Nf0>Nf1)
                         {
                             left_tet.push_back(el1);
-                            right_prism.push_back(el0);
+                            right_elem.push_back(el0);
                             shell_faceid.push_back(faceid);
                             
                             ushell[faceid].push_back(el0);
@@ -4690,7 +4694,7 @@ void Partition::CreatePartitionDomainTest()
                         else
                         {
                             left_tet.push_back(el0);
-                            right_prism.push_back(el1);
+                            right_elem.push_back(el1);
                             shell_faceid.push_back(faceid);
                             
                             ushell[faceid].push_back(el1);
@@ -4726,14 +4730,14 @@ void Partition::CreatePartitionDomainTest()
     
     int nLocShellF       = left_tet.size();
     int* loc_lhtets      = new int[nLocShellF];
-    int* loc_rhprisms    = new int[nLocShellF];
+    int* loc_rhelem      = new int[nLocShellF];
     int* loc_shellFid    = new int[nLocShellF];
     double* loc_centroids    = new double[nLocShellF*3];
 
     for(int q=0;q<nLocShellF;q++)
     {
         loc_lhtets[q] = left_tet[q];
-        loc_rhprisms[q] = right_prism[q];
+        loc_rhelem[q] = right_elem[q];
         loc_shellFid[q] = shell_faceid[q];
         loc_centroids[q*3+0] = centroids[q]->x;
         loc_centroids[q*3+1] = centroids[q]->y;
@@ -4749,7 +4753,7 @@ void Partition::CreatePartitionDomainTest()
     
     int nShellFs   = ltet->getNel();
     int* lhtets    = new int[nShellFs];
-    int* rhprisms  = new int[nShellFs];
+    int* rhelem    = new int[nShellFs];
     int* shellFid  = new int[nShellFs];
     double* centroids_g  = new double[lcent->getNel()];
 
@@ -4766,10 +4770,10 @@ void Partition::CreatePartitionDomainTest()
                    ltet->getOffsets(),
                    MPI_INT,comm_p);
     
-    MPI_Allgatherv(loc_rhprisms,
+    MPI_Allgatherv(loc_rhelem,
                    nLocShellF,
                    MPI_INT,
-                   rhprisms,
+                   rhelem,
                    ltet->getNlocs(),
                    ltet->getOffsets(),
                    MPI_INT,comm_p);
@@ -4802,10 +4806,10 @@ void Partition::CreatePartitionDomainTest()
         
         if(shallLayout.find(sfid)==shallLayout.end())
         {
-            std::vector<int> TetPrism(2);
-            TetPrism[0]                = lhtets[i];
-            TetPrism[1]                = rhprisms[i];
-            shallLayout[sfid]          = TetPrism;
+            std::vector<int> TetElem(2);
+            TetElem[0]                = lhtets[i];
+            TetElem[1]                = rhelem[i];
+            shallLayout[sfid]         = TetElem;
             
 //            Vert* vc = new Vert;
 //            vc->x = centroids_g[i*3+0];
@@ -4815,7 +4819,7 @@ void Partition::CreatePartitionDomainTest()
 //            shallLayout_centroid[sfid] = vc;
         }
     }
-    /**/
+  
     elem2Nf.clear();
 //
 //
@@ -4873,6 +4877,11 @@ void Partition::CreatePartitionDomainTest()
             Tetras[glob_id]=El;
             GTetras[glob_id]=Elg;
         }
+        if(Elg.size()==5)
+		{
+			Pyramids[glob_id]=El;
+			GPyramids[glob_id]=Elg;
+		}
         if(Elg.size()==6)
         {
             Prisms[glob_id]=El;
@@ -4894,9 +4903,7 @@ void Partition::CreatePartitionDomainTest()
     pDom->ushell           = shallLayout;
     
     
-    //pDom->ushell_centroid  = shallLayout_centroid;
-     
-     
+//	  pDom->ushell_centroid  = shallLayout_centroid;
 //    pDom->ncomm           = ncomm;
 //    pDom->faces_ref       = faces_ref;
 //    pDom->faces_part      = faces_part;
@@ -4907,15 +4914,16 @@ void Partition::CreatePartitionDomainTest()
 //    pDom->ref2bcface      = ref2bcface;
     
     pDom->Elements        = Elements;
-     
-     
+    pDom->Pyramids        = Pyramids;
     pDom->Hexes           = Hexes;
     pDom->Prisms          = Prisms;
     pDom->Tetras          = Tetras;
     pDom->GHexes          = GHexes;
     pDom->GPrisms         = GPrisms;
     pDom->GTetras         = GTetras;
-     
+    pDom->GPyramids       = GPyramids;
+    
+    
     pDom->LocElem2LocNode = locelem2locnode;
     pDom->loc_part_verts  = loc_part_verts;
     pDom->glob_part_verts = glob_part_verts;

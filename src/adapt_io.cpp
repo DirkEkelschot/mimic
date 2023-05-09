@@ -4171,6 +4171,7 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
     
     int check_hex = 0;
     int check_tet = 0;
+    int check_pyr = 0;
     int check_pri = 0;
     
     int tetCount=0;
@@ -4183,25 +4184,32 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
             check_tet = 1;
             tetCount++;
         }
+        if(iet->getVal(i,0)==4) // Hex
+		{
+			ie_Nv->setVal(i,0,8);
+			ie_Nf->setVal(i,0,6);
+			check_hex = 1;
+		}
+        if(iet->getVal(i,0)==5) // Pyramid
+	    {
+		   ie_Nv->setVal(i,0,5);
+		   ie_Nf->setVal(i,0,5);
+		   check_pyr = 1;
+	    }
         if(iet->getVal(i,0)==6) // Prism
         {
             ie_Nv->setVal(i,0,6);
             ie_Nf->setVal(i,0,5);
             check_pri = 1;
         }
-        if(iet->getVal(i,0)==4) // Hex
-        {
-            ie_Nv->setVal(i,0,8);
-            ie_Nf->setVal(i,0,6);
-            check_hex = 1;
-        }
+        
         if(iet->getVal(i,0)!=2 && iet->getVal(i,0)!=4 && iet->getVal(i,0)!=6)
         {
-            std::cout << "What is this type " << iet->getVal(i,0) << std::endl;
+            std::cout << "Warning: this mesh has pyramids! " << iet->getVal(i,0) << std::endl;
         }
     }
     
-    int* colTetCount = new int[size];
+    int* colTetCount    = new int[size];
     int* RedcolTetCount = new int[size];
     int* OffcolTetCount = new int[size];
 
@@ -4214,7 +4222,6 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
             colTetCount[i] = tetCount;
         }
     }
-    
     
     MPI_Allreduce(colTetCount,  RedcolTetCount,  size, MPI_INT, MPI_SUM, comm);
     MPI_Allreduce(colTetCount,  RedcolTetCount,  size, MPI_INT, MPI_SUM, comm);
@@ -4245,10 +4252,11 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
         }
     }
     //std::cout << "before partitioning rank = " << rank << " #tets = " << tett << " #prisms " << pris << std::endl;
-    Array<int>* elTypes = new Array<int>(3,1);
+    Array<int>* elTypes = new Array<int>(4,1);
     elTypes->setVal(0,0,check_tet);
     elTypes->setVal(1,0,check_pri);
-    elTypes->setVal(2,0,check_hex);
+    elTypes->setVal(2,0,check_pyr);
+    elTypes->setVal(3,0,check_hex);
     
     delete[] OffcolTetCount;
     us3d->xcn           = xcn;

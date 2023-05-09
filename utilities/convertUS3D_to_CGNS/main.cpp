@@ -274,16 +274,16 @@ int main(int argc, char* argv[])
 	std::map<int,std::vector<int> >::iterator itbb;
 		
 		
-	for(itbb=bnd_prism.begin();itbb!=bnd_prism.end();itbb++)
-	{
-		std::cout << itbb->first << " -> " << itbb->second.size() << " :: ";
-		for(int q=0;q<itbb->second.size();q++)
-		{
-			std::cout << itbb->second[q] << " ";
-		}
-		std::cout << std::endl;
-		
-	}
+//	for(itbb=bnd_prism.begin();itbb!=bnd_prism.end();itbb++)
+//	{
+//		std::cout << itbb->first << " -> " << itbb->second.size() << " :: ";
+//		for(int q=0;q<itbb->second.size();q++)
+//		{
+//			std::cout << itbb->second[q] << " ";
+//		}
+//		std::cout << std::endl;
+//		
+//	}
 		
 		
 	cgsize_t n_prism_end = loc_prism;
@@ -388,7 +388,7 @@ int main(int argc, char* argv[])
 				for(int p=0;p<3;p++)
 				{
 					int vid           			  = interface_Fcs[fid][p];
-					int local_v       			  = uvrt_g2l_prism[vid];
+					int local_v       			  = uvrt_g2l_tetra[vid];
 					IntFace_Tetra[intloc_fid*3+p] = local_v;
 					IntFc_Tetra[p]    			  = local_v;
 				}
@@ -526,7 +526,7 @@ int main(int argc, char* argv[])
 	  	  
 	   int size_prism[3] = {nvrt_prism,loc_prism, n_tria_prism_tot+n_quad_prism_tot};
 	   
-	   std::cout <<  "size_prism " <<   size_prism[0] << " " << size_prism[1] << " " << size_prism[2] << std::endl;
+	   //std::cout <<  "size_prism " <<   size_prism[0] << " " << size_prism[1] << " " << size_prism[2] << std::endl;
 //	   size_prism[0] = nvrt_prism;
 //	   size_prism[1] = loc_prism-1;
 //       size_prism[2] = 0;
@@ -539,7 +539,7 @@ int main(int argc, char* argv[])
 	   int indexe;
 	   
 
-	   if (cg_open("mesh2.cgns",CG_MODE_WRITE,&index_file)) cg_error_exit();
+	   if (cg_open("MIMIC_mesh.cgns",CG_MODE_WRITE,&index_file)) cg_error_exit();
 	   	   
 	   strcpy(basename,"Base");
 	   icelldim=3;
@@ -557,7 +557,34 @@ int main(int argc, char* argv[])
 		   exp[n] = (float)0.0;
 	   }
 	   exp[1] = (float)1.0;
-	  
+	   int n_tria_offset = 0;//n_prism_end;
+	   int nbnd=0;
+	   int indextr3;
+	   int indextr7;
+	   int indextr10;
+	   int indextr36;
+	   
+	   int index_fam3;
+	   int bc_index3;
+	   
+	   int index_fam7;
+	   int bc_index7;
+	   
+	   int index_fam10;
+	   int bc_index10;
+	   
+	   int index_fam36;
+	   int bc_index36;
+	   std::map<int,std::vector<int> >::iterator itb;
+	   int indextrint;
+	   
+	   int index_conn = 0;
+	   int* transform = new int[3];
+	   transform[0] = 1;
+	   transform[1] = 2;
+	   transform[2] = 3;
+	   int icount = interface_nodes.size();
+	   
 	   strcpy(zonename,"blk-1");
 	   cg_zone_write(index_file, index_base, zonename, size_prism, Unstructured, &index_zone_p);	
 //	   
@@ -582,15 +609,10 @@ int main(int argc, char* argv[])
 			   "PrismElements", PENTA_6, n_prism_start, n_prism_end, 0,
 			   prism_write, &indexe);
 	   
-	   std::cout << "range for PrismElements :: " <<  n_prism_start << " - " << n_prism_end << std::endl;
+	   //std::cout << "range for PrismElements :: " <<  n_prism_start << " - " << n_prism_end << std::endl;
 	   
-	   int n_tria_offset = n_prism_end;
-	   int nbnd=0;
-	   int indextr3;
-	   int indextr7;
-	   int indextr10;
-	   int indextr36;
-	   std::map<int,std::vector<int> >::iterator itb;
+
+	   
 	   int ntria_int_prism = IntFc_Tri_Prism.size();
 	   std::vector<int> int_prism_vrts(ntria_int_prism*3);
 	   int p=0;
@@ -606,34 +628,18 @@ int main(int argc, char* argv[])
 	   }
 	   
 	
-	   int index_conn = 0;
-	   int* transform = new int[3];
-	   transform[0] = 1;
-	   transform[1] = 2;
-	   transform[2] = 3;
-	   int icount = interface_nodes.size();
+
 	   
-//	   ier = cg_conn_write(index_file,index_base,index_zone_p,"T-P_Interface",Vertex,Abutting1to1,
-//	   	                 PointList,icount,interface_tetra,"blk-1",Unstructured,
+
+	   //std::cout << "ntria_int_prism " << ntria_int_prism << std::endl;
 	   
-	   int indextrint;
 
 	   cg_section_write(index_file, index_base, index_zone_p, "P-T_Interface", 
 	   					TRI_3, n_tria_offset+1, n_tria_offset+ntria_int_prism, 0, IntFace_Prism.data(), &indextrint);
 
 	   n_tria_offset = n_tria_offset+ntria_int_prism;
 	   
-	   int index_fam3;
-	   int bc_index3;
-	   
-	   int index_fam7;
-	   int bc_index7;
-	   
-	   int index_fam10;
-	   int bc_index10;
-	   
-	   int index_fam36;
-	   int bc_index36;
+
 	   
 	   for(itb=BndFc_Tri_Prism_Conv.begin();itb!=BndFc_Tri_Prism_Conv.end();itb++)
 	   {
@@ -644,13 +650,13 @@ int main(int argc, char* argv[])
 		   std::vector<int> bc_interface = bnd_prism[ref];
 		   int bc_intface_size = bc_interface.size();
 		   
-		   std::cout << "ref - " << ref << " -> ";
-		   for(int q=0;q<itb->second.size();q++)
-		   {
-			   std::cout << itb->second[q] << " ";
-		   }
-		   
-		   std::cout << std::endl;
+//		   std::cout << "ref - " << ref << " -> ";
+//		   for(int q=0;q<itb->second.size();q++)
+//		   {
+//			   std::cout << itb->second[q] << " ";
+//		   }
+//		   
+//		   std::cout << std::endl;
 		   
 		   std::vector<int>ElList(n_tria_bc);
 		   int tid = n_tria_offset+1;
@@ -663,7 +669,7 @@ int main(int argc, char* argv[])
 		   if(ref == 3)
 		   {
 			   int indextr3;
-			   bcname="BCWallViscous";
+			   bcname="BCWallViscous_PT";
 				
 			   cg_boco_write (index_file, index_base, index_zone_p, bcname, BCWallViscous,
 					   ElementList, n_tria_bc, ElList.data(), &indextr3);
@@ -686,7 +692,7 @@ int main(int argc, char* argv[])
 		   }
 		   if(ref == 7)
 		   {
-			   bcname="BCSymmetryPlane";
+			   bcname="BCSymmetryPlane_PT";
 			   
 			   int indextr7;
 			   
@@ -713,7 +719,7 @@ int main(int argc, char* argv[])
 		   if(ref == 10)
 		   {
 			   int indextr10;
-			   bcname="BCInflow";
+			   bcname="BCInflow_PT";
 				
 			   cg_boco_write (index_file, index_base, index_zone_p, bcname, BCInflow,
 					   ElementList, n_tria_bc, ElList.data(), &indextr10);
@@ -737,7 +743,7 @@ int main(int argc, char* argv[])
 		   if(ref == 36)
 		   {
 			   int indextr36;
-			   bcname="BCOutflow";
+			   bcname="BCOutflow_PT";
 			   
 			   cg_boco_write (index_file, index_base, index_zone_p, bcname, BCOutflow,
 					   	   	   ElementList, n_tria_bc, ElList.data(), &indextr36);
@@ -890,7 +896,7 @@ int main(int argc, char* argv[])
 	   
 	   
 	   int size_tetra[3] = {nvrt_tetra, n_tetra_end, n_tria_tet_tot};
-	   std::cout <<  "size_tetra " <<   size_tetra[0] << " " << size_tetra[1] << " " << size_tetra[2] << std::endl;
+	   //std::cout <<  "size_tetra " <<   size_tetra[0] << " " << size_tetra[1] << " " << size_tetra[2] << std::endl;
 
 	   //std::cout << " nvrt_tetra " <<  nvrt_tetra << " " << n_tetra_end << " " << n_tria_tet_tot  << std::endl;
 	   strcpy(zonename,"blk-2");
@@ -920,9 +926,9 @@ int main(int argc, char* argv[])
 	   n_tria_offset = n_tetra_end;
 	   
 	   int ntria_int_tetra = IntFc_Tri_Tetra.size();
-	   
+	   //std::cout << "ntria_int_tetra " << ntria_int_tetra << std::endl;
 	   cg_section_write(index_file, index_base, index_zone_t, "T-P_Interface", 
-	   	   					TRI_3, n_tria_offset+1, n_tria_offset+ntria_int_tetra, 0, IntFace_Tetra.data(), &indextrint);
+	   	   				TRI_3, n_tria_offset+1, n_tria_offset+ntria_int_tetra, 0, IntFace_Tetra.data(), &indextrint);
 	   
 	   n_tria_offset = n_tria_offset+ntria_int_tetra;
 	   
@@ -1041,6 +1047,18 @@ int main(int argc, char* argv[])
 
 		   }
 	   }
+//	   int index_conn = 0;
+//	   int* transform = new int[3];
+//	   transform[0] = 1;
+//	   transform[1] = 2;
+//	   transform[2] = 3;
+	   
+	   icount = interface_nodes.size();
+	   //cg_1to1_write(index_file,index_base,index_zone_t,"Interior","blk-1",interface_tetra,interface_prism,transform,&index_conn);
+	   ier = cg_conn_write(index_file,index_base,index_zone_t,"Interface",Vertex,Abutting1to1,
+	                 PointList,icount,interface_tetra,"blk-1",Unstructured,
+	                 PointListDonor,Integer,icount,interface_prism,&index_conn);
+	   
 	   /*
 	   std::cout << "indextr10 " << indextr10 << " indextr36 " << indextr36 << std::endl;  
 	   

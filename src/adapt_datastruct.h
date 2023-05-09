@@ -103,11 +103,13 @@ struct Domain
     std::map<int,std::vector<int> > Hexes;
     std::map<int,std::vector<int> > Prisms;
     std::map<int,std::vector<int> > Tetras;
+    std::map<int,std::vector<int> > Pyramids;
     std::map<int,std::vector<int> > ref2bcface;
     
     std::map<int,std::vector<int> > GHexes;
     std::map<int,std::vector<int> > GPrisms;
     std::map<int,std::vector<int> > GTetras;
+    std::map<int,std::vector<int> > GPyramids;
     Array<int>* LocElem2LocNode;
     std::vector<int> loc_part_verts;
     std::vector<int> glob_part_verts;

@@ -351,14 +351,18 @@ PrismaticLayer::PrismaticLayer(std::map<int,std::vector<int> > elements,
     int notowned = 0;
     for(prit=elements.begin();prit!=elements.end();prit++)
     {
-        int gEl     = prit->first;
-        int rank    = world_rank;
-        int lEl     = ElementDistr->getOffsets()[rank]+u+1;
+        int gEl       = prit->first;
+        int rank      = world_rank;
+        int lEl       = ElementDistr->getOffsets()[rank]+u+1;
+        int nVrt	  = prit->second.size();
+        iet->setVal(u,0,nVrt);
+        
         tagE2gE[gEl]  = lEl;
         gE2tagE[lEl]  = gEl;
-        iet->setVal(u,0,6);
+       
+        int nFaces = 5; // for both pyramids and prisms;
         
-        for(int q=0;q<5;q++)
+        for(int q=0;q<nFaces;q++)
         {
             gfid = ief_part_map[gEl][q];
             int nfvrts = if_Nv_part_map[gfid];
@@ -422,7 +426,7 @@ PrismaticLayer::PrismaticLayer(std::map<int,std::vector<int> > elements,
                             }
                             
                             SharedFace2Node[gfid] = fn_tag;
-                            lhp[gfid]                   = lEl;
+                            lhp[gfid]             = lEl;
 
                         }
                     }

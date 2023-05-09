@@ -583,14 +583,11 @@ int main(int argc, char** argv)
 
     int ier,opt;
     int debug = 1;
-//    const char* fn_grid="../test_mesh/cylinder_hybrid/grid.h5";
-//    const char* fn_conn="../test_mesh/cylinder_hybrid/conn.h5";
-//    const char* fn_data="../test_mesh/cylinder_hybrid/data.h5";
+    
+    
     const char* fn_grid="inputs/grid.h5";
-
     const char* fn_conn="inputs/conn.h5";
     const char* fn_data="inputs/data.h5";
-    const char* fn_metric="inputs/metric.inp";
 
     Inputs* inputs = ReadXmlFile("inputs/metric.xml");
 
@@ -1122,6 +1119,7 @@ int main(int argc, char** argv)
     std::map<int,std::vector<int> > tetraLoc   = pDom->Tetras;
     std::map<int,std::vector<int> > tetraEl    = pDom->GTetras;
     std::map<int,std::vector<int> > prismEl    = pDom->GPrisms;
+    std::map<int,std::vector<int> > pyramidEl  = pDom->GPyramids;
     std::map<int,std::vector<int> > ushell_o   = pDom->ushell;
     std::map<int,Vert* > ushell_cen            = pDom->ushell_centroid;
     i_part_map* ief_part_map                   = P->getIEFpartmap();
@@ -1220,6 +1218,19 @@ int main(int argc, char** argv)
 			prismNodes[q] = itmm->second[q];
 		}
 		prisms[elemid] = prismNodes;
+	}
+	
+	std::map<int,std::vector<int> > pyramids;
+	for(itmm=pyramidEl.begin();itmm!=pyramidEl.end();itmm++)
+	{
+		int elemid        = itmm->first;
+		int nn            = itmm->second.size();
+		std::vector<int> pyramidNodes(nn);
+		for(int q=0;q<nn;q++)
+		{
+			pyramidNodes[q] = itmm->second[q];
+		}
+		pyramids[elemid] = pyramidNodes;
 	}
 	
     // ==== Copy required element2node maps for prisms ====
@@ -1471,8 +1482,7 @@ int main(int argc, char** argv)
                       PMMG_ARG_dim,3,PMMG_ARG_MPIComm,MPI_COMM_WORLD,
                       PMMG_ARG_end);
 
-    if ( PMMG_Set_meshSize(parmesh,nVertices,nTetrahedra,nPrisms,nTriangles,
-                              nQuadrilaterals,nEdges) != 1 ) {
+    if ( PMMG_Set_meshSize(parmesh,nVertices,nTetrahedra,0,nTriangles,0,nEdges) != 1 ) {
       MPI_Finalize();
       exit(EXIT_FAILURE);
     }
@@ -1899,7 +1909,7 @@ int main(int argc, char** argv)
     DistributedParallelState* distTetraB = new DistributedParallelState(nTetrahedra,comm);
     DistributedParallelState* distPrismB = new DistributedParallelState(nPrisms,comm);
     int ToTElements_prism_bef            = distPrismB->getNel();
-    int ToTElements_bef                 = distTetraB->getNel();
+    int ToTElements_bef                  = distTetraB->getNel();
     
     if(world_rank == 0)
     {
