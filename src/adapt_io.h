@@ -121,6 +121,58 @@ Array<T>* ReadDataSetFromGroupFromFile(const char* file_name, const char* group_
 }
 
 
+
+template<typename T>
+Array<T>* ReadDataSetFromGroupInGroupFromFile(const char* file_name, const char* group_name0, const char* group_name1, const char* dataset_name)
+{
+    hid_t status;
+    hid_t file_id        = H5Fopen(file_name, H5F_ACC_RDONLY,H5P_DEFAULT);
+    hid_t group_id0      = H5Gopen(file_id,group_name0,H5P_DEFAULT);
+    hid_t group_id1      = H5Gopen(group_id0,group_name1,H5P_DEFAULT);
+    hid_t dset_id        = H5Dopen(group_id1,dataset_name,H5P_DEFAULT);
+    
+    hid_t dspace         = H5Dget_space(dset_id);
+    int ndims            = H5Sget_simple_extent_ndims(dspace);
+    hsize_t dims[ndims];
+    H5Sget_simple_extent_dims(dspace, dims, NULL);
+    
+    int nrow            = dims[0];
+    int ncol            = dims[1];
+    
+    hid_t memspace_id   = H5Screate_simple( 2, dims, NULL );
+    hid_t file_space_id = H5Dget_space(dset_id);
+
+    Array<T>* A_t;
+    
+    if(hid_from_type<T>()==H5T_STRING)
+    {
+        hid_t type = H5Dget_type(dset_id);
+        hid_t native_type = h5tools_get_native_type(type);
+        int n_element = dims[0];
+        size_t type_size = std::max(H5Tget_size(type), H5Tget_size(native_type));
+        
+        A_t = new Array<T>(n_element,type_size);
+        
+        status = H5Dread(dset_id, native_type, H5S_ALL, H5S_ALL, H5P_DEFAULT, A_t->data);
+        
+        status = H5Tclose(native_type);
+        status = H5Tclose(type);
+    }
+    else{
+        
+        A_t = new Array<T>(nrow,ncol);
+        
+        status = H5Dread(dset_id, hid_from_type<T>(), memspace_id, file_space_id, H5P_DEFAULT, A_t->data);
+    }
+     
+    status = H5Dclose(dset_id);
+    status = H5Gclose(group_id0);
+    status = H5Gclose(group_id1);
+    status = H5Fclose(file_id);
+    return A_t;
+}
+
+
 template<typename T>
 Array<T>* ReadDataSetFromRunInFile(const char* file_name, const char* run_name,const char* dataset_name)
 {

@@ -427,7 +427,7 @@ Inputs* ReadXmlFile(const char* filename)
 //    TiXmlElement *parametersElement =
 //        conditions->FirstChildElement("PARAMETERS");
     
-    TiXmlElement *xmlMetric = doc.FirstChildElement("METRIC");
+    TiXmlElement *xmlMetric = doc.FirstChildElement("MIMIC");
     
     
     TiXmlElement *xmlParam = xmlMetric->FirstChildElement("PARAMETERS");

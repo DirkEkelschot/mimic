@@ -503,6 +503,43 @@ void PlotBoundaryData(Array<char>* znames, Array<int>* zdefs)
     
 }
 
+std::map<string,int> PlotVariableNames(Array<char>* zvnames)
+{
+    int nrow = zvnames->getNrow();
+    int ncol = zvnames->getNcol();
+    std::map<string,int> var_map;
+    std::cout << "printing variable names..." << std::endl;
+
+    for(int i=0;i<nrow;i++)
+    {
+    	char* varname = new char[ncol];
+    	
+    	std::vector<char> vname;
+    	
+    	
+        for(int j=0;j<ncol;j++)
+        {
+            std::cout << zvnames->getVal(i,j) << "";
+            varname[j] = zvnames->getVal(i,j);
+            char c = zvnames->getVal(i,j);
+            char ref = ' ';
+            if(c != ref)
+            {
+            	vname.push_back(zvnames->getVal(i,j));
+            }
+        }
+       
+        string svar  = vname.data();
+        
+        var_map[svar]=i;
+        
+        
+    }
+    
+    return var_map;
+    
+}
+
 
 
 

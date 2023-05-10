@@ -3893,6 +3893,20 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
     ParArray<int>* ifn = ReadDataSetFromFileInParallel<int>(fn_grid,"ifn",comm,info);
     ParArray<int>* ife = ReadDataSetFromFileInParallel<int>(fn_conn,"ife",comm,info);
 
+    Array<char>* zvnames = ReadDataSetFromGroupInGroupFromFile<char>(fn_data,"info","solver","svnames");
+
+    
+    std::map<string,int> var_map = PlotVariableNames(zvnames);
+    
+    
+    int uid = var_map["u"];
+    int vid = var_map["v"];
+    int wid = var_map["w"];
+    int Tid = var_map["T"];
+    
+    
+    std::cout <<"variable IDs "<< uid << " " << vid << " " << wid << " " << Tid << std::endl;
+    
     int Nel_loc = ien->getNrow();
 
     int Nel = ien->getNglob();
@@ -3919,17 +3933,20 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
         {
             
             rhoState = mean->getVal(u,0)/time_stats;
-            uState   = mean->getVal(u,1)/time_stats;
-            vState   = mean->getVal(u,2)/time_stats;
-            wState   = mean->getVal(u,3)/time_stats;
-            TState   = mean->getVal(u,4)/time_stats;
+            uState   = mean->getVal(u,uid)/time_stats;
+            vState   = mean->getVal(u,vid)/time_stats;
+            wState   = mean->getVal(u,wid)/time_stats;
+            TState   = mean->getVal(u,Tid)/time_stats;
             vel_mean->setVal(u,0,uState);
             vel_mean->setVal(u,1,vState);
             vel_mean->setVal(u,2,wState);
             VtotState = sqrt(uState*uState+vState*vState+wState*wState);
             //aState   = sqrt(1.4*287.05*TState);
-	    aState   = sqrt(1.29*188.92*TState);
-            MState = VtotState/aState;
+            //aState   = sqrt(1.29*188.92*TState);
+            //MState = VtotState/aState;
+            MState = TState;
+            
+            
  	    if(StateVar==0)
 	    {
             	interior->setVal(u,1,MState);
@@ -3979,14 +3996,14 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
         for(int u=0;u<Nel_loc;u++)
         {
             rhoState = readdata->getVal(u,0);
-            uState   = readdata->getVal(u,1);
-            vState   = readdata->getVal(u,2);
-            wState   = readdata->getVal(u,3);
-            TState   = readdata->getVal(u,4);
+            uState   = readdata->getVal(u,uid);
+            vState   = readdata->getVal(u,vid);
+            wState   = readdata->getVal(u,wid);
+            TState   = readdata->getVal(u,Tid);
             VtotState = sqrt(uState*uState+vState*vState+wState*wState);
-            aState   = sqrt(1.4*287.05*TState);
-            MState = VtotState/aState;
-            interior->setVal(u,0,MState);
+//            aState   = sqrt(1.4*287.05*TState);
+//            MState  = VtotState/aState;
+            interior->setVal(u,0,TState);
         }
         
         delete readdata;
@@ -4316,6 +4333,7 @@ US3D* ReadUS3DGrid(const char* fn_conn, const char* fn_grid, int readFromStats, 
     
     Array<int>*    zdefs        = ReadDataSetFromGroupFromFile<int>(fn_grid,"zones","zdefs");
     Array<char>*  znames        = ReadDataSetFromGroupFromFile<char>(fn_grid,"zones","znames");
+    
     
     
     std::map<int,std::vector<int> > bnd_face_map;
