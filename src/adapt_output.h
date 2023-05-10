@@ -23,7 +23,7 @@ void OutputBoundaryID(Partition* Pa, int bndID, int rankie);
 
 void PlotBoundaryData(Array<char>* znames, Array<int>* zdefs);
 
-std::map<string,int> PlotVariableNames(Array<char>* zvnames);
+std::map<std::string,int> PlotVariableNames(Array<char>* zvnames);
 
 void OutputPartition(Partition* part, ParArray<int>* ien, Array<double>* H,  MPI_Comm comm);
 

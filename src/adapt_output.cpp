@@ -503,35 +503,43 @@ void PlotBoundaryData(Array<char>* znames, Array<int>* zdefs)
     
 }
 
-std::map<string,int> PlotVariableNames(Array<char>* zvnames)
+std::map<std::string,int> PlotVariableNames(Array<char>* zvnames)
 {
     int nrow = zvnames->getNrow();
     int ncol = zvnames->getNcol();
-    std::map<string,int> var_map;
-    std::cout << "printing variable names..." << std::endl;
+    std::map<std::string,int> var_map;
+    //std::cout << "printing variable names..." << std::endl;
 
     for(int i=0;i<nrow;i++)
     {
     	char* varname = new char[ncol];
     	
-    	std::vector<char> vname;
-    	
-    	
+     	std::vector<char> vname;
+        std::string woord;   	
+        int cntr=0;	
         for(int j=0;j<ncol;j++)
         {
-            std::cout << zvnames->getVal(i,j) << "";
+            //std::cout << zvnames->getVal(i,j);
             varname[j] = zvnames->getVal(i,j);
             char c = zvnames->getVal(i,j);
             char ref = ' ';
             if(c != ref)
-            {
-            	vname.push_back(zvnames->getVal(i,j));
+            {	
+		woord.push_back(c);
+		//std::cout << c << " ";
+            	cntr++;
             }
         }
-       
-        string svar  = vname.data();
+	//std::cout << std::endl;
         
-        var_map[svar]=i;
+        char* name_new = new char[cntr];
+	for(int u=0;u<cntr;u++)
+	{
+	    name_new[u] = zvnames->getVal(i,u);
+	}
+        string svar  = name_new;
+        
+        var_map[woord]=i;
         
         
     }

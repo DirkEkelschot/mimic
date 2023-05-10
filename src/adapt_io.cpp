@@ -3898,15 +3898,26 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
     
     std::map<string,int> var_map = PlotVariableNames(zvnames);
     
-    
+    if(rank == 0)
+    {
+  	std::map<std::string,int>::iterator itv;
+	for(itv=var_map.begin();itv!=var_map.end();itv++)
+	{
+	   std::cout << itv->first << " " << itv->second << std::endl;
+	}
+
+    }
+
     int uid = var_map["u"];
     int vid = var_map["v"];
     int wid = var_map["w"];
     int Tid = var_map["T"];
+  
+    if(rank == 0)
+    { 
     
-    
-    std::cout <<"variable IDs "<< uid << " " << vid << " " << wid << " " << Tid << std::endl;
-    
+    std::cout <<"variable IDs " << var_map.size() << " " << uid << " " << vid << " " << wid << " " << Tid << std::endl;
+    }
     int Nel_loc = ien->getNrow();
 
     int Nel = ien->getNglob();

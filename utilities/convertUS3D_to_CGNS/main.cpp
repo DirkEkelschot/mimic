@@ -24,8 +24,8 @@ int main(int argc, char* argv[])
 	int world_rank;
 	MPI_Comm_rank(comm, &world_rank);
 	
-    const char* fn_grid   = "inputs_prak/grid.h5";
-    const char* fn_conn   = "inputs_prak/conn.h5";
+    const char* fn_grid   = "inputs_cgns/grid.h5";
+    const char* fn_conn   = "inputs_cgns/conn.h5";
     int ReadFromStats = 0;
     US3D* us3d       = ReadUS3DGrid(fn_conn,fn_grid,ReadFromStats,comm,info);
     int nvrt_og      = us3d->xcn->getNrow();
