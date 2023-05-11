@@ -66,7 +66,9 @@ struct US3D{
     
     ParArray<double>* interior;
     Array<double>* ghost;
-    
+    std::map<int,std::string> znames_map;
+    std::map<std::string,int> znames_map_inv;
+    std::map<int,std::vector<int> > bref2zone;
     Array<char>* znames;
     Array<int>* zdefs;
     std::vector<int> bnd_m;

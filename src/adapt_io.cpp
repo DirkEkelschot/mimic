@@ -3857,6 +3857,26 @@ void WriteUS3DGridFromMMG_it0_NEW(MMG5_pMesh mmgMesh,MMG5_pSol mmgSol, US3D* us3
 //}
 
 
+int ProvideBoundaryID(int findex, std::map<int,std::vector<int> > ranges, int fref, int rank)
+{
+    std::map<int,std::vector<int> >::iterator it;
+    int retid;
+    for(it=ranges.begin();it!=ranges.end();it++)
+    {
+        int bndid = it->first;
+        int low    = it->second[0];
+        int high   = it->second[1];
+        
+        if(findex>=low && findex<=high)
+        {
+            retid = bndid;
+            break;
+        }
+    }
+    return retid;
+}
+
+
 int ProvideBoundaryRef(int findex, std::map<int,std::vector<int> > ranges, int fref, int rank)
 {
     std::map<int,std::vector<int> >::iterator it;
@@ -4045,11 +4065,16 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
     {
         bnd_m.push_back(zdefs->getVal(i,5));
         
-        low_range.push_back(zdefs->getVal(i,3)-1);
-        high_range.push_back(zdefs->getVal(i,4)-1);
+        low_range.push_back(zdefs->getVal(i,3));
+        high_range.push_back(zdefs->getVal(i,4));
         ref_range.push_back(zdefs->getVal(i,5));
-        ranges[zdefs->getVal(i,5)].push_back(zdefs->getVal(i,3)-1);
-        ranges[zdefs->getVal(i,5)].push_back(zdefs->getVal(i,4)-1);
+        
+        if(i>2)
+        {
+        	ranges[zdefs->getVal(i,5)].push_back(zdefs->getVal(i,3));
+        	ranges[zdefs->getVal(i,5)].push_back(zdefs->getVal(i,4));
+        }
+        
         
         gg++;
     }
@@ -4060,19 +4085,34 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
        PlotBoundaryData(znames,zdefs);
     }
     
-    std::map<int,char*> znames_map;
+    std::map<int,std::string> znames_map;
+    std::map<std::string,int> znames_map_inv;
+    std::map<int,std::vector<int> > bref2zone;
+    
     Array<char>* znames_new = new Array<char>(znames->getNrow(),znames->getNcol());
+    
     for(int i=0;i<zdefs->getNrow();i++)
     {
         if(zdefs->getVal(i,5)!=1)
         {
-            char* name = new char[znames->getNcol()];
-
+        	std::string name;
             for(int j=0;j<znames->getNcol();j++)
             {
-               name[j]=znames->getVal(i,j);
+               char ch = znames->getVal(i,j);
+               char chref = ' ';
+               if(ch!=chref)
+               {
+            	   name.push_back(ch);
+               }
             }
-            znames_map[zdefs->getVal(i,5)] = name;
+            
+            if(i>2)
+            {
+            	bref2zone[zdefs->getVal(i,5)].push_back(i);
+            	znames_map[i]        = name;
+            	znames_map_inv[name] = i;
+            }
+            
         }
     }
     
@@ -4087,17 +4127,17 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
        znames_new->setVal(1,j,znames->getVal(1,j));
     }
     
-    std::map<int,char*>::iterator itch;
-    int c=2;
-    for(itch=znames_map.begin();itch!=znames_map.end();itch++)
-    {
-        int bid = itch->first;
-        for(int j=0;j<znames->getNcol();j++)
-        {
-            znames_new->setVal(c,j,znames_map[bid][j]);
-        }
-        c++;
-    }
+//    std::map<int,std::string>::iterator itch;
+//    int c=2;
+//    for(itch=znames_map.begin();itch!=znames_map.end();itch++)
+//    {
+////        int bid = itch->first;
+////        for(int j=0;j<znames->getNcol();j++)
+////        {
+////            znames_new->setVal(c,j,znames_map[bid][j]);
+////        }
+//        c++;
+//    }
     
     int i,j;
     int nglob = ien->getNglob();
@@ -4287,25 +4327,31 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
     elTypes->setVal(3,0,check_hex);
     
     delete[] OffcolTetCount;
-    us3d->xcn           = xcn;
-    us3d->elTypes       = elTypes;
-    us3d->ien           = ien_copy;
-    us3d->ief           = ief_copy;
-    us3d->iee           = iee_copy;
-    us3d->iet           = iet;
-    us3d->ie_Nv         = ie_Nv;
-    us3d->ie_Nf         = ie_Nf;
-    us3d->if_Nv         = if_Nv_copy;
-
-    us3d->ifn           = ifn_copy;
-    us3d->if_ref        = if_ref_copy;
-    us3d->ife           = ife_copy;
-    us3d->ie_tetCnt     = ie_tetCnt;
-    us3d->interior      = interior;
-    us3d->ghost         = ghost;
     
-    us3d->znames        = znames_new;
-    us3d->zdefs         = zdefs;
+    us3d->xcn            = xcn;
+    us3d->elTypes        = elTypes;
+    us3d->ien            = ien_copy;
+    us3d->ief            = ief_copy;
+    us3d->iee            = iee_copy;
+    us3d->iet            = iet;
+    us3d->ie_Nv          = ie_Nv;
+    us3d->ie_Nf          = ie_Nf;
+    us3d->if_Nv          = if_Nv_copy;
+
+    us3d->ifn            = ifn_copy;
+    us3d->if_ref         = if_ref_copy;
+    us3d->ife            = ife_copy;
+    us3d->ie_tetCnt      = ie_tetCnt;
+    us3d->interior       = interior;
+    us3d->ghost          = ghost;
+    
+    
+    us3d->bref2zone		 = bref2zone;
+    us3d->znames_map	 = znames_map;
+    us3d->znames_map_inv = znames_map_inv;
+                	
+    us3d->znames         = znames_new;
+    us3d->zdefs          = zdefs;
 
     //delete zdefs;
     delete znames;
@@ -4476,12 +4522,12 @@ US3D* ReadUS3DGrid(const char* fn_conn, const char* fn_grid, int readFromStats, 
     {
         int fref   = ifn->getVal(i,7);
         int index  = i + foffset;
-        int fref2  = ProvideBoundaryRef(index,ranges,fref,rank);
+        //int fref2  = ProvideBoundaryRef(index,ranges,fref,rank);
         
-        if(fref!=fref2)
-        {
-            fref=fref2;
-        }
+//        if(fref!=fref2)
+//        {
+//            fref=fref2;
+//        }
         
         if_ref_copy->setVal(i,0,ifn->getVal(i,7));
         if_Nv_copy->setVal(i,0,ifn->getVal(i,0));

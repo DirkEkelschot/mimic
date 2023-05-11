@@ -26,7 +26,7 @@ Partition::Partition(ParArray<int>* ien, ParArray<int>* iee, ParArray<int>* ief,
     eloc = 0;
     vloc = 0;
     floc = 0;
-
+    
     // This function takes care of the send and receive operations in order to send the appropriate elements and corresponding vertices to the appropriate rank.
     // These operations are based on the fact that part holds the desired partitioning of the elements. the spread of the vertices is based on the fact that all the vertices stored in xcn are distributed "uniformly";
 
@@ -45,7 +45,13 @@ Partition::Partition(ParArray<int>* ien, ParArray<int>* iee, ParArray<int>* ief,
 		for(int j=0;j<ncol;j++)
 		{
 			int elid   = ife->getVal(i,j);
-			int rankie = part_global->getVal(elid,0);
+			int rankie = rank;
+			if(elid < part_global->getNrow())
+			{
+				rankie = part_global->getVal(elid,0);
+			}
+			
+			
 			iferank->setVal(i,j,rankie);
 		}
 	}
@@ -64,7 +70,7 @@ Partition::Partition(ParArray<int>* ien, ParArray<int>* iee, ParArray<int>* ief,
 //
     //delete iferank;
     itel_locadj = 0;
-
+    
     //=====================================================================================
     //======================================
     // Communicate the first adjaceny layer;
@@ -99,7 +105,7 @@ Partition::Partition(ParArray<int>* ien, ParArray<int>* iee, ParArray<int>* ief,
         UpdateFace2EntityPerPartition_V2(ife,       adjElemLayer_la, 2, ief_part_map, ife_part_map,         comm);
         UpdateFace2EntityPerPartition_V2(iferank,   adjElemLayer_la, 2, ief_part_map, if_Erank_part_map,    comm);
         UpdateFace2EntityPerPartition_V2(if_Nv,     adjElemLayer_la, 2, ief_part_map, if_Nv_part_map,       comm);
-//
+
         adjElemLayer =  UpdateAdjacentElementLayer(ien, adjElemLayer_la, iee_part_map->i_map, part, xcn, U, comm);
     }
     
@@ -182,7 +188,7 @@ Partition::Partition(ParArray<int>* ien, ParArray<int>* iee, ParArray<int>* ief,
     CreatePartitionDomainTest();
     
     ComputeNode2NodeMap();
-    /**/
+    
     //CreatePartitionDomain();
 //
     //nLocAndAdj_Elem = LocAndAdj_Elem.size();

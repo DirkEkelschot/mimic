@@ -726,12 +726,13 @@ int main(int argc, char** argv)
     clock_t t;
     double tn = 0.0;
     t = clock();
-    
+    std::cout << "Start of partitioning..."<<std::endl;
     Partition* P = new Partition(us3d->ien, us3d->iee, us3d->ief, us3d->ie_Nv , us3d->ie_Nf,
                                  us3d->ifn, us3d->ife, us3d->if_ref, us3d->if_Nv,
                                  parmetis_pstate, ien_pstate, ife_pstate,
                                  us3d->xcn, xcn_pstate, Ui, us3d->ie_tetCnt, comm);
     
+    std::cout << "End of partitioning..."<<std::endl;
     std::vector<int> LocElem                    = P->getLocElem();
     std::vector<double> Uvaria                  = P->getLocElemVaria();
     std::map<int,Array<double>*> Uvaria_map     = P->getLocAndAdjElemVaria();
@@ -1030,7 +1031,7 @@ int main(int argc, char** argv)
     std::map<int,Array<double>* >::iterator hessit;
     std::map<int,double>::iterator itn2n;
     int howmany = 0;
-    std::cout << "hess_vmap size =  " << hess_vmap.size() << std::endl; 
+    //std::cout << "hess_vmap size =  " << hess_vmap.size() << std::endl; 
     for(hessit=hess_vmap.begin();hessit!=hess_vmap.end();hessit++)
     {
         int gvid       = hessit->first;
@@ -3243,7 +3244,7 @@ int main(int argc, char** argv)
             
             if(rh[fid] == 0)
             {
-            std::cout <<"Found the face -> " << fid << " " << world_rank << " " << lh[fid] << std::endl;
+            	std::cout <<"Found the face -> " << fid << " " << world_rank << " " << lh[fid] << std::endl;
             }
                 ftot++;
             }
@@ -3794,6 +3795,7 @@ int main(int argc, char** argv)
                     Vf->x = LocVerts[lvp]->x;
                     Vf->y = LocVerts[lvp]->y;
                     Vf->z = LocVerts[lvp]->z;
+                    
                     VcF->x = VcF->x + Vf->x;
                     VcF->y = VcF->y + Vf->y;
                     VcF->z = VcF->z + Vf->z;
@@ -4197,8 +4199,6 @@ int main(int argc, char** argv)
             if(Nbfp!=0)
             {
                 int sk = 0;
-
-
                 
                 for(int q=0;q<Nbfp;q++)
 				{
@@ -4358,7 +4358,7 @@ int main(int argc, char** argv)
                     VcF->x = 0.0;
                     VcF->y = 0.0;
                     VcF->z = 0.0;
-                    flag = -1;
+                    flag   = -1;
 
                     for(int w=0;w<3;w++)
                     {
@@ -4422,7 +4422,7 @@ int main(int argc, char** argv)
 
                     if(orient0 < 0.0)
                     {
-                        std::cout << "Weve got negative faces " << orient0 << std::endl;
+                        std::cout << "Weve got negative faces " << orient0 << " " << bc_id << std::endl;
                     }
                     
                     Vfaces.clear();
@@ -4518,6 +4518,7 @@ int main(int argc, char** argv)
         std::map<int,int>::iterator itr;
         for(itr=bcsizing.begin();itr!=bcsizing.end();itr++)
         {
+        	
             int bnd_ref  = itr->first;
             int bnd_size = itr->second;
             face_end = face_start+bnd_size-1;
@@ -4538,7 +4539,6 @@ int main(int argc, char** argv)
         
         if(world_rank == 0)
         {
-           
             PlotBoundaryData(us3d->znames,adapt_zdefs);
         }
         
