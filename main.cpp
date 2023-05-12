@@ -726,14 +726,12 @@ int main(int argc, char** argv)
     clock_t t;
     double tn = 0.0;
     t = clock();
-    std::cout << "Start of partitioning..."<<std::endl;
     
     Partition* P = new Partition(us3d->ien, us3d->iee, us3d->ief, us3d->ie_Nv , us3d->ie_Nf,
                                  us3d->ifn, us3d->ife, us3d->if_ref, us3d->if_Nv,
                                  parmetis_pstate, ien_pstate, ife_pstate,
                                  us3d->xcn, xcn_pstate, Ui, us3d->ie_tetCnt, comm);
     
-    std::cout << "End of partitioning..."<<std::endl;
     std::vector<int> LocElem                    = P->getLocElem();
     std::vector<double> Uvaria                  = P->getLocElemVaria();
     std::map<int,Array<double>*> Uvaria_map     = P->getLocAndAdjElemVaria();
@@ -1381,9 +1379,6 @@ int main(int argc, char** argv)
 			}
     	}
     }
-    
-    std::cout << "check map sizes = " << face2ref.size() << " " << face2zone.size() << std::endl;
-
     
     
     std::map<int,std::vector<int> >::iterator bndtest;

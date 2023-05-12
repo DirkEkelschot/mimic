@@ -1,17 +1,13 @@
-PARMETIS_HOME = /Users/dekelsch/Software/parmetis-4.0.3/parmetis-install
-METIS_HOME = /Users/dekelsch/Software/parmetis-4.0.3/metis/metis-install
-HDF5_HOME = /Users/dekelsch/Software/hdf5-1.12.0/hdf5-install-mpich
-MPICH_HOME = /Users/dekelsch/Software/mpich-3.3.1/mpich-3.1.1-install
-PARMMG_HOME = /Users/dekelsch/Software/ParMmg_master/build
-MMG_HOME = /Users/dekelsch/Software/ParMmg_master/build/Mmg-prefix/src/Mmg-build
-XML_HOME = /Users/dekelsch/Software/tinyxml
-CGNS_HOME = /Users/dekelsch/Software/CGNS-4.0.0/build/src
-BOOST_HOME = /Users/dekelsch/Software/boost_1_71_0/boost-install
+PARMMG_HOME = /home1/dekelsch/Software/parmmg_1.4/build
+MMG_HOME = /home1/dekelsch/Software/parmmg_1.4/build/Mmg-prefix/src/Mmg-build
+PARMETIS_HOME = /nobackupp19/dekelsch/parmetis-4.0.3/parmetis-install
+METIS_HOME = /nobackupp19/dekelsch/parmetis-4.0.3/metis/metis-install
+CGNS_HOME = /nobackupp19/dekelsch/CGNS-3.3.0/src/install
+BOOST_HOME = /home1/dekelsch/Software/boost_1_71_0
+XML_HOME = /home1/dekelsch/Software/tinyxml
+CXXFLAGS += -std=c++11 -g -DMPI_NO_CPPBIND -I$(MMG_HOME)/include -I$(PARMMG_HOME)/include -I$(PARMETIS_HOME)/include -I$(METIS_HOME)/include -I$(BOOST_HOME) -I$(XML_HOME) -I$(CGNS_HOME)/include
+LDFLAGS += -L$(MMG_HOME)/lib -L$(PARMMG_HOME)/lib -L$(PARMETIS_HOME)/lib -L$(METIS_HOME)/lib -L$(BOOST_HOME)/stage/lib -L$(XML_HOME) -L$(CGNS_HOME)/lib
 
-CXXFLAGS += -no_compact_unwind -std=c++11 -I$(MMG_HOME)/include -I$(PARMMG_HOME)/include -I$(PARMETIS_HOME)/include -I$(MPICH_HOME)/include -I$(HDF5_HOME)/include -I$(METIS_HOME)/include -I$(XML_HOME) -I$(BOOST_HOME) -I$(CGNS_HOME)
+LDLIBS += -lmpi -lparmetis -lmetis -lhdf5 -mkl -lparmmg -lmmg -lcgns
 
-LDFLAGS += -L$(MMG_HOME)/lib -L$(PARMMG_HOME)/lib -L$(PARMETIS_HOME)/lib -L$(METIS_HOME)/lib -L$(MPICH_HOME)/lib -L$(HDF5_HOME)/lib -L$(XML_HOME) -L$(BOOST_HOME)/stage/lib
-LDLIBS += -lmetis -lparmetis -lhdf5 -lmpi -llapack -lblas -lmmg -lparmmg
-
-CC = /Users/dekelsch/Software/mpich-3.3.1/mpich-3.1.1-install/bin/mpic++
-
+CC = icpc
