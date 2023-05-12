@@ -521,6 +521,7 @@ Array<T>* ReadDataSetFromFileInParallelToRoot(const char* file_name, const char*
 //
 //    A_pt->offset = pv->offsets[rank];
 //    A_pt->nglob  = nrow;
+    
     ParArray<T>* parA     = new ParArray<T>(N,ncol,comm);
     
     
@@ -693,7 +694,9 @@ void WriteUS3DGridFromMMG_it0_NEW(MMG5_pMesh mmgMesh,MMG5_pSol mmgSol, US3D* us3
 void WriteUS3DGridFromMMG_itN(MMG5_pMesh mmgMesh,MMG5_pSol mmgSol, US3D* us3d);
 
 //US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data, MPI_Comm comm, MPI_Info info);
-int ProvideBoundaryRef(int findex, std::map<int,std::vector<int> > ranges, int fref);
+int ProvideBoundaryRef(int findex, std::map<int,std::vector<int> > ranges);
+
+int ProvideBoundaryID(int findex, std::map<int,std::vector<int> > ranges);
 
 US3D* ReadUS3DGrid(const char* fn_conn, const char* fn_grid, int ReadFromStats, MPI_Comm comm, MPI_Info info);
 

@@ -3,7 +3,7 @@
 #include "adapt_datastruct.h"
 #include "adapt_distri_parstate.h"
 #include "adapt_schedule.h"
-
+#include "adapt_io.h"
 #ifndef ADAPT_DISTRI_PRISMATICLAYER_H
 #define ADAPT_DISTRI_PRISMATICLAYER_H
 #define MIN(a,b) (((a)<(b))?(a):(b))
@@ -25,6 +25,7 @@ class PrismaticLayer {
                        std::map<int,int> tag2locV,
                        std::vector<Vert*> locVerts,
                        std::map<int,int> shellvert2ref_glob,
+					   std::map<int,std::vector<int> > range_id, 
                        MPI_Comm comm);
         
         ~PrismaticLayer();
@@ -46,6 +47,7 @@ class PrismaticLayer {
         std::map<int,int> getVertexTag2GlobalMap();
         std::map<int,int> getTag2Element4TetPrismInterface();
         std::map<int,std::vector<int> > getBoundaryCondition2FaceID();
+        std::map<int,std::vector<int> > getBoundaryConditionZone2FaceID();
         Array<int>* getElementType();
         std::map<int,int> getSharedVertexMap();
    private:
@@ -57,6 +59,7 @@ class PrismaticLayer {
         std::map<int,int> lhp;
         std::map<int,int> rhp;
         std::map<int,std::vector<int> > ref2bcface;
+        std::map<int,std::vector<int> > zone2bcface;
         std::map<int,int> tag2element_TetPrismInterface;
         std::map<int,int> sharedVmap;
         Array<double>* xcn_int;
@@ -64,7 +67,7 @@ class PrismaticLayer {
         std::map<int,int> SharedVertsNotOwned;
         std::map<int,int> tagV2globV;
         std::map<int,int> globV2tagV;
-
+        
         Array<int>* iet;
 };
 

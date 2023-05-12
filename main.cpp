@@ -727,6 +727,7 @@ int main(int argc, char** argv)
     double tn = 0.0;
     t = clock();
     std::cout << "Start of partitioning..."<<std::endl;
+    
     Partition* P = new Partition(us3d->ien, us3d->iee, us3d->ief, us3d->ie_Nv , us3d->ie_Nf,
                                  us3d->ifn, us3d->ife, us3d->if_ref, us3d->if_Nv,
                                  parmetis_pstate, ien_pstate, ife_pstate,
@@ -1363,7 +1364,28 @@ int main(int argc, char** argv)
     std::map<int,int> shellvertTag2ref2;
 
     
+    std::map<int,int>::iterator itf;
+    std::map<int,int> face2zone;
+    for(itf=face2ref.begin();itf!=face2ref.end();itf++)
+    {
+    	int faid  		= itf->first;
+    	if(tetF2hybF.find(faid)!=tetF2hybF.end())
+    	{
+    		int fatag		= tetF2hybF[faid];
+			int fzone 		= ProvideBoundaryID(fatag,us3d->ranges_id);
+			face2zone[faid] = fzone;
+			
+			if(face2ref[faid]==13)
+			{
+				face2zone[faid] = 13;
+			}
+    	}
+    }
+    
+    std::cout << "check map sizes = " << face2ref.size() << " " << face2zone.size() << std::endl;
 
+    
+    
     std::map<int,std::vector<int> >::iterator bndtest;
     
     std::map<int,int>::iterator itt;
@@ -1375,10 +1397,10 @@ int main(int argc, char** argv)
     	shellvertTag2ref[vhyb] = ref;
     }
     
-    //int icomm;
-    //Based on the new local tetrahedra mesh, we output a tecplot file per processor that has the geometry of the computational domain that is owned by world_rank.
+    // int icomm;
+    // Based on the new local tetrahedra mesh, we output a tecplot file per processor that has the geometry of the computational domain that is owned by world_rank.
     
-    //OutputTetrahedralMeshOnPartition(tmesh,comm);
+    // OutputTetrahedralMeshOnPartition(tmesh,comm);
     
     Array<int>* ien_part_tetra   = element2node;
     int nTetrahedra              = element2node->getNrow();
@@ -1390,17 +1412,18 @@ int main(int argc, char** argv)
     
     PrismaticLayer* prsmLyr = new PrismaticLayer(prisms, ief_map, ifn_map, ife_map, ifref_map,
                                                  if_Nv_map, iferank_map, ushell, tag2locVrtMap,
-												 LocVerts, shellvertOriginalTag2ref_Glob, comm);
+												 LocVerts, shellvertOriginalTag2ref_Glob, us3d->ranges_id, comm);
     
     nPrisms                                                 = prisms.size();
     DistributedParallelState* distPrismIN                   = new DistributedParallelState(nPrisms,comm);
     int nPrismsTot                                          = distPrismIN->getNel();
-    
     std::map<int,int> tagE2gE                               = prsmLyr->getTag2GlobalElementMap();
     std::map<int,int> gE2tagE                               = prsmLyr->getGlobal2TagElementMap();
     std::map<int,int> rhp                                   = prsmLyr->getRightElementGlobalIDForFaces();
     std::map<int,int> lhp                                   = prsmLyr->getLeftElementGlobalIDForFaces();
-    std::map<int,std::vector<int> > pbcmap                  = prsmLyr->getBoundaryCondition2FaceID();
+    //std::map<int,std::vector<int> > pbcmap                  = prsmLyr->getBoundaryCondition2FaceID();
+    std::map<int,std::vector<int> > pbcmap                  = prsmLyr->getBoundaryConditionZone2FaceID();
+
     std::map<int,int> tag2element_shell                     = prsmLyr->getTag2Element4TetPrismInterface();
     std::map<int,std::vector<int> > shared_face2node_prism  = prsmLyr->getOwnedSharedFace2NodeMap();
     std::map<int,std::vector<int> > int_face2node_prism     = prsmLyr->getInternalFace2NodeMap();
@@ -1410,7 +1433,7 @@ int main(int argc, char** argv)
     Array<double>* xcn_prisms_shared                        = prsmLyr->getSharedCoordinates();
     std::map<int,int> SharedVertsNotOwned                   = prsmLyr->getNotOwnedSharedVerticesMap();
     Array<int>* parmmg_iet_prisms                           = prsmLyr->getElementType();
-    //std::map<int,int> sharedVmap                            = prsmLyr->getSharedVertexMap();
+    //std::map<int,int> sharedVmap                          = prsmLyr->getSharedVertexMap();
 
     
     DistributedParallelState* distPrismIntVerts = new DistributedParallelState(xcn_prisms_int->getNrow(),comm);
@@ -1565,9 +1588,16 @@ int main(int argc, char** argv)
         v1l     = globV2locV[v1];
         v2l     = globV2locV[v2];
         
-        if(face2ref.find(faceID)!=face2ref.end())
+        //int fzone = ProvideBoundaryID(facetag,us3d->ranges_id);
+        
+        if(face2zone.find(faceID)!=face2zone.end())
         {
-            refer   = face2ref[faceID];
+            refer   = face2zone[faceID];
+            
+            if(refer == 3)
+            {
+            	refer = 0;
+            }
         }
         else
         {
@@ -2231,7 +2261,7 @@ int main(int argc, char** argv)
         FaceSetPointer m_PMMG_ShellFacePointer;
         
         
-        int faceCovered = 0;
+        int faceCovered  = 0;
         double tolerance = 1.0e-16;
         std::vector<int> vref1;
         
@@ -2974,9 +3004,9 @@ int main(int argc, char** argv)
                     if(testFace2RefPointer != m_PMMG_Face2RefPointer.end())
                     {
                         int FaceRef         = (*testFace2RefPointer)->GetFaceRef();
-                        
-                        BoundaryFaces[fid] = f2ePointer;
-                        //fmBnd[fid]          = fce;
+                        //int FaceRef_ZoneID  = (*testFace2RefPointer)->GetFaceZone();
+                        BoundaryFaces[fid]  = f2ePointer;
+                        //fmBnd[fid]        = fce;
                         lhbnd[fid]          = curElID;
                         bcmap[FaceRef].push_back(fid);
                     }
@@ -3012,16 +3042,12 @@ int main(int argc, char** argv)
             OutputMesh_PMMG_V2(nVerticesOUT,vertOUT,nTetrahedraOUT,tetraOUT,filename);
         }
 
-        
         //std::cout << "BoundaryFaces " << BoundaryFaces.size() << std::endl;
-        
-        
         
         if(m_PMMG_ShellFace2PrismPointer.size()!=m_PMMG_ShellFacePointer.size())
         {
             std::cout << "NOTIFIED !!! " << world_rank << " --> " << rhshell.size() << " " << fmShell.size() << " " << hellofound << " " << m_PMMG_ShellFace2PrismPointer.size() << " " << m_PMMG_ShellFacePointer.size() << std::endl;
         }
-       
         
         std::map<int,int> tag2shelltag_glob = AllGatherMap(tag2shelltag,comm);
         std::map<int,int> shelltag2tag_glob = AllGatherMap(shelltag2tag,comm);
@@ -3039,10 +3065,7 @@ int main(int argc, char** argv)
         std::map<int,int> tag2glob;
         std::map<int,int> glob2tag;
         
-        
-        
         int nPrismVerts_tmp = distPrismIntVerts->getNel()+distPrismShaVerts->getNel();
-        
 
         for(iitm=NonSharedVrts.begin();iitm!=NonSharedVrts.end();iitm++)
         {
@@ -3053,7 +3076,6 @@ int main(int argc, char** argv)
             double yc = vertOUT[(lvert-1)*3+1];
             double zc = vertOUT[(lvert-1)*3+2];
 
-            
             xcn_parmmg->setVal(vert,0,xc);
             xcn_parmmg->setVal(vert,1,yc);
             xcn_parmmg->setVal(vert,2,zc);
@@ -3108,7 +3130,6 @@ int main(int argc, char** argv)
             {
                 originalGlobSharedVrtID[ig] = 0;
                 updateGlobSharedVrtID[ig]   = 0;
-                
             }
             ig++;
         }
@@ -3183,7 +3204,6 @@ int main(int argc, char** argv)
                 VcF->z = VcF->z + Vf->z;
                 
                 Vfaces.push_back(Vf);
-                
                 
                 if(LocationSharedVert_update.find(vertexID)!=LocationSharedVert_update.end())
                 {
@@ -3284,6 +3304,7 @@ int main(int argc, char** argv)
         
         std::map<int,std::vector<int> > sendEl;
         std::map<int,std::vector<int> >::iterator rcvit;
+        
         for(rcvit=recv_ids.begin();rcvit!=recv_ids.end();rcvit++)
         {
             int frank = rcvit->first;
@@ -3503,6 +3524,7 @@ int main(int argc, char** argv)
         int tellie      = 0;
         int ormin       = 0;
         int tellie2     = 0;
+        
         for(itm=fmShell.begin();itm!=fmShell.end();itm++)
         {
             fid             = itm->first;
@@ -3592,6 +3614,7 @@ int main(int argc, char** argv)
                 elRh = rh[fid];
                 elLh = lhshell[fid];
                 std::cout << "NotFound! -> " << rh[fid] << " " << lhshell[fid] << " " << rhshell.size() << " " << fmShell.size() << " " << std::endl;
+                
                 for(int b=0;b<3;b++)
                 {
                     int lvert = glob2locVid[itm->second[b]];
@@ -4056,7 +4079,7 @@ int main(int argc, char** argv)
             ifnOUT_prism->setVal(fptot,6,lhp[gfid]);
             ifnOUT_prism->setVal(fptot,7,2);
             
-	    if(rhp[gfid] == 0)
+            if(rhp[gfid] == 0)
             {
                 std::cout <<"Found the face -> prism shared " << gfid << " " << world_rank << " " << lhp[gfid] << std::endl;
             }
@@ -4085,6 +4108,8 @@ int main(int argc, char** argv)
         int ii = 0;
         int Nbf;
         int nloc_bcs_p = pbcmap.size();
+        
+        //std::cout << "nloc_bcs_p " << world_rank << " " << nloc_bcs_p << std::endl;
         std::set<int> bcids_tot;
         
         std::vector<int> Lbcs;
@@ -4177,6 +4202,23 @@ int main(int argc, char** argv)
         for(int i=0;i<bcsToT.size();i++)
         {
             int bc_id = bcid[i];
+            
+            int bc_reference=-1;
+            
+            
+            if(us3d->zone2bcref.find(bc_id)!=us3d->zone2bcref.end())
+            {
+            	bc_reference = us3d->zone2bcref[bc_id];
+            	//std::cout << i << " bc_reference " << bc_reference << " " << bc_id << std::endl;
+            }
+//            else
+//            {
+//            	bc_reference=bc_id;
+//            	std::cout << i << " bc_reference " << bc_reference << " " << bc_id << std::endl;
+//            }
+            
+            
+            
             DistributedParallelState* distBCi = new DistributedParallelState(nlbc[i],comm);
             int NelLoc_bci = nlbc[i];
             int NelTot_bci = distBCi->getNel();
@@ -4211,6 +4253,7 @@ int main(int argc, char** argv)
                     std::vector<int> face_tmp(nppf);
                     std::vector<int> fce(nppf);
                     std::vector<Vert*> Vfaces;
+                    
                     VcF->x = 0.0;
                     VcF->y = 0.0;
                     VcF->z = 0.0;
@@ -4338,7 +4381,9 @@ int main(int argc, char** argv)
                     
 					ifn_bc_i->setVal(fbc,5,0);
 					ifn_bc_i->setVal(fbc,6,lhp[bcface]);
-					ifn_bc_i->setVal(fbc,7,bc_id);
+					
+					//std::cout << "bc_reference "<< bc_reference << std::endl;
+					ifn_bc_i->setVal(fbc,7,bc_reference);
 					
 					fbc++;
 				}
@@ -4422,15 +4467,15 @@ int main(int argc, char** argv)
 
                     if(orient0 < 0.0)
                     {
-                        std::cout << "Weve got negative faces " << orient0 << " " << bc_id << std::endl;
+                        std::cout << "Weve got negative faces " << orient0 << " " << bc_reference << std::endl;
                     }
                     
                     Vfaces.clear();
-                    
+                    //std::cout << "bc_reference "<< bc_reference << std::endl;
                     ifn_bc_i->setVal(fbc,4,0);
                     ifn_bc_i->setVal(fbc,5,0);
                     ifn_bc_i->setVal(fbc,6,lhbnd[bcface]);
-                    ifn_bc_i->setVal(fbc,7,bc_id);
+                    ifn_bc_i->setVal(fbc,7,bc_reference);
                     
                     fbc++;
                 }
@@ -4515,11 +4560,22 @@ int main(int argc, char** argv)
         int nb  = 0;
         int face_start = nTotIntFaces+1;
         int face_end;
+        int bnd_zone;
         std::map<int,int>::iterator itr;
+        std::map<int,char*> newzone_2_name;
+        std::map<int,int> newzone2oldzone;
         for(itr=bcsizing.begin();itr!=bcsizing.end();itr++)
         {
-        	
-            int bnd_ref  = itr->first;
+            int bnd_zone  		  = itr->first;
+            int bnd_ref   		  = bnd_zone;
+            newzone2oldzone[nb+3] = bnd_zone;
+            
+            if(us3d->zone2bcref.find(bnd_zone)!=us3d->zone2bcref.end())
+            {
+            	bnd_ref = us3d->zone2bcref[bnd_ref];
+            	newzone_2_name[nb+3]=us3d->zone2name[bnd_zone];
+            }
+            
             int bnd_size = itr->second;
             face_end = face_start+bnd_size-1;
             adapt_zdefs->setVal(3+nb,0,13);
@@ -4530,12 +4586,12 @@ int main(int argc, char** argv)
             adapt_zdefs->setVal(3+nb,5,bnd_ref);
             adapt_zdefs->setVal(3+nb,6,2);
             face_start = face_end+1;
-
+            
+            
             nb++;
             qq++;
         }
-        
-        
+                
         
         if(world_rank == 0)
         {
@@ -4845,11 +4901,11 @@ int main(int argc, char** argv)
         status = H5Dwrite(dset_zdefs_id, H5T_NATIVE_INT, memspace, filespace, plist_id, adapt_zdefs->data);
         //====================================================================================
         
-        dimsf_att = us3d->znames->getNrow();
-        filespace = H5Screate_simple(1, &dimsf_att, NULL);
-        type =  H5Tcopy (H5T_C_S1);
-        ret  = H5Tset_size (type, 20);
-        ret  = H5Tset_strpad(type, H5T_STR_SPACEPAD);
+        dimsf_att 			 = us3d->znames->getNrow();
+        filespace 			 = H5Screate_simple(1, &dimsf_att, NULL);
+        type      			 = H5Tcopy (H5T_C_S1);
+        ret       	         = H5Tset_size (type, 20);
+        ret       			 = H5Tset_strpad(type, H5T_STR_SPACEPAD);
         hid_t dset_znames_id = H5Dcreate(group_zones_id, "znames", type, filespace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
         H5Sclose(filespace);

@@ -64,6 +64,9 @@ struct US3D{
     std::map<std::set<int>,int> quad_ref_map;
     std::map<int,int> vert_ref_map;
     
+    std::map<int,std::vector<int> > ranges_id;
+    std::map<int,int> zone2bcref;
+    std::map<int,char*> zone2name;
     ParArray<double>* interior;
     Array<double>* ghost;
     std::map<int,std::string> znames_map;

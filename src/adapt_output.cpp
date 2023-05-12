@@ -482,7 +482,7 @@ void OutputBoundaryID(Partition* Pa, int bndID, int rankie)
 
 void PlotBoundaryData(Array<char>* znames, Array<int>* zdefs)
 {
-    int nrow = zdefs->getNrow();
+    int nrow = znames->getNrow();
     int ncol = znames->getNcol();
 
     std::cout << "printing boundary data..." << nrow << " " << zdefs->getNcol() << std::endl;

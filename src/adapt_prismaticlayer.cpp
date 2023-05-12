@@ -14,6 +14,7 @@ PrismaticLayer::PrismaticLayer(std::map<int,std::vector<int> > elements,
                                std::map<int,int> tag2locV,
                                std::vector<Vert*> locVerts,
                                std::map<int,int> shellvert2ref_glob,
+							   std::map<int,std::vector<int> > ranges_id, 
                                MPI_Comm comm )
 {
     int world_size;
@@ -32,6 +33,7 @@ PrismaticLayer::PrismaticLayer(std::map<int,std::vector<int> > elements,
     std::map<int,int> sharedFaces;
     std::set<int> gfid_set;
     int ref = 0;
+    int fzone = -1;
     int nLocalFaces = 0;
     int nLocalVerts = 0;
     std::set<int> ufaces;
@@ -364,6 +366,7 @@ PrismaticLayer::PrismaticLayer(std::map<int,std::vector<int> > elements,
         
         for(int q=0;q<nFaces;q++)
         {
+        	int fzone = 3;
             gfid = ief_part_map[gEl][q];
             int nfvrts = if_Nv_part_map[gfid];
             // Setting the reference to 13 for the shell faces;
@@ -375,6 +378,10 @@ PrismaticLayer::PrismaticLayer(std::map<int,std::vector<int> > elements,
             else
             {
                 ref                 = if_ref_part_map[gfid];
+                
+                
+                //std::cout<< "fzone " << world_rank << " " << fzone << std::endl;
+                
             }
             
             if(facemap.find(gfid)==facemap.end())
@@ -416,7 +423,8 @@ PrismaticLayer::PrismaticLayer(std::map<int,std::vector<int> > elements,
                             {
                                 fn_tag[n] = ifn_part_map[gfid][n];
                                 
-                                if(SharedVertsOwned.find(fn_tag[n])==SharedVertsOwned.end() && shellvert2ref_glob.find(fn_tag[n])==shellvert2ref_glob.end())
+                                if(SharedVertsOwned.find(fn_tag[n])==SharedVertsOwned.end() 
+                                		&& shellvert2ref_glob.find(fn_tag[n])==shellvert2ref_glob.end())
                                 {
                                     if(SharedVertsNotOwned.find(fn_tag[n])==SharedVertsNotOwned.end())
                                     {
@@ -473,6 +481,10 @@ PrismaticLayer::PrismaticLayer(std::map<int,std::vector<int> > elements,
                     if(ref != 2 && ref!=13)
                     {
                         ref2bcface[ref].push_back(gfid);
+                        
+                        fzone = ProvideBoundaryID(gfid,ranges_id);
+                        
+                        zone2bcface[fzone].push_back(gfid);
                         
                         if(BoundaryFace2Node.find(gfid)==BoundaryFace2Node.end())
                         {
@@ -857,6 +869,11 @@ std::map<int,std::vector<int> > PrismaticLayer::getBoundaryCondition2FaceID()
     return ref2bcface;
 }
 
+std::map<int,std::vector<int> > PrismaticLayer::getBoundaryConditionZone2FaceID()
+{
+    return zone2bcface;
+}
+
 Array<int>* PrismaticLayer::getElementType()
 {
     return iet;
@@ -879,7 +896,7 @@ PrismaticLayer::~PrismaticLayer()
     ref2bcface.clear();
     tag2element_TetPrismInterface.clear();
     sharedVmap.clear();
-
+    zone2bcface.clear();
     SharedVertsNotOwned.clear();
 
     tagV2globV.clear();
