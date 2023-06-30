@@ -1,13 +1,21 @@
-PARMMG_HOME = /home1/dekelsch/Software/parmmg_1.4/build
-MMG_HOME = /home1/dekelsch/Software/parmmg_1.4/build/Mmg-prefix/src/Mmg-build
-PARMETIS_HOME = /nobackupp19/dekelsch/parmetis-4.0.3/parmetis-install
-METIS_HOME = /nobackupp19/dekelsch/parmetis-4.0.3/metis/metis-install
-CGNS_HOME = /nobackupp19/dekelsch/CGNS-3.3.0/src/install
-BOOST_HOME = /home1/dekelsch/Software/boost_1_71_0
-XML_HOME = /home1/dekelsch/Software/tinyxml
-CXXFLAGS += -std=c++11 -g -DMPI_NO_CPPBIND -I$(MMG_HOME)/include -I$(PARMMG_HOME)/include -I$(PARMETIS_HOME)/include -I$(METIS_HOME)/include -I$(BOOST_HOME) -I$(XML_HOME) -I$(CGNS_HOME)/include
-LDFLAGS += -L$(MMG_HOME)/lib -L$(PARMMG_HOME)/lib -L$(PARMETIS_HOME)/lib -L$(METIS_HOME)/lib -L$(BOOST_HOME)/stage/lib -L$(XML_HOME) -L$(CGNS_HOME)/lib
+PARMETIS_HOME = /Users/dekelschot/Software/ParMETIS/parmetis-install
+METIS_HOME = /Users/dekelschot/Software/METIS/metis-install
+HDF5_HOME = /Users/dekelschot/Software/hdf5-1.12.0/hdf5-install
+MPICH_HOME = /Users/dekelschot/Software/mpich-3.3.1/mpich-3.3.1-install
+PARMMG_HOME = /Users/dekelschot/Software/ParMmg/build
+MMG_HOME = /Users/dekelschot/Software/ParMmg/build/Mmg-prefix/src/Mmg-build
+XML_HOME = /Users/dekelschot/Software/tinyxml
+BOOST_HOME = /Users/dekelschot/Software/boost_1_71_0
+CGNS_HOME = /Users/dekelschot/Software/CGNS-3.3.0/build
+GKLIB_HOME = /Users/dekelschot/Software/GKlib/GKlib-install
 
-LDLIBS += -lmpi -lparmetis -lmetis -lhdf5 -mkl -lparmmg -lmmg -lcgns
+CXXFLAGS += -std=c++11 -I$(MMG_HOME)/include -I$(PARMMG_HOME)/include -I$(PARMETIS_HOME)/include -I$(MPICH_HOME)/include -I$(HDF5_HOME)/include -I$(METIS_HOME)/include -I$(XML_HOME) -I$(BOOST_HOME) -I$(CGNS_HOME)/include -I$(GKLIB_HOME)/include
 
-CC = icpc
+LDFLAGS += -L$(MMG_HOME)/lib -L$(PARMMG_HOME)/lib -L$(PARMETIS_HOME)/lib -L$(METIS_HOME)/lib -L$(MPICH_HOME)/lib -L$(HDF5_HOME)/lib -L$(XML_HOME) -L$(CGNS_HOME)/lib -L$(GKLIB_HOME)/lib
+
+LDLIBS += -lmetis -lparmetis -lhdf5 -lmpi -llapack -lblas -lmmg -lparmmg -lcgns -lgklib
+
+
+
+CC = /Users/dekelschot/Software/mpich-3.3.1/mpich-3.3.1-install/bin/mpic++
+

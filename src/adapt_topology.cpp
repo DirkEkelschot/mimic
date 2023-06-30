@@ -16,9 +16,8 @@ Mesh_Topology::Mesh_Topology(Partition* Pa, MPI_Comm comm)
     
     //ifn = ifn_in;
     c = comm;
-    Vec3D* v0 = new Vec3D;
-    Vec3D* v1 = new Vec3D;
-    
+    std::vector<double> v0(3);
+    std::vector<double> v1(3);
     int Nel = Pa->getGlobalPartition()->getNrow();
     
     MPI_Comm_size(comm, &size);
@@ -26,7 +25,7 @@ Mesh_Topology::Mesh_Topology(Partition* Pa, MPI_Comm comm)
     MPI_Comm_rank(comm, &rank);
     
     std::map<int,std::vector<int> > gE2lV 	= Pa->getGlobElem2LocVerts();
-    std::vector<Vert*> locVerts  			= Pa->getLocalVerts();
+    std::vector<std::vector<double> > locVerts  			= Pa->getLocalVerts();
     std::map<int,std::vector<int> > gE2gV 	= Pa->getGlobElem2GlobVerts();
 
     std::vector<int> Loc_Elem             	= Pa->getLocElem();
@@ -42,7 +41,7 @@ Mesh_Topology::Mesh_Topology(Partition* Pa, MPI_Comm comm)
     std::vector<int> vijkIDs;
     std::map<int,int> LocElem2Nv = Pa->getLocElem2Nv();
     int tel     = 0;
-    std::vector<Vert*> face;
+    std::vector<std::vector<double> > face;
     std::map<int,int> LocElem2Nf = Pa->getLocElem2Nf();
     double volume = 0.0;
     std::map<int,std::vector<int> >::iterator iee_it;
@@ -72,12 +71,12 @@ Mesh_Topology::Mesh_Topology(Partition* Pa, MPI_Comm comm)
         {
            int global_vid = ien_part_map->i_map[gEl][k];
            loc_vid     = gV2lV[global_vid];
-           Pijk[k*3+0] = locVerts[loc_vid]->x;
-           Pijk[k*3+1] = locVerts[loc_vid]->y;
-           Pijk[k*3+2] = locVerts[loc_vid]->z;
+           Pijk[k*3+0] = locVerts[loc_vid][0];
+           Pijk[k*3+1] = locVerts[loc_vid][1];
+           Pijk[k*3+2] = locVerts[loc_vid][2];
         }
         
-        Vert* Vijk     = ComputeCentroidCoord(Pijk, NvEl);
+        std::vector<double> Vijk     = ComputeCentroidCoord(Pijk, NvEl);
         
         if(NfPEl == 6)
         {
@@ -102,7 +101,6 @@ Mesh_Topology::Mesh_Topology(Partition* Pa, MPI_Comm comm)
             
             if(adjID<Nel)
             {
-                
                 int Nvadj = ien_part_map->i_map[adjID].size();
 
                 double* Po  = new double[Nvadj*3];
@@ -111,25 +109,26 @@ Mesh_Topology::Mesh_Topology(Partition* Pa, MPI_Comm comm)
                 {
                     int global_vid  = ien_part_map->i_map[adjID][k];
                     loc_vid         = gV2lV[global_vid];
-                    Po[k*3+0]       = locVerts[loc_vid]->x;
-                    Po[k*3+1]       = locVerts[loc_vid]->y;
-                    Po[k*3+2]       = locVerts[loc_vid]->z;
+                    Po[k*3+0]       = locVerts[loc_vid][0];
+                    Po[k*3+1]       = locVerts[loc_vid][1];
+                    Po[k*3+2]       = locVerts[loc_vid][2];
                 }
 
-                Vert* Vpo           = ComputeCentroidCoord(Po,Nvadj);
+                std::vector<double> Vpo = ComputeCentroidCoord(Po,Nvadj);
 
-                double d            = sqrt((Vpo->x-Vijk->x)*(Vpo->x-Vijk->x)+
-                                           (Vpo->y-Vijk->y)*(Vpo->y-Vijk->y)+
-                                           (Vpo->z-Vijk->z)*(Vpo->z-Vijk->z));
-
-                Vec3D* rf           = new Vec3D;
-                rf->c0              = (Vpo->x-Vijk->x)/d;
-                rf->c1              = (Vpo->y-Vijk->y)/d;
-                rf->c2              = (Vpo->z-Vijk->z)/d;
+                double d            = sqrt((Vpo[0]-Vijk[0])*(Vpo[0]-Vijk[0])+
+                                           (Vpo[1]-Vijk[1])*(Vpo[1]-Vijk[1])+
+                                           (Vpo[2]-Vijk[2])*(Vpo[2]-Vijk[2]));
+                
+                std::vector<double> rf(3);
+                
+                rf[0]              = (Vpo[0]-Vijk[0])/d;
+                rf[1]              = (Vpo[1]-Vijk[1])/d;
+                rf[2]              = (Vpo[2]-Vijk[2])/d;
 
                 rvector[gEl].push_back(rf);
                 dr[gEl].push_back(d);
-                delete Vpo;
+            
                 delete[] Po;
                 
                 for(int k=0;k<Nvadj;k++)
@@ -144,7 +143,7 @@ Mesh_Topology::Mesh_Topology(Partition* Pa, MPI_Comm comm)
                 
                 
                 int faceid = ief_part_map->i_map[gEl][o];
-                Vert* Vface = new Vert;
+                std::vector<double> Vface(3);
                 int NvPerF = if_Nv_part_map->i_map[faceid][0];
                 double* F = new double[NvPerF*3];
                 
@@ -156,44 +155,43 @@ Mesh_Topology::Mesh_Topology(Partition* Pa, MPI_Comm comm)
                     //vert2ref[gvid] = ref;
                     //ref2vert[ref].push_back(gvid);
 
-                    Vert* V = new Vert;
-                    V->x    = locVerts[lvid]->x;
-                    V->y    = locVerts[lvid]->y;
-                    V->z    = locVerts[lvid]->z;
+                    std::vector<double> V(3);
+                    V[0]    = locVerts[lvid][0];
+                    V[1]    = locVerts[lvid][1];
+                    V[2]    = locVerts[lvid][2];
                     
-                    F[r*3+0] = V->x;
-                    F[r*3+1] = V->y;
-                    F[r*3+2] = V->z;
+                    F[r*3+0] = V[0];
+                    F[r*3+1] = V[1];
+                    F[r*3+2] = V[2];
                     
-                    Vface->x = Vface->x+locVerts[lvid]->x;
-                    Vface->y = Vface->y+locVerts[lvid]->y;
-                    Vface->z = Vface->z+locVerts[lvid]->z;
+                    Vface[0] = Vface[0]+locVerts[lvid][0];
+                    Vface[1] = Vface[1]+locVerts[lvid][1];
+                    Vface[2] = Vface[2]+locVerts[lvid][2];
 
                     face.push_back(V);
                 }
                 
                 if(NvPerF==3) // triangle
                 {
-                    Vface->x = Vface->x/NvPerF;
-                    Vface->y = Vface->y/NvPerF;
-                    Vface->z = Vface->z/NvPerF;
+                    Vface[0] = Vface[0]/NvPerF;
+                    Vface[1] = Vface[1]/NvPerF;
+                    Vface[2] = Vface[2]/NvPerF;
                     
-                    Vec3D* r0 = new Vec3D;
-                    //double Lr = ComputeEdgeLength(Vface,Vijk);
+                    std::vector<double> r0(3);
 
-                    r0->c0 = (Vface->x-Vijk->x);///Lr;
-                    r0->c1 = (Vface->y-Vijk->y);///Lr;
-                    r0->c2 = (Vface->z-Vijk->z);///Lr;
+                    r0[0] = (Vface[0]-Vijk[0]);///Lr;
+                    r0[1] = (Vface[1]-Vijk[1]);///Lr;
+                    r0[2] = (Vface[2]-Vijk[2]);///Lr;
                     
-                    v0->c0 = face[1]->x-face[0]->x;
-                    v0->c1 = face[1]->y-face[0]->y;
-                    v0->c2 = face[1]->z-face[0]->z;
+                    v0[0] = face[1][0]-face[0][0];
+                    v0[1] = face[1][1]-face[0][1];
+                    v0[2] = face[1][2]-face[0][2];
 
-                    v1->c0 = face[2]->x-face[0]->x;
-                    v1->c1 = face[2]->y-face[0]->y;
-                    v1->c2 = face[2]->z-face[0]->z;
+                    v1[0] = face[2][0]-face[0][0];
+                    v1[1] = face[2][1]-face[0][1];
+                    v1[2] = face[2][2]-face[0][2];
                     
-                    Vec3D* n0 = ComputeSurfaceNormal(v0,v1);
+                    std::vector<double> n0 = ComputeSurfaceNormal(v0,v1);
                     orient0   = DotVec3D(r0,n0);
                     
                     if(orient0<0.0)
@@ -210,24 +208,24 @@ Mesh_Topology::Mesh_Topology(Partition* Pa, MPI_Comm comm)
                 }
                 if(NvPerF==4) // quad
                 {
-                    Vface->x = Vface->x/NvPerF;
-                    Vface->y = Vface->y/NvPerF;
-                    Vface->z = Vface->z/NvPerF;
+                    Vface[0] = Vface[0]/NvPerF;
+                    Vface[1] = Vface[1]/NvPerF;
+                    Vface[2] = Vface[2]/NvPerF;
+                
+                    std::vector<double> r0(3);
+                    r0[0] = (Vface[0]-Vijk[0]);///Lr
+                    r0[1] = (Vface[1]-Vijk[1]);///Lr
+                    r0[2] = (Vface[2]-Vijk[2]);///Lr
                     
-                    Vec3D* r0 = new Vec3D;
-                    r0->c0 = (Vface->x-Vijk->x);///Lr
-                    r0->c1 = (Vface->y-Vijk->y);///Lr
-                    r0->c2 = (Vface->z-Vijk->z);///Lr
-                    
-                    v0->c0 = face[1]->x-face[0]->x;
-                    v0->c1 = face[1]->y-face[0]->y;
-                    v0->c2 = face[1]->z-face[0]->z;
+                    v0[0] = face[1][0]-face[0][0];
+                    v0[1] = face[1][1]-face[0][1];
+                    v0[2] = face[1][2]-face[0][2];
 
-                    v1->c0 = face[3]->x-face[0]->x;
-                    v1->c1 = face[3]->y-face[0]->y;
-                    v1->c2 = face[3]->z-face[0]->z;
+                    v1[0] = face[3][0]-face[0][0];
+                    v1[1] = face[3][1]-face[0][1];
+                    v1[2] = face[3][2]-face[0][2];
                     
-                    Vec3D* n0 = ComputeSurfaceNormal(v0,v1);
+                    std::vector<double> n0 = ComputeSurfaceNormal(v0,v1);
                     orient0   = DotVec3D(r0,n0);
                     
                     if(orient0<0.0)
@@ -253,11 +251,11 @@ Mesh_Topology::Mesh_Topology(Partition* Pa, MPI_Comm comm)
             {
                 fid = ief_part_map->i_map[gEl][o];
                 int NvPerF = if_Nv_part_map->i_map[fid][0];
-                double rdotn;
-                Vert* Vface = new Vert;
-                Vface->x = 0.0;
-                Vface->y = 0.0;
-                Vface->z = 0.0;
+                
+                std::vector<double> Vface(3);
+                Vface[0] = 0.0;
+                Vface[1] = 0.0;
+                Vface[2] = 0.0;
                 
                 for(int s=0;s<NvPerF;s++)
                 {
@@ -265,99 +263,86 @@ Mesh_Topology::Mesh_Topology(Partition* Pa, MPI_Comm comm)
                     int gvid = ifn_part_map->i_map[fid][s];
                     int lvid = gV2lV[gvid];
 
-                    Vface->x = Vface->x+locVerts[lvid]->x;
-                    Vface->y = Vface->y+locVerts[lvid]->y;
-                    Vface->z = Vface->z+locVerts[lvid]->z;
+                    Vface[0] = Vface[0]+locVerts[lvid][0];
+                    Vface[1] = Vface[1]+locVerts[lvid][1];
+                    Vface[2] = Vface[2]+locVerts[lvid][2];
                     
-                    Vert* V = new Vert;
-                    V->x    = locVerts[lvid]->x;
-                    V->y    = locVerts[lvid]->y;
-                    V->z    = locVerts[lvid]->z;
+                    std::vector<double> V(3);
+                    V[0]    = locVerts[lvid][0];
+                    V[1]    = locVerts[lvid][1];
+                    V[2]    = locVerts[lvid][2];
                     
                     face.push_back(V);
                 }
 
-                Vface->x = Vface->x/NvPerF;
-                Vface->y = Vface->y/NvPerF;
-                Vface->z = Vface->z/NvPerF;
+                Vface[0] = Vface[0]/NvPerF;
+                Vface[1] = Vface[1]/NvPerF;
+                Vface[2] = Vface[2]/NvPerF;
                 
-                Vec3D* r0 = new Vec3D;
-                r0->c0 = (Vface->x-Vijk->x);
-                r0->c1 = (Vface->y-Vijk->y);
-                r0->c2 = (Vface->z-Vijk->z);
+                std::vector<double> r0(3);
+                r0[0] = (Vface[0]-Vijk[0]);
+                r0[1] = (Vface[1]-Vijk[1]);
+                r0[2] = (Vface[2]-Vijk[2]);
                 
-                double d = sqrt((Vface->x-Vijk->x)*(Vface->x-Vijk->x)+
-                             (Vface->y-Vijk->y)*(Vface->y-Vijk->y)+
-                             (Vface->z-Vijk->z)*(Vface->z-Vijk->z));
+                double d = sqrt((Vface[0]-Vijk[0])*(Vface[0]-Vijk[0])+
+                             (Vface[1]-Vijk[1])*(Vface[1]-Vijk[1])+
+                             (Vface[2]-Vijk[2])*(Vface[2]-Vijk[2]));
 
-                Vec3D* rff = new Vec3D;
-                rff->c0    = (Vface->x-Vijk->x)/d;
-                rff->c1    = (Vface->y-Vijk->y)/d;
-                rff->c2    = (Vface->z-Vijk->z)/d;
-                Vec3D* n0 = new Vec3D;
-                
-                
+ 
+                std::vector<double> rff(3);
+                rff[0]    = (Vface[0]-Vijk[0])/d;
+                rff[1]    = (Vface[1]-Vijk[1])/d;
+                rff[2]    = (Vface[2]-Vijk[2])/d;
+            
                 if(NvPerF==3)
                 {
-                    v0->c0 = face[1]->x-face[0]->x;
-                    v0->c1 = face[1]->y-face[0]->y;
-                    v0->c2 = face[1]->z-face[0]->z;
+                    v0[0] = face[1][0]-face[0][0];
+                    v0[1] = face[1][1]-face[0][1];
+                    v0[2] = face[1][2]-face[0][2];
 
-                    v1->c0 = face[2]->x-face[0]->x;
-                    v1->c1 = face[2]->y-face[0]->y;
-                    v1->c2 = face[2]->z-face[0]->z;
-                    
-                    n0 = ComputeSurfaceNormal(v0,v1);
-                    orient0   = DotVec3D(r0,n0);
-
-                    if(orient0<0.0)
-                    {
-                        NegateVec3D(n0);
-                    }
-
-                    rdotn = DotVec3D(r0,n0);
-                    //delete rf;
+                    v1[0] = face[2][0]-face[0][0];
+                    v1[1] = face[2][1]-face[0][1];
+                    v1[2] = face[2][2]-face[0][2];
                 }
 
                 if(NvPerF==4)
                 {
-                    v0->c0 = face[1]->x-face[0]->x;
-                    v0->c1 = face[1]->y-face[0]->y;
-                    v0->c2 = face[1]->z-face[0]->z;
+                    v0[0] = face[1][0]-face[0][0];
+                    v0[1] = face[1][1]-face[0][1];
+                    v0[2] = face[1][2]-face[0][2];
 
-                    v1->c0 = face[3]->x-face[0]->x;
-                    v1->c1 = face[3]->y-face[0]->y;
-                    v1->c2 = face[3]->z-face[0]->z;
-                    
-                    n0        = ComputeSurfaceNormal(v0,v1);
-                    orient0   = DotVec3D(r0,n0);
-                    
-                    if(orient0<0.0)
-                    {
-                        NegateVec3D(n0);
-                    }
-                    
-                    double rdotn = DotVec3D(r0,n0);
+                    v1[0] = face[3][0]-face[0][0];
+                    v1[1] = face[3][1]-face[0][1];
+                    v1[2] = face[3][2]-face[0][2];
                 }
                 
-                Vec3D* reflect = new Vec3D;
-                reflect->c0 = r0->c0-2.0*(rdotn)*n0->c0;
-                reflect->c1 = r0->c1-2.0*(rdotn)*n0->c1;
-                reflect->c2 = r0->c2-2.0*(rdotn)*n0->c2;
+                std::vector<double> n0 = ComputeSurfaceNormal(v0,v1);
+                orient0   = DotVec3D(r0,n0);
+                
+                if(orient0<0.0)
+                {
+                    NegateVec3D(n0);
+                }
+                
+                double rdotn = DotVec3D(r0,n0);
+                
+                std::vector<double> reflect(3);
+                reflect[0] = r0[0]-2.0*(rdotn)*n0[0];
+                reflect[1] = r0[1]-2.0*(rdotn)*n0[1];
+                reflect[2] = r0[2]-2.0*(rdotn)*n0[2];
 
-                Vert* Vghost = new Vert;
-                Vghost->x = Vface->x - reflect->c0;
-                Vghost->y = Vface->y - reflect->c1;
-                Vghost->z = Vface->z - reflect->c2;
+                std::vector<double> Vghost(3);
+                Vghost[0] = Vface[0] - reflect[0];
+                Vghost[1] = Vface[1] - reflect[1];
+                Vghost[2] = Vface[2] - reflect[2];
                 
                 ghostVerts[adjID] = Vghost;
                 
+                std::vector<double> npos(3);
                 
-                Vert* npos = new Vert;
-                
-                npos->x = Vface->x;
-                npos->y = Vface->y;
-                npos->z = Vface->z;
+                npos[0] = Vface[0];
+                npos[1] = Vface[1];
+                npos[2] = Vface[2];
                 
                 vfacevector[gEl].push_back(npos);
                 rvector[gEl].push_back(rff);
@@ -388,10 +373,7 @@ Mesh_Topology::Mesh_Topology(Partition* Pa, MPI_Comm comm)
 //    Loc_Elem.clear();
 //    LocElem2Nv.clear();
 //    LocElem2Nf.clear();
-    
-    delete v0;
-    delete v1;
-    
+
 }
 
 
@@ -400,30 +382,30 @@ Mesh_Topology::~Mesh_Topology()
     
     //E2V_scheme.clear();
 	
-    std::map<int,vector<Vec3D*> >::iterator itdes;
-    for(itdes=normals.begin();itdes!=normals.end();itdes++)
-    {
-        for(int q=0;q<itdes->second.size();q++)
-        {
-            delete itdes->second[q];
-        }
-    }
-//    
-    for(itdes=rvector.begin();itdes!=rvector.end();itdes++)
-    {
-        for(int q=0;q<itdes->second.size();q++)
-        {
-            delete itdes->second[q];
-        }
-    }
-//    
-    for(itdes=dxfxc.begin();itdes!=dxfxc.end();itdes++)
-    {
-        for(int q=0;q<itdes->second.size();q++)
-        {
-            delete itdes->second[q];
-        }
-    }
+//    std::map<int,vector<std::vector<double> > >::iterator itdes;
+//    for(itdes=normals.begin();itdes!=normals.end();itdes++)
+//    {
+//        for(int q=0;q<itdes->second.size();q++)
+//        {
+//            delete itdes->second[q];
+//        }
+//    }
+////
+//    for(itdes=rvector.begin();itdes!=rvector.end();itdes++)
+//    {
+//        for(int q=0;q<itdes->second.size();q++)
+//        {
+//            delete itdes->second[q];
+//        }
+//    }
+////
+//    for(itdes=dxfxc.begin();itdes!=dxfxc.end();itdes++)
+//    {
+//        for(int q=0;q<itdes->second.size();q++)
+//        {
+//            delete itdes->second[q];
+//        }
+//    }
     
     std::map<int,std::vector<double> >::iterator itdesVecDouble;
     for(itdesVecDouble=dr.begin();itdesVecDouble!=dr.end();itdesVecDouble++)
@@ -451,7 +433,7 @@ Mesh_Topology::~Mesh_Topology()
 
 
 
-std::map<int,std::vector<Vert*> > Mesh_Topology::getVfacevector()
+std::map<int,std::vector<std::vector<double> > > Mesh_Topology::getVfacevector()
 {
     return vfacevector;
 }
@@ -460,15 +442,16 @@ std::map<int,std::vector<int> > Mesh_Topology::getScheme_E2V()
     return E2V_scheme;
 }
 
-std::map<int,vector<Vec3D*> > Mesh_Topology::getNormals()
+
+std::map<int,vector<std::vector<double> > > Mesh_Topology::getNormals()
 {
     return normals;
 }
-std::map<int,vector<Vec3D*> > Mesh_Topology::getRvectors()
+std::map<int,vector<std::vector<double> > > Mesh_Topology::getRvectors()
 {
     return rvector;
 }
-std::map<int,vector<Vec3D*> > Mesh_Topology::getdXfXc()
+std::map<int,vector<std::vector<double> > > Mesh_Topology::getdXfXc()
 {
     return dxfxc;
 }
@@ -508,7 +491,7 @@ Mesh_Topology_BL* Mesh_Topology::getBLMeshTopology()
 {
     return mesh_topo_bl;
 }
-std::map<int,Vert*> Mesh_Topology::getGhostVerts()
+std::map<int,std::vector<double> > Mesh_Topology::getGhostVerts()
 {
     return ghostVerts;
 }

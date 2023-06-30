@@ -398,7 +398,7 @@ void OutputBoundaryID(Partition* Pa, int bndID, int rankie)
     map< int, Vert> BC_verts;
 
     std::map<int,int> gV2lV                             = Pa->getGlobalVert2LocalVert();
-    std::vector<Vert*> locVerts                         = Pa->getLocalVerts();
+    std::vector<std::vector<double> > locVerts          = Pa->getLocalVerts();
     i_part_map* if_ref                                  = Pa->getIFREFpartmap();
     
     std::map<int, std::vector<int> >::iterator itm;
@@ -445,9 +445,9 @@ void OutputBoundaryID(Partition* Pa, int bndID, int rankie)
 //            {
 //                Loc2GlobBound[val] = cnt;
 //                Loc[tel*4+k]=cnt;
-//                V.x = locVerts[lvid]->x;
-//                V.y = locVerts[lvid]->y;
-//                V.z = locVerts[lvid]->z;
+//                V.x = locVerts[lvid][0];
+//                V.y = locVerts[lvid][1];
+//                V.z = locVerts[lvid][2];
 //                BC_verts[cnt] = V;
 //                cnt++;
 //            }
@@ -569,7 +569,7 @@ void OutputPartition(Partition* part, ParArray<int>* ien, Array<double>* H,  MPI
     myfile << "TITLE=\"volume_part_"  + std::to_string(rank) +  ".tec\"" << std::endl;
     //myfile <<"VARIABLES = \"X\", \"Y\", \"Z\",  \"drhodx\",  \"drhody\",  \"drhodz\"" << std::endl;
     myfile <<"VARIABLES = \"X\", \"Y\", \"Z\"" << std::endl;
-    std::vector<Vert*> LVerts =  part->getLocalVerts();
+    std::vector<std::vector<double> > LVerts =  part->getLocalVerts();
 
 
 
@@ -607,7 +607,7 @@ void OutputPartition(Partition* part, ParArray<int>* ien, Array<double>* H,  MPI
     }*/
     for(int i=0;i<nvert;i++)
     {   
-       myfile << LVerts[LocalVerticesID[i]]->x << "   " << LVerts[LocalVerticesID[i]]->y << "   " << LVerts[LocalVerticesID[i]]->z <<  std::endl;
+       myfile << LVerts[LocalVerticesID[i]][0] << "   " << LVerts[LocalVerticesID[i]][1] << "   " << LVerts[LocalVerticesID[i]][2] <<  std::endl;
     }
     for(int i=0;i<nloc;i++)
     {
@@ -733,9 +733,9 @@ void OutputPartition(Partition* part, ParArray<int>* ien, Array<double>* H,  MPI
 //
 //    for(int i=0;i<vert_plot.size();i++)
 //    {    
-//        myfile << LVerts[vert_plot[i]]->x << " "
-//               << LVerts[vert_plot[i]]->y << " "
-//               << LVerts[vert_plot[i]]->z << std::endl;
+//        myfile << LVerts[vert_plot[i]][0] << " "
+//               << LVerts[vert_plot[i]][1] << " "
+//               << LVerts[vert_plot[i]][2] << std::endl;
 //    }   
 //    for(int i=0;i<bl_elem.size();i++)
 //    {    
@@ -870,13 +870,13 @@ void OutputCompletePartition(Partition* part, ParArray<int>* ien, Array<double>*
     myfile << "TITLE=\"volume_part_"  + std::to_string(rank) +  ".tec\"" << std::endl;
     myfile <<"VARIABLES = \"X\", \"Y\", \"Z\",  \"drhodx\",  \"drhody\",  \"drhodz\"" << std::endl;
     //myfile <<"VARIABLES = \"X\", \"Y\", \"Z\"" << std::endl;
-    std::vector<Vert*> LVerts =  part->getLocalVerts();
+    std::vector<std::vector<double> > LVerts =  part->getLocalVerts();
     int nvert = LVerts.size();
     myfile <<"ZONE N = " << nvert << ", E = " << nloc << ", DATAPACKING = POINT, ZONETYPE = FEBRICK" << std::endl;
     //std::cout << rank << " number of nodes -> " << nvert << " " << H->getNrow() << std::endl;
     for(int i=0;i<nvert;i++)
     {
-       myfile << LVerts[i]->x << "   " << LVerts[i]->y << "   " << LVerts[i]->z << " " << H->getVal(i,0) << " " << H->getVal(i,1) << " " << H->getVal(i,2) << std::endl;
+       myfile << LVerts[i][0] << "   " << LVerts[i][1] << "   " << LVerts[i][2] << " " << H->getVal(i,0) << " " << H->getVal(i,1) << " " << H->getVal(i,2) << std::endl;
     }
     
     
@@ -984,14 +984,14 @@ void OutputZone(Partition* part, Array<double>* H, MPI_Comm comm)
     myfile.open(filename);
     myfile << "TITLE=\"volume_part_"  + std::to_string(rank) +  ".tec\"" << std::endl;
     myfile <<"VARIABLES = \"X\", \"Y\", \"Z\", \"rho\", \"drhox\", \"drhoy\", \"drhoz\"" << std::endl;
-    std::vector<Vert*> LVerts =  part->getLocalVerts();
+    std::vector<std::vector<double> > LVerts =  part->getLocalVerts();
     int nvert = LVerts.size();
     myfile <<"ZONE N = " << nvert << ", E = " << nloc << ", DATAPACKING = POINT, ZONETYPE = FEBRICK" << std::endl;
     Array<double>* U0 = part->getUvert();
     //std::cout << rank << " number of nodes -> " << nvert << " " << H->getNrow() << std::endl;
     for(int i=0;i<nvert;i++)
     {
-       myfile << LVerts[i]->x << "   " << LVerts[i]->y << "   " << LVerts[i]->z << "   " << U0->getVal(i,0) << " " << H->getVal(i,0) << " " << H->getVal(i,1) << " " << H->getVal(i,2) << std::endl;
+       myfile << LVerts[i][0] << "   " << LVerts[i][1] << "   " << LVerts[i][2] << "   " << U0->getVal(i,0) << " " << H->getVal(i,0) << " " << H->getVal(i,1) << " " << H->getVal(i,2) << std::endl;
     }
     
     

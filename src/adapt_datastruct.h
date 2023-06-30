@@ -83,8 +83,6 @@ struct US3D{
 
 
 
-
-
 struct Vec3D
 {
     double c0;
@@ -96,7 +94,7 @@ struct Vec3D
 struct Domain
 {
     std::map<int,std::vector<int> > ushell;
-    std::map<int,Vert* > ushell_centroid;
+    std::map<int,std::vector<double> > ushell_centroid;
     int ncomm;
     std::vector<int> faces_ref;
     std::vector<std::vector<int> > faces_part;

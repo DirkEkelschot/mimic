@@ -111,7 +111,7 @@ Partition::Partition(ParArray<int>* ien, ParArray<int>* iee, ParArray<int>* ief,
     
     // std::cout << "LocAndAdj_Elem.size() after " << rank << " " << LocAndAdj_Elem.size() << " " << iee_part_map->i_map.size() << std::endl;
     
-    std::map<int,Vert*> elem2center;
+    std::map<int,std::vector<double> > elem2center;
     std::map<int,double> elem2volume;
     int nottjere=0;
     double Volm;
@@ -135,12 +135,12 @@ Partition::Partition(ParArray<int>* ien, ParArray<int>* iee, ParArray<int>* ief,
                 int gvid  = ien_part_map->i_map[gid][q];
                 int lvid  = GlobalVert2LocalVert[gvid];
 
-                Pv[q*3+0] = LocalVerts[lvid]->x;
-                Pv[q*3+1] = LocalVerts[lvid]->y;
-                Pv[q*3+2] = LocalVerts[lvid]->z;
+                Pv[q*3+0] = LocalVerts[lvid][0];
+                Pv[q*3+1] = LocalVerts[lvid][1];
+                Pv[q*3+2] = LocalVerts[lvid][2];
             }
             
-            Vert* Vm = ComputeCentroidCoord(Pv,nvrts);
+            std::vector<double> Vm = ComputeCentroidCoord(Pv,nvrts);
             if(nface == 4)
             {
                 Volm = ComputeVolumeTetCell(Pv);
@@ -202,11 +202,6 @@ Partition::Partition(ParArray<int>* ien, ParArray<int>* iee, ParArray<int>* ief,
 
 Partition::~Partition()
 {
-	
-	for(int i=0;i<LocalVerts.size();i++)
-	{
-		delete LocalVerts[i];
-	}
     Loc_Elem.clear();
     Loc_Elem_Nv.clear();
     Loc_Elem_Nf.clear();
@@ -926,11 +921,12 @@ void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief,
     {
         gvid = vertIDs_on_rank[m];
        
-        Vert* V = new Vert;
+       
+        std::vector<double> V(3);
         
-        V->x = xcn->getVal(gvid-xcn_o,0);
-        V->y = xcn->getVal(gvid-xcn_o,1);
-        V->z = xcn->getVal(gvid-xcn_o,2);
+        V[0] = xcn->getVal(gvid-xcn_o,0);
+        V[1] = xcn->getVal(gvid-xcn_o,1);
+        V[2] = xcn->getVal(gvid-xcn_o,2);
         
         LocalVerts.push_back(V);
         LocalVert2GlobalVert[lvid] = gvid;
@@ -948,11 +944,11 @@ void Partition::DetermineElement2ProcMap(ParArray<int>* ien, ParArray<int>* ief,
         {
             gvid = rank2req_vert[it_f->first][u];
             
-            Vert* V = new Vert;
-            
-            V->x = it_f->second[u*3+0];
-            V->y = it_f->second[u*3+1];
-            V->z = it_f->second[u*3+2];
+           
+            std::vector<double> V(3);
+            V[0] = it_f->second[u*3+0];
+            V[1] = it_f->second[u*3+1];
+            V[2] = it_f->second[u*3+2];
             
             LocalVerts.push_back(V);
             
@@ -1632,11 +1628,11 @@ std::vector<int> Partition::getAdjacentElementLayer(ParArray<int>* ien,
 
            if(GlobalVert2LocalVert.find(gvid)==GlobalVert2LocalVert.end())
            {
-               Vert* V = new Vert;
-
-               V->x = xcn->getVal(gvid-xcn_o,0);
-               V->y = xcn->getVal(gvid-xcn_o,1);
-               V->z = xcn->getVal(gvid-xcn_o,2);
+               
+               std::vector<double> V(3);
+               V[0] = xcn->getVal(gvid-xcn_o,0);
+               V[1] = xcn->getVal(gvid-xcn_o,1);
+               V[2] = xcn->getVal(gvid-xcn_o,2);
                
                LocalVert2GlobalVert[lvid] = gvid;
                GlobalVert2LocalVert[gvid] = lvid;
@@ -1657,11 +1653,11 @@ std::vector<int> Partition::getAdjacentElementLayer(ParArray<int>* ien,
                
                if(GlobalVert2LocalVert.find(gvid)==GlobalVert2LocalVert.end())
                {
-                   Vert* V = new Vert;
-
-                   V->x = it_f->second[u*3+0];
-                   V->y = it_f->second[u*3+1];
-                   V->z = it_f->second[u*3+2];
+                   
+                   std::vector<double> V(3);
+                   V[0] = it_f->second[u*3+0];
+                   V[1] = it_f->second[u*3+1];
+                   V[2] = it_f->second[u*3+2];
 
                    LocalVerts.push_back(V);
 
@@ -2270,11 +2266,11 @@ std::vector<int> Partition::UpdateAdjacentElementLayer(ParArray<int>* ien, std::
        for(m=0;m<vloc_tmp;m++)
        {
            gvid = vertIDs_on_rank[m];
-           Vert* V = new Vert;
-
-           V->x = xcn->getVal(gvid-xcn_o,0);
-           V->y = xcn->getVal(gvid-xcn_o,1);
-           V->z = xcn->getVal(gvid-xcn_o,2);
+           
+           std::vector<double> V(3);
+           V[0] = xcn->getVal(gvid-xcn_o,0);
+           V[1] = xcn->getVal(gvid-xcn_o,1);
+           V[2] = xcn->getVal(gvid-xcn_o,2);
 
            LocalVerts.push_back(V);
            LocalVert2GlobalVert[lvid] = gvid;
@@ -2293,11 +2289,10 @@ std::vector<int> Partition::UpdateAdjacentElementLayer(ParArray<int>* ien, std::
            {
                gvid = rank2req_vert[it_f->first][u];
                
-               Vert* V = new Vert;
-
-               V->x = it_f->second[u*3+0];
-               V->y = it_f->second[u*3+1];
-               V->z = it_f->second[u*3+2];
+               std::vector<double> V(3);
+               V[0] = it_f->second[u*3+0];
+               V[1] = it_f->second[u*3+1];
+               V[2] = it_f->second[u*3+2];
 
                LocalVerts.push_back(V);
 
@@ -4621,7 +4616,7 @@ void Partition::CreatePartitionDomainTest()
     int lv,gv,nfaces,Nvface,ref,faceid;
     
     std::map<int,std::vector<int> > ushell;
-    std::map<int,Vert*> ushell_centroid;
+    std::map<int,std::vector<double> > ushell_centroid;
 
     std::vector<int> ushell_vec;
     
@@ -4639,7 +4634,7 @@ void Partition::CreatePartitionDomainTest()
     std::vector<int> left_tet;
     std::vector<int> right_elem;
     std::vector<int> shell_faceid;
-    std::vector<Vert*> centroids;
+    std::vector<std::vector<double> > centroids;
     
     for(int q=0;q<Loc_Elem.size();q++)
     {
@@ -4677,21 +4672,21 @@ void Partition::CreatePartitionDomainTest()
                             ushell[faceid].push_back(el0);
                             ushell[faceid].push_back(el1);
                             
-                            Vert* centroid = new Vert;
-
+                            
+                            std::vector<double> centroid(3);
                             for(int s=0;s<Nvface;s++)
                             {
                                 int gvid = ife_part_map->i_map[faceid][s];
                                 int lvid = GlobalVert2LocalVert[gvid];
                                 
-                                centroid->x = centroid->x + LocalVerts[lvid]->x;
-                                centroid->y = centroid->y + LocalVerts[lvid]->y;
-                                centroid->z = centroid->z + LocalVerts[lvid]->z;
+                                centroid[0] = centroid[0] + LocalVerts[lvid][0];
+                                centroid[1] = centroid[1] + LocalVerts[lvid][1];
+                                centroid[2] = centroid[2] + LocalVerts[lvid][2];
                             }
 
-                            centroid->x = centroid->x / Nvface;
-                            centroid->y = centroid->y / Nvface;
-                            centroid->z = centroid->z / Nvface;
+                            centroid[0] = centroid[0] / Nvface;
+                            centroid[1] = centroid[1] / Nvface;
+                            centroid[2] = centroid[2] / Nvface;
                             centroids.push_back(centroid);
 
                             //ushell_centroid[faceid] = centroid;
@@ -4710,20 +4705,20 @@ void Partition::CreatePartitionDomainTest()
                             double cy = 0.0;
                             double cz = 0.0;
                             
-                            Vert* centroid = new Vert;
+                            std::vector<double> centroid(3);
                             for(int s=0;s<Nvface;s++)
                             {
                                 int gvid = ife_part_map->i_map[faceid][s];
                                 int lvid = GlobalVert2LocalVert[gvid];
                                 
-                                centroid->x = centroid->x + LocalVerts[lvid]->x;
-                                centroid->y = centroid->y + LocalVerts[lvid]->y;
-                                centroid->z = centroid->z + LocalVerts[lvid]->z;
+                                centroid[0] = centroid[0] + LocalVerts[lvid][0];
+                                centroid[1] = centroid[1] + LocalVerts[lvid][1];
+                                centroid[2] = centroid[2] + LocalVerts[lvid][2];
                             }
 
-                            centroid->x = centroid->x / Nvface;
-                            centroid->y = centroid->y / Nvface;
-                            centroid->z = centroid->z / Nvface;
+                            centroid[0] = centroid[0] / Nvface;
+                            centroid[1] = centroid[1] / Nvface;
+                            centroid[2] = centroid[2] / Nvface;
                             centroids.push_back(centroid);
                             //ushell_centroid[faceid] = centroid;
                         }
@@ -4745,12 +4740,9 @@ void Partition::CreatePartitionDomainTest()
         loc_lhtets[q] = left_tet[q];
         loc_rhelem[q] = right_elem[q];
         loc_shellFid[q] = shell_faceid[q];
-        loc_centroids[q*3+0] = centroids[q]->x;
-        loc_centroids[q*3+1] = centroids[q]->y;
-        loc_centroids[q*3+2] = centroids[q]->z;
-        
-        delete centroids[q];
-        
+        loc_centroids[q*3+0] = centroids[q][0];
+        loc_centroids[q*3+1] = centroids[q][1];
+        loc_centroids[q*3+2] = centroids[q][2];
     }
     
     DistributedParallelState* ltet = new DistributedParallelState(nLocShellF,comm_p);
@@ -4764,7 +4756,7 @@ void Partition::CreatePartitionDomainTest()
     double* centroids_g  = new double[lcent->getNel()];
 
     std::map<int,std::vector<int> > shallLayout;
-    std::map<int,Vert* > shallLayout_centroid;
+    std::map<int,std::vector<double> > shallLayout_centroid;
 
    
      
@@ -4818,9 +4810,9 @@ void Partition::CreatePartitionDomainTest()
             shallLayout[sfid]         = TetElem;
             
 //            Vert* vc = new Vert;
-//            vc->x = centroids_g[i*3+0];
-//            vc->x = centroids_g[i*3+1];
-//            vc->x = centroids_g[i*3+2];
+//            vc[0] = centroids_g[i*3+0];
+//            vc[0] = centroids_g[i*3+1];
+//            vc[0] = centroids_g[i*3+2];
 //            
 //            shallLayout_centroid[sfid] = vc;
         }
@@ -4981,18 +4973,18 @@ void Partition::CreatePartitionDomainTest()
 //                    int lvid  = GlobalVert2LocalVert[gvid];
 //                    int lvidt = GlobalVert2LocalVert[gvidt];
 //
-//                    V0->x = LocalVerts[lvid]->x;
-//                    V0->y = LocalVerts[lvid]->y;
-//                    V0->z = LocalVerts[lvid]->z;
+//                    V0[0] = LocalVerts[lvid][0];
+//                    V0[1] = LocalVerts[lvid][1];
+//                    V0[2] = LocalVerts[lvid][2];
 //                    
-//                    V1->x = LocalVerts[lvidt]->x;
-//                    V1->y = LocalVerts[lvidt]->y;
-//                    V1->z = LocalVerts[lvidt]->z;
+//                    V1[0] = LocalVerts[lvidt][0];
+//                    V1[1] = LocalVerts[lvidt][1];
+//                    V1[2] = LocalVerts[lvidt][2];
 //                    
 ////                    double dist = ComputeEdgeLength(V0,V1);
-//                    double dist = sqrt((V0->x-V1->x)*(V0->x-V1->x)
-//                                +(V0->y-V1->y)*(V0->y-V1->y)
-//                                +(V0->z-V1->z)*(V0->z-V1->z));
+//                    double dist = sqrt((V0[0]-V1[0])*(V0[0]-V1[0])
+//                                +(V0[1]-V1[1])*(V0[1]-V1[1])
+//                                +(V0[2]-V1[2])*(V0[2]-V1[2]));
 //                    node2node[gvid].insert(std::pair<int,double>(gvidt,dist));
 //                    
 //                }
@@ -5050,9 +5042,9 @@ void Partition::CreatePartitionDomainTest()
 //    return second_adj;
 //}
 
-std::map<int,std::map<int,double> > Partition::getNode2Element_V2(i_part_map* iee_part_map_input, std::map<int,Vert*> ElemCentroids, std::map<int,double> ElemVolumes)
+std::map<int,std::map<int,double> > Partition::getNode2Element_V2(i_part_map* iee_part_map_input, std::map<int,std::vector<double> > ElemCentroids, std::map<int,double> ElemVolumes)
 {
-    std::map<int,std::map<int,Vert*> > node2elem;
+    std::map<int,std::map<int,std::vector<double> > > node2elem;
     std::map<int,std::map<int,double> > node2elemV;
 
     std::map<int,std::vector<int> > UsharedVrts;
@@ -5080,14 +5072,14 @@ std::map<int,std::map<int,double> > Partition::getNode2Element_V2(i_part_map* ie
             
             if(node2elem_map[gvid].find(elID)==node2elem_map[gvid].end())
             {
-                Vert* cent = ElemCentroids[elID];
+                std::vector<double> cent = ElemCentroids[elID];
                 volu = ElemVolumes[elID];
 //                if(volu == 0)
 //                {
 //                    std::cout << "elID/volu "<< elID << "  "<< volu << std::endl;
 //
 //                }
-                node2elem_map[gvid].insert(std::pair<int,Vert*>(elID,cent));
+                node2elem_map[gvid].insert(std::pair<int,std::vector<double> >(elID,cent));
                 node2elemV[gvid].insert(std::pair<int,double>(elID,volu));
 
             }
@@ -5108,13 +5100,13 @@ std::map<int,std::map<int,double> > Partition::getNode2Element_V2(i_part_map* ie
                     
                     if(node2elem_map[gvid].find(adjID)==node2elem_map[gvid].end() && adjID!=elID)
                     {
-                        Vert* cent = ElemCentroids[adjID];
+                        std::vector<double> cent = ElemCentroids[adjID];
                         volu = ElemVolumes[adjID];
 //                        if(volu == 0)
 //                        {
 //                            std::cout << "adjID/volu "<< adjID << "  "<< volu << std::endl;
 //                        }
-                        node2elem_map[gvid].insert(std::pair<int,Vert*>(adjID,cent));
+                        node2elem_map[gvid].insert(std::pair<int,std::vector<double> >(adjID,cent));
                         node2elemV[gvid].insert(std::pair<int,double>(adjID,volu));
                     }
                 }
@@ -5139,7 +5131,7 @@ std::map<int,std::map<int,double> > Partition::getNode2Element_V2(i_part_map* ie
                         fou = 0;
                         if(node2elem_map[gvid2].find(adjadjID)==node2elem_map[gvid2].end() && adjadjID!=elID)
                         {
-                            Vert* cent = ElemCentroids[adjadjID];
+                            std::vector<double> cent = ElemCentroids[adjadjID];
                             volu       = ElemVolumes[adjadjID];
 //                            if(volu == 0)
 //                            {
@@ -5150,7 +5142,7 @@ std::map<int,std::map<int,double> > Partition::getNode2Element_V2(i_part_map* ie
 //                                std::cout << "adjadjID/volu "<< adjadjID << "  "<< volu << " " << fou <<  std::endl;
 //                            }
                             //std::cout << "volu " << volu << std::endl;
-                            node2elem_map[gvid2].insert(std::pair<int,Vert*>(adjadjID,cent));
+                            node2elem_map[gvid2].insert(std::pair<int,std::vector<double> >(adjadjID,cent));
                             node2elemV[gvid2].insert(std::pair<int,double>(adjadjID,volu));
                         }
                     }
@@ -5440,9 +5432,9 @@ std::map<int,std::map<int,double> > Partition::getNode2Element_V2(i_part_map* ie
 //                for(int u=0;u<nEl_send;u++)
 //                {
 //                    volumes_send[u] = ElemVolumes[it->second[u]];
-//                    centroid_send[u*3+0] = ElemCentroids[it->second[u]]->x;
-//                    centroid_send[u*3+1] = ElemCentroids[it->second[u]]->y;
-//                    centroid_send[u*3+2] = ElemCentroids[it->second[u]]->z;
+//                    centroid_send[u*3+0] = ElemCentroids[it->second[u]][0];
+//                    centroid_send[u*3+1] = ElemCentroids[it->second[u]][1];
+//                    centroid_send[u*3+2] = ElemCentroids[it->second[u]][2];
 //                }
 //
 //
@@ -5497,9 +5489,9 @@ std::map<int,std::map<int,double> > Partition::getNode2Element_V2(i_part_map* ie
 //                    {
 //                        Vert* cent = new Vert;
 //
-//                        cent->x = recv_back_verts[rr][j*3+0];
-//                        cent->y = recv_back_verts[rr][j*3+1];
-//                        cent->z = recv_back_verts[rr][j*3+2];
+//                        cent[0] = recv_back_verts[rr][j*3+0];
+//                        cent[1] = recv_back_verts[rr][j*3+1];
+//                        cent[2] = recv_back_verts[rr][j*3+2];
 //                        double Vol = recv_back_volus[rr][j];
 //                        node2elem_map[vidd].insert(std::pair<int,Vert*>(elid,cent));
 //                        node2elemV[vidd].insert(std::pair<int,double>(elid,Vol));
@@ -5526,8 +5518,9 @@ void Partition::ComputeNode2NodeMap()
     std::map<int,std::map<int,double> > node2node;
     std::map<int,std::vector<int> >::iterator ieet;
     int gvidt,gvid,gel,Nv,Nf;
-    Vert* V0 = new Vert;
-    Vert* V1 = new Vert;
+    std::vector<double> V0(3);
+    std::vector<double> V1(3);
+
     
     
     for(ieet=iee_part_map->i_map.begin();ieet!=iee_part_map->i_map.end();ieet++)
@@ -5548,18 +5541,18 @@ void Partition::ComputeNode2NodeMap()
                     int lvid  = GlobalVert2LocalVert[gvid];
                     int lvidt = GlobalVert2LocalVert[gvidt];
 
-                    V0->x = LocalVerts[lvid]->x;
-                    V0->y = LocalVerts[lvid]->y;
-                    V0->z = LocalVerts[lvid]->z;
+                    V0[0] = LocalVerts[lvid][0];
+                    V0[1] = LocalVerts[lvid][1];
+                    V0[2] = LocalVerts[lvid][2];
                     
-                    V1->x = LocalVerts[lvidt]->x;
-                    V1->y = LocalVerts[lvidt]->y;
-                    V1->z = LocalVerts[lvidt]->z;
+                    V1[0] = LocalVerts[lvidt][0];
+                    V1[1] = LocalVerts[lvidt][1];
+                    V1[2] = LocalVerts[lvidt][2];
                     
 //                    double dist = ComputeEdgeLength(V0,V1);
-                    double dist = sqrt((V0->x-V1->x)*(V0->x-V1->x)
-                                +(V0->y-V1->y)*(V0->y-V1->y)
-                                +(V0->z-V1->z)*(V0->z-V1->z));
+                    double dist = sqrt((V0[0]-V1[0])*(V0[0]-V1[0])
+                                +(V0[1]-V1[1])*(V0[1]-V1[1])
+                                +(V0[2]-V1[2])*(V0[2]-V1[2]));
                     
                     node2node_map[gvid].insert(std::pair<int,double>(gvidt,dist));
                     
@@ -5567,8 +5560,7 @@ void Partition::ComputeNode2NodeMap()
             }
         }
     }
-    delete V0;
-    delete V1;
+
 }
 
 void Partition::ComputeNode2NodeMap_V2()
@@ -5579,9 +5571,9 @@ void Partition::ComputeNode2NodeMap_V2()
     std::map<int,std::set<int> > elem2node_ids;
     std::map<int,std::vector<int> >::iterator ieet;
     int gvidt,gvid,gel,Nv,Nf;
-    Vert* V0 = new Vert;
-    Vert* V1 = new Vert;
 
+    std::vector<double> V0(3);
+    std::vector<double> V1(3);
     
 //    int size;
 //    int rank;
@@ -5630,17 +5622,17 @@ void Partition::ComputeNode2NodeMap_V2()
                     int lvid  = GlobalVert2LocalVert[gvid];
                     int lvidt = GlobalVert2LocalVert[gvidt];
 
-                    V0->x = LocalVerts[lvid]->x;
-                    V0->y = LocalVerts[lvid]->y;
-                    V0->z = LocalVerts[lvid]->z;
+                    V0[0] = LocalVerts[lvid][0];
+                    V0[1] = LocalVerts[lvid][1];
+                    V0[2] = LocalVerts[lvid][2];
 
-                    V1->x = LocalVerts[lvidt]->x;
-                    V1->y = LocalVerts[lvidt]->y;
-                    V1->z = LocalVerts[lvidt]->z;
+                    V1[0] = LocalVerts[lvidt][0];
+                    V1[1] = LocalVerts[lvidt][1];
+                    V1[2] = LocalVerts[lvidt][2];
 
-                    double dist = sqrt((V0->x-V1->x)*(V0->x-V1->x)
-                                      +(V0->y-V1->y)*(V0->y-V1->y)
-                                      +(V0->z-V1->z)*(V0->z-V1->z));
+                    double dist = sqrt((V0[0]-V1[0])*(V0[0]-V1[0])
+                                      +(V0[1]-V1[1])*(V0[1]-V1[1])
+                                      +(V0[2]-V1[2])*(V0[2]-V1[2]));
 
                     node2node_map[gvid].insert(std::pair<int,double>(gvidt,dist));
                 }
@@ -5678,17 +5670,17 @@ void Partition::ComputeNode2NodeMap_V2()
                             int lvid  = GlobalVert2LocalVert[gvid];
                             int lvidt = GlobalVert2LocalVert[gvidt];
 
-                            V0->x = LocalVerts[lvid]->x;
-                            V0->y = LocalVerts[lvid]->y;
-                            V0->z = LocalVerts[lvid]->z;
+                            V0[0] = LocalVerts[lvid][0];
+                            V0[1] = LocalVerts[lvid][1];
+                            V0[2] = LocalVerts[lvid][2];
 
-                            V1->x = LocalVerts[lvidt]->x;
-                            V1->y = LocalVerts[lvidt]->y;
-                            V1->z = LocalVerts[lvidt]->z;
+                            V1[0] = LocalVerts[lvidt][0];
+                            V1[1] = LocalVerts[lvidt][1];
+                            V1[2] = LocalVerts[lvidt][2];
 
-                            double dist = sqrt((V0->x-V1->x)*(V0->x-V1->x)
-                                        +(V0->y-V1->y)*(V0->y-V1->y)
-                                        +(V0->z-V1->z)*(V0->z-V1->z));
+                            double dist = sqrt((V0[0]-V1[0])*(V0[0]-V1[0])
+                                        +(V0[1]-V1[1])*(V0[1]-V1[1])
+                                        +(V0[2]-V1[2])*(V0[2]-V1[2]));
 
                             node2node_map[gvid].insert(std::pair<int,double>(gvidt,dist));
 
@@ -5902,7 +5894,7 @@ void Partition::ComputeNode2NodeMap_V2()
     std::map<int,std::vector<int> > recv_back_verts_ids;
     int n_recv_back;
     int n_recv_el;
-    std::map<int,std::vector<Vert*> > NotOnRank_Elem2Verts;
+    std::map<int,std::vector<std::vector<double> > > NotOnRank_Elem2Verts;
     
     for(int q=0;q<size;q++)
     {
@@ -5921,9 +5913,9 @@ void Partition::ComputeNode2NodeMap_V2()
                 {
                     int locvid = GlobalVert2LocalVert[reqstd_ActualVids_per_rank[dest][u]];
 
-                    vert_send[u*3+0]=LocalVerts[locvid]->x;
-                    vert_send[u*3+1]=LocalVerts[locvid]->y;
-                    vert_send[u*3+2]=LocalVerts[locvid]->z;
+                    vert_send[u*3+0]=LocalVerts[locvid][0];
+                    vert_send[u*3+1]=LocalVerts[locvid][1];
+                    vert_send[u*3+2]=LocalVerts[locvid][2];
                 }
 
                 int nEl  = it->second.size();
@@ -5969,13 +5961,13 @@ void Partition::ComputeNode2NodeMap_V2()
 //            if(gvid!=gvidt && node2node_map[gvid].find(gvidt)==node2node_map[gvid].end())
 //            {
 //                Vert* vrt = new Vert;
-//                vrt->x = recv_back_verts[from_rank][q*3+0];
-//                vrt->y = recv_back_verts[from_rank][q*3+1];
-//                vrt->z = recv_back_verts[from_rank][q*3+2];
+//                vrt[0] = recv_back_verts[from_rank][q*3+0];
+//                vrt[1] = recv_back_verts[from_rank][q*3+1];
+//                vrt[2] = recv_back_verts[from_rank][q*3+2];
 //
-//                double dist = sqrt((vrt->x-V1->x)*(V0->x-V1->x)
-//                            +(V0->y-V1->y)*(V0->y-V1->y)
-//                            +(V0->z-V1->z)*(V0->z-V1->z));
+//                double dist = sqrt((vrt[0]-V1[0])*(V0[0]-V1[0])
+//                            +(V0[1]-V1[1])*(V0[1]-V1[1])
+//                            +(V0[2]-V1[2])*(V0[2]-V1[2]));
 //
 //                node2node_map[gvid].insert(std::pair<int,double>(gvidt,dist));
 //
@@ -5992,17 +5984,17 @@ void Partition::ComputeNode2NodeMap_V2()
 //        int lvid  = GlobalVert2LocalVert[gvid];
 //        int lvidt = GlobalVert2LocalVert[gvidt];
 //
-//        V0->x = LocalVerts[lvid]->x;
-//        V0->y = LocalVerts[lvid]->y;
-//        V0->z = LocalVerts[lvid]->z;
+//        V0[0] = LocalVerts[lvid][0];
+//        V0[1] = LocalVerts[lvid][1];
+//        V0[2] = LocalVerts[lvid][2];
 //
-//        V1->x = LocalVerts[lvidt]->x;
-//        V1->y = LocalVerts[lvidt]->y;
-//        V1->z = LocalVerts[lvidt]->z;
+//        V1[0] = LocalVerts[lvidt][0];
+//        V1[1] = LocalVerts[lvidt][1];
+//        V1[2] = LocalVerts[lvidt][2];
 //
-//        double dist = sqrt((V0->x-V1->x)*(V0->x-V1->x)
-//                    +(V0->y-V1->y)*(V0->y-V1->y)
-//                    +(V0->z-V1->z)*(V0->z-V1->z));
+//        double dist = sqrt((V0[0]-V1[0])*(V0[0]-V1[0])
+//                    +(V0[1]-V1[1])*(V0[1]-V1[1])
+//                    +(V0[2]-V1[2])*(V0[2]-V1[2]));
 //
 //        node2node[gvid].insert(std::pair<int,double>(gvidt,dist));
 //
@@ -6048,8 +6040,7 @@ void Partition::ComputeNode2NodeMap_V2()
     
     //Get the vertices that are not overlapped:
     */
-    delete V0;
-    delete V1;
+
     //return node2node;
 }
 
@@ -6086,15 +6077,15 @@ std::map<int,double> Partition::ReduceFieldToAllVertices(std::map<int,double> Ua
 //    }
     
     
-    std::map<int,std::map<int,Vert*> >::iterator itmm;
-    std::map<int,Vert*>::iterator itm;
+    std::map<int,std::map<int,std::vector<double> > >::iterator itmm;
+    std::map<int,std::vector<double> >::iterator itm;
     for(itmm=node2elem_map.begin();itmm!=node2elem_map.end();itmm++)
     {
         double sum = 0.0;
         double avg = 0.0;
         
         int gv = itmm->first;
-        std::map<int,Vert*> elem2cent;
+        std::map<int,std::vector<double> > elem2cent;
         tel = 0;
         for(itm=elem2cent.begin();itm!=elem2cent.end();itm++)
         {
@@ -6182,8 +6173,8 @@ std::map<int,Array<double>* > Partition::ReduceStateVecToAllVertices_V2(std::map
 
     int Nell = part_global->getNrow();
 
-    std::map<int,std::map<int,Vert*> >::iterator itmm;
-    std::map<int,Vert*>::iterator itmd;
+    std::map<int,std::map<int,std::vector<double> > >::iterator itmm;
+    std::map<int,std::vector<double> >::iterator itmd;
 
     double VolTot   = 0.0;
     double xcomp    = 0.0;
@@ -6196,16 +6187,16 @@ std::map<int,Array<double>* > Partition::ReduceStateVecToAllVertices_V2(std::map
         int gv = itmm->first;
         int lv = GlobalVert2LocalVert[gv];
         
-        xcomp = LocalVerts[lv]->x;
-        ycomp = LocalVerts[lv]->y;
-        zcomp = LocalVerts[lv]->z;
+        xcomp = LocalVerts[lv][0];
+        ycomp = LocalVerts[lv][1];
+        zcomp = LocalVerts[lv][2];
         
         for(int l=0;l<nvar;l++)
         {
             sum[l] = 0.0;
         }
         
-        std::map<int,Vert*> elem2cent     = itmm->second;
+        std::map<int,std::vector<double> > elem2cent     = itmm->second;
         std::map<int,double> elem2centVol = node2elemVol_map[itmm->first];
         tel               = 0;
         double wiTot      = 0.0;
@@ -6214,19 +6205,19 @@ std::map<int,Array<double>* > Partition::ReduceStateVecToAllVertices_V2(std::map
         {
             int gEl     = itmd->first;
             
-            Vert* VrtEl = itmd->second;
+            std::vector<double> VrtEl = itmd->second;
 //            double Vol  = elem2centVol[itmd->first];
             
-            //double error_r = fabs((VrtEl->x-xcomp)*(VrtEl->x-xcomp)+(VrtEl->y-ycomp)*(VrtEl->y-ycomp)+(VrtEl->z-zcomp)*(VrtEl->z-zcomp));
+            //double error_r = fabs((VrtEl[0]-xcomp)*(VrtEl[0]-xcomp)+(VrtEl[1]-ycomp)*(VrtEl[1]-ycomp)+(VrtEl[2]-zcomp)*(VrtEl[2]-zcomp));
             
 //            if(error_r<1.0e-05)
 //            {
 //                std::cout << "error_r " << error_r << std::endl;
 //            }
             //double wi = 1.0;
-//            double wi = sqrt((VrtEl->x-xcomp)*(VrtEl->x-xcomp)
-//                            +(VrtEl->y-ycomp)*(VrtEl->y-ycomp)
-//                            +(VrtEl->z-zcomp)*(VrtEl->z-zcomp));
+//            double wi = sqrt((VrtEl[0]-xcomp)*(VrtEl[0]-xcomp)
+//                            +(VrtEl[1]-ycomp)*(VrtEl[1]-ycomp)
+//                            +(VrtEl[2]-zcomp)*(VrtEl[2]-zcomp));
                         
             if(UaddAdj.find(gEl)!=UaddAdj.end() && gEl<Nell)
             {
@@ -6500,11 +6491,11 @@ Array<int>* Partition::getGlobalPartition()
 {
     return part_global;
 }
-std::vector<Vert*> Partition::getLocalVerts()
+std::vector<std::vector<double> > Partition::getLocalVerts()
 {
     return LocalVerts;
 }
-Vert* Partition::getLocalVert(int v_loc_id)
+std::vector<double> Partition::getLocalVert(int v_loc_id)
 {
     return LocalVerts[v_loc_id];
 }

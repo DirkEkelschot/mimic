@@ -7,9 +7,9 @@
 #define ADAPT_COMPUTE_H
 
 
-void NegateVec3D(Vec3D* a);
+void NegateVec3D(std::vector<double> a);
 
-double DotVec3D(Vec3D* a, Vec3D* b);
+double DotVec3D(std::vector<double> a, std::vector<double> b);
 
 Array<double>* MatInv(Array<double>* A);
 
@@ -25,7 +25,7 @@ extern "C" {
 double ComputeJ(double*P, int ElType);
 }
 
-double ComputeEdgeLength(Vert* v0, Vert* v1);
+double ComputeEdgeLength(std::vector<double> v0, std::vector<double> v1);
 
 double ComputeVolumeHexCell(double *P);
 double ComputeVolumeTetCell(double *P);
@@ -42,8 +42,8 @@ Array<double>* ComputeJAtCenter_tet_v2(double*P);
         J[6], J[7], J[8]]
 */
 // J is computed using the 8-point isoparametric mapping for a hex. The 8-point rule should be sufficient since everything is linear anyways.
-Vert* ComputeCenterCoord(double*P, int np);
-Vert* ComputeCentroidCoord(double*P, int np);
+std::vector<double> ComputeCenterCoord(double*P, int np);
+std::vector<double> ComputeCentroidCoord(double*P, int np);
 
 extern "C" {
 double* ComputeJAtCenter(double*P, int np);

@@ -32,7 +32,7 @@ BLShellInfo* GetBoundaryLayerVolume(int wall_id, int nLayer,
     MPI_Comm_rank(comm, &world_rank);
 
     std::vector<double> dp(6);
-    std::vector<Vec3D*> dpvec(6);
+    std::vector<std::vector<double> > dpvec(6);
     //std::cout << "Determining outer shell of BL mesh..." << std::endl;
     clock_t start;
     start = std::clock();
@@ -47,16 +47,22 @@ BLShellInfo* GetBoundaryLayerVolume(int wall_id, int nLayer,
     int fv2_b;
     int fv3_b;
     int glob_el_id = 0;
-    Vert* Vface2  = new Vert;
-    Vec3D* r00 = new Vec3D;
-    Vec3D* v00 = new Vec3D;
-    Vec3D* v11 = new Vec3D;
-    Vert* Vface  = new Vert;
-    Vert* V  = new Vert;
+    std::vector<double> Vface2(3);
+//    Vec3D* r00 = new Vec3D;
+//    Vec3D* v00 = new Vec3D;
+//    Vec3D* v11 = new Vec3D;
+    std::vector<double> r00(3);
+    std::vector<double> v00(3);
+    std::vector<double> v11(3);
+  
+    std::vector<double> Vface(3);
+    std::vector<double> V(3);
+  
     int nbface = 0;
     Vec3D* NextFace2OriginalElem = new Vec3D;
     Vec3D* NextElem2OriginalFace = new Vec3D;
-    Vert* VadjMinAngle = new Vert;
+   
+    std::vector<double> VadjMinAngle(3);
     int elprev = -1;
     int pfid = -1;
     int j;
@@ -212,7 +218,7 @@ void FindOuterShellBoundaryLayerMesh_V2(BLShellInfo* BLinfo, int wall_id, int nL
     MPI_Comm_rank(comm, &world_rank);
 
     std::vector<double> dp(6);
-    std::vector<Vec3D*> dpvec(6);
+    std::vector<std::vector<double> > dpvec(6);
     //std::cout << "Determining outer shell of BL mesh..." << std::endl;
     clock_t start;
     start = std::clock();
@@ -225,16 +231,22 @@ void FindOuterShellBoundaryLayerMesh_V2(BLShellInfo* BLinfo, int wall_id, int nL
     int bvid_b;
 
     int glob_el_id = 0;
-    Vert* Vface2  = new Vert;
-    Vec3D* r00 = new Vec3D;
-    Vec3D* v00 = new Vec3D;
-    Vec3D* v11 = new Vec3D;
-    Vert* Vface  = new Vert;
-    Vert* V  = new Vert;
+  
+    std::vector<double> Vface2(3);
+//    Vec3D* r00 = new Vec3D;
+//    Vec3D* v00 = new Vec3D;
+//    Vec3D* v11 = new Vec3D;
+    std::vector<double> r00(3);
+    std::vector<double> v00(3);
+    std::vector<double> v11(3);
+    std::vector<double> Vface(3);
+    std::vector<double> V(3);
+
     int nbface = 0;
     Vec3D* NextFace2OriginalElem = new Vec3D;
     Vec3D* NextElem2OriginalFace = new Vec3D;
-    Vert* VadjMinAngle = new Vert;
+    std::vector<double> VadjMinAngle(3);
+
     int elprev = -1;
     //for(int bf=0;bf<1;bf++)
     int check_f_id;
@@ -268,50 +280,52 @@ void FindOuterShellBoundaryLayerMesh_V2(BLShellInfo* BLinfo, int wall_id, int nL
         
         BLinfo->BLlayers[bfaceid].push_back(elid_cur);
         
-        Vert* VoriginalElem = new Vert;
-        VoriginalElem->x = 0.0;
-        VoriginalElem->y = 0.0;
-        VoriginalElem->z = 0.0;
+       
+        std::vector<double> VoriginalElem(3);
+        VoriginalElem[0] = 0.0;
+        VoriginalElem[1] = 0.0;
+        VoriginalElem[2] = 0.0;
         
         for(int k=0;k<8;k++)
         {
             loc_vid     = ien_g->getVal(elid_cur,k);
-            VoriginalElem->x = VoriginalElem->x+xcn_g->getVal(loc_vid,0);
-            VoriginalElem->y = VoriginalElem->y+xcn_g->getVal(loc_vid,1);
-            VoriginalElem->z = VoriginalElem->z+xcn_g->getVal(loc_vid,2);
+            VoriginalElem[0] = VoriginalElem[0]+xcn_g->getVal(loc_vid,0);
+            VoriginalElem[1] = VoriginalElem[1]+xcn_g->getVal(loc_vid,1);
+            VoriginalElem[2] = VoriginalElem[2]+xcn_g->getVal(loc_vid,2);
         }
 
-        VoriginalElem->x = VoriginalElem->x/8.0;
-        VoriginalElem->y = VoriginalElem->y/8.0;
-        VoriginalElem->z = VoriginalElem->z/8.0;
+        VoriginalElem[0] = VoriginalElem[0]/8.0;
+        VoriginalElem[1] = VoriginalElem[1]/8.0;
+        VoriginalElem[2] = VoriginalElem[2]/8.0;
         
-        Vert* VoriginalFace = new Vert;
-        VoriginalFace->x = 0.0;
-        VoriginalFace->y = 0.0;
-        VoriginalFace->z = 0.0;
+        
+        std::vector<double> VoriginalFace(3);
+        VoriginalFace[0] = 0.0;
+        VoriginalFace[1] = 0.0;
+        VoriginalFace[2] = 0.0;
         //std::cout << "face = ";
-        std::vector<Vert*> face;
-        std::vector<Vert*> face_turned(4);
+        std::vector<std::vector<double> > face;
+        std::vector<std::vector<double> > face_turned(4);
         for(int k=0;k<4;k++)
         {
             loc_vid = ifn_g->getVal(faceid,k);
 
-            VoriginalFace->x = VoriginalFace->x+xcn_g->getVal(loc_vid,0);
-            VoriginalFace->y = VoriginalFace->y+xcn_g->getVal(loc_vid,1);
-            VoriginalFace->z = VoriginalFace->z+xcn_g->getVal(loc_vid,2);
+            VoriginalFace[0] = VoriginalFace[0]+xcn_g->getVal(loc_vid,0);
+            VoriginalFace[1] = VoriginalFace[1]+xcn_g->getVal(loc_vid,1);
+            VoriginalFace[2] = VoriginalFace[2]+xcn_g->getVal(loc_vid,2);
             
-            Vert* V  = new Vert;
+            std::vector<double> V(3);
 
-            V->x = xcn_g->getVal(loc_vid,0);
-            V->y = xcn_g->getVal(loc_vid,1);
-            V->z = xcn_g->getVal(loc_vid,2);
+            V[0] = xcn_g->getVal(loc_vid,0);
+            V[1] = xcn_g->getVal(loc_vid,1);
+            V[2] = xcn_g->getVal(loc_vid,2);
             
             face.push_back(V);
         }
         
-        VoriginalFace->x = VoriginalFace->x/4.0;
-        VoriginalFace->y = VoriginalFace->y/4.0;
-        VoriginalFace->z = VoriginalFace->z/4.0;
+        VoriginalFace[0] = VoriginalFace[0]/4.0;
+        VoriginalFace[1] = VoriginalFace[1]/4.0;
+        VoriginalFace[2] = VoriginalFace[2]/4.0;
         int bvid_b       = ifn_g->getVal(faceid,0);
         int anchor_vert  = bvid_b;
         std::set<int> conn_anchor;
@@ -324,19 +338,19 @@ void FindOuterShellBoundaryLayerMesh_V2(BLShellInfo* BLinfo, int wall_id, int nL
         bface_vertids[2] = ifn_g->getVal(faceid,2);
         bface_vertids[3] = ifn_g->getVal(faceid,3);
         
-        Vec3D* r0 = new Vec3D;
-        r0->c0 = (VoriginalFace->x-VoriginalElem->x);
-        r0->c1 = (VoriginalFace->y-VoriginalElem->y);
-        r0->c2 = (VoriginalFace->z-VoriginalElem->z);
-        Vec3D* v0 = new Vec3D;
-        v0->c0 = face[1]->x-face[0]->x;
-        v0->c1 = face[1]->y-face[0]->y;
-        v0->c2 = face[1]->z-face[0]->z;
-        Vec3D* v1 = new Vec3D;
-        v1->c0 = face[3]->x-face[0]->x;
-        v1->c1 = face[3]->y-face[0]->y;
-        v1->c2 = face[3]->z-face[0]->z;
-        Vec3D* nbf     = ComputeSurfaceNormal(v0,v1);
+        std::vector<double> r0(3);
+        r0[0] = (VoriginalFace[0]-VoriginalElem[0]);
+        r0[1] = (VoriginalFace[1]-VoriginalElem[1]);
+        r0[2] = (VoriginalFace[2]-VoriginalElem[2]);
+        std::vector<double> v0(3);
+        v0[0] = face[1][0]-face[0][0];
+        v0[1] = face[1][1]-face[0][1];
+        v0[2] = face[1][2]-face[0][2];
+        std::vector<double> v1(3);
+        v1[0] = face[3][0]-face[0][0];
+        v1[1] = face[3][1]-face[0][1];
+        v1[2] = face[3][2]-face[0][2];
+        std::vector<double> nbf     = ComputeSurfaceNormal(v0,v1);
         double orient0 = DotVec3D(r0,nbf);
         
         if(orient0<0.0)
@@ -581,7 +595,7 @@ BLShellInfo* FindOuterShellBoundaryLayerMesh(int wall_id, int nLayer,
     MPI_Comm_rank(comm, &world_rank);
 
     std::vector<double> dp(6);
-    std::vector<Vec3D*> dpvec(6);
+    std::vector<std::vector<double> > dpvec(6);
     //std::cout << "Determining outer shell of BL mesh..." << std::endl;
     clock_t start;
     start = std::clock();
@@ -596,16 +610,21 @@ BLShellInfo* FindOuterShellBoundaryLayerMesh(int wall_id, int nLayer,
     int fv2_b;
     int fv3_b;
     int glob_el_id = 0;
-    Vert* Vface2  = new Vert;
-    Vec3D* r00 = new Vec3D;
-    Vec3D* v00 = new Vec3D;
-    Vec3D* v11 = new Vec3D;
-    Vert* Vface  = new Vert;
-    Vert* V  = new Vert;
+    std::vector<double> Vface2(3);
+//    Vec3D* r00 = new Vec3D;
+//    Vec3D* v00 = new Vec3D;
+//    Vec3D* v11 = new Vec3D;
+    std::vector<double> r00(3);
+    std::vector<double> v00(3);
+    std::vector<double> v11(3);
+    std::vector<double> Vface(3);
+    std::vector<double> V(3);
+
     int nbface = 0;
     Vec3D* NextFace2OriginalElem = new Vec3D;
     Vec3D* NextElem2OriginalFace = new Vec3D;
-    Vert* VadjMinAngle = new Vert;
+    
+    std::vector<double> VadjMinAngle(3);
     int elprev = -1;
     //for(int bf=0;bf<1;bf++)
     int check_f_id;
@@ -630,65 +649,67 @@ BLShellInfo* FindOuterShellBoundaryLayerMesh(int wall_id, int nLayer,
         
         BLinfo->BLlayers[bfaceid].push_back(elid_cur);
         
-        Vert* VoriginalElem = new Vert;
-        VoriginalElem->x = 0.0;
-        VoriginalElem->y = 0.0;
-        VoriginalElem->z = 0.0;
+        
+        std::vector<double> VoriginalElem(3);
+        VoriginalElem[0] = 0.0;
+        VoriginalElem[1] = 0.0;
+        VoriginalElem[2] = 0.0;
         
         for(int k=0;k<8;k++)
         {
             loc_vid     = ien_g->getVal(elid_cur,k);
-            VoriginalElem->x = VoriginalElem->x+xcn_g->getVal(loc_vid,0);
-            VoriginalElem->y = VoriginalElem->y+xcn_g->getVal(loc_vid,1);
-            VoriginalElem->z = VoriginalElem->z+xcn_g->getVal(loc_vid,2);
+            VoriginalElem[0] = VoriginalElem[0]+xcn_g->getVal(loc_vid,0);
+            VoriginalElem[1] = VoriginalElem[1]+xcn_g->getVal(loc_vid,1);
+            VoriginalElem[2] = VoriginalElem[2]+xcn_g->getVal(loc_vid,2);
         }
 
-        VoriginalElem->x = VoriginalElem->x/8.0;
-        VoriginalElem->y = VoriginalElem->y/8.0;
-        VoriginalElem->z = VoriginalElem->z/8.0;
+        VoriginalElem[0] = VoriginalElem[0]/8.0;
+        VoriginalElem[1] = VoriginalElem[1]/8.0;
+        VoriginalElem[2] = VoriginalElem[2]/8.0;
         
-        Vert* VoriginalFace = new Vert;
-        VoriginalFace->x = 0.0;
-        VoriginalFace->y = 0.0;
-        VoriginalFace->z = 0.0;
+        
+        std::vector<double> VoriginalFace(3);
+        VoriginalFace[0] = 0.0;
+        VoriginalFace[1] = 0.0;
+        VoriginalFace[2] = 0.0;
         //std::cout << "face = ";
-        std::vector<Vert*> face;
-        std::vector<Vert*> face_turned(4);
+        std::vector<std::vector<double> > face;
+        std::vector<std::vector<double> > face_turned(4);
         for(int k=0;k<4;k++)
         {
             loc_vid = ifn_g->getVal(faceid,k);
 
-            VoriginalFace->x = VoriginalFace->x+xcn_g->getVal(loc_vid,0);
-            VoriginalFace->y = VoriginalFace->y+xcn_g->getVal(loc_vid,1);
-            VoriginalFace->z = VoriginalFace->z+xcn_g->getVal(loc_vid,2);
+            VoriginalFace[0] = VoriginalFace[0]+xcn_g->getVal(loc_vid,0);
+            VoriginalFace[1] = VoriginalFace[1]+xcn_g->getVal(loc_vid,1);
+            VoriginalFace[2] = VoriginalFace[2]+xcn_g->getVal(loc_vid,2);
             
-            Vert* V  = new Vert;
-
-            V->x = xcn_g->getVal(loc_vid,0);
-            V->y = xcn_g->getVal(loc_vid,1);
-            V->z = xcn_g->getVal(loc_vid,2);
+            
+            std::vector<double> V(3);
+            V[0] = xcn_g->getVal(loc_vid,0);
+            V[1] = xcn_g->getVal(loc_vid,1);
+            V[2] = xcn_g->getVal(loc_vid,2);
             
             face.push_back(V);
         }
         
 
-        VoriginalFace->x = VoriginalFace->x/4.0;
-        VoriginalFace->y = VoriginalFace->y/4.0;
-        VoriginalFace->z = VoriginalFace->z/4.0;
+        VoriginalFace[0] = VoriginalFace[0]/4.0;
+        VoriginalFace[1] = VoriginalFace[1]/4.0;
+        VoriginalFace[2] = VoriginalFace[2]/4.0;
         
-        Vec3D* r0 = new Vec3D;
-        r0->c0 = (VoriginalFace->x-VoriginalElem->x);
-        r0->c1 = (VoriginalFace->y-VoriginalElem->y);
-        r0->c2 = (VoriginalFace->z-VoriginalElem->z);
-        Vec3D* v0 = new Vec3D;
-        v0->c0 = face[1]->x-face[0]->x;
-        v0->c1 = face[1]->y-face[0]->y;
-        v0->c2 = face[1]->z-face[0]->z;
-        Vec3D* v1 = new Vec3D;
-        v1->c0 = face[3]->x-face[0]->x;
-        v1->c1 = face[3]->y-face[0]->y;
-        v1->c2 = face[3]->z-face[0]->z;
-        Vec3D* nbf     = ComputeSurfaceNormal(v0,v1);
+        std::vector<double> r0(3);
+        r0[0] = (VoriginalFace[0]-VoriginalElem[0]);
+        r0[1] = (VoriginalFace[1]-VoriginalElem[1]);
+        r0[2] = (VoriginalFace[2]-VoriginalElem[2]);
+        std::vector<double> v0(3);
+        v0[0] = face[1][0]-face[0][0];
+        v0[1] = face[1][1]-face[0][1];
+        v0[2] = face[1][2]-face[0][2];
+        std::vector<double> v1(3);
+        v1[0] = face[3][0]-face[0][0];
+        v1[1] = face[3][1]-face[0][1];
+        v1[2] = face[3][2]-face[0][2];
+        std::vector<double> nbf     = ComputeSurfaceNormal(v0,v1);
         double orient0 = DotVec3D(r0,nbf);
         
         if(orient0<0.0)
@@ -718,9 +739,9 @@ BLShellInfo* FindOuterShellBoundaryLayerMesh(int wall_id, int nLayer,
             std::vector<int> faLocadjs;
 
             
-            std::vector<Vert*> elVerts;
-            std::vector<Vert*> faVerts;
-            std::vector<Vec3D*> normals;
+            std::vector<std::vector<double> > elVerts;
+            std::vector<std::vector<double> > faVerts;
+            std::vector<std::vector<double> > normals;
             for(int k=0;k<6;k++)
             {
                 int el_adj_id  = iee_g->getVal(elid_cur,k);
@@ -732,45 +753,47 @@ BLShellInfo* FindOuterShellBoundaryLayerMesh(int wall_id, int nLayer,
                     check_f_id = k;
                 }
                 
-                Vert* Vface = new Vert;
-                Vface->x = 0.0;
-                Vface->y = 0.0;
-                Vface->z = 0.0;
                 
-                std::vector<Vert*> face2;
+                std::vector<double> Vface(3);
+                Vface[0] = 0.0;
+                Vface[1] = 0.0;
+                Vface[2] = 0.0;
+                
+                std::vector<std::vector<double> > face2;
                 
                 for(int s=0;s<4;s++)
                 {
                     loc_vid  = ifn_g->getVal(face_id,s);
-                    Vface->x = Vface->x + xcn_g->getVal(loc_vid,0);
-                    Vface->y = Vface->y + xcn_g->getVal(loc_vid,1);
-                    Vface->z = Vface->z + xcn_g->getVal(loc_vid,2);
+                    Vface[0] = Vface[0] + xcn_g->getVal(loc_vid,0);
+                    Vface[1] = Vface[1] + xcn_g->getVal(loc_vid,1);
+                    Vface[2] = Vface[2] + xcn_g->getVal(loc_vid,2);
                     
-                    Vert* V  = new Vert;
-                    V->x     = xcn_g->getVal(loc_vid,0);
-                    V->y     = xcn_g->getVal(loc_vid,1);
-                    V->z     = xcn_g->getVal(loc_vid,2);
+                    
+                    std::vector<double> V(3);
+                    V[0]     = xcn_g->getVal(loc_vid,0);
+                    V[1]     = xcn_g->getVal(loc_vid,1);
+                    V[2]     = xcn_g->getVal(loc_vid,2);
                     face2.push_back(V);
 
                 }
-                Vface->x = Vface->x/4.0;
-                Vface->y = Vface->y/4.0;
-                Vface->z = Vface->z/4.0;
+                Vface[0] = Vface[0]/4.0;
+                Vface[1] = Vface[1]/4.0;
+                Vface[2] = Vface[2]/4.0;
                 
-                Vec3D* r00 = new Vec3D;
-                r00->c0 = (Vface->x-VoriginalElem->x);
-                r00->c1 = (Vface->y-VoriginalElem->y);
-                r00->c2 = (Vface->z-VoriginalElem->z);
-                Vec3D* v00 = new Vec3D;
-                v00->c0 = face2[1]->x-face2[0]->x;
-                v00->c1 = face2[1]->y-face2[0]->y;
-                v00->c2 = face2[1]->z-face2[0]->z;
-                Vec3D* v11 = new Vec3D;
-                v11->c0 = face2[3]->x-face2[0]->x;
-                v11->c1 = face2[3]->y-face2[0]->y;
-                v11->c2 = face2[3]->z-face2[0]->z;
+                std::vector<double> r00(3);
+                r00[0] = (Vface[0]-VoriginalElem[0]);
+                r00[1] = (Vface[1]-VoriginalElem[1]);
+                r00[2] = (Vface[2]-VoriginalElem[2]);
+                std::vector<double> v00(3);
+                v00[0] = face2[1][0]-face2[0][0];
+                v00[1] = face2[1][1]-face2[0][1];
+                v00[2] = face2[1][2]-face2[0][2];
+                std::vector<double> v11(3);
+                v11[0] = face2[3][0]-face2[0][0];
+                v11[1] = face2[3][1]-face2[0][1];
+                v11[2] = face2[3][2]-face2[0][2];
                 
-                Vec3D* n00        = ComputeSurfaceNormal(v00,v11);
+                std::vector<double> n00        = ComputeSurfaceNormal(v00,v11);
                 double orient00   = DotVec3D(r00,n00);
                 dp[k]             = DotVec3D(nbf,n00);
             
@@ -782,21 +805,21 @@ BLShellInfo* FindOuterShellBoundaryLayerMesh(int wall_id, int nLayer,
                 angles.push_back(DotVec3D(nbf,n00));
                 normals.push_back(n00);
                 
-                Vert* Velem = new Vert;
-                Velem->x = 0.0;
-                Velem->y = 0.0;
-                Velem->z = 0.0;
+                std::vector<double> Velem(3);
+                Velem[0] = 0.0;
+                Velem[1] = 0.0;
+                Velem[2] = 0.0;
                 for(int f=0;f<8;f++)
                 {
                     loc_vid     = ien_g->getVal(el_adj_id,f);
-                    Velem->x    = Velem->x + xcn_g->getVal(loc_vid,0);
-                    Velem->y    = Velem->y + xcn_g->getVal(loc_vid,1);
-                    Velem->z    = Velem->z + xcn_g->getVal(loc_vid,2);
+                    Velem[0]    = Velem[0] + xcn_g->getVal(loc_vid,0);
+                    Velem[1]    = Velem[1] + xcn_g->getVal(loc_vid,1);
+                    Velem[2]    = Velem[2] + xcn_g->getVal(loc_vid,2);
                 }
 
-                Velem->x        = Velem->x/8.0;
-                Velem->y        = Velem->y/8.0;
-                Velem->z        = Velem->z/8.0;
+                Velem[0]        = Velem[0]/8.0;
+                Velem[1]        = Velem[1]/8.0;
+                Velem[2]        = Velem[2]/8.0;
 
                 eladjs.push_back(el_adj_id);
                 faadjs.push_back(face_id);
@@ -849,17 +872,17 @@ BLShellInfo* FindOuterShellBoundaryLayerMesh(int wall_id, int nLayer,
 //            }
 //            std::cout << std::endl;
 //
-            VoriginalElem->x    = elVerts[max_index]->x;
-            VoriginalElem->y    = elVerts[max_index]->y;
-            VoriginalElem->z    = elVerts[max_index]->z;
+            VoriginalElem[0]    = elVerts[max_index][0];
+            VoriginalElem[1]    = elVerts[max_index][1];
+            VoriginalElem[2]    = elVerts[max_index][2];
                 
-            VoriginalFace->x    = faVerts[max_index]->x;
-            VoriginalFace->y    = faVerts[max_index]->y;
-            VoriginalFace->z    = faVerts[max_index]->z;
+            VoriginalFace[0]    = faVerts[max_index][0];
+            VoriginalFace[1]    = faVerts[max_index][1];
+            VoriginalFace[2]    = faVerts[max_index][2];
             
-            nbf->c0 = -normals[max_index]->c0;
-            nbf->c1 = -normals[max_index]->c1;
-            nbf->c2 = -normals[max_index]->c2;
+            nbf[0] = -normals[max_index][0];
+            nbf[1] = -normals[max_index][1];
+            nbf[2] = -normals[max_index][2];
             
             if(c<nLayer-1)
             {
@@ -934,7 +957,7 @@ void ExtractBoundaryLayerMeshFromShell(Mesh_Topology_BL* mesh_topology_bl,std::v
     MPI_Comm_rank(comm, &world_rank);
 
     std::vector<double> dp(6);
-    std::vector<Vec3D*> dpvec(6);
+    std::vector<std::vector<double> > dpvec(6);
 
     clock_t start;
     start = std::clock();
@@ -943,8 +966,8 @@ void ExtractBoundaryLayerMeshFromShell(Mesh_Topology_BL* mesh_topology_bl,std::v
     int elid_cur,elid_next;
     int t=0;
     int loc_vid;
-    //std::vector<Vert*> face_c;
-    std::map<int,std::vector<Vert*> > prisms;
+
+    std::map<int,std::vector<std::vector<double> > > prisms;
     
     std::set<int> tria0;
     std::set<int> tria1;
@@ -976,16 +999,23 @@ void ExtractBoundaryLayerMeshFromShell(Mesh_Topology_BL* mesh_topology_bl,std::v
     int fwrong = 0;
     int fright = 0;
     
-    Vert* Vface2  = new Vert;
-    Vec3D* v_t0 = new Vec3D;
-    Vec3D* v_t1 = new Vec3D;
-    Vec3D* v_t10 = new Vec3D;
-    Vec3D* v_t11 = new Vec3D;
-    Vert* Vface  = new Vert;
+    
+    std::vector<double> Vface2(3);
+    
+    std::vector<double> v_t0(3);
+    std::vector<double> v_t1(3);
+    std::vector<double> v_t10(3);
+    std::vector<double> v_t11(3);
+    
 
-    Vec3D* r00 = new Vec3D;
-    Vec3D* v00 = new Vec3D;
-    Vec3D* v11 = new Vec3D;
+    std::vector<double> Vface(3);
+//    Vec3D* r00 = new Vec3D;
+//    Vec3D* v00 = new Vec3D;
+//    Vec3D* v11 = new Vec3D;
+    
+    std::vector<double> r00(3);
+    std::vector<double> v00(3);
+    std::vector<double> v11(3);
     
     int fv1_b,fv2_b,fv3_b;
     
@@ -1095,25 +1125,26 @@ void ExtractBoundaryLayerMeshFromShell(Mesh_Topology_BL* mesh_topology_bl,std::v
            Pijk[k*3+2] = xcn_g->getVal(loc_vid,2);
         }
 
-        Vert* Vijk = ComputeCenterCoord(Pijk, 8);
+        std::vector<double> Vijk = ComputeCenterCoord(Pijk, 8);
         
-        Vface->x=0.0;
-        Vface->y=0.0;
-        Vface->z=0.0;
-        std::vector<Vert*> face;
-        std::vector<Vert*> face_turned(4);
-        std::vector<Vert*> face_turned2(4);
+        Vface[0]=0.0;
+        Vface[1]=0.0;
+        Vface[2]=0.0;
+        std::vector<std::vector<double> > face;
+        std::vector<std::vector<double> > face_turned(4);
+        std::vector<std::vector<double> > face_turned2(4);
         for(int r=0;r<4;r++)
         {
             int vid  = ifn_g->getVal(faceid,r);
             
-            Vert* V  = new Vert;
-            V->x     = xcn_g->getVal(vid,0);
-            V->y     = xcn_g->getVal(vid,1);
-            V->z     = xcn_g->getVal(vid,2);
-            Vface->x = Vface->x+V->x;
-            Vface->y = Vface->y+V->y;
-            Vface->z = Vface->z+V->z;
+            
+            std::vector<double> V(3);
+            V[0]     = xcn_g->getVal(vid,0);
+            V[1]     = xcn_g->getVal(vid,1);
+            V[2]     = xcn_g->getVal(vid,2);
+            Vface[0] = Vface[0]+V[0];
+            Vface[1] = Vface[1]+V[1];
+            Vface[2] = Vface[2]+V[2];
             
             face.push_back(V);
         }
@@ -1121,23 +1152,23 @@ void ExtractBoundaryLayerMeshFromShell(Mesh_Topology_BL* mesh_topology_bl,std::v
         std::vector<int> tri1(3);
         //std::cout << "End loop " << tri_0n[0] << " " << tri_0n[1] << " " << tri_0n[2] << std::endl;
        
-        v_t0->c0 = xcn_g->getVal(tri_0n[1],0)-xcn_g->getVal(tri_0n[0],0);
-        v_t0->c1 = xcn_g->getVal(tri_0n[1],1)-xcn_g->getVal(tri_0n[0],1);
-        v_t0->c2 = xcn_g->getVal(tri_0n[1],2)-xcn_g->getVal(tri_0n[0],2);
+        v_t0[0] = xcn_g->getVal(tri_0n[1],0)-xcn_g->getVal(tri_0n[0],0);
+        v_t0[1] = xcn_g->getVal(tri_0n[1],1)-xcn_g->getVal(tri_0n[0],1);
+        v_t0[2] = xcn_g->getVal(tri_0n[1],2)-xcn_g->getVal(tri_0n[0],2);
         
-        v_t1->c0 = xcn_g->getVal(tri_0n[2],0)-xcn_g->getVal(tri_0n[0],0);
-        v_t1->c1 = xcn_g->getVal(tri_0n[2],1)-xcn_g->getVal(tri_0n[0],1);
-        v_t1->c2 = xcn_g->getVal(tri_0n[2],2)-xcn_g->getVal(tri_0n[0],2);
-        Vec3D* n_t0        = ComputeSurfaceNormal(v_t0,v_t1);
+        v_t1[0] = xcn_g->getVal(tri_0n[2],0)-xcn_g->getVal(tri_0n[0],0);
+        v_t1[1] = xcn_g->getVal(tri_0n[2],1)-xcn_g->getVal(tri_0n[0],1);
+        v_t1[2] = xcn_g->getVal(tri_0n[2],2)-xcn_g->getVal(tri_0n[0],2);
+        std::vector<double> n_t0 = ComputeSurfaceNormal(v_t0,v_t1);
         
-        v_t10->c0 = xcn_g->getVal(tri_1n[1],0)-xcn_g->getVal(tri_1n[0],0);
-        v_t10->c1 = xcn_g->getVal(tri_1n[1],1)-xcn_g->getVal(tri_1n[0],1);
-        v_t10->c2 = xcn_g->getVal(tri_1n[1],2)-xcn_g->getVal(tri_1n[0],2);
+        v_t10[0] = xcn_g->getVal(tri_1n[1],0)-xcn_g->getVal(tri_1n[0],0);
+        v_t10[1] = xcn_g->getVal(tri_1n[1],1)-xcn_g->getVal(tri_1n[0],1);
+        v_t10[2] = xcn_g->getVal(tri_1n[1],2)-xcn_g->getVal(tri_1n[0],2);
         
-        v_t11->c0 = xcn_g->getVal(tri_1n[2],0)-xcn_g->getVal(tri_1n[0],0);
-        v_t11->c1 = xcn_g->getVal(tri_1n[2],1)-xcn_g->getVal(tri_1n[0],1);
-        v_t11->c2 = xcn_g->getVal(tri_1n[2],2)-xcn_g->getVal(tri_1n[0],2);
-        Vec3D* n_t10        = ComputeSurfaceNormal(v_t10,v_t11);
+        v_t11[0] = xcn_g->getVal(tri_1n[2],0)-xcn_g->getVal(tri_1n[0],0);
+        v_t11[1] = xcn_g->getVal(tri_1n[2],1)-xcn_g->getVal(tri_1n[0],1);
+        v_t11[2] = xcn_g->getVal(tri_1n[2],2)-xcn_g->getVal(tri_1n[0],2);
+        std::vector<double> n_t10 = ComputeSurfaceNormal(v_t10,v_t11);
         
         tri0[0] = tri_0n[0];
         tri0[1] = tri_0n[1];
@@ -1149,27 +1180,30 @@ void ExtractBoundaryLayerMeshFromShell(Mesh_Topology_BL* mesh_topology_bl,std::v
         tri1[2] = tri_1n[2];
         mesh_topology_bl->BndFaces.push_back(tri1);
         
-        Vface->x = Vface->x/4.0;
-        Vface->y = Vface->y/4.0;
-        Vface->z = Vface->z/4.0;
+        Vface[0] = Vface[0]/4.0;
+        Vface[1] = Vface[1]/4.0;
+        Vface[2] = Vface[2]/4.0;
                         
-        Vec3D* r0 = new Vec3D;
-        double r0L = sqrt((Vface->x-Vijk->x)*(Vface->x-Vijk->x)
-                          +(Vface->y-Vijk->y)*(Vface->y-Vijk->y)
-                          +(Vface->z-Vijk->z)*(Vface->z-Vijk->z));
-        r0->c0 = (Vface->x-Vijk->x)/r0L;
-        r0->c1 = (Vface->y-Vijk->y)/r0L;
-        r0->c2 = (Vface->z-Vijk->z)/r0L;
-        Vec3D* v0 = new Vec3D;
-        v0->c0 = face[1]->x-face[0]->x;
-        v0->c1 = face[1]->y-face[0]->y;
-        v0->c2 = face[1]->z-face[0]->z;
-        Vec3D* v1 = new Vec3D;
-        v1->c0 = face[3]->x-face[0]->x;
-        v1->c1 = face[3]->y-face[0]->y;
-        v1->c2 = face[3]->z-face[0]->z;
+        std::vector<double> r0(3);
+        double r0L = sqrt((Vface[0]-Vijk[0])*(Vface[0]-Vijk[0])
+                          +(Vface[1]-Vijk[1])*(Vface[1]-Vijk[1])
+                          +(Vface[2]-Vijk[2])*(Vface[2]-Vijk[2]));
         
-        Vec3D* nbf     = ComputeSurfaceNormal(v0,v1);
+        r0[0] = (Vface[0]-Vijk[0])/r0L;
+        r0[1] = (Vface[1]-Vijk[1])/r0L;
+        r0[2] = (Vface[2]-Vijk[2])/r0L;
+        
+        std::vector<double> v0(3);
+        v0[0] = face[1][0]-face[0][0];
+        v0[1] = face[1][1]-face[0][1];
+        v0[2] = face[1][2]-face[0][2];
+        std::vector<double> v1(3);
+        v1[0] = face[3][0]-face[0][0];
+        v1[1] = face[3][1]-face[0][1];
+        v1[2] = face[3][2]-face[0][2];
+        
+        std::vector<double> nbf     = ComputeSurfaceNormal(v0,v1);
+        
         double orient0 = DotVec3D(r0,nbf);
         
         
@@ -1209,24 +1243,24 @@ void ExtractBoundaryLayerMeshFromShell(Mesh_Topology_BL* mesh_topology_bl,std::v
             NegateVec3D(n_t10);
         }
         
-        v_t0->c0 = xcn_g->getVal(tri_0n[1],0)-xcn_g->getVal(tri_0n[0],0);
-        v_t0->c1 = xcn_g->getVal(tri_0n[1],1)-xcn_g->getVal(tri_0n[0],1);
-        v_t0->c2 = xcn_g->getVal(tri_0n[1],2)-xcn_g->getVal(tri_0n[0],2);
+        v_t0[0] = xcn_g->getVal(tri_0n[1],0)-xcn_g->getVal(tri_0n[0],0);
+        v_t0[1] = xcn_g->getVal(tri_0n[1],1)-xcn_g->getVal(tri_0n[0],1);
+        v_t0[2] = xcn_g->getVal(tri_0n[1],2)-xcn_g->getVal(tri_0n[0],2);
 
-        v_t1->c0 = xcn_g->getVal(tri_0n[2],0)-xcn_g->getVal(tri_0n[0],0);
-        v_t1->c1 = xcn_g->getVal(tri_0n[2],1)-xcn_g->getVal(tri_0n[0],1);
-        v_t1->c2 = xcn_g->getVal(tri_0n[2],2)-xcn_g->getVal(tri_0n[0],2);
+        v_t1[0] = xcn_g->getVal(tri_0n[2],0)-xcn_g->getVal(tri_0n[0],0);
+        v_t1[1] = xcn_g->getVal(tri_0n[2],1)-xcn_g->getVal(tri_0n[0],1);
+        v_t1[2] = xcn_g->getVal(tri_0n[2],2)-xcn_g->getVal(tri_0n[0],2);
         
         //Vec3D* n_t0_v1 = ComputeSurfaceNormal(v_t0,v_t1);
         //double orient_t0_check = DotVec3D(r0,n_t0_v1);
         
-        v_t10->c0 = xcn_g->getVal(tri_1n[1],0)-xcn_g->getVal(tri_1n[0],0);
-        v_t10->c1 = xcn_g->getVal(tri_1n[1],1)-xcn_g->getVal(tri_1n[0],1);
-        v_t10->c2 = xcn_g->getVal(tri_1n[1],2)-xcn_g->getVal(tri_1n[0],2);
+        v_t10[0] = xcn_g->getVal(tri_1n[1],0)-xcn_g->getVal(tri_1n[0],0);
+        v_t10[1] = xcn_g->getVal(tri_1n[1],1)-xcn_g->getVal(tri_1n[0],1);
+        v_t10[2] = xcn_g->getVal(tri_1n[1],2)-xcn_g->getVal(tri_1n[0],2);
 
-        v_t11->c0 = xcn_g->getVal(tri_1n[2],0)-xcn_g->getVal(tri_1n[0],0);
-        v_t11->c1 = xcn_g->getVal(tri_1n[2],1)-xcn_g->getVal(tri_1n[0],1);
-        v_t11->c2 = xcn_g->getVal(tri_1n[2],2)-xcn_g->getVal(tri_1n[0],2);
+        v_t11[0] = xcn_g->getVal(tri_1n[2],0)-xcn_g->getVal(tri_1n[0],0);
+        v_t11[1] = xcn_g->getVal(tri_1n[2],1)-xcn_g->getVal(tri_1n[0],1);
+        v_t11[2] = xcn_g->getVal(tri_1n[2],2)-xcn_g->getVal(tri_1n[0],2);
         //Vec3D* n_t10_v1 = ComputeSurfaceNormal(v_t10,v_t11);
         //double orient_t1_check = DotVec3D(r0,n_t10_v1);
         
@@ -1242,25 +1276,25 @@ void ExtractBoundaryLayerMeshFromShell(Mesh_Topology_BL* mesh_topology_bl,std::v
         prism1[1] = tri_1n[1];
         prism1[2] = tri_1n[2];
         
-        v_t0->c0 = xcn_g->getVal(prism0[1],0)-xcn_g->getVal(prism0[0],0);
-        v_t0->c1 = xcn_g->getVal(prism0[1],1)-xcn_g->getVal(prism0[0],1);
-        v_t0->c2 = xcn_g->getVal(prism0[1],2)-xcn_g->getVal(prism0[0],2);
+        v_t0[0] = xcn_g->getVal(prism0[1],0)-xcn_g->getVal(prism0[0],0);
+        v_t0[1] = xcn_g->getVal(prism0[1],1)-xcn_g->getVal(prism0[0],1);
+        v_t0[2] = xcn_g->getVal(prism0[1],2)-xcn_g->getVal(prism0[0],2);
 
-        v_t1->c0 = xcn_g->getVal(prism0[2],0)-xcn_g->getVal(prism0[0],0);
-        v_t1->c1 = xcn_g->getVal(prism0[2],1)-xcn_g->getVal(prism0[0],1);
-        v_t1->c2 = xcn_g->getVal(prism0[2],2)-xcn_g->getVal(prism0[0],2);
-        Vec3D* n_t0_v2 = ComputeSurfaceNormal(v_t0,v_t1);
+        v_t1[0] = xcn_g->getVal(prism0[2],0)-xcn_g->getVal(prism0[0],0);
+        v_t1[1] = xcn_g->getVal(prism0[2],1)-xcn_g->getVal(prism0[0],1);
+        v_t1[2] = xcn_g->getVal(prism0[2],2)-xcn_g->getVal(prism0[0],2);
+        std::vector<double> n_t0_v2 = ComputeSurfaceNormal(v_t0,v_t1);
         //orient_t0_check = DotVec3D(r0,n_t0_v2);
 //
         //n_t0 = n_t0_v2;
-        v_t10->c0 = xcn_g->getVal(prism1[1],0)-xcn_g->getVal(prism1[0],0);
-        v_t10->c1 = xcn_g->getVal(prism1[1],1)-xcn_g->getVal(prism1[0],1);
-        v_t10->c2 = xcn_g->getVal(prism1[1],2)-xcn_g->getVal(prism1[0],2);
+        v_t10[0] = xcn_g->getVal(prism1[1],0)-xcn_g->getVal(prism1[0],0);
+        v_t10[1] = xcn_g->getVal(prism1[1],1)-xcn_g->getVal(prism1[0],1);
+        v_t10[2] = xcn_g->getVal(prism1[1],2)-xcn_g->getVal(prism1[0],2);
 
-        v_t11->c0 = xcn_g->getVal(prism1[2],0)-xcn_g->getVal(prism1[0],0);
-        v_t11->c1 = xcn_g->getVal(prism1[2],1)-xcn_g->getVal(prism1[0],1);
-        v_t11->c2 = xcn_g->getVal(prism1[2],2)-xcn_g->getVal(prism1[0],2);
-        Vec3D* n_t10_v2 = ComputeSurfaceNormal(v_t10,v_t11);
+        v_t11[0] = xcn_g->getVal(prism1[2],0)-xcn_g->getVal(prism1[0],0);
+        v_t11[1] = xcn_g->getVal(prism1[2],1)-xcn_g->getVal(prism1[0],1);
+        v_t11[2] = xcn_g->getVal(prism1[2],2)-xcn_g->getVal(prism1[0],2);
+        std::vector<double> n_t10_v2 = ComputeSurfaceNormal(v_t10,v_t11);
 
         
         if(orient0<0.0)
@@ -1295,31 +1329,32 @@ void ExtractBoundaryLayerMeshFromShell(Mesh_Topology_BL* mesh_topology_bl,std::v
             
             //int changed = ChkHexorient(Pijk,Pijk_id);
             
-            Vert* Vijk = ComputeCenterCoord(Pijk, 8);
+            std::vector<double> Vijk = ComputeCenterCoord(Pijk, 8);
             std::vector<std::vector<int> > face_id_stored(6);
-            std::vector<std::vector<Vert*> > face_stored(6);
+            std::vector<std::vector<std::vector<double> > > face_stored(6);
             map<int,std::set<int> > local_node2node_element;
             std::vector<std::map<int,std::set<int> > > local_node2node_face(6);
             std::vector<std::map<int,int> > local_node2opponode_face(6);
             for(int k=0;k<6;k++)
             {
                 int fid = ief_g->getVal(elid_cur,k);
-                Vface2->x = 0.0;
-                Vface2->y = 0.0;
-                Vface2->z = 0.0;
+                Vface2[0] = 0.0;
+                Vface2[1] = 0.0;
+                Vface2[2] = 0.0;
                 std::vector<int> faceVert_IDs(4);
-                std::vector<Vert*> face2;
+                std::vector<std::vector<double> > face2;
                 for(int r=0;r<4;r++)
                 {
                     int vid  = ifn_g->getVal(fid,r);
                     
-                    Vert* V  = new Vert;
-                    V->x     = xcn_g->getVal(vid,0);
-                    V->y     = xcn_g->getVal(vid,1);
-                    V->z     = xcn_g->getVal(vid,2);
-                    Vface2->x = Vface2->x+V->x;
-                    Vface2->y = Vface2->y+V->y;
-                    Vface2->z = Vface2->z+V->z;
+                    
+                    std::vector<double> V(3);
+                    V[0]     = xcn_g->getVal(vid,0);
+                    V[1]     = xcn_g->getVal(vid,1);
+                    V[2]     = xcn_g->getVal(vid,2);
+                    Vface2[0] = Vface2[0]+V[0];
+                    Vface2[1] = Vface2[1]+V[1];
+                    Vface2[2] = Vface2[2]+V[2];
                     face2.push_back(V);
                     
                     faceVert_IDs[r] = vid;
@@ -1348,23 +1383,23 @@ void ExtractBoundaryLayerMeshFromShell(Mesh_Topology_BL* mesh_topology_bl,std::v
                 local_node2opponode_face[k][ifn_g->getVal(fid,2)]=ifn_g->getVal(fid,0);
                 local_node2opponode_face[k][ifn_g->getVal(fid,3)]=ifn_g->getVal(fid,1);
 
-                Vface2->x = Vface2->x/4.0;
-                Vface2->y = Vface2->y/4.0;
-                Vface2->z = Vface2->z/4.0;
+                Vface2[0] = Vface2[0]/4.0;
+                Vface2[1] = Vface2[1]/4.0;
+                Vface2[2] = Vface2[2]/4.0;
                 
-                r00->c0 = (Vface2->x-Vijk->x);
-                r00->c1 = (Vface2->y-Vijk->y);
-                r00->c2 = (Vface2->z-Vijk->z);
+                r00[0] = (Vface2[0]-Vijk[0]);
+                r00[1] = (Vface2[1]-Vijk[1]);
+                r00[2] = (Vface2[2]-Vijk[2]);
+            
+                v00[0] = face2[1][0]-face2[0][0];
+                v00[1] = face2[1][1]-face2[0][1];
+                v00[2] = face2[1][2]-face2[0][2];
                 
-                v00->c0 = face2[1]->x-face2[0]->x;
-                v00->c1 = face2[1]->y-face2[0]->y;
-                v00->c2 = face2[1]->z-face2[0]->z;
+                v11[0] = face2[3][0]-face2[0][0];
+                v11[1] = face2[3][1]-face2[0][1];
+                v11[2] = face2[3][2]-face2[0][2];
                 
-                v11->c0 = face2[3]->x-face2[0]->x;
-                v11->c1 = face2[3]->y-face2[0]->y;
-                v11->c2 = face2[3]->z-face2[0]->z;
-                
-                Vec3D* n00        = ComputeSurfaceNormal(v00,v11);
+                std::vector<double> n00 = ComputeSurfaceNormal(v00,v11);
                 double orient00   = DotVec3D(r00,n00);
                 
                 if(orient00<0.0)
@@ -1405,7 +1440,7 @@ void ExtractBoundaryLayerMeshFromShell(Mesh_Topology_BL* mesh_topology_bl,std::v
             int fid_new                  = ief_g->getVal(elid_cur,min_index);
             nbf                          = dpvec[min_index];
             std::vector<int> faceVertIDs = face_id_stored[min_index];
-            std::vector<Vert*> faceupdate = face_stored[min_index];
+            std::vector<std::vector<double> > faceupdate = face_stored[min_index];
             std::map<int,std::set<int> > node2node_face = local_node2node_face[min_index];
             
             std::set<int>::iterator itu;
@@ -1417,16 +1452,16 @@ void ExtractBoundaryLayerMeshFromShell(Mesh_Topology_BL* mesh_topology_bl,std::v
                 l++;
             }
             
-            Vec3D* v_toppo0 = new Vec3D;
-            v_toppo0->c0 = xcn_g->getVal(opposite_tri[1],0)-xcn_g->getVal(opposite_tri[0],0);
-            v_toppo0->c1 = xcn_g->getVal(opposite_tri[1],1)-xcn_g->getVal(opposite_tri[0],1);
-            v_toppo0->c2 = xcn_g->getVal(opposite_tri[1],2)-xcn_g->getVal(opposite_tri[0],2);
-            Vec3D* v_toppo1 = new Vec3D;
-            v_toppo1->c0 = xcn_g->getVal(opposite_tri[2],0)-xcn_g->getVal(opposite_tri[0],0);
-            v_toppo1->c1 = xcn_g->getVal(opposite_tri[2],1)-xcn_g->getVal(opposite_tri[0],1);
-            v_toppo1->c2 = xcn_g->getVal(opposite_tri[2],2)-xcn_g->getVal(opposite_tri[0],2);
+            std::vector<double> v_toppo0(3);
+            v_toppo0[0] = xcn_g->getVal(opposite_tri[1],0)-xcn_g->getVal(opposite_tri[0],0);
+            v_toppo0[1] = xcn_g->getVal(opposite_tri[1],1)-xcn_g->getVal(opposite_tri[0],1);
+            v_toppo0[2] = xcn_g->getVal(opposite_tri[1],2)-xcn_g->getVal(opposite_tri[0],2);
+            std::vector<double> v_toppo1(3);
+            v_toppo1[0] = xcn_g->getVal(opposite_tri[2],0)-xcn_g->getVal(opposite_tri[0],0);
+            v_toppo1[1] = xcn_g->getVal(opposite_tri[2],1)-xcn_g->getVal(opposite_tri[0],1);
+            v_toppo1[2] = xcn_g->getVal(opposite_tri[2],2)-xcn_g->getVal(opposite_tri[0],2);
             
-            Vec3D* n_toppo0        = ComputeSurfaceNormal(v_toppo0,v_toppo1);
+            std::vector<double> n_toppo0 = ComputeSurfaceNormal(v_toppo0,v_toppo1);
             double orient0oppo0    = DotVec3D(n_t0_v2 ,n_toppo0 );
             if(orient0oppo0>0)
             {
@@ -1441,16 +1476,18 @@ void ExtractBoundaryLayerMeshFromShell(Mesh_Topology_BL* mesh_topology_bl,std::v
                 cnt_turn++;
             }
 
-            v_toppo0->c0 = xcn_g->getVal(opposite_tri[1],0)-xcn_g->getVal(opposite_tri[0],0);
-            v_toppo0->c1 = xcn_g->getVal(opposite_tri[1],1)-xcn_g->getVal(opposite_tri[0],1);
-            v_toppo0->c2 = xcn_g->getVal(opposite_tri[1],2)-xcn_g->getVal(opposite_tri[0],2);
+           
+            v_toppo0[0] = xcn_g->getVal(opposite_tri[1],0)-xcn_g->getVal(opposite_tri[0],0);
+            v_toppo0[1] = xcn_g->getVal(opposite_tri[1],1)-xcn_g->getVal(opposite_tri[0],1);
+            v_toppo0[2] = xcn_g->getVal(opposite_tri[1],2)-xcn_g->getVal(opposite_tri[0],2);
             
-            v_toppo1->c0 = xcn_g->getVal(opposite_tri[2],0)-xcn_g->getVal(opposite_tri[0],0);
-            v_toppo1->c1 = xcn_g->getVal(opposite_tri[2],1)-xcn_g->getVal(opposite_tri[0],1);
-            v_toppo1->c2 = xcn_g->getVal(opposite_tri[2],2)-xcn_g->getVal(opposite_tri[0],2);
-            n_toppo0        = ComputeSurfaceNormal(v_toppo0, v_toppo1);
             
-            orient0oppo0    = DotVec3D(n_t0_v2 , n_toppo0 );
+            v_toppo1[0] = xcn_g->getVal(opposite_tri[2],0)-xcn_g->getVal(opposite_tri[0],0);
+            v_toppo1[1] = xcn_g->getVal(opposite_tri[2],1)-xcn_g->getVal(opposite_tri[0],1);
+            v_toppo1[2] = xcn_g->getVal(opposite_tri[2],2)-xcn_g->getVal(opposite_tri[0],2);
+            std::vector<double> n_toppo01        = ComputeSurfaceNormal(v_toppo0, v_toppo1);
+            
+            orient0oppo0    = DotVec3D(n_t0_v2 , n_toppo01 );
             
             
             
@@ -1458,16 +1495,18 @@ void ExtractBoundaryLayerMeshFromShell(Mesh_Topology_BL* mesh_topology_bl,std::v
             opposite_tri1[1] = opposite_tri[2];
             opposite_tri1[2] = opposite_tri[1];
             
-            Vec3D* v_toppo10 = new Vec3D;
-            v_toppo10->c0 = xcn_g->getVal(opposite_tri1[1],0)-xcn_g->getVal(opposite_tri1[0],0);
-            v_toppo10->c1 = xcn_g->getVal(opposite_tri1[1],1)-xcn_g->getVal(opposite_tri1[0],1);
-            v_toppo10->c2 = xcn_g->getVal(opposite_tri1[1],2)-xcn_g->getVal(opposite_tri1[0],2);
-            Vec3D* v_toppo11 = new Vec3D;
-            v_toppo11->c0 = xcn_g->getVal(opposite_tri1[2],0)-xcn_g->getVal(opposite_tri1[0],0);
-            v_toppo11->c1 = xcn_g->getVal(opposite_tri1[2],1)-xcn_g->getVal(opposite_tri1[0],1);
-            v_toppo11->c2 = xcn_g->getVal(opposite_tri1[2],2)-xcn_g->getVal(opposite_tri1[0],2);
+            std::vector<double> v_toppo10(3);
+            v_toppo10[0] = xcn_g->getVal(opposite_tri1[1],0)-xcn_g->getVal(opposite_tri1[0],0);
+            v_toppo10[1] = xcn_g->getVal(opposite_tri1[1],1)-xcn_g->getVal(opposite_tri1[0],1);
+            v_toppo10[2] = xcn_g->getVal(opposite_tri1[1],2)-xcn_g->getVal(opposite_tri1[0],2);
             
-            Vec3D* n_toppo10        = ComputeSurfaceNormal(v_toppo10,v_toppo11);
+            std::vector<double> v_toppo11(3);
+            v_toppo11[0] = xcn_g->getVal(opposite_tri1[2],0)-xcn_g->getVal(opposite_tri1[0],0);
+            v_toppo11[1] = xcn_g->getVal(opposite_tri1[2],1)-xcn_g->getVal(opposite_tri1[0],1);
+            v_toppo11[2] = xcn_g->getVal(opposite_tri1[2],2)-xcn_g->getVal(opposite_tri1[0],2);
+            
+            std::vector<double> n_toppo10 = ComputeSurfaceNormal(v_toppo10,v_toppo11);
+            
             double orient0oppo10    = DotVec3D(n_t10_v2 , n_toppo10 );
 
             if(orient0oppo10>0)
@@ -1484,16 +1523,16 @@ void ExtractBoundaryLayerMeshFromShell(Mesh_Topology_BL* mesh_topology_bl,std::v
                 cnt_turn++;
             }
 
-            v_toppo10->c0 = xcn_g->getVal(opposite_tri1[1],0)-xcn_g->getVal(opposite_tri1[0],0);
-            v_toppo10->c1 = xcn_g->getVal(opposite_tri1[1],1)-xcn_g->getVal(opposite_tri1[0],1);
-            v_toppo10->c2 = xcn_g->getVal(opposite_tri1[1],2)-xcn_g->getVal(opposite_tri1[0],2);
+            v_toppo10[0] = xcn_g->getVal(opposite_tri1[1],0)-xcn_g->getVal(opposite_tri1[0],0);
+            v_toppo10[1] = xcn_g->getVal(opposite_tri1[1],1)-xcn_g->getVal(opposite_tri1[0],1);
+            v_toppo10[2] = xcn_g->getVal(opposite_tri1[1],2)-xcn_g->getVal(opposite_tri1[0],2);
             
-            v_toppo11->c0 = xcn_g->getVal(opposite_tri1[2],0)-xcn_g->getVal(opposite_tri1[0],0);
-            v_toppo11->c1 = xcn_g->getVal(opposite_tri1[2],1)-xcn_g->getVal(opposite_tri1[0],1);
-            v_toppo11->c2 = xcn_g->getVal(opposite_tri1[2],2)-xcn_g->getVal(opposite_tri1[0],2);
-            n_toppo10        = ComputeSurfaceNormal(v_toppo10, v_toppo11);
+            v_toppo11[0] = xcn_g->getVal(opposite_tri1[2],0)-xcn_g->getVal(opposite_tri1[0],0);
+            v_toppo11[1] = xcn_g->getVal(opposite_tri1[2],1)-xcn_g->getVal(opposite_tri1[0],1);
+            v_toppo11[2] = xcn_g->getVal(opposite_tri1[2],2)-xcn_g->getVal(opposite_tri1[0],2);
+            std::vector<double> n_toppo11 = ComputeSurfaceNormal(v_toppo10, v_toppo11);
             
-            orient0oppo10    = DotVec3D(n_t10_v2 , n_toppo10 );
+            orient0oppo10    = DotVec3D(n_t10_v2 , n_toppo11 );
 
             
             
@@ -1811,9 +1850,7 @@ void ExtractBoundaryLayerMeshFromShell(Mesh_Topology_BL* mesh_topology_bl,std::v
             //delete P0;
             //delete P1;
             elid_cur = elid_next;
-            
-            delete n_toppo0;
-            delete n_toppo10;
+         
             
         }
 //        prism0.clear();

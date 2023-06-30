@@ -91,11 +91,11 @@ RedistributePartitionObject::RedistributePartitionObject(US3D* us3d,
 RedistributePartitionObject::~RedistributePartitionObject()
 {
     int nvrts = LocalVerts.size();
-    for(int i=0;i<nvrts;i++)
-    {
-        delete LocalVerts[i];
-    }
-    
+//    for(int i=0;i<nvrts;i++)
+//    {
+//        delete LocalVerts[i];
+//    }
+//
 //    std::map<int,std >::iterator itm;
 //    for(itm=face2node.begin();itm!=face2node.end();itm++)
 //    {
@@ -2401,11 +2401,11 @@ void RedistributePartitionObject::UpdateTetrahedraOnPartition(int nglob,
         gvid    = m_TetraVertsOnRank[m];
         gvid_gl = m_HybridVertsOnRank[m];
         
-        Vert* V = new Vert;
+        std::vector<double> V(3);
 
-        V->x = xcn->getVal(gvid_gl-xcn_o,0);
-        V->y = xcn->getVal(gvid_gl-xcn_o,1);
-        V->z = xcn->getVal(gvid_gl-xcn_o,2);
+        V[0] = xcn->getVal(gvid_gl-xcn_o,0);
+        V[1] = xcn->getVal(gvid_gl-xcn_o,1);
+        V[2] = xcn->getVal(gvid_gl-xcn_o,2);
 
         LocalVerts.push_back(V);
         
@@ -2432,11 +2432,11 @@ void RedistributePartitionObject::UpdateTetrahedraOnPartition(int nglob,
         {
             gvid = m_TetraRank2ReqVerts[it_f->first][u];
             
-            Vert* V = new Vert;
+            std::vector<double> V(3);
             
-            V->x = it_f->second[u*3+0];
-            V->y = it_f->second[u*3+1];
-            V->z = it_f->second[u*3+2];
+            V[0] = it_f->second[u*3+0];
+            V[1] = it_f->second[u*3+1];
+            V[2] = it_f->second[u*3+2];
             
             LocalVerts.push_back(V);
             m_locV2globV[lvid]=gvid;
@@ -2885,7 +2885,7 @@ void RedistributePartitionObject::GetFace2RankTetrahedraMesh()
     std::map<int,std::vector<int> >::iterator itf;
     std::vector<int> sharedFonRank;
     std::vector<int> interiorFonRank;
-    std::vector<Vert*> locVs = LocalVerts;
+    std::vector<std::vector<double> > locVs = LocalVerts;
 
     for(itf=face2element.begin();itf!=face2element.end();itf++)
     {
@@ -2965,8 +2965,6 @@ void RedistributePartitionObject::GetFace2RankTetrahedraMesh()
     std::map<int,int> b2l_g;
     int Bvid=0,lBvid;
     int Svid=0,lSvid;
-    //std::vector<Vert*> svs;
-    //std::vector<Vert*> bvs;
     std::map<int,int> v2ref;
     int ref;
     int f = 0;
@@ -3004,9 +3002,9 @@ void RedistributePartitionObject::GetFace2RankTetrahedraMesh()
                         lSvid = m_globV2locV[vid];
 
 //                        Vert* sv = new Vert;
-//                        sv->x = locVs[lSvid]->x;
-//                        sv->y = locVs[lSvid]->y;
-//                        sv->z = locVs[lSvid]->z;
+//                        sv[0] = locVs[lSvid][0];
+//                        sv[1] = locVs[lSvid][1];
+//                        sv[2] = locVs[lSvid][2];
 
                         sface[u]=Svid;
                         //svs.push_back(sv);
@@ -3055,10 +3053,6 @@ void RedistributePartitionObject::GetFace2RankTetrahedraMesh()
                         g2l_b[vid]   = Bvid;
                         b2l_g[Bvid]  = vid;
                         lBvid        = m_globV2locV[vid];
-//                        Vert* bv     = new Vert;
-//                        bv->x        = locVs[lBvid]->x;
-//                        bv->y        = locVs[lBvid]->y;
-//                        bv->z        = locVs[lBvid]->z;
                         bface[u]     = Bvid;
                         
                         //bvs.push_back(bv);
@@ -3133,7 +3127,7 @@ void RedistributePartitionObject::GetFace2RankTetrahedraMesh()
 //
 //        for(int i=0;i<svs.size();i++)
 //        {
-//            myfile << svs[i]->x << " " << svs[i]->y << " " << svs[i]->z << std::endl;
+//            myfile << svs[i][0] << " " << svs[i][1] << " " << svs[i][2] << std::endl;
 //        }
 //        int gv0,gv1,gv2,gv3,gv4,gv5,gv6,gv7;
 //        int lv0,lv1,lv2,lv3,lv4,lv5,lv6,lv7;
@@ -3163,7 +3157,7 @@ void RedistributePartitionObject::GetFace2RankTetrahedraMesh()
 //        int evv = -1;
 //        for(int i=0;i<bvs.size();i++)
 //        {
-//            myfile2 << bvs[i]->x << " " << bvs[i]->y << " " << bvs[i]->z << std::endl;
+//            myfile2 << bvs[i][0] << " " << bvs[i][1] << " " << bvs[i][2] << std::endl;
 //        }
 //
 //
@@ -3205,7 +3199,7 @@ std::map<int,std::vector<int> > RedistributePartitionObject::GetFace2ElementMap(
 {
     return face2element;
 }
-std::vector<Vert*> RedistributePartitionObject::GetLocalVertices()
+std::vector<std::vector<double> > RedistributePartitionObject::GetLocalVertices()
 {
     return LocalVerts;
 }
@@ -3374,9 +3368,9 @@ std::map<int,int > RedistributePartitionObject::GetShellVert2RefMap_Global()
         
         int lvid = m_globV2locV[tvid_loc[i]];
         
-        vrtCoords_loc[i*3+0] = LocalVerts[lvid]->x;
-        vrtCoords_loc[i*3+1] = LocalVerts[lvid]->y;
-        vrtCoords_loc[i*3+2] = LocalVerts[lvid]->z;
+        vrtCoords_loc[i*3+0] = LocalVerts[lvid][0];
+        vrtCoords_loc[i*3+1] = LocalVerts[lvid][1];
+        vrtCoords_loc[i*3+2] = LocalVerts[lvid][2];
         
         i++;
     }
@@ -3431,10 +3425,10 @@ std::map<int,int > RedistributePartitionObject::GetShellVert2RefMap_Global()
         {
             m_shellVert2RefMapGlobal[key]     = irefn;
             m_shellVertTag2RefMapGlobal[key2] = irefn;
-            Vert* vcoord = new Vert;
-            vcoord->x = vrtCoords_tot[i*3+0];
-            vcoord->y = vrtCoords_tot[i*3+1];
-            vcoord->z = vrtCoords_tot[i*3+2];
+            std::vector<double> vcoord(3);
+            vcoord[0] = vrtCoords_tot[i*3+0];
+            vcoord[1] = vrtCoords_tot[i*3+1];
+            vcoord[2] = vrtCoords_tot[i*3+2];
             m_shellVertCoords2Ref[irefn] = vcoord;
             irefn++;
             refcount++;
@@ -3455,7 +3449,7 @@ std::map<int,int > RedistributePartitionObject::GetShellVertTag2RefMap_Global()
     return m_shellVertTag2RefMapGlobal;
 }
 
-std::map<int,Vert*> RedistributePartitionObject::GetShellVertCoords2RefMap_Global()
+std::map<int,std::vector<double> > RedistributePartitionObject::GetShellVertCoords2RefMap_Global()
 {
     return m_shellVertCoords2Ref;
 }

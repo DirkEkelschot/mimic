@@ -3,20 +3,19 @@
 #include "adapt_compute.h"
 #include <math.h>
 
-double CheckFaceOrientation(Vert* VcF, std::vector<Vert*> Vfaces, Vert* Vijk)
+double CheckFaceOrientation(std::vector<double> VcF, std::vector<std::vector<double> > Vfaces, std::vector<double> Vijk)
 {
-    Vec3D* vnul = new Vec3D;
-    Vec3D* vone = new Vec3D;
-    Vec3D* rnul = new Vec3D;
+    std::vector<double> vnul(3);
+    std::vector<double> vone(3);
+    std::vector<double> rnul(3);
     
-
-    double Lr0 = sqrt((VcF->x-Vijk->x)*(VcF->x-Vijk->x)
-                      +(VcF->y-Vijk->y)*(VcF->y-Vijk->y)
-                      +(VcF->z-Vijk->z)*(VcF->z-Vijk->z));
+    double Lr0 = sqrt((VcF[0]-Vijk[0])*(VcF[0]-Vijk[0])
+                      +(VcF[1]-Vijk[1])*(VcF[1]-Vijk[1])
+                      +(VcF[2]-Vijk[2])*(VcF[2]-Vijk[2]));
     
-    rnul->c0 = (VcF->x-Vijk->x)/Lr0;
-    rnul->c1 = (VcF->y-Vijk->y)/Lr0;
-    rnul->c2 = (VcF->z-Vijk->z)/Lr0;
+    rnul[0] = (VcF[0]-Vijk[0])/Lr0;
+    rnul[1] = (VcF[1]-Vijk[1])/Lr0;
+    rnul[2] = (VcF[2]-Vijk[2])/Lr0;
 
 
     double orient0  = 1.0;
@@ -24,39 +23,35 @@ double CheckFaceOrientation(Vert* VcF, std::vector<Vert*> Vfaces, Vert* Vijk)
     
     if(nppf==3) // triangle
     {
-        vnul->c0 = Vfaces[1]->x-Vfaces[0]->x;
-        vnul->c1 = Vfaces[1]->y-Vfaces[0]->y;
-        vnul->c2 = Vfaces[1]->z-Vfaces[0]->z;
+        vnul[0] = Vfaces[1][0]-Vfaces[0][0];
+        vnul[1] = Vfaces[1][1]-Vfaces[0][1];
+        vnul[2] = Vfaces[1][2]-Vfaces[0][2];
 
-        vone->c0 = Vfaces[2]->x-Vfaces[0]->x;
-        vone->c1 = Vfaces[2]->y-Vfaces[0]->y;
-        vone->c2 = Vfaces[2]->z-Vfaces[0]->z;
+        vone[0] = Vfaces[2][0]-Vfaces[0][0];
+        vone[1] = Vfaces[2][1]-Vfaces[0][1];
+        vone[2] = Vfaces[2][2]-Vfaces[0][2];
         
-        Vec3D* n0       = ComputeSurfaceNormal(vnul,vone);
+        std::vector<double> n0 = ComputeSurfaceNormal(vnul,vone);
         orient0         = DotVec3D(rnul,n0);
     }
     if(nppf==4) // quad
     {
-        vnul->c0 = Vfaces[1]->x-Vfaces[0]->x;
-        vnul->c1 = Vfaces[1]->y-Vfaces[0]->y;
-        vnul->c2 = Vfaces[1]->z-Vfaces[0]->z;
+        vnul[0] = Vfaces[1][0]-Vfaces[0][0];
+        vnul[1] = Vfaces[1][1]-Vfaces[0][1];
+        vnul[2] = Vfaces[1][2]-Vfaces[0][2];
 
-        vone->c0 = Vfaces[3]->x-Vfaces[0]->x;
-        vone->c1 = Vfaces[3]->y-Vfaces[0]->y;
-        vone->c2 = Vfaces[3]->z-Vfaces[0]->z;
+        vone[0] = Vfaces[3][0]-Vfaces[0][0];
+        vone[1] = Vfaces[3][1]-Vfaces[0][1];
+        vone[2] = Vfaces[3][2]-Vfaces[0][2];
         
-        Vec3D* n0 = ComputeSurfaceNormal(vnul,vone);
+        std::vector<double> n0 = ComputeSurfaceNormal(vnul,vone);
         orient0   = DotVec3D(rnul,n0);
     }
-    
-    delete rnul;
-    delete vone;
-    delete vnul;
     
     return orient0;
 }
 
-Vec3D* ComputeSurfaceNormal(Vec3D* a, Vec3D* b)
+Vec3D* ComputeSurfaceNormal_old(Vec3D* a, Vec3D* b)
 {
     Vec3D* V = new Vec3D;
     double cross[3];
@@ -75,40 +70,68 @@ Vec3D* ComputeSurfaceNormal(Vec3D* a, Vec3D* b)
 }
 
 
+std::vector<double> ComputeSurfaceNormal(std::vector<double> a, std::vector<double> b)
+{
+    std::vector<double> V(3);
+    std::vector<double> cross(3);
+
+//        //Cross cross formula
+//    cross[0] = (a->c1 * b->c2) - (a->c2 * b->c1);
+//    cross[1] = (a->c2 * b->c0) - (a->c0 * b->c2);
+//    cross[2] = (a->c0 * b->c1) - (a->c1 * b->c0);
+    
+    cross[0] = (a[1] * b[2]) - (a[2] * b[1]);
+    cross[1] = (a[2] * b[0]) - (a[0] * b[2]);
+    cross[2] = (a[0] * b[1]) - (a[1] * b[0]);
+
+    double L = sqrt(cross[0]*cross[0]+cross[1]*cross[1]+cross[2]*cross[2]);
+    V[0]=cross[0]/L;
+    V[1]=cross[1]/L;
+    V[2]=cross[2]/L;
+    
+    return V;
+}
+
+
 double ComputeQuadSurfaceArea(double* P)
 {
     
-    double cross[3];
-    Vec3D* a = new Vec3D;
-    a->c0 = P[1*3+0]-P[0*3+0];
-    a->c1 = P[1*3+1]-P[0*3+1];
-    a->c2 = P[1*3+2]-P[0*3+2];
-    Vec3D* b = new Vec3D;
-    b->c0 = P[3*3+0]-P[0*3+0];
-    b->c1 = P[3*3+1]-P[0*3+1];
-    b->c2 = P[3*3+2]-P[0*3+2];
+    std::vector<double> cross(3);
+    
+    std::vector<double> a(3);
+    a[0] = P[1*3+0]-P[0*3+0];
+    a[1] = P[1*3+1]-P[0*3+1];
+    a[2] = P[1*3+2]-P[0*3+2];
+    
+    std::vector<double> b(3);
+    b[0] = P[3*3+0]-P[0*3+0];
+    b[1] = P[3*3+1]-P[0*3+1];
+    b[2] = P[3*3+2]-P[0*3+2];
+    
     //Cross cross formula
-    cross[0] = (a->c1 * b->c2) - (a->c2 * b->c1);
-    cross[1] = (a->c2 * b->c0) - (a->c0 * b->c2);
-    cross[2] = (a->c0 * b->c1) - (a->c1 * b->c0);
+//    cross[0] = (a->c1 * b->c2) - (a->c2 * b->c1);
+//    cross[1] = (a->c2 * b->c0) - (a->c0 * b->c2);
+//    cross[2] = (a->c0 * b->c1) - (a->c1 * b->c0);
+    
+    cross[0] = (a[1] * b[2]) - (a[2] * b[1]);
+    cross[1] = (a[2] * b[0]) - (a[0] * b[2]);
+    cross[2] = (a[0] * b[1]) - (a[1] * b[0]);
     
     double R = fabs(sqrt(cross[0]*cross[0]+cross[1]*cross[1]+cross[2]*cross[2]));
-    delete a;
-    delete b;
+
     return R;
 }
 
 
 double ComputeTriSurfaceArea(double* P)
 {
-
-    Vert* v0 = new Vert;
-    Vert* v1 = new Vert;
-    Vert* v2 = new Vert;
+    std::vector<double> v0(3);
+    std::vector<double> v1(3);
+    std::vector<double> v2(3);
     
-    v0->x = P[0*3+0]; v1->x = P[1*3+0];v2->x = P[2*3+0];
-    v0->y = P[0*3+1]; v1->y = P[1*3+1];v2->y = P[2*3+1];
-    v0->z = P[0*3+2]; v1->z = P[1*3+2];v2->z = P[2*3+2];
+    v0[0] = P[0*3+0]; v1[0] = P[1*3+0];v2[0] = P[2*3+0];
+    v0[1] = P[0*3+1]; v1[1] = P[1*3+1];v2[1] = P[2*3+1];
+    v0[2] = P[0*3+2]; v1[2] = P[1*3+2];v2[2] = P[2*3+2];
     
     double a = ComputeEdgeLength(v0,v1);
     double b = ComputeEdgeLength(v0,v2);
@@ -117,10 +140,6 @@ double ComputeTriSurfaceArea(double* P)
     double p = (a+b+c)*0.5;
     
     double A = sqrt(p*(p-a)*(p-b)*(p-c));
-    
-    delete v0;
-    delete v1;
-    delete v2;
     
     return A;
 }

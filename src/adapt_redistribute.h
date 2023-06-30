@@ -56,7 +56,7 @@ class RedistributePartitionObject{
         Array<int>* GetElement2NodeMap();
         std::map<int,std::vector<int> > GetFace2NodeMap();
         std::map<int,std::vector<int> > GetFace2ElementMap();
-        std::vector<Vert*> GetLocalVertices();
+        std::vector<std::vector<double> > GetLocalVertices();
         int** GetFace2LocalNode();
         int** GetFace2GlobalNode();
         int GetNBoundaryFaces();
@@ -78,7 +78,7 @@ class RedistributePartitionObject{
         std::map<int,int> GetVertTag2RefLocalMap();
         std::map<int,int > GetShellVert2RefMap_Local();
         std::map<int,int > GetShellVertTag2RefMap_Global();
-        std::map<int,Vert*> GetShellVertCoords2RefMap_Global();
+        std::map<int,std::vector<double> > GetShellVertCoords2RefMap_Global();
         std::map<int,std::vector<int> > GetBndRef2FaceMap();
     private:
         MPI_Comm mpi_comm;
@@ -95,7 +95,7 @@ class RedistributePartitionObject{
     
         Array<int>* iefref_part_tetra;
     
-        std::vector<Vert*> LocalVerts;
+        std::vector<std::vector<double> > LocalVerts;
         std::map<int,int> m_locV2globV;
         std::map<int,int> m_globV2locV;
     
@@ -156,7 +156,7 @@ class RedistributePartitionObject{
         std::map<int,int> m_ShellVidConsidered;
         std::map<int,std::vector<int> > m_ShellFace2Vert;
         std::map<int,std::set<int> > m_ShellFace2VertRef;
-        std::map<int,Vert*> m_shellVertCoords2Ref;
+        std::map<int,std::vector<double> > m_shellVertCoords2Ref;
 };
 
 #endif

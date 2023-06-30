@@ -350,7 +350,7 @@ std::map<int,std::vector<double> > AllGatherMapDoubleVec(std::map<int,std::vecto
 //
 //    for(int i=0;i<printVs.size();i++)
 //    {
-//        myfile << printVs[i]->x << " " << printVs[i]->y << " " << printVs[i]->z << std::endl;
+//        myfile << printVs[i][0] << " " << printVs[i][1] << " " << printVs[i][2] << std::endl;
 //    }
 //    int gv0,gv1,gv2,gv3,gv4,gv5,gv6,gv7;
 //    int lv0,lv1,lv2,lv3,lv4,lv5,lv6,lv7;
@@ -1121,7 +1121,7 @@ int main(int argc, char** argv)
     std::map<int,std::vector<int> > prismEl    = pDom->GPrisms;
     std::map<int,std::vector<int> > pyramidEl  = pDom->GPyramids;
     std::map<int,std::vector<int> > ushell_o   = pDom->ushell;
-    std::map<int,Vert* > ushell_cen            = pDom->ushell_centroid;
+    std::map<int,std::vector<double> > ushell_cen = pDom->ushell_centroid;
     i_part_map* ief_part_map                   = P->getIEFpartmap();
     i_part_map* if_Nv_part_map                 = P->getIF_Nvpartmap();
     i_part_map* ifn_part_map                   = P->getIFNpartmap();
@@ -1129,7 +1129,7 @@ int main(int argc, char** argv)
     i_part_map* if_ref_part_map                = P->getIFREFpartmap();
     i_part_map* if_Erank_part_map			   = P->getIFERankpartmap();
     std::map<int,int> tag2locV_map      	   = P->getGlobalVert2LocalVert();
-    std::vector<Vert*> LocVerts_part     	   = P->getLocalVerts();
+    std::vector<std::vector<double> > LocVerts_part     	   = P->getLocalVerts();
     std::map<int,int> lpartv2gv                = pDom->lpartv2gv;
     std::vector<int> loc_part_verts            = pDom->loc_part_verts;
     //================================================================================
@@ -1138,7 +1138,7 @@ int main(int argc, char** argv)
     // Copy maps relevant maps so that we can destroy Partition*
     std::map<int,std::vector<int> >::iterator itmm;
     std::map<int,int >::iterator itr;
-    std::map<int,Vert* >::iterator itrV;
+    std::map<int,std::vector<double> >::iterator itrV;
 
     // ==== Copy required facemaps ====; 
     std::map<int,std::vector<int> > ifn_map;
@@ -1258,13 +1258,14 @@ int main(int argc, char** argv)
     }
     
     
-    std::vector<Vert*> LocVerts(LocVerts_part.size());
+    std::vector<std::vector<double> > LocVerts(LocVerts_part.size());
     for(int q=0;q<LocVerts_part.size();q++)
     {
-        Vert* val = new Vert;
-        val->x = LocVerts_part[q]->x;
-        val->y = LocVerts_part[q]->y;
-        val->z = LocVerts_part[q]->z;
+        
+        std::vector<double> val(3);
+        val[0] = LocVerts_part[q][0];
+        val[1] = LocVerts_part[q][1];
+        val[2] = LocVerts_part[q][2];
         
         LocVerts[q] = val;
     }
@@ -1286,9 +1287,9 @@ int main(int argc, char** argv)
         {
             int loc_vid  = loc_part_verts[i];
             int glob_vid = lpartv2gv[loc_vid];
-            myfilet << LocVerts[loc_vid]->x << " " <<
-                       LocVerts[loc_vid]->y << " " <<
-                       LocVerts[loc_vid]->z << " " <<
+            myfilet << LocVerts[loc_vid][0] << " " <<
+                       LocVerts[loc_vid][1] << " " <<
+                       LocVerts[loc_vid][2] << " " <<
                        Mvar_vmap[glob_vid]->getVal(0,0)  << " " <<
                        dudx_vmap[glob_vid]->getVal(0,0) << " " <<
                        dudy_vmap[glob_vid]->getVal(0,0) << " " <<
@@ -1337,7 +1338,7 @@ int main(int argc, char** argv)
     int** ifc_tria_glob                             = tetra_distri->GetFace2GlobalNode();
     int** ifc_tria_loc                              = tetra_distri->GetFace2LocalNode();
     int nFaces                                      = tetra_distri->GetNBoundaryFaces();
-    std::vector<Vert*> locVs                        = tetra_distri->GetLocalVertices();
+    std::vector<std::vector<double> > locVs                        = tetra_distri->GetLocalVertices();
     std::vector<int> faces4parmmg                   = tetra_distri->GetFaces4ParMMG();
     std::map<int,std::vector<int> > face2node                    = tetra_distri->GetFace2NodeMap();
     std::map<int,std::vector<int> > face2element    = tetra_distri->GetFace2ElementMap();
@@ -1357,7 +1358,7 @@ int main(int argc, char** argv)
     std::map<int,int> tetV2tagV						= tetra_distri->GetTet2TagVertMap();
     std::map<int,int> shellvertOriginalTag2ref_Glob = tetra_distri->GetShellVertTag2RefMap_Global();
     std::map<int,std::vector<int> > bndref2face     = tetra_distri->GetBndRef2FaceMap();
-    std::map<int,Vert*> shellVertCoord2Ref          = tetra_distri->GetShellVertCoords2RefMap_Global();
+    std::map<int,std::vector<double> > shellVertCoord2Ref          = tetra_distri->GetShellVertCoords2RefMap_Global();
     std::map<int,int> shellvertTag2ref;
     std::map<int,int> shellvertTag2ref2;
 
@@ -1513,9 +1514,9 @@ int main(int argc, char** argv)
     int vrefmax = -1;
     for ( k=0; k<nVertices; ++k )
     {
-        double vx = locVs[k]->x;
-        double vy = locVs[k]->y;
-        double vz = locVs[k]->z;
+        double vx = locVs[k][0];
+        double vy = locVs[k][1];
+        double vz = locVs[k][2];
         
         int vert = locV2globV[k];
 
@@ -1565,7 +1566,7 @@ int main(int argc, char** argv)
     int locs = 0;
     
     std::map<int,int> shell_g2l;
-    std::vector<Vert*> unshellVin;
+    std::vector<std::vector<double> > unshellVin;
     std::vector<std::vector<int> > unshellTin;
     int outflowFound = 0;
     int inflowFound = 0;
@@ -1649,9 +1650,9 @@ int main(int argc, char** argv)
                         int vidg = globV2locV[vid];
                         //double* c0 = new double[3];
                         std::vector<double> c0(3);
-                        c0[0] = locVs[vidg]->x;
-                        c0[1] = locVs[vidg]->y;
-                        c0[2] = locVs[vidg]->z;
+                        c0[0] = locVs[vidg][0];
+                        c0[1] = locVs[vidg][1];
+                        c0[2] = locVs[vidg][2];
                         vertref = 86;
                         if(shellvert2ref.find(vid)!=shellvert2ref.end())
                         {
@@ -1662,10 +1663,11 @@ int main(int argc, char** argv)
                         
                         if(shell_g2l.find(vid)==shell_g2l.end())
                         {
-                            Vert* vsh = new Vert;
-                            vsh->x = c0[0];
-                            vsh->y = c0[1];
-                            vsh->z = c0[2];
+                            
+                            std::vector<double> vsh(3);
+                            vsh[0] = c0[0];
+                            vsh[1] = c0[1];
+                            vsh[2] = c0[2];
                             unshellVin.push_back(vsh);
                             shell_g2l[vid] = locs;
                             locs++;
@@ -1719,7 +1721,7 @@ int main(int argc, char** argv)
         myfile_INP <<"ZONE N = " << unshellVin.size() << ", E = " << unshellTin.size() << ", DATAPACKING = POINT, ZONETYPE = FETRIANGLE" << std::endl;
         for(int i=0;i<unshellVin.size();i++)
         {
-          myfile_INP << unshellVin[i]->x << "   " << unshellVin[i]->y << "   " << unshellVin[i]->z << std::endl;
+          myfile_INP << unshellVin[i][0] << "   " << unshellVin[i][1] << "   " << unshellVin[i][2] << std::endl;
         }
 
         for(int i=0;i<unshellTin.size();i++)
@@ -1812,10 +1814,10 @@ int main(int argc, char** argv)
         
         double* P = new double[4*3];
         
-        P[0*3+0]=locVs[v0l]->x;   P[0*3+1]=locVs[v0l]->y;    P[0*3+2]=locVs[v0l]->z;
-        P[1*3+0]=locVs[v1l]->x;   P[1*3+1]=locVs[v1l]->y;    P[1*3+2]=locVs[v1l]->z;
-        P[2*3+0]=locVs[v2l]->x;   P[2*3+1]=locVs[v2l]->y;    P[2*3+2]=locVs[v2l]->z;
-        P[3*3+0]=locVs[v3l]->x;   P[3*3+1]=locVs[v3l]->y;    P[3*3+2]=locVs[v3l]->z;
+        P[0*3+0]=locVs[v0l][0];   P[0*3+1]=locVs[v0l][1];    P[0*3+2]=locVs[v0l][2];
+        P[1*3+0]=locVs[v1l][0];   P[1*3+1]=locVs[v1l][1];    P[1*3+2]=locVs[v1l][2];
+        P[2*3+0]=locVs[v2l][0];   P[2*3+1]=locVs[v2l][1];    P[2*3+2]=locVs[v2l][2];
+        P[3*3+0]=locVs[v3l][0];   P[3*3+1]=locVs[v3l][1];    P[3*3+2]=locVs[v3l][2];
 
         double Vtet = GetQualityTetrahedra(P);
         
@@ -2261,7 +2263,7 @@ int main(int argc, char** argv)
         std::vector<int> vref1;
         
         std::map<int,int> outshell_g2l;
-        std::vector<Vert*> outshellVerts;
+        std::vector<std::vector<double> > outshellVerts;
         std::vector<std::vector<int> > outshellT;
         int locv = 0;
         for ( k=0; k<nTrianglesOUT; k++ )
@@ -2321,10 +2323,11 @@ int main(int argc, char** argv)
                     {
                         outshell_g2l[vertid] = locv;
                         
-                        Vert* vout = new Vert;
-                        vout->x = vertOUT[(vertid-1)*3];
-                        vout->y = vertOUT[(vertid-1)*3+1];
-                        vout->z = vertOUT[(vertid-1)*3+2];
+                        
+                        std::vector<double> vout(3);
+                        vout[0] = vertOUT[(vertid-1)*3];
+                        vout[1] = vertOUT[(vertid-1)*3+1];
+                        vout[2] = vertOUT[(vertid-1)*3+2];
                         outshellVerts.push_back(vout);
                         
                         locv++;
@@ -2360,20 +2363,21 @@ int main(int argc, char** argv)
                     
                     flipper = 1;
                     int vertid = triaNodes2[pos]-1;
-                    Vert* vcon = new Vert;
-                    vcon->x = vertOUT[vertid*3];
-                    vcon->y = vertOUT[vertid*3+1];
-                    vcon->z = vertOUT[vertid*3+2];
+                    
+                    std::vector<double> vcon(3);
+                    vcon[0] = vertOUT[vertid*3];
+                    vcon[1] = vertOUT[vertid*3+1];
+                    vcon[2] = vertOUT[vertid*3+2];
                                         
-                    std::map<int,Vert*>::iterator brutus;
+                    std::map<int,std::vector<double> >::iterator brutus;
                     for(brutus=shellVertCoord2Ref.begin();brutus!=shellVertCoord2Ref.end();brutus++)
                     {
                         int vrtref = brutus->first;
-                        Vert* vrtCoord = brutus->second;
+                        std::vector<double> vrtCoord = brutus->second;
                         
-                        double errx = fabs(vrtCoord->x - vcon->x);
-                        double erry = fabs(vrtCoord->y - vcon->y);
-                        double errz = fabs(vrtCoord->z - vcon->z);
+                        double errx = fabs(vrtCoord[0] - vcon[0]);
+                        double erry = fabs(vrtCoord[1] - vcon[1]);
+                        double errz = fabs(vrtCoord[2] - vcon[2]);
 
                         if(errx < tolerance && erry < tolerance && errz < tolerance)
                         {
@@ -2398,20 +2402,21 @@ int main(int argc, char** argv)
                     flipper = 1;
 
                     int vertid = triaNodes2[pos+1]-1;
-                    Vert* vcon = new Vert;
-                    vcon->x = vertOUT[vertid*3];
-                    vcon->y = vertOUT[vertid*3+1];
-                    vcon->z = vertOUT[vertid*3+2];
+                    
+                    std::vector<double> vcon(3);
+                    vcon[0] = vertOUT[vertid*3];
+                    vcon[1] = vertOUT[vertid*3+1];
+                    vcon[2] = vertOUT[vertid*3+2];
 
-                    std::map<int,Vert*>::iterator brutus;
+                    std::map<int,std::vector<double> >::iterator brutus;
                     for(brutus=shellVertCoord2Ref.begin();brutus!=shellVertCoord2Ref.end();brutus++)
                     {
                         int vrtref = brutus->first;
-                        Vert* vrtCoord = brutus->second;
+                        std::vector<double> vrtCoord = brutus->second;
                         
-                        double errx = fabs(vrtCoord->x - vcon->x);
-                        double erry = fabs(vrtCoord->y - vcon->y);
-                        double errz = fabs(vrtCoord->z - vcon->z);
+                        double errx = fabs(vrtCoord[0] - vcon[0]);
+                        double erry = fabs(vrtCoord[1] - vcon[1]);
+                        double errz = fabs(vrtCoord[2] - vcon[2]);
                         if(errx < tolerance && erry < tolerance && errz < tolerance)
                         {
                             refOUT[triaNodes2[pos+1]-1] = vrtref;
@@ -2435,20 +2440,21 @@ int main(int argc, char** argv)
 
                     
                     int vertid = triaNodes2[pos+2]-1;
-                    Vert* vcon = new Vert;
-                    vcon->x = vertOUT[vertid*3];
-                    vcon->y = vertOUT[vertid*3+1];
-                    vcon->z = vertOUT[vertid*3+2];
+                    
+                    std::vector<double> vcon(3);
+                    vcon[0] = vertOUT[vertid*3];
+                    vcon[1] = vertOUT[vertid*3+1];
+                    vcon[2] = vertOUT[vertid*3+2];
 
-                    std::map<int,Vert*>::iterator brutus;
+                    std::map<int,std::vector<double> >::iterator brutus;
                     for(brutus=shellVertCoord2Ref.begin();brutus!=shellVertCoord2Ref.end();brutus++)
                     {
                         int vrtref = brutus->first;
-                        Vert* vrtCoord = brutus->second;
+                        std::vector<double> vrtCoord = brutus->second;
                         
-                        double errx = fabs(vrtCoord->x - vcon->x);
-                        double erry = fabs(vrtCoord->y - vcon->y);
-                        double errz = fabs(vrtCoord->z - vcon->z);
+                        double errx = fabs(vrtCoord[0] - vcon[0]);
+                        double erry = fabs(vrtCoord[1] - vcon[1]);
+                        double errz = fabs(vrtCoord[2] - vcon[2]);
                         
                         
                         if(errx < tolerance && erry < tolerance && errz < tolerance)
@@ -2513,7 +2519,7 @@ int main(int argc, char** argv)
             myfile_OUT <<"ZONE N = " << outshellVerts.size() << ", E = " << outshellT.size() << ", DATAPACKING = POINT, ZONETYPE = FETRIANGLE" << std::endl;
             for(int i=0;i<outshellVerts.size();i++)
             {
-              myfile_OUT << outshellVerts[i]->x << "   " << outshellVerts[i]->y << "   " << outshellVerts[i]->z << std::endl;
+              myfile_OUT << outshellVerts[i][0] << "   " << outshellVerts[i][1] << "   " << outshellVerts[i][2] << std::endl;
             }
 
             for(int i=0;i<outshellT.size();i++)
@@ -2795,11 +2801,14 @@ int main(int argc, char** argv)
         
         std::vector<int> Elvrts(4);
         int fv0,fv1,fv2;
-        Vec3D* v0 = new Vec3D;
-        Vec3D* v1 = new Vec3D;
-        Vec3D* r0 = new Vec3D;
 
-        Vert* Vface = new Vert;
+        
+        std::vector<double> v0(3);
+        std::vector<double> v1(3);
+        std::vector<double> r0(3);
+        
+    
+        std::vector<double> Vface(3);
         int negit = 0;
         
         int curElID = TetraOUT_offsets[world_rank]+1+nPrismsTot;
@@ -2851,7 +2860,7 @@ int main(int argc, char** argv)
             ienOUT[curElID] = Elvrts;
             tetrasOUT.push_back(Elvrts);
             double Vtet = GetQualityTetrahedra(P);
-            Vert* vCenter = ComputeCentroidCoord(P, 4);
+            std::vector<double> vCenter = ComputeCentroidCoord(P, 4);
             
             if(Vtet<0.0)
             {
@@ -2898,23 +2907,23 @@ int main(int argc, char** argv)
                     double v2y = vertOUT[(Elvrts[tetra_faces[u][2]]-1)*3+1];
                     double v2z = vertOUT[(Elvrts[tetra_faces[u][2]]-1)*3+2];
                     
-                    Vface->x = (v0x+v1x+v2x)/3.0;
-                    Vface->y = (v0y+v1y+v2y)/3.0;
-                    Vface->z = (v0z+v1z+v2z)/3.0;
+                    Vface[0] = (v0x+v1x+v2x)/3.0;
+                    Vface[1] = (v0y+v1y+v2y)/3.0;
+                    Vface[2] = (v0z+v1z+v2z)/3.0;
                     
-                    r0->c0 = (Vface->x-vCenter->x);///Lr;
-                    r0->c1 = (Vface->y-vCenter->y);///Lr;
-                    r0->c2 = (Vface->z-vCenter->z);///Lr;
+                    r0[0] = (Vface[0]-vCenter[0]);///Lr;
+                    r0[1] = (Vface[1]-vCenter[1]);///Lr;
+                    r0[2] = (Vface[2]-vCenter[2]);///Lr;
                     
-                    v0->c0 = v1x-v0x;
-                    v0->c1 = v1y-v0y;
-                    v0->c2 = v1z-v0z;
+                    v0[0] = v1x-v0x;
+                    v0[1] = v1y-v0y;
+                    v0[2] = v1z-v0z;
 
-                    v1->c0 = v2x-v0x;
-                    v1->c1 = v2y-v0y;
-                    v1->c2 = v2z-v0z;
+                    v1[0] = v2x-v0x;
+                    v1[1] = v2y-v0y;
+                    v1[2] = v2z-v0z;
                     
-                    Vec3D* n0        = ComputeSurfaceNormal(v0,v1);
+                    std::vector<double> n0        = ComputeSurfaceNormal(v0,v1);
                     double orient0   = DotVec3D(r0,n0);
                     if(orient0<0.0)
                     {
@@ -3164,10 +3173,9 @@ int main(int argc, char** argv)
         
         int testElem = 9;
         int testComp = 10;
-        
-        
-        Vert* Vijk = new Vert;
-        Vert* VcF = new Vert;
+    
+        std::vector<double> Vijk(3);
+        std::vector<double> VcF(3);
 
         std::map<int,FaceSharedPtr>::iterator itf;
         //        for(itm=fmInt.begin();itm!=fmInt.end();itm++)
@@ -3178,10 +3186,10 @@ int main(int argc, char** argv)
             updateID[fid]   = ftot;
             ifnOUT->setVal(ftot,0,3);
             flag            = -1;
-            std::vector<Vert*> Vfaces;
-            VcF->x = 0.0;
-            VcF->y = 0.0;
-            VcF->z = 0.0;
+            std::vector<std::vector<double> > Vfaces;
+            VcF[0] = 0.0;
+            VcF[1] = 0.0;
+            VcF[2] = 0.0;
             
             std::vector<int> edges = InternalFaces[fid]->GetEdgeIDs();
             for(int q=0;q<3;q++)
@@ -3189,14 +3197,15 @@ int main(int argc, char** argv)
                 int vertexID = InternalFaces[fid]->GetEdgeIDs()[q];
 
                 int lvert = glob2locVid[vertexID];
-                Vert* Vf = new Vert;
-                Vf->x  = vertOUT[(lvert-1)*3+0];
-                Vf->y  = vertOUT[(lvert-1)*3+1];
-                Vf->z  = vertOUT[(lvert-1)*3+2];
+                std::vector<double> Vf(3);
                 
-                VcF->x = VcF->x + Vf->x;
-                VcF->y = VcF->y + Vf->y;
-                VcF->z = VcF->z + Vf->z;
+                Vf[0]  = vertOUT[(lvert-1)*3+0];
+                Vf[1]  = vertOUT[(lvert-1)*3+1];
+                Vf[2]  = vertOUT[(lvert-1)*3+2];
+                
+                VcF[0] = VcF[0] + Vf[0];
+                VcF[1] = VcF[1] + Vf[1];
+                VcF[2] = VcF[2] + Vf[2];
                 
                 Vfaces.push_back(Vf);
                 
@@ -3211,31 +3220,31 @@ int main(int argc, char** argv)
                 }
             }
             
-            VcF->x = VcF->x/3.0;
-            VcF->y = VcF->y/3.0;
-            VcF->z = VcF->z/3.0;
+            VcF[0] = VcF[0]/3.0;
+            VcF[1] = VcF[1]/3.0;
+            VcF[2] = VcF[2]/3.0;
             
             int gv0 = fq[0];
             int gv1 = fq[1];
             int gv2 = fq[2];
             
-            Vijk->x = 0.0;
-            Vijk->y = 0.0;
-            Vijk->z = 0.0;
+            Vijk[0] = 0.0;
+            Vijk[1] = 0.0;
+            Vijk[2] = 0.0;
             // compute element center;
             //ienOUT[curElID] = Elvrts
             for(int u=0;u<ienOUT[lh[fid]].size();u++)
             {
                 
-                Vijk->x = Vijk->x + vertOUT[(ienOUT[lh[fid]][u]-1)*3];
-                Vijk->y = Vijk->y + vertOUT[(ienOUT[lh[fid]][u]-1)*3+1];
-                Vijk->z = Vijk->z + vertOUT[(ienOUT[lh[fid]][u]-1)*3+2];
+                Vijk[0] = Vijk[0] + vertOUT[(ienOUT[lh[fid]][u]-1)*3];
+                Vijk[1] = Vijk[1] + vertOUT[(ienOUT[lh[fid]][u]-1)*3+1];
+                Vijk[2] = Vijk[2] + vertOUT[(ienOUT[lh[fid]][u]-1)*3+2];
                 
             }
             
-            Vijk->x = Vijk->x/ienOUT[lh[fid]].size();
-            Vijk->y = Vijk->y/ienOUT[lh[fid]].size();
-            Vijk->z = Vijk->z/ienOUT[lh[fid]].size();
+            Vijk[0] = Vijk[0]/ienOUT[lh[fid]].size();
+            Vijk[1] = Vijk[1]/ienOUT[lh[fid]].size();
+            Vijk[2] = Vijk[2]/ienOUT[lh[fid]].size();
             
             double orient0 = CheckFaceOrientation(VcF,Vfaces,Vijk);
             if(orient0 < 0.0)
@@ -3417,21 +3426,21 @@ int main(int argc, char** argv)
             updateID[fid]   = ftot;
             ifnOUT->setVal(ftot,0,3);
             flag = -1;
-            std::vector<Vert*> Vfaces;
-            VcF->x = 0.0;
-            VcF->y = 0.0;
-            VcF->z = 0.0;
+            std::vector<std::vector<double> > Vfaces;
+            VcF[0] = 0.0;
+            VcF[1] = 0.0;
+            VcF[2] = 0.0;
             for(int q=0;q<3;q++)
             {
                 int lvert = glob2locVid[itf->second->GetEdgeIDs()[q]];
-                Vert* Vf = new Vert;
-                Vf->x  = vertOUT[(lvert-1)*3+0];
-                Vf->y  = vertOUT[(lvert-1)*3+1];
-                Vf->z  = vertOUT[(lvert-1)*3+2];
+                std::vector<double> Vf(3);
+                Vf[0]  = vertOUT[(lvert-1)*3+0];
+                Vf[1]  = vertOUT[(lvert-1)*3+1];
+                Vf[2]  = vertOUT[(lvert-1)*3+2];
                 
-                VcF->x = VcF->x + Vf->x;
-                VcF->y = VcF->y + Vf->y;
-                VcF->z = VcF->z + Vf->z;
+                VcF[0] = VcF[0] + Vf[0];
+                VcF[1] = VcF[1] + Vf[1];
+                VcF[2] = VcF[2] + Vf[2];
                 
                 Vfaces.push_back(Vf);
                 
@@ -3447,9 +3456,9 @@ int main(int argc, char** argv)
                 }
             }
             
-            VcF->x = VcF->x/3.0;
-            VcF->y = VcF->y/3.0;
-            VcF->z = VcF->z/3.0;
+            VcF[0] = VcF[0]/3.0;
+            VcF[1] = VcF[1]/3.0;
+            VcF[2] = VcF[2]/3.0;
             
             int gv0 = fq[0];
             int gv1 = fq[1];
@@ -3461,23 +3470,23 @@ int main(int argc, char** argv)
                 elRh = adjElements[fid];
             }
             
-            Vijk->x = 0.0;
-            Vijk->y = 0.0;
-            Vijk->z = 0.0;
+            Vijk[0] = 0.0;
+            Vijk[1] = 0.0;
+            Vijk[2] = 0.0;
             // compute element center;
             //ienOUT[curElID] = Elvrts
             for(int u=0;u<ienOUT[elLh].size();u++)
             {
                 
-                Vijk->x = Vijk->x + vertOUT[(ienOUT[elLh][u]-1)*3];
-                Vijk->y = Vijk->y + vertOUT[(ienOUT[elLh][u]-1)*3+1];
-                Vijk->z = Vijk->z + vertOUT[(ienOUT[elLh][u]-1)*3+2];
+                Vijk[0] = Vijk[0] + vertOUT[(ienOUT[elLh][u]-1)*3];
+                Vijk[1] = Vijk[1] + vertOUT[(ienOUT[elLh][u]-1)*3+1];
+                Vijk[2] = Vijk[2] + vertOUT[(ienOUT[elLh][u]-1)*3+2];
                 
             }
             
-            Vijk->x = Vijk->x/ienOUT[elLh].size();
-            Vijk->y = Vijk->y/ienOUT[elLh].size();
-            Vijk->z = Vijk->z/ienOUT[elLh].size();
+            Vijk[0] = Vijk[0]/ienOUT[elLh].size();
+            Vijk[1] = Vijk[1]/ienOUT[elLh].size();
+            Vijk[2] = Vijk[2]/ienOUT[elLh].size();
             
             
             double orient0 = CheckFaceOrientation(VcF,Vfaces,Vijk);
@@ -3527,32 +3536,33 @@ int main(int argc, char** argv)
             ifnOUT->setVal(ftot,0,3);
             flag = -1;
             
-            VcF->x = 0.0;
-            VcF->y = 0.0;
-            VcF->z = 0.0;
+            VcF[0] = 0.0;
+            VcF[1] = 0.0;
+            VcF[2] = 0.0;
             
-            std::vector<Vert*> Vfaces;
+            std::vector<std::vector<double> > Vfaces;
             std::vector<int> reference(3);
             for(int q=0;q<3;q++)
             {
                 int lvert = glob2locVid[itm->second[q]];
-                Vert* Vf = new Vert;
-                Vf->x  = vertOUT[(lvert-1)*3+0];
-                Vf->y  = vertOUT[(lvert-1)*3+1];
-                Vf->z  = vertOUT[(lvert-1)*3+2];
+                
+                std::vector<double> Vf(3);
+                Vf[0]  = vertOUT[(lvert-1)*3+0];
+                Vf[1]  = vertOUT[(lvert-1)*3+1];
+                Vf[2]  = vertOUT[(lvert-1)*3+2];
                 
                 reference[q] = refOUT[(lvert-1)];
                 
-                VcF->x = VcF->x + Vf->x;
-                VcF->y = VcF->y + Vf->y;
-                VcF->z = VcF->z + Vf->z;
+                VcF[0] = VcF[0] + Vf[0];
+                VcF[1] = VcF[1] + Vf[1];
+                VcF[2] = VcF[2] + Vf[2];
                 
                 Vfaces.push_back(Vf);
                 
 //                if(reference[q] == 86)
 //                {
 //                    int pri = glob2locVid[itm->second[q]];
-//                    std::cout << "HuH ! -> " << fq[q] << " " << pri << " " << std::setprecision(16) << " ("<< Vf->x << ", " << Vf->y << ", " << Vf->z << ") " << std::endl;
+//                    std::cout << "HuH ! -> " << fq[q] << " " << pri << " " << std::setprecision(16) << " ("<< Vf[0] << ", " << Vf[1] << ", " << Vf[2] << ") " << std::endl;
 //                }
                 
                 if(LocationSharedVert_update.find(itm->second[q])!=LocationSharedVert_update.end())
@@ -3588,9 +3598,9 @@ int main(int argc, char** argv)
                 }
             }
             
-            VcF->x = VcF->x/3.0;
-            VcF->y = VcF->y/3.0;
-            VcF->z = VcF->z/3.0;
+            VcF[0] = VcF[0]/3.0;
+            VcF[1] = VcF[1]/3.0;
+            VcF[2] = VcF[2]/3.0;
             
             
             int gv0 = fq[0];
@@ -3630,24 +3640,24 @@ int main(int argc, char** argv)
                 notsh++;
             }
             
-            
-            Vert* Vijk   = new Vert;
-            Vijk->x = 0.0;
-            Vijk->y = 0.0;
-            Vijk->z = 0.0;
+            std::vector<double> Vijk(3);
+           
+            Vijk[0] = 0.0;
+            Vijk[1] = 0.0;
+            Vijk[2] = 0.0;
             
             // compute element center;
             //ienOUT[curElID] = Elvrts
             for(int u=0;u<ienOUT[elLh].size();u++)
             {
-                Vijk->x = Vijk->x + vertOUT[(ienOUT[elLh][u]-1)*3];
-                Vijk->y = Vijk->y + vertOUT[(ienOUT[elLh][u]-1)*3+1];
-                Vijk->z = Vijk->z + vertOUT[(ienOUT[elLh][u]-1)*3+2];
+                Vijk[0] = Vijk[0] + vertOUT[(ienOUT[elLh][u]-1)*3];
+                Vijk[1] = Vijk[1] + vertOUT[(ienOUT[elLh][u]-1)*3+1];
+                Vijk[2] = Vijk[2] + vertOUT[(ienOUT[elLh][u]-1)*3+2];
             }
             
-            Vijk->x = Vijk->x/ienOUT[elLh].size();
-            Vijk->y = Vijk->y/ienOUT[elLh].size();
-            Vijk->z = Vijk->z/ienOUT[elLh].size();
+            Vijk[0] = Vijk[0]/ienOUT[elLh].size();
+            Vijk[1] = Vijk[1]/ienOUT[elLh].size();
+            Vijk[2] = Vijk[2]/ienOUT[elLh].size();
             
             double orient0 = CheckFaceOrientation(VcF,Vfaces,Vijk);
             
@@ -3779,10 +3789,10 @@ int main(int argc, char** argv)
             std::vector<int> fce(npf);
             ifnOUT_prism->setVal(fptot,0,npf);
             
-            std::vector<Vert*> Vfaces;
-            VcF->x = 0.0;
-            VcF->y = 0.0;
-            VcF->z = 0.0;
+            std::vector<std::vector<double> > Vfaces;
+            VcF[0] = 0.0;
+            VcF[1] = 0.0;
+            VcF[2] = 0.0;
             fshell = 0;
             for(int g=0;g<npf;g++)
             {
@@ -3792,13 +3802,14 @@ int main(int argc, char** argv)
                    shellvertOriginalTag2ref_Glob.find(oldtag)==shellvertOriginalTag2ref_Glob.end())
                 {
                     int lvp  = tag2locV_map[oldtag];
-                    Vert* Vf = new Vert;
-                    Vf->x = LocVerts[lvp]->x;
-                    Vf->y = LocVerts[lvp]->y;
-                    Vf->z = LocVerts[lvp]->z;
-                    VcF->x = VcF->x + Vf->x;
-                    VcF->y = VcF->y + Vf->y;
-                    VcF->z = VcF->z + Vf->z;
+                  
+                    std::vector<double> Vf(3);
+                    Vf[0] = LocVerts[lvp][0];
+                    Vf[1] = LocVerts[lvp][1];
+                    Vf[2] = LocVerts[lvp][2];
+                    VcF[0] = VcF[0] + Vf[0];
+                    VcF[1] = VcF[1] + Vf[1];
+                    VcF[2] = VcF[2] + Vf[2];
                     
                     Vfaces.push_back(Vf);
                     int globid = tag2glob_prism[oldtag];
@@ -3809,14 +3820,15 @@ int main(int argc, char** argv)
                         shellvertOriginalTag2ref_Glob.find(oldtag)==shellvertOriginalTag2ref_Glob.end())
                 {
                     int lvp  = tag2locV_map[oldtag];
-                    Vert* Vf = new Vert;
-                    Vf->x = LocVerts[lvp]->x;
-                    Vf->y = LocVerts[lvp]->y;
-                    Vf->z = LocVerts[lvp]->z;
                     
-                    VcF->x = VcF->x + Vf->x;
-                    VcF->y = VcF->y + Vf->y;
-                    VcF->z = VcF->z + Vf->z;
+                    std::vector<double> Vf(3);
+                    Vf[0] = LocVerts[lvp][0];
+                    Vf[1] = LocVerts[lvp][1];
+                    Vf[2] = LocVerts[lvp][2];
+                    
+                    VcF[0] = VcF[0] + Vf[0];
+                    VcF[1] = VcF[1] + Vf[1];
+                    VcF[2] = VcF[2] + Vf[2];
                     
                     Vfaces.push_back(Vf);
                     int globid = SharedVertsNotOwned[oldtag];
@@ -3844,9 +3856,9 @@ int main(int argc, char** argv)
                 }
             }
             
-            VcF->x = VcF->x/npf;
-            VcF->y = VcF->y/npf;
-            VcF->z = VcF->z/npf;
+            VcF[0] = VcF[0]/npf;
+            VcF[1] = VcF[1]/npf;
+            VcF[2] = VcF[2]/npf;
             
 //            if(npf == 3)
 //            {
@@ -3860,9 +3872,9 @@ int main(int argc, char** argv)
             
             int leftEl  = lhp[gfid];
             int leftTag = gE2tagE[leftEl];
-            Vijk->x = 0.0;
-            Vijk->y = 0.0;
-            Vijk->z = 0.0;
+            Vijk[0] = 0.0;
+            Vijk[1] = 0.0;
+            Vijk[2] = 0.0;
             // compute element center;
             int nvp = prisms[leftTag].size();
 
@@ -3871,14 +3883,14 @@ int main(int argc, char** argv)
                 int tag  = prisms[leftTag][q];
                 int lvp  = tag2locV_map[tag];
 
-                Vijk->x = Vijk->x + LocVerts[lvp]->x;
-                Vijk->y = Vijk->y + LocVerts[lvp]->y;
-                Vijk->z = Vijk->z + LocVerts[lvp]->z;
+                Vijk[0] = Vijk[0] + LocVerts[lvp][0];
+                Vijk[1] = Vijk[1] + LocVerts[lvp][1];
+                Vijk[2] = Vijk[2] + LocVerts[lvp][2];
             }
 
-            Vijk->x = Vijk->x/nvp;
-            Vijk->y = Vijk->y/nvp;
-            Vijk->z = Vijk->z/nvp;
+            Vijk[0] = Vijk[0]/nvp;
+            Vijk[1] = Vijk[1]/nvp;
+            Vijk[2] = Vijk[2]/nvp;
 
             double orient0 = CheckFaceOrientation(VcF,Vfaces,Vijk);
             
@@ -3941,10 +3953,10 @@ int main(int argc, char** argv)
             
             ifnOUT_prism->setVal(fptot,0,npf);
             std::vector<int> fce(npf);
-            std::vector<Vert*> Vfaces;
-            VcF->x = 0.0;
-            VcF->y = 0.0;
-            VcF->z = 0.0;
+            std::vector<std::vector<double> > Vfaces;
+            VcF[0] = 0.0;
+            VcF[1] = 0.0;
+            VcF[2] = 0.0;
             for(int g=0;g<npf;g++)
             {
                 int oldtag = prit->second[g];
@@ -3952,13 +3964,14 @@ int main(int argc, char** argv)
                    shellvertOriginalTag2ref_Glob.find(oldtag)==shellvertOriginalTag2ref_Glob.end())
                 {
                     int lvp  = tag2locV_map[oldtag];
-                    Vert* Vf = new Vert;
-                    Vf->x = LocVerts[lvp]->x;
-                    Vf->y = LocVerts[lvp]->y;
-                    Vf->z = LocVerts[lvp]->z;
-                    VcF->x = VcF->x + Vf->x;
-                    VcF->y = VcF->y + Vf->y;
-                    VcF->z = VcF->z + Vf->z;
+                    
+                    std::vector<double> Vf(3);
+                    Vf[0] = LocVerts[lvp][0];
+                    Vf[1] = LocVerts[lvp][1];
+                    Vf[2] = LocVerts[lvp][2];
+                    VcF[0] = VcF[0] + Vf[0];
+                    VcF[1] = VcF[1] + Vf[1];
+                    VcF[2] = VcF[2] + Vf[2];
                     
                     Vfaces.push_back(Vf);
                     int globid = tag2glob_prism[oldtag];
@@ -3969,13 +3982,14 @@ int main(int argc, char** argv)
                         shellvertOriginalTag2ref_Glob.find(oldtag)==shellvertOriginalTag2ref_Glob.end())
                 {
                     int lvp  = tag2locV_map[oldtag];
-                    Vert* Vf = new Vert;
-                    Vf->x = LocVerts[lvp]->x;
-                    Vf->y = LocVerts[lvp]->y;
-                    Vf->z = LocVerts[lvp]->z;
-                    VcF->x = VcF->x + Vf->x;
-                    VcF->y = VcF->y + Vf->y;
-                    VcF->z = VcF->z + Vf->z;
+                   
+                    std::vector<double> Vf(3);
+                    Vf[0] = LocVerts[lvp][0];
+                    Vf[1] = LocVerts[lvp][1];
+                    Vf[2] = LocVerts[lvp][2];
+                    VcF[0] = VcF[0] + Vf[0];
+                    VcF[1] = VcF[1] + Vf[1];
+                    VcF[2] = VcF[2] + Vf[2];
                     
                     Vfaces.push_back(Vf);
                     int globid = SharedVertsNotOwned[oldtag];
@@ -4002,9 +4016,9 @@ int main(int argc, char** argv)
                 }
             }
             
-            VcF->x = VcF->x/npf;
-            VcF->y = VcF->y/npf;
-            VcF->z = VcF->z/npf;
+            VcF[0] = VcF[0]/npf;
+            VcF[1] = VcF[1]/npf;
+            VcF[2] = VcF[2]/npf;
             if(npf == 3)
             {
                 ifnOUT_prism->setVal(fptot,4,0);
@@ -4013,9 +4027,9 @@ int main(int argc, char** argv)
             int leftEl  = lhp[gfid];
             int leftTag = gE2tagE[leftEl];
             
-            Vijk->x = 0.0;
-            Vijk->y = 0.0;
-            Vijk->z = 0.0;
+            Vijk[0] = 0.0;
+            Vijk[1] = 0.0;
+            Vijk[2] = 0.0;
             // compute element center;
             int nvp = prisms[leftTag].size();
 
@@ -4024,14 +4038,14 @@ int main(int argc, char** argv)
                 int tag  = prisms[leftTag][q];
                 int lvp  = tag2locV_map[tag];
 
-                Vijk->x = Vijk->x + LocVerts[lvp]->x;
-                Vijk->y = Vijk->y + LocVerts[lvp]->y;
-                Vijk->z = Vijk->z + LocVerts[lvp]->z;
+                Vijk[0] = Vijk[0] + LocVerts[lvp][0];
+                Vijk[1] = Vijk[1] + LocVerts[lvp][1];
+                Vijk[2] = Vijk[2] + LocVerts[lvp][2];
             }
 
-            Vijk->x = Vijk->x/nvp;
-            Vijk->y = Vijk->y/nvp;
-            Vijk->z = Vijk->z/nvp;
+            Vijk[0] = Vijk[0]/nvp;
+            Vijk[1] = Vijk[1]/nvp;
+            Vijk[2] = Vijk[2]/nvp;
 
             double orient0 = CheckFaceOrientation(VcF,Vfaces,Vijk);
 //
@@ -4247,11 +4261,11 @@ int main(int argc, char** argv)
 					ifn_bc_i->setVal(fbc,0,nppf);
                     std::vector<int> face_tmp(nppf);
                     std::vector<int> fce(nppf);
-                    std::vector<Vert*> Vfaces;
+                    std::vector<std::vector<double> > Vfaces;
                     
-                    VcF->x = 0.0;
-                    VcF->y = 0.0;
-                    VcF->z = 0.0;
+                    VcF[0] = 0.0;
+                    VcF[1] = 0.0;
+                    VcF[2] = 0.0;
                     
                     for(int g=0;g<nppf;g++)
                     {
@@ -4261,13 +4275,14 @@ int main(int argc, char** argv)
                            shellvertOriginalTag2ref_Glob.find(oldtag)==shellvertOriginalTag2ref_Glob.end())
                         {
                             int lvp  = tag2locV_map[oldtag];
-                            Vert* Vf = new Vert;
-                            Vf->x = LocVerts[lvp]->x;
-                            Vf->y = LocVerts[lvp]->y;
-                            Vf->z = LocVerts[lvp]->z;
-                            VcF->x = VcF->x + Vf->x;
-                            VcF->y = VcF->y + Vf->y;
-                            VcF->z = VcF->z + Vf->z;
+                        
+                            std::vector<double> Vf(3);
+                            Vf[0] = LocVerts[lvp][0];
+                            Vf[1] = LocVerts[lvp][1];
+                            Vf[2] = LocVerts[lvp][2];
+                            VcF[0] = VcF[0] + Vf[0];
+                            VcF[1] = VcF[1] + Vf[1];
+                            VcF[2] = VcF[2] + Vf[2];
                             
                             Vfaces.push_back(Vf);
                             int globid = tag2glob_prism[oldtag];
@@ -4277,13 +4292,13 @@ int main(int argc, char** argv)
                                 shellvertOriginalTag2ref_Glob.find(oldtag)==shellvertOriginalTag2ref_Glob.end())
                         {
                             int lvp  = tag2locV_map[oldtag];
-                            Vert* Vf = new Vert;
-                            Vf->x = LocVerts[lvp]->x;
-                            Vf->y = LocVerts[lvp]->y;
-                            Vf->z = LocVerts[lvp]->z;
-                            VcF->x = VcF->x + Vf->x;
-                            VcF->y = VcF->y + Vf->y;
-                            VcF->z = VcF->z + Vf->z;
+                            std::vector<double> Vf(3);
+                            Vf[0] = LocVerts[lvp][0];
+                            Vf[1] = LocVerts[lvp][1];
+                            Vf[2] = LocVerts[lvp][2];
+                            VcF[0] = VcF[0] + Vf[0];
+                            VcF[1] = VcF[1] + Vf[1];
+                            VcF[2] = VcF[2] + Vf[2];
                             
                             Vfaces.push_back(Vf);
                             int globid = SharedVertsNotOwned[oldtag];
@@ -4309,16 +4324,16 @@ int main(int argc, char** argv)
                         }
                     }
                     
-                    VcF->x = VcF->x/nppf;
-                    VcF->y = VcF->y/nppf;
-                    VcF->z = VcF->z/nppf;
+                    VcF[0] = VcF[0]/nppf;
+                    VcF[1] = VcF[1]/nppf;
+                    VcF[2] = VcF[2]/nppf;
                     
                     int leftEl  = lhp[bcface];
                     int leftTag = gE2tagE[leftEl];
                     
-                    Vijk->x = 0.0;
-                    Vijk->y = 0.0;
-                    Vijk->z = 0.0;
+                    Vijk[0] = 0.0;
+                    Vijk[1] = 0.0;
+                    Vijk[2] = 0.0;
                     // compute element center;
                     int nvp = prisms[leftTag].size();
 
@@ -4327,14 +4342,14 @@ int main(int argc, char** argv)
                         int tag  = prisms[leftTag][q];
                         int lvp  = tag2locV_map[tag];
 
-                        Vijk->x = Vijk->x + LocVerts[lvp]->x;
-                        Vijk->y = Vijk->y + LocVerts[lvp]->y;
-                        Vijk->z = Vijk->z + LocVerts[lvp]->z;
+                        Vijk[0] = Vijk[0] + LocVerts[lvp][0];
+                        Vijk[1] = Vijk[1] + LocVerts[lvp][1];
+                        Vijk[2] = Vijk[2] + LocVerts[lvp][2];
                     }
 
-                    Vijk->x = Vijk->x/nvp;
-                    Vijk->y = Vijk->y/nvp;
-                    Vijk->z = Vijk->z/nvp;
+                    Vijk[0] = Vijk[0]/nvp;
+                    Vijk[1] = Vijk[1]/nvp;
+                    Vijk[2] = Vijk[2]/nvp;
 
                     double orient0 = CheckFaceOrientation(VcF,Vfaces,Vijk);
                     
@@ -4393,11 +4408,11 @@ int main(int argc, char** argv)
                     int bcface = bcmap[bc_id][q];
                     ifn_bc_i->setVal(fbc,0,3);
 
-                    std::vector<Vert*> Vfaces;
+                    std::vector<std::vector<double> > Vfaces;
                     
-                    VcF->x = 0.0;
-                    VcF->y = 0.0;
-                    VcF->z = 0.0;
+                    VcF[0] = 0.0;
+                    VcF[1] = 0.0;
+                    VcF[2] = 0.0;
                     flag   = -1;
 
                     for(int w=0;w<3;w++)
@@ -4405,14 +4420,14 @@ int main(int argc, char** argv)
                         int vertexID = BoundaryFaces[bcface]->GetEdgeIDs()[w];
                         int lvert = glob2locVid[vertexID];
                         
-                        Vert* Vf = new Vert;
-                        Vf->x  = vertOUT[(lvert-1)*3+0];
-                        Vf->y  = vertOUT[(lvert-1)*3+1];
-                        Vf->z  = vertOUT[(lvert-1)*3+2];
+                        std::vector<double> Vf(3);
+                        Vf[0]  = vertOUT[(lvert-1)*3+0];
+                        Vf[1]  = vertOUT[(lvert-1)*3+1];
+                        Vf[2]  = vertOUT[(lvert-1)*3+2];
                         
-                        VcF->x = VcF->x + Vf->x;
-                        VcF->y = VcF->y + Vf->y;
-                        VcF->z = VcF->z + Vf->z;
+                        VcF[0] = VcF[0] + Vf[0];
+                        VcF[1] = VcF[1] + Vf[1];
+                        VcF[2] = VcF[2] + Vf[2];
                         
                         Vfaces.push_back(Vf);
                         
@@ -4440,23 +4455,23 @@ int main(int argc, char** argv)
                     //std::cout << std::endl;
                     int elLh = lhbnd[bcface];
                     
-                    Vijk->x = 0.0;
-                    Vijk->y = 0.0;
-                    Vijk->z = 0.0;
+                    Vijk[0] = 0.0;
+                    Vijk[1] = 0.0;
+                    Vijk[2] = 0.0;
                     // compute element center;
                     //ienOUT[curElID] = Elvrts
                     for(int u=0;u<ienOUT[elLh].size();u++)
                     {
                         
-                        Vijk->x = Vijk->x + vertOUT[(ienOUT[elLh][u]-1)*3];
-                        Vijk->y = Vijk->y + vertOUT[(ienOUT[elLh][u]-1)*3+1];
-                        Vijk->z = Vijk->z + vertOUT[(ienOUT[elLh][u]-1)*3+2];
+                        Vijk[0] = Vijk[0] + vertOUT[(ienOUT[elLh][u]-1)*3];
+                        Vijk[1] = Vijk[1] + vertOUT[(ienOUT[elLh][u]-1)*3+1];
+                        Vijk[2] = Vijk[2] + vertOUT[(ienOUT[elLh][u]-1)*3+2];
                         
                     }
                     
-                    Vijk->x = Vijk->x/ienOUT[elLh].size();
-                    Vijk->y = Vijk->y/ienOUT[elLh].size();
-                    Vijk->z = Vijk->z/ienOUT[elLh].size();
+                    Vijk[0] = Vijk[0]/ienOUT[elLh].size();
+                    Vijk[1] = Vijk[1]/ienOUT[elLh].size();
+                    Vijk[2] = Vijk[2]/ienOUT[elLh].size();
                     
                     double orient0 = CheckFaceOrientation(VcF,Vfaces,Vijk);
 

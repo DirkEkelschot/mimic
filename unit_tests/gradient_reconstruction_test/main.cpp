@@ -313,9 +313,11 @@ int main(int argc, char** argv)
 //    const char* fn_conn="../test_mesh/cylinder_hybrid/conn.h5";
 //    const char* fn_data="../test_mesh/cylinder_hybrid/data.h5";
     
-    const char* fn_grid="inputs/grid.h5";
-    const char* fn_conn="inputs/conn.h5";
-    const char* fn_metric = "inputs/metric.inp";
+    
+    
+    const char* fn_grid   = "box_inputs/boxes_cas/grid_h0p01.h5";
+    const char* fn_conn   = "box_inputs/boxes_cas/conn_h0p01.h5";
+    const char* fn_metric = "inputs_h0p05/metric.inp";
     
     std::vector<double> metric_inputs = ReadMetricInputs(fn_metric);
 
@@ -844,7 +846,7 @@ int main(int argc, char** argv)
 //  delete us3d->xcn;
     
     std::map<int,Array<double>* > dUdXi_HO  = ComputedUdx_LSQ_HO_US3D(P,Uvaria_map,meshTopo,gbMap,comm);
-    std::map<int,Array<double>* > dUdXi_LS  = ComputedUdx_LSQ_US3D_LargeStencil(P,Uvaria_map,meshTopo,gbMap,comm);
+    //std::map<int,Array<double>* > dUdXi_LS  = ComputedUdx_LSQ_US3D_LargeStencil(P,Uvaria_map,meshTopo,gbMap,comm);
     std::map<int,Array<double>* > dUdXi     = ComputedUdx_LSQ_US3D(P,Uvaria_map,meshTopo,gbMap,comm);
     std::map<int,Array<double>* > dUdXi_mgg = ComputedUdx_MGG(P,Uvaria_map,meshTopo,gbMap,comm);
     std::map<int,Array<double>* > dUdx_lsqv1;
@@ -936,8 +938,9 @@ int main(int argc, char** argv)
         std::cout << std::setprecision(16) << "L2norm dU2dxz lsq v2   = " << sqrt(L2_d2udxz_lsq_2_tot)/Nell_tot << std::endl;
         
         double total_error = err0+err1+err2+err3+err4+err5+err6+err7+err8;
+        std::cout << "Total error " << total_error << std::endl;
         
-        if(total_error < 1.0e-16)
+        if(fabs(total_error) < 1.0e-16)
         {
             std::cout << "The gradient reconstruction tests have PASSED!" << std::endl;
 	    std::cout << "Partitioning test has PASSED." << std::endl;
