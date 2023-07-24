@@ -2348,7 +2348,8 @@ void RedistributePartitionObject::UpdateTetrahedraOnPartition(int nglob,
             for (it = reqstd_Ori_ids_per_rank.begin(); it != reqstd_Ori_ids_per_rank.end(); it++)
             {
                 int nv_send = it->second.size();
-                double* vert_send = new double[nv_send*3];
+                std::vector<double> vert_send(nv_send*3);
+                //double* vert_send = new double[nv_send*3];
                 offset_xcn        = xcn_pstate->getOffset(rank);
                 for(int u=0;u<it->second.size();u++)
                 {
@@ -2361,10 +2362,10 @@ void RedistributePartitionObject::UpdateTetrahedraOnPartition(int nglob,
                 MPI_Send(&nv_send, 1, MPI_INT, dest, 9876+1000*dest, mpi_comm);
                 // MPI_Send(&vert_send[0], nv_send, MPI_DOUBLE, dest, 9876+dest*888, mpi_comm);
             
-                MPI_Send(&vert_send[0], nv_send*3, MPI_DOUBLE, dest, 9876+dest*8888, mpi_comm);
+                MPI_Send(&vert_send.data()[0], nv_send*3, MPI_DOUBLE, dest, 9876+dest*8888, mpi_comm);
                 MPI_Send(&reqstd_ids_per_rank[it->first][0], it->second.size(), MPI_INT, dest, 8888*9876+dest*8888,mpi_comm);
                 
-                delete[] vert_send;
+                //delete[] vert_send;
             }
         }
         if(part_schedule->RecvRankFromRank[q].find( rank ) != part_schedule->RecvRankFromRank[q].end())

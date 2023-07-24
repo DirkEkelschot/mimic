@@ -9,7 +9,7 @@ BOOST_HOME = /Users/dekelschot/Software/boost_1_71_0
 CGNS_HOME = /Users/dekelschot/Software/CGNS-3.3.0/build
 GKLIB_HOME = /Users/dekelschot/Software/GKlib/GKlib-install
 
-CXXFLAGS += -std=c++11 -I$(MMG_HOME)/include -I$(PARMMG_HOME)/include -I$(PARMETIS_HOME)/include -I$(MPICH_HOME)/include -I$(HDF5_HOME)/include -I$(METIS_HOME)/include -I$(XML_HOME) -I$(BOOST_HOME) -I$(CGNS_HOME)/include -I$(GKLIB_HOME)/include
+CXXFLAGS += -std=c++17 -I$(MMG_HOME)/include -I$(PARMMG_HOME)/include -I$(PARMETIS_HOME)/include -I$(MPICH_HOME)/include -I$(HDF5_HOME)/include -I$(METIS_HOME)/include -I$(XML_HOME) -I$(BOOST_HOME) -I$(CGNS_HOME)/include -I$(GKLIB_HOME)/include
 
 LDFLAGS += -L$(MMG_HOME)/lib -L$(PARMMG_HOME)/lib -L$(PARMETIS_HOME)/lib -L$(METIS_HOME)/lib -L$(MPICH_HOME)/lib -L$(HDF5_HOME)/lib -L$(XML_HOME) -L$(CGNS_HOME)/lib -L$(GKLIB_HOME)/lib
 

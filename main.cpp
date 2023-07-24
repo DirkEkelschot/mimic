@@ -1812,8 +1812,8 @@ int main(int argc, char** argv)
         v2l = globV2locV[v2];
         v3l = globV2locV[v3];
         
-        double* P = new double[4*3];
-        
+        //double* P = new double[4*3];
+        std::vector<double> P(4*3);
         P[0*3+0]=locVs[v0l][0];   P[0*3+1]=locVs[v0l][1];    P[0*3+2]=locVs[v0l][2];
         P[1*3+0]=locVs[v1l][0];   P[1*3+1]=locVs[v1l][1];    P[1*3+2]=locVs[v1l][2];
         P[2*3+0]=locVs[v2l][0];   P[2*3+1]=locVs[v2l][1];    P[2*3+2]=locVs[v2l][2];
@@ -1831,7 +1831,7 @@ int main(int argc, char** argv)
             exit(EXIT_FAILURE);
         }
         
-        delete[] P;
+        //delete[] P;
     }
     
     
@@ -2839,8 +2839,8 @@ int main(int argc, char** argv)
             Elvrts[2] = tetraOUT[pos+2];
             Elvrts[3] = tetraOUT[pos+3];
             
-            double* P = new double[4*3];
-            
+//            double* P = new double[4*3];
+            std::vector<double> P(4*3);
             P[0*3+0]=vertOUT[(Elvrts[0]-1)*3];
             P[0*3+1]=vertOUT[(Elvrts[0]-1)*3+1];
             P[0*3+2]=vertOUT[(Elvrts[0]-1)*3+2];
@@ -3030,7 +3030,7 @@ int main(int argc, char** argv)
             
             curElID++;
 
-            delete[] P;
+            //delete[] P;
         }
        
         delete[] refTET;

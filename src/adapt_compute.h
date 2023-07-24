@@ -22,17 +22,17 @@ This needs to be done when linking C programs to Fortran. The reason is name man
 AKA name decoration
 */
 extern "C" {
-double ComputeJ(double*P, int ElType);
+double ComputeJ(std::vector<double> P, int ElType);
 }
 
 double ComputeEdgeLength(std::vector<double> v0, std::vector<double> v1);
 
-double ComputeVolumeHexCell(double *P);
-double ComputeVolumeTetCell(double *P);
-double ComputeVolumePrismCell(double *P);
+double ComputeVolumeHexCell(std::vector<double> P);
+double ComputeVolumeTetCell(std::vector<double> P);
+double ComputeVolumePrismCell(std::vector<double> P);
 
-double ComputeDeterminantJ_tet_v2(double*P);
-Array<double>* ComputeJAtCenter_tet_v2(double*P);
+double ComputeDeterminantJ_tet_v2(std::vector<double> P);
+Array<double>* ComputeJAtCenter_tet_v2(std::vector<double> P);
 
 // This function outputs J as an array of 9 values where the matrix is defined as:
 
@@ -42,26 +42,26 @@ Array<double>* ComputeJAtCenter_tet_v2(double*P);
         J[6], J[7], J[8]]
 */
 // J is computed using the 8-point isoparametric mapping for a hex. The 8-point rule should be sufficient since everything is linear anyways.
-std::vector<double> ComputeCenterCoord(double*P, int np);
-std::vector<double> ComputeCentroidCoord(double*P, int np);
+std::vector<double> ComputeCenterCoord(std::vector<double> P, int np);
+std::vector<double> ComputeCentroidCoord(std::vector<double> P, int np);
 
 extern "C" {
-double* ComputeJAtCenter(double*P, int np);
+double* ComputeJAtCenter(std::vector<double> P, int np);
 }
 
-double GetQualityTetrahedra(double* P);
+double GetQualityTetrahedra(std::vector<double> P);
 
-double ComputeDeterminantJ_tet(double*P);
+double ComputeDeterminantJ_tet(std::vector<double> P);
 
-double ComputeDeterminantJ(double*P, int np);
+double ComputeDeterminantJ(std::vector<double> P, int np);
 
-double ComputeDeterminantJ(double*P, int np);
+double ComputeDeterminantJ(std::vector<double> P, int np);
 
 Array<double>* ComputeDeterminantofJacobian(ParArray<int>* ien, Array<double>* xcn);
 
 double* ComputeVolumeCells(Array<double>* xcn, Array<int>* ien, MPI_Comm comm);
 
-double ComputeTetVolume(double *P);
+double ComputeTetVolume(std::vector<double> P);
 
 double* ComputeVolumeCellsReducedToVerts(Array<double>* xcn, Array<int>* ien);
 

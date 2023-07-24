@@ -65,8 +65,8 @@ Mesh_Topology::Mesh_Topology(Partition* Pa, MPI_Comm comm)
         {
             std::cout << "Big error " << std::endl;
         }
-        double* Pijk = new double[NvEl*3];
-
+        
+        std::vector<double> Pijk(NvEl*3);
         for(int k=0;k<NvEl;k++)
         {
            int global_vid = ien_part_map->i_map[gEl][k];
@@ -76,7 +76,7 @@ Mesh_Topology::Mesh_Topology(Partition* Pa, MPI_Comm comm)
            Pijk[k*3+2] = locVerts[loc_vid][2];
         }
         
-        std::vector<double> Vijk     = ComputeCentroidCoord(Pijk, NvEl);
+        std::vector<double> Vijk = ComputeCentroidCoord(Pijk, NvEl);
         
         if(NfPEl == 6)
         {
@@ -103,8 +103,8 @@ Mesh_Topology::Mesh_Topology(Partition* Pa, MPI_Comm comm)
             {
                 int Nvadj = ien_part_map->i_map[adjID].size();
 
-                double* Po  = new double[Nvadj*3];
-
+                //double* Po  = new double[Nvadj*3];
+                std::vector<double> Po(Nvadj*3);
                 for(int k=0;k<Nvadj;k++)
                 {
                     int global_vid  = ien_part_map->i_map[adjID][k];
@@ -129,7 +129,7 @@ Mesh_Topology::Mesh_Topology(Partition* Pa, MPI_Comm comm)
                 rvector[gEl].push_back(rf);
                 dr[gEl].push_back(d);
             
-                delete[] Po;
+                //delete[] Po;
                 
                 for(int k=0;k<Nvadj;k++)
                 {
@@ -355,7 +355,7 @@ Mesh_Topology::Mesh_Topology(Partition* Pa, MPI_Comm comm)
         }
         vs.clear();
         E2V_scheme[gEl] = vrts;
-        delete[] Pijk;
+        //delete[] Pijk;
         vijkIDs.clear();
     }
     

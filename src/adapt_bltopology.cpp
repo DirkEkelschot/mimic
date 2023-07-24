@@ -36,8 +36,9 @@ BLShellInfo* GetBoundaryLayerVolume(int wall_id, int nLayer,
     //std::cout << "Determining outer shell of BL mesh..." << std::endl;
     clock_t start;
     start = std::clock();
-    int* Pijk_id = new int[8];
-    double* Pijk = new double[8*3];
+    //int* Pijk_id = new int[8];
+    //double* Pijk = new double[8*3];
+    std::vector<double> Pijk(8*3);
     int elid_cur,elid_next;
     int t=0;
     int loc_vid;
@@ -223,7 +224,8 @@ void FindOuterShellBoundaryLayerMesh_V2(BLShellInfo* BLinfo, int wall_id, int nL
     clock_t start;
     start = std::clock();
     int* Pijk_id = new int[8];
-    double* Pijk = new double[8*3];
+    //double* Pijk = new double[8*3];
+    std::vector<double> Pijk(8*3);
     int elid_cur,elid_next;
     int t=0;
     int loc_vid;
@@ -600,7 +602,8 @@ BLShellInfo* FindOuterShellBoundaryLayerMesh(int wall_id, int nLayer,
     clock_t start;
     start = std::clock();
     int* Pijk_id = new int[8];
-    double* Pijk = new double[8*3];
+    //double* Pijk = new double[8*3];
+    std::vector<double> Pijk(8*3);
     int elid_cur,elid_next;
     int t=0;
     int loc_vid;
@@ -961,8 +964,10 @@ void ExtractBoundaryLayerMeshFromShell(Mesh_Topology_BL* mesh_topology_bl,std::v
 
     clock_t start;
     start = std::clock();
-    int* Pijk_id = new int[8];
-    double* Pijk = new double[8*3];
+    //int* Pijk_id = new int[8];
+    std::vector<int> Pijk_id(8);
+    //double* Pijk = new double[8*3];
+    std::vector<double> Pijk(8*3);
     int elid_cur,elid_next;
     int t=0;
     int loc_vid;

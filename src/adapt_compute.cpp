@@ -199,7 +199,7 @@ double ComputeEdgeLength(std::vector<double> v0, std::vector<double> v1)
 }
 
 
-double ComputeTetVolume(double *P)
+double ComputeTetVolume(std::vector<double> P)
 {
     std::vector<double> a(3);
     std::vector<double> b(3);
@@ -249,7 +249,7 @@ double ComputeTetVolume(double *P)
     
 }
 
-double ComputeVolumeHexCell(double *P)
+double ComputeVolumeHexCell(std::vector<double> P)
 {
     
     double L01=0.0;
@@ -358,7 +358,7 @@ double ComputeVolumeHexCell(double *P)
 
 
 
-double ComputeVolumeTetCell(double *P)
+double ComputeVolumeTetCell(std::vector<double> P)
 {
 
     
@@ -407,7 +407,7 @@ double ComputeVolumeTetCell(double *P)
 
 
 
-double ComputeVolumePrismCell(double *P)
+double ComputeVolumePrismCell(std::vector<double> P)
 {
     std::vector<double> v0(3);
     std::vector<double> v1(3);
@@ -469,7 +469,7 @@ double ComputeVolumePrismCell(double *P)
         J[6], J[7], J[8]]
 */
 // J is computed using the 8-point isoparametric mapping for a hex. The 8-point rule should be sufficient since everything is linear anyways.
-std::vector<double> ComputeCenterCoord(double*P, int np)
+std::vector<double> ComputeCenterCoord(std::vector<double> P, int np)
 {
  
     std::vector<double> V(3);
@@ -521,7 +521,7 @@ std::vector<double> ComputeCenterCoord(double*P, int np)
 }
 
 
-std::vector<double> ComputeCentroidCoord(double*P, int np)
+std::vector<double> ComputeCentroidCoord(std::vector<double> P, int np)
 {
     std::vector<double> V(3);
     //V = ComputeCenterCoord(P, np);
@@ -545,7 +545,7 @@ std::vector<double> ComputeCentroidCoord(double*P, int np)
 }
 
 
-double* ComputeJAtCenter(double*P, int np)
+double* ComputeJAtCenter(std::vector<double> P, int np)
 {
     //Vert V;
     double * J = new double[9];
@@ -556,10 +556,10 @@ double* ComputeJAtCenter(double*P, int np)
     int * ref = new int[np*3];
         
     // Allocate the arrays for the mapping function and its derivatives.
-    double * N      = new double[np];
-    double * dNdeta = new double[np];
-    double * dNdmu  = new double[np];
-    double * dNdksi = new double[np];
+    std::vector<double> N(np);
+    std::vector<double> dNdeta(np);
+    std::vector<double> dNdmu(np);
+    std::vector<double> dNdksi(np);
     
     for(int i=0;i<np;i++)
     {
@@ -675,7 +675,7 @@ double* ComputeJAtCenter(double*P, int np)
 //}
 
 
-double GetQualityTetrahedra(double* P)
+double GetQualityTetrahedra(std::vector<double> P)
 {
     double       h1,h2,h3,h4,h5,h6,det,vol,rap,v1,v2,v3,num;
     double       cal,abx,aby,abz,acx,acy,acz,adx,ady,adz;
@@ -770,7 +770,7 @@ double GetQualityTetrahedra(double* P)
     return cal;
 }
 
-Array<double>* ComputeJAtCenter_tet_v2(double*P)
+Array<double>* ComputeJAtCenter_tet_v2(std::vector<double> P)
 {
 
     Array<double>* a = new Array<double>(3,3);
@@ -806,7 +806,7 @@ Array<double>* ComputeJAtCenter_tet_v2(double*P)
     
     return M;
 }
-double ComputeDeterminantJ_tet_v2(double*P)
+double ComputeDeterminantJ_tet_v2(std::vector<double> P)
 {
     Array<double>* JP1 = ComputeJAtCenter_tet_v2(P);
 
@@ -829,7 +829,7 @@ double ComputeDeterminantJ_tet_v2(double*P)
     return DetJ;
 }
 
-double ComputeDeterminantJ_tet(double*P)
+double ComputeDeterminantJ_tet(std::vector<double> P)
 {
     double* J0=new double[9];
     std::vector<double> dJvec;
@@ -911,7 +911,7 @@ double ComputeDeterminantJ_tet(double*P)
 }
 
 
-double ComputeDeterminantJ(double*P, int np)
+double ComputeDeterminantJ(std::vector<double> P, int np)
 {
     double* JP1 = ComputeJAtCenter(P, np);
     
@@ -932,7 +932,8 @@ Array<double>* ComputeDeterminantofJacobian(ParArray<int>* ien, Array<double>* x
     int nel_loc = ien->getNrow();
     int ncol = ien->getNcol();
     Array<double>* detJ = new Array<double>(nel_loc,1);
-    double* P = new double[np*3];
+    //double* P = new double[np*3];
+    std::vector<double> P(np*3);
     int Vid, Vlid;
     for(int i=0;i<nel_loc;i++)
     {
@@ -955,7 +956,7 @@ Array<double>* ComputeDeterminantofJacobian(ParArray<int>* ien, Array<double>* x
         //std::cout << J[6] << " " << J[7] << " " << J[8] << std::endl;
         //std::cout << "================================" << std::endl;
     }
-    delete[] P;
+    //delete[] P;
     
     return detJ;
 }
@@ -975,8 +976,8 @@ double* ComputeVolumeCellsSerial(Array<double>* xcn, Array<int>* ien, MPI_Comm c
     int Nelements = Nel;
     double * vol_cells = new double[Nelements];
     int np = 8;
-    double* P = new double[np*3];
-    
+    //double* P = new double[np*3];
+    std::vector<double> P(np*3);
     
     double vhex = 0.0;
     
@@ -998,7 +999,7 @@ double* ComputeVolumeCellsSerial(Array<double>* xcn, Array<int>* ien, MPI_Comm c
         
     }
     
-    delete[] P;
+    //delete[] P;
     
     return vol_cells;
     
@@ -1023,8 +1024,8 @@ double* ComputeVolumeCellsReducedToVerts(Array<double>* xcn, Array<int>* ien)
     
     
     int np = 8;
-    double* P = new double[np*3];
-    
+    //double* P = new double[np*3];
+    std::vector<double> P(np*3);
     double vhex = 0.0;
     
     int Vid;
@@ -1058,7 +1059,7 @@ double* ComputeVolumeCellsReducedToVerts(Array<double>* xcn, Array<int>* ien)
     
     delete[] vert_cnt;
     delete[] sum_vol;
-    delete[] P;
+    //delete[] P;
     
     return vol_verts;
 }
@@ -1067,8 +1068,8 @@ double* ComputeVolumeCellsReducedToVerts(Array<double>* xcn, Array<int>* ien)
 
 void UnitTestJacobian()
 {
-    double* Hex = new double[8*3];
-    
+    //double* Hex = new double[8*3];
+    std::vector<double> Hex(8*3);
     Hex[0*3+0] = 0;     Hex[0*3+1] = 0;     Hex[0*3+2] = 0;
     Hex[1*3+0] = 0.5;   Hex[1*3+1] = 0;     Hex[1*3+2] = 0;
     Hex[2*3+0] = 0.5;   Hex[2*3+1] = 0.5;   Hex[2*3+2] = 0;
@@ -1496,7 +1497,8 @@ Array<double>* ComputeVolumes(Partition* Pa)
     std::vector<std::vector<double> > locVerts = Pa->getLocalVerts();
     Array<double>* Volumes = new Array<double>(nLocElem,1);
     std::vector<int> vijkIDs;
-    double* Pijk = new double[8*3];
+    //double* Pijk = new double[8*3];
+    std::vector<double> Pijk(8*3);
     for(i=0;i<nLocElem;i++)
     {
        int gEl = Loc_Elem[i];
@@ -1515,7 +1517,7 @@ Array<double>* ComputeVolumes(Partition* Pa)
        Volumes->setVal(i,0,Vol);
     }
     
-    delete[] Pijk;
+    //delete[] Pijk;
     return Volumes;
 }
 
