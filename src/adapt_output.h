@@ -21,6 +21,8 @@ void OutputBoundaryID_MMG(MMG5_pMesh mmgMesh, std::map<int,std::vector<int> > re
 
 void OutputBoundaryID(Partition* Pa, int bndID, int rankie);
 
+void PlotBoundaryData_Lite(std::vector<std::vector<char> > znames, std::vector<std::vector<int> > zdefs);
+
 void PlotBoundaryData(Array<char>* znames, Array<int>* zdefs);
 
 std::map<std::string,int> PlotVariableNames(Array<char>* zvnames);

@@ -480,6 +480,30 @@ void OutputBoundaryID(Partition* Pa, int bndID, int rankie)
 }
 
 
+void PlotBoundaryData_Lite(std::vector<std::vector<char> > znames, std::vector<std::vector<int> > zdefs)
+{
+    int nrow = znames.size();
+    int ncol = znames[0].size();
+
+    std::cout << "printing boundary data..." << nrow << " " << zdefs[0].size() << std::endl;
+    for(int i=0;i<nrow;i++)
+    {
+        for(int j=0;j<ncol;j++)
+        {
+            std::cout << znames[i][j] << "";
+        }
+        std::cout << " :: ";
+        for(int j=0;j<zdefs[0].size();j++)
+        {
+            std::cout << zdefs[i][j] << " ";
+        }
+        std::cout << std::endl;
+    }
+    
+}
+
+
+
 void PlotBoundaryData(Array<char>* znames, Array<int>* zdefs)
 {
     int nrow = znames->getNrow();

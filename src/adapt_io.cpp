@@ -3897,6 +3897,637 @@ int ProvideBoundaryRef(int findex, std::map<int,std::vector<int> > ranges)
     return retref;
 }
 
+
+
+
+
+
+mesh* ReadUS3DMeshData(const char* fn_conn, const char* fn_grid, const char* fn_data, int readFromStats, int StateVar, MPI_Comm comm, MPI_Info info)
+{
+    mesh* mRead = new mesh;
+    int size;
+    MPI_Comm_size(comm, &size);
+    // Get the rank of the process
+    int rank;
+    MPI_Comm_rank(comm, &rank);
+
+    std::vector<std::vector<double> >   xcn = ReadDataSetFromFileInParallel_Lite<double>(fn_grid,"xcn",comm,info);
+    std::vector<std::vector<int> >      ien = ReadDataSetFromFileInParallel_Lite<int>(fn_conn,"ien",comm,info);
+    std::vector<std::vector<int> >      ief = ReadDataSetFromFileInParallel_Lite<int>(fn_conn,"ief",comm,info);
+    std::vector<std::vector<int> >      iee = ReadDataSetFromFileInParallel_Lite<int>(fn_conn,"iee",comm,info);
+    std::vector<std::vector<int> >      iet = ReadDataSetFromFileInParallel_Lite<int>(fn_grid,"iet",comm,info);
+    std::vector<std::vector<int> >      ifn = ReadDataSetFromFileInParallel_Lite<int>(fn_grid,"ifn",comm,info);
+    std::vector<std::vector<int> >      ife = ReadDataSetFromFileInParallel_Lite<int>(fn_conn,"ife",comm,info);
+    std::vector<int> vert_rankInfo          = ReadDataSetSizeFromFileInParallel(fn_grid,"xcn",comm,info);
+    std::vector<int> elem_rankInfo          = ReadDataSetSizeFromFileInParallel(fn_conn,"ien",comm,info);
+    std::vector<int> face_rankInfo          = ReadDataSetSizeFromFileInParallel(fn_conn,"ife",comm,info);
+
+
+    Array<char>* zvnames                    = ReadDataSetFromGroupInGroupFromFile<char>(fn_data,"info","solver","svnames");
+
+    std::map<string,int> var_map            = PlotVariableNames(zvnames);
+    
+
+    int offset_el = elem_rankInfo[2];
+
+    if(rank == 0)
+    {
+    std::map<std::string,int>::iterator itv;
+    for(itv=var_map.begin();itv!=var_map.end();itv++)
+    {
+       std::cout << itv->first << " " << itv->second << std::endl;
+    }
+
+    }
+
+    int uid = var_map["u"];
+    int vid = var_map["v"];
+    int wid = var_map["w"];
+    int Tid = var_map["T"];
+  
+    if(rank == 0)
+    { 
+    
+    std::cout <<"variable IDs " << var_map.size() << " " << uid << " " << vid << " " << wid << " " << Tid << std::endl;
+    }
+
+    int Nel     = elem_rankInfo[0];
+    int Nel_loc = elem_rankInfo[1];
+    
+    std::map<int, std::vector<double> > interior;
+
+    if(readFromStats==1)
+    {       
+        double time_stats = ReadStatisticsTimeFromRunInFileInParallel(fn_data,"run_1",comm,info);
+
+        std::vector<std::vector<double> > mean  = ReadDataSetFromRunInFileInParallel_Lite<double>(fn_data,"run_1","stats-mean",0,Nel,comm,info);
+
+        double rhoState,uState,vState,wState,TState,VtotState,aState,MState;
+
+        if(rank == 0)
+        {
+            std::cout << "Statistics time = " << time_stats << std::endl;
+        }
+        std::vector<std::vector<double> > vel_mean(Nel_loc);
+
+        for(int u=0;u<Nel_loc;u++)
+        {
+            int elid = offset_el + u;
+            rhoState = mean[u][0]/time_stats;
+            uState   = mean[u][uid]/time_stats;
+            vState   = mean[u][vid]/time_stats;
+            wState   = mean[u][wid]/time_stats;
+            TState   = mean[u][Tid]/time_stats;
+
+            std::vector<double> vel_mean_row(3);
+            vel_mean_row[0] = uState;
+            vel_mean_row[1] = vState;
+            vel_mean_row[2] = wState;
+
+            vel_mean[u] = vel_mean_row;
+
+            VtotState   = sqrt(uState*uState+vState*vState+wState*wState);
+
+            MState      = TState;
+            
+            std::vector<double> row_interior(2);
+
+            row_interior[0] = 0.0;
+            row_interior[1] = 0.0;
+
+            if(StateVar==0)
+            {
+                row_interior[1] = MState;
+            }
+            if(StateVar==1)
+            {
+                row_interior[1] = TState;
+            }
+
+            interior[elid] = row_interior;
+        }
+        
+        std::vector<std::vector<double> > stats  = ReadDataSetFromRunInFileInParallel_Lite<double>(fn_data,"run_1","stats-stat",0,Nel,comm,info);
+
+        double upup,vpvp,wpwp,tke;
+        std::vector<double> tkevec(Nel_loc);
+        for(int u=0;u<Nel_loc;u++)
+        {
+            upup = stats[u][0]/time_stats-vel_mean[u][0]*vel_mean[u][0];
+            vpvp = stats[u][1]/time_stats-vel_mean[u][1]*vel_mean[u][1];
+            wpwp = stats[u][2]/time_stats-vel_mean[u][2]*vel_mean[u][2];
+            tke = 0.5*(upup+vpvp+wpwp);
+            tkevec[u] = tke;
+        }
+
+        
+        double tkeMax = *std::max_element(tkevec.begin(),tkevec.end());
+        double tkeMax_glob = 0.0;
+        MPI_Allreduce(&tkeMax, &tkeMax_glob, 1, MPI_DOUBLE, MPI_MAX, comm);
+        //std::cout << "tkeMax_glob " << tkeMax_glob << std::endl;
+
+        for(int u=0;u<Nel_loc;u++)
+        {
+            int elid = offset_el + u;
+            interior[elid][0] = tkevec[u]/tkeMax_glob;
+        }
+    }
+    
+    if(readFromStats==0)
+    {
+        std::vector<std::vector<double> > readdata  = ReadDataSetFromRunInFileInParallel_Lite<double>(fn_data,"run_1","interior",0,Nel,comm,info);
+        
+        double rhoState,uState,vState,wState,TState,VtotState,aState,MState;
+
+        for(int u=0;u<Nel_loc;u++)
+        {
+            int elid = offset_el + u;
+            rhoState  = readdata[u][0];
+            uState    = readdata[u][uid];
+            vState    = readdata[u][vid];
+            wState    = readdata[u][wid];
+            TState    = readdata[u][Tid];
+            VtotState = sqrt(uState*uState+vState*vState+wState*wState);
+
+            std::vector<double> row_interior(2);
+
+            row_interior[0] = 0.0;
+            row_interior[1] = TState;
+
+            interior[elid] = row_interior;
+        }
+    }
+    
+    std::vector<std::vector<double> > ghost = ReadUS3DGhostCellsFromRun_Lite<double>(fn_data,"run_1","interior",Nel);
+    std::vector<std::vector<int> > zdefs    = ReadDataSetFromGroupFromFile_Lite<int>(fn_grid,"zones","zdefs");
+    std::vector<std::vector<char> >  znames = ReadDataSetFromGroupFromFile_Lite<char>(fn_grid,"zones","znames");
+    
+    
+    std::map<int,std::vector<int> > bnd_face_map;
+    // Collect boundary data;
+    std::vector<int> bnd_m;
+    std::vector<int> low_range;
+    std::vector<int> high_range;
+    std::vector<int> ref_range;
+    
+    int t=0;
+    int gg=0;
+    std::map<int,std::vector<int> > ranges_id;
+    std::map<int,int> zone2ref;
+
+    std::cout << "zdefs " << zdefs.size() << " " << zdefs[0].size() << std::endl;
+    
+    for(int i=2;i<zdefs.size();i++)
+    {
+        //std::cout << zdefs[i][2] << " " << zdefs[i][3] << " " << zdefs[i][4] << " " << zdefs[i][5] << std::endl;
+        bnd_m.push_back(zdefs[i][5]);
+        
+        low_range.push_back(zdefs[i][3]);
+        high_range.push_back(zdefs[i][4]);
+        ref_range.push_back(zdefs[i][5]);
+        
+        zone2ref[zdefs[i][2]] = zdefs[i][5];
+
+        std::vector<int> ra(2);
+        ra[0] = zdefs[i][3]-1;
+        ra[1] = zdefs[i][4]-1;
+        ranges_id[zdefs[i][2]] = ra;
+        ranges_id[zdefs[i][2]].push_back(zdefs[i][3]-1);
+        ranges_id[zdefs[i][2]].push_back(zdefs[i][4]-1);
+        
+        // gg++;
+    }
+    
+    
+    bnd_m.push_back(zdefs[zdefs.size()-1][4]);
+   
+    if(rank == 0)
+    {
+       PlotBoundaryData_Lite(znames,zdefs);
+    }
+    
+    std::map<int,std::string> znames_map;
+    std::map<std::string,int> znames_map_inv;
+    std::map<int,std::vector<int> > bref2zone;
+    std::map<int,char*> zone2name;
+
+    std::map<int,int> zone2bcref;
+    for(int i=0;i<zdefs.size();i++)
+    {
+        if(zdefs[i][5]!=1)
+        {
+            std::string name;
+            
+            char* namechar = new char[znames[0].size()];
+                        
+            for(int j=0;j<znames[0].size();j++)
+            {
+               namechar[j]=znames[i][j];
+
+               char ch = znames[i][j];
+               char chref = ' ';
+               if(ch!=chref)
+               {
+                   name.push_back(ch);
+               }
+            }
+            if(i>2)
+            {
+                bref2zone[zdefs[i][5]].push_back(i);
+                zone2bcref[zdefs[i][2]] = zdefs[i][5];
+                znames_map[zdefs[i][2]] = name;
+                znames_map_inv[name]    = zdefs[i][2];
+                zone2name[zdefs[i][2]]  = namechar;
+            }
+            
+        }
+    }
+    
+    // number of vertices
+
+    std::vector<std::vector<char> > znames_new(znames.size());
+    
+    std::vector<char> znames_new_row0(znames[0].size());
+
+    for(int j=0;j<znames[0].size();j++)
+    {
+        znames_new_row0[j] = znames[0][j];
+    }
+    znames_new[0] = znames_new_row0;
+
+    std::vector<char> znames_new_row1(znames[0].size());
+    for(int j=0;j<znames[0].size();j++)
+    {
+        znames_new_row1[j] = znames[1][j];
+    }
+    znames_new[1] = znames_new_row1;
+
+    
+    std::map<int,std::string>::iterator itch;
+    int c=2;
+    for(itch=znames_map.begin();itch!=znames_map.end();itch++)
+    {
+        std::vector<char> znames_new_row(znames[0].size());
+        int bid = itch->first;
+        for(int j=0;j<itch->second.size();j++)
+        {
+            znames_new_row[j] = itch->second[j];
+        }
+        znames_new[c] = znames_new_row;
+        c++;
+    }
+
+
+
+
+    //==========================================================================
+    //==========================================================================
+    //==========================================================================    
+    int i,j;
+
+    int nglob     = elem_rankInfo[0];
+    int nrow      = elem_rankInfo[1];
+    //
+
+    std::map<int,std::vector<int> > ien_copy;
+    std::map<int,std::vector<int> > ief_copy;
+    std::map<int,std::vector<int> > iee_copy;
+    std::map<int,int> iet_copy;
+    std::map<int,int> ie_Nv_copy;
+    std::map<int,int> ie_Nf_copy;
+
+
+    int ncol_ien = ien[0].size()-1;
+    int ncol_ief = ief[0].size()-1;
+    int ncol_iee = iee[0].size()-1;
+    //
+    std::vector<int> element2rank_loc(nglob,0);
+    //std::vector<int> iet_loc(nglob,0);
+    int check_hex = 0;
+    int check_tet = 0;
+    int check_pyr = 0;
+    int check_pri = 0;
+
+    int tetCount  = 0;
+    int hexCount  = 0;
+    int pyrCount  = 0;
+    int priCount  = 0;
+
+    for(i=0;i<nrow;i++)
+    {
+        int elid = offset_el+i;
+
+        element2rank_loc[elid] = rank;
+        iet_copy[elid]         = iet[i][0];
+
+        if(iet[i][0]==2) // Tet
+        {
+            ie_Nv_copy[elid] = 4;
+            ie_Nf_copy[elid] = 4;
+            check_tet        = 1;
+            ncol_ien         = 4;
+            ncol_iee         = 4;
+            ncol_ief         = 4;
+            tetCount++;
+        }
+        if(iet[i][0]==4) // Hex
+        {
+            ie_Nv_copy[elid] = 8;
+            ie_Nf_copy[elid] = 6;
+            ncol_ien         = 8;
+            ncol_ief         = 6;
+            ncol_iee         = 6;
+            check_hex        = 1;
+            hexCount++;
+        }
+        if(iet[i][0]==5) // Pyramid
+        {
+           ie_Nv_copy[elid]  = 5;
+           ie_Nf_copy[elid]  = 5;
+           ncol_ien          = 5;
+           ncol_ief          = 5;
+           ncol_iee          = 5;
+           check_pyr         = 1;
+           pyrCount++;
+        }
+        if(iet[i][0]==6) // Prism
+        {
+            ie_Nv_copy[elid] = 6;
+            ie_Nf_copy[elid] = 5;
+            ncol_ien         = 6;
+            ncol_ief         = 5;
+            ncol_iee         = 5;
+            check_pri        = 1;
+            priCount++;
+        }
+
+        std::vector<int> ien_copy_row(ncol_ien);
+        for(int j=0;j<ncol_ien;j++)
+        {
+            ien_copy_row[j] = ien[i][j+1]-1;
+        }
+        
+        std::vector<int> ief_copy_row(ncol_ief);
+        for(j=0;j<ncol_ief;j++)
+        {
+            ief_copy_row[j] = fabs(ief[i][j+1])-1;
+        }
+
+        std::vector<int> iee_copy_row(ncol_iee);
+        for(j=0;j<ncol_iee;j++)
+        {
+            iee_copy_row[j] = iee[i][j+1]-1;
+        }
+
+        ien_copy[elid] = ien_copy_row;
+        ief_copy[elid] = ief_copy_row;
+        iee_copy[elid] = iee_copy_row;
+
+        if(iet[i][0]!=2 && iet[i][0]!=4 && iet[i][0]!=6)
+        {
+            std::cout << "Warning: this mesh has pyramids! " << iet[i][0] << std::endl;
+        }
+
+    }
+
+    std::vector<int> element2rank_glob(nglob,0);
+    MPI_Allreduce(element2rank_loc.data(), element2rank_glob.data(), nglob, MPI_INT, MPI_SUM, comm);
+    element2rank_loc.clear();
+
+     int* colTetCount    = new int[size];
+    int* RedcolTetCount = new int[size];
+    int* OffcolTetCount = new int[size];
+
+    for(int i=0;i<size;i++)
+    {
+        colTetCount[i]    = 0;
+        RedcolTetCount[i] = 0;
+        if(i==rank)
+        {
+            colTetCount[i] = tetCount;
+        }
+    }
+    
+    MPI_Allreduce(colTetCount,  RedcolTetCount,  size, MPI_INT, MPI_SUM, comm);
+    
+    int offset_tetC = 0;
+    for(int i=0;i<size;i++)
+    {
+        OffcolTetCount[i] = offset_tetC;
+        offset_tetC = offset_tetC+RedcolTetCount[i];
+    }
+    
+    std::vector<int> ie_tetCnt(nrow,0);
+
+    int tett=0;
+    int pris=0;
+    for(int i=0;i<nrow;i++)
+    {
+        ie_tetCnt[i] = -1;
+        
+        if(iet[i][0]==2) // Tet
+        {
+            ie_tetCnt[i] = OffcolTetCount[rank]+tett;
+            //ie_tetCnt.setVal(i,0,OffcolTetCount[rank]+tett);
+            tett++;
+        }
+        else
+        {
+            pris++;
+        }
+    }
+    //std::cout << "before partitioning rank = " << rank << " #tets = " << tett << " #prisms " << pris << std::endl;
+    std::vector<int> elTypes(4);
+    elTypes[0] = check_tet;
+    elTypes[1] = check_pri;
+    elTypes[2] = check_pyr;
+    elTypes[3] = check_hex;
+    
+    delete[] OffcolTetCount;
+
+    // std::vector<int> iet_glob(nglob,0);
+    // MPI_Allreduce(iet_loc.data(), iet_glob.data(), nglob, MPI_INT, MPI_SUM, comm);
+    // iet_loc.clear();
+
+    //==========================================================================
+    //==========================================================================
+    //==========================================================================
+
+    int nrow_fglob  = face_rankInfo[0];
+    int nrow_floc   = face_rankInfo[1];
+    int offset_floc = face_rankInfo[2];
+    int ncol_ifn    = 4;
+    int ncol_ife    = 2;
+    
+    // ParMatrix<int> ifn_copy        = new ParMatrix<int>(nrow_fglob,ncol_ifn,comm);
+    // ParMatrix<int> ife_copy        = new ParMatrix<int>(nrow_fglob,ncol_ife,comm);
+    // ParMatrix<int> if_ref_copy     = new ParMatrix<int>(nrow_fglob,1,comm);
+    // ParMatrix<int> if_Nv_copy      = new ParMatrix<int>(nrow_fglob,1,comm);
+    
+    std::map<int,std::vector<int> > ifn_copy;
+    std::map<int,std::vector<int> > ife_copy;
+    std::map<int,int> if_ref_copy;
+    std::map<int,int> if_Nv_copy;    
+    int fref2;
+    int index_range = 0;
+    
+    for(i=0;i<nrow_floc;i++)
+    {
+        int fid        = offset_floc+i; 
+        int fref       = ifn[i][7];
+        int index      = i + offset_floc;
+        int fzone      = ProvideBoundaryID(index,ranges_id);
+        int fref2      = zone2ref[fzone];
+        
+        if((fref2!=fref))
+        {
+            std::cout << "mapping ranges are wrong"  << std::endl;
+        }
+
+        std::vector<int> ifn_copy_row(ncol_ifn);
+        for(j=0;j<ncol_ifn;j++)
+        {
+            ifn_copy_row[j] = ifn[i][j+1]-1;
+        }
+
+        std::vector<int> ife_copy_row(ncol_ife);
+        for(j=0;j<ncol_ife;j++)
+        {
+            ife_copy_row[j] = ife[i][j]-1;
+        }
+
+        if_ref_copy[fid] = ifn[i][7];
+        if_Nv_copy[fid]  = ifn[i][0];
+
+        ifn_copy[fid] = ifn_copy_row;
+        ife_copy[fid] = ife_copy_row;
+    }
+
+
+    
+    std::map<int,std::vector<double> > xcn_copy;
+    int nloc_verts   = vert_rankInfo[1];
+    int offset_verts = vert_rankInfo[2];
+    for(int i=0;i<nloc_verts;i++)
+    {
+        int vid = offset_verts+i;
+        std::vector<double> coords(3);
+        for(int j=0;j<3;j++)
+        {
+            coords[0] = xcn[i][j];
+        }
+        xcn_copy[vid] = coords;
+    }
+    int nElem = elem_rankInfo[0];
+    int nFace = face_rankInfo[0];
+    int nVert = vert_rankInfo[0];
+    
+    mRead->nElem          = nElem;
+    mRead->nFace          = nFace;
+    mRead->nVert          = nVert;
+    mRead->xcn            = xcn_copy;
+    mRead->ien            = ien_copy;
+    mRead->ief            = ief_copy;
+    mRead->iee            = iee_copy;
+    mRead->iet            = iet_copy;
+    //mRead->iet_glob       = iet_glob;
+    mRead->elTypes        = elTypes;
+    mRead->ie_Nv          = ie_Nv_copy;
+    mRead->ie_Nf          = ie_Nf_copy;
+    mRead->if_Nv          = if_Nv_copy;
+    mRead->ifn            = ifn_copy;
+    mRead->if_ref         = if_ref_copy;
+    mRead->ife            = ife_copy;
+    mRead->ie_tetCnt      = ie_tetCnt;
+    mRead->interior       = interior;
+    mRead->ghost          = ghost;
+    mRead->zone2bcref     = zone2bcref;
+    mRead->element2rank   = element2rank_glob;
+    mRead->bref2zone      = bref2zone;
+    mRead->znames_map     = znames_map;
+    mRead->znames_map_inv = znames_map_inv;  
+    mRead->zone2name      = zone2name;
+    mRead->znames         = znames;
+    mRead->zdefs          = zdefs;
+    mRead->ranges_id      = ranges_id;
+    mRead->ntetra         = tetCount;
+    mRead->nprism         = priCount;
+    mRead->nhexahedral    = hexCount;
+    mRead->npyramid       = pyrCount;
+
+    /**/
+    //delete zdefs;
+    //delete znames;
+    
+    //std::cout << interior->getNrow() << " " << interior->getNcol() << std::endl;
+
+    return mRead;
+
+    
+}
+
+
+
+
+
+std::vector<int> ReadDataSetSizeFromFileInParallel(const char* file_name, const char* dataset_name, MPI_Comm comm, MPI_Info info)
+{
+    
+    // Get the size of the process;
+    int size;
+    MPI_Comm_size(comm, &size);
+
+    // Get the rank of the process;
+    int rank;
+    MPI_Comm_rank(comm, &rank);
+    
+    //std::cout << rank << " " << size << std::endl;
+    
+    hid_t acc_tpl1          = H5Pcreate (H5P_FILE_ACCESS);
+    herr_t ret;
+    //herr_t ret            = H5Pset_fapl_mpio(acc_tpl1, comm, info);
+    //herr_t ret            = H5Pset_dxpl_mpio(,comm,info);
+    acc_tpl1                = H5P_DEFAULT;
+    // Open file and data set to get dimensions of array;
+    
+    hid_t file_id           = H5Fopen(file_name, H5F_ACC_RDONLY,H5P_DEFAULT);
+    hid_t dset_id           = H5Dopen(file_id,dataset_name,H5P_DEFAULT);
+    hid_t dspace            = H5Dget_space(dset_id);
+    int ndims               = H5Sget_simple_extent_ndims(dspace);
+    
+    hsize_t dims[ndims];
+    H5Sget_simple_extent_dims(dspace, dims, NULL);
+    int nrow                = dims[0];
+    int ncol                = dims[1];
+    int N                   = nrow;
+    int nloc                = int(N/size) + ( rank < N%size );
+    //  compute offset of rows for each proc;
+    int offset              = rank*int(N/size) + MIN(rank, N%size);
+
+
+
+    H5Sclose(dspace);
+
+    H5Dclose(dset_id);
+    H5Fclose(file_id);
+
+    std::vector<int> comm_info_entity(5);
+    comm_info_entity[0] = N;
+    comm_info_entity[1] = nloc;
+    comm_info_entity[2] = offset;
+    comm_info_entity[3] = size;
+    comm_info_entity[4] = rank;
+
+    return comm_info_entity;
+}
+
+
+
+
+
+
+
+
 US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data, int readFromStats, int StateVar, MPI_Comm comm, MPI_Info info)
 {
     int size;

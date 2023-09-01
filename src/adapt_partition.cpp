@@ -51,7 +51,6 @@ Partition::Partition(ParArray<int>* ien, ParArray<int>* iee, ParArray<int>* ief,
 				rankie = part_global->getVal(elid,0);
 			}
 			
-			
 			iferank->setVal(i,j,rankie);
 		}
 	}
@@ -374,8 +373,6 @@ void Partition::DeterminePartitionLayout(ParArray<int>* ien, ParallelState_Parme
 
     int *elmwgt = pstate_parmetis->getElmWgt();
     
-    
-
     int np           = size;
     idx_t ncon_[]    = {1};
     idx_t *ncon      = ncon_;
@@ -395,6 +392,12 @@ void Partition::DeterminePartitionLayout(ParArray<int>* ien, ParallelState_Parme
     idx_t *vsize = NULL;
     idx_t *adjwgt = NULL;
     
+
+    for(int i=0;i<(size+1);i++)
+    {
+        std::cout << i << " " << pstate_parmetis->getElmdist()[i] << " " << nrow << std::endl;
+    }
+
     ParMETIS_V3_Mesh2Dual(pstate_parmetis->getElmdist(),
                           pstate_parmetis->getEptr(),
                           pstate_parmetis->getEind(),
@@ -4610,9 +4613,9 @@ void Partition::CreatePartitionDomainTest()
     std::map<int,std::vector<int> >::iterator itm;
     std::map<int,std::vector<int> > vert2elem;
     
-    int lcv  = 0;
-    int elid = 0;
-    int nbcfaces = 0;
+    int lcv         = 0;
+    int elid        = 0;
+    int nbcfaces    = 0;
     std::vector<int> loc_part_verts;
     std::vector<int> glob_part_verts;
     
@@ -4652,9 +4655,9 @@ void Partition::CreatePartitionDomainTest()
         int Nfe = LocAndAdj_Elem_Nf[i];
         elem2Nf[gEl] = Nfe;
     }
-//    // Identify the interface between the prisms and the tets;
-//    int t36 = 0;
-//    int y36 = 0;
+//  // Identify the interface between the prisms and the tets;
+//  int t36 = 0;
+//  int y36 = 0;
     //std::map<int,std::vector<int> > prism_BndFaces;
     std::vector<int> left_tet;
     std::vector<int> right_elem;
@@ -4675,7 +4678,6 @@ void Partition::CreatePartitionDomainTest()
             {
                 ufaces.insert(faceid);
                 Nvface = if_Nv_part_map->i_map[faceid][0];
-
                 el0    = ife_part_map->i_map[faceid][0];
                 el1    = ife_part_map->i_map[faceid][1];
                 
@@ -4770,7 +4772,6 @@ void Partition::CreatePartitionDomainTest()
     }
     
     DistributedParallelState* ltet = new DistributedParallelState(nLocShellF,comm_p);
-    
     DistributedParallelState* lcent = new DistributedParallelState(nLocShellF*3,comm_p);
     
     int nShellFs   = ltet->getNel();

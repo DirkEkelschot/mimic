@@ -92,12 +92,116 @@ template <typename T> class ParArray : public Array<T>
             return nglob;
         }
         int getOffset(int rank)
-	{
-	    return offset;
-	}
+	    {
+            return offset;
+	    }
         int getNloc(int rank)
         {
- 	    return nloc;
+            return nloc;
+        }
+    private:
+        int nloc;
+        int offset;
+        int nglob;
+};
+
+
+
+
+template <typename T> class Matrix {
+    public:
+
+        std::vector<std::vector<T> > Mat;
+
+        Matrix(){}
+        
+        Matrix(int r, int c)
+        {
+            spanMatrix(r,c);
+        }
+        virtual ~Matrix(){
+            Mat.clear();
+        }
+    
+        void setVal(int i, int j, T val)
+        {
+            Mat[i][j] = val;
+        }
+        T getVal(int i, int j)
+        {
+            return  Mat[i][j];
+        }
+        int getNrow( void )
+        {
+            return nrow;
+        }
+        int getNcol( void )
+        {
+            return ncol;
+        }
+        void spanMatrix( int r, int c)
+        {
+            nrow = r;
+            ncol = c;
+            
+            Mat = std::vector<std::vector<T> >(nrow);
+
+            for(int i=0;i<nrow;i++)
+            {
+                std::vector<T> row(ncol);
+                Mat[i] = row;
+            }
+        }
+        int* getDim()
+        {
+            int* dim = new int[2];
+            dim[0] = nrow;
+            dim[1] = ncol;
+            return  dim;
+        }
+    
+    private:
+        int nrow;
+        int ncol;
+};
+
+
+
+
+
+template <typename T> class ParMatrix : public Matrix<T>
+{
+    public:
+        ParMatrix(int N, int c, MPI_Comm comm): Matrix<T>()
+        {
+            //pstate = new ParallelState(N,comm);
+            int size;
+            MPI_Comm_size(comm, &size);
+            int rank;
+            MPI_Comm_rank(comm, &rank);
+            
+            nloc             = int(N/size) + ( rank < N%size );
+            //  compute offset of rows for each proc;
+            offset           = rank*int(N/size) + MIN(rank, N%size); 
+            
+            this->spanMatrix(nloc,c);
+            
+            nglob = N;
+        }
+        virtual ~ParMatrix(){
+            
+        }
+        int getNglob( void )
+        {
+            return nglob;
+        }
+        int getOffset(int rank)
+    {
+        return offset;
+    }
+        int getNloc(int rank)
+        {
+        return nloc;
         }
     private:
         int nloc;

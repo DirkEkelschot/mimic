@@ -673,6 +673,7 @@ int main(int argc, char** argv)
     //===========================================================================
     
     US3D* us3d    = ReadUS3DData(fn_conn,fn_grid,fn_data,inputs->ReadFromStats,inputs->StateVar,comm,info);
+
     int Nve       = us3d->xcn->getNglob();
     
     int Nel_part  = us3d->ien->getNrow();
@@ -871,21 +872,17 @@ int main(int argc, char** argv)
 
         std::map<int,Array<double>* >::iterator itgg;
         
-        
-            
             
         for(itgg=Hess_map.begin();itgg!=Hess_map.end();itgg++)
         {
             delete itgg->second;
         }
         
-        
     }
     
 
     if(inputs->recursive == 1)
     {
-        
         
         std::map<int,double> Volumes_tmp = meshTopo->getVol();
         std::map<int,double> Volumes;
@@ -1092,15 +1089,11 @@ int main(int argc, char** argv)
         }
     }
     
-    
-
     //std::cout << "WorldRank " << world_rank << " " << howmany << " " << hess_vmap_new.size() << std::endl;
-
-
-//    for(itgg=hess_vmap.begin();itgg!=hess_vmap.end();itgg++)
-//    {
-//        delete itgg->second;
-//    }
+    //    for(itgg=hess_vmap.begin();itgg!=hess_vmap.end();itgg++)
+    //    {
+    //        delete itgg->second;
+    //    }
     
     if(world_rank == 0)
     {
@@ -1116,22 +1109,22 @@ int main(int argc, char** argv)
     
     Domain* pDom = P->getPartitionDomain();
     
-    std::map<int,std::vector<int> > tetraLoc   = pDom->Tetras;
-    std::map<int,std::vector<int> > tetraEl    = pDom->GTetras;
-    std::map<int,std::vector<int> > prismEl    = pDom->GPrisms;
-    std::map<int,std::vector<int> > pyramidEl  = pDom->GPyramids;
-    std::map<int,std::vector<int> > ushell_o   = pDom->ushell;
-    std::map<int,std::vector<double> > ushell_cen = pDom->ushell_centroid;
-    i_part_map* ief_part_map                   = P->getIEFpartmap();
-    i_part_map* if_Nv_part_map                 = P->getIF_Nvpartmap();
-    i_part_map* ifn_part_map                   = P->getIFNpartmap();
-    i_part_map* ife_part_map                   = P->getIFEpartmap();
-    i_part_map* if_ref_part_map                = P->getIFREFpartmap();
-    i_part_map* if_Erank_part_map			   = P->getIFERankpartmap();
-    std::map<int,int> tag2locV_map      	   = P->getGlobalVert2LocalVert();
-    std::vector<std::vector<double> > LocVerts_part     	   = P->getLocalVerts();
-    std::map<int,int> lpartv2gv                = pDom->lpartv2gv;
-    std::vector<int> loc_part_verts            = pDom->loc_part_verts;
+    std::map<int,std::vector<int> > tetraLoc         = pDom->Tetras;
+    std::map<int,std::vector<int> > tetraEl          = pDom->GTetras;
+    std::map<int,std::vector<int> > prismEl          = pDom->GPrisms;
+    std::map<int,std::vector<int> > pyramidEl        = pDom->GPyramids;
+    std::map<int,std::vector<int> > ushell_o         = pDom->ushell;
+    std::map<int,std::vector<double> > ushell_cen    = pDom->ushell_centroid;
+    i_part_map* ief_part_map                         = P->getIEFpartmap();
+    i_part_map* if_Nv_part_map                       = P->getIF_Nvpartmap();
+    i_part_map* ifn_part_map                         = P->getIFNpartmap();
+    i_part_map* ife_part_map                         = P->getIFEpartmap();
+    i_part_map* if_ref_part_map                      = P->getIFREFpartmap();
+    i_part_map* if_Erank_part_map			         = P->getIFERankpartmap();
+    std::map<int,int> tag2locV_map      	         = P->getGlobalVert2LocalVert();
+    std::vector<std::vector<double> > LocVerts_part  = P->getLocalVerts();
+    std::map<int,int> lpartv2gv                      = pDom->lpartv2gv;
+    std::vector<int> loc_part_verts                  = pDom->loc_part_verts;
     //================================================================================
     //================================================================================
     //================================================================================

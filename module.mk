@@ -1,21 +1,17 @@
-PARMETIS_HOME = /Users/dekelschot/Software/ParMETIS/parmetis-install
-METIS_HOME = /Users/dekelschot/Software/METIS/metis-install
-HDF5_HOME = /Users/dekelschot/Software/hdf5-1.12.0/hdf5-install
-MPICH_HOME = /Users/dekelschot/Software/mpich-3.3.1/mpich-3.3.1-install
-PARMMG_HOME = /Users/dekelschot/Software/ParMmg/build
-MMG_HOME = /Users/dekelschot/Software/ParMmg/build/Mmg-prefix/src/Mmg-build
-XML_HOME = /Users/dekelschot/Software/tinyxml
-BOOST_HOME = /Users/dekelschot/Software/boost_1_71_0
-CGNS_HOME = /Users/dekelschot/Software/CGNS-3.3.0/build
-GKLIB_HOME = /Users/dekelschot/Software/GKlib/GKlib-install
+PARMETIS_HOME = /Users/dekelsch/Software/parmetis-4.0.3/install
+METIS_HOME = /Users/dekelsch/Software/parmetis-4.0.3/metis/install
+HDF5_HOME = /Users/dekelsch/Software/hdf5-1.14.2/install
+MPICH_HOME = /Users/dekelsch/Software/mpich-4.1.2/mpich-4.1.2-install
+PARMMG_HOME = /Users/dekelsch/Software/pmmg/build
+MMG_HOME = /Users/dekelsch/Software/pmmg/build/Mmg-prefix/src/Mmg-build
+XML_HOME = /Users/dekelsch/Software/tinyxml
+#CGNS_HOME = /Users/dekelsch/Software/CGNS-3.3.0/src/install
+BOOST_HOME = /Users/dekelsch/Software/boost_1_71_0
+CXXFLAGS += -std=c++11 -I$(MMG_HOME)/include -I$(PARMMG_HOME)/include -I$(PARMETIS_HOME)/include -I$(MPICH_HOME)/include -I$(HDF5_HOME)/include -I$(METIS_HOME)/include -I$(XML_HOME) -I$(BOOST_HOME)
 
-CXXFLAGS += -std=c++17 -I$(MMG_HOME)/include -I$(PARMMG_HOME)/include -I$(PARMETIS_HOME)/include -I$(MPICH_HOME)/include -I$(HDF5_HOME)/include -I$(METIS_HOME)/include -I$(XML_HOME) -I$(BOOST_HOME) -I$(CGNS_HOME)/include -I$(GKLIB_HOME)/include
+LDFLAGS += -L$(MMG_HOME)/lib -L$(PARMMG_HOME)/lib -L$(PARMETIS_HOME)/lib -L$(METIS_HOME)/lib -L$(MPICH_HOME)/lib -L$(HDF5_HOME)/lib -L$(XML_HOME)
 
-LDFLAGS += -L$(MMG_HOME)/lib -L$(PARMMG_HOME)/lib -L$(PARMETIS_HOME)/lib -L$(METIS_HOME)/lib -L$(MPICH_HOME)/lib -L$(HDF5_HOME)/lib -L$(XML_HOME) -L$(CGNS_HOME)/lib -L$(GKLIB_HOME)/lib
+LDLIBS += -lmetis -lparmetis -lhdf5 -lmpi -llapack -lblas -lmmg -lparmmg
 
-LDLIBS += -lmetis -lparmetis -lhdf5 -lmpi -llapack -lblas -lmmg -lparmmg -lcgns -lgklib
-
-
-
-CC = /Users/dekelschot/Software/mpich-3.3.1/mpich-3.3.1-install/bin/mpic++
+CC = /Users/dekelsch/Software/mpich-4.1.2/mpich-4.1.2-install/bin/mpic++
 

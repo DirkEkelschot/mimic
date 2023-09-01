@@ -569,10 +569,10 @@ void RedistributePartitionObject::RebasePartitionObject(
         old_ntets_red[i] = 0;
         if(i==world_rank)
         {
-            optiSize[i] = optimalSize;
-            toS[i] = NtoSend;
-            toR[i] = NtoRecv;
-            old_ntets[i] = nTetras;
+            optiSize[i]     = optimalSize;
+            toS[i]          = NtoSend;
+            toR[i]          = NtoRecv;
+            old_ntets[i]    = nTetras;
 
         }
     }
@@ -1284,9 +1284,9 @@ void RedistributePartitionObject::RebasePartitionObject(
             std::vector<double> VrtMetric(n_VrtMetRecv);
             MPI_Recv(&VrtMetric[0],   n_VrtMetRecv, MPI_DOUBLE, origin, world_rank*80000000, mpi_comm, MPI_STATUS_IGNORE);
             collected_ElIds[origin]         = recvElIDsvec;
-            collected_NIds[origin]             = recvNElVec;
-            collected_OriginalNIds[origin]     = recvONElVec;
-            collected_FIds[origin]             = recvFElVec;
+            collected_NIds[origin]          = recvNElVec;
+            collected_OriginalNIds[origin]  = recvONElVec;
+            collected_FIds[origin]          = recvFElVec;
             collected_Frefs[origin]         = recvFrefElVec;
             collected_FOriginalNIds[origin] = recvFONElVec;
             collected_VrtMetrics[origin]    = VrtMetric;
