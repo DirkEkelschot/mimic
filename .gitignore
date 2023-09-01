@@ -9,3 +9,6 @@ tests/test6/GuX.ref
 tests/test1/GuX.ref
 US3D_Routine/example/grid.h5
 US3D_Routine/example/conn.h5
+utilities/partitionTetrahedra/test_data/inputs/conn.h5
+utilities/partitionTetrahedra/test_data/inputs/data.h5
+utilities/partitionTetrahedra/test_data/inputs/conn.h5
