@@ -91,7 +91,6 @@ class RedistributePartitionObject{
         Array<int>* ief_part_hybrid;
         std::map<int,std::vector<int> > face2node;
         std::map<int,std::vector<int> > face2element;
-
     
         Array<int>* iefref_part_tetra;
     

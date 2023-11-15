@@ -10,365 +10,17 @@
 #include "../../src/NekFace.h"
 #include "../../src/adapt_prismtetratrace.h"
 #include "../../src/adapt_repartition.h"
+#include "../../src/adapt_output_vtk.h"
+#include "../../src/adapt_meshtopology_lite.h"
+#include "../../src/adapt_gradreconstruct_lite.h"
+
+
+
+
 #include <iomanip>
 
 #define MAX2(a,b)      (((a) > (b)) ? (a) : (b))
 #define MAX4(a,b,c,d)  (((MAX2(a,b)) > (MAX2(c,d))) ? (MAX2(a,b)) : (MAX2(c,d)))
-
-// This is basically textbook recursive merge sort using std::merge_inplace
-// but it considers the offsets of segments that are already sorted
-
-
-
-
-std::vector<std::vector<double> > ReadReferenceData(int world_rank)
-{
-    std::vector<std::vector<double> > output;
-    std::ifstream fin_v;
-    fin_v.open("testdata/compareValues_"+ std::to_string(world_rank) + ".txt");
-    
-    std::vector<double> row_v(6);
-    while(fin_v >> row_v[0] >> row_v[1] >> row_v[2] >> row_v[3] >> row_v[4] >> row_v[5])
-    {
-        output.push_back(row_v);
-    }
-    fin_v.close();
-    
-    return output;
-    
-}
-
-std::map<int,Array<double>*> ReadReferenceData2(int world_rank)
-{
-    std::map<int,Array<double>*> output;
-    std::ifstream fin_v;
-    fin_v.open("testdata/UVariaValues_"+ std::to_string(world_rank) + ".txt");
-    
-    std::vector<double> row_v(2);
-    while(fin_v >> row_v[0] >> row_v[1])
-    {
-        Array<double>* entry = new Array<double>(1,1);
-        entry->setVal(0,0,row_v[1]);
-        int key = (int) row_v[0];
-        output[key] = entry;
-        
-    }
-    fin_v.close();
-    
-    return output;
-    
-}
-
-
-
-
-
-
-void OutputMesh_PMMG(int nV, double* VertOUT, int nE, int* tetraOUT, string fname)
-{
-    int pos;
-    
-    std::ofstream myfile;
-    myfile.open(fname);
-    myfile << "TITLE=\"new_volume.tec\"" << std::endl;
-    myfile <<"VARIABLES = \"X\", \"Y\", \"Z\"" << std::endl;
-    myfile <<"ZONE N = " << nV << ", E = " << nE << ", DATAPACKING = POINT, ZONETYPE = FETETRAHEDRON" << std::endl;
-
-    for(int i=0;i<nV;i++)
-    {
-        pos = 3*i;
-        myfile << VertOUT[pos] << " " <<VertOUT[pos+1] << " " << VertOUT[pos+2] <<  std::endl;
-    }
-    for(int i=0;i<nE;i++)
-    {
-        pos=4*i;
-        
-        myfile << tetraOUT[pos] << " " << tetraOUT[pos+1]  << " " << tetraOUT[pos+2]  << " " << tetraOUT[pos+3]  << std::endl;
-        
-    }
-    myfile.close();
-
-}
-
-
-
-
-
-
-void OutputMesh_PMMG_V2(int nV, double* VertOUT, int nE, int* tetraOUT, string fname)
-{
-    int pos;
-    
-    std::vector<std::vector<int> > plotnodes;
-    for(int i=0;i<nE;i++)
-    {
-        pos=4*i;
-        if(VertOUT[(tetraOUT[pos]-1)*3+2]<0.0 &&
-           VertOUT[(tetraOUT[pos+1]-1)*3+2]<0.0 &&
-           VertOUT[(tetraOUT[pos+2]-1)*3+2]<0.0 &&
-           VertOUT[(tetraOUT[pos+3]-1)*3+2]<0.0)
-        {
-            std::vector<int> roww(4);
-            roww[0] = tetraOUT[pos];
-            roww[1] = tetraOUT[pos+1];
-            roww[2] = tetraOUT[pos+2];
-            roww[3] = tetraOUT[pos+3];
-            
-            plotnodes.push_back(roww);
-        }
-        
-    }
-        
-    if(plotnodes.size() > 0 )
-    {
-        std::ofstream myfile;
-        myfile.open(fname);
-        myfile << "TITLE=\"new_volume.tec\"" << std::endl;
-        myfile <<"VARIABLES = \"X\", \"Y\", \"Z\"" << std::endl;
-        myfile <<"ZONE N = " << nV << ", E = " << plotnodes.size() << ", DATAPACKING = POINT, ZONETYPE = FETETRAHEDRON" << std::endl;
-
-        for(int i=0;i<nV;i++)
-        {
-            pos = 3*i;
-            myfile << VertOUT[pos] << " " <<VertOUT[pos+1] << " " << VertOUT[pos+2] <<  std::endl;
-        }
-        for(int i=0;i<plotnodes.size();i++)
-        {
-            pos=4*i;
-    //        if(VertOUT[tetraOUT[pos]*3+2]>0.25 &&
-    //           VertOUT[tetraOUT[pos+1]*3+2]>0.25 &&
-    //           VertOUT[tetraOUT[pos+2]*3+2]>0.25 &&
-    //           VertOUT[tetraOUT[pos+3]*3+2]>0.25)
-    //        {
-            
-                //myfile << tetraOUT[pos] << " " << tetraOUT[pos+1]  << " " << tetraOUT[pos+2]  << " " << tetraOUT[pos+3]  << std::endl;
-            myfile << plotnodes[i][0] << " " << plotnodes[i][1]  << " " << plotnodes[i][2]  << " " << plotnodes[i][3]  << std::endl;
-    //        }
-            
-        }
-        myfile.close();
-    }
-    
-}
-
-
-std::map<int,int> AllGatherMap(std::map<int,int> mappie, MPI_Comm mpi_comm)
-{
-    int mapSizeLoc = mappie.size();
-    DistributedParallelState* distrimap = new DistributedParallelState(mapSizeLoc,mpi_comm);
-    int mapSizeTot = distrimap->getNel();
-    
-    int* key_loc = new int[mapSizeLoc];
-    int* val_loc = new int[mapSizeLoc];
-    int* key_tot = new int[mapSizeTot];
-    int* val_tot = new int[mapSizeTot];
-    int i = 0;
-    
-    std::map<int,int>::iterator itred;
-    for(itred=mappie.begin();itred!=mappie.end();itred++)
-    {
-        key_loc[i] = itred->first;
-        val_loc[i] = itred->second;
-        i++;
-    }
-    
-    int* offsets = distrimap->getOffsets();
-    int* nlocs   = distrimap->getNlocs();
-    
-    
-    MPI_Allgatherv(key_loc,
-                   mapSizeLoc,
-                   MPI_INT,
-                   key_tot,
-                   nlocs,
-                   offsets,
-                   MPI_INT, mpi_comm);
-    
-    
-    MPI_Allgatherv(val_loc,
-                   mapSizeLoc,
-                   MPI_INT,
-                   val_tot,
-                   nlocs,
-                   offsets,
-                   MPI_INT, mpi_comm);
-    
-    int key,val;
-    std::map<int,int> mappie_glob;
-    for(int i=0;i<mapSizeTot;i++)
-    {
-        key = key_tot[i];
-        val = val_tot[i];
-        
-        if(mappie_glob.find(key)==mappie_glob.end())
-        {
-        	mappie_glob[key] = val;
-        }
-    }
-    
-    return mappie_glob;
-}
-
-
-
-std::map<int,std::vector<double> > AllGatherMapDoubleVec(std::map<int,std::vector<double> > mappie, MPI_Comm mpi_comm)
-{
-    int mapSizeLoc = mappie.size();
-    DistributedParallelState* distrimap = new DistributedParallelState(mapSizeLoc,mpi_comm);
-    
-    DistributedParallelState* distrimapVal = new DistributedParallelState(mapSizeLoc*3,mpi_comm);
-    
-    int mapSizeTot = distrimap->getNel();
-    int* key_loc = new int[mapSizeLoc];
-    double* val_loc = new double[mapSizeLoc*3];
-    int* key_tot = new int[mapSizeTot];
-    double* val_tot = new double[mapSizeTot*3];
-    int i = 0;
-    
-    std::map<int,std::vector<double> >::iterator itred;
-    for(itred=mappie.begin();itred!=mappie.end();itred++)
-    {
-        key_loc[i] = itred->first;
-        int nrow   = itred->second.size();
-        for(int q=0;q<nrow;q++)
-        {
-            val_loc[i*3+q] = itred->second[q];
-            //std::cout << "itred->second[q] " << itred->second[q] << std::endl;
-        }
-        
-        i++;
-    }
-    
-    int* offsets = distrimap->getOffsets();
-    int* nlocs   = distrimap->getNlocs();
-    
-    
-    MPI_Allgatherv(key_loc,
-                   mapSizeLoc,
-                   MPI_INT,
-                   key_tot,
-                   nlocs,
-                   offsets,
-                   MPI_INT, mpi_comm);
-    
-    int* offsetsVal = distrimapVal->getOffsets();
-    int* nlocsVal   = distrimapVal->getNlocs();
-    
-    MPI_Allgatherv(val_loc,
-                   mapSizeLoc*3,
-                   MPI_DOUBLE,
-                   val_tot,
-                   nlocsVal,
-                   offsetsVal,
-                   MPI_DOUBLE, mpi_comm);
-    
-    int key,val;
-    std::map<int,std::vector<double> > mappie_glob;
-    for(int i=0;i<mapSizeTot;i++)
-    {
-        key = key_tot[i];
-        
-        std::vector<double> values(3);
-        for(int q=0;q<3;q++)
-        {
-            values[q] = val_tot[i*3+q];
-        }
-        
-        if(mappie_glob.find(key)==mappie_glob.end())
-        {
-            
-            mappie_glob[key] = values;
-            //std::cout << "itred->second[q] " << val[0] << " " << val[1] << " " << val[2] << std::endl;
-        }
-    }
-    
-    return mappie_glob;
-}
-
-
-
-
-
-
-
-//void OutputTetrahedralMeshOnPartition(TetrahedraMesh* tmesh, MPI_Comm comm)
-//{
-//
-//    int world_size;
-//    MPI_Comm_size(comm, &world_size);
-//    // Get the rank of the process
-//    int world_rank;
-//    MPI_Comm_rank(comm, &world_rank);
-//
-//    std::vector<int> lverts;
-//    std::map<int,int> lpartv2gv_v2;
-//    std::map<int,int> gv2lpv2;
-//
-//    std::set<int> gv_set;
-//    int lcv2 = 0;
-//    Array<int>* ien_part_tetra     = tmesh->ien_part_tetra;
-//    Array<int>* ien_part_hybrid    = tmesh->ien_part_hybrid;
-//    std::vector<Vert*> locVs       = tmesh->LocalVerts;
-//    int nElonRank = ien_part_tetra->getNrow();
-//
-//    Array<int>* locelem2locnode= new Array<int>(nElonRank,4);
-//
-//    std::vector<Vert*> printVs;
-//
-//    for(int i=0;i<ien_part_tetra->getNrow();i++)
-//    {
-//        for(int q=0;q<ien_part_tetra->getNcol();q++)
-//        {
-//            int gv = ien_part_tetra->getVal(i,q);
-//            int lvv = tmesh->globV2locV[gv];
-//
-//            if(gv_set.find(gv)==gv_set.end())
-//            {
-//                gv_set.insert(gv);
-//                lverts.push_back(lvv);
-//                lpartv2gv_v2[lvv]=gv;
-//                gv2lpv2[gv]=lcv2;
-//                locelem2locnode->setVal(i,q,lcv2);
-//
-//                printVs.push_back(locVs[lvv]);
-//
-//                lcv2=lcv2+1;
-//            }
-//            else
-//            {
-//                int lcv_u = gv2lpv2[gv];
-//                locelem2locnode->setVal(i,q,lcv_u);
-//            }
-//        }
-//    }
-//
-//    std::vector<Vert*> lv = tmesh->LocalVerts;
-//    std::string filename = "checkPart_" + std::to_string(world_rank) + ".dat";
-//    std::ofstream myfile;
-//    myfile.open(filename);
-//    myfile << "TITLE=\"volume_part_"  + std::to_string(world_rank) +  ".tec\"" << std::endl;
-//    myfile <<"VARIABLES = \"X\", \"Y\", \"Z\"" << std::endl;
-//    myfile <<"ZONE N = " << printVs.size() << ", E = " << nElonRank << ", DATAPACKING = POINT, ZONETYPE = FETETRAHEDRON" << std::endl;
-//
-//    for(int i=0;i<printVs.size();i++)
-//    {
-//        myfile << printVs[i][0] << " " << printVs[i][1] << " " << printVs[i][2] << std::endl;
-//    }
-//    int gv0,gv1,gv2,gv3,gv4,gv5,gv6,gv7;
-//    int lv0,lv1,lv2,lv3,lv4,lv5,lv6,lv7;
-//    for(int i=0;i<ien_part_hybrid->getNrow();i++)
-//    {
-//        myfile <<   locelem2locnode->getVal(i,0)+1 << "  " <<
-//        locelem2locnode->getVal(i,1)+1 << "  " <<
-//        locelem2locnode->getVal(i,2)+1 << "  " <<
-//        locelem2locnode->getVal(i,3)+1 << "  " << std::endl;
-//    }
-//
-//
-//    myfile.close();
-//}
-
-
 
 
 void ParseEquals(const std::string &line, std::string &lhs,
@@ -674,35 +326,33 @@ int main(int argc, char** argv)
     }
     //===========================================================================
     
-    // US3D* us3d              = ReadUS3DData(fn_conn,fn_grid,fn_data,inputs->ReadFromStats,inputs->StateVar,comm,info);
     mesh* meshRead = ReadUS3DMeshData(fn_conn,fn_grid,fn_data,
                                         inputs->ReadFromStats,
                                         inputs->StateVar,
                                        comm,info);
+
     int Nel_loc = meshRead->ien.size();
 
-    std::cout << "Nel_loc " << Nel_loc << std::endl;
-    // for(int i=0;i<Nel_loc;i++)
-    // {
-    //     for(int j=0;j<meshRead->ien[0].size();j++)
-    //     {
-    //         std::cout << meshRead->ien[i][j] << " ";
-    //     }
-    //     std::cout << std::endl;
-    // }
-
-    PrismTetraTrace* pttrace = new PrismTetraTrace(comm, meshRead->ife, meshRead->iet, 
-                                            meshRead->nElem, meshRead->nFace, meshRead->nVert);
-
-    std::map<int,std::vector<int> > trace = pttrace->GetTrace();
-
-    std::cout << "trace " << trace.size() << std::endl;
+    PrismTetraTrace* pttrace = new PrismTetraTrace(comm, 
+                                                   meshRead->element2rank, 
+                                                   meshRead->ife, 
+                                                   meshRead->iet, 
+                                                   meshRead->nElem, 
+                                                   meshRead->nFace, 
+                                                   meshRead->nVert);
 
     std::map<int,std::vector<int> >::iterator itmiv;
 
-    std::map<int,std::vector<int> > tetras;
-    std::map<int,std::vector<int> > prisms;
+    std::map<int,std::vector<int> > tetras_e2v;
+    std::map<int,std::vector<int> > tetras_e2f;
+    std::map<int,std::vector<int> > tetras_e2e;
+
+    std::map<int,std::vector<int> > prisms_e2v;
+    std::map<int,std::vector<int> > prisms_e2f;
+    std::map<int,std::vector<int> > prisms_e2e;
+
     std::map<int,std::vector<double> > tetras_data;
+    std::map<int,std::vector<double> > prisms_data;
 
     std::map<int,int> loc2glob_prismv;
     std::map<int,int> glob2loc_prismv;
@@ -715,7 +365,6 @@ int main(int argc, char** argv)
     int tetra_id   = 0;
     int prism_id   = 0;
     int ntetra     = meshRead->ntetra;
-    int* ien_tetra = new int[ntetra*4];
 
     for(itmiv=meshRead->ien.begin();itmiv!=meshRead->ien.end();itmiv++)
     {
@@ -724,41 +373,23 @@ int main(int argc, char** argv)
 
         if(eltype == 2)
         {
-            int nv = itmiv->second.size();
-            std::vector<int> tetra(nv,0);
-            
-            for(int q=0;q<itmiv->second.size();q++)
-            {
-                ien_tetra[tetra_id*4+q] = itmiv->second[q];
-            }
-            
-            tetras[elid] = itmiv->second;
+            tetras_e2v[elid]  = itmiv->second;
+            tetras_e2f[elid]  = meshRead->ief[elid];
+            tetras_e2e[elid]  = meshRead->iee[elid];
+            tetras_data[elid] = meshRead->interior[elid];
             tetra_id++;
             
         }
         if(eltype == 6)
         {
-            int nv = itmiv->second.size();
-            std::vector<int> prism(nv,0);
-            for(int i=0;i<nv;i++)
+            prisms_e2v[elid]  = itmiv->second;
+            prisms_e2f[elid]  = meshRead->ief[elid];
+            prisms_e2e[elid]  = meshRead->iee[elid];
+            if(meshRead->iee[elid].size()!=5)
             {
-                
-                if(glob2loc_prismv.find(itmiv->second[i])==glob2loc_prismv.end())
-                {
-                    glob2loc_prismv[itmiv->second[i]]   = prismv_loc;
-                    loc2glob_prismv[prismv_loc]         = itmiv->second[i];
-                    prism[i]                            = prismv_loc;
-                    prismv_loc++;
-                }
-                else
-                {
-                    int prismv_new                      = glob2loc_prismv[itmiv->second[i]];
-                    prism[i]                            = prismv_new;
-                }
+                std::cout << "meshRead->iee[elid]; " << meshRead->iee[elid].size() << std::endl;
             }
-
-            prisms[prism_id] = prism;
-            
+            prisms_data[elid] = meshRead->interior[elid];
             prism_id++;
         }
     }
@@ -768,20 +399,95 @@ int main(int argc, char** argv)
     //RedistributeMeshtThroughRoot(tetras,4,comm);
 
     RepartitionObject* tetra_repart = new RepartitionObject(meshRead, 
-                                                        tetras, 
-                                                        trace, 
-                                                        tetras_data, 
+                                                        tetras_e2v, 
+                                                        tetras_e2f,
+                                                        tetras_e2e,
+                                                        pttrace, 
+                                                        tetras_data,
                                                         comm);
 
+    // tetras_e2v.clear();
+    // tetras_e2f.clear();
+    // tetras_e2e.clear();
+
+    // std::map<int,std::vector<double> > loc_data  = tetra_repart->getLocalData();
+    // std::map<int,std::vector<int> > gE2lV        = tetra_repart->getGlobalElement2LocalVertMap();
+    // std::vector<std::vector<double> > LocalVerts = tetra_repart->getLocalVerts();
+
+    // string filename = "tetra_" + std::to_string(world_rank) + ".vtu";
+
+    std::map<int,std::string > varnames;
+
+    varnames[0] = "TKE";
+    varnames[1] = "Temperature";
+
+    // OutputMeshPartitionVTK(filename, gE2lV, loc_data, varnames, LocalVerts);
+    
     RepartitionObject* prism_repart = new RepartitionObject(meshRead, 
-                                                        prisms, 
-                                                        trace, 
-                                                        tetras_data, 
-                                                        comm);
+                                                            prisms_e2v,
+                                                            prisms_e2f,
+                                                            prisms_e2e, 
+                                                            pttrace,
+                                                            prisms_data,
+                                                            comm);
+    prisms_e2v.clear();
+    prisms_e2f.clear();
+    prisms_e2e.clear();
+
+    std::map<int,std::vector<double> > loc_data_p       = prism_repart->getElement2DataMap();
+    //std::map<int,std::vector<int> > gE2lV_p        = prism_repart->getGlobalElement2LocalVertMap();
+    //std::vector<std::vector<double> > LocalVerts_p = prism_repart->getLocalVerts();
+
+    std::map<int,std::vector<int> > gE2gV_p             = prism_repart->getElement2VertexMap();
+    std::map<int, std::vector<double> > LocalVertsMap_p = prism_repart->getLocalVertsMap();
+
+
+    string filename_p = "prism_" + std::to_string(world_rank) + ".vtu";
+
+
+    OutputPrismMeshPartitionVTK(filename_p, gE2gV_p, loc_data_p, varnames, LocalVertsMap_p);
+
+
+    std::map<int,std::vector<double> > prism_grad = ComputedUdx_LSQ_US3D_Lite(prism_repart, 
+                                                                              pttrace,
+                                                                              meshRead->nElem, 
+                                                                              comm);
+
+
+    //Mesh_Topology_Lite* meshTopo = new Mesh_Topology_Lite(tetra_repart,comm);
+    /*
+    char* filename = "mesh.vtk";
+
+    vtkNew<vtkPoints> points;
+    points->InsertNextPoint(0, 0, 0);
+    points->InsertNextPoint(1, 0, 0);
+    points->InsertNextPoint(1, 1, 0);
+    points->InsertNextPoint(0, 1, 1);
+
+    vtkNew<vtkTetra> tetra;
+    tetra->GetPointIds()->SetId(0, 0);
+    tetra->GetPointIds()->SetId(1, 1);
+    tetra->GetPointIds()->SetId(2, 2);
+    tetra->GetPointIds()->SetId(3, 3);
+
+    vtkSmartPointer<vtkUnstructuredGrid> vtkmesh =
+      vtkSmartPointer<vtkUnstructuredGrid>::New();
+
+        vtkSmartPointer<vtkCellArray> cellArray =
+    vtkSmartPointer<vtkCellArray>::New();
+    cellArray->InsertNextCell(tetra);
+    vtkmesh->SetPoints(points);
+    vtkmesh->SetCells(VTK_TETRA, cellArray);
+
+    vtkSmartPointer<vtkXMLUnstructuredGridWriter> writer =
+    vtkSmartPointer<vtkXMLUnstructuredGridWriter>::New();
+    writer->SetFileName(filename);
+    writer->SetInputData(vtkmesh);
+    writer->Write();
+
+
 
     
-
-    /*
     int Nve       = us3d->xcn->getNglob();
     
     int Nel_part  = us3d->ien->getNrow();

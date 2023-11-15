@@ -97,8 +97,8 @@ struct mesh{
 
     std::map<int,int> ie_Nv;
     std::map<int,int> ie_Nf;
-    std::map<int,int> if_Nv;
-    std::map<int,int> if_ref;
+    std::map<int,std::vector<int> > if_Nv;
+    std::map<int,std::vector<int> > if_ref;
     std::map<int,int> iet;
     std::map<int,std::vector<double> > interior;
     std::vector<std::vector<double> > ghost;

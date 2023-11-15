@@ -3930,26 +3930,21 @@ mesh* ReadUS3DMeshData(const char* fn_conn, const char* fn_grid, const char* fn_
 
     int offset_el = elem_rankInfo[2];
 
-    if(rank == 0)
-    {
-    std::map<std::string,int>::iterator itv;
-    for(itv=var_map.begin();itv!=var_map.end();itv++)
-    {
-       std::cout << itv->first << " " << itv->second << std::endl;
-    }
+    // if(rank == 0)
+    // {
+    // std::map<std::string,int>::iterator itv;
+    // for(itv=var_map.begin();itv!=var_map.end();itv++)
+    // {
+    //    std::cout << itv->first << " " << itv->second << std::endl;
+    // }
 
-    }
+    // }
 
     int uid = var_map["u"];
     int vid = var_map["v"];
     int wid = var_map["w"];
     int Tid = var_map["T"];
   
-    if(rank == 0)
-    { 
-    
-    std::cout <<"variable IDs " << var_map.size() << " " << uid << " " << vid << " " << wid << " " << Tid << std::endl;
-    }
 
     int Nel     = elem_rankInfo[0];
     int Nel_loc = elem_rankInfo[1];
@@ -3990,7 +3985,7 @@ mesh* ReadUS3DMeshData(const char* fn_conn, const char* fn_grid, const char* fn_
 
             MState      = TState;
             
-            std::vector<double> row_interior(2);
+            std::vector<double> row_interior(2,0.0);
 
             row_interior[0] = 0.0;
             row_interior[1] = 0.0;
@@ -4049,7 +4044,7 @@ mesh* ReadUS3DMeshData(const char* fn_conn, const char* fn_grid, const char* fn_
             TState    = readdata[u][Tid];
             VtotState = sqrt(uState*uState+vState*vState+wState*wState);
 
-            std::vector<double> row_interior(2);
+            std::vector<double> row_interior(2,0.0);
 
             row_interior[0] = 0.0;
             row_interior[1] = TState;
@@ -4074,8 +4069,6 @@ mesh* ReadUS3DMeshData(const char* fn_conn, const char* fn_grid, const char* fn_
     int gg=0;
     std::map<int,std::vector<int> > ranges_id;
     std::map<int,int> zone2ref;
-
-    std::cout << "zdefs " << zdefs.size() << " " << zdefs[0].size() << std::endl;
     
     for(int i=2;i<zdefs.size();i++)
     {
@@ -4212,7 +4205,7 @@ mesh* ReadUS3DMeshData(const char* fn_conn, const char* fn_grid, const char* fn_
     int hexCount  = 0;
     int pyrCount  = 0;
     int priCount  = 0;
-
+        
     for(i=0;i<nrow;i++)
     {
         int elid = offset_el+i;
@@ -4265,6 +4258,11 @@ mesh* ReadUS3DMeshData(const char* fn_conn, const char* fn_grid, const char* fn_
         for(int j=0;j<ncol_ien;j++)
         {
             ien_copy_row[j] = ien[i][j+1]-1;
+
+            if(ien[i][j+1]-1 > vert_rankInfo[0])
+            {
+                std::cout << "Raar while reading" << std::endl;
+            }
         }
         
         std::vector<int> ief_copy_row(ncol_ief);
@@ -4366,8 +4364,8 @@ mesh* ReadUS3DMeshData(const char* fn_conn, const char* fn_grid, const char* fn_
     
     std::map<int,std::vector<int> > ifn_copy;
     std::map<int,std::vector<int> > ife_copy;
-    std::map<int,int> if_ref_copy;
-    std::map<int,int> if_Nv_copy;    
+    std::map<int,std::vector<int> > if_ref_copy;
+    std::map<int,std::vector<int> > if_Nv_copy;    
     int fref2;
     int index_range = 0;
     
@@ -4396,8 +4394,8 @@ mesh* ReadUS3DMeshData(const char* fn_conn, const char* fn_grid, const char* fn_
             ife_copy_row[j] = ife[i][j]-1;
         }
 
-        if_ref_copy[fid] = ifn[i][7];
-        if_Nv_copy[fid]  = ifn[i][0];
+        if_ref_copy[fid].push_back(ifn[i][7]);
+        if_Nv_copy[fid].push_back(ifn[i][0]);
 
         ifn_copy[fid] = ifn_copy_row;
         ife_copy[fid] = ife_copy_row;
@@ -4411,10 +4409,12 @@ mesh* ReadUS3DMeshData(const char* fn_conn, const char* fn_grid, const char* fn_
     for(int i=0;i<nloc_verts;i++)
     {
         int vid = offset_verts+i;
+        //std::cout << "vud " << vid << " " << rank << std::endl;
+        
         std::vector<double> coords(3);
         for(int j=0;j<3;j++)
         {
-            coords[0] = xcn[i][j];
+            coords[j] = xcn[i][j];
         }
         xcn_copy[vid] = coords;
     }
@@ -4430,7 +4430,6 @@ mesh* ReadUS3DMeshData(const char* fn_conn, const char* fn_grid, const char* fn_
     mRead->ief            = ief_copy;
     mRead->iee            = iee_copy;
     mRead->iet            = iet_copy;
-    //mRead->iet_glob       = iet_glob;
     mRead->elTypes        = elTypes;
     mRead->ie_Nv          = ie_Nv_copy;
     mRead->ie_Nf          = ie_Nf_copy;

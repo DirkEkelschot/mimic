@@ -485,7 +485,7 @@ void PlotBoundaryData_Lite(std::vector<std::vector<char> > znames, std::vector<s
     int nrow = znames.size();
     int ncol = znames[0].size();
 
-    std::cout << "printing boundary data..." << nrow << " " << zdefs[0].size() << std::endl;
+    //std::cout << "printing boundary data..." << nrow << " " << zdefs[0].size() << std::endl;
     for(int i=0;i<nrow;i++)
     {
         for(int j=0;j<ncol;j++)

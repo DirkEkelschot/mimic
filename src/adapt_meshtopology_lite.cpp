@@ -1,7 +1,7 @@
-#include "adapt_topology.h"
+#include "adapt_meshtopology_lite.h"
 #include "adapt_output.h"
 
-Mesh_Topology::Mesh_Topology(Partition* Pa, MPI_Comm comm)
+Mesh_Topology_Lite::Mesh_Topology_Lite(Partition* Pa, MPI_Comm comm)
 {
     
     int world_size;
@@ -24,19 +24,19 @@ Mesh_Topology::Mesh_Topology(Partition* Pa, MPI_Comm comm)
     // Get the rank of the process
     MPI_Comm_rank(comm, &rank);
     
-    std::map<int,std::vector<int> > gE2lV 	         = Pa->getGlobElem2LocVerts();
-    std::vector<std::vector<double> > locVerts       = Pa->getLocalVerts();
-    std::map<int,std::vector<int> > gE2gV 	         = Pa->getGlobElem2GlobVerts();
+    std::map<int,std::vector<int> > gE2lV 	             = Pa->getGlobElem2LocVerts();
+    std::vector<std::vector<double> > locVerts  	     = Pa->getLocalVerts();
+    std::map<int,std::vector<int> > gE2gV 	             = Pa->getGlobElem2GlobVerts();
 
-    std::vector<int> Loc_Elem             	         = Pa->getLocElem();
-    int nLocElem                          	         = Loc_Elem.size();
-    std::map<int,int> gV2lV               	         = Pa->getGlobalVert2LocalVert();
-        
-    i_part_map* ifn_part_map    = Pa->getIFNpartmap();
-    i_part_map* ief_part_map    = Pa->getIEFpartmap();
-    i_part_map* iee_part_map    = Pa->getIEEpartmap();
-    i_part_map* if_Nv_part_map  = Pa->getIF_Nvpartmap();
-    i_part_map* ien_part_map    = Pa->getIENpartmap();
+    std::vector<int> Loc_Elem             	             = Pa->getLocElem();
+    int nLocElem                          	             = Loc_Elem.size();
+    std::map<int,int> gV2lV               	             = Pa->getGlobalVert2LocalVert();
+    
+    i_part_map* ifn_part_map                             = Pa->getIFNpartmap();
+    i_part_map* ief_part_map                             = Pa->getIEFpartmap();
+    i_part_map* iee_part_map                             = Pa->getIEEpartmap();
+    i_part_map* if_Nv_part_map                           = Pa->getIF_Nvpartmap();
+    i_part_map* ien_part_map                             = Pa->getIENpartmap();
 
     std::vector<int> vijkIDs;
     std::map<int,int> LocElem2Nv = Pa->getLocElem2Nv();
@@ -54,12 +54,12 @@ Mesh_Topology::Mesh_Topology(Partition* Pa, MPI_Comm comm)
     for(int q=0;q<nLoc_Elem;q++)
     {
         //int gEl  = iee_it->first;
-        int gEl  = Loc_Elem[q];
+        int gEl             = Loc_Elem[q];
 
-        int NvEl  = ien_part_map->i_map[gEl].size();
-        int NfPEl = iee_part_map->i_map[gEl].size();
+        int NvEl            = ien_part_map->i_map[gEl].size();
+        int NfPEl           = iee_part_map->i_map[gEl].size();
 
-        int nadj_stored  = LocElem2Nf[gEl];
+        int nadj_stored     = LocElem2Nf[gEl];
         
         if(NfPEl!=nadj_stored)
         {
@@ -69,11 +69,11 @@ Mesh_Topology::Mesh_Topology(Partition* Pa, MPI_Comm comm)
         std::vector<double> Pijk(NvEl*3);
         for(int k=0;k<NvEl;k++)
         {
-           int global_vid = ien_part_map->i_map[gEl][k];
-           loc_vid     = gV2lV[global_vid];
-           Pijk[k*3+0] = locVerts[loc_vid][0];
-           Pijk[k*3+1] = locVerts[loc_vid][1];
-           Pijk[k*3+2] = locVerts[loc_vid][2];
+           int global_vid   = ien_part_map->i_map[gEl][k];
+           loc_vid          = gV2lV[global_vid];
+           Pijk[k*3+0]      = locVerts[loc_vid][0];
+           Pijk[k*3+1]      = locVerts[loc_vid][1];
+           Pijk[k*3+2]      = locVerts[loc_vid][2];
         }
         
         std::vector<double> Vijk = ComputeCentroidCoord(Pijk, NvEl);
@@ -377,7 +377,7 @@ Mesh_Topology::Mesh_Topology(Partition* Pa, MPI_Comm comm)
 }
 
 
-Mesh_Topology::~Mesh_Topology()
+Mesh_Topology_Lite::~Mesh_Topology_Lite()
 {
     
     //E2V_scheme.clear();
@@ -433,65 +433,65 @@ Mesh_Topology::~Mesh_Topology()
 
 
 
-std::map<int,std::vector<std::vector<double> > > Mesh_Topology::getVfacevector()
+std::map<int,std::vector<std::vector<double> > > Mesh_Topology_Lite::getVfacevector()
 {
     return vfacevector;
 }
-std::map<int,std::vector<int> > Mesh_Topology::getScheme_E2V()
+std::map<int,std::vector<int> > Mesh_Topology_Lite::getScheme_E2V()
 {
     return E2V_scheme;
 }
 
 
-std::map<int,vector<std::vector<double> > > Mesh_Topology::getNormals()
+std::map<int,vector<std::vector<double> > > Mesh_Topology_Lite::getNormals()
 {
     return normals;
 }
-std::map<int,vector<std::vector<double> > > Mesh_Topology::getRvectors()
+std::map<int,vector<std::vector<double> > > Mesh_Topology_Lite::getRvectors()
 {
     return rvector;
 }
-std::map<int,vector<std::vector<double> > > Mesh_Topology::getdXfXc()
+std::map<int,vector<std::vector<double> > > Mesh_Topology_Lite::getdXfXc()
 {
     return dxfxc;
 }
-std::map<int,vector<double> > Mesh_Topology::getdr()
+std::map<int,vector<double> > Mesh_Topology_Lite::getdr()
 {
     return dr;
 }
-std::map<int,vector<double> > Mesh_Topology::getdS()
+std::map<int,vector<double> > Mesh_Topology_Lite::getdS()
 {
     return dS;
 }
-std::map<int,double > Mesh_Topology::getVol()
+std::map<int,double > Mesh_Topology_Lite::getVol()
 {
     return Vol;
 }
-Array<int>* Mesh_Topology::getIFN()
+Array<int>* Mesh_Topology_Lite::getIFN()
 {
     return ifn;
 }
-std::map<int,int> Mesh_Topology::getFace2Ref()
+std::map<int,int> Mesh_Topology_Lite::getFace2Ref()
 {
     return face2ref;
 }
-std::map<int,std::vector<int> > Mesh_Topology::getRef2Face()
+std::map<int,std::vector<int> > Mesh_Topology_Lite::getRef2Face()
 {
     return ref2face;
 }
-std::map<int,int> Mesh_Topology::getVert2Ref()
+std::map<int,int> Mesh_Topology_Lite::getVert2Ref()
 {
     return vert2ref;
 }
-std::map<int,std::vector<int> > Mesh_Topology::getRef2Vert()
+std::map<int,std::vector<int> > Mesh_Topology_Lite::getRef2Vert()
 {
     return ref2vert;
 }
-Mesh_Topology_BL* Mesh_Topology::getBLMeshTopology()
+Mesh_Topology_BL_Lite* Mesh_Topology_Lite::getBLMeshTopology()
 {
     return mesh_topo_bl;
 }
-std::map<int,std::vector<double> > Mesh_Topology::getGhostVerts()
+std::map<int,std::vector<double> > Mesh_Topology_Lite::getGhostVerts()
 {
     return ghostVerts;
 }

@@ -63,7 +63,6 @@ inline ParallelState_Parmetis_Lite::ParallelState_Parmetis_Lite(std::map<int,std
         ncommonnodes = 4;
     }
     
-    std::cout << "nloc " << nloc << std::endl; 
     
     elmwgt = std::vector<int>(nloc,0);
     std::map<int,std::vector<int> >::iterator itmiv;
@@ -89,7 +88,6 @@ inline ParallelState_Parmetis_Lite::ParallelState_Parmetis_Lite(std::map<int,std
         i++;
     }
 
-    std::cout << "npo_loc " << npo_loc << std::endl;
     
     MPI_Allreduce(&npo_loc, &npo_loc_tot, 1, MPI_INT, MPI_SUM, comm);
 
@@ -148,18 +146,12 @@ inline ParallelState_Parmetis_Lite::ParallelState_Parmetis_Lite(std::map<int,std
         int el_gid = itmiv->first;
         eptr[i+1]  = eptr[i]+e2n[el_gid].size();
         k = 0;
-        //std::cout << eptr[i] << " " << eptr[i+1] << std::endl;
 
-        //std::cout << "geid. " << el_gid << " -- > ";
         for(int j=eptr[i];j<eptr[i+1];j++)
         {
             eind[j]    = itmiv->second[k];
-
-            //std::cout << eind[j] << " ";
-
             k++;
         }
-        //std::cout << std::endl;
 
         i++;
     }
