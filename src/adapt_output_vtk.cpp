@@ -2,10 +2,12 @@
 
 
 
-void OutputMeshPartitionVTK(string filename, std::map<int,std::vector<int> > gE2lV,
-							std::map<int,std::vector<double> > loc_data,
+void OutputTetraMeshPartitionVTK(string filename, 
+                            std::vector<int> OwnedElem,
+                            std::map<int,std::vector<int> > gE2lV,
+                            std::map<int,std::vector<double> > loc_data,
                             std::map<int,std::string > varnames,
-							std::vector<std::vector<double> > LocalVerts)
+                            std::map<int, std::vector<double> > LocalVerts)
 {
 	//==================================================================================
     //==================================================================================
@@ -63,14 +65,15 @@ void OutputMeshPartitionVTK(string filename, std::map<int,std::vector<int> > gE2
 
     vtkIdType ielement = 0;
     std::map<int,std::vector<int> >::iterator itmiv;
-    for(itmiv=gE2lV.begin();itmiv!=gE2lV.end();itmiv++)
+    // for(itmiv=gE2lV.begin();itmiv!=gE2lV.end();itmiv++)
+    for(int k=0;k<OwnedElem.size();k++)
     {
-        int elid   = itmiv->first;
+        int elid   = OwnedElem[k];
         vtkNew<vtkTetra> tetra;
         
-        for(int q=0;q<itmiv->second.size();q++)
+        for(int q=0;q<gE2lV[elid].size();q++)
         {
-            int gvid = itmiv->second[q];
+            int gvid = gE2lV[elid][q];
             tetra->GetPointIds()->SetId(q, gvid);
             
             if(g2lv.find(gvid)==g2lv.end())
@@ -124,7 +127,9 @@ void OutputMeshPartitionVTK(string filename, std::map<int,std::vector<int> > gE2
 
 
 
-void OutputPrismMeshPartitionVTK(string filename, std::map<int,std::vector<int> > gE2lV,
+void OutputPrismMeshPartitionVTK(string filename, 
+                                std::vector<int> OwnedElem,
+                                std::map<int,std::vector<int> > gE2lV,
                                 std::map<int,std::vector<double> > loc_data,
                                 std::map<int,std::string > varnames,
                                 std::map<int, std::vector<double> > LocalVerts)
@@ -158,10 +163,11 @@ void OutputPrismMeshPartitionVTK(string filename, std::map<int,std::vector<int> 
 
     std::map<int,int> g2lv;
     int llvid = 0;
-    int numberOfTetrahedra = gE2lV.size();
+    int numberOfTetrahedra = OwnedElem.size();
 
     if(loc_data.begin()->second.size() != varnames.size())
     {
+        std::cout << "loc_data.begin()->second.size()  " << loc_data.begin()->second.size()  << std::endl;
         std::cout << "Warning :: the length of the variable name map does not correspond with the data size." << std::endl;
     }
 
@@ -176,23 +182,22 @@ void OutputPrismMeshPartitionVTK(string filename, std::map<int,std::vector<int> 
         mapVars[itis->first] = VArray;
     }
 
-    vtkDoubleArray* TArray = vtkDoubleArray::New();    
-    TArray->SetNumberOfComponents(1);
-    TArray->SetName("Temperature");
-    vtkDoubleArray* TKEArray = vtkDoubleArray::New();    
-    TKEArray->SetNumberOfComponents(0);
-    TKEArray->SetName("TKE");
+
+
 
     vtkIdType ielement = 0;
     std::map<int,std::vector<int> >::iterator itmiv;
-    for(itmiv=gE2lV.begin();itmiv!=gE2lV.end();itmiv++)
+
+    
+    //for(itmiv=gE2lV.begin();itmiv!=gE2lV.end();itmiv++)
+    for(int k=0;k<OwnedElem.size();k++)
     {
-        int elid   = itmiv->first;
+        int elid   = OwnedElem[k];
         vtkSmartPointer<vtkHexagonalPrism> prism = vtkSmartPointer<vtkHexagonalPrism>::New();
         
-        for(int q=0;q<itmiv->second.size();q++)
+        for(int q=0;q<gE2lV[elid].size();q++)
         {
-            int lvid = itmiv->second[q];
+            int lvid = gE2lV[elid][q];
             
             if(g2lv.find(lvid)==g2lv.end())
             {
@@ -223,16 +228,17 @@ void OutputPrismMeshPartitionVTK(string filename, std::map<int,std::vector<int> 
 
 
         vtkmesh->InsertNextCell(VTK_WEDGE, prism->GetPointIds());
-        TKEArray->InsertNextTuple(&loc_data[elid][0]);
-        TArray->InsertNextTuple(&loc_data[elid][1]);
+
 
         for(itis=varnames.begin();itis!=varnames.end();itis++)
         {
+            //std::cout << "wqwqf " << itis->first << " " << loc_data[elid][itis->first] << std::endl;
             mapVars[itis->first]->InsertNextTuple(&loc_data[elid][itis->first]);
         }
 
         ielement++;
     }
+    
     
     for(itis=varnames.begin();itis!=varnames.end();itis++)
     {
@@ -249,5 +255,5 @@ void OutputPrismMeshPartitionVTK(string filename, std::map<int,std::vector<int> 
     writer->SetHeaderTypeToUInt64();  // Use UInt64 header format
     writer->SetDataModeToBinary();      // Write in ASCII mode
     writer->SetInputData(vtkmesh);
-    writer->Write();
+    writer->Write();/**/
 }

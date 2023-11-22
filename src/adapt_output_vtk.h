@@ -12,13 +12,17 @@
 #include <string>
 using namespace std;
 
-void OutputMeshPartitionVTK(string filename, std::map<int,std::vector<int> > gE2lV,
-							std::map<int,std::vector<double> > loc_data,
-							std::map<int,std::string > varnames,
-							std::vector<std::vector<double> > LocalVerts);
+void OutputTetraMeshPartitionVTK(string filename, 
+                            std::vector<int> OwnedElem,
+                            std::map<int,std::vector<int> > gE2lV,
+                            std::map<int,std::vector<double> > loc_data,
+                            std::map<int,std::string > varnames,
+                            std::map<int, std::vector<double> > LocalVerts);
 
 
-void OutputPrismMeshPartitionVTK(string filename, std::map<int,std::vector<int> > gE2lV,
+void OutputPrismMeshPartitionVTK(string filename,
+							std::vector<int> Owned_Elem, 
+							std::map<int,std::vector<int> > gE2lV,
 							std::map<int,std::vector<double> > loc_data,
 							std::map<int,std::string > varnames,
 							std::map<int, std::vector<double> > LocalVerts);

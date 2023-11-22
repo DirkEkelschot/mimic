@@ -3922,6 +3922,9 @@ mesh* ReadUS3DMeshData(const char* fn_conn, const char* fn_grid, const char* fn_
     std::vector<int> elem_rankInfo          = ReadDataSetSizeFromFileInParallel(fn_conn,"ien",comm,info);
     std::vector<int> face_rankInfo          = ReadDataSetSizeFromFileInParallel(fn_conn,"ife",comm,info);
 
+    int nElem = elem_rankInfo[0];
+    int nFace = face_rankInfo[0];
+    int nVert = vert_rankInfo[0];
 
     Array<char>* zvnames                    = ReadDataSetFromGroupInGroupFromFile<char>(fn_data,"info","solver","svnames");
 
@@ -3950,6 +3953,7 @@ mesh* ReadUS3DMeshData(const char* fn_conn, const char* fn_grid, const char* fn_
     int Nel_loc = elem_rankInfo[1];
     
     std::map<int, std::vector<double> > interior;
+    std::map<int, std::vector<double> > ghost_out;
 
     if(readFromStats==1)
     {       
@@ -4056,7 +4060,29 @@ mesh* ReadUS3DMeshData(const char* fn_conn, const char* fn_grid, const char* fn_
     std::vector<std::vector<double> > ghost = ReadUS3DGhostCellsFromRun_Lite<double>(fn_data,"run_1","interior",Nel);
     std::vector<std::vector<int> > zdefs    = ReadDataSetFromGroupFromFile_Lite<int>(fn_grid,"zones","zdefs");
     std::vector<std::vector<char> >  znames = ReadDataSetFromGroupFromFile_Lite<char>(fn_grid,"zones","znames");
-    
+    double rhoGhostState,uGhostState,vGhostState,wGhostState,TGhostState,VtotGhostState;
+    int nghosts = ghost.size();
+    for(int u=0;u<nghosts;u++)
+    {
+        int elid        = nElem+u;
+        rhoGhostState   = ghost[u][0];
+        uGhostState          = ghost[u][uid];
+        vGhostState          = ghost[u][vid];
+        wGhostState          = ghost[u][wid];
+        TGhostState          = ghost[u][Tid];
+        VtotGhostState       = sqrt(uGhostState*uGhostState
+                                    +vGhostState*vGhostState
+                                    +wGhostState*wGhostState);
+
+        std::vector<double> row_ghost(2,0.0);
+
+        row_ghost[0] = 0.0;
+        row_ghost[1] = TGhostState;
+
+        ghost_out[elid] = row_ghost;
+    }
+
+
     
     std::map<int,std::vector<int> > bnd_face_map;
     // Collect boundary data;
@@ -4418,9 +4444,7 @@ mesh* ReadUS3DMeshData(const char* fn_conn, const char* fn_grid, const char* fn_
         }
         xcn_copy[vid] = coords;
     }
-    int nElem = elem_rankInfo[0];
-    int nFace = face_rankInfo[0];
-    int nVert = vert_rankInfo[0];
+
     
     mRead->nElem          = nElem;
     mRead->nFace          = nFace;
@@ -4439,7 +4463,7 @@ mesh* ReadUS3DMeshData(const char* fn_conn, const char* fn_grid, const char* fn_
     mRead->ife            = ife_copy;
     mRead->ie_tetCnt      = ie_tetCnt;
     mRead->interior       = interior;
-    mRead->ghost          = ghost;
+    mRead->ghost          = ghost_out;
     mRead->zone2bcref     = zone2bcref;
     mRead->element2rank   = element2rank_glob;
     mRead->bref2zone      = bref2zone;

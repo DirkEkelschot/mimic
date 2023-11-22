@@ -9,6 +9,9 @@
 
 std::map<int,std::vector<double> > ComputedUdx_LSQ_US3D_Lite(RepartitionObject* RePa,
                                                              PrismTetraTrace* trace,
+                                                             std::map<int,std::vector<double> > ghosts,
                                                              int Nel,
+                                                             int variable,
+                                                             int approxOrder,
                                                              MPI_Comm comm);
 #endif

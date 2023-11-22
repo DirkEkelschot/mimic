@@ -1,9 +1,12 @@
 #include "adapt_gradreconstruct_lite.h"
 
 std::map<int,std::vector<double> > ComputedUdx_LSQ_US3D_Lite(RepartitionObject* RePa,
-                                                        PrismTetraTrace* trace,
-                                                        int Nel,
-                                                        MPI_Comm comm)
+                                                             PrismTetraTrace* trace,
+                                                             std::map<int,std::vector<double> > ghosts,
+                                                             int Nel,
+                                                             int variable,
+                                                             int approxOrder,
+                                                             MPI_Comm comm)
 {
     int world_size;
     MPI_Comm_size(comm, &world_size);
@@ -20,7 +23,6 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_US3D_Lite(RepartitionObject* 
     std::map<int, std::vector<int> > Element2ElementMap = RePa->getElement2ElementMap();
     std::map<int, std::vector<int> > Face2VertexMap     = RePa->getFace2VertexMap();
     std::map<int, std::vector<int> > Face2NVertexMap    = RePa->getFace2NVertexMap();
-
     std::vector<int> Owned_Elem                         = RePa->getLocElem();
     int nLoc_Elem                                       = Owned_Elem.size();
     std::map<int,std::map<int,int> > trace2elements     = trace->GetTrace();
@@ -57,9 +59,11 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_US3D_Lite(RepartitionObject* 
     std::map<int,std::vector<int> >::iterator itmiv;
     std::set<int> treated;
     int traceelem=0;
+    int letmeknow=0;
     for(int q = 0;q < Owned_Elem.size();q++)
     {
-       int elID  = Owned_Elem[q];
+        std::vector<double> x;
+        int elID  = Owned_Elem[q];
 
         int NvPEl = Element2VertexMap[elID].size();
         int nadj  = Element2ElementMap[elID].size();
@@ -82,7 +86,8 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_US3D_Lite(RepartitionObject* 
 
         if(U.find(elID)!=U.end())
         {
-            u_ijk                   = U[elID][0];
+            u_ijk                   = U[elID][variable];
+            //std::cout << "u_ijk " << u_ijk << std::endl;
         }
         else
         {
@@ -101,7 +106,7 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_US3D_Lite(RepartitionObject* 
             }
             else
             {
-
+                letmeknow++;
             }
 
             if(treated.find(faceID)==treated.end())
@@ -115,7 +120,6 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_US3D_Lite(RepartitionObject* 
         
             if(adjID<Nel)
             {
-                
                 int nvpf        = Face2VertexMap[faceID].size();
                 int nvpf_real   = Face2NVertexMap[faceID][0];
 
@@ -143,10 +147,11 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_US3D_Lite(RepartitionObject* 
                     for(int s=0;s<3;s++)
                     {
                         A_cm[s*nadj+t] = (1.0/d)*(Vadj[s]-Vijk[s]);
+                        
                     }
-                    
-                    u_po = U[adjID][0];
-                   
+
+                    u_po = U[adjID][1];
+
                     b[t] = (1.0/d)*(u_po-u_ijk);
                     dist.push_back(d);
                     t++;
@@ -154,64 +159,88 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_US3D_Lite(RepartitionObject* 
                 else // Its on the trace between prisms and tets, The face is still internal but has a different element type on each side.
                 {
                     traceelem++;
-                }
-                
+                }                
             }
-            else
+            else if(approxOrder == 0)
             {    
 
-                //int nvpf = Face2VertexMap[faceID].size();
+                int ghost_id    = adjID;
+                int nvpf        = Face2VertexMap[faceID].size();
+                int nvpf_real   = Face2NVertexMap[faceID][0];
 
-                //std::cout << "nvpf " << nvpf << std::endl;
-                // std::vector<double> Vface(3,0.0);
+                std::vector<double> Vface(3,0.0);
 
-                // for(int u=0;u<nvpf;u++)
-                // {
-                //     int global_vid = Face2VertexMap[faceID][u];
-                //     Vface[0] = Vface[0]+LocalVs[global_vid][0];
-                //     Vface[1] = Vface[1]+LocalVs[global_vid][1];
-                //     Vface[2] = Vface[2]+LocalVs[global_vid][2];
-                // }
+                for(int u=0;u<nvpf_real;u++)
+                {
+                    int global_vid = Face2VertexMap[faceID][u];
+                    Vface[0] = Vface[0]+LocalVs[global_vid][0];
+                    Vface[1] = Vface[1]+LocalVs[global_vid][1];
+                    Vface[2] = Vface[2]+LocalVs[global_vid][2];
+                }
 
-                // Vface[0] = Vface[0]/nvpf;
-                // Vface[1] = Vface[1]/nvpf;
-                // Vface[2] = Vface[2]/nvpf;
+                Vface[0] = Vface[0]/nvpf_real;
+                Vface[1] = Vface[1]/nvpf_real;
+                Vface[2] = Vface[2]/nvpf_real;
 
-                // double Utje = u_ijk;
-
+                u_po = u_ijk;
 
 
-
+                d = sqrt((Vface[0]-Vijk[0])*(Vface[0]-Vijk[0])+
+                        (Vface[1]-Vijk[1])*(Vface[1]-Vijk[1])+
+                        (Vface[2]-Vijk[2])*(Vface[2]-Vijk[2]));
                
-                // d = sqrt((Vface[0]-Vijk[0])*(Vface[0]-Vijk[0])+
-                //         (Vface[1]-Vijk[1])*(Vface[1]-Vijk[1])+
-                //         (Vface[2]-Vijk[2])*(Vface[2]-Vijk[2]));
+                for(int s=0;s<3;s++)
+                {
+                    A_cm[s*nadj+t] = (1.0/d)*(Vface[s]-Vijk[s]);
+                }
+
+                b[t] = (1.0/d)*(u_po-u_ijk);
+            }    
+            else if(approxOrder == 1)
+            {    
+
+                int ghost_id    = adjID;
+                int nvpf        = Face2VertexMap[faceID].size();
+                int nvpf_real   = Face2NVertexMap[faceID][0];
+
+                std::vector<double> Vface(3,0.0);
+
+                for(int u=0;u<nvpf_real;u++)
+                {
+                    int global_vid = Face2VertexMap[faceID][u];
+                    Vface[0] = Vface[0]+LocalVs[global_vid][0];
+                    Vface[1] = Vface[1]+LocalVs[global_vid][1];
+                    Vface[2] = Vface[2]+LocalVs[global_vid][2];
+                }
+
+                Vface[0] = Vface[0]/nvpf_real;
+                Vface[1] = Vface[1]/nvpf_real;
+                Vface[2] = Vface[2]/nvpf_real;
+
+                u_po = ghosts[ghost_id][variable];
+
+
+                d = sqrt((Vface[0]-Vijk[0])*(Vface[0]-Vijk[0])+
+                        (Vface[1]-Vijk[1])*(Vface[1]-Vijk[1])+
+                        (Vface[2]-Vijk[2])*(Vface[2]-Vijk[2]));
                
-                // u_po = Utje;
+                for(int s=0;s<3;s++)
+                {
+                    A_cm[s*nadj+t] = (1.0/d)*(Vface[s]-Vijk[s]);
+                }
 
-                // for(int s=0;s<3;s++)
-                // {
-                //     A_cm[s*nadj+t] = (1.0/d)*(Vface[s]-Vijk[s]);
-                // }
+                b[t] = (1.0/d)*(u_po-u_ijk);
 
-                //b[t] = (1.0/d)*(u_po-u_ijk);
-
-                // //face.clear();
                 t++;
             }    
         }
-       
-                //std::cout << std::endl;
-
-
-        std::vector<double> x;
-        //x = SolveQR_Lite(A_cm,nadj,3,b);
+    
+        x = SolveQR_Lite(A_cm,nadj,3,b);
         
         dudx_map[elID] = x;
     }
     
-    std::cout << "world_rank " << world_rank  << " traceelem :: " << traceelem << std::endl;
-
+    //std::cout << " world_rank " << Found << " " << world_rank  << " traceelem :: " << traceelem  << "  letmeknow  " << letmeknow << std::endl;
 
     return dudx_map;
 }

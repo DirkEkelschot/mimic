@@ -406,22 +406,62 @@ int main(int argc, char** argv)
                                                         tetras_data,
                                                         comm);
 
-    // tetras_e2v.clear();
-    // tetras_e2f.clear();
-    // tetras_e2e.clear();
 
-    // std::map<int,std::vector<double> > loc_data  = tetra_repart->getLocalData();
-    // std::map<int,std::vector<int> > gE2lV        = tetra_repart->getGlobalElement2LocalVertMap();
-    // std::vector<std::vector<double> > LocalVerts = tetra_repart->getLocalVerts();
 
-    // string filename = "tetra_" + std::to_string(world_rank) + ".vtu";
+    tetras_e2v.clear();
+    tetras_e2f.clear();
+    tetras_e2e.clear();
+
+    std::map<int,std::vector<double> > loc_data_t       = tetra_repart->getElement2DataMap();
+    std::map<int,std::vector<int> > gE2lV_t             = tetra_repart->getGlobalElement2LocalVertMap();
+    std::map<int,std::vector<int> > gE2gV_t             = tetra_repart->getElement2VertexMap();
+    std::map<int, std::vector<double> > LocalVertsMap_t = tetra_repart->getLocalVertsMap();
+    std::vector<int> Owned_Elem_t                       = tetra_repart->getLocElem();
+
+
+    std::map<int,std::string > varnamesGrad;
+
+    varnamesGrad[0]     = "dUdx";
+    varnamesGrad[1]     = "dUdy";
+    varnamesGrad[2]     = "dUdz";
+    string filename_t   = "tetra_" + std::to_string(world_rank) + ".vtu";
 
     std::map<int,std::string > varnames;
+    varnames[0]         = "TKE";
+    varnames[1]         = "Temperature";
 
-    varnames[0] = "TKE";
-    varnames[1] = "Temperature";
 
-    // OutputMeshPartitionVTK(filename, gE2lV, loc_data, varnames, LocalVerts);
+
+    OutputTetraMeshPartitionVTK(filename_t, Owned_Elem_t, gE2gV_t, loc_data_t, varnames, LocalVertsMap_t);
+
+
+    std::map<int,std::vector<double> > tetra_grad = ComputedUdx_LSQ_US3D_Lite(tetra_repart, 
+                                                                              pttrace,
+                                                                              meshRead->ghost,
+                                                                              meshRead->nElem,
+                                                                              1, 
+                                                                              1,
+                                                                              comm);
+
+    string filename_tg = "tetraGrad_" + std::to_string(world_rank) + ".vtu";
+
+    OutputTetraMeshPartitionVTK(filename_tg, 
+                                Owned_Elem_t, 
+                                gE2gV_t, 
+                                tetra_grad, 
+                                varnamesGrad, 
+                                LocalVertsMap_t);
+
+    tetras_e2v.clear();
+    tetras_e2f.clear();
+    tetras_e2e.clear();
+
+    //=======================================================================================
+    //=======================================================================================
+    //=======================================================================================
+    //=======================================================================================
+    //=======================================================================================
+
     
     RepartitionObject* prism_repart = new RepartitionObject(meshRead, 
                                                             prisms_e2v,
@@ -435,23 +475,42 @@ int main(int argc, char** argv)
     prisms_e2e.clear();
 
     std::map<int,std::vector<double> > loc_data_p       = prism_repart->getElement2DataMap();
-    //std::map<int,std::vector<int> > gE2lV_p        = prism_repart->getGlobalElement2LocalVertMap();
-    //std::vector<std::vector<double> > LocalVerts_p = prism_repart->getLocalVerts();
-
+    std::map<int,std::vector<int> > gE2lV_p             = prism_repart->getGlobalElement2LocalVertMap();
     std::map<int,std::vector<int> > gE2gV_p             = prism_repart->getElement2VertexMap();
     std::map<int, std::vector<double> > LocalVertsMap_p = prism_repart->getLocalVertsMap();
-
+    std::vector<int> Owned_Elem_p                       = prism_repart->getLocElem();
 
     string filename_p = "prism_" + std::to_string(world_rank) + ".vtu";
 
-
-    OutputPrismMeshPartitionVTK(filename_p, gE2gV_p, loc_data_p, varnames, LocalVertsMap_p);
-
+    OutputPrismMeshPartitionVTK(filename_p, Owned_Elem_p, gE2gV_p, loc_data_p, varnames, LocalVertsMap_p);
 
     std::map<int,std::vector<double> > prism_grad = ComputedUdx_LSQ_US3D_Lite(prism_repart, 
                                                                               pttrace,
-                                                                              meshRead->nElem, 
+                                                                              meshRead->ghost,
+                                                                              meshRead->nElem,
+                                                                              1,
+                                                                              1, 
                                                                               comm);
+
+    string filename_pg = "prismGrad_" + std::to_string(world_rank) + ".vtu";
+
+    OutputPrismMeshPartitionVTK(filename_pg, 
+                                Owned_Elem_p, 
+                                gE2gV_p, 
+                                prism_grad, 
+                                varnamesGrad, 
+                                LocalVertsMap_p);
+
+
+    //=======================================================================================
+    //=======================================================================================
+    //=======================================================================================
+    //=======================================================================================
+    //=======================================================================================
+
+
+
+
 
 
     //Mesh_Topology_Lite* meshTopo = new Mesh_Topology_Lite(tetra_repart,comm);

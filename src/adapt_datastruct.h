@@ -101,7 +101,7 @@ struct mesh{
     std::map<int,std::vector<int> > if_ref;
     std::map<int,int> iet;
     std::map<int,std::vector<double> > interior;
-    std::vector<std::vector<double> > ghost;
+    std::map<int,std::vector<double> > ghost;
 
     std::vector<int> element2rank;
     std::vector<int> ie_tetCnt;
