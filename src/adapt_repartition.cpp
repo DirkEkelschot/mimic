@@ -100,7 +100,11 @@ RepartitionObject::RepartitionObject(mesh* meshInput,
     //std::cout << "RANK == " << rank << " pre stats :: " << elements2verts_update.size() << " " << elements2faces_update.size() << " "  << elements2elements_update.size() << " " << elements2data_update.size() << " LocalVertsMap " << LocalVertsMap.size() << std::endl;
     vloc = LocalVertsMap.size();
 
-    getAdjacentElementLayer(elements2verts_update,
+    int nAdjLayer = 3;
+    for(int i=0;i<nAdjLayer;i++)
+    {
+        //std::cout << " i = " << i << " :: " << elements2verts_update.size() << " rank " << rank << std::endl;
+        getAdjacentElementLayer(elements2verts_update,
                             elements2faces_update,
                             elements2elements_update,
                             trace,
@@ -114,6 +118,9 @@ RepartitionObject::RepartitionObject(mesh* meshInput,
                             elements2faces_update, 
                             elements2elements_update,
                             elements2data_update);
+    }
+
+    
 
 
 
@@ -682,8 +689,8 @@ void RepartitionObject::GetOptimalDistributionSchedule(std::map<int,std::vector<
             MPI_Send(&El2e[0]       ,   n_Fce,     MPI_INT, dest, dest*31488000,  comm);
 
             MPI_Send(&n_Data        ,      1,      MPI_INT, dest, dest*62976000,   comm);
-            MPI_Send(&El2d[0]       ,   n_Data,    MPI_DOUBLE, dest, dest*125952000,  comm);
-            MPI_Send(&NdataEl[0]    ,   n_Elem,    MPI_INT, dest, dest*251904000,  comm);
+            MPI_Send(&El2d[0]       ,   n_Data,    MPI_DOUBLE, dest, dest*125952,  comm);
+            MPI_Send(&NdataEl[0]    ,   n_Elem,    MPI_INT, dest, dest*251904,  comm);
             acull = acull + n_Vrt;
         }
 
@@ -731,9 +738,9 @@ void RepartitionObject::GetOptimalDistributionSchedule(std::map<int,std::vector<
             int n_Data;
             MPI_Recv(&n_Data,    1, MPI_INT, origin, world_rank*62976000, comm, MPI_STATUS_IGNORE);
             std::vector<double> rcvd_el_data_ids(n_Data,0.0);
-            MPI_Recv(&rcvd_el_data_ids[0], n_Data, MPI_DOUBLE, origin, world_rank*125952000, comm, MPI_STATUS_IGNORE);
+            MPI_Recv(&rcvd_el_data_ids[0], n_Data, MPI_DOUBLE, origin, world_rank*125952, comm, MPI_STATUS_IGNORE);
             std::vector<int> rcvd_el_ndatas(n_Elem,0);
-            MPI_Recv(&rcvd_el_ndatas[0], n_Elem, MPI_INT, origin, world_rank*251904000, comm, MPI_STATUS_IGNORE);
+            MPI_Recv(&rcvd_el_ndatas[0], n_Elem, MPI_INT, origin, world_rank*251904, comm, MPI_STATUS_IGNORE);
             
             recvd_elem_ids[origin]       = rcvd_el_ids;
             recvd_elem_nvs[origin]       = rcvd_el_nvs;
@@ -2353,11 +2360,11 @@ void RepartitionObject::getAdjacentElementLayer(std::map<int,std::vector<int> > 
     }
 
 
-    std::cout << "RANK " << rank << " req_trace_elem.size " << req_trace_elem.size() << std::endl;
-    for(itmiv=req_trace_elem.begin();itmiv!=req_trace_elem.end();itmiv++)
-    {
-        std::cout << rank << " req_trace_elem --> " << itmiv->first << " :: " << itmiv->second.size() << std::endl;
-    }
+    // std::cout << "RANK " << rank << " req_trace_elem.size " << req_trace_elem.size() << std::endl;
+    // for(itmiv=req_trace_elem.begin();itmiv!=req_trace_elem.end();itmiv++)
+    // {
+    //     std::cout << rank << " req_trace_elem --> " << itmiv->first << " :: " << itmiv->second.size() << std::endl;
+    // }
     // std::cout << "RANK " << rank << " on_trace_elem.size " << on_trace_elem.size() << std::endl;
     // for(itmiv=on_trace_elem.begin();itmiv!=on_trace_elem.end();itmiv++)
     // {

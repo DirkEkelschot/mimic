@@ -1,3 +1,5 @@
+
+#include <chrono>
 #include "../../src/adapt_recongrad.h"
 #include "../../src/adapt_io.h"
 #include "../../src/adapt_parops.h"
@@ -398,6 +400,12 @@ int main(int argc, char** argv)
 
     //RedistributeMeshtThroughRoot(tetras,4,comm);
 
+    time_t start, end; 
+ 
+    /* You can call it like this : start = time(NULL); 
+    in both the way start contain total time in seconds 
+    since the Epoch. */
+    time(&start); 
     RepartitionObject* tetra_repart = new RepartitionObject(meshRead, 
                                                         tetras_e2v, 
                                                         tetras_e2f,
@@ -405,8 +413,11 @@ int main(int argc, char** argv)
                                                         pttrace, 
                                                         tetras_data,
                                                         comm);
-
-
+    time(&end); 
+    double time_taken = double(end - start); 
+    cout << "Time taken to repartion tetrahedera is : " << fixed 
+        << time_taken << setprecision(16); 
+    cout << " sec " << endl;
 
     tetras_e2v.clear();
     tetras_e2f.clear();
@@ -435,6 +446,7 @@ int main(int argc, char** argv)
     OutputTetraMeshPartitionVTK(filename_t, Owned_Elem_t, gE2gV_t, loc_data_t, varnames, LocalVertsMap_t);
 
 
+    time(&start); 
     std::map<int,std::vector<double> > tetra_grad = ComputedUdx_LSQ_US3D_Lite(tetra_repart, 
                                                                               pttrace,
                                                                               meshRead->ghost,
@@ -442,7 +454,11 @@ int main(int argc, char** argv)
                                                                               1, 
                                                                               1,
                                                                               comm);
-
+    time(&end); 
+    time_taken = double(end - start); 
+    cout << "Time taken to calculate gradients for tetrahedra is : " << fixed 
+        << time_taken << setprecision(16); 
+    cout << " sec " << endl;
     string filename_tg = "tetraGrad_" + std::to_string(world_rank) + ".vtu";
 
     OutputTetraMeshPartitionVTK(filename_tg, 
@@ -500,6 +516,10 @@ int main(int argc, char** argv)
                                 prism_grad, 
                                 varnamesGrad, 
                                 LocalVertsMap_p);
+
+    prisms_e2v.clear();
+    prisms_e2f.clear();
+    prisms_e2e.clear();
 
 
     //=======================================================================================
