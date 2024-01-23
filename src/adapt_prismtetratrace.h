@@ -9,7 +9,8 @@ class PrismTetraTrace{
         PrismTetraTrace(){};
         PrismTetraTrace(MPI_Comm comm,
                         std::vector<int> element2rank,
-                        std::map<int,std::vector<int> > ife, 
+                        std::map<int,std::vector<int> > ife,
+                        std::map<int,std::vector<int> > ifn,  
                         std::map<int,int> iet,
                         int Nelem,
                         int Nface,
@@ -18,8 +19,16 @@ class PrismTetraTrace{
         ~PrismTetraTrace();
 
         std::map<int,std::map<int,int> > GetTrace();
+        std::map<int,std::vector<int> > GetTraceVerts();
+        std::map<int,int> GetUniqueTraceVerts2RefMap();
+        std::map<int,std::vector<int> > GetLeftRightElements();
+        std::map<int,int> GetTraceRef();
 
     private:
-        std::map<int,std::map<int,int> > trace;
+        std::map<int,int> unique_trace_verts;
+        std::map<int,std::map<int,int> > trace_elems;
+        std::map<int,std::vector<int> > trace_verts;
+        std::map<int,std::vector<int> > trace_LR_elem;
+        std::map<int,int> trace_ref;
 };
 #endif

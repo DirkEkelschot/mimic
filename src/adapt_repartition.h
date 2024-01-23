@@ -7,6 +7,7 @@
 #include "adapt_array.h"
 #include "adapt_distri_parstate.h"
 #include "adapt_prismtetratrace.h"
+#include "adapt_io.h"
 
 #ifndef ADAPT_REPARTITION_H
 #define ADAPT_REPARTITION_H
@@ -80,10 +81,53 @@ class RepartitionObject{
 
                 std::map<int, std::vector<int> > getFace2VertexMap();
 
+                std::map<int,std::vector<int> > getFace2RefMap();
+
                 std::map<int, std::vector<int> > getFace2NVertexMap();
 
+                std::map<int,int> getTag2ElementTrace();
+
                 std::vector<int> getLocElem();
-                        
+                
+                void buildInteriorSharedAndBoundaryFacesMaps(MPI_Comm comm, 
+                                                             PrismTetraTrace* trace,
+                                                             std::map<int,std::vector<int> > ranges_id);
+
+                std::map<int,int> getGlobalVertex2LocalVertexID();
+                std::map<int,int> getLocalVertex2GlobalVertexID();
+                std::map<int,int> getTag2GlobElementID();
+                std::map<int,int> getTag2LocalElementID();
+                std::map<int,int> getLocal2TagElementID();
+                std::map<int,int> getGlob2TagElementID();
+                std::map<int,int> getBoundaryFaces();
+                std::map<int,int> getBoundaryFaces2Ref();
+
+                void GetFace2RankMesh(MPI_Comm comm);
+                std::vector<int> getFace4ParMMG();
+                void UpdateGlobalIDs(MPI_Comm comm,PrismTetraTrace* trace);
+                std::map<int,int> getGlobal2TagFMap();
+                void buildTag2GlobalElementMapsAndFace2LeftRightElementMap(MPI_Comm comm, 
+                                                                          PrismTetraTrace* trace, 
+                                                                          std::map<int,std::vector<int> > ranges_id);
+                
+                std::map<int, std::vector<int> > getSharedFaceMap();
+                std::map<int, std::vector<int> > getInteriorFaceMap();
+                std::map<int, std::vector<int> > getBoundaryFaceMap();
+                std::map<int,int> getTagF2LocFID();
+                
+                void buildParMMGCommunicationMaps(MPI_Comm comm);
+
+
+                int** getParMMGCommFace2GlobalVertMap();
+                int** getParMMGCommFace2LocalVertMap();
+                int* getParMMGCommColorFace();
+                int* getParMMGCommNFacesPerColor();
+                int getParMMGNComm();
+
+
+
+                void buildSharedVertexMap(MPI_Comm comm, PrismTetraTrace* trace);
+
                 void getAdjacentElementLayer(std::map<int,std::vector<int> > element2verts,
                                              std::map<int,std::vector<int> > element2faces,
                                              std::map<int,std::vector<int> > element2element,
@@ -114,12 +158,8 @@ class RepartitionObject{
 
                 std::vector<std::vector<int> > lelement2lvertex;
 
-                std::map<int,int> lvertex2gvertex;
-                std::map<int,int> gvertex2lvertex;
-
                 std::map<int,int> lface2gface;
                 std::map<int,int> gface2lface;
-
 
                 std::set<int> unique_vertIDs_on_rank_set;
                 std::vector<int> unique_verts_on_rank_vec;
@@ -131,19 +171,24 @@ class RepartitionObject{
                 std::map<int,int> elem_map;
                 std::set<int> loc_r_elem_set;
                 std::map<int,std::vector<double> > loc_data;
-                //std::vector<std::vector<double> > LocalVerts;
                 std::map<int, std::vector<double> > LocalVertsMap;
                 int itel_locadj;
                 int nLoc_Elem;
                 int nLocAndAdj_Elem;
                 int nLoc_Verts;
+
+                // Book keeping maps
                 std::map<int,std::vector<int> > globElem2localFaces;
                 std::map<int,std::vector<int> > globElem2globFaces;
                 std::map<int,std::vector<int> > globFace2GlobalElements;
                 std::vector<int> Loc_Elem;
                 std::vector<int> Loc_Elem_Nv;
                 std::vector<int> Loc_Elem_Nf;
+                std::map<int,int> locPartV2globV;
+                std::map<int,int> globPartV2locV;
+                std::set<int> Loc_Elem_Set;
 
+                
                 std::map<int,int> LocElem2Nv;
                 std::map<int,int> LocElem2Nf;
                 std::map<int,int> LocElem2Ndata;
@@ -154,12 +199,73 @@ class RepartitionObject{
                 std::map<int,int> GlobalElement2LocalElement;
                 std::map<int, std::vector<int> > globVerts2globElem;
 
+                // Core maps between Elements/Faces/Vertices
                 std::map<int, std::vector<int> > elements2verts_update;
                 std::map<int, std::vector<int> > elements2faces_update;
                 std::map<int, std::vector<int> > elements2elements_update;
                 std::map<int, std::vector<double> > elements2data_update;
                 std::map<int, std::vector<int> > face2verts_update;
                 std::map<int, std::vector<int> > face2Nverts_update;
+                std::map<int,std::vector<int> > face2elements_update;
+                std::map<int,std::vector<int> > face2reference_update;
+                std::map<int,int> o_lvertex2gvertex_part;
+                std::map<int,int> o_gvertex2lvertex_part;
+                std::map<int,int> o_lvertex2gvertex;
+                std::map<int,int> o_gvertex2lvertex;
+
+                //buildInteriorSharedAndBoundaryFacesMaps()
+                std::map<int, std::vector<int> > o_sharedFace2Nodes;
+                std::map<int, std::vector<int> > o_boundaryFace2Nodes;
+                std::map<int, std::vector<int> > o_interiorFace2Nodes;
+                std::map<int,int> o_SharedVertsOwned;
+                std::map<int,int> o_NonSharedVertsOwned;
+                std::map<int,int> o_SharedVertsNotOwned;
+                std::map<int,int> o_sharedFace2RankMap;
+                std::map<int,int> o_sharedVertexMapUpdatedGlobalID;
+                std::map<int,int> o_sharedFaceMapUpdatedGlobalID;
+                std::map<int,int> o_sharedVertex2RankMap;   
+                std::map<int,int> o_boundaryFaces;
+                std::map<int,int> o_boundaryFaces2Ref;
+                std::map<int,std::vector<int> > o_SharedFace2Rank;
+
+                std::map<int,int> tag2element_trace;
+                std::map<int,std::vector<int> > ref2bcface;
+                std::map<int,std::vector<int> > zone2bcface;                
+
+                //buildTag2GlobalElementMapsAndFace2LeftRightElementMap()
+                std::map<int,int> o_lhp;
+                std::map<int,int> o_rhp;
+                std::map<int,int> o_tagE2gE;
+                std::map<int,int> o_gE2tagE;
+                std::map<int,int> o_tagE2lE;
+                std::map<int,int> o_lE2tagE;
+                std::map<int,std::vector<int> > o_colorRh;
+                std::map<int,std::vector<int> > o_colorFh;
+                std::map<int,int> o_tagF2locFID;
+
+                //buildParMMGCommunicationMaps()
+                int** o_ifc_tria_glo;
+                int** o_ifc_tria_loc;
+                int* o_color_face;
+                int* o_ntifc;
+                int o_ncomm;
+                std::map<int,std::vector<int> > o_ColorsFaces;
+
+                //UpdateGlobalIDs()
+                std::map<int,std::vector<int> > o_element2verts_global;
+                std::map<int,std::vector<int> > o_element2faces_global;
+                std::map<int,std::vector<int> > o_face2elements_global;
+                std::map<int,std::vector<int> > o_face2verts_global;
+                std::map<int,int> o_tag2globV;
+                std::map<int,int> o_tag2globF;
+                std::map<int,int> o_glob2tagF;
+                std::map<int,int> o_glob2tagV;
+
+                //GetFace2RankMesh()
+                std::vector<int> o_faces4parmmg;
+
+                
+
 
 };      
 
