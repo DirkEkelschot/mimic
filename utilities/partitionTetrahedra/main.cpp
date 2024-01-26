@@ -334,7 +334,6 @@ int main(int argc, char** argv)
                                        comm,info);
 
     int Nel_loc = meshRead->ien.size();
-    std::cout << "tracing " << std::endl;
     PrismTetraTrace* pttrace = new PrismTetraTrace(comm, 
                                                    meshRead->element2rank, 
                                                    meshRead->ife,
@@ -344,7 +343,12 @@ int main(int argc, char** argv)
                                                    meshRead->nFace, 
                                                    meshRead->nVert);
 
-    std::cout << " end tracing " << std::endl;
+    std::map<int,std::map<int,int> > trace_elem         = pttrace->GetTrace();
+    std::map<int,std::vector<int> > trace_verts         = pttrace->GetTraceVerts();
+    std::map<int,int> unique_trace_verts2refmap         = pttrace->GetUniqueTraceVerts2RefMap();
+    std::map<int,std::vector<int> > leftright_trace     = pttrace->GetLeftRightElements();
+    std::map<int,int> trace_ref                         = pttrace->GetTraceRef();
+
     std::map<int,std::vector<int> >::iterator itmiv;
 
     std::map<int,std::vector<int> > tetras_e2v;
@@ -431,53 +435,41 @@ int main(int argc, char** argv)
     std::map<int, std::vector<double> > LocalVertsMap_t = tetra_repart->getLocalVertsMap();
     std::vector<int> Owned_Elem_t                       = tetra_repart->getLocElem();
 
-    std::set<int> test_set;
-    for(int i=0;i<Owned_Elem_t.size();i++)
-    {
-        int elid = Owned_Elem_t[i];
-        for(int j=0;j<4;j++)
-        {
-            int vid = gE2gV_t[elid][j];
 
-            if(test_set.find(vid)==test_set.end())
-            {
-                test_set.insert(vid);
-            }
-
-        }
-    }
-
-    std::cout << "nvert tet = " << test_set.size() << std::endl;
-
-    std::map<int,std::string > varnamesGrad;
-
-    varnamesGrad[0]     = "dUdx";
-    varnamesGrad[1]     = "dUdy";
-    varnamesGrad[2]     = "dUdz";
-    string filename_t   = "tetra_" + std::to_string(world_rank) + ".vtu";
-
-    std::map<int,std::string > varnames;
-    varnames[0]         = "TKE";
-    varnames[1]         = "Temperature";
+    tetra_repart->buildInteriorSharedAndBoundaryFacesMaps(comm,pttrace, meshRead->ranges_id);
+    tetra_repart->buildTag2GlobalElementMapsAndFace2LeftRightElementMap(comm,pttrace, meshRead->ranges_id);
+    std::map<int,int> locv2tagvID                       = tetra_repart->getLocalVert2VertTag();
+    std::map<int,int> tagv2locvID                       = tetra_repart->getVertTag2LocalVert();
+    std::map<int,int> le2tagID                          = tetra_repart->getLocalElement2ElementTag();
+    std::map<int,int> globalv2localvID                  = tetra_repart->getUpdatedGlobal2LocalVMap();
+    std::map<int,int> tag2globalV                       = tetra_repart->getUpdatedTag2GlobalVMap();
 
 
-    if(world_rank == 0)
-    {
-        std::cout << "++++++++++++++++++++ BEFORE ++++++++++++++++++++" << world_rank << std::endl;
-        std::cout << "              Owned_Elem_t " << Owned_Elem_t.size() << std::endl;
-        std::cout << "              gE2gV_t " << gE2gV_t.size() << std::endl;
-        std::cout << "              loc_data_t " << loc_data_t.size() << std::endl;
-        std::cout << "              LocalVertsMap_t " << loc_data_t.size() << std::endl;  
-        std::cout << "+++++++++++++++++++++++++++++++++++++++++++++++" << std::endl;
-    }
-
+    tetra_repart->buildCommunicationMaps(comm);
+    std::vector<int> face4parmmg                        = tetra_repart->getFace4ParMMG(); // checked
+    std::map<int,int> global2tagF                       = tetra_repart->getGlobal2TagFMap();
+    int** ifc_tria_glob                                 = tetra_repart->getParMMGCommFace2GlobalVertMap();
+    int** ifc_tria_loc                                  = tetra_repart->getParMMGCommFace2LocalVertMap();
+    int* color_face                                     = tetra_repart->getParMMGCommColorFace();
+    int *ntifc                                          = tetra_repart->getParMMGCommNFacesPerColor();
+    int ncomm                                           = tetra_repart->getParMMGNComm();
 
     
+    //======================================================================================================
+    // std::map<int,std::string > varnamesGrad;
+    // varnamesGrad[0]     = "dUdx";
+    // varnamesGrad[1]     = "dUdy";
+    // varnamesGrad[2]     = "dUdz";
+    // string filename_t   = "tetra_" + std::to_string(world_rank) + ".vtu";
+
+    // std::map<int,std::string > varnames;
+    // varnames[0]         = "TKE";
+    // varnames[1]         = "Temperature";
 
     //OutputTetraMeshPartitionVTK(filename_t, Owned_Elem_t, gE2gV_t, loc_data_t, varnames, LocalVertsMap_t);
+    //======================================================================================================
 
 
-    time(&start); 
     // std::map<int,std::vector<double> > tetra_grad = ComputedUdx_LSQ_US3D_Lite(tetra_repart, 
     //                                                                           pttrace,
     //                                                                           meshRead->ghost,
@@ -561,55 +553,11 @@ int main(int argc, char** argv)
     prisms_e2v.clear();
     prisms_e2f.clear();
     prisms_e2e.clear();
-    tetra_repart->buildInteriorSharedAndBoundaryFacesMaps(comm,pttrace, meshRead->ranges_id);
-    tetra_repart->buildTag2GlobalElementMapsAndFace2LeftRightElementMap(comm,pttrace, meshRead->ranges_id);
 
-    std::map<int,std::map<int,int> > trace_elem         = pttrace->GetTrace();
-    std::map<int,std::vector<int> > trace_verts         = pttrace->GetTraceVerts();
-    std::map<int,int> unique_trace_verts2refmap         = pttrace->GetUniqueTraceVerts2RefMap();
-    std::map<int,std::vector<int> > leftright_trace     = pttrace->GetLeftRightElements();
-    std::map<int,int> trace_ref                         = pttrace->GetTraceRef();
-    // std::map<int,int> tag2element_trace_Prisms          = prism_repart->getTag2ElementTrace();
-    // Note that the boundaryFaces_tetra and the boundaryFaces2Ref_tetra data DOES include the trace data.
+    // =========================== Start the preparation of the mesh for ParMMG===========================.
 
-    // Note that this boundaryFacesMap_tetra data DOES NOT include the trace data.
-
-    
-    std::map<int,int> lv2gvID  = tetra_repart->getLocalVertex2GlobalVertexID();
-    std::map<int,int> gv2lvID  = tetra_repart->getGlobalVertex2LocalVertexID();
-    std::map<int,int> le2geID  = tetra_repart->getTag2GlobElementID();
-    std::map<int,int> le2tagID = tetra_repart->getLocal2TagElementID();
-    std::map<int,int> globalv2localvID = tetra_repart->getUpdatedGlobal2LocalVMap();
-    std::map<int,int> tag2globalV = tetra_repart->getUpdatedTag2GlobalVMap();
-
-    int le2tagIDsize = le2tagID.size();
-    // tetra_repart->UpdateGlobalIDs(comm,pttrace);
-    tetra_repart->GetFace2RankMesh(comm);
-
-    std::vector<int> face4parmmg = tetra_repart->getFace4ParMMG();
-    std::map<int,int> global2tagF = tetra_repart->getGlobal2TagFMap();
-
-    string filename_pg = "tetraData_" + std::to_string(world_rank) + ".vtu";
-
-    OutputTetraMeshPartitionVTK(comm,
-                                filename_pg, 
-                                Owned_Elem_t, 
-                                gE2gV_t, 
-                                loc_data_t, 
-                                varnames, 
-                                LocalVertsMap_t);
-    if(world_rank == 0)
-    {
-        std::cout << "++++++++++++++++++++ AFTER ++++++++++++++++++++" << world_rank << std::endl;
-        std::cout << "              Owned_Elem_t " << Owned_Elem_t.size() << std::endl;
-        std::cout << "              gE2gV_t " << gE2gV_t.size() << std::endl;
-        std::cout << "              loc_data_t " << loc_data_t.size() << std::endl;
-        std::cout << "              LocalVertsMap_t " << loc_data_t.size() << std::endl;  
-        std::cout << "+++++++++++++++++++++++++++++++++++++++++++++++" << std::endl;
-    }
-
-    int nVertices   = lv2gvID.size();
-    int nTetrahedra = le2geID.size();
+    int nVertices   = locv2tagvID.size();
+    int nTetrahedra = le2tagID.size();
     int nEdges      = 0;
     int nTriangles  = face4parmmg.size();
 
@@ -630,7 +578,7 @@ int main(int argc, char** argv)
 
     for ( k=0; k<nVertices; ++k )
     {
-        int tagvid  = lv2gvID[k];
+        int tagvid  = locv2tagvID[k];
         int glovid  = tag2globalV[tagvid];
         int locvid  = globalv2localvID[glovid];
         
@@ -662,22 +610,10 @@ int main(int argc, char** argv)
     }
 
 
-        int v0,v1,v2,v3;
-    int v0l,v1l,v2l,v3l;
-    int v0ln,v1ln,v2ln,v3ln;
-    int v0lnn,v1lnn,v2lnn,v3lnn;
-    int teller = 0;
     int refer  = 0;
-    int cref36 = 0;
     //double* c0 = new double[3];
     int iref;
-    int c13 = 0;
-    int suc = 0;
-    int buggi = 0;
-    int shelfound = 0;
-    int shelfound2 = 0;
     int vertref = 86;
-    int flippie = -1;
     
     int locs = 0;
     
@@ -690,8 +626,6 @@ int main(int argc, char** argv)
     int symmetrybc = 0;
     int wallbc = 0;
     int nothere = 0;
-
-    std::cout << "nTriangles set into ParMMG structure " << nTriangles << " " << face4parmmg.size()<< std::endl;
 
     std::map<int,std::vector<int> > f2vmap = tetra_repart->getFace2VertexMap();
     std::map<int,std::vector<int> > f2refmap = tetra_repart->getFace2RefMap();
@@ -821,27 +755,18 @@ int main(int argc, char** argv)
 
     // tetra_repart->buildParMMGCommunicationMaps(comm);
 
-    int** ifc_tria_glob = tetra_repart->getParMMGCommFace2GlobalVertMap();
-    int** ifc_tria_loc  = tetra_repart->getParMMGCommFace2LocalVertMap();
-    int* color_face     = tetra_repart->getParMMGCommColorFace();
-    int *ntifc          = tetra_repart->getParMMGCommNFacesPerColor();
-    int ncomm           = tetra_repart->getParMMGNComm();
-    
 
-    std::cout << " ncomm " << ncomm << std::endl;
-    
+        
     ier = PMMG_Set_numberOfFaceCommunicators(parmesh, ncomm);
 
    
     for(int icomm=0; icomm<ncomm; icomm++ )
     {
       // Set nb. of entities on interface and rank of the outward proc
-     std::cout << "icomm " << icomm << " " << ntifc[icomm] << std::endl;
       ier = PMMG_Set_ithFaceCommunicatorSize(parmesh, icomm,
                                              color_face[icomm],
                                              ntifc[icomm]);
 
-        std::cout << "ntifc[icomm] " << ntifc[icomm] << " rank " << world_rank << " ";
         //Set local and global index for each entity on the interface
       ier = PMMG_Set_ithFaceCommunicator_faces(parmesh, icomm,
                                                ifc_tria_loc[icomm],
@@ -849,8 +774,7 @@ int main(int argc, char** argv)
     }
 
     
-    std::cout << std::endl;
-    
+   
     // //==========================Clear from here==============================
     
     std::map<int,std::vector<int> >::iterator ittet;
@@ -866,10 +790,7 @@ int main(int argc, char** argv)
         int gEidtest = Owned_Elem_t[t];
         Owned_Elem_t_new.push_back(gEidtest);
         gEid = gEidtest;
-        // if(world_rank == 0 && gEid != gEidtest)
-        // {
-        //             std::cout << gEid << " " << gEidtest  << " tets " << nTetrahedra << " on rank " << world_rank << std::endl;
-        // }
+
         //Using the tag Element ID, get the tag Vertex ID.
         vtag0 = gE2gV_t[gEid][0];
         vtag1 = gE2gV_t[gEid][1];
@@ -909,7 +830,9 @@ int main(int argc, char** argv)
     
 
     string filename_pgNew = "tetraData2_" + std::to_string(world_rank) + ".vtu";
-
+    std::map<int,std::string > varnames;
+    varnames[0]         = "TKE";
+    varnames[1]         = "Temperature";
     OutputTetraMeshPartitionVTK(comm,
                                 filename_pgNew, 
                                 Owned_Elem_t_new, 
@@ -918,7 +841,6 @@ int main(int argc, char** argv)
                                 varnames, 
                                 LocalVertsMap_t);
 
-    std::cout << le2tagIDsize << " " << Owned_Elem_t.size() << " grown " << le2tagID.size() << std::endl; 
     
     if( !PMMG_Set_iparameter( parmesh, PMMG_IPARAM_niter, inputs->niter ) ) {
       MPI_Finalize();
@@ -1046,7 +968,7 @@ int main(int argc, char** argv)
 
     // RUN TEST TO SEE WHETHER ADAPTATION WAS SUCCESFULL
     std::map<int,int> locShF2globShF                = tetra_repart->GetLocalSharedFace2GlobalSharedFace();
-    std::map<int,std::vector<int> > face2node       = tetra_repart->getFace2NodeMap();
+    std::map<int,std::vector<int> > face2node       = tetra_repart->getFaceTag2VertTagMap();
 
 
 
@@ -1086,13 +1008,13 @@ int main(int argc, char** argv)
             int faceIDg = ifc_tria_glob[icomm][i]-1;
             int faceID2 = locShF2globShF[faceID];
 
-            v0 = face2node[faceID2][0];
-            v1 = face2node[faceID2][1];
-            v2 = face2node[faceID2][2];
+            int v0 = face2node[faceID2][0];
+            int v1 = face2node[faceID2][1];
+            int v2 = face2node[faceID2][2];
     
-            v0l = globalv2localvID[v0];
-            v1l = globalv2localvID[v1];
-            v2l = globalv2localvID[v2];
+            int v0l = globalv2localvID[v0];
+            int v1l = globalv2localvID[v1];
+            int v2l = globalv2localvID[v2];
 
             // FaceSharedPtr FacePointer = std::shared_ptr<NekFace>(new NekFace(vids));
             // pair<FaceSetPointer::iterator, bool> testInsPointer;

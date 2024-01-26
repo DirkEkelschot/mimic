@@ -93,11 +93,12 @@ class RepartitionObject{
                                                              PrismTetraTrace* trace,
                                                              std::map<int,std::vector<int> > ranges_id);
 
-                std::map<int,int> getGlobalVertex2LocalVertexID();
-                std::map<int,int> getLocalVertex2GlobalVertexID();
-                std::map<int,int> getTag2GlobElementID();
-                std::map<int,int> getTag2LocalElementID();
-                std::map<int,int> getLocal2TagElementID();
+                std::map<int,int> getVertTag2LocalVert();
+                std::map<int,int> getLocalVert2VertTag();
+
+                std::map<int,int> getLocalElement2ElementTag();
+                std::map<int,int> getElementTag2LocalElement();
+                std::map<int,int> getGlobalElement2ElementTag();
                 std::map<int,int> getGlob2TagElementID();
                 std::map<int,int> getBoundaryFaces();
                 std::map<int,int> getBoundaryFaces2Ref();
@@ -107,7 +108,15 @@ class RepartitionObject{
                 std::map<int,int> getUpdatedLocal2GlobalVMap();
                 std::map<int,int> getUpdatedTag2GlobalVMap();
                 std::map<int,int> getUpdatedGlobal2TagVMap();
-                void GetFace2RankMesh(MPI_Comm comm);
+                
+                
+                void buildCommunicationMaps(MPI_Comm comm);
+                int** getParMMGCommFace2GlobalVertMap();
+                int** getParMMGCommFace2LocalVertMap();
+                int* getParMMGCommColorFace();
+                int* getParMMGCommNFacesPerColor();
+                int getParMMGNComm();
+
                 std::vector<int> getFace4ParMMG();
                 void UpdateGlobalIDs(MPI_Comm comm,PrismTetraTrace* trace);
                 std::map<int,int> getGlobal2TagFMap();
@@ -123,14 +132,10 @@ class RepartitionObject{
                 void buildParMMGCommunicationMaps(MPI_Comm comm);
 
 
-                int** getParMMGCommFace2GlobalVertMap();
-                int** getParMMGCommFace2LocalVertMap();
-                int* getParMMGCommColorFace();
-                int* getParMMGCommNFacesPerColor();
-                int getParMMGNComm();
+
 
                 std::map<int,int> GetLocalSharedFace2GlobalSharedFace();
-                std::map<int,std::vector<int> > getFace2NodeMap();
+                std::map<int,std::vector<int> > getFaceTag2VertTagMap();
                 void buildSharedVertexMap(MPI_Comm comm, PrismTetraTrace* trace);
 
                 void getAdjacentElementLayer(std::map<int,std::vector<int> > element2verts,

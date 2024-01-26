@@ -101,7 +101,6 @@ PrismTetraTrace::PrismTetraTrace(MPI_Comm comm,
     int nTraceF_glob = trace_comm->getNel();
     int nTraceFV_glob = traceV_comm->getNel();
 
-    std::cout << "face_vf " << face_vf.size() << " "  << nTraceFV_glob << " " << nTraceF << " " << nTraceF_glob << std::endl;
     std::vector<int> rank_l_glob(nTraceF_glob,0);
     std::vector<int> rank_r_glob(nTraceF_glob,0);
     std::vector<int> elem_l_glob(nTraceF_glob,0);
@@ -192,17 +191,6 @@ PrismTetraTrace::PrismTetraTrace(MPI_Comm comm,
             ref++;
         }
     }
-
-
-    std::cout << "trace.size() = " << trace_elems.size() << std::endl;
-    // Test
-    // if(rank==0)
-    // {
-    //     for(itmiv=trace.begin();itmiv!=trace.end();itmiv++)
-    //     {
-    //         std::cout << itmiv->first << " (" << itmiv->second[0] << " " << itmiv->second[1] << ")" << std::endl;
-    //     }
-    // }
 }
 
 // void PrismTetraTrace::GetRequiredPrisms()
