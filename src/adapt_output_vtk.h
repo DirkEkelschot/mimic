@@ -12,7 +12,8 @@
 #include <string>
 using namespace std;
 
-void OutputTetraMeshPartitionVTK(string filename, 
+void OutputTetraMeshPartitionVTK(MPI_Comm comm,
+                            string filename, 
                             std::vector<int> OwnedElem,
                             std::map<int,std::vector<int> > gE2lV,
                             std::map<int,std::vector<double> > loc_data,

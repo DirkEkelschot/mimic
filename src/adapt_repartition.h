@@ -101,7 +101,12 @@ class RepartitionObject{
                 std::map<int,int> getGlob2TagElementID();
                 std::map<int,int> getBoundaryFaces();
                 std::map<int,int> getBoundaryFaces2Ref();
-
+                std::map<int,int> getUpdatedGlobal2LocalFMap();
+                std::map<int,int> getUpdatedLocal2GlobalFMap();
+                std::map<int,int> getUpdatedGlobal2LocalVMap();
+                std::map<int,int> getUpdatedLocal2GlobalVMap();
+                std::map<int,int> getUpdatedTag2GlobalVMap();
+                std::map<int,int> getUpdatedGlobal2TagVMap();
                 void GetFace2RankMesh(MPI_Comm comm);
                 std::vector<int> getFace4ParMMG();
                 void UpdateGlobalIDs(MPI_Comm comm,PrismTetraTrace* trace);
@@ -124,8 +129,8 @@ class RepartitionObject{
                 int* getParMMGCommNFacesPerColor();
                 int getParMMGNComm();
 
-
-
+                std::map<int,int> GetLocalSharedFace2GlobalSharedFace();
+                std::map<int,std::vector<int> > getFace2NodeMap();
                 void buildSharedVertexMap(MPI_Comm comm, PrismTetraTrace* trace);
 
                 void getAdjacentElementLayer(std::map<int,std::vector<int> > element2verts,
@@ -239,6 +244,10 @@ class RepartitionObject{
                 std::map<int,int> o_gE2tagE;
                 std::map<int,int> o_tagE2lE;
                 std::map<int,int> o_lE2tagE;
+                std::map<int,int> o_loc2globF;
+                std::map<int,int> o_glob2locF;
+                std::map<int,int> o_loc2globV;
+                std::map<int,int> o_glob2locV;
                 std::map<int,std::vector<int> > o_colorRh;
                 std::map<int,std::vector<int> > o_colorFh;
                 std::map<int,int> o_tagF2locFID;
@@ -260,9 +269,12 @@ class RepartitionObject{
                 std::map<int,int> o_tag2globF;
                 std::map<int,int> o_glob2tagF;
                 std::map<int,int> o_glob2tagV;
+                std::map<int,int> o_globShF2locShF;
 
                 //GetFace2RankMesh()
                 std::vector<int> o_faces4parmmg;
+
+                std::map<int,int> o_locShF2globShF;
 
                 
 

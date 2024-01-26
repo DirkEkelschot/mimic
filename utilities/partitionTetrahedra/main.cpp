@@ -474,7 +474,7 @@ int main(int argc, char** argv)
 
     
 
-    OutputTetraMeshPartitionVTK(filename_t, Owned_Elem_t, gE2gV_t, loc_data_t, varnames, LocalVertsMap_t);
+    //OutputTetraMeshPartitionVTK(filename_t, Owned_Elem_t, gE2gV_t, loc_data_t, varnames, LocalVertsMap_t);
 
 
     time(&start); 
@@ -571,63 +571,33 @@ int main(int argc, char** argv)
     std::map<int,int> trace_ref                         = pttrace->GetTraceRef();
     // std::map<int,int> tag2element_trace_Prisms          = prism_repart->getTag2ElementTrace();
     // Note that the boundaryFaces_tetra and the boundaryFaces2Ref_tetra data DOES include the trace data.
-    std::map<int,int> boundaryFaces_tetra               = tetra_repart->getBoundaryFaces();
-    std::map<int,int> boundaryFaces2Ref_tetra           = tetra_repart->getBoundaryFaces2Ref();
+
     // Note that this boundaryFacesMap_tetra data DOES NOT include the trace data.
-    std::map<int,std::vector<int> > boundaryFacesMap_tetra = tetra_repart->getBoundaryFaceMap();
 
-    FaceSetPointer m_PMMG_RefsOnShell_2_Prism;
-    int nshell = 0;
-    int foundU = 0;
-
-
-    // for(itmiv=trace_verts.begin();itmiv!=trace_verts.end();itmiv++)
-    // {
-    //     int fhyb       = itmiv->first;
-    //     int Etettag    = leftright_trace[fhyb][0];
-    //     int Eprismtag  = leftright_trace[fhyb][1];
-
-    //     int EprismNew  = tag2element_trace_Prisms[Eprismtag];
     
-    //     if(trace_verts.find(fhyb)!=trace_verts.end())
-    //     {
-    //         std::vector<int>::iterator its;
-    //         std::vector<int> refs(trace_verts[fhyb].size());
-    //         int c = 0;
-    //         for(its=trace_verts[fhyb].begin();its!=trace_verts[fhyb].end();its++)
-    //         {
-    //             int vid = *its;
-    //             int ref = unique_trace_verts2refmap[vid];
-    //             refs[c] = ref;
-    //             c++;
-    //         }
-    //         FaceSharedPtr RefFacePointer = std::shared_ptr<NekFace>(new NekFace(refs));
-    //         pair<FaceSetPointer::iterator, bool> testInsPointer;
-    //         testInsPointer = m_PMMG_RefsOnShell_2_Prism.insert(RefFacePointer);
-            
-    //         if(testInsPointer.second)
-    //         {
-    //             (*testInsPointer.first)->SetFaceLeftElement(EprismNew);
-    //         }
-    //     }
-    // }
-
     std::map<int,int> lv2gvID  = tetra_repart->getLocalVertex2GlobalVertexID();
     std::map<int,int> gv2lvID  = tetra_repart->getGlobalVertex2LocalVertexID();
     std::map<int,int> le2geID  = tetra_repart->getTag2GlobElementID();
-    std::map<int,int> tag2leID = tetra_repart->getTag2LocalElementID();
     std::map<int,int> le2tagID = tetra_repart->getLocal2TagElementID();
+    std::map<int,int> globalv2localvID = tetra_repart->getUpdatedGlobal2LocalVMap();
+    std::map<int,int> tag2globalV = tetra_repart->getUpdatedTag2GlobalVMap();
 
-    tetra_repart->UpdateGlobalIDs(comm,pttrace);
-
+    int le2tagIDsize = le2tagID.size();
+    // tetra_repart->UpdateGlobalIDs(comm,pttrace);
     tetra_repart->GetFace2RankMesh(comm);
 
     std::vector<int> face4parmmg = tetra_repart->getFace4ParMMG();
     std::map<int,int> global2tagF = tetra_repart->getGlobal2TagFMap();
-    std::cout << "huh " << boundaryFaces_tetra.size() << " " << face4parmmg.size() << " rank " << world_rank << std::endl; 
+
     string filename_pg = "tetraData_" + std::to_string(world_rank) + ".vtu";
 
-
+    OutputTetraMeshPartitionVTK(comm,
+                                filename_pg, 
+                                Owned_Elem_t, 
+                                gE2gV_t, 
+                                loc_data_t, 
+                                varnames, 
+                                LocalVertsMap_t);
     if(world_rank == 0)
     {
         std::cout << "++++++++++++++++++++ AFTER ++++++++++++++++++++" << world_rank << std::endl;
@@ -637,15 +607,6 @@ int main(int argc, char** argv)
         std::cout << "              LocalVertsMap_t " << loc_data_t.size() << std::endl;  
         std::cout << "+++++++++++++++++++++++++++++++++++++++++++++++" << std::endl;
     }
-
-    OutputTetraMeshPartitionVTK(filename_pg, 
-                                Owned_Elem_t, 
-                                gE2gV_t, 
-                                loc_data_t, 
-                                varnames, 
-                                LocalVertsMap_t);
-
-
 
     int nVertices   = lv2gvID.size();
     int nTetrahedra = le2geID.size();
@@ -667,25 +628,19 @@ int main(int argc, char** argv)
     //PMMG_Set_metSize(PMMG_pParMesh parmesh,int typEntity,int np,int typSol)
     if ( PMMG_Set_metSize(parmesh,MMG5_Vertex,nVertices,MMG5_Tensor) != 1 ) exit(EXIT_FAILURE);
 
-    int vrefmax = -1;
-    // std::map<int,int>::iterator itm;
-    // for(itm=lv2gvID.begin();itm!=lv2gvID.end();itm++)
-    // {
-    //     std::cout << "gvid =  " << itm->first << " " << itm->second << " " << nVertices << std::endl;
-    // }
-
     for ( k=0; k<nVertices; ++k )
     {
-        int gvid  = lv2gvID[k];
-
-        //std::cout << "gvid " << gvid << std::endl;
-        double vx = LocalVertsMap_t[gvid][0];
-        double vy = LocalVertsMap_t[gvid][1];
-        double vz = LocalVertsMap_t[gvid][2];
+        int tagvid  = lv2gvID[k];
+        int glovid  = tag2globalV[tagvid];
+        int locvid  = globalv2localvID[glovid];
+        
+        double vx = LocalVertsMap_t[tagvid][0];
+        double vy = LocalVertsMap_t[tagvid][1];
+        double vz = LocalVertsMap_t[tagvid][2];
 
         int vref = 86;
 
-        if ( PMMG_Set_vertex(parmesh,vx,vy,vz, vref, k+1) != 1 )
+        if ( PMMG_Set_vertex(parmesh,vx,vy,vz, vref, locvid+1) != 1 )
         {
         MPI_Finalize();
         exit(EXIT_FAILURE);
@@ -709,6 +664,8 @@ int main(int argc, char** argv)
 
         int v0,v1,v2,v3;
     int v0l,v1l,v2l,v3l;
+    int v0ln,v1ln,v2ln,v3ln;
+    int v0lnn,v1lnn,v2lnn,v3lnn;
     int teller = 0;
     int refer  = 0;
     int cref36 = 0;
@@ -738,14 +695,31 @@ int main(int argc, char** argv)
 
     std::map<int,std::vector<int> > f2vmap = tetra_repart->getFace2VertexMap();
     std::map<int,std::vector<int> > f2refmap = tetra_repart->getFace2RefMap();
-    int ref2 = 0;
+
     for ( k=0; k<nTriangles; ++k )
     {
         
         int faceID      = face4parmmg[k];
         int tagFaceID   = global2tagF[faceID];
-        int ref = f2refmap[tagFaceID][0];
+        int ref         = f2refmap[tagFaceID][0];
         
+        if(ref==3)
+        {
+            wallbc++;
+        }
+        if(ref==7)
+        {
+            symmetrybc++;
+        }
+        if(ref==10)
+        {
+            inflowbc++;
+        }
+        if(ref==36)
+        {
+            outflowbc++;
+        }
+
         if(ref==13)
         {
             for(int s=0;s<3;s++)
@@ -759,8 +733,6 @@ int main(int argc, char** argv)
                 double vy = LocalVertsMap_t[gvid][1];
                 double vz = LocalVertsMap_t[gvid][2];
 
-                int lvid = gv2lvID[gvid];
-                
                 if(unique_trace_verts2refmap.find(gvid)!=unique_trace_verts2refmap.end())
                 {
                     vertref = unique_trace_verts2refmap[gvid];
@@ -771,15 +743,19 @@ int main(int argc, char** argv)
                 }
             }
             
-            int gvid0   = trace_verts[tagFaceID][0];
-            int gvid1   = trace_verts[tagFaceID][1];
-            int gvid2   = trace_verts[tagFaceID][2];
+            int tagvid0   = trace_verts[tagFaceID][0];
+            int tagvid1   = trace_verts[tagFaceID][1];
+            int tagvid2   = trace_verts[tagFaceID][2];
 
-            v0l         = gv2lvID[gvid0];
-            v1l         = gv2lvID[gvid1];
-            v2l         = gv2lvID[gvid2];
+            int glovid0   = tag2globalV[tagvid0];
+            int glovid1   = tag2globalV[tagvid1];
+            int glovid2   = tag2globalV[tagvid2];
+
+            int locvid0   = globalv2localvID[glovid0];
+            int locvid1   = globalv2localvID[glovid1];
+            int locvid2   = globalv2localvID[glovid2];
         
-            if ( PMMG_Set_triangle(parmesh,v0l+1,v1l+1,v2l+1,ref,k+1) != 1 )
+            if ( PMMG_Set_triangle(parmesh,locvid2+1,locvid1+1,locvid2+1,ref,k+1) != 1 )
             {
                 MPI_Finalize();
                 exit(EXIT_FAILURE);
@@ -791,167 +767,49 @@ int main(int argc, char** argv)
         }
         else
         {
-            std::cout << "ref  = " << ref << std::endl;
-            if(f2vmap.find(tagFaceID)!=f2vmap.end())
-            {
-                
-                std::cout << tagFaceID << std::endl;
-            }
-            else
-            {
-                std::cout << "tagFaceID not found " << tagFaceID << std::endl;
-            }
+            int tagvid0   = f2vmap[tagFaceID][0];
+            int tagvid1   = f2vmap[tagFaceID][1];
+            int tagvid2   = f2vmap[tagFaceID][2];
 
+            int glovid0   = tag2globalV[tagvid0];
+            int glovid1   = tag2globalV[tagvid1];
+            int glovid2   = tag2globalV[tagvid2];
 
-            if(ref==2)
-            {
-                ref2++;
-            }
-            int gvid0    = f2vmap[tagFaceID][0];
-            int gvid1    = f2vmap[tagFaceID][1];
-            int gvid2    = f2vmap[tagFaceID][2];
-       
-            //std::cout << "local vs " <<  v0l << " " << v1l << " " << v2l << std::endl;
-            v0l         = gv2lvID[gvid0];
-            v1l         = gv2lvID[gvid1];
-            v2l         = gv2lvID[gvid2];
-        
-            if ( PMMG_Set_triangle(parmesh,v0l+1,v1l+1,v2l+1,ref,k+1) != 1 )
+            int locvid0   = globalv2localvID[glovid0];
+            int locvid1   = globalv2localvID[glovid1];
+            int locvid2   = globalv2localvID[glovid2];
+            
+            if ( PMMG_Set_triangle(parmesh,locvid0+1,locvid1+1,locvid2+1,ref,k+1) != 1 )
             {
                 MPI_Finalize();
                 exit(EXIT_FAILURE);
             }
-        }
-        // if(trace_verts.find(tagFaceID)!=trace_verts.end())// Handle prism-tetra interfaces/traces differently
-        // {
-        //     for(int s=0;s<3;s++)
-        //     {
-        //         int ref = 13;
-        //         int gvid  = trace_verts[tagFaceID][s];
-
-        //         // int globalVid = global2tagV[gvid];
-
-        //         double vx = LocalVertsMap_t[gvid][0];
-        //         double vy = LocalVertsMap_t[gvid][1];
-        //         double vz = LocalVertsMap_t[gvid][2];
-
-        //         int lvid = gv2lvID[gvid];
-                
-        //         if(unique_trace_verts2refmap.find(gvid)!=unique_trace_verts2refmap.end())
-        //         {
-        //             vertref = unique_trace_verts2refmap[gvid];
-        //         }
-        //         else
-        //         {
-        //             std::cout << "Warning:: reference value on trace vertID " << gvid << " is wrong!" << std::endl;
-        //         }
-        //     }
-            
-        //     int gvid0   = trace_verts[tagFaceID][0];
-        //     int gvid1   = trace_verts[tagFaceID][1];
-        //     int gvid2   = trace_verts[tagFaceID][2];
-
-        //     v0l         = gv2lvID[gvid0];
-        //     v1l         = gv2lvID[gvid1];
-        //     v2l         = gv2lvID[gvid2];
-        
-        //     if ( PMMG_Set_triangle(parmesh,v0l+1,v1l+1,v2l+1,ref,k+1) != 1 )
-        //     {
-        //         MPI_Finalize();
-        //         exit(EXIT_FAILURE);
-        //     }
-
-        //     PMMG_Set_requiredTriangle( parmesh, k+1 );
-
-        //     tracebc++;
-        // }
-        
-        // else
-        // {
-            
-            //std::cout << "ref  = " << ref << std::endl;
-            // if(f2vmap.find(tagFaceID)!=f2vmap.end())
-            // {
-                
-            //     std::cout << tagFaceID << std::endl;
-            // }
-            // else
-            // {
-            //     std::cout << "tagFaceID not found " << tagFaceID << std::endl;
-            // }
-
-
-            // if(ref==2)
-            // {
-            //     ref2++;
-            // }
-            // int gvid0    = f2vmap[tagFaceID][0];
-            // int gvid1    = f2vmap[tagFaceID][1];
-            // int gvid2    = f2vmap[tagFaceID][2];
-       
-            // //std::cout << "local vs " <<  v0l << " " << v1l << " " << v2l << std::endl;
-            // v0l         = gv2lvID[gvid0];
-            // v1l         = gv2lvID[gvid1];
-            // v2l         = gv2lvID[gvid2];
-        
-            // if ( PMMG_Set_triangle(parmesh,v0l+1,v1l+1,v2l+1,ref,k+1) != 1 )
-            // {
-            //     MPI_Finalize();
-            //     exit(EXIT_FAILURE);
-            // }
-
-        //}
-        
-        // if(ref==3)
-        // {
-        //     wallbc++;
-        // }
-        // if(ref==36)
-        // {
-        //     outflowbc++;
-        // }
-        // if(ref==7)
-        // {
-        //     symmetrybc++;
-        // }
-        // if(ref==10)
-        // {
-        //     inflowbc++;
-        // }
-
-        // if ( PMMG_Set_triangle(parmesh,v0l+1,v1l+1,v2l+1,refer,k+1) != 1 )
-        // {
-        //     MPI_Finalize();
-        //     exit(EXIT_FAILURE);
-        // }
-        
+        }        
     }
 
-    std::cout << "nothere " << nothere << "  " << ref2 << " "  <<tracebc<< std::endl; 
-    //std::cout << "Set triangles is  " << k << std::endl;
     
-    // int outflowbc_sum   = 0;
-    // int inflowbc_sum    = 0;
-    // int tracebc_sum     = 0;
-    // int wallbc_sum      = 0;
-    // int symmetrybc_sum  = 0;
+    int outflowbc_sum   = 0;
+    int inflowbc_sum    = 0;
+    int tracebc_sum     = 0;
+    int wallbc_sum      = 0;
+    int symmetrybc_sum  = 0;
 
-    // MPI_Allreduce(&outflowbc, &outflowbc_sum, 1, MPI_INT, MPI_SUM, comm);
-    // MPI_Allreduce(&inflowbc, &inflowbc_sum, 1, MPI_INT, MPI_SUM, comm);
-    // MPI_Allreduce(&tracebc, &tracebc_sum, 1, MPI_INT, MPI_SUM, comm);
-    // MPI_Allreduce(&wallbc, &wallbc_sum, 1, MPI_INT, MPI_SUM, comm);
-    // MPI_Allreduce(&symmetrybc, &symmetrybc_sum, 1, MPI_INT, MPI_SUM, comm);
+    MPI_Allreduce(&outflowbc, &outflowbc_sum, 1, MPI_INT, MPI_SUM, comm);
+    MPI_Allreduce(&inflowbc, &inflowbc_sum, 1, MPI_INT, MPI_SUM, comm);
+    MPI_Allreduce(&tracebc, &tracebc_sum, 1, MPI_INT, MPI_SUM, comm);
+    MPI_Allreduce(&wallbc, &wallbc_sum, 1, MPI_INT, MPI_SUM, comm);
+    MPI_Allreduce(&symmetrybc, &symmetrybc_sum, 1, MPI_INT, MPI_SUM, comm);
 
-    // if(world_rank == 0)
-    // {
-    //     std::cout << "=============Boundary Face Stats for Tetrahedra ============" << std::endl;
-    //     std::cout << "                  Outflow: " << outflowbc_sum << std::endl;
-    //     std::cout << "                  Inflow: " << inflowbc_sum << std::endl;
-    //     std::cout << "                  Trace: " << tracebc_sum << std::endl;
-    //     std::cout << "                  Wall: " << wallbc_sum << std::endl;
-    //     std::cout << "                  Symmetry: " << symmetrybc_sum << std::endl;
-    //     std::cout << "============================================================" << std::endl;
-    // }
+    if(world_rank == 0)
+    {
+        std::cout << "=============Boundary Face Stats for Tetrahedra ============" << std::endl;
+        std::cout << "                  Outflow: " << outflowbc_sum << std::endl;
+        std::cout << "                  Inflow: " << inflowbc_sum << std::endl;
+        std::cout << "                  Trace: " << tracebc_sum << std::endl;
+        std::cout << "                  Wall: " << wallbc_sum << std::endl;
+        std::cout << "                  Symmetry: " << symmetrybc_sum << std::endl;
+        std::cout << "============================================================" << std::endl;
+    }
 
     int API_mode = 0;
     
@@ -968,7 +826,7 @@ int main(int argc, char** argv)
     int* color_face     = tetra_repart->getParMMGCommColorFace();
     int *ntifc          = tetra_repart->getParMMGCommNFacesPerColor();
     int ncomm           = tetra_repart->getParMMGNComm();
-
+    
 
     std::cout << " ncomm " << ncomm << std::endl;
     
@@ -997,28 +855,44 @@ int main(int argc, char** argv)
     
     std::map<int,std::vector<int> >::iterator ittet;
     k = 0;
-    std::cout << "nTetrahedra  " << nTetrahedra << " " << le2geID.size() << std::endl;
-
+    std::vector<int> Owned_Elem_t_new;
+    int vloc0,vloc1,vloc2,vloc3;
+    int vglo0,vglo1,vglo2,vglo3;
+    int vtag0,vtag1,vtag2,vtag3;
     for ( int t = 0;t < nTetrahedra; t++  )
     {
         //From local element ID get the tag ID (initial global ID).
         int gEid = le2tagID[t];
+        int gEidtest = Owned_Elem_t[t];
+        Owned_Elem_t_new.push_back(gEidtest);
+        gEid = gEidtest;
+        // if(world_rank == 0 && gEid != gEidtest)
+        // {
+        //             std::cout << gEid << " " << gEidtest  << " tets " << nTetrahedra << " on rank " << world_rank << std::endl;
+        // }
         //Using the tag Element ID, get the tag Vertex ID.
-        v0 = gE2gV_t[gEid][0];
-        v1 = gE2gV_t[gEid][1];
-        v2 = gE2gV_t[gEid][2];
-        v3 = gE2gV_t[gEid][3];
+        vtag0 = gE2gV_t[gEid][0];
+        vtag1 = gE2gV_t[gEid][1];
+        vtag2 = gE2gV_t[gEid][2];
+        vtag3 = gE2gV_t[gEid][3];
+
         //From the tag vertex ID, get the local vertex ID.
-        v0l = gv2lvID[v0];
-        v1l = gv2lvID[v1];
-        v2l = gv2lvID[v2];
-        v3l = gv2lvID[v3];
-        
+
+        vglo0 = tag2globalV[vtag0];
+        vglo1 = tag2globalV[vtag1];
+        vglo2 = tag2globalV[vtag2];
+        vglo3 = tag2globalV[vtag3];
+
+        vloc0 = globalv2localvID[vglo0];
+        vloc1 = globalv2localvID[vglo1];
+        vloc2 = globalv2localvID[vglo2];
+        vloc3 = globalv2localvID[vglo3];
+
         std::vector<double> P(4*3);
-        P[0*3+0]=LocalVertsMap_t[v0][0];   P[0*3+1]=LocalVertsMap_t[v0][1];    P[0*3+2]=LocalVertsMap_t[v0][2];
-        P[1*3+0]=LocalVertsMap_t[v1][0];   P[1*3+1]=LocalVertsMap_t[v1][1];    P[1*3+2]=LocalVertsMap_t[v1][2];
-        P[2*3+0]=LocalVertsMap_t[v2][0];   P[2*3+1]=LocalVertsMap_t[v2][1];    P[2*3+2]=LocalVertsMap_t[v2][2];
-        P[3*3+0]=LocalVertsMap_t[v3][0];   P[3*3+1]=LocalVertsMap_t[v3][1];    P[3*3+2]=LocalVertsMap_t[v3][2];
+        P[0*3+0]=LocalVertsMap_t[vtag0][0];   P[0*3+1]=LocalVertsMap_t[vtag0][1];    P[0*3+2]=LocalVertsMap_t[vtag0][2];
+        P[1*3+0]=LocalVertsMap_t[vtag1][0];   P[1*3+1]=LocalVertsMap_t[vtag1][1];    P[1*3+2]=LocalVertsMap_t[vtag1][2];
+        P[2*3+0]=LocalVertsMap_t[vtag2][0];   P[2*3+1]=LocalVertsMap_t[vtag2][1];    P[2*3+2]=LocalVertsMap_t[vtag2][2];
+        P[3*3+0]=LocalVertsMap_t[vtag3][0];   P[3*3+1]=LocalVertsMap_t[vtag3][1];    P[3*3+2]=LocalVertsMap_t[vtag3][2];
 
         double Vtet = GetQualityTetrahedra(P);
         //std::cout << "Vtet " << Vtet << std::endl; 
@@ -1026,14 +900,25 @@ int main(int argc, char** argv)
         {
             std::cout << " negative volume in Element " << t << " on rank " << world_rank  <<std::endl;
         }
-        if ( PMMG_Set_tetrahedron(parmesh,v0l+1,v1l+1,v2l+1,v3l+1,1.0,t+1) != 1 )
+        if ( PMMG_Set_tetrahedron(parmesh,vloc0+1,vloc1+1,vloc2+1,vloc3+1,1.0,t+1) != 1 )
         {
             MPI_Finalize();
             exit(EXIT_FAILURE);
         }
     }
     
-    
+
+    string filename_pgNew = "tetraData2_" + std::to_string(world_rank) + ".vtu";
+
+    OutputTetraMeshPartitionVTK(comm,
+                                filename_pgNew, 
+                                Owned_Elem_t_new, 
+                                gE2gV_t, 
+                                loc_data_t, 
+                                varnames, 
+                                LocalVertsMap_t);
+
+    std::cout << le2tagIDsize << " " << Owned_Elem_t.size() << " grown " << le2tagID.size() << std::endl; 
     
     if( !PMMG_Set_iparameter( parmesh, PMMG_IPARAM_niter, inputs->niter ) ) {
       MPI_Finalize();
@@ -1089,7 +974,247 @@ int main(int argc, char** argv)
 
     int ierlib = PMMG_parmmglib_distributed( parmesh );
     
+    if(ierlib==0 && world_rank == 0)
+    {
+        std::cout << "SUCCESFULLY adapted the mesh in parallel!" << std::endl;
+    }
+    else if(ierlib==1 && world_rank == 0)
+    {
+        std::cout << "FAILED to adapt the mesh in parallel! "<< std::endl;
+    }
+
+    int nVerticesOUT   = 0;
+    int nTetrahedraOUT = 0;
+    int nTrianglesOUT  = 0;
+    int nEdgesOUT      = 0;
+
+
+    if ( PMMG_Get_meshSize(parmesh,&nVerticesOUT,&nTetrahedraOUT,NULL,&nTrianglesOUT,NULL,
+                           &nEdgesOUT) !=1 )
+    {
+        ier = PMMG_STRONGFAILURE;
+    }
     
+    int             nodeGloNumber,nodeOwner;
+    std::map<int,int> loc2globVid;
+    std::map<int,int> glob2locVid;
+    std::vector<int> globIDs;
+    for( k = 1; k <= nVerticesOUT; k++ )
+    {
+        if( !PMMG_Get_vertexGloNum( parmesh, &nodeGloNumber, &nodeOwner ) )
+        {
+            MPI_Finalize();
+            exit(EXIT_FAILURE);
+        }
+    
+        loc2globVid[k]=nodeGloNumber;
+        glob2locVid[nodeGloNumber]=k;
+        globIDs.push_back(nodeGloNumber);
+    }
+    
+    int *required = (int*)calloc(MAX4(nVerticesOUT,
+                                      nTetrahedraOUT,
+                                      nTrianglesOUT,
+                                      nEdgesOUT),sizeof(int));
+    
+    int *refOUT = (int*)calloc(MAX4(nVerticesOUT,
+                                    nTetrahedraOUT,
+                                    nTrianglesOUT,
+                                    nEdgesOUT),sizeof(int));
+    
+    int *corner = (int*)calloc(nVerticesOUT,sizeof(int));
+    int pos;
+    //int *refOUT = new int[nVerticesOUT];
+
+    std::vector<std::vector<int> > outT;
+    
+    double *vertOUT = (double*)calloc((nVerticesOUT)*3,sizeof(double));
+    //std::map<int,std::vector<double> > ref2coordinatesOUT;
+    for ( k=0; k<nVerticesOUT; k++ )
+    {
+          pos = 3*k;
+          if ( PMMG_Get_vertex(parmesh,&(vertOUT[pos]),&(vertOUT[pos+1]),&(vertOUT[pos+2]),
+                               &(refOUT[k]),&(corner[k]),&(required[k])) != 1 ) {
+            fprintf(inm,"Unable to get mesh vertex %d \n",k);
+            ier = PMMG_STRONGFAILURE;
+          }
+    }
+
+
+
+
+
+    // RUN TEST TO SEE WHETHER ADAPTATION WAS SUCCESFULL
+    std::map<int,int> locShF2globShF                = tetra_repart->GetLocalSharedFace2GlobalSharedFace();
+    std::map<int,std::vector<int> > face2node       = tetra_repart->getFace2NodeMap();
+
+
+
+    if(inputs->niter==0)
+    {
+        std::cout << "Check the input and outputted shared faces." << std::endl;
+        
+        int **out_tria_loc;
+        int *nitem_face_comm;
+        int next_face_comm;
+        ier = PMMG_Get_numberOfFaceCommunicators(parmesh,&next_face_comm);
+        int *color_node_out,*color_face_out;
+        color_face_out  = (int *) malloc(next_face_comm*sizeof(int));
+        nitem_face_comm = (int *) malloc(next_face_comm*sizeof(int));
+        for( int icomm=0; icomm<next_face_comm; icomm++ )
+          ier = PMMG_Get_ithFaceCommunicatorSize(parmesh, icomm,
+                                                 &color_face_out[icomm],
+                                                 &nitem_face_comm[icomm]);
+        
+        out_tria_loc = (int **) malloc(next_face_comm*sizeof(int *));
+        for( int icomm=0; icomm<next_face_comm; icomm++ )
+          out_tria_loc[icomm] = (int *) malloc(nitem_face_comm[icomm]*sizeof(int));
+        ier = PMMG_Get_FaceCommunicator_faces(parmesh, out_tria_loc);
+        
+        // Check matching of input interface nodes with the set ones
+
+        // FaceSharedPtr TestFacePointer = std::shared_ptr<NekFace>(new NekFace(vidstest));
+        // FaceSetPointer m_TestFaceSet;
+
+        // Get input triangle nodes
+        int** faceNodes2 = (int **) malloc(ncomm*sizeof(int *));
+        for( int icomm = 0; icomm < ncomm; icomm++ ) {
+          faceNodes2[icomm] = (int *) malloc(3*ntifc[icomm]*sizeof(int));
+          for( i = 0; i < ntifc[icomm]; i++ ) {
+              
+            int faceID = ifc_tria_loc[icomm][i]-1;
+            int faceIDg = ifc_tria_glob[icomm][i]-1;
+            int faceID2 = locShF2globShF[faceID];
+
+            v0 = face2node[faceID2][0];
+            v1 = face2node[faceID2][1];
+            v2 = face2node[faceID2][2];
+    
+            v0l = globalv2localvID[v0];
+            v1l = globalv2localvID[v1];
+            v2l = globalv2localvID[v2];
+
+            // FaceSharedPtr FacePointer = std::shared_ptr<NekFace>(new NekFace(vids));
+            // pair<FaceSetPointer::iterator, bool> testInsPointer;
+            // testInsPointer = m_TestFaceSet.insert(FacePointer);
+
+            faceNodes2[icomm][3*i]     = v0l+1; // tria_vert[3*(pos-1)];
+            faceNodes2[icomm][3*i+1]   = v1l+1; // tria_vert[3*(pos-1)+1];
+            faceNodes2[icomm][3*i+2]   = v2l+1; // tria_vert[3*(pos-1)+2];
+          }
+        }
+
+
+        // Check matching of input interface triangles with the set ones
+        if( !PMMG_Check_Set_FaceCommunicators(parmesh,ncomm,ntifc,
+                                              color_face,faceNodes2) ) {
+          printf("### FAILED:: Wrong set face communicators!\n");
+          MPI_Finalize();
+          exit(EXIT_FAILURE);
+        }
+        else
+        {
+            printf("### SUCCES:: Set the correct face communicators\n");
+        }
+        
+        int *ref2       = (int*)calloc(nTriangles,sizeof(int));
+        int *required2  = (int*)calloc(nTriangles,sizeof(int));
+        int *triaNodes2 = (int*)calloc(3*nTriangles,sizeof(int));
+
+        if ( PMMG_Get_triangles(parmesh,triaNodes2,ref2,required2) != 1 ) {
+          fprintf(stderr,"FAILED:: Unable to get mesh triangles\n");
+          ier = PMMG_STRONGFAILURE;
+        }
+        else
+        {
+            printf("### SUCCES:: retrieved all mesh triangles\n");
+        }
+
+        int** faceNodes_out = (int **) malloc(next_face_comm*sizeof(int *));
+        for( int icomm = 0; icomm < next_face_comm; icomm++ )
+        {
+              faceNodes_out[icomm] = (int *) malloc(3*nitem_face_comm[icomm]*sizeof(int));
+              for( i = 0; i < nitem_face_comm[icomm]; i++ )
+              {
+                  int pos = out_tria_loc[icomm][i];
+                  faceNodes_out[icomm][3*i]   = triaNodes2[3*(pos-1)];
+                  faceNodes_out[icomm][3*i+1] = triaNodes2[3*(pos-1)+1];
+                  faceNodes_out[icomm][3*i+2] = triaNodes2[3*(pos-1)+2];
+              }
+        }
+
+        
+        // Check matching of input interface triangles with the output ones
+        if( !PMMG_Check_Get_FaceCommunicators(parmesh,ncomm,ntifc,
+                                              color_face,faceNodes2,
+                                              next_face_comm,nitem_face_comm,
+                                              color_face_out,faceNodes_out) )
+        {
+          printf("### FAILED:: Wrong retrieved face communicators!\n");
+          MPI_Finalize();
+          exit(EXIT_FAILURE);
+        }
+        else
+        {
+            printf("### SUCCES:: retrieved the correct face communicators\n");
+        }
+        
+        int lvt = 0;
+        int lvt_o = 0;
+        std::map<int,int> sharedVrts_Owned;
+        std::map<int,int> sharedVert;
+        for( int icomm = 0; icomm < next_face_comm; icomm++ )
+        {
+            faceNodes_out[icomm] = (int *) malloc(3*nitem_face_comm[icomm]*sizeof(int));
+            int nPartFace                 = nPartFace + nitem_face_comm[icomm];
+            //rank2icomm[color_face_out[icomm]] = icomm;
+
+            if(world_rank < color_face_out[icomm])
+            {
+                int nTshared_owned = nTshared_owned + nitem_face_comm[icomm];
+
+                for( i = 0; i < nitem_face_comm[icomm]; i++ )
+                {
+                    int ft   = out_tria_loc[icomm][i];
+                    int reff = ref2[ft-1];
+
+                    for(int k=0;k<3;k++)
+                    {
+                        int vt = triaNodes2[3*(ft-1)+k];
+                        faceNodes_out[icomm][3*i+k] = triaNodes2[3*(ft-1)+k];
+
+                        if(sharedVrts_Owned.find(vt)==sharedVrts_Owned.end())
+                        {
+                            sharedVrts_Owned[vt] = lvt_o;
+                            sharedVert[vt]       = lvt;
+
+                            lvt++;
+                            lvt_o++;
+                        }
+                    }
+                }
+            }
+            else
+            {
+                for( i = 0; i < nitem_face_comm[icomm]; i++ )
+                {
+                    int ft = out_tria_loc[icomm][i];
+
+                    for(int k=0;k<3;k++)
+                    {
+                        int vt3 = triaNodes2[3*(ft-1)+k];
+                        faceNodes_out[icomm][3*i+k] = triaNodes2[3*(ft-1)+k];
+                        if(sharedVert.find(vt3)==sharedVert.end())
+                        {
+                            sharedVert[vt3] = lvt;
+                            lvt++;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
 
 
 

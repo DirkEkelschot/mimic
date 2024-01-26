@@ -3027,14 +3027,6 @@ void RepartitionObject::getAdjacentElementLayer(std::map<int,std::vector<int> > 
     recv_back_verts.clear();
     recv_back_verts_ids.clear();
 
-    //tmp_globv.clear();
-    //tmp_locv.clear();
-    //tmp_globf.clear();
-
-    // std::vector<int> adjElLayer;
-    //return adjElLayer;
-
-    /**/
 }
 
 
@@ -3068,10 +3060,6 @@ void RepartitionObject::GetFace2RankMesh(MPI_Comm comm)
             interiorFonRank.push_back(itf->first);
         }
     }
-
-    std::cout << "check updated sizes "<< o_face2elements_global.size() << " " << o_face2verts_global.size() << std::endl;
-
-
     
     int nSharedFonRank = sharedFonRank.size();
     DistributedParallelState* distSharedFaces = new DistributedParallelState(nSharedFonRank,comm);
@@ -3135,17 +3123,10 @@ void RepartitionObject::GetFace2RankMesh(MPI_Comm comm)
     std::set<int> uBoundVert;
     int f = 0;
 
-    std::map<int,int> o_globShF2locShF;
-    std::map<int,int> o_locShF2globShF;
-    //std::cout << "face2rank.size " << face2rank.size() << std::endl;
+    // std::map<int,int> o_globShF2locShF;
+    
     std::vector<int> m_faces4parmmg;
-    int itwotwo=0;
-    int ioneone=0;
-    int ione =0;
-    int itwo = 0;
 
-    std::cout << "face2node.size " << o_face2verts_global.size() << std::endl;
-    std::cout << "face2rank.size " << face2rank.size() << std::endl;
     for(itff=face2rank.begin();itff!=face2rank.end();itff++)
     {
         int faceID = itff->first;
@@ -3167,7 +3148,6 @@ void RepartitionObject::GetFace2RankMesh(MPI_Comm comm)
                 o_globShF2locShF[faceID] = f;
                 o_locShF2globShF[f] = faceID;
                 f++;
-                itwotwo++;
                 
                 shf++;
             }
@@ -3184,7 +3164,6 @@ void RepartitionObject::GetFace2RankMesh(MPI_Comm comm)
                 o_locShF2globShF[f] = faceID;
 
                 f++;
-                ione++;
             }   
             
         }
@@ -3197,8 +3176,6 @@ void RepartitionObject::GetFace2RankMesh(MPI_Comm comm)
     o_ifc_tria_loc = (int **)malloc(o_ncomm*sizeof(int *));
     o_ifc_tria_glo = (int **)malloc(o_ncomm*sizeof(int *));
 
-//    int* ifc_tria_glob[m_ncomm];
-//    int* ifc_tria_loc[m_ncomm];
     int icomm=0;
     std::map<int,std::vector<int> >::iterator itc;
     
@@ -3210,25 +3187,13 @@ void RepartitionObject::GetFace2RankMesh(MPI_Comm comm)
         o_ntifc[icomm]          = itc->second.size();
         o_ifc_tria_loc[icomm]   = (int *) malloc(itc->second.size()*sizeof(int));
         o_ifc_tria_glo[icomm]  = (int *) malloc(itc->second.size()*sizeof(int));
-        // if(world_rank == 0)
-        // {
-        //     std::cout << icomm << " :: " << o_ntifc[icomm] << " --> ";
-        // }
-                std::cout << "m_ntifc[icomm] " << o_ntifc[icomm] << " on rank " << world_rank << std::endl;
 
         for(int q=0;q<itc->second.size();q++)
         {
             o_ifc_tria_glo[icomm][q] = itc->second[q]+1;
             o_ifc_tria_loc[icomm][q]  = o_globShF2locShF[itc->second[q]]+1;
-            // if(world_rank == 0)
-            // {
-            //     std::cout << "(" << o_ifc_tria_loc[icomm][q] << "," << o_ifc_tria_glo[icomm][q] << ") ";
-            // }
         }
-        // if(world_rank == 0)
-        // {
-        //     std::cout << std::endl;
-        // }
+
 
         icomm++;
     }
@@ -3238,11 +3203,11 @@ void RepartitionObject::GetFace2RankMesh(MPI_Comm comm)
 
 
 
+
 void RepartitionObject::buildInteriorSharedAndBoundaryFacesMaps(MPI_Comm comm, 
                                                                 PrismTetraTrace* trace,
                                                                 std::map<int,std::vector<int> > ranges_id)
 {
-
     int size;
     MPI_Comm_size(comm, &size);
     // Get the rank of the process
@@ -3262,12 +3227,11 @@ void RepartitionObject::buildInteriorSharedAndBoundaryFacesMaps(MPI_Comm comm,
     int shf = 0;
     int tracef = 0;
     std::map<int,std::vector<int> >::iterator itmiv;
-
     std::map<int,int> sharedFace2Rank;
-
     std::set<int> unique_vertex_set_on_rank;
-
     int bface = 0;
+
+
     for(itmiv=face2elements_update.begin();itmiv!=face2elements_update.end();itmiv++)
     {
         int gfid = itmiv->first;
@@ -3307,11 +3271,6 @@ void RepartitionObject::buildInteriorSharedAndBoundaryFacesMaps(MPI_Comm comm,
                     {
                         unique_vertex_set_on_rank.insert(vid);
                     }
-                    // if(trace_found.find(vid)==trace_found.end() &&
-                    //    uniqure_trace_verts2ref.find(vid)!=uniqure_trace_verts2ref.end())
-                    // {
-                    //     trace_found.insert(vid);
-                    // }
                 }
                 if(ref==2)// Internal and Shared faces are here.
                 {
@@ -3411,9 +3370,6 @@ void RepartitionObject::buildInteriorSharedAndBoundaryFacesMaps(MPI_Comm comm,
         summednLocalVertsTot = summednLocalVertsTot+nLocalVertsTot_red_test[i];
     }
     int testNv = summednLocalVertsTot - N_un_shareV;
-    // std::cout << "The total number of unique vertices is " << testNv << " " << nLocalVertsTot
-    //           << " N_un_sharedV " << N_un_shareV 
-    //           << " N_un_interV " <<  N_un_interV << std::endl;
     
     //=====================================================================================
     //================================SHARED FACES=========================================
@@ -3510,19 +3466,6 @@ void RepartitionObject::buildInteriorSharedAndBoundaryFacesMaps(MPI_Comm comm,
     std::vector<int> UniqueSharedVertsOnRank_vec(UniqueSharedVertsOnRank_set.begin(),
                                                  UniqueSharedVertsOnRank_set.end());
 
-    // if(rank == 1)
-    // {
-    //     for(int i=0;i<UniqueSharedVertsOnRank_set.size();i++)
-    //     {
-    //         std::cout << "UniqueSharedVertsOnRank_vec " << UniqueSharedVertsOnRank_vec[i] << std::endl;
-    //     }
-    // }
-    
-    // std::set<int>::iterator its;
-    // for(its=UniqueSharedVertsOnRank_set.begin();its!=UniqueSharedVertsOnRank_set.end();its++)
-    // {
-    //     std::cout << *its << std::endl;
-    // }
 
     MPI_Allgatherv(&UniqueSharedVertsOnRank_vec[0],
                     nSharedVerts,
@@ -3634,6 +3577,178 @@ void RepartitionObject::buildInteriorSharedAndBoundaryFacesMaps(MPI_Comm comm,
         Fid_shared++;
     }    
 
+
+    DistributedParallelState* ElementDistr = new DistributedParallelState(part.size(),comm);
+    int u = 0;
+    int gvidd = 0;
+
+    std::map<int,int> tag2ElementID;
+    std::set<int> faceset;
+    // int N_localFaces = face2elements_update.size();
+    // int nNonSharedFaces = N_localFaces-nSharedFaces;
+    std::vector<int> nNonSharedFacesArray(size,0);
+    std::vector<int> nNonSharedFacesArrayRed(size,0);
+    std::vector<int> nNonSharedArrayRed(size,0);
+    std::vector<int> nNonSharedVertsArrayOff(size,0);
+    for(int i=0;i<size;i++)
+    {
+        nNonSharedFacesArray[i] = 0;
+        if(i==rank)
+        {
+            nNonSharedFacesArray[i] = nNonSharedFaces;
+        }
+    }
+
+    MPI_Allreduce(nNonSharedFacesArray.data(),
+                nNonSharedFacesArrayRed.data(),
+                size,
+                MPI_INT, MPI_SUM, comm);
+
+    std::vector<int> nNonSharedFacesArrayOff(size,0);
+    int nonFacesSharedOff     = 0;
+    int nonSharedOff = 0;
+    for(int i=0;i<size;i++)
+    {
+        nNonSharedVertsArrayOff[i] = nonSharedOff;
+        nNonSharedFacesArrayOff[i] = nonFacesSharedOff;
+        
+        nonSharedOff = nonSharedOff + nNonSharedArrayRed[i];
+        nonFacesSharedOff = nonFacesSharedOff + nNonSharedFacesArrayRed[i];
+    }
+
+    int lfid = nNonSharedFacesArrayOff[rank];
+
+    // int Nel_loc = Loc_Elem.size();
+    
+    int gloVid = nNonSharedFacesArrayOff[rank];
+    int gloFid = nNonSharedFacesArrayOff[rank];
+    int locVid = 0;
+    int locFid = 0;
+    for(int i = 0;i < Nel_loc;i++)
+    {
+        int gelid   = Loc_Elem[i];       
+        int gEl     = ElementDistr->getOffsets()[rank]+u+1;
+        int Nf      = elements2faces_update[gelid].size();
+        int Nv      = elements2verts_update[gelid].size();
+
+        std::vector<int> vertices(Nv,0);
+
+        for(int p=0;p<Nv;p++)
+        {
+            int TagVid = elements2verts_update[gelid][p];
+
+            if(o_sharedVertexMapUpdatedGlobalID.find(TagVid)!=o_sharedVertexMapUpdatedGlobalID.end())
+            {
+                int GlobVID             = o_sharedVertexMapUpdatedGlobalID[TagVid];
+                vertices[p]             = GlobVID;
+
+                if(o_tag2globV.find(TagVid)==o_tag2globV.end())
+                {
+                    o_tag2globV[TagVid] = GlobVID;
+                    o_glob2tagV[GlobVID] = TagVid;
+                    o_loc2globV[locVid] = GlobVID;
+                    o_glob2locV[GlobVID] = locVid;
+                    locVid = locVid + 1;
+                }
+                             
+            }
+            else
+            {
+                if(o_tag2globV.find(TagVid)==o_tag2globV.end())
+                {
+                    o_tag2globV[TagVid] = gloVid;
+                    o_glob2tagV[gloVid] = TagVid;
+                    o_loc2globV[locVid] = gloVid;
+                    o_glob2locV[gloVid] = locVid;
+                    vertices[p]  = gloVid;
+                    gloVid = gloVid + 1;
+                    locVid = locVid + 1;
+                }
+                else
+                {
+                    int gloVid_tmp = o_tag2globV[TagVid];
+                    vertices[p]    = gloVid_tmp;
+                }
+            }         
+        }
+
+        // o_element2verts_global[gEl] = vertices;
+
+        std::vector<int> faces(Nf,0);
+        for(int q=0;q<Nf;q++)
+        {
+            int TagFid = elements2faces_update[gelid][q];
+
+            if(o_sharedFaceMapUpdatedGlobalID.find(TagFid)!=o_sharedFaceMapUpdatedGlobalID.end())
+            {
+                int GlobFID = o_sharedFaceMapUpdatedGlobalID[TagFid]; 
+                faces[q]    = GlobFID; 
+                o_face2elements_global[GlobFID].push_back(gEl);
+
+                if(o_tag2globF.find(TagFid)==o_tag2globF.end())
+                {
+                    o_tag2globF[TagFid] = GlobFID;
+                    o_glob2tagF[GlobFID] = TagFid;
+                    o_loc2globF[locFid] = GlobFID;
+                    o_glob2locF[GlobFID] = locFid;
+                }
+
+            }
+            else
+            {
+                if(o_tag2globF.find(TagFid)==o_tag2globF.end())
+                {
+                    o_tag2globF[TagFid] = gloFid;
+                    o_glob2tagF[gloFid] = TagFid;
+                    o_loc2globF[locFid] = gloFid;
+                    o_glob2locF[gloFid] = locFid;
+
+                    faces[q]     = gloFid;
+                    o_face2elements_global[gloFid].push_back(gEl);
+                    gloFid       = gloFid + 1;
+                }
+                else
+                {
+                    int gloFid_tmp = o_tag2globF[TagFid];
+                    faces[q]       = gloFid_tmp;
+
+                    o_face2elements_global[gloFid_tmp].push_back(gEl);
+                }
+
+                lfid++;
+            }
+        }
+
+        o_element2faces_global[gEl] = faces;
+
+        u = u + 1;
+
+    }
+
+    for(itmiv=o_element2faces_global.begin();itmiv!=o_element2faces_global.end();itmiv++)
+    {
+        int eid = itmiv->first;
+        int nf = itmiv->second.size();
+        
+        for(int i=0;i<nf;i++)
+        {
+            int fid    = o_element2faces_global[eid][i];
+            int tagfid = o_glob2tagF[fid];
+            int nv     = face2verts_update[tagfid].size();
+            std::vector<int> verts(nv,0);
+
+            for(int j=0;j<nv;j++)
+            {
+                int tagvid  =  face2verts_update[tagfid][j];
+                verts[j]    =  o_tag2globV[tagvid];
+            }
+            
+            if(o_face2verts_global.find(fid)==o_face2verts_global.end())
+            {
+                o_face2verts_global[fid] = verts;
+            }
+        }
+    }
     // std::vector<std::vector<double> > internalCoordinates(o_NonSharedVertsOwned.size());
     // for(itmii=o_NonSharedVertsOwned.begin();itmii!=o_NonSharedVertsOwned.end();itmii++)
     // {
@@ -3740,12 +3855,9 @@ void RepartitionObject::UpdateGlobalIDs(MPI_Comm comm,PrismTetraTrace* trace)
 
     int Nel_loc = Loc_Elem.size();
     
-
     int gloVid = nNonSharedFacesArrayOff[rank];
     int gloFid = nNonSharedFacesArrayOff[rank];
 
-
-    std::cout << "Nel_loc " << Nel_loc << std::endl;
     for(int i = 0;i < Nel_loc;i++)
     {
         int gelid   = Loc_Elem[i];       
@@ -3789,7 +3901,7 @@ void RepartitionObject::UpdateGlobalIDs(MPI_Comm comm,PrismTetraTrace* trace)
             }         
         }
 
-        o_element2verts_global[gEl] = vertices;
+        // o_element2verts_global[gEl] = vertices;
 
         std::vector<int> faces(Nf,0);
         for(int q=0;q<Nf;q++)
@@ -3861,8 +3973,6 @@ void RepartitionObject::UpdateGlobalIDs(MPI_Comm comm,PrismTetraTrace* trace)
                 o_face2verts_global[fid] = verts;
             }
         }
-        
-        
     }
 
 }
@@ -4316,10 +4426,7 @@ void RepartitionObject::buildTag2GlobalElementMapsAndFace2LeftRightElementMap(MP
     DistributedParallelState* distnLocIntVrts = new DistributedParallelState(nLocIntVrts,comm);
     DistributedParallelState* distnLocShVrts  = new DistributedParallelState(nLocShVrts,comm);
 
-    // std::cout << "RANK " << rank << "  " << "SharedVertsOwned.size() " << o_SharedVertsOwned.size() << std::endl;
 
-    // std::cout << "RANK " << rank << "  " << "o_NonSharedVertsOwned.size() " << o_NonSharedVertsOwned.size() << std::endl;
-    //std::cout << "o_lhp.size( ) " << o_lhp.size() << " " << "o_rhp.size( ) " << o_rhp.size() << " " << o_sharedFace2Nodes.size() << std::endl;
 
 }
     
@@ -4431,6 +4538,39 @@ void RepartitionObject::buildParMMGCommunicationMaps(MPI_Comm comm)
 }
 
 
+std::map<int,int> RepartitionObject::getUpdatedTag2GlobalVMap()
+{
+    return o_tag2globV;
+}
+std::map<int,int> RepartitionObject::getUpdatedGlobal2TagVMap()
+{
+    return o_glob2tagV;
+}
+std::map<int,int> RepartitionObject::getUpdatedGlobal2LocalFMap()
+{
+    return o_glob2locF;
+}
+std::map<int,int> RepartitionObject::getUpdatedLocal2GlobalFMap()
+{
+    return o_loc2globF;
+}
+std::map<int,int> RepartitionObject::getUpdatedGlobal2LocalVMap()
+{
+    return o_glob2locV;
+}
+std::map<int,int> RepartitionObject::getUpdatedLocal2GlobalVMap()
+{
+    return o_loc2globV;
+}
+std::map<int,std::vector<int> > RepartitionObject::getFace2NodeMap()
+{
+    return o_face2verts_global;
+}
+
+std::map<int,int> RepartitionObject::GetLocalSharedFace2GlobalSharedFace()
+{
+    return o_locShF2globShF;
+}
 std::map<int,int> RepartitionObject::getGlobal2TagFMap()
 {
     return o_glob2tagF;

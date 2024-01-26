@@ -2,7 +2,8 @@
 
 
 
-void OutputTetraMeshPartitionVTK(string filename, 
+void OutputTetraMeshPartitionVTK(MPI_Comm comm,
+                            string filename, 
                             std::vector<int> OwnedElem,
                             std::map<int,std::vector<int> > gE2lV,
                             std::map<int,std::vector<double> > loc_data,
@@ -13,6 +14,12 @@ void OutputTetraMeshPartitionVTK(string filename,
     //==================================================================================
     //==================================================================================
     
+    int world_size;
+    MPI_Comm_size(comm, &world_size);
+    // Get the rank of the process
+    int world_rank;
+    MPI_Comm_rank(comm, &world_rank);
+
     const int length = filename.length();
     char* filename_char = new char[length + 1];
     strcpy(filename_char, filename.c_str());
@@ -66,9 +73,19 @@ void OutputTetraMeshPartitionVTK(string filename,
     vtkIdType ielement = 0;
     std::map<int,std::vector<int> >::iterator itmiv;
     // for(itmiv=gE2lV.begin();itmiv!=gE2lV.end();itmiv++)
+    // if(world_rank == 0)
+    // {
+    //     std::cout << "for " << filename << std::endl;
+    // }
     for(int k=0;k<OwnedElem.size();k++)
     {
         int elid   = OwnedElem[k];
+
+        // if(world_rank == 0)
+        // {
+        //     std::cout << "elid  " << filename << " "  <<  elid << std::endl;
+        // }
+
         vtkNew<vtkTetra> tetra;
         
         for(int q=0;q<gE2lV[elid].size();q++)
