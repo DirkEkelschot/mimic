@@ -109,14 +109,14 @@ class RepartitionObject{
                 std::map<int,int> getUpdatedTag2GlobalVMap();
                 std::map<int,int> getUpdatedGlobal2TagVMap();
                 
-                
+
                 void buildCommunicationMaps(MPI_Comm comm);
                 int** getParMMGCommFace2GlobalVertMap();
                 int** getParMMGCommFace2LocalVertMap();
                 int* getParMMGCommColorFace();
                 int* getParMMGCommNFacesPerColor();
                 int getParMMGNComm();
-
+                
                 std::vector<int> getFace4ParMMG();
                 void UpdateGlobalIDs(MPI_Comm comm,PrismTetraTrace* trace);
                 std::map<int,int> getGlobal2TagFMap();
@@ -128,13 +128,22 @@ class RepartitionObject{
                 std::map<int, std::vector<int> > getInteriorFaceMap();
                 std::map<int, std::vector<int> > getBoundaryFaceMap();
                 std::map<int,int> getTagF2LocFID();
-                
+                // std::map<int,int> getUpdatedLocal2GlobalVertexMap();
+                // std::map<int,int> getUpdatedGlobal2LocalVertexMap();
+                std::map<int,int> getNonSharedVertsOwned();
+                std::map<int,int> getSharedVertsOwned();
+                std::map<int,int> getSharedVertsNotOwned();
+                std::map<int,int> GetLeftHandFaceElementMap();
+                std::map<int,int> GetRightHandFaceElementMap();
+                std::map<int,std::vector<int> > getZone2boundaryFaceID();
                 void buildParMMGCommunicationMaps(MPI_Comm comm);
 
 
 
 
                 std::map<int,int> GetLocalSharedFace2GlobalSharedFace();
+                // std::map<int,int> GetGlobalSharedFace2LocalSharedFace();
+
                 std::map<int,std::vector<int> > getFaceTag2VertTagMap();
                 void buildSharedVertexMap(MPI_Comm comm, PrismTetraTrace* trace);
 
@@ -197,7 +206,7 @@ class RepartitionObject{
                 std::map<int,int> locPartV2globV;
                 std::map<int,int> globPartV2locV;
                 std::set<int> Loc_Elem_Set;
-
+                std::map<int,std::vector<int> > o_zone2bcface;
                 
                 std::map<int,int> LocElem2Nv;
                 std::map<int,int> LocElem2Nf;

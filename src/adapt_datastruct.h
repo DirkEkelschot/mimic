@@ -7,6 +7,21 @@
 
 
 
+struct Inputs{
+    double hgrad;
+    double hmin;
+    double hmax;
+    double MetScale;
+    double hausd;
+    int ReadFromStats;
+    int RunWakRefinement;
+    double hwake;
+    int niter;
+    int recursive;
+    int extended;
+    int StateVar;
+};
+
 
 struct Element{
     

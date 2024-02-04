@@ -393,20 +393,20 @@ void ParseEquals(const std::string &line, std::string &lhs,
 }
 
 
-struct Inputs{
-    double hgrad;
-    double hmin;
-    double hmax;
-    double MetScale;
-    double hausd;
-    int ReadFromStats;
-    int RunWakRefinement;
-    double hwake;
-    int niter;
-    int recursive;
-    int extended;
-    int StateVar;
-};
+// struct Inputs{
+//     double hgrad;
+//     double hmin;
+//     double hmax;
+//     double MetScale;
+//     double hausd;
+//     int ReadFromStats;
+//     int RunWakRefinement;
+//     double hwake;
+//     int niter;
+//     int recursive;
+//     int extended;
+//     int StateVar;
+// };
 
 
 Inputs* ReadXmlFile(const char* filename)
@@ -1410,7 +1410,7 @@ int main(int argc, char** argv)
     std::map<int,int> gE2tagE                               = prsmLyr->getGlobal2TagElementMap();
     std::map<int,int> rhp                                   = prsmLyr->getRightElementGlobalIDForFaces();
     std::map<int,int> lhp                                   = prsmLyr->getLeftElementGlobalIDForFaces();
-    //std::map<int,std::vector<int> > pbcmap                  = prsmLyr->getBoundaryCondition2FaceID();
+    //std::map<int,std::vector<int> > pbcmap                = prsmLyr->getBoundaryCondition2FaceID();
     std::map<int,std::vector<int> > pbcmap                  = prsmLyr->getBoundaryConditionZone2FaceID();
 
     std::map<int,int> tag2element_shell                     = prsmLyr->getTag2Element4TetPrismInterface();
@@ -2186,6 +2186,9 @@ int main(int argc, char** argv)
     }
     else
     {
+
+
+        //====================================================================================================================
         //std::cout << "Outputting the new triangles..." << std::endl;
         //===================================================================
         int **out_tria_loc, **out_node_loc;
@@ -2475,8 +2478,7 @@ int main(int argc, char** argv)
                 if(RefsOnShellPointer!=m_PMMG_RefsOnShell_2_Prism.end())
                 {
                     int PrismID = (*RefsOnShellPointer)->GetFaceLeftElement();
-                    
-                    
+                       
                     FaceSharedPtr FacePointer = std::shared_ptr<NekFace>(new NekFace(faceShVec));
                     
                     pair<FaceSetPointer::iterator, bool> Shell2PrismPointer;
@@ -2488,7 +2490,6 @@ int main(int argc, char** argv)
                     }
                 }
 
-                
                 faceCovered++;
                 // Need to catch the references here //
             }
@@ -2562,7 +2563,7 @@ int main(int argc, char** argv)
 
         for(int icomm = 0; icomm < next_face_comm; icomm++ )
         {
-            nPartFace                           = nPartFace + nitem_face_comm[icomm];
+            nPartFace = nPartFace + nitem_face_comm[icomm];
             rank2icomm[color_face_out[icomm]] = icomm;
                     
             if(world_rank < color_face_out[icomm])
@@ -2636,6 +2637,8 @@ int main(int argc, char** argv)
                             PMMG_SharedVertices.insert(gvt);
                         }
                     }
+
+
 //                    if(PMMG_SharedFaces.find(faceSh)==PMMG_SharedFaces.end())
 //                    {
 //                        PMMG_SharedFaces[faceSh]=ft;
@@ -2745,6 +2748,13 @@ int main(int argc, char** argv)
             tel++;
         }
 
+
+        // std::cout << "m_PMMG_SharedFacePointer " << m_PMMG_SharedFacePointer.size() << std::endl;
+        // std::cout << "m_PMMG_OwnedSharedFacePointer " << m_PMMG_OwnedSharedFacePointer.size() << std::endl;
+        // std::cout << "PMMG_SharedVerticesOwned " << PMMG_SharedVerticesOwned.size() << std::endl;
+        // std::cout << "PMMG_SharedVerticesOwned_set " << PMMG_SharedVerticesOwned_set.size() << " " << world_rank << std::endl;
+
+
         int* tetraOUT = new int[nTetrahedraOUT*4];
         std::vector<std::vector<int> > tetrasOUT;
         std::vector<int> NonSharedVrts_vec;
@@ -2813,7 +2823,7 @@ int main(int argc, char** argv)
         int hellofound = 0;
         
         //std::cout << "Start ID for tets on rank = " << curElID << std::endl;
-        
+        //====================================================================================================================
         for ( k=0; k<nTetrahedraOUT; k++ )
         {
             parmmg_iet->setVal(k,0,2);
@@ -3153,6 +3163,8 @@ int main(int argc, char** argv)
         int nShaFaces       = m_PMMG_OwnedSharedFacePointer.size();
         int nIntFaces       = InternalFaces.size();
         int nLocFaceNBnd    = InternalFaces.size()+SharedFaces.size()+fmShell.size();
+
+        std::cout << "fmShell.size() " << world_rank << " " << fmShell.size() << std::endl; 
         Array<int>* ifnOUT  = new Array<int>(nLocFaceNBnd,8);
         std::map<int,int> updateID;
         int ftot            =  0;
@@ -3263,8 +3275,8 @@ int main(int argc, char** argv)
             {
             	std::cout <<"Found the face -> " << fid << " " << world_rank << " " << lh[fid] << std::endl;
             }
-                ftot++;
-            }
+            ftot++;
+        }
         
         //Color_SharedOwned
         
@@ -3396,7 +3408,6 @@ int main(int argc, char** argv)
                     frh.insert(fid_glo);
                     outside++;
                 }
-                
                 telli++;
             }
         }
@@ -3503,7 +3514,7 @@ int main(int argc, char** argv)
             ifnOUT->setVal(ftot,6,elLh);
             ifnOUT->setVal(ftot,7,2);
 	    
-	    if(elRh == 0)
+	        if(elRh == 0)
             {    
                 std::cout <<"Found the face in shared -> " << fid << " " << world_rank << " " << elLh << std::endl;
             } 
@@ -4188,8 +4199,7 @@ int main(int argc, char** argv)
             q++;
         }
         
-        
-        
+
         std::vector<Array<int>* > bcArrays;
         std::map<int,int> bcsizing;
         std::vector<int> bci_offsets;
@@ -4211,16 +4221,9 @@ int main(int argc, char** argv)
             if(us3d->zone2bcref.find(bc_id)!=us3d->zone2bcref.end())
             {
             	bc_reference = us3d->zone2bcref[bc_id];
-            	//std::cout << i << " bc_reference " << bc_reference << " " << bc_id << std::endl;
             }
-//            else
-//            {
-//            	bc_reference=bc_id;
-//            	std::cout << i << " bc_reference " << bc_reference << " " << bc_id << std::endl;
-//            }
             
-            
-            
+
             DistributedParallelState* distBCi = new DistributedParallelState(nlbc[i],comm);
             int NelLoc_bci = nlbc[i];
             int NelTot_bci = distBCi->getNel();
@@ -4452,7 +4455,8 @@ int main(int argc, char** argv)
                     Vijk[1] = 0.0;
                     Vijk[2] = 0.0;
                     // compute element center;
-                    //ienOUT[curElID] = Elvrts
+                    //ienOUT[curElID] = Elvrts;
+
                     for(int u=0;u<ienOUT[elLh].size();u++)
                     {
                         
@@ -4611,6 +4615,10 @@ int main(int argc, char** argv)
         //===================================================================================
         //===================================================================================
         
+        
+
+
+
         hid_t ret;
         hid_t plist_id = H5Pcreate(H5P_FILE_ACCESS);
         H5Pset_fapl_mpio(plist_id, comm, info);

@@ -2,9 +2,13 @@
 #include "adapt_parstate.h"
 #include "adapt_array.h"
 #include "adapt_datastruct.h"
+#include "adapt_distri_parstate.h"
 
 #ifndef ADAPT_OPERATIONS_H
 #define ADAPT_OPERATIONS_H
+
+
+std::map<int,int> AllGatherMap(std::map<int,int> mappie, MPI_Comm mpi_comm);
 
 int FindRank(int* arr, int size, int val);
 

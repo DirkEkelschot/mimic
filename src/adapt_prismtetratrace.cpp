@@ -1,5 +1,7 @@
 #include "adapt_prismtetratrace.h"
 #include "adapt_distri_parstate.h"
+
+
 PrismTetraTrace::PrismTetraTrace(MPI_Comm comm,
                                  std::vector<int> element2rank,
                                  std::map<int,std::vector<int> > ife,
@@ -158,6 +160,9 @@ PrismTetraTrace::PrismTetraTrace(MPI_Comm comm,
 
     int ref  = 100;
     int vref = 100;
+
+   
+    
     for(int i=0;i<nTraceF_glob;i++)
     {
         int trace_fid = trace_f_glob[i];
@@ -171,7 +176,7 @@ PrismTetraTrace::PrismTetraTrace(MPI_Comm comm,
             LeftRight[0] = elem_l_glob[i];
             LeftRight[1] = elem_r_glob[i];
             std::vector<int> fvs(3,0);
-
+            std::vector<int> refs(3,0);
             for(int k=0;k<3;k++)
             {
                 fvs[k] = trace_fv_glob[i*3+k];
@@ -179,10 +184,24 @@ PrismTetraTrace::PrismTetraTrace(MPI_Comm comm,
                 if(unique_trace_verts.find(fvs[k])==unique_trace_verts.end())
                 {  
                     unique_trace_verts[fvs[k]] = vref;
+                    refs[k]=vref;
 
                     vref = vref + 1;
                 }
+                else
+                {
+                    int vreff = unique_trace_verts[fvs[k]];
+                    refs[k] = vreff;
+                }
+
+
             }
+
+            FaceSharedPtr RefTraceFacePointer = std::shared_ptr<NekFace>(new NekFace(refs));
+            RefTraceFacePointer->SetFaceLeftElement(LeftRight[0]);
+            RefTraceFacePointer->SetFaceRightElement(LeftRight[1]);
+            m_RefTraceFaces.insert(RefTraceFacePointer);
+            
 
             trace_LR_elem[trace_fid]    = LeftRight;
             trace_elems[trace_fid]      = tr;
@@ -191,12 +210,17 @@ PrismTetraTrace::PrismTetraTrace(MPI_Comm comm,
             ref++;
         }
     }
+
+    std::cout << "vref " << vref << std::endl;
 }
 
 // void PrismTetraTrace::GetRequiredPrisms()
 // {
 // }
-
+FaceSetPointer PrismTetraTrace::GetRefTraceFaceSet()
+{
+    return m_RefTraceFaces;
+}
 std::map<int,int> PrismTetraTrace::GetUniqueTraceVerts2RefMap()
 {
     return unique_trace_verts;

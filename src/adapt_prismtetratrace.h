@@ -1,5 +1,6 @@
 #include "adapt.h"
 #include "adapt_datastruct.h"
+#include "NekFace.h"
 
 #ifndef ADAPT_PRISMTETRATRACE_H
 #define ADAPT_PRISMTETRATRACE_H
@@ -18,6 +19,7 @@ class PrismTetraTrace{
 
         ~PrismTetraTrace();
 
+        FaceSetPointer GetRefTraceFaceSet();
         std::map<int,std::map<int,int> > GetTrace();
         std::map<int,std::vector<int> > GetTraceVerts();
         std::map<int,int> GetUniqueTraceVerts2RefMap();
@@ -25,6 +27,8 @@ class PrismTetraTrace{
         std::map<int,int> GetTraceRef();
 
     private:
+
+        FaceSetPointer m_RefTraceFaces;
         std::map<int,int> unique_trace_verts;
         std::map<int,std::map<int,int> > trace_elems;
         std::map<int,std::vector<int> > trace_verts;

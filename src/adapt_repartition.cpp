@@ -29,7 +29,6 @@ RepartitionObject::RepartitionObject(mesh* meshInput,
     std::map<int, std::vector<int> > elements2elements_optimal;
     std::map<int, std::vector<double> > elements2data_optimal;
 
-
     GetOptimalDistributionSchedule(elements2verts, 
                                    elements2faces, 
                                    elements2elements, 
@@ -40,12 +39,7 @@ RepartitionObject::RepartitionObject(mesh* meshInput,
                                    elements2elements_optimal,
                                    elements2data_optimal);
 
-    
     DeterminePartitionLayout(elements2verts_optimal,meshInput->element2rank,comm);
-
-
-
-
 
     DetermineElement2ProcMap(elements2verts_optimal, 
                              elements2faces_optimal,
@@ -59,13 +53,6 @@ RepartitionObject::RepartitionObject(mesh* meshInput,
                              elements2faces_update, 
                              elements2elements_update,
                              elements2data_update);
-
-
-
-
-
-
-
 
     // The partitioning happens over the elements. 
     // The faces still live equally distributed over the available ranks.
@@ -99,12 +86,6 @@ RepartitionObject::RepartitionObject(mesh* meshInput,
                                face2verts_update, 
                                comm);
 
-
-
-    
-
-
-
     // std::cout << "data.size before " << rank << " -- " << data.size() << std::endl;
 
     //std::cout << "RANK == " << rank << " pre stats :: " << elements2verts_update.size() << " " << elements2faces_update.size() << " "  << elements2elements_update.size() << " " << elements2data_update.size() << " LocalVertsMap " << LocalVertsMap.size() << std::endl;
@@ -115,19 +96,19 @@ RepartitionObject::RepartitionObject(mesh* meshInput,
     {
         // std::cout << " i = " << i << " :: " << elements2verts_update.size() << " rank " << rank << std::endl;
         getAdjacentElementLayer(elements2verts_update,
-                            elements2faces_update,
-                            elements2elements_update,
-                            trace,
-                            meshInput->xcn, 
-                            elements2data_update,
-                            Ne_glob,
-                            Nf_glob,
-                            Nv_glob, 
-                            comm,
-                            elements2verts_update, 
-                            elements2faces_update, 
-                            elements2elements_update,
-                            elements2data_update);
+                                elements2faces_update,
+                                elements2elements_update,
+                                trace,
+                                meshInput->xcn, 
+                                elements2data_update,
+                                Ne_glob,
+                                Nf_glob,
+                                Nv_glob, 
+                                comm,
+                                elements2verts_update, 
+                                elements2faces_update, 
+                                elements2elements_update,
+                                elements2data_update);
     }
 
 
@@ -3220,7 +3201,7 @@ void RepartitionObject::buildInteriorSharedAndBoundaryFacesMaps(MPI_Comm comm,
     std::set<int> unique_vertex_set_on_rank;
     int bface = 0;
 
-
+    std::set<int> refsc;
     for(itmiv=face2elements_update.begin();itmiv!=face2elements_update.end();itmiv++)
     {
         int gfid = itmiv->first;
@@ -3244,6 +3225,8 @@ void RepartitionObject::buildInteriorSharedAndBoundaryFacesMaps(MPI_Comm comm,
             int e0   = face2elements_update[gfid][0];
             int e1   = face2elements_update[gfid][1];
 
+
+            refsc.insert(ref);
             // Determine the number of nodes on this face.
             if(face2Nverts_update.find(gfid)!=face2Nverts_update.end())
             {
@@ -3289,7 +3272,7 @@ void RepartitionObject::buildInteriorSharedAndBoundaryFacesMaps(MPI_Comm comm,
                     }                        
                 }
                 else
-                {                
+                {         
                     o_boundaryFace2Nodes[gfid] = face;
 
                     if(o_boundaryFaces.find(gfid)==o_boundaryFaces.end())
@@ -3303,6 +3286,12 @@ void RepartitionObject::buildInteriorSharedAndBoundaryFacesMaps(MPI_Comm comm,
         }
     }
 
+    // std::cout << "refsc " << refsc.size() << std::endl;
+    // std::set<int>::iterator its;
+    // for(its=refsc.begin();its!=refsc.end();its++)
+    // {
+    //     std::cout << "*its" << *its << std::endl;
+    // }
     //std::cout << "o_boundaryFaces " << o_boundaryFaces.size() << std::endl;
     int nLocalVertsTot = unique_vertex_set_on_rank.size();
 
@@ -3738,20 +3727,14 @@ void RepartitionObject::buildInteriorSharedAndBoundaryFacesMaps(MPI_Comm comm,
             }
         }
     }
-    // std::vector<std::vector<double> > internalCoordinates(o_NonSharedVertsOwned.size());
+
+
     // for(itmii=o_NonSharedVertsOwned.begin();itmii!=o_NonSharedVertsOwned.end();itmii++)
     // {
     //     int tag = itmii->first;
-    
-    //     std::vector<double> coords(3,0.0);
-    //     coords[0] = LocalVertsMap[tag][0];
-    //     coords[1] = LocalVertsMap[tag][1];
-    //     coords[2] = LocalVertsMap[tag][2];
 
-    //     internalCoordinates[vert] = coords;
-
-    //     locPartV2globV[tag] = vert+distnLocIntVrts->getOffsets()[rank]+1;
-    //     globPartV2locV[vert+distnLocIntVrts->getOffsets()[rank]+1] = tag;
+    //     o_locPartV2globV[tag] = vert+distnLocIntVrts->getOffsets()[rank]+1;
+    //     o_globPartV2locV[vert+distnLocIntVrts->getOffsets()[rank]+1] = tag;
         
     //     vert++;
     // }
@@ -3759,20 +3742,12 @@ void RepartitionObject::buildInteriorSharedAndBoundaryFacesMaps(MPI_Comm comm,
 
     // int vertsh = 0;
     
-    // std::vector<std::vector<double> > sharedCoordinates(SharedVertsOwned.size());
     // for(iitm=SharedVertsOwned.begin();iitm!=SharedVertsOwned.end();iitm++)
     // {
     //     int tag                      = iitm->first;
         
-    //     std::vector<double> coords(3,0.0);
-    //     coords[0] = LocalVertsMap[tag][0];
-    //     coords[1] = LocalVertsMap[tag][1];
-    //     coords[2] = LocalVertsMap[tag][2];
-
-    //     sharedCoordinates[vert] = coords;
-        
-    //     tagV2globV[tag] = SharedVertsOwned[tag];
-    //     globV2tagV[SharedVertsOwned[tag]] = tag;
+    //     o_locPartV2globV[tag] = SharedVertsOwned[tag];
+    //     o_globPartV2locV[SharedVertsOwned[tag]] = tag;
         
     //     vertsh++;
     // }
@@ -3962,7 +3937,6 @@ void RepartitionObject::UpdateGlobalIDs(MPI_Comm comm,PrismTetraTrace* trace)
             }
         }
     }
-
 }
 
 
@@ -4039,9 +4013,12 @@ void RepartitionObject::buildTag2GlobalElementMapsAndFace2LeftRightElementMap(MP
     // lfid = 0;
     std::map<int,int> tagV2locglobVID;
     std::map<int,int> tagF2locFID;
+    int fownedInmap = 0;
     for(itmiv=elements2faces_update.begin();itmiv!=elements2faces_update.end();itmiv++)
     {
+
         int gelid   = itmiv->first;
+
         if(Loc_Elem_Set.find(gelid)!=Loc_Elem_Set.end())
         {
             int lEl     = ElementDistr->getOffsets()[rank]+u+1;
@@ -4058,28 +4035,14 @@ void RepartitionObject::buildTag2GlobalElementMapsAndFace2LeftRightElementMap(MP
                 int gvid = elements2verts_update[gelid][p];
                 if(o_sharedVertexMapUpdatedGlobalID.find(gvid)!=o_sharedVertexMapUpdatedGlobalID.end())
                 {
-                    tagV2locglobVID[gvid] = o_sharedVertexMapUpdatedGlobalID[gvid];    
-                    // if(rank == 1)
-                    // {
-                    //     std::cout << " sh--> " << tagV2locglobVID[gvid] << " ";
-                    // }                       
+                    tagV2locglobVID[gvid] = o_sharedVertexMapUpdatedGlobalID[gvid];                        
                 }
                 else
                 {
-                    // if(rank == 1)
-                    // {
-                    //     std::cout << lfid << " ";
-                    // }
-
                     tagV2locglobVID[gvid] = lfid;
                     lfid++;
                 }
             }
-
-            // if(rank == 1)
-            // {
-            //     std::cout << std::endl;
-            // }
 
 
             for(int q=0;q<Nf;q++)
@@ -4107,7 +4070,7 @@ void RepartitionObject::buildTag2GlobalElementMapsAndFace2LeftRightElementMap(MP
                     {                                
                         if(o_sharedFace2Nodes.find(gfid)!=o_sharedFace2Nodes.end())
                         {
-                            //     fownedInmap++;
+                            fownedInmap++;
 
                             int e0   = face2elements_update[gfid][0];
                             int e1   = face2elements_update[gfid][1];
@@ -4186,6 +4149,9 @@ void RepartitionObject::buildTag2GlobalElementMapsAndFace2LeftRightElementMap(MP
 
                     if(o_boundaryFace2Nodes.find(gfid)!=o_boundaryFace2Nodes.end())
                     {
+                        int fzone = ProvideBoundaryID(gfid,ranges_id);
+                        o_zone2bcface[fzone].push_back(gfid);
+
                         for(int n=0;n<Nv;n++)
                         {
                             //fn_tag[n] = face2verts_update[gfid][n];
@@ -4220,6 +4186,8 @@ void RepartitionObject::buildTag2GlobalElementMapsAndFace2LeftRightElementMap(MP
                 else
                 {
                      tag2ElementID[gelid] = lEl;
+
+                     o_rhp[gfid]          = lEl;
                 }
             }
 
@@ -4227,6 +4195,8 @@ void RepartitionObject::buildTag2GlobalElementMapsAndFace2LeftRightElementMap(MP
         }
         
     }
+
+    std::cout << rank <<  " fownedInmap " << fownedInmap << std::endl;
 
     //std::cout << "o_gE2tagE o_gE2tagE " << o_gE2tagE.size() << std::endl;
 
@@ -4418,7 +4388,34 @@ void RepartitionObject::buildTag2GlobalElementMapsAndFace2LeftRightElementMap(MP
     
 
 
-
+std::map<int,std::vector<int> > RepartitionObject::getZone2boundaryFaceID()
+{
+    return o_zone2bcface;
+}
+std::map<int,int> RepartitionObject::GetLeftHandFaceElementMap()
+{
+    return o_lhp;
+}
+std::map<int,int> RepartitionObject::GetRightHandFaceElementMap()
+{
+    return o_rhp;
+}
+std::map<int,int> RepartitionObject::GetLocalSharedFace2GlobalSharedFace()
+{
+    return o_locShF2globShF;
+}
+std::map<int,int> RepartitionObject::getSharedVertsNotOwned()
+{
+    return o_SharedVertsNotOwned;
+}
+std::map<int,int> RepartitionObject::getNonSharedVertsOwned()
+{
+    return o_NonSharedVertsOwned;
+}
+std::map<int,int> RepartitionObject::getSharedVertsOwned()
+{
+    return o_SharedVertsOwned;
+}
 std::map<int,int> RepartitionObject::getUpdatedTag2GlobalVMap()
 {
     return o_tag2globV;
@@ -4447,20 +4444,10 @@ std::map<int,std::vector<int> > RepartitionObject::getFaceTag2VertTagMap()
 {
     return o_face2verts_global;
 }
-
-
-
-
-
-std::map<int,int> RepartitionObject::GetLocalSharedFace2GlobalSharedFace()
-{
-    return o_locShF2globShF;
-}
 std::map<int,int> RepartitionObject::getGlobal2TagFMap()
 {
     return o_glob2tagF;
 }
-
 std::vector<int> RepartitionObject::getFace4ParMMG()
 {
     return o_faces4parmmg;

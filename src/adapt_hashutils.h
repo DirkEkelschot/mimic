@@ -1,5 +1,9 @@
 #include <boost/core/ignore_unused.hpp>
 
+#ifndef ADAPT_HASHUTILS_H
+#define ADAPT_HASHUTILS_H
+
+
 inline void hash_combine(std::size_t &seed)
 {
     boost::ignore_unused(seed);
@@ -58,3 +62,4 @@ struct EnumHash
 //        return seed;
 //    }
 //};
+#endif
