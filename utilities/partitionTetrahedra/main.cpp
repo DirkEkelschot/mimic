@@ -218,7 +218,7 @@ int main(int argc, char** argv)
     //=======================================================================================
     //==================================OUTPUT TETRA PARTITIONS==============================
     //=======================================================================================
-
+    std::cout << "Initializing the data structure for ParMMG..." << std::endl;
     PMMG_pParMesh parmesh = InitializeParMMGmesh(comm, tetra_repart, pttrace, meshRead->ranges_id);
 
     if (inputs->niter == 0)
@@ -287,8 +287,8 @@ int main(int argc, char** argv)
         std::cout << "writing prism data..." << std::endl;
         WritePrismsUS3DFormat(comm,prism_repart,pttrace,tracetagV2globalV,ifn_P,meshRead->ranges_id);
         
-        int ftott = ifn_T.size();
-        int ftotp = ifn_P.size();
+        int ftott = (int)ifn_T.size()/8;
+        int ftotp = (int)ifn_P.size()/8;
 
         std::vector<std::vector<int> > bcArrays;
         std::map<int,int> bcsizing;
@@ -299,7 +299,6 @@ int main(int argc, char** argv)
                                     ifn_T,
                                     ifn_P,
                                     bcref2bcface_T,
-                                    meshRead->zone2bcref,
                                     unique_trace_verts2refmap,
                                     tracetagV2globalV,
                                     BoundaryFaces_T,
@@ -311,113 +310,12 @@ int main(int argc, char** argv)
                                     lh_T_bc,
                                     new_globE2locE_T,
                                     bcArrays,
-                                    bcsizing);
+                                    bcsizing,
+                                    meshRead->zdefs,
+                                    meshRead->zone2bcref,
+                                    meshRead->zone2name,
+                                    meshRead->znames);
 
-        // int nPrismOUT = parmmg_iet_prisms->getNrow();
-
-        DistributedParallelState* distTetraVerts    = new DistributedParallelState(new_vertices_T.size(),comm);
-        DistributedParallelState* distPrismVerts    = new DistributedParallelState(nNonSharedVertsOwned_P+nSharedVertsOwned_P,comm);
-        
-        DistributedParallelState* distTetra         = new DistributedParallelState(new_tetrahedra_T.size(),comm);
-        DistributedParallelState* distPrism         = new DistributedParallelState(prism_repart->getLocElem().size(),comm);
-
-        DistributedParallelState* distftott         = new DistributedParallelState(ftott,comm);
-        DistributedParallelState* distftotp         = new DistributedParallelState(ftotp,comm);
-
-        int ToTElements_prism                       = distPrism->getNel();
-        int ToTElements                             = distTetra->getNel();
-        int nTotElements                            = ToTElements_prism+ToTElements;
-
-        int nTotTetraVerts                          = distTetraVerts->getNel();
-        int nTotPrismVerts                          = distPrismVerts->getNel();
-        int nTotVertsPrismTetra                     = nTotPrismVerts+nTotTetraVerts;
-
-        int nTotInteriorFaces_prism                 = distftotp->getNel();
-        int nTotInteriorFaces_tetra                 = distftott->getNel();
-
-        int nTotIntFaces                            = nTotInteriorFaces_prism + nTotInteriorFaces_tetra;
-
-        int nbo = bcArrays.size();
-        //std::cout << "-- Constructing the zdefs array..."<<std::endl;
-        // Array<int>* adapt_zdefs = new Array<int>(3+nbo,7);
-
-        // Collect node data (10) . Starting index-ending index Nodes
-        std::vector<std::vector<int> > zdefs(3+nbo);
-        std::cout << "3+nbo " << 3+nbo << " " << nbo << std::endl;
-        std::vector<int> zdefs_row0(7,0);
-        zdefs_row0[0] = 10;
-        zdefs_row0[1] = -1;
-        zdefs_row0[2] = 1;
-        zdefs_row0[3] = 1;
-        zdefs_row0[4] = nTotVertsPrismTetra;
-        zdefs_row0[5] = meshRead->zdefs[0][5];
-        zdefs_row0[6] = meshRead->zdefs[0][6];
-        zdefs[0] = zdefs_row0;
-        // Collect element data (12) . Starting index-ending index Element
-        std::vector<int> zdefs_row1(7,0);
-        zdefs_row1[0] = 12;
-        zdefs_row1[1] = -1;
-        zdefs_row1[2] = 2;
-        zdefs_row1[3] = 1;
-        zdefs_row1[4] = nTotElements;
-        zdefs_row1[5] = meshRead->zdefs[1][5];
-        zdefs_row1[6] = 2;
-        zdefs[1] = zdefs_row1;
-        // Collect internal face data (13) . Starting index-ending index internal face.
-        std::vector<int> zdefs_row2(7,0);
-        zdefs_row2[0] = 13;
-        zdefs_row2[1] = -1;
-        zdefs_row2[2] = 3;
-        zdefs_row2[3] = 1;
-        zdefs_row2[4] = nTotIntFaces;
-        zdefs_row2[5] = meshRead->zdefs[2][5];
-        zdefs_row2[6] = 2;
-        zdefs[2] = zdefs_row2;
-        
-
-        int qq  = 1;
-        int nb  = 0;
-        int face_start = nTotIntFaces+1;
-        int face_end;
-        int bnd_zone;
-        std::map<int,int>::iterator itr;
-        std::map<int,char*> newzone_2_name;
-        std::map<int,int> newzone2oldzone;
-        for(itr=bcsizing.begin();itr!=bcsizing.end();itr++)
-        {
-            int bnd_zone  		  = itr->first;
-            int bnd_ref   		  = bnd_zone;
-            newzone2oldzone[nb+3] = bnd_zone;
-            
-            if(meshRead->zone2bcref.find(bnd_zone)!=meshRead->zone2bcref.end())
-            {
-                bnd_ref = meshRead->zone2bcref[bnd_ref];
-                newzone_2_name[nb+3]=meshRead->zone2name[bnd_zone];
-            }
-            
-            int bnd_size = itr->second;
-            face_end = face_start+bnd_size-1;
-            std::vector<int> zdefs_row(7,0);
-            zdefs_row[0] = 13;
-            zdefs_row[1] = -1;
-            zdefs_row[2] = 3+qq;
-            zdefs_row[3] = face_start;
-            zdefs_row[4] = face_end;
-            zdefs_row[5] = bnd_ref;
-            zdefs_row[6] = 2;
-            zdefs[3+nb] = zdefs_row;
-            face_start = face_end+1;
-            
-            
-            nb++;
-            qq++;
-        }
-                
-        
-        if(world_rank == 0)
-        {
-            PlotBoundaryData_Lite(meshRead->znames,zdefs);
-        }
         
     }
 

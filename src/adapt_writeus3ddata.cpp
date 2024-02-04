@@ -37,6 +37,7 @@ void WritePrismsUS3DFormat(MPI_Comm comm,
     std::map<int,int> unique_trace_verts2refmap     = pttrace->GetUniqueTraceVerts2RefMap();
     int nLocFace_P = InternalFaces_P.size()+SharedFaces_P.size();
     ifn_P.resize(nLocFace_P*8);
+    std::cout << "nLocFace_P " << nLocFace_P << " " << nLocFace_P*8 << std::endl;
     std::fill(ifn_P.begin(), ifn_P.end(), 0);
 
     int fptot = 0;
@@ -162,6 +163,7 @@ void WritePrismsUS3DFormat(MPI_Comm comm,
     }
 
 
+    std::cout << "InteriorFaces_P " << InternalFaces_P.size() << std::endl;
 
 
 
@@ -169,6 +171,8 @@ void WritePrismsUS3DFormat(MPI_Comm comm,
 
 
     int ishare = 0;
+
+    std::cout << "SharedFaces_P " << SharedFaces_P.size() << std::endl;
 
     for( itmiv=SharedFaces_P.begin();itmiv!=SharedFaces_P.end();itmiv++)
     {
@@ -294,7 +298,7 @@ void WritePrismsUS3DFormat(MPI_Comm comm,
         fptot++;
     }
 
-    std::cout << "ishare " << ishare << " " << SharedFaces_P.size() << std::endl;
+    std::cout << "ishare " << ishare << " " << SharedFaces_P.size() << " " << world_rank << std::endl;
 }
 
 
@@ -304,7 +308,6 @@ void WriteBoundaryDataUS3DFormat(MPI_Comm comm,
                                 std::vector<int> ifn_T,
                                 std::vector<int> ifn_P,
                                 std::map<int,std::vector<int> > bcref2bcface_T,
-                                std::map<int,int> zone2bcref,
                                 std::map<int,int> unique_trace_verts2refmap,
                                 std::map<int,int> tracetagV2globalV,
                                 std::map<int,std::vector<int> > BoundaryFaces_T,
@@ -316,7 +319,11 @@ void WriteBoundaryDataUS3DFormat(MPI_Comm comm,
                                 std::map<int,int> lh_T_bc,
                                 std::map<int,int> new_globE2locE_T,
                                 std::vector<std::vector<int> > &bcArrays,
-                                std::map<int,int> &bcsizing)
+                                std::map<int,int> &bcsizing,
+                                std::vector<std::vector<int> > zdefs,
+                                std::map<int,int> zone2bcref,
+                                std::map<int,char*> zone2name,
+                                std::vector<std::vector<char> > znames)
 {
     int world_size;
     MPI_Comm_size(comm, &world_size);
@@ -334,11 +341,11 @@ void WriteBoundaryDataUS3DFormat(MPI_Comm comm,
     std::map<int,int> tagv2locvID_P                         = prism_repart->getVertTag2LocalVert();
     std::map<int,std::vector<int> > ElementTag2VertexTag_P  = prism_repart->getElement2VertexMap();
 
-    DistributedParallelState* distFaceTetraTot = new DistributedParallelState(ifn_T.size(),comm);
-    DistributedParallelState* distFacePrismTot = new DistributedParallelState(ifn_P.size(),comm);
+    // DistributedParallelState* distFaceTetraTot = new DistributedParallelState(ifn_T.size(),comm);
+    // DistributedParallelState* distFacePrismTot = new DistributedParallelState(ifn_P.size(),comm);
 
-    int nTotInteriorFaces_tetra          = distFaceTetraTot->getNel();    
-    int nTotInteriorFaces_prism          = distFacePrismTot->getNel();
+    // int nTotInteriorFaces_tetra          = distFaceTetraTot->getNel();    
+    // int nTotInteriorFaces_prism          = distFacePrismTot->getNel();
    
     std::map<int,std::vector<int> >::iterator bit;
     std::set<int> sorted_BCid;
@@ -684,7 +691,9 @@ void WriteBoundaryDataUS3DFormat(MPI_Comm comm,
             }
             
         }
-        
+
+        int ftott = (int)ifn_T.size()/8;
+        int ftotp = (int)ifn_P.size()/8;
 
         int nbt = Nbft+Nbfp;
         
@@ -695,5 +704,115 @@ void WriteBoundaryDataUS3DFormat(MPI_Comm comm,
         
         nTotBCFaces_offset = nTotBCFaces_offset + NelTot_bci;
         nTotBCFaces        = nTotBCFaces + NelTot_bci;   
+        
+    }
+    int ftott = (int)ifn_T.size()/8;
+    int ftotp = (int)ifn_P.size()/8;
+    int nNonSharedVertsOwned_P                          = prism_repart->getNonSharedVertsOwned().size();
+    int nSharedVertsOwned_P                             = prism_repart->getSharedVertsOwned().size();
+
+    DistributedParallelState* distTetraVerts    = new DistributedParallelState(new_vertices_T.size(),comm);
+    DistributedParallelState* distPrismVerts    = new DistributedParallelState(nNonSharedVertsOwned_P+nSharedVertsOwned_P,comm);
+    
+    DistributedParallelState* distTetra         = new DistributedParallelState(new_tetrahedra_T.size(),comm);
+    DistributedParallelState* distPrism         = new DistributedParallelState(prism_repart->getLocElem().size(),comm);
+
+    DistributedParallelState* distftott         = new DistributedParallelState(ftott,comm);
+    DistributedParallelState* distftotp         = new DistributedParallelState(ftotp,comm);
+
+    int ToTElements_prism                       = distPrism->getNel();
+    int ToTElements                             = distTetra->getNel();
+    int nTotElements                            = ToTElements_prism+ToTElements;
+
+    int nTotTetraVerts                          = distTetraVerts->getNel();
+    int nTotPrismVerts                          = distPrismVerts->getNel();
+    int nTotVertsPrismTetra                     = nTotPrismVerts+nTotTetraVerts;
+
+    int nTotInteriorFaces_prism                 = distftotp->getNel();
+    int nTotInteriorFaces_tetra                 = distftott->getNel();
+
+    int nTotIntFaces                            = nTotInteriorFaces_prism + nTotInteriorFaces_tetra;
+
+    std::cout << " nTotInteriorFaces_prism " << nTotInteriorFaces_prism << std::endl;
+    std::cout << " nTotInteriorFaces_tetra " << nTotInteriorFaces_tetra << std::endl;
+    int nbo = bcArrays.size();
+    //std::cout << "-- Constructing the zdefs array..."<<std::endl;
+    // Array<int>* adapt_zdefs = new Array<int>(3+nbo,7);
+
+    // Collect node data (10) . Starting index-ending index Nodes
+    std::vector<std::vector<int> > zdefs_new(3+nbo);
+    std::cout << "3+nbo " << 3+nbo << " " << nbo << std::endl;
+    std::vector<int> zdefs_row0(7,0);
+    zdefs_row0[0] = 10;
+    zdefs_row0[1] = -1;
+    zdefs_row0[2] = 1;
+    zdefs_row0[3] = 1;
+    zdefs_row0[4] = nTotVertsPrismTetra;
+    zdefs_row0[5] = zdefs[0][5];
+    zdefs_row0[6] = zdefs[0][6];
+    zdefs_new[0] = zdefs_row0;
+    // Collect element data (12) . Starting index-ending index Element
+    std::vector<int> zdefs_row1(7,0);
+    zdefs_row1[0] = 12;
+    zdefs_row1[1] = -1;
+    zdefs_row1[2] = 2;
+    zdefs_row1[3] = 1;
+    zdefs_row1[4] = nTotElements;
+    zdefs_row1[5] = zdefs[1][5];
+    zdefs_row1[6] = 2;
+    zdefs_new[1] = zdefs_row1;
+    // Collect internal face data (13) . Starting index-ending index internal face.
+    std::vector<int> zdefs_row2(7,0);
+    zdefs_row2[0] = 13;
+    zdefs_row2[1] = -1;
+    zdefs_row2[2] = 3;
+    zdefs_row2[3] = 1;
+    zdefs_row2[4] = nTotIntFaces;
+    zdefs_row2[5] = zdefs[2][5];
+    zdefs_row2[6] = 2;
+    zdefs_new[2] = zdefs_row2;
+    
+
+    int qq  = 1;
+    int nb  = 0;
+    int face_start = nTotIntFaces+1;
+    int face_end;
+    int bnd_zone;
+    std::map<int,int>::iterator itr;
+    std::map<int,char*> newzone_2_name;
+    std::map<int,int> newzone2oldzone;
+    for(itr=bcsizing.begin();itr!=bcsizing.end();itr++)
+    {
+        int bnd_zone  		  = itr->first;
+        int bnd_ref   		  = bnd_zone;
+        newzone2oldzone[nb+3] = bnd_zone;
+        
+        if(zone2bcref.find(bnd_zone)!=zone2bcref.end())
+        {
+            bnd_ref = zone2bcref[bnd_ref];
+            newzone_2_name[nb+3]=zone2name[bnd_zone];
+        }
+        
+        int bnd_size = itr->second;
+        face_end = face_start+bnd_size-1;
+        std::vector<int> zdefs_row(7,0);
+        zdefs_row[0] = 13;
+        zdefs_row[1] = -1;
+        zdefs_row[2] = 3+qq;
+        zdefs_row[3] = face_start;
+        zdefs_row[4] = face_end;
+        zdefs_row[5] = bnd_ref;
+        zdefs_row[6] = 2;
+        zdefs_new[3+nb] = zdefs_row;
+        face_start = face_end+1;
+        
+        
+        nb++;
+        qq++;
+    }            
+    
+    if(world_rank == 0)
+    {
+        PlotBoundaryData_Lite(znames,zdefs_new);
     }
 }
