@@ -3174,7 +3174,7 @@ void RepartitionObject::buildCommunicationMaps(MPI_Comm comm)
 
 
 
-void RepartitionObject::buildInteriorSharedAndBoundaryFacesMaps(MPI_Comm comm, 
+void RepartitionObject::buildUpdatedVertexAndFaceNumbering(MPI_Comm comm, 
                                                                 PrismTetraTrace* trace,
                                                                 std::map<int,std::vector<int> > ranges_id)
 {
@@ -3189,7 +3189,6 @@ void RepartitionObject::buildInteriorSharedAndBoundaryFacesMaps(MPI_Comm comm,
     std::map<int,int> uniqure_trace_verts2ref       = trace->GetUniqueTraceVerts2RefMap();
 
     int Nel_loc  = Loc_Elem.size();
-    int Nel_glob = part_global.size();
     int ref;
     
     std::set<int> gvid_set;
@@ -3213,6 +3212,7 @@ void RepartitionObject::buildInteriorSharedAndBoundaryFacesMaps(MPI_Comm comm,
     {
         int elid = *its;
         int Nf = elements2faces_update[elid].size();
+
         for(int j=0;j<Nf;j++)
         {
             int gfid = elements2faces_update[elid][j];
@@ -3247,10 +3247,6 @@ void RepartitionObject::buildInteriorSharedAndBoundaryFacesMaps(MPI_Comm comm,
            
                 if(ref==2)// Internal and Shared faces are here.
                 {
-                    if(r0==r1) // Internal face
-                    {
-                        o_interiorFace2Nodes[gfid] = face;
-                    }
                     if(r0==rank && r1!=rank)
                     {
                         sharedFace2Rank[gfid] = r0;
@@ -3260,112 +3256,10 @@ void RepartitionObject::buildInteriorSharedAndBoundaryFacesMaps(MPI_Comm comm,
                         sharedFace2Rank[gfid] = r1;
                     }
                 }
-                else
-                {         
-                    o_boundaryFace2Nodes[gfid] = face;
-
-                    if(o_boundaryFaces.find(gfid)==o_boundaryFaces.end())
-                    {
-                        o_boundaryFaces2Ref[gfid] = ref;
-                        o_boundaryFaces[bface] = gfid;
-                        bface++;
-                    }
-                }
             }
         }
     }
-
-    std::cout << "sharedFace2Rank.size(); " << sharedFace2Rank.size() << " " << ntrace << std::endl;
-
-    // for(itmiv=face2elements_update.begin();itmiv!=face2elements_update.end();itmiv++)
-    // {
-    //     int gfid = itmiv->first;
-
-    //     if(trace_elem.find(gfid)!=trace_elem.end())
-    //     {
-    //         ref = 13;
-
-    //         tracef++;
-    //     }
-    //     else
-    //     {
-    //         ref      = face2reference_update[gfid][0];
-    //         int e0   = face2elements_update[gfid][0];
-    //         int e1   = face2elements_update[gfid][1];
-
-
-    //         refsc.insert(ref);
-    //         // Determine the number of nodes on this face.
-    //         if(face2Nverts_update.find(gfid)!=face2Nverts_update.end())
-    //         {
-    //             int Nv   = face2Nverts_update[gfid][0];
-    //             // copy the correct amount of nodes into a new face vector.
-    //             std::vector<int> face(Nv,0);
-    //             for(int k=0;k<Nv;k++)
-    //             {
-    //                 int vid = face2verts_update[gfid][k];
-    //                 face[k] = vid;
-
-    //                 if(unique_vertex_set_on_rank.find(vid)==unique_vertex_set_on_rank.end() &&
-    //                 uniqure_trace_verts2ref.find(vid)==uniqure_trace_verts2ref.end())
-    //                 {
-    //                     unique_vertex_set_on_rank.insert(vid);
-    //                 }
-    //             }
-    //             if(ref==2)// Internal and Shared faces are here.
-    //             {
-    //                 int r0 = part_global[e0]; // rank of first adjacent element.
-    //                 int r1 = part_global[e1]; // rank of second adjacent element.
-                    
-    //                 if(r0==r1) // Internal face
-    //                 {
-    //                     o_interiorFace2Nodes[gfid] = face;
-    //                 }
-    //                 if(r0!=r1) // Shared face
-    //                 {
-    //                     o_sharedFace2Nodes[gfid] = face;
-
-    //                     if(r0 == rank && r1 != rank)
-    //                     {
-    //                         sharedFace2Rank[gfid] = r0;
-    //                         // o_colorRh[r1].push_back(e1);
-    //                         // o_colorFh[r1].push_back(gfid);
-    //                     }
-    //                     if(r1 == rank && r0 != rank)
-    //                     {
-    //                         sharedFace2Rank[gfid] = r1;
-    //                         // o_colorRh[r0].push_back(e0);
-    //                         // o_colorFh[r0].push_back(gfid);
-    //                     }
-    //                 }                        
-    //             }
-    //         }
-    //     }
-    // }
-
-    // std::cout << "refsc " << refsc.size() << std::endl;
-    // std::set<int>::iterator its;
-    // for(its=refsc.begin();its!=refsc.end();its++)
-    // {
-    //     std::cout << "*its" << *its << std::endl;
-    // }
-    //std::cout << "o_boundaryFaces " << o_boundaryFaces.size() << std::endl;
-    int nLocalVertsTot = unique_vertex_set_on_rank.size();
-
-    std::set<int> UniqueInteriorVertsOnRank_set;
-    for(itmiv=o_interiorFace2Nodes.begin();itmiv!=o_interiorFace2Nodes.end();itmiv++)
-    {
-        for(int q=0;q<itmiv->second.size();q++)
-        {
-            int vid = itmiv->second[q];
-
-            if(UniqueInteriorVertsOnRank_set.find(vid)==UniqueInteriorVertsOnRank_set.end())
-            {
-                UniqueInteriorVertsOnRank_set.insert(vid);
-            }
-        }
-    }
-
+    
     // Take care of shared faces and vertices
     std::set<int> UniqueSharedVertsOnRank_set;
     std::vector<int> UniqueSharedVertsOnRank_RankID;
@@ -3373,7 +3267,8 @@ void RepartitionObject::buildInteriorSharedAndBoundaryFacesMaps(MPI_Comm comm,
     for(itmii=sharedFace2Rank.begin();itmii!=sharedFace2Rank.end();itmii++)
     {
         int gfid = itmii->first;
-        int Nv = face2verts_update[gfid].size();
+        // int Nv = face2verts_update[gfid].size();
+        int Nv   = face2Nverts_update[gfid][0];
         for(int q=0;q<Nv;q++)
         {
             int vid = face2verts_update[gfid][q];
@@ -3387,7 +3282,7 @@ void RepartitionObject::buildInteriorSharedAndBoundaryFacesMaps(MPI_Comm comm,
             }
         }
     }
-
+    int nLocalVertsTot = unique_vertex_set_on_rank.size();
     std::vector<int> nLocalVertsTot_loc_test(size,0);
     nLocalVertsTot_loc_test[rank] = nLocalVertsTot;
     std::vector<int> nLocalVertsTot_red_test(size,0);
@@ -3398,7 +3293,6 @@ void RepartitionObject::buildInteriorSharedAndBoundaryFacesMaps(MPI_Comm comm,
 
     int N_un_traceV = uniqure_trace_verts2ref.size();
     int N_un_shareV = UniqueSharedVertsOnRank_set.size();
-    int N_un_interV = UniqueInteriorVertsOnRank_set.size();
     int summednLocalVertsTot = 0;
 
     for(int i=0;i<size;i++)
@@ -3574,6 +3468,7 @@ void RepartitionObject::buildInteriorSharedAndBoundaryFacesMaps(MPI_Comm comm,
     std::map<int,int> sharedVmap;
     for(itvv=o_sharedVertex2RankMap.begin();itvv!=o_sharedVertex2RankMap.end();itvv++)
     {
+        // std::cout << "iVshared "  << itvv->first << "  --  " <<  iVshared << " " << distLocalVerts->getNel() << " " << o_sharedVertex2RankMap.size()<< std::endl;
         sharedVmap[itvv->first] = iVshared;
         iVshared++;
     }
@@ -3667,7 +3562,7 @@ void RepartitionObject::buildInteriorSharedAndBoundaryFacesMaps(MPI_Comm comm,
         int Nf      = elements2faces_update[gelid].size();
         int Nv      = elements2verts_update[gelid].size();
 
-        std::vector<int> vertices(Nv,0);
+        // std::vector<int> vertices(Nv,0);
 
         for(int p=0;p<Nv;p++)
         {
@@ -3676,7 +3571,6 @@ void RepartitionObject::buildInteriorSharedAndBoundaryFacesMaps(MPI_Comm comm,
             if(o_sharedVertexMapUpdatedGlobalID.find(TagVid)!=o_sharedVertexMapUpdatedGlobalID.end())
             {
                 int GlobVID             = o_sharedVertexMapUpdatedGlobalID[TagVid];
-                vertices[p]             = GlobVID;
 
                 if(o_tag2globV.find(TagVid)==o_tag2globV.end())
                 {
@@ -3696,15 +3590,10 @@ void RepartitionObject::buildInteriorSharedAndBoundaryFacesMaps(MPI_Comm comm,
                     o_glob2tagV[gloVid] = TagVid;
                     o_loc2globV[locVid] = gloVid;
                     o_glob2locV[gloVid] = locVid;
-                    vertices[p]  = gloVid;
                     gloVid = gloVid + 1;
                     locVid = locVid + 1;
                 }
-                else
-                {
-                    int gloVid_tmp = o_tag2globV[TagVid];
-                    vertices[p]    = gloVid_tmp;
-                }
+                
             }         
         }
 
@@ -3770,217 +3659,8 @@ void RepartitionObject::buildInteriorSharedAndBoundaryFacesMaps(MPI_Comm comm,
         {
             int fid    = o_element2faces_global[eid][i];
             int tagfid = o_glob2tagF[fid];
-            int nv     = face2verts_update[tagfid].size();
-            std::vector<int> verts(nv,0);
-
-            for(int j=0;j<nv;j++)
-            {
-                int tagvid  =  face2verts_update[tagfid][j];
-                verts[j]    =  o_tag2globV[tagvid];
-            }
-            
-            if(o_face2verts_global.find(fid)==o_face2verts_global.end())
-            {
-                o_face2verts_global[fid] = verts;
-            }
-        }
-    }
-
-
-    // for(itmii=o_NonSharedVertsOwned.begin();itmii!=o_NonSharedVertsOwned.end();itmii++)
-    // {
-    //     int tag = itmii->first;
-
-    //     o_locPartV2globV[tag] = vert+distnLocIntVrts->getOffsets()[rank]+1;
-    //     o_globPartV2locV[vert+distnLocIntVrts->getOffsets()[rank]+1] = tag;
-        
-    //     vert++;
-    // }
-
-
-    // int vertsh = 0;
-    
-    // for(iitm=SharedVertsOwned.begin();iitm!=SharedVertsOwned.end();iitm++)
-    // {
-    //     int tag                      = iitm->first;
-        
-    //     o_locPartV2globV[tag] = SharedVertsOwned[tag];
-    //     o_globPartV2locV[SharedVertsOwned[tag]] = tag;
-        
-    //     vertsh++;
-    // }
-}
-
-
-
-
-
-void RepartitionObject::UpdateGlobalIDs(MPI_Comm comm,PrismTetraTrace* trace)
-{
-    int size;
-    MPI_Comm_size(comm, &size);
-    // Get the rank of the process
-    int rank;
-    MPI_Comm_rank(comm, &rank);
-    std::map<int,std::vector<int> >::iterator itmiv;
-    //==============================
-    // BEGIN building o_tagE2gE
-    // BEGIN building o_gE2tagE
-    // BEGIN building LeftHandRightHandElementVec lhp/rhp
-    //==============================
-
-    // buildTag2GlobalElementMapsAndFace2LeftRightElementMap()
-    std::map<int,std::map<int,int> > trace_elem     = trace->GetTrace();
-    std::map<int,std::vector<int> > trace_verts     = trace->GetTraceVerts();
-    std::map<int,int> uniqure_trace_verts2ref       = trace->GetUniqueTraceVerts2RefMap();
-    
-    DistributedParallelState* ElementDistr = new DistributedParallelState(part.size(),comm);
-    int u = 0;
-    int gvidd = 0;
-
-    std::map<int,int> tag2ElementID;
-    std::set<int> faceset;
-    int nSharedFaces = o_sharedFace2Nodes.size();
-    int N_localFaces = face2elements_update.size();
-    int nNonSharedFaces = N_localFaces-nSharedFaces;
-    std::vector<int> nNonSharedFacesArray(size,0);
-    std::vector<int> nNonSharedFacesArrayRed(size,0);
-    std::vector<int> nNonSharedArrayRed(size,0);
-    std::vector<int> nNonSharedVertsArrayOff(size,0);
-    for(int i=0;i<size;i++)
-    {
-        nNonSharedFacesArray[i] = 0;
-        if(i==rank)
-        {
-            nNonSharedFacesArray[i] = nNonSharedFaces;
-        }
-    }
-
-    MPI_Allreduce(nNonSharedFacesArray.data(),
-                nNonSharedFacesArrayRed.data(),
-                size,
-                MPI_INT, MPI_SUM, comm);
-
-    std::vector<int> nNonSharedFacesArrayOff(size,0);
-    int nonFacesSharedOff     = 0;
-    int nonSharedOff = 0;
-    for(int i=0;i<size;i++)
-    {
-        nNonSharedVertsArrayOff[i] = nonSharedOff;
-        nNonSharedFacesArrayOff[i] = nonFacesSharedOff;
-        
-        nonSharedOff = nonSharedOff + nNonSharedArrayRed[i];
-        nonFacesSharedOff = nonFacesSharedOff + nNonSharedFacesArrayRed[i];
-    }
-
-    int lfid = nNonSharedFacesArrayOff[rank];
-
-    int Nel_loc = Loc_Elem.size();
-    
-    int gloVid = nNonSharedFacesArrayOff[rank];
-    int gloFid = nNonSharedFacesArrayOff[rank];
-
-    for(int i = 0;i < Nel_loc;i++)
-    {
-        int gelid   = Loc_Elem[i];       
-        int gEl     = ElementDistr->getOffsets()[rank]+u+1;
-        int Nf      = elements2faces_update[gelid].size();
-        int Nv      = elements2verts_update[gelid].size();
-
-        std::vector<int> vertices(Nv,0);
-
-        for(int p=0;p<Nv;p++)
-        {
-            int TagVid = elements2verts_update[gelid][p];
-
-            if(o_sharedVertexMapUpdatedGlobalID.find(TagVid)!=o_sharedVertexMapUpdatedGlobalID.end())
-            {
-                int GlobVID             = o_sharedVertexMapUpdatedGlobalID[TagVid];
-                vertices[p]             = GlobVID;
-
-                if(o_tag2globV.find(TagVid)==o_tag2globV.end())
-                {
-                    o_tag2globV[TagVid] = GlobVID;
-                    o_glob2tagV[GlobVID] = TagVid;
-                }
-                             
-            }
-            else
-            {
-                if(o_tag2globV.find(TagVid)==o_tag2globV.end())
-                {
-                    o_tag2globV[TagVid] = gloVid;
-                    o_glob2tagV[gloVid] = TagVid;
-
-                    vertices[p]  = gloVid;
-                    gloVid = gloVid + 1;
-                }
-                else
-                {
-                    int gloVid_tmp = o_tag2globV[TagVid];
-                    vertices[p]    = gloVid_tmp;
-                }
-            }         
-        }
-
-
-        std::vector<int> faces(Nf,0);
-        for(int q=0;q<Nf;q++)
-        {
-            int TagFid = elements2faces_update[gelid][q];
-
-            if(o_sharedFaceMapUpdatedGlobalID.find(TagFid)!=o_sharedFaceMapUpdatedGlobalID.end())
-            {
-                int GlobFID = o_sharedFaceMapUpdatedGlobalID[TagFid]; 
-                faces[q]    = GlobFID; 
-                o_face2elements_global[GlobFID].push_back(gEl);
-
-                if(o_tag2globF.find(TagFid)==o_tag2globF.end())
-                {
-                    o_tag2globF[TagFid] = GlobFID;
-                    o_glob2tagF[GlobFID] = TagFid;
-                }
-
-            }
-            else
-            {
-                if(o_tag2globF.find(TagFid)==o_tag2globF.end())
-                {
-                    o_tag2globF[TagFid] = gloFid;
-                    o_glob2tagF[gloFid] = TagFid;
-
-                    faces[q]     = gloFid;
-                    o_face2elements_global[gloFid].push_back(gEl);
-                    gloFid       = gloFid + 1;
-                }
-                else
-                {
-                    int gloFid_tmp = o_tag2globF[TagFid];
-                    faces[q]       = gloFid_tmp;
-
-                    o_face2elements_global[gloFid_tmp].push_back(gEl);
-                }
-
-                lfid++;
-            }
-        }
-
-        o_element2faces_global[gEl] = faces;
-
-        u = u + 1;
-
-    }
-
-    for(itmiv=o_element2faces_global.begin();itmiv!=o_element2faces_global.end();itmiv++)
-    {
-        int eid = itmiv->first;
-        int nf = itmiv->second.size();
-        
-        for(int i=0;i<nf;i++)
-        {
-            int fid    = o_element2faces_global[eid][i];
-            int tagfid = o_glob2tagF[fid];
-            int nv     = face2verts_update[tagfid].size();
+            // int nv     = face2verts_update[tagfid].size();
+            int nv     = face2Nverts_update[tagfid][0];
             std::vector<int> verts(nv,0);
 
             for(int j=0;j<nv;j++)
@@ -4005,9 +3685,9 @@ void RepartitionObject::UpdateGlobalIDs(MPI_Comm comm,PrismTetraTrace* trace)
 
 
 
-void RepartitionObject::buildTag2GlobalElementMapsAndFace2LeftRightElementMap(MPI_Comm comm, 
-                                                                            PrismTetraTrace* trace, 
-                                                                            std::map<int,std::vector<int> > ranges_id)
+void RepartitionObject::buildInteriorSharedAndBoundaryFaceMaps(MPI_Comm comm, 
+                                                               PrismTetraTrace* trace, 
+                                                               std::map<int,std::vector<int> > ranges_id)
 {
     int size;
     MPI_Comm_size(comm, &size);
@@ -4021,14 +3701,13 @@ void RepartitionObject::buildTag2GlobalElementMapsAndFace2LeftRightElementMap(MP
     // BEGIN building LeftHandRightHandElementVec lhp/rhp
     //==============================
 
-    // buildTag2GlobalElementMapsAndFace2LeftRightElementMap()
+    // buildInteriorSharedAndBoundaryFaceMaps()
     std::map<int,std::map<int,int> > trace_elem     = trace->GetTrace();
     std::map<int,std::vector<int> > trace_verts     = trace->GetTraceVerts();
     std::map<int,int> uniqure_trace_verts2ref       = trace->GetUniqueTraceVerts2RefMap();
     
-    DistributedParallelState* ElementDistr = new DistributedParallelState(part.size(),comm);
-    int u = 0;
-    int gvidd = 0;
+    DistributedParallelState* ElementDistr = new DistributedParallelState(Loc_Elem_Set.size(),comm);
+
 
     std::map<int,int> tag2ElementID;
     std::set<int> faceset;
@@ -4069,200 +3748,181 @@ void RepartitionObject::buildTag2GlobalElementMapsAndFace2LeftRightElementMap(MP
     int lvid  = nNonSharedFacesArrayOff[rank];
     int lfid  = nNonSharedFacesArrayOff[rank];
     // lfid = 0;
-    std::map<int,int> tagV2locglobVID;
     std::map<int,int> tagF2locFID;
     int fownedInmap = 0;
-    for(itmiv=elements2faces_update.begin();itmiv!=elements2faces_update.end();itmiv++)
+    std::set<int>::iterator its;
+    int ref = -1;
+
+    int u = 0;
+    int gvidd = 0;
+    for(its=Loc_Elem_Set.begin();its!=Loc_Elem_Set.end();its++)
     {
+        int gelid   = *its;
 
-        int gelid   = itmiv->first;
+        int lEl             = ElementDistr->getOffsets()[rank]+u+1;
+        int Nf              = elements2faces_update[gelid].size();
+        int Nv              = elements2verts_update[gelid].size();
 
-        if(Loc_Elem_Set.find(gelid)!=Loc_Elem_Set.end())
+        o_tagE2gE[gelid]    = lEl;
+        o_gE2tagE[lEl]      = gelid;
+        o_tagE2lE[gelid]    = u;
+        o_lE2tagE[u]        = gelid;
+
+        for(int q=0;q<Nf;q++)
         {
-            int lEl     = ElementDistr->getOffsets()[rank]+u+1;
-            int Nf      = elements2faces_update[gelid].size();
-            int Nv      = elements2verts_update[gelid].size();
-            o_tagE2gE[gelid]  = lEl;
-            o_gE2tagE[lEl]    = gelid;
-            o_tagE2lE[gelid]  = u;
-            o_lE2tagE[u]      = gelid;
+            int gfid = elements2faces_update[gelid][q];
+            int Nv   = face2Nverts_update[gfid][0];
 
-
-            for(int p=0;p<Nv;p++)
+            if(trace_elem.find(gfid)!=trace_elem.end())
             {
-                int gvid = elements2verts_update[gelid][p];
-                if(o_sharedVertexMapUpdatedGlobalID.find(gvid)!=o_sharedVertexMapUpdatedGlobalID.end())
+                ref  = 13;
+            }
+            else
+            {
+                ref  = face2reference_update[gfid][0];            
+            }
+            
+            if(faceset.find(gfid)==faceset.end())
+            {
+                faceset.insert(gfid);
+            
+                if(o_sharedFace2RankMap.find(gfid)!=o_sharedFace2RankMap.end() && ref!=13)
                 {
-                    tagV2locglobVID[gvid] = o_sharedVertexMapUpdatedGlobalID[gvid];                        
+
+                    if(o_sharedFace2RankMap[gfid] == rank)
+                    {                                
+                        if(o_sharedFace2Nodes.find(gfid)==o_sharedFace2Nodes.end())
+                        {
+                            int e0   = face2elements_update[gfid][0];
+                            int e1   = face2elements_update[gfid][1];
+                            
+                            int r0   = part_global[e0];
+                            int r1   = part_global[e1];
+                            
+                            if(r0==rank && r1!=rank)
+                            {
+                                o_colorRh[r1].push_back(e1);
+                                o_colorFh[r1].push_back(gfid);
+                            }
+                            else if(r1==rank && r0!=rank)
+                            {
+                                o_colorRh[r0].push_back(e0);
+                                o_colorFh[r0].push_back(gfid);
+                            }
+                            
+                            std::vector<int> fn_tag(Nv,0);
+                            for(int n=0;n<Nv;n++)
+                            {
+                                fn_tag[n] = face2verts_update[gfid][n];
+
+                                if(o_SharedVertsOwned.find(fn_tag[n])==o_SharedVertsOwned.end() 
+                                        && uniqure_trace_verts2ref.find(fn_tag[n])==uniqure_trace_verts2ref.end())
+                                {
+                                    if(o_SharedVertsNotOwned.find(fn_tag[n])==o_SharedVertsNotOwned.end())
+                                    {
+                                        o_SharedVertsNotOwned[fn_tag[n]] = o_sharedVertexMapUpdatedGlobalID[fn_tag[n]];
+                                    }
+                                }
+                            }
+
+                            o_sharedFace2Nodes[gfid] = fn_tag;
+                            
+                            
+                            o_lhp[gfid] = lEl;
+
+                        }
+                    }
                 }
                 else
                 {
-                    tagV2locglobVID[gvid] = lfid;
-                    lfid++;
-                }
-            }
-
-
-            for(int q=0;q<Nf;q++)
-            {
-                int gfid = elements2faces_update[gelid][q];
-                int Nv   = face2Nverts_update[gfid][0];
-                
-                if(faceset.find(gfid)==faceset.end())
-                {
-                    faceset.insert(gfid);
-                    
-                    
-
-                    if(o_sharedFaceMapUpdatedGlobalID.find(gfid)!=o_sharedFaceMapUpdatedGlobalID.end())
+                    if(ref == 2)
                     {
-                        o_tagF2locFID[gfid] = o_sharedFaceMapUpdatedGlobalID[gfid];
-                    }
-                    else
-                    {
-                        o_tagF2locFID[gfid] = lfid;
-                        lfid++;
-                    }
-                    if(o_sharedFace2RankMap.find(gfid)!=o_sharedFace2RankMap.end())
-                    {
-                        int frank = o_sharedFace2RankMap[gfid];
-                        if(frank == rank)
-                        {                                
-                            if(o_sharedFace2Nodes.find(gfid)==o_sharedFace2Nodes.end())
+                        if(o_interiorFace2Nodes.find(gfid)==o_interiorFace2Nodes.end())
+                        {
+                            std::vector<int> fn_tag(Nv,0);
+                            for(int n=0;n<Nv;n++)
                             {
-                                std::vector<int> vertTags(Nv,0);
-                                for(int c=0;c<Nv;c++)
-                                {
-                                    vertTags[c] = face2verts_update[gfid][c];
-                                }
-                                o_sharedFace2Nodes[gfid] = vertTags;
-
-                                fownedInmap++;
-
-                                int e0   = face2elements_update[gfid][0];
-                                int e1   = face2elements_update[gfid][1];
+                                fn_tag[n] = face2verts_update[gfid][n];
                                 
-                                int r0   = part_global[e0];
-                                int r1   = part_global[e1];
-                                
-                                if(r0==rank && r1!=rank)
+                                if(o_sharedVertex2RankMap.find(fn_tag[n])!=o_sharedVertex2RankMap.end())
                                 {
-                                    o_colorRh[r1].push_back(e1);
-                                    o_colorFh[r1].push_back(gfid);
-                                }
-                                else if(r1==rank && r0!=rank)
-                                {
-                                    o_colorRh[r0].push_back(e0);
-                                    o_colorFh[r0].push_back(gfid);
-                                }
-                                
-                                std::vector<int> fn_tag(Nv,0);
-
-                                for(int n=0;n<Nv;n++)
-                                {
-                                    //fn_tag[n] = face2verts_update[gfid][n];
-                                    int vid = o_sharedFace2Nodes[gfid][n];
-
-                                    if(o_SharedVertsOwned.find(vid)==o_SharedVertsOwned.end() 
-                                            && uniqure_trace_verts2ref.find(vid)==uniqure_trace_verts2ref.end())
+                                    if(o_SharedVertsOwned.find(fn_tag[n])==o_SharedVertsOwned.end() 
+                                            && uniqure_trace_verts2ref.find(fn_tag[n])==uniqure_trace_verts2ref.end())
                                     {
-                                        if(o_SharedVertsNotOwned.find(vid)==o_SharedVertsNotOwned.end())
+                                        if(o_SharedVertsNotOwned.find(fn_tag[n])==o_SharedVertsNotOwned.end())
                                         {
-                                            o_SharedVertsNotOwned[vid] = o_sharedVertexMapUpdatedGlobalID[vid];
+                                            o_SharedVertsNotOwned[fn_tag[n]] = o_sharedVertexMapUpdatedGlobalID[fn_tag[n]];
                                         }
                                     }
                                 }
-                                
-                                o_lhp[gfid] = lEl;
-
-                            }
-                        }
-                    }
-                    
-
-                    if(o_interiorFace2Nodes.find(gfid)!=o_interiorFace2Nodes.end())
-                    {
-                        std::vector<int> fn_tag(Nv,0);
-                        for(int n=0;n<Nv;n++)
-                        {
-                            //fn_tag[n] = face2verts_update[gfid][n];
-                            int vid = o_interiorFace2Nodes[gfid][n];
-
-                            if(o_sharedVertex2RankMap.find(vid)!=o_sharedVertex2RankMap.end())
-                            {
-                                if(o_SharedVertsOwned.find(vid)==o_SharedVertsOwned.end() 
-                                        && uniqure_trace_verts2ref.find(vid)==uniqure_trace_verts2ref.end())
+                                else
                                 {
-                                    if(o_SharedVertsNotOwned.find(vid)==o_SharedVertsNotOwned.end())
+                                    if(o_NonSharedVertsOwned.find(fn_tag[n])==o_NonSharedVertsOwned.end() 
+                                    && uniqure_trace_verts2ref.find(fn_tag[n])==uniqure_trace_verts2ref.end())
                                     {
-                                        o_SharedVertsNotOwned[vid] = o_sharedVertexMapUpdatedGlobalID[vid];
+                                        o_NonSharedVertsOwned[fn_tag[n]]  = gvidd;
+                                        gvidd++;
                                     }
                                 }
                             }
-                            else
-                            {
-                                if(o_NonSharedVertsOwned.find(vid)==o_NonSharedVertsOwned.end() 
-                                && uniqure_trace_verts2ref.find(vid)==uniqure_trace_verts2ref.end())
-                                {
-                                    o_NonSharedVertsOwned[vid]  = gvidd;
-                                    gvidd++;
-                                }
-                            }
-                            
+                            o_lhp[gfid] = lEl;
+                            o_interiorFace2Nodes[gfid] = fn_tag;
                         }
-
-                        o_lhp[gfid] = lEl;
                     }
-
-
-
-                    if(o_boundaryFace2Nodes.find(gfid)!=o_boundaryFace2Nodes.end())
+                    if(ref != 2 && ref!=13)
                     {
+
                         int fzone = ProvideBoundaryID(gfid,ranges_id);
                         o_zone2bcface[fzone].push_back(gfid);
 
-                        for(int n=0;n<Nv;n++)
+                        if(o_boundaryFace2Nodes.find(gfid)==o_boundaryFace2Nodes.end())
                         {
-                            //fn_tag[n] = face2verts_update[gfid][n];
-                            int vid = o_boundaryFace2Nodes[gfid][n];
-
-                            if(o_sharedVertex2RankMap.find(vid)!=o_sharedVertex2RankMap.end())
+                            std::vector<int> fn_tag(Nv,0);
+                            for(int n=0;n<Nv;n++)
                             {
-                                if(o_SharedVertsOwned.find(vid)==o_SharedVertsOwned.end() 
-                                        && uniqure_trace_verts2ref.find(vid)==uniqure_trace_verts2ref.end())
+                                fn_tag[n] = face2verts_update[gfid][n];
+
+                                if(o_sharedVertex2RankMap.find(fn_tag[n])!=o_sharedVertex2RankMap.end())
                                 {
-                                    if(o_SharedVertsNotOwned.find(vid)==o_SharedVertsNotOwned.end())
+                                    if(o_SharedVertsOwned.find(fn_tag[n])==o_SharedVertsOwned.end() 
+                                            && uniqure_trace_verts2ref.find(fn_tag[n])==uniqure_trace_verts2ref.end())
                                     {
-                                        o_SharedVertsNotOwned[vid] = o_sharedVertexMapUpdatedGlobalID[vid];
+                                        if(o_SharedVertsNotOwned.find(fn_tag[n])==o_SharedVertsNotOwned.end())
+                                        {
+                                            o_SharedVertsNotOwned[fn_tag[n]] = o_sharedVertexMapUpdatedGlobalID[fn_tag[n]];
+                                        }
                                     }
                                 }
-                            }
-                            else
-                            {
-                                if(o_NonSharedVertsOwned.find(vid)==o_NonSharedVertsOwned.end() 
-                                && uniqure_trace_verts2ref.find(vid)==uniqure_trace_verts2ref.end())
+                                else
                                 {
-                                    o_NonSharedVertsOwned[vid]  = gvidd;
-                                    gvidd++;
+                                    if(o_NonSharedVertsOwned.find(fn_tag[n])==o_NonSharedVertsOwned.end() 
+                                    && uniqure_trace_verts2ref.find(fn_tag[n])==uniqure_trace_verts2ref.end())
+                                    {
+                                        o_NonSharedVertsOwned[fn_tag[n]]  = gvidd;
+                                        gvidd++;
+                                    }
                                 }
+                                
                             }
-                            
-                        }
 
-                        o_lhp[gfid] = lEl;
+                            o_lhp[gfid] = lEl;
+                            o_boundaryFace2Nodes[gfid] = fn_tag;
+                            if(o_lhp[gfid]>279070)
+                            {
+                                std::cout << gfid << " " << o_lhp[gfid] << " ElementDistr " << ElementDistr->getNel() << std::endl;
+                            }
+                        }
                     }
                 }
-                else
-                {
-                     tag2ElementID[gelid] = lEl;
-
-                     o_rhp[gfid]          = lEl;
-                }
             }
+            else
+            {
+                tag2ElementID[gelid] = lEl;
 
-            u++;
+                o_rhp[gfid]          = lEl;
+            }
         }
-        
+        u++;    
     }
 
     std::cout << rank <<  " fownedInmap " << fownedInmap << " " << o_sharedFace2Nodes.size() << std::endl;
@@ -4544,15 +4204,6 @@ int RepartitionObject::getParMMGNComm()
 {
     return o_ncomm;
 }
-
-std::map<int,int> RepartitionObject::getBoundaryFaces()
-{
-    return o_boundaryFaces;
-}
-std::map<int,int> RepartitionObject::getBoundaryFaces2Ref()
-{
-    return o_boundaryFaces2Ref;   
-}
 std::map<int,int> RepartitionObject::getLocalVert2VertTag()
 {
     return o_lvertex2gvertex_part;
@@ -4561,13 +4212,14 @@ std::map<int,int> RepartitionObject::getVertTag2LocalVert()
 {
     return o_gvertex2lvertex_part;
 }
-std::map<int,int> RepartitionObject::getTagF2LocFID()
-{
-    return o_tagF2locFID;
-}
+
 std::map<int,int> RepartitionObject::getGlobalElement2ElementTag()
 {
     return o_gE2tagE;
+}
+std::map<int,int> RepartitionObject::getElementTag2GlobalElement()
+{
+    return o_tagE2gE;
 }
 
 std::map<int,int> RepartitionObject::getElementTag2LocalElement()
@@ -4579,10 +4231,10 @@ std::map<int,int> RepartitionObject::getLocalElement2ElementTag()
     return o_lE2tagE;
 }
 
-std::map<int,int> RepartitionObject::getGlob2TagElementID()
-{
-    return o_tagE2gE;
-}
+// std::map<int,int> RepartitionObject::getGlob2TagElementID()
+// {
+//     return o_tagE2gE;
+// }
 std::map<int, std::vector<int> > RepartitionObject::getSharedFaceMap()
 {
     return o_sharedFace2Nodes;

@@ -19,11 +19,15 @@ void RunParMMGandWriteTetraUS3Dformat(MPI_Comm comm,
                 std::map<int,std::vector<int> > &BoundaryFaces_T,
                 std::map<int,int> &glob2locVid,
                 std::map<int,int> &LocationSharedVert_update,
-                std::vector<std::vector<double> > &new_vertices,
+                std::vector<double> &vertices_output,
                 std::vector<std::vector<int> > &new_tetrahedra,
                 std::map<int,int> &oldglob2newglob,
                 std::map<int,int> &lh_T_bc,
-                std::map<int,int> &new_globE2locE);
+                std::map<int,int> &new_globE2locE,
+                std::vector<int> &tetra_type,
+                int &nLocIntVrts,
+                int &nLocShVrts,
+                std::map<int,int> tagE2gE_P);
 
 PMMG_pParMesh InitializeParMMGmesh(MPI_Comm comm, 
                                    RepartitionObject* tetra_repart,

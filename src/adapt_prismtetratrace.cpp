@@ -198,6 +198,7 @@ PrismTetraTrace::PrismTetraTrace(MPI_Comm comm,
             }
 
             FaceSharedPtr RefTraceFacePointer = std::shared_ptr<NekFace>(new NekFace(refs));
+            RefTraceFacePointer->SetFaceID(trace_fid);
             RefTraceFacePointer->SetFaceLeftElement(LeftRight[0]);
             RefTraceFacePointer->SetFaceRightElement(LeftRight[1]);
             m_RefTraceFaces.insert(RefTraceFacePointer);

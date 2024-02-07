@@ -89,7 +89,7 @@ class RepartitionObject{
 
                 std::vector<int> getLocElem();
                 
-                void buildInteriorSharedAndBoundaryFacesMaps(MPI_Comm comm, 
+                void buildUpdatedVertexAndFaceNumbering(MPI_Comm comm, 
                                                              PrismTetraTrace* trace,
                                                              std::map<int,std::vector<int> > ranges_id);
 
@@ -99,6 +99,7 @@ class RepartitionObject{
                 std::map<int,int> getLocalElement2ElementTag();
                 std::map<int,int> getElementTag2LocalElement();
                 std::map<int,int> getGlobalElement2ElementTag();
+                std::map<int,int> getElementTag2GlobalElement();
                 std::map<int,int> getGlob2TagElementID();
                 std::map<int,int> getBoundaryFaces();
                 std::map<int,int> getBoundaryFaces2Ref();
@@ -118,9 +119,8 @@ class RepartitionObject{
                 int getParMMGNComm();
                 
                 std::vector<int> getFace4ParMMG();
-                void UpdateGlobalIDs(MPI_Comm comm,PrismTetraTrace* trace);
                 std::map<int,int> getGlobal2TagFMap();
-                void buildTag2GlobalElementMapsAndFace2LeftRightElementMap(MPI_Comm comm, 
+                void buildInteriorSharedAndBoundaryFaceMaps(MPI_Comm comm, 
                                                                           PrismTetraTrace* trace, 
                                                                           std::map<int,std::vector<int> > ranges_id);
                 
@@ -251,7 +251,7 @@ class RepartitionObject{
                 std::map<int,std::vector<int> > ref2bcface;
                 std::map<int,std::vector<int> > zone2bcface;                
 
-                //buildTag2GlobalElementMapsAndFace2LeftRightElementMap()
+                //buildInteriorSharedAndBoundaryFaceMaps()
                 std::map<int,int> o_lhp;
                 std::map<int,int> o_rhp;
                 std::map<int,int> o_tagE2gE;

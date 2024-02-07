@@ -19,16 +19,47 @@ void WritePrismsUS3DFormat(MPI_Comm comm,
     std::map<int,std::vector<int> > InternalFaces_P         = prism_repart->getInteriorFaceMap();
     std::map<int,std::vector<int> > SharedFaces_P           = prism_repart->getSharedFaceMap();
     std::map<int, std::vector<double> > LocalVertsMap_P     = prism_repart->getLocalVertsMap();
-    std::map<int,int> tag2globvID_P                         = prism_repart->getLocalVert2VertTag();
+    // std::map<int,int> tag2globvID_P                      = prism_repart->getUpdatedTag2GlobalVMap();
     std::map<int,int> SharedVertsNotOwned                   = prism_repart->getSharedVertsNotOwned();
     std::map<int,int> NonSharedVertsOwned                   = prism_repart->getNonSharedVertsOwned();
     std::map<int,int> SharedVertsOwned                      = prism_repart->getSharedVertsOwned();
     std::map<int,std::vector<int> > ElementTag2VertexTag_P  = prism_repart->getElement2VertexMap();
-    std::map<int,int> tagv2locvID_P                         = prism_repart->getVertTag2LocalVert();
+
     std::map<int,int>  lh_P                                 = prism_repart->GetLeftHandFaceElementMap();
     std::map<int,int>  rh_P                                 = prism_repart->GetRightHandFaceElementMap();
     std::map<int,int> gE2tagE_P                             = prism_repart->getGlobalElement2ElementTag();
     
+    std::map<int,int> NonSharedVertsOwned_P                 = prism_repart->getNonSharedVertsOwned();
+    std::map<int,int> SharedVertsOwned_P                    = prism_repart->getSharedVertsOwned();
+
+
+    std::map<int,int>::iterator itmii;
+    int vert = 0;
+    std::map<int,int> tag2globvID_P;
+    // std::map<int,int>::iterator itmii;
+
+    int nLocIntVrts         = NonSharedVertsOwned_P.size();
+    int nLocShVrts          = SharedVertsOwned_P.size();
+    DistributedParallelState* distnLocIntVrts = new DistributedParallelState(nLocIntVrts,comm);
+    DistributedParallelState* distnLocShVrts  = new DistributedParallelState(nLocShVrts,comm);
+
+    for(itmii=NonSharedVertsOwned_P.begin();itmii!=NonSharedVertsOwned_P.end();itmii++)
+    {
+        int tag = itmii->first;
+        tag2globvID_P[tag]              = vert+distnLocIntVrts->getOffsets()[world_rank]+1;        
+        vert++;
+    }
+
+
+    int vertsh = 0;
+    
+    for(itmii=SharedVertsOwned_P.begin();itmii!=SharedVertsOwned_P.end();itmii++)
+    {
+        int tag                         = itmii->first;
+        tag2globvID_P[tag]              = SharedVertsOwned_P[tag];
+        vertsh++;
+    }
+
     std::cout << "SharedFaces_P " << SharedFaces_P.size() << " " << world_rank << std::endl; 
     std::cout << "lh_P " << lh_P.size() << " rank = " << world_rank << std::endl;
     std::cout << "lr_P " << rh_P.size() << " rank = " << world_rank << std::endl;
@@ -37,7 +68,6 @@ void WritePrismsUS3DFormat(MPI_Comm comm,
     std::map<int,int> unique_trace_verts2refmap     = pttrace->GetUniqueTraceVerts2RefMap();
     int nLocFace_P = InternalFaces_P.size()+SharedFaces_P.size();
     ifn_P.resize(nLocFace_P*8);
-    std::cout << "nLocFace_P " << nLocFace_P << " " << nLocFace_P*8 << std::endl;
     std::fill(ifn_P.begin(), ifn_P.end(), 0);
 
     int fptot = 0;
@@ -52,6 +82,7 @@ void WritePrismsUS3DFormat(MPI_Comm comm,
         VcF[0] = 0.0;
         VcF[1] = 0.0;
         VcF[2] = 0.0;
+        
 
         for(int g=0;g<npf;g++)
         {
@@ -99,6 +130,7 @@ void WritePrismsUS3DFormat(MPI_Comm comm,
 
         int leftEl  = lh_P[gfid];
         int leftTag = gE2tagE_P[leftEl];
+        
         std::vector<double> Vijk(3,0);
         Vijk[0] = 0.0;
         Vijk[1] = 0.0;
@@ -154,7 +186,20 @@ void WritePrismsUS3DFormat(MPI_Comm comm,
                 ifn_P[fptot*8+4] = fce[3];
             }
         }
+
+        // if(lh_P[gfid]>279070 || rh_P[gfid]>279070)
+        // {
+        //     std::cout << lh_P[gfid] << " " << rh_P[gfid] << " InternalFaces_P pp " << std::endl;
+        // }
         
+        for(int h=0;h<fce.size();h++)
+        {
+            if(fce[h]>162713)
+            {
+                std::cout << "Error line 167 Interior " << fce[h] << " " << 162713 << std::endl;
+            }
+        }
+
         ifn_P[fptot*8+5] = rh_P[gfid];
         ifn_P[fptot*8+6] = lh_P[gfid];
         ifn_P[fptot*8+7] = 2;
@@ -290,10 +335,32 @@ void WritePrismsUS3DFormat(MPI_Comm comm,
                 ifn_P[fptot*8+4] = fce[3];
             }
         }
+
+        for(int h=0;h<fce.size();h++)
+        {
+            if(fce[h]>162713)
+            {
+                std::cout << "Error line 303 Shared " << fce[h] << " " << 162713 << std::endl;
+            }
+        }
+
+
         
         ifn_P[fptot*8+5] = rh_P[gfid];
         ifn_P[fptot*8+6] = lh_P[gfid];
         ifn_P[fptot*8+7] = 2;
+
+        // if(lh_P[gfid]>279070 || rh_P[gfid]>279070)
+        // {
+        //     std::cout << lh_P[gfid] << " " << rh_P[gfid] << " SharedFaces_P " << std::endl;
+        // }
+
+
+        if(ifn_P[fptot*8+0]==4 && ifn_P[fptot*8+1]==368974 && ifn_P[fptot*8+2]==369090 && ifn_P[fptot*8+3]==369091 &&
+           ifn_P[fptot*8+4]==368975 && ifn_P[fptot*8+5]==279071 && ifn_P[fptot*8+6]==254992 && ifn_P[fptot*8+7]==2)
+        {
+            std::cout << "FOUND ERROR FACE " << std::endl;
+        }
 
         fptot++;
     }
@@ -313,7 +380,7 @@ void WriteBoundaryDataUS3DFormat(MPI_Comm comm,
                                 std::map<int,std::vector<int> > BoundaryFaces_T,
                                 std::map<int,int> glob2locVid_T,
                                 std::vector<std::vector<int> > new_tetrahedra_T,
-                                std::vector<std::vector<double> > new_vertices_T,
+                                std::vector<double> new_vertices_T,
                                 std::map<int,int> LocationSharedVert_T,
                                 std::map<int,int> oldglob2newglob_T,
                                 std::map<int,int> lh_T_bc,
@@ -323,7 +390,14 @@ void WriteBoundaryDataUS3DFormat(MPI_Comm comm,
                                 std::vector<std::vector<int> > zdefs,
                                 std::map<int,int> zone2bcref,
                                 std::map<int,char*> zone2name,
-                                std::vector<std::vector<char> > znames)
+                                std::vector<std::vector<char> > znames,
+                                std::vector<int> &bciTot_offsets,
+                                int &nTotBCFaces,
+                                std::set<int> &bcsToT,
+                                std::vector<int> &nlbc,
+                                std::vector<int> &bcid,
+                                std::vector<int> &bci_offsets,
+                                std::vector<int> &zdefs_new)
 {
     int world_size;
     MPI_Comm_size(comm, &world_size);
@@ -333,13 +407,40 @@ void WriteBoundaryDataUS3DFormat(MPI_Comm comm,
     
     std::map<int,std::vector<int> > BoundaryFaces_P         = prism_repart->getBoundaryFaceMap();
     std::map<int, std::vector<double> > LocalVertsMap_P     = prism_repart->getLocalVertsMap();
-    std::map<int,int> tag2globvID_P                         = prism_repart->getLocalVert2VertTag();
+    // std::map<int,int> tag2globvID_P                      = prism_repart->getUpdatedTag2GlobalVMap();
     std::map<int,int> SharedVertsNotOwned                   = prism_repart->getSharedVertsNotOwned();
     std::map<int,int> gE2tagE_P                             = prism_repart->getGlobalElement2ElementTag();
     std::map<int,int>  lh_P                                 = prism_repart->GetLeftHandFaceElementMap();
     std::map<int,int>  rh_P                                 = prism_repart->GetRightHandFaceElementMap();
-    std::map<int,int> tagv2locvID_P                         = prism_repart->getVertTag2LocalVert();
     std::map<int,std::vector<int> > ElementTag2VertexTag_P  = prism_repart->getElement2VertexMap();
+
+    std::map<int,int> tag2globvID_P;
+    std::map<int,int> NonSharedVertsOwned_P                 = prism_repart->getNonSharedVertsOwned();
+    std::map<int,int> SharedVertsOwned_P                    = prism_repart->getSharedVertsOwned();
+
+    int nLocIntVrts         = NonSharedVertsOwned_P.size();
+    int nLocShVrts          = SharedVertsOwned_P.size();
+    DistributedParallelState* distnLocIntVrts = new DistributedParallelState(nLocIntVrts,comm);
+    DistributedParallelState* distnLocShVrts  = new DistributedParallelState(nLocShVrts,comm);
+    int vert = 0;
+    std::map<int,int>::iterator itmii;
+    for(itmii=NonSharedVertsOwned_P.begin();itmii!=NonSharedVertsOwned_P.end();itmii++)
+    {
+        int tag = itmii->first;
+        tag2globvID_P[tag] = vert+distnLocIntVrts->getOffsets()[world_rank]+1;
+        
+        vert++;
+    }
+
+
+    int vertsh = 0;
+    
+    for(itmii=SharedVertsOwned_P.begin();itmii!=SharedVertsOwned_P.end();itmii++)
+    {
+        int tag                      = itmii->first;
+        
+        tag2globvID_P[tag] = SharedVertsOwned_P[tag];
+    }
 
     // DistributedParallelState* distFaceTetraTot = new DistributedParallelState(ifn_T.size(),comm);
     // DistributedParallelState* distFacePrismTot = new DistributedParallelState(ifn_P.size(),comm);
@@ -396,7 +497,7 @@ void WriteBoundaryDataUS3DFormat(MPI_Comm comm,
                     BCs_offsets,
                     MPI_INT, comm);
 
-    std::set<int> bcsToT;
+    
     std::map<int,int> bcentry;
     for(int i=0;i<Nt_BCs;i++)
     {
@@ -406,8 +507,13 @@ void WriteBoundaryDataUS3DFormat(MPI_Comm comm,
         }
     }
     
-    int* bcid = new int[bcsToT.size()];
-    int* nlbc = new int[bcsToT.size()];
+    // int* bcid = new int[bcsToT.size()];
+    // int* nlbc = new int[bcsToT.size()];
+    bcid.resize(bcsToT.size());
+    std::fill(bcid.begin(), bcid.end(), 0);
+    nlbc.resize(bcsToT.size());
+    std::fill(nlbc.begin(), nlbc.end(), 0);
+
     std::set<int>::iterator entry;
     int cnt = 0;
 
@@ -434,9 +540,9 @@ void WriteBoundaryDataUS3DFormat(MPI_Comm comm,
     }
 
 
-    std::vector<int> bci_offsets;
-    std::vector<int> bciTot_offsets;
-    int nTotBCFaces = 0;
+
+    
+    nTotBCFaces = 0;
     int nTotBCFaces_offset = 0;
 
     int failbc = 0;
@@ -492,7 +598,7 @@ void WriteBoundaryDataUS3DFormat(MPI_Comm comm,
                 
                 ifn_bc[fbc*8+0] = nppf;
                 std::vector<int> face_tmp(nppf);
-                std::vector<int> fce(nppf);
+                std::vector<int> fce(nppf,0);
                 std::vector<std::vector<double> > Vfaces;
                 
                 VcF[0] = 0.0;
@@ -531,8 +637,10 @@ void WriteBoundaryDataUS3DFormat(MPI_Comm comm,
                         int globid  = tracetagV2globalV[ref];
                         fce[g]      = globid;
                     }
+                    // std::cout << " (" << tagV << " " << fce[g] << ") ";
                 }
                 
+                // std::cout << std::endl;
                 VcF[0] = VcF[0]/nppf;
                 VcF[1] = VcF[1]/nppf;
                 VcF[2] = VcF[2]/nppf;
@@ -596,11 +704,19 @@ void WriteBoundaryDataUS3DFormat(MPI_Comm comm,
                         ifn_bc[fbc*8+4] = fce[3];
                     }
                 }
+
+                for(int h=0;h<fce.size();h++)
+                {
+                    if(fce[h]>162713)
+                    {
+                        std::cout << "Error line 643 Boundary Prism " << fce[h] << " " << 162713 << std::endl;
+                    }
+                }
                 
                 ifn_bc[fbc*8+5] = 0;
                 ifn_bc[fbc*8+6] = lh_P[bcface];
                 ifn_bc[fbc*8+7] = bc_reference;
-            
+
                 fbc++;
             }   
         }
@@ -624,9 +740,9 @@ void WriteBoundaryDataUS3DFormat(MPI_Comm comm,
                     int lvert = glob2locVid_T[vertexID];
                     
                     std::vector<double> Vf(3);
-                    Vf[0]  = new_vertices_T[lvert-1][0];
-                    Vf[1]  = new_vertices_T[lvert-1][1];
-                    Vf[2]  = new_vertices_T[lvert-1][2];
+                    Vf[0]  = new_vertices_T[(lvert-1)*3+0];
+                    Vf[1]  = new_vertices_T[(lvert-1)*3+1];
+                    Vf[2]  = new_vertices_T[(lvert-1)*3+2];
                     
                     VcF[0] = VcF[0] + Vf[0];
                     VcF[1] = VcF[1] + Vf[1];
@@ -638,11 +754,13 @@ void WriteBoundaryDataUS3DFormat(MPI_Comm comm,
                     {
                         fq[w] = LocationSharedVert_T[vertexID];
                         ifn_bc[fbc*8+(w+1)] = LocationSharedVert_T[vertexID];
+                        
                     }
                     else
                     {
                         fq[w] = oldglob2newglob_T[vertexID];
                         ifn_bc[fbc*8+(w+1)] = oldglob2newglob_T[vertexID];
+                        
                     }
                 }
                 
@@ -656,9 +774,13 @@ void WriteBoundaryDataUS3DFormat(MPI_Comm comm,
                 //ienOUT[curElID] = Elvrts
                 for(int u=0;u<new_tetrahedra_T[locElID].size();u++)
                 {   
-                    Vijk[0] = Vijk[0] + new_vertices_T[new_tetrahedra_T[locElID][u]-1][0];
-                    Vijk[1] = Vijk[1] + new_vertices_T[new_tetrahedra_T[locElID][u]-1][1];
-                    Vijk[2] = Vijk[2] + new_vertices_T[new_tetrahedra_T[locElID][u]-1][2];
+                    // Vijk[0] = Vijk[0] + new_vertices_T[new_tetrahedra_T[locElID][u]-1][0];
+                    // Vijk[1] = Vijk[1] + new_vertices_T[new_tetrahedra_T[locElID][u]-1][1];
+                    // Vijk[2] = Vijk[2] + new_vertices_T[new_tetrahedra_T[locElID][u]-1][2];
+
+                    Vijk[0] = Vijk[0] + new_vertices_T[(new_tetrahedra_T[locElID][u]-1)*3+0];
+                    Vijk[1] = Vijk[1] + new_vertices_T[(new_tetrahedra_T[locElID][u]-1)*3+1];
+                    Vijk[2] = Vijk[2] + new_vertices_T[(new_tetrahedra_T[locElID][u]-1)*3+2];
                 }
 
                 Vijk[0] = Vijk[0]/new_tetrahedra_T[locElID].size();
@@ -686,6 +808,15 @@ void WriteBoundaryDataUS3DFormat(MPI_Comm comm,
                 ifn_bc[fbc*8+6] = lh_T_bc[bcface];
                 ifn_bc[fbc*8+7] = bc_reference;
                 
+                for(int h=0;h<fq.size();h++)
+                {
+                    if(fq[h]>162713)
+                    {
+                        std::cout << "Error line 739 Boundary Tet " << fq[h] << " " << 162713 << std::endl;
+                    }
+                }
+
+
                 fbc++;
                 
             }
@@ -708,10 +839,15 @@ void WriteBoundaryDataUS3DFormat(MPI_Comm comm,
     }
     int ftott = (int)ifn_T.size()/8;
     int ftotp = (int)ifn_P.size()/8;
-    int nNonSharedVertsOwned_P                          = prism_repart->getNonSharedVertsOwned().size();
-    int nSharedVertsOwned_P                             = prism_repart->getSharedVertsOwned().size();
+    int nNonSharedVertsOwned_P                  = prism_repart->getNonSharedVertsOwned().size();
+    int nSharedVertsOwned_P                     = prism_repart->getSharedVertsOwned().size();
 
-    DistributedParallelState* distTetraVerts    = new DistributedParallelState(new_vertices_T.size(),comm);
+    int nvertices = (int)new_vertices_T.size()/3;
+
+    std::cout << "nvertices " << nvertices << std::endl;
+
+    
+    DistributedParallelState* distTetraVerts    = new DistributedParallelState(nvertices,comm);
     DistributedParallelState* distPrismVerts    = new DistributedParallelState(nNonSharedVertsOwned_P+nSharedVertsOwned_P,comm);
     
     DistributedParallelState* distTetra         = new DistributedParallelState(new_tetrahedra_T.size(),comm);
@@ -740,9 +876,10 @@ void WriteBoundaryDataUS3DFormat(MPI_Comm comm,
     // Array<int>* adapt_zdefs = new Array<int>(3+nbo,7);
 
     // Collect node data (10) . Starting index-ending index Nodes
-    std::vector<std::vector<int> > zdefs_new(3+nbo);
+    // std::vector<std::vector<int> > zdefs_new(3+nbo);
     std::cout << "3+nbo " << 3+nbo << " " << nbo << std::endl;
-    std::vector<int> zdefs_row0(7,0);
+    std::vector<std::vector<int> > zdefs_new_copy;
+    std::vector<int> zdefs_row0(3+nbo,0);
     zdefs_row0[0] = 10;
     zdefs_row0[1] = -1;
     zdefs_row0[2] = 1;
@@ -750,9 +887,13 @@ void WriteBoundaryDataUS3DFormat(MPI_Comm comm,
     zdefs_row0[4] = nTotVertsPrismTetra;
     zdefs_row0[5] = zdefs[0][5];
     zdefs_row0[6] = zdefs[0][6];
-    zdefs_new[0] = zdefs_row0;
+    for(int i = 0;i<(3+nbo);i++)
+    {
+        zdefs_new.push_back(zdefs_row0[i]);
+    }
+    zdefs_new_copy.push_back(zdefs_row0);
     // Collect element data (12) . Starting index-ending index Element
-    std::vector<int> zdefs_row1(7,0);
+    std::vector<int> zdefs_row1(3+nbo,0);
     zdefs_row1[0] = 12;
     zdefs_row1[1] = -1;
     zdefs_row1[2] = 2;
@@ -760,9 +901,13 @@ void WriteBoundaryDataUS3DFormat(MPI_Comm comm,
     zdefs_row1[4] = nTotElements;
     zdefs_row1[5] = zdefs[1][5];
     zdefs_row1[6] = 2;
-    zdefs_new[1] = zdefs_row1;
+    for(int i = 0;i<(3+nbo);i++)
+    {
+        zdefs_new.push_back(zdefs_row1[i]);
+    }
+    zdefs_new_copy.push_back(zdefs_row1);
     // Collect internal face data (13) . Starting index-ending index internal face.
-    std::vector<int> zdefs_row2(7,0);
+    std::vector<int> zdefs_row2(3+nbo,0);
     zdefs_row2[0] = 13;
     zdefs_row2[1] = -1;
     zdefs_row2[2] = 3;
@@ -770,8 +915,11 @@ void WriteBoundaryDataUS3DFormat(MPI_Comm comm,
     zdefs_row2[4] = nTotIntFaces;
     zdefs_row2[5] = zdefs[2][5];
     zdefs_row2[6] = 2;
-    zdefs_new[2] = zdefs_row2;
-    
+    for(int i = 0;i<(3+nbo);i++)
+    {
+        zdefs_new.push_back(zdefs_row2[i]);
+    }
+    zdefs_new_copy.push_back(zdefs_row2);
 
     int qq  = 1;
     int nb  = 0;
@@ -795,7 +943,7 @@ void WriteBoundaryDataUS3DFormat(MPI_Comm comm,
         
         int bnd_size = itr->second;
         face_end = face_start+bnd_size-1;
-        std::vector<int> zdefs_row(7,0);
+        std::vector<int> zdefs_row(3+nbo,0);
         zdefs_row[0] = 13;
         zdefs_row[1] = -1;
         zdefs_row[2] = 3+qq;
@@ -803,9 +951,12 @@ void WriteBoundaryDataUS3DFormat(MPI_Comm comm,
         zdefs_row[4] = face_end;
         zdefs_row[5] = bnd_ref;
         zdefs_row[6] = 2;
-        zdefs_new[3+nb] = zdefs_row;
+        for(int i = 0;i<(3+nbo);i++)
+        {
+            zdefs_new.push_back(zdefs_row[i]);
+        }
         face_start = face_end+1;
-        
+        zdefs_new_copy.push_back(zdefs_row);
         
         nb++;
         qq++;
@@ -813,6 +964,6 @@ void WriteBoundaryDataUS3DFormat(MPI_Comm comm,
     
     if(world_rank == 0)
     {
-        PlotBoundaryData_Lite(znames,zdefs_new);
+        PlotBoundaryData_Lite(znames,zdefs_new_copy);
     }
 }

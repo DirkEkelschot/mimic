@@ -1410,7 +1410,6 @@ int main(int argc, char** argv)
     std::map<int,int> gE2tagE                               = prsmLyr->getGlobal2TagElementMap();
     std::map<int,int> rhp                                   = prsmLyr->getRightElementGlobalIDForFaces();
     std::map<int,int> lhp                                   = prsmLyr->getLeftElementGlobalIDForFaces();
-    //std::map<int,std::vector<int> > pbcmap                = prsmLyr->getBoundaryCondition2FaceID();
     std::map<int,std::vector<int> > pbcmap                  = prsmLyr->getBoundaryConditionZone2FaceID();
 
     std::map<int,int> tag2element_shell                     = prsmLyr->getTag2Element4TetPrismInterface();
@@ -3064,10 +3063,10 @@ int main(int argc, char** argv)
         int nLocTotVrts         = nLocIntVrts+nLocShVrts;
         DistributedParallelState* distnLocTotVrts = new DistributedParallelState(nLocTotVrts,comm);
 
-        int vert = 0;//distnLocTotVrts->getOffsets()[world_rank];
-        int ToTVrts =  distnLocTotVrts->getNel();
+        int vert             = 0; //distnLocTotVrts->getOffsets()[world_rank];
+        int ToTVrts          = distnLocTotVrts->getNel();
         int* ToTVrts_offsets = distnLocTotVrts->getOffsets();
-        int ToTVrts_offset = ToTVrts_offsets[world_rank];
+        int ToTVrts_offset   = ToTVrts_offsets[world_rank];
         Array<double>* xcn_parmmg = new Array<double>(nLocTotVrts,3);
         std::map<int,int> tag2glob;
         std::map<int,int> glob2tag;
@@ -3695,9 +3694,9 @@ int main(int argc, char** argv)
         }
       
         if(notsh != 0)
-	{
-		std::cout << world_rank << " found notsh " << std::endl;
-	} 
+        {
+            std::cout << world_rank << " found notsh " << std::endl;
+        } 
         
         std::map<int,int> shelltag2glob_glob = AllGatherMap(shelltag2glob,comm);
         
