@@ -3374,12 +3374,12 @@ void RepartitionObject::buildUpdatedVertexAndFaceNumbering(MPI_Comm comm,
     std::map<int,int> sharedFmap;
     int iFshared = distLocalFaces->getNel()-o_sharedFace2RankMap.size();
     std::map<int,int>::iterator itii;
-    for(itii=o_sharedFace2RankMap.begin();
-            itii!=o_sharedFace2RankMap.end();itii++)
-    {
-        sharedFmap[itii->first] = iFshared;
-        iFshared++;
-    }
+    // for(itii=o_sharedFace2RankMap.begin();
+    //         itii!=o_sharedFace2RankMap.end();itii++)
+    // {
+    //     sharedFmap[itii->first] = iFshared;
+    //     iFshared++;
+    // }
 
 
     //=====================================================================================
@@ -3757,7 +3757,7 @@ void RepartitionObject::buildInteriorSharedAndBoundaryFaceMaps(MPI_Comm comm,
     int gvidd = 0;
     for(its=Loc_Elem_Set.begin();its!=Loc_Elem_Set.end();its++)
     {
-        int gelid   = *its;
+        int gelid           = *its;
 
         int lEl             = ElementDistr->getOffsets()[rank]+u+1;
         int Nf              = elements2faces_update[gelid].size();

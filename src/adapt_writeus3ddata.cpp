@@ -5,7 +5,7 @@
 void WritePrismsUS3DFormat(MPI_Comm comm, 
                            RepartitionObject* prism_repart,
                            PrismTetraTrace* pttrace,
-                           std::map<int,int> tracetagV2globalV,
+                           std::map<int,int> tracerefV2globalV,
                            std::vector<int> &ifn_P,
                            std::map<int,std::vector<int> > ranges_id)
 {
@@ -45,7 +45,7 @@ void WritePrismsUS3DFormat(MPI_Comm comm,
 
     for(itmii=NonSharedVertsOwned_P.begin();itmii!=NonSharedVertsOwned_P.end();itmii++)
     {
-        int tag = itmii->first;
+        int tag                         = itmii->first;
         tag2globvID_P[tag]              = vert+distnLocIntVrts->getOffsets()[world_rank]+1;        
         vert++;
     }
@@ -103,18 +103,18 @@ void WritePrismsUS3DFormat(MPI_Comm comm,
             {
                 int globid  = tag2globvID_P[tagV];
                 fce[g]      = globid;
-            
             }
             else if(SharedVertsNotOwned.find(tagV)!=SharedVertsNotOwned.end() &&
                     unique_trace_verts2refmap.find(tagV)==unique_trace_verts2refmap.end())
             {
-                int globid  = SharedVertsNotOwned[tagV];
-                fce[g]      = globid;   
+                int globid    = SharedVertsNotOwned[tagV];
+                //int globid  = tag2globvID_P[tagV];
+                fce[g]        = globid;   
             }
             else if(unique_trace_verts2refmap.find(tagV)!=unique_trace_verts2refmap.end())
             {
                 int ref     = unique_trace_verts2refmap[tagV];
-                int globid  = tracetagV2globalV[ref];
+                int globid  = tracerefV2globalV[ref];
                 fce[g]      = globid;
             }
         }
@@ -192,12 +192,9 @@ void WritePrismsUS3DFormat(MPI_Comm comm,
         //     std::cout << lh_P[gfid] << " " << rh_P[gfid] << " InternalFaces_P pp " << std::endl;
         // }
         
-        for(int h=0;h<fce.size();h++)
+        if(lh_P[gfid] == 168 || lh_P[gfid] == 168)
         {
-            if(fce[h]>162713)
-            {
-                std::cout << "Error line 167 Interior " << fce[h] << " " << 162713 << std::endl;
-            }
+            std::cout << "Internal Element " << std::endl;
         }
 
         ifn_P[fptot*8+5] = rh_P[gfid];
@@ -262,7 +259,7 @@ void WritePrismsUS3DFormat(MPI_Comm comm,
             else if(unique_trace_verts2refmap.find(tagV)!=unique_trace_verts2refmap.end())
             {
                 int ref     = unique_trace_verts2refmap[tagV];
-                int globid  = tracetagV2globalV[ref];
+                int globid  = tracerefV2globalV[ref];
                 fce[g]      = globid;
             }
         }
@@ -336,19 +333,15 @@ void WritePrismsUS3DFormat(MPI_Comm comm,
             }
         }
 
-        for(int h=0;h<fce.size();h++)
-        {
-            if(fce[h]>162713)
-            {
-                std::cout << "Error line 303 Shared " << fce[h] << " " << 162713 << std::endl;
-            }
-        }
-
-
         
         ifn_P[fptot*8+5] = rh_P[gfid];
         ifn_P[fptot*8+6] = lh_P[gfid];
         ifn_P[fptot*8+7] = 2;
+
+        if(lh_P[gfid] == 168 || lh_P[gfid] == 168)
+        {
+            std::cout << "Shared Element " << std::endl;
+        }
 
         // if(lh_P[gfid]>279070 || rh_P[gfid]>279070)
         // {
@@ -376,7 +369,7 @@ void WriteBoundaryDataUS3DFormat(MPI_Comm comm,
                                 std::vector<int> ifn_P,
                                 std::map<int,std::vector<int> > bcref2bcface_T,
                                 std::map<int,int> unique_trace_verts2refmap,
-                                std::map<int,int> tracetagV2globalV,
+                                std::map<int,int> tracerefV2globalV,
                                 std::map<int,std::vector<int> > BoundaryFaces_T,
                                 std::map<int,int> glob2locVid_T,
                                 std::vector<std::vector<int> > new_tetrahedra_T,
@@ -634,7 +627,7 @@ void WriteBoundaryDataUS3DFormat(MPI_Comm comm,
                     else if(unique_trace_verts2refmap.find(tagV)!=unique_trace_verts2refmap.end())
                     {
                         int ref     = unique_trace_verts2refmap[tagV];
-                        int globid  = tracetagV2globalV[ref];
+                        int globid  = tracerefV2globalV[ref];
                         fce[g]      = globid;
                     }
                     // std::cout << " (" << tagV << " " << fce[g] << ") ";
@@ -705,13 +698,6 @@ void WriteBoundaryDataUS3DFormat(MPI_Comm comm,
                     }
                 }
 
-                for(int h=0;h<fce.size();h++)
-                {
-                    if(fce[h]>162713)
-                    {
-                        std::cout << "Error line 643 Boundary Prism " << fce[h] << " " << 162713 << std::endl;
-                    }
-                }
                 
                 ifn_bc[fbc*8+5] = 0;
                 ifn_bc[fbc*8+6] = lh_P[bcface];
@@ -808,14 +794,6 @@ void WriteBoundaryDataUS3DFormat(MPI_Comm comm,
                 ifn_bc[fbc*8+6] = lh_T_bc[bcface];
                 ifn_bc[fbc*8+7] = bc_reference;
                 
-                for(int h=0;h<fq.size();h++)
-                {
-                    if(fq[h]>162713)
-                    {
-                        std::cout << "Error line 739 Boundary Tet " << fq[h] << " " << 162713 << std::endl;
-                    }
-                }
-
 
                 fbc++;
                 

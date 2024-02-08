@@ -86,6 +86,8 @@ int main(int argc, char** argv)
     int ntetra     = meshRead->ntetra;
     int nprism     = meshRead->nprism;
     std::map<int,std::vector<int> >::iterator itmiv;
+    std::set<int> unikp;
+    std::set<int> unikt;
     for(itmiv=meshRead->ien.begin();itmiv!=meshRead->ien.end();itmiv++)
     {
         int elid   = itmiv->first;
@@ -97,7 +99,14 @@ int main(int argc, char** argv)
             tetras_e2f[elid]  = meshRead->ief[elid];
             tetras_e2e[elid]  = meshRead->iee[elid];
             tetras_data[elid] = meshRead->interior[elid];
-            
+
+            for(int s=0;s<itmiv->second.size();s++)
+            {
+                if(unikt.find(itmiv->second[s])==unikt.end())
+                {
+                    unikt.insert(itmiv->second[s]);
+                }   
+            }   
         }
         if(eltype == 6)
         {
@@ -105,8 +114,19 @@ int main(int argc, char** argv)
             prisms_e2f[elid]  = meshRead->ief[elid];
             prisms_e2e[elid]  = meshRead->iee[elid];
             prisms_data[elid] = meshRead->interior[elid];
+
+            for(int s=0;s<itmiv->second.size();s++)
+            {
+                if(unikp.find(itmiv->second[s])==unikp.end())
+                {
+                    unikp.insert(itmiv->second[s]);
+                }
+                
+            }
         }
     }
+
+    std::cout << "unikp and unikt " << unikp.size() << " " << unikt.size() << std::endl; 
 
     int nLocTetra  = tetras_e2v.size();
     int nLocPrism  = prisms_e2v.size();
@@ -205,7 +225,7 @@ int main(int argc, char** argv)
     std::cout << "Initializing the data structure for ParMMG..." << std::endl;
     PMMG_pParMesh parmesh = InitializeParMMGmesh(comm, tetra_repart, pttrace, meshRead->ranges_id);
 
-    if (inputs->niter == 0)
+    if (inputs->niter == -1)
     {
         RunParMMGAndTestPartitioning(comm, parmesh, tetra_repart, pttrace,  meshRead->ranges_id, inputs);
     }
@@ -233,17 +253,18 @@ int main(int argc, char** argv)
         int nSharedVertsOwned_P                             = SharedVertsOwned_P.size();
         DistributedParallelState* distPrismIntVerts         = new DistributedParallelState(nNonSharedVertsOwned_P,comm);
         DistributedParallelState* distPrismShaVerts         = new DistributedParallelState(nSharedVertsOwned_P,comm);
-        int nVertsGlob_P                                    = distPrismIntVerts->getNel()+distPrismShaVerts->getNel();;
+        int nVertsGlob_P                                    = distPrismIntVerts->getNel()+distPrismShaVerts->getNel();
         
-        // Next to all the output data structures for us3d like xcn and ifn we also need to build the tracetagV2globalV map 
+        // Next to all the output data structures for us3d like xcn and ifn we also need to build the tracerefV2globalV map 
         // since this is defined by the tetrahedra ordering.
         std::map<int,int> gE2tagE_P                             = prism_repart->getGlobalElement2ElementTag();
         std::map<int,int> tagE2gE_P                             = prism_repart->getElementTag2GlobalElement();
 
+
         std::cout << "uniquevrts prism = " << nNonSharedVertsOwned_P << " " << nSharedVertsOwned_P << std::endl;
 
         std::vector<int> ifn_T;
-        std::map<int,int> tracetagV2globalV;
+        std::map<int,int> tracerefV2globalV;
         std::map<int,std::vector<int> > bcref2bcface_T;
         std::map<int,std::vector<int> > BoundaryFaces_T;
         std::map<int,int> glob2locVid_T;
@@ -263,7 +284,7 @@ int main(int argc, char** argv)
         //         PrismTetraTrace* pttrace,
         //         Inputs* inputs, 
         //         int nElemsGlob_P, int nVertsGlob_P, 
-        //         std::map<int,int>& tracetagV2globalV, 
+        //         std::map<int,int>& tracerefV2globalV, 
         //         std::vector<int> &ifn_T,
         //         std::map<int,std::vector<int> > &bcmap,
         //         std::map<int,std::vector<int> > &BoundaryFaces_T,
@@ -285,7 +306,7 @@ int main(int argc, char** argv)
                                         inputs, 
                                         nElemsGlob_P, 
                                         nVertsGlob_P, 
-                                        tracetagV2globalV, 
+                                        tracerefV2globalV, 
                                         ifn_T,
                                         bcref2bcface_T,
                                         BoundaryFaces_T,
@@ -304,11 +325,14 @@ int main(int argc, char** argv)
         int nLocTotVrts_T                           = nLocInteriorVerts_T+nLocSharedVerts_T;
         DistributedParallelState* distnLocTotVrts_T = new DistributedParallelState(nLocTotVrts_T,comm);
         int* TotVrts_offsets_T                      = distnLocTotVrts_T->getOffsets();
+        int nTotVertsTets                           = distnLocTotVrts_T->getNel();
         int TotVrts_offset_T                        = TotVrts_offsets_T[world_rank];
         std::vector<int> ifn_P;
         std::cout << "writing prism data..." << std::endl;
 
-        WritePrismsUS3DFormat(comm,prism_repart,pttrace,tracetagV2globalV,ifn_P,meshRead->ranges_id);
+        std::cout << "nLocTotVrts_T " << nLocTotVrts_T << " " << nTotVertsTets << std::endl;
+
+        WritePrismsUS3DFormat(comm,prism_repart,pttrace,tracerefV2globalV,ifn_P,meshRead->ranges_id);
         
         int ftott = (int)ifn_T.size()/8;
         int ftotp = (int)ifn_P.size()/8;
@@ -330,7 +354,7 @@ int main(int argc, char** argv)
                                     ifn_P,
                                     bcref2bcface_T,
                                     unique_trace_verts2refmap,
-                                    tracetagV2globalV,
+                                    tracerefV2globalV,
                                     BoundaryFaces_T,
                                     glob2locVid_T,
                                     new_tetrahedra_T,
@@ -438,6 +462,7 @@ int main(int argc, char** argv)
         int nTotFaces                               = nTotInteriorFaces_prism + nTotInteriorFaces_tetra + nTotBCFaces;
         int nTotTetraVerts                          = distTetraVerts->getNel();
         int nTotPrismVerts                          = distPrismVerts->getNel();
+        std::cout << "nTot Verts " << nTotTetraVerts << " " << nTotPrismVerts << std::endl;
         int nTotVertsPrismTetra                     = nTotPrismVerts+nTotTetraVerts;
         int nTotPrismIntVerts                       = distPrismIntVerts->getNel();
         int nTotPrismShaVerts                       = distPrismShaVerts->getNel();

@@ -26,7 +26,6 @@ PMMG_pParMesh InitializeParMMGmesh(MPI_Comm comm,
     std::vector<int> Owned_Elem_t                       = tetra_repart->getLocElem();
     std::map<int,std::vector<int> > gE2gV_t             = tetra_repart->getElement2VertexMap();
     std::map<int,int> locv2tagvID                       = tetra_repart->getLocalVert2VertTag();
-    std::map<int,int> tagv2locvID                       = tetra_repart->getVertTag2LocalVert();
     // std::map<int,int> le2tagID                       = tetra_repart->getLocalElement2ElementTag();
     std::map<int,int> globalv2localvID                  = tetra_repart->getUpdatedGlobal2LocalVMap();
     std::map<int,int> tag2globalV                       = tetra_repart->getUpdatedTag2GlobalVMap();
@@ -46,6 +45,8 @@ PMMG_pParMesh InitializeParMMGmesh(MPI_Comm comm,
     int nTetrahedra = Owned_Elem_t.size();
     int nEdges      = 0;
     int nTriangles  = face4parmmg.size();
+
+    std::cout << "nVerticesInputted " << nVertices << std::endl; 
 
     PMMG_pParMesh   parmesh;
     PMMG_Init_parMesh(PMMG_ARG_start,
@@ -336,7 +337,7 @@ void RunParMMGandWriteTetraUS3Dformat(MPI_Comm comm,
                 PrismTetraTrace* pttrace,
                 Inputs* inputs, 
                 int nElemsGlob_P, int nVertsGlob_P, 
-                std::map<int,int>& tracetagV2globalV, 
+                std::map<int,int>& tracerefV2globalV, 
                 std::vector<int> &ifn_T,
                 std::map<int,std::vector<int> > &bcmap,
                 std::map<int,std::vector<int> > &BoundaryFaces_T,
@@ -391,13 +392,13 @@ void RunParMMGandWriteTetraUS3Dformat(MPI_Comm comm,
     int nTetrahedraIN = 0;
     int nTrianglesIN  = 0;
     int nEdgesIN      = 0;
-    
     if ( PMMG_Get_meshSize(parmesh,&nVerticesIN,&nTetrahedraIN,NULL,&nTrianglesIN,NULL,
                            &nEdgesIN) !=1 )
     {
         ier = PMMG_STRONGFAILURE;
     }
-    
+    std::cout << "nVerticesIN  " << nVerticesIN << " " << world_rank << std::endl;
+
     // std::cout << "nVertices input " << nVerticesIN << std::endl;
     // std::cout << "nTetrahedra input " << nTetrahedraIN << std::endl;
     // std::cout << "nTriangles input " << nTrianglesIN << std::endl;
@@ -527,10 +528,9 @@ void RunParMMGandWriteTetraUS3Dformat(MPI_Comm comm,
     // std::fill(new_vertices.begin(), new_vertices.end(), 0);
     std::vector<std::vector<double> > new_vertices(nVerticesOUT);
 
-    vertices_output.resize(nVerticesOUT*3);
-    std::fill(vertices_output.begin(), vertices_output.end(), 0.0);
 
 
+    
     for ( k=0; k<nVerticesOUT; k++ )
     {
         std::vector<double> crds(3,0.0);
@@ -542,13 +542,10 @@ void RunParMMGandWriteTetraUS3Dformat(MPI_Comm comm,
         }
 
         new_vertices[k]=crds;
-        vertices_output[k*3+0] = crds[0];
-        vertices_output[k*3+1] = crds[1];
-        vertices_output[k*3+2] = crds[2];
-
     }
 
 
+    std::cout << "nVerticesOUT  " << nVerticesOUT << " " << world_rank << std::endl;
 
 
     //===================================================================
@@ -886,7 +883,7 @@ void RunParMMGandWriteTetraUS3Dformat(MPI_Comm comm,
     int ngv = 0;
     int cnt = 0;
     // std::map<int,int> new_globE2locE;
-    std::map<int,int> newtag2traceref;
+    std::map<int,int> tagV2traceVref;
     std::map<int,int> traceref2newtag;
     std::vector<double> Vface(3);
     std::vector<double> r0(3);
@@ -1061,9 +1058,9 @@ void RunParMMGandWriteTetraUS3Dformat(MPI_Comm comm,
                             int traceVertRef = refOUT[vertids[tetra_faces[u][y]]-1];
                             int vtag         = face[y];
                             
-                            if(newtag2traceref.find(vtag)==newtag2traceref.end())
+                            if(tagV2traceVref.find(vtag)==tagV2traceVref.end())
                             {
-                                newtag2traceref[vtag]=traceVertRef;
+                                tagV2traceVref[vtag]=traceVertRef;
                                 traceref2newtag[traceVertRef]=vtag;
                             }
                         }
@@ -1100,7 +1097,7 @@ void RunParMMGandWriteTetraUS3Dformat(MPI_Comm comm,
     std::cout << "larg3 " << larg3 << " " << largf3 << std::endl;
     // std::cout << "int inhere = larg " << larg << " " << world_rank << " " << inhere << " " << rhtrace.size() << " NEGIT " << negit << " " << curElID << " " << world_rank << std::endl;
 
-    std::map<int,int> newtag2traceref_glob = AllGatherMap(newtag2traceref,comm);
+    std::map<int,int> tagV2traceVref_glob  = AllGatherMap(tagV2traceVref,comm);
     std::map<int,int> traceref2newtag_glob = AllGatherMap(traceref2newtag,comm);
 
     // std::cout << "===============================================" << std::endl;
@@ -1118,6 +1115,8 @@ void RunParMMGandWriteTetraUS3Dformat(MPI_Comm comm,
 
     nLocIntVrts             = NonSharedVrts.size();
     nLocShVrts              = ActualOwnedVertDistr_map_update[world_rank].size();
+
+
     int nLocTotVrts         = nLocIntVrts+nLocShVrts;
     DistributedParallelState* distnLocTotVrts = new DistributedParallelState(nLocTotVrts,comm);
 
@@ -1130,19 +1129,17 @@ void RunParMMGandWriteTetraUS3Dformat(MPI_Comm comm,
     
     int nPrismVerts_tmp = nVertsGlob_P;//distPrismIntVerts->getNel()+distPrismShaVerts->getNel();
 
+    vertices_output.resize(nLocTotVrts*3);
+
+    std::fill(vertices_output.begin(), vertices_output.end(), 0.0);
     for(iitm=NonSharedVrts.begin();iitm!=NonSharedVrts.end();iitm++)
     {
         int globvid = iitm->first;
-        int lvert   = glob2locVid[globvid];
 
-        double xc   = new_vertices[lvert-1][0];
-        double yc   = new_vertices[lvert-1][1];
-        double zc   = new_vertices[lvert-1][2];
+        vertices_output[vert*3+0] = new_vertices[glob2locVid[globvid] - 1][0];
+        vertices_output[vert*3+1] = new_vertices[glob2locVid[globvid] - 1][1];
+        vertices_output[vert*3+2] = new_vertices[glob2locVid[globvid] - 1][2];
 
-        // vertices_output[vert*3+0] = xc;
-        // vertices_output[vert*3+1] = yc;
-        // vertices_output[vert*3+2] = zc;
-        
         oldglob2newglob[globvid] = vert+distnLocTotVrts->getOffsets()[world_rank]+1+nPrismVerts_tmp;
         newglob2oldglob[vert+distnLocTotVrts->getOffsets()[world_rank]+1+nPrismVerts_tmp] = globvid;
         
@@ -1152,15 +1149,10 @@ void RunParMMGandWriteTetraUS3Dformat(MPI_Comm comm,
     for(int i=0;i<nLocShVrts;i++)
     {
         int globvid = ActualOwnedVertDistr_map_update[world_rank][i];
-        int lvert = glob2locVid[globvid];
 
-        double xc = new_vertices[lvert-1][0];
-        double yc = new_vertices[lvert-1][1];
-        double zc = new_vertices[lvert-1][2];
-
-        // vertices_output[vert*3+0] = xc;
-        // vertices_output[vert*3+1] = yc;
-        // vertices_output[vert*3+2] = zc;
+        vertices_output[vert*3+0] = new_vertices[glob2locVid[globvid] - 1][0];
+        vertices_output[vert*3+1] = new_vertices[glob2locVid[globvid] - 1][1];
+        vertices_output[vert*3+2] = new_vertices[glob2locVid[globvid] - 1][2];
 
         oldglob2newglob[globvid] = vert+distnLocTotVrts->getOffsets()[world_rank]+1+nPrismVerts_tmp;
         newglob2oldglob[vert+distnLocTotVrts->getOffsets()[world_rank]+1+nPrismVerts_tmp] = globvid;
@@ -1321,11 +1313,6 @@ void RunParMMGandWriteTetraUS3Dformat(MPI_Comm comm,
         ifn_T[ftot*8+5]=rh_T[fid];
         ifn_T[ftot*8+6]=lh_T[fid];
         ifn_T[ftot*8+7]=2;
-
-        if(lh_T[fid]>279070 || rh_T[fid]>279070)
-        {
-            std::cout << "fid larger than number elements " << world_rank << " " << lh_T[fid] << " " << rh_T[fid] << std::endl;
-        }
         
         if(rh_T[fid] == 0)
         {
@@ -1570,11 +1557,7 @@ void RunParMMGandWriteTetraUS3Dformat(MPI_Comm comm,
         ifn_T[ftot*8+6] = elLh;
         ifn_T[ftot*8+7] = 2;
 
-        if(elLh>279070 || elRh>279070)
-        {
-            std::cout << "fid larger than number elements SharedFaces_T " << world_rank << " " << elLh << " " << elRh<< std::endl;
-        }
-
+        
         if(elRh == 0)
         {    
             std::cout <<"Found the face in shared -> " << fid << " " << world_rank << " " << elLh << std::endl;
@@ -1627,8 +1610,8 @@ void RunParMMGandWriteTetraUS3Dformat(MPI_Comm comm,
             
             if(LocationSharedVert_update.find(itmiv->second[q])!=LocationSharedVert_update.end())
             {
-                fq[q] = LocationSharedVert_update[itmiv->second[q]];
-                int traceRef = newtag2traceref_glob[itmiv->second[q]];
+                fq[q]           = LocationSharedVert_update[itmiv->second[q]];
+                int traceRef    = tagV2traceVref_glob[itmiv->second[q]];
                 
                 if(tracetag2glob.find(traceRef)==tracetag2glob.end())
                 {
@@ -1637,9 +1620,9 @@ void RunParMMGandWriteTetraUS3Dformat(MPI_Comm comm,
             }
             else
             {
-                fq[q] = oldglob2newglob[itmiv->second[q]];
+                fq[q]           = oldglob2newglob[itmiv->second[q]];
 
-                int traceRef = newtag2traceref_glob[itmiv->second[q]];
+                int traceRef    = tagV2traceVref_glob[itmiv->second[q]];
                 
                 if(tracetag2glob.find(traceRef)==tracetag2glob.end())
                 {
@@ -1715,10 +1698,6 @@ void RunParMMGandWriteTetraUS3Dformat(MPI_Comm comm,
 
         Vfaces.clear();
 
-        if(elLh>279070 || elRh>279070)
-        {
-            std::cout << "fid larger than number elements TraceFaces_T " << world_rank << " "  << elLh << " " << elRh  << std::endl;
-        }
         if(elRh == 0)
         {     
             std::cout <<"Found the face in shell -> " << fid << " " << world_rank << " " << elLh << std::endl;
@@ -1727,7 +1706,7 @@ void RunParMMGandWriteTetraUS3Dformat(MPI_Comm comm,
         ftot++;
     }  
     
-    tracetagV2globalV = AllGatherMap(tracetag2glob,comm);
+    tracerefV2globalV = AllGatherMap(tracetag2glob,comm);
 
     
 }
@@ -1756,39 +1735,11 @@ void RunParMMGAndTestPartitioning(MPI_Comm comm,
     // This test assumes that the following two build requests on the tetra_repart object have been called before entering this routine
     // tetra_repart->buildInteriorSharedAndBoundaryFacesMaps(comm,pttrace, ranges_id);
     // tetra_repart->buildTag2GlobalElementMapsAndFace2LeftRightElementMap(comm,pttrace, ranges_id);
+
     std::map<int,int> locv2tagvID                       = tetra_repart->getLocalVert2VertTag();
-    std::map<int,int> tagv2locvID                       = tetra_repart->getVertTag2LocalVert();
     std::map<int,int> globalv2localvID                  = tetra_repart->getUpdatedGlobal2LocalVMap();
-    // std::map<int,int> tag2globalV                       = tetra_repart->getUpdatedTag2GlobalVMap();
+    //std::map<int,int> tag2globalV                     = tetra_repart->getUpdatedTag2GlobalVMap();
 
-    std::map<int,int> tag2globvID_T;
-    std::map<int,int> NonSharedVertsOwned_T             = tetra_repart->getNonSharedVertsOwned();
-    std::map<int,int> SharedVertsOwned_T                = tetra_repart->getSharedVertsOwned();
-
-    int nLocIntVrts         = NonSharedVertsOwned_T.size();
-    int nLocShVrts          = SharedVertsOwned_T.size();
-    DistributedParallelState* distnLocIntVrts = new DistributedParallelState(nLocIntVrts,comm);
-    DistributedParallelState* distnLocShVrts  = new DistributedParallelState(nLocShVrts,comm);
-    int vert = 0;
-    std::map<int,int>::iterator itmii;
-    for(itmii=NonSharedVertsOwned_T.begin();itmii!=NonSharedVertsOwned_T.end();itmii++)
-    {
-        int tag = itmii->first;
-        tag2globvID_T[tag] = vert+distnLocIntVrts->getOffsets()[world_rank]+1;
-        
-        vert++;
-    }
-
-
-    int vertsh = 0;
-    
-    for(itmii=SharedVertsOwned_T.begin();itmii!=SharedVertsOwned_T.end();itmii++)
-    {
-        int tag                      = itmii->first;
-        
-        tag2globvID_T[tag] = SharedVertsOwned_T[tag];
-    }
-    
     // This test assumes that the following two build requests on the tetra_repart object have been called before entering this routine
     // tetra_repart->buildCommunicationMaps(comm);
     std::vector<int> face4parmmg                        = tetra_repart->getFace4ParMMG(); // checked

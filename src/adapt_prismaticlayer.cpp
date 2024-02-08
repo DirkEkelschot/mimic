@@ -314,14 +314,14 @@ PrismaticLayer::PrismaticLayer(std::map<int,std::vector<int> > elements,
         ownedVs[itmm->second] = ownedVs[itmm->second]+1;
     }
 
-    std::map<int,int> sharedFmap;
-    int iFshared = distLocalFaces->getNel()-f2r.size();
+    // std::map<int,int> sharedFmap;
+    // int iFshared = distLocalFaces->getNel()-f2r.size();
 
-    for(itvv=f2r.begin();itvv!=f2r.end();itvv++)
-    {
-        sharedFmap[itvv->first] = iFshared;
-        iFshared++;
-    }
+    // for(itvv=f2r.begin();itvv!=f2r.end();itvv++)
+    // {
+    //     sharedFmap[itvv->first] = iFshared;
+    //     iFshared++;
+    // }
     
     DistributedParallelState* ElementDistr = new DistributedParallelState(elements.size(),comm);
     
@@ -351,6 +351,7 @@ PrismaticLayer::PrismaticLayer(std::map<int,std::vector<int> > elements,
 
     
     int notowned = 0;
+    std::cout << "gvid " << gvid << std::endl;
     for(prit=elements.begin();prit!=elements.end();prit++)
     {
         int gEl       = prit->first;
