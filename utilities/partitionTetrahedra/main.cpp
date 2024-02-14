@@ -80,14 +80,13 @@ int main(int argc, char** argv)
     //=====================================================================================
     std::map<int,std::vector<int> > tetras_e2v,tetras_e2f,tetras_e2e;
     std::map<int,std::vector<double> > tetras_data;
-
     std::map<int,std::vector<int> > prisms_e2v,prisms_e2f,prisms_e2e;
     std::map<int,std::vector<double> > prisms_data;
+
     int ntetra     = meshRead->ntetra;
     int nprism     = meshRead->nprism;
     std::map<int,std::vector<int> >::iterator itmiv;
-    std::set<int> unikp;
-    std::set<int> unikt;
+
     for(itmiv=meshRead->ien.begin();itmiv!=meshRead->ien.end();itmiv++)
     {
         int elid   = itmiv->first;
@@ -98,15 +97,7 @@ int main(int argc, char** argv)
             tetras_e2v[elid]  = itmiv->second;
             tetras_e2f[elid]  = meshRead->ief[elid];
             tetras_e2e[elid]  = meshRead->iee[elid];
-            tetras_data[elid] = meshRead->interior[elid];
-
-            for(int s=0;s<itmiv->second.size();s++)
-            {
-                if(unikt.find(itmiv->second[s])==unikt.end())
-                {
-                    unikt.insert(itmiv->second[s]);
-                }   
-            }   
+            tetras_data[elid] = meshRead->interior[elid]; 
         }
         if(eltype == 6)
         {
@@ -114,19 +105,8 @@ int main(int argc, char** argv)
             prisms_e2f[elid]  = meshRead->ief[elid];
             prisms_e2e[elid]  = meshRead->iee[elid];
             prisms_data[elid] = meshRead->interior[elid];
-
-            for(int s=0;s<itmiv->second.size();s++)
-            {
-                if(unikp.find(itmiv->second[s])==unikp.end())
-                {
-                    unikp.insert(itmiv->second[s]);
-                }
-                
-            }
         }
     }
-
-    std::cout << "unikp and unikt " << unikp.size() << " " << unikt.size() << std::endl; 
 
     int nLocTetra  = tetras_e2v.size();
     int nLocPrism  = prisms_e2v.size();
@@ -139,13 +119,15 @@ int main(int argc, char** argv)
 
     // we need to pass the number of verts per element in case the partition has no elements of this type.
 
-    time_t start, end; 
  
     /* You can call it like this : start = time(NULL); 
     in both the way start contain total time in seconds 
     since the Epoch. */
 
-    time(&start); 
+    clock_t start, end;
+    double dur_max,time_taken;
+
+    start = clock();
     RepartitionObject* tetra_repart = new RepartitionObject(meshRead, 
                                                         tetras_e2v, 
                                                         tetras_e2f,
@@ -153,50 +135,58 @@ int main(int argc, char** argv)
                                                         pttrace, 
                                                         tetras_data,
                                                         comm);
-    time(&end); 
-    double time_taken = double(end - start); 
-    cout << "Time taken to repartion tetrahedera is : " << fixed 
-        << time_taken << setprecision(16); 
-    cout << " sec " << endl;
+    end = clock();
+    time_taken = ( end - start) / (double) CLOCKS_PER_SEC;
+    MPI_Allreduce(&time_taken, &dur_max, 1, MPI_DOUBLE, MPI_MAX, comm);
+    if(world_rank == 0)
+    {
+        cout << "Time taken to repartion tetrahedera is : " << fixed 
+        << dur_max << setprecision(16); 
+        cout << " sec " << endl;
+    }
 
     tetras_e2v.clear();tetras_e2f.clear();tetras_e2e.clear();
 
     tetra_repart->buildUpdatedVertexAndFaceNumbering(comm,pttrace, meshRead->ranges_id);
     tetra_repart->buildInteriorSharedAndBoundaryFaceMaps(comm,pttrace, meshRead->ranges_id);
-    tetra_repart->buildCommunicationMaps(comm);
+    
 
-    std::vector<int> face4parmmg                        = tetra_repart->getFace4ParMMG(); // checked
-    std::map<int,int> global2tagF                       = tetra_repart->getGlobal2TagFMap();
-    int** ifc_tria_glob                                 = tetra_repart->getParMMGCommFace2GlobalVertMap();
-    int** ifc_tria_loc                                  = tetra_repart->getParMMGCommFace2LocalVertMap();
-    int* color_face                                     = tetra_repart->getParMMGCommColorFace();
-    int *ntifc                                          = tetra_repart->getParMMGCommNFacesPerColor();
-    int ncomm                                           = tetra_repart->getParMMGNComm();
+    // std::vector<int> face4parmmg                        = tetra_repart->getFace4ParMMG(); // checked
+    // std::map<int,int> global2tagF                       = tetra_repart->getGlobal2TagFMap();
+    // int** ifc_tria_glob                                 = tetra_repart->getParMMGCommFace2GlobalVertMap();
+    // int** ifc_tria_loc                                  = tetra_repart->getParMMGCommFace2LocalVertMap();
+    // int* color_face                                     = tetra_repart->getParMMGCommColorFace();
+    // int *ntifc                                          = tetra_repart->getParMMGCommNFacesPerColor();
+    // int ncomm                                           = tetra_repart->getParMMGNComm();
 
     //=======================================================================================
-    //=======================================================================================
+    //=============================COMPUTE GRADIENTS/HESSIAN=================================
     //=======================================================================================
 
-    // std::map<int,std::vector<double> > tetra_grad = ComputedUdx_LSQ_US3D_Lite(tetra_repart, 
-    //                                                                           pttrace,
-    //                                                                           meshRead->ghost,
-    //                                                                           meshRead->nElem,
-    //                                                                           1, 
-    //                                                                           1,
-    //                                                                           comm);
-    // time(&end); 
-    // time_taken = double(end - start); 
-    // cout << "Time taken to calculate gradients for tetrahedra is : " << fixed 
-    //     << time_taken << setprecision(16); 
-    // cout << " sec " << endl;
-    // string filename_tg = "tetraGrad_" + std::to_string(world_rank) + ".vtu";
+    std::map<int,std::vector<double> > tetra_grad = ComputedUdx_LSQ_US3D_Lite(tetra_repart, 
+                                                                              pttrace,
+                                                                              meshRead->ghost,
+                                                                              meshRead->nElem,
+                                                                              1, 
+                                                                              1,
+                                                                              comm);
 
-    // OutputTetraMeshPartitionVTK(filename_tg, 
-    //                             Owned_Elem_t, 
-    //                             gE2gV_t, 
-    //                             tetra_grad, 
-    //                             varnamesGrad, 
-    //                             LocalVertsMap_t);
+    std::vector<int> Owned_Elem_t                       = tetra_repart->getLocElem();
+    std::map<int,std::vector<int> > gE2gV_t             = tetra_repart->getElement2VertexMap();
+    std::map<int, std::vector<double> > LocalVertsMap_t = tetra_repart->getLocalVertsMap();
+
+    string filename_tg = "tetraGrad_" + std::to_string(world_rank) + ".vtu";
+    std::map<int,std::string > varnamesGrad;
+    varnamesGrad[0]         = "dudx";
+    varnamesGrad[1]         = "dudy";
+    varnamesGrad[2]         = "dudz";
+    OutputTetraMeshPartitionVTK(comm,
+                                filename_tg, 
+                                Owned_Elem_t, 
+                                gE2gV_t, 
+                                tetra_grad, 
+                                varnamesGrad, 
+                                LocalVertsMap_t);
 
 
     //=======================================================================================
@@ -214,7 +204,7 @@ int main(int argc, char** argv)
 
     // OutputTetraMeshPartitionVTK(comm,
     //                             filename_pgNew, 
-    //                             Owned_Elem_t_new, 
+    //                             Owned_Elem_t, 
     //                             gE2gV_t, 
     //                             loc_data_t, 
     //                             varnames, 
@@ -222,7 +212,11 @@ int main(int argc, char** argv)
     //=======================================================================================
     //==================================OUTPUT TETRA PARTITIONS==============================
     //=======================================================================================
-    std::cout << "Initializing the data structure for ParMMG..." << std::endl;
+    if(world_rank == 0)
+    {
+        std::cout << "Initializing the data structure for ParMMG..." << std::endl;
+    }
+
     PMMG_pParMesh parmesh = InitializeParMMGmesh(comm, tetra_repart, pttrace, meshRead->ranges_id);
 
     if (inputs->niter == -1)
@@ -231,7 +225,7 @@ int main(int argc, char** argv)
     }
     else
     {   
-        
+        start = clock();
         RepartitionObject* prism_repart = new RepartitionObject(meshRead, 
                                                         prisms_e2v, 
                                                         prisms_e2f,
@@ -240,7 +234,18 @@ int main(int argc, char** argv)
                                                         prisms_data,
                                                         comm);
 
-        
+        end = clock();
+        time_taken = ( end - start) / (double) CLOCKS_PER_SEC;
+        dur_max;
+        MPI_Allreduce(&time_taken, &dur_max, 1, MPI_DOUBLE, MPI_MAX, comm);
+        if(world_rank == 0)
+        {
+            cout << "Time taken to repartion tetrahedera is : " << fixed 
+            << dur_max << setprecision(16); 
+            cout << " sec " << endl;
+        }
+
+    
         prisms_e2v.clear();prisms_e2f.clear();prisms_e2e.clear();                                                
         
         prism_repart->buildUpdatedVertexAndFaceNumbering(comm,pttrace, meshRead->ranges_id);
@@ -255,50 +260,32 @@ int main(int argc, char** argv)
         DistributedParallelState* distPrismShaVerts         = new DistributedParallelState(nSharedVertsOwned_P,comm);
         int nVertsGlob_P                                    = distPrismIntVerts->getNel()+distPrismShaVerts->getNel();
         
-        // Next to all the output data structures for us3d like xcn and ifn we also need to build the tracerefV2globalV map 
+        // Next to all the output data structures for us3d like xcn and ifn we also need to build the tracerefV2globalVidInTotalMesh map 
         // since this is defined by the tetrahedra ordering.
-        std::map<int,int> gE2tagE_P                             = prism_repart->getGlobalElement2ElementTag();
         std::map<int,int> tagE2gE_P                             = prism_repart->getElementTag2GlobalElement();
 
+        std::vector<int> ifn_adaptedTetra;
+        std::map<int,std::vector<int> > bcref2bcface_adaptedTetra;
+        std::map<int,std::vector<int> > BoundaryFaces_adaptedTetra;
+        std::map<int,int> glob2locVid_adaptedTetra;
+        std::map<int,int> LocationSharedVert_adaptedTetra;
+        std::vector<double> vertices_AdaptedTetra;
+        std::vector<std::vector<int> > elements_AdaptedTetra;
+        std::map<int,int> lh_bc_adaptedTetra;
+        std::map<int,int> new_globE2locE_adaptedTetra;
 
-        std::cout << "uniquevrts prism = " << nNonSharedVertsOwned_P << " " << nSharedVertsOwned_P << std::endl;
+        std::map<int,int> adaptedTetraVert2TotalAdaptedMeshVertMap;
+        std::map<int,int> tracerefV2globalVidInTotalMesh;
 
-        std::vector<int> ifn_T;
-        std::map<int,int> tracerefV2globalV;
-        std::map<int,std::vector<int> > bcref2bcface_T;
-        std::map<int,std::vector<int> > BoundaryFaces_T;
-        std::map<int,int> glob2locVid_T;
-        std::map<int,int> LocationSharedVert_T;
-        std::vector<double> new_vertices_T;
-        std::vector<std::vector<int> > new_tetrahedra_T;
-        std::map<int,int> oldglob2newglob_T;
-        std::map<int,int> lh_T_bc;
-        std::map<int,int> new_globE2locE_T;
-        std::vector<int> tetra_type;
-        std::cout << "running and writing tetra data..." << std::endl;
-        int nLocSharedVerts_T = 0;
-        int nLocInteriorVerts_T = 0;
 
-        // MPI_Comm comm, 
-        //         PMMG_pParMesh &parmesh,
-        //         PrismTetraTrace* pttrace,
-        //         Inputs* inputs, 
-        //         int nElemsGlob_P, int nVertsGlob_P, 
-        //         std::map<int,int>& tracerefV2globalV, 
-        //         std::vector<int> &ifn_T,
-        //         std::map<int,std::vector<int> > &bcmap,
-        //         std::map<int,std::vector<int> > &BoundaryFaces_T,
-        //         std::map<int,int> &glob2locVid,
-        //         std::map<int,int> &LocationSharedVert_update,
-        //         std::vector<double> &vertices_output,
-        //         std::vector<std::vector<int> > &new_tetrahedra,
-        //         std::map<int,int> &oldglob2newglob,
-        //         std::map<int,int> &lh_T_bc,
-        //         std::map<int,int> &new_globE2locE,
-        //         std::vector<int> &tetra_type,
-        //         int &nLocIntVrts,
-        //         int &nLocShVrts,
-        //         std::map<int,int> tagE2gE_P
+
+        if(world_rank == 0)
+        {
+            std::cout << "running and writing tetra data..." << std::endl;
+        }
+
+        int nLocSharedVerts_adaptedTetra = 0;
+        int nLocInteriorVerts_adaptedTetra = 0;
 
         RunParMMGandWriteTetraUS3Dformat(comm, 
                                         parmesh, 
@@ -306,40 +293,47 @@ int main(int argc, char** argv)
                                         inputs, 
                                         nElemsGlob_P, 
                                         nVertsGlob_P, 
-                                        tracerefV2globalV, 
-                                        ifn_T,
-                                        bcref2bcface_T,
-                                        BoundaryFaces_T,
-                                        glob2locVid_T,
-                                        LocationSharedVert_T,
-                                        new_vertices_T,
-                                        new_tetrahedra_T,
-                                        oldglob2newglob_T,
-                                        lh_T_bc,
-                                        new_globE2locE_T,
-                                        tetra_type,
-                                        nLocInteriorVerts_T,
-                                        nLocSharedVerts_T,
+                                        tracerefV2globalVidInTotalMesh, 
+                                        ifn_adaptedTetra,
+                                        bcref2bcface_adaptedTetra,
+                                        BoundaryFaces_adaptedTetra,
+                                        glob2locVid_adaptedTetra,
+                                        LocationSharedVert_adaptedTetra,
+                                        vertices_AdaptedTetra,
+                                        elements_AdaptedTetra,
+                                        adaptedTetraVert2TotalAdaptedMeshVertMap,
+                                        lh_bc_adaptedTetra,
+                                        new_globE2locE_adaptedTetra,
+                                        nLocInteriorVerts_adaptedTetra,
+                                        nLocSharedVerts_adaptedTetra,
                                         tagE2gE_P);
 
-        int nLocTotVrts_T                           = nLocInteriorVerts_T+nLocSharedVerts_T;
+        int nLocTotVrts_T                           = nLocInteriorVerts_adaptedTetra+nLocSharedVerts_adaptedTetra;
         DistributedParallelState* distnLocTotVrts_T = new DistributedParallelState(nLocTotVrts_T,comm);
         int* TotVrts_offsets_T                      = distnLocTotVrts_T->getOffsets();
         int nTotVertsTets                           = distnLocTotVrts_T->getNel();
         int TotVrts_offset_T                        = TotVrts_offsets_T[world_rank];
         std::vector<int> ifn_P;
-        std::cout << "writing prism data..." << std::endl;
 
-        std::cout << "nLocTotVrts_T " << nLocTotVrts_T << " " << nTotVertsTets << std::endl;
+        if(world_rank == 0)
+        {
+            std::cout << "writing prism data..." << std::endl;
+        }
 
-        WritePrismsUS3DFormat(comm,prism_repart,pttrace,tracerefV2globalV,ifn_P,meshRead->ranges_id);
+        WritePrismsUS3DFormat(comm,prism_repart,pttrace,tracerefV2globalVidInTotalMesh,ifn_P,meshRead->ranges_id);
         
-        int ftott = (int)ifn_T.size()/8;
+        int ftott = (int)ifn_adaptedTetra.size()/8;
         int ftotp = (int)ifn_P.size()/8;
+
+
+
+        if(world_rank == 0)
+        {
+            std::cout << "writing boundary data..." << std::endl;
+        }
 
         std::vector<std::vector<int> > bcArrays;
         std::map<int,int> bcsizing;
-        std::cout << "writing boundary data..." << std::endl;
         std::vector<int> bciTot_offsets;
         int nTotBCFaces = 0;
         std::set<int> bcsToT;
@@ -350,19 +344,19 @@ int main(int argc, char** argv)
         WriteBoundaryDataUS3DFormat(comm,
                                     prism_repart,
                                     pttrace,
-                                    ifn_T,
+                                    ifn_adaptedTetra,
                                     ifn_P,
-                                    bcref2bcface_T,
+                                    bcref2bcface_adaptedTetra,
                                     unique_trace_verts2refmap,
-                                    tracerefV2globalV,
-                                    BoundaryFaces_T,
-                                    glob2locVid_T,
-                                    new_tetrahedra_T,
-                                    new_vertices_T,
-                                    LocationSharedVert_T,
-                                    oldglob2newglob_T,
-                                    lh_T_bc,
-                                    new_globE2locE_T,
+                                    tracerefV2globalVidInTotalMesh,
+                                    BoundaryFaces_adaptedTetra,
+                                    glob2locVid_adaptedTetra,
+                                    elements_AdaptedTetra,
+                                    vertices_AdaptedTetra,
+                                    LocationSharedVert_adaptedTetra,
+                                    adaptedTetraVert2TotalAdaptedMeshVertMap,
+                                    lh_bc_adaptedTetra,
+                                    new_globE2locE_adaptedTetra,
                                     bcArrays,
                                     bcsizing,
                                     meshRead->zdefs,
@@ -378,7 +372,6 @@ int main(int argc, char** argv)
                                     zdefs_new);
 
         
-        std::cout << "Not even Writing to grid.h5 file..." << " " << NonSharedVertsOwned_P.size() << " " << SharedVertsOwned_P.size() << std::endl;
         std::vector<double> interiorverts_prism(NonSharedVertsOwned_P.size()*3,0);
         std::vector<double> sharedverts_prism(SharedVertsOwned_P.size()*3,0);
         int ivi = 0;
@@ -407,11 +400,6 @@ int main(int argc, char** argv)
 
             ivs++;
         }
-
-
-        std::cout << "uniquevrts prism after = " << interiorverts_prism.size() << " " << sharedverts_prism.size() << "NonSharedVertsOwned_P " << NonSharedVertsOwned_P.size() << " " << SharedVertsOwned_P.size() << std::endl;
-
-
         
         //===================================================================================
         //===================================================================================
@@ -421,7 +409,7 @@ int main(int argc, char** argv)
         //===================================================================================
         //===================================================================================
         
-        int nTetraLoc = new_tetrahedra_T.size();
+        int nTetraLoc = elements_AdaptedTetra.size();
         int nPrismLoc = prism_repart->getLocElem().size();
 
         std::vector<int> prisms_type(nPrismLoc,0);
@@ -437,7 +425,7 @@ int main(int argc, char** argv)
         }
         
 
-        DistributedParallelState* distTetra         = new DistributedParallelState(new_tetrahedra_T.size(),comm);
+        DistributedParallelState* distTetra         = new DistributedParallelState(elements_AdaptedTetra.size(),comm);
         int ToTElements_offset_tetra                = distTetra->getOffsets()[world_rank];
 
         DistributedParallelState* distPrism         = new DistributedParallelState(prism_repart->getLocElem().size(),comm);
@@ -446,31 +434,30 @@ int main(int argc, char** argv)
         DistributedParallelState* distFaceTetra     = new DistributedParallelState(ftott,comm);
         DistributedParallelState* distFacePrisms    = new DistributedParallelState(ftotp,comm);
 
-        int ToTElements_prism                       = distPrism->getNel();
-        
+        int ToTElements_prism                       = distPrism->getNel();  
         int ToTElements_tetra                       = distTetra->getNel();
         int nTotElements                            = ToTElements_prism + ToTElements_tetra;
-        std::cout << "nTotElements " << nTotElements << " " << ToTElements_prism << " " << ToTElements_tetra << " " << new_tetrahedra_T.size() << std::endl;
         int nTotInteriorFaces_prism                 = distFacePrisms->getNel();
         int nTotInteriorFaces_tetra                 = distFaceTetra->getNel();
         int* TotIntFaces_offsets_prism              = distFacePrisms->getOffsets();
         int* TotIntFaces_offsets_tetra              = distFaceTetra->getOffsets();
-        int nvertices                               = (int)new_vertices_T.size()/3;
+        int nvertices                               = (int)vertices_AdaptedTetra.size()/3;
 
         DistributedParallelState* distTetraVerts    = new DistributedParallelState(nvertices,comm);
         DistributedParallelState* distPrismVerts    = new DistributedParallelState(nNonSharedVertsOwned_P+nSharedVertsOwned_P,comm);
         int nTotFaces                               = nTotInteriorFaces_prism + nTotInteriorFaces_tetra + nTotBCFaces;
         int nTotTetraVerts                          = distTetraVerts->getNel();
         int nTotPrismVerts                          = distPrismVerts->getNel();
-        std::cout << "nTot Verts " << nTotTetraVerts << " " << nTotPrismVerts << std::endl;
         int nTotVertsPrismTetra                     = nTotPrismVerts+nTotTetraVerts;
         int nTotPrismIntVerts                       = distPrismIntVerts->getNel();
         int nTotPrismShaVerts                       = distPrismShaVerts->getNel();
         int TotPrismVerts_offset_int                = distPrismIntVerts->getOffsets()[world_rank];
         int TotPrismVerts_offset_sha                = distPrismShaVerts->getOffsets()[world_rank];
 
-        std::cout << "world " << ToTElements_prism << " " << distTetra->getOffsets()[world_rank] << " " << world_rank << std::endl;
-        std::cout << "nTotVertsPrismTetra " << nTotVertsPrismTetra << std::endl;
+
+
+        
+
         hid_t ret;
         hid_t plist_id = H5Pcreate(H5P_FILE_ACCESS);
         H5Pset_fapl_mpio(plist_id, comm, info);
@@ -540,8 +527,6 @@ int main(int argc, char** argv)
         // Add iet map to the grid.h5 file
         //====================================================================================
 
-
-        std::cout << "nTot Elements " << nTotElements << " " << ToTElements_offset_prism << " " <<  prisms_type.size() << std::endl;
         
         dimsf[0] = nTotElements;
         dimsf[1] = 1;
@@ -585,9 +570,6 @@ int main(int argc, char** argv)
         // Add xcn map to the grid.h5 file
         //====================================================================================
         
-
-
-        std::cout << "nTotPrismIntVerts+nTotPrismShaVerts+nTotTetraVerts " << nTotPrismIntVerts+nTotPrismShaVerts+nTotTetraVerts << " " << NonSharedVertsOwned_P.size() << "  " << TotPrismVerts_offset_int << std::endl;
         
         dimsf[0] = nTotPrismIntVerts+nTotPrismShaVerts+nTotTetraVerts;
         dimsf[1] = 3;
@@ -660,7 +642,7 @@ int main(int argc, char** argv)
         plist_id     = H5Pcreate(H5P_DATASET_XFER);
         H5Pset_dxpl_mpio(plist_id, H5FD_MPIO_INDEPENDENT);
 
-        status = H5Dwrite(dset_id, H5T_NATIVE_DOUBLE, memspace, filespace, plist_id, &new_vertices_T.data()[0]);
+        status = H5Dwrite(dset_id, H5T_NATIVE_DOUBLE, memspace, filespace, plist_id, &vertices_AdaptedTetra.data()[0]);
         // delete xcn_parmmg;
         
        
@@ -698,12 +680,11 @@ int main(int argc, char** argv)
         //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
         //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
         
-        countH5[0]  = (int)ifn_T.size()/8;
+        countH5[0]  = (int)ifn_adaptedTetra.size()/8;
         countH5[1]  = dimsf[1];
 
         offsetH5[0] = nTotInteriorFaces_prism+TotIntFaces_offsets_tetra[world_rank];
         offsetH5[1] = 0;
-        //std::cout << "nTotInteriorFaces_prism+TotIntFaces_offsets[world_rank ] " << TotIntFaces_offsets_prism[world_rank] << " " << ifnOUT_prism->getNrow() << " " << nTotInteriorFaces_prism << " " << TotIntFaces_offsets[world_rank ] << " " << ifnOUT->getNrow() << world_rank << " -> " <<nTotInteriorFaces_prism << " + " << nTotInteriorFaces << " " << ftot << " " << fptot  << " " << world_rank << " " << nTotInteriorFaces_prism+nTotInteriorFaces << std::endl;
 
         memspace     = H5Screate_simple(2, countH5, NULL);
         filespace     = H5Dget_space(dset_id);
@@ -712,9 +693,8 @@ int main(int argc, char** argv)
         H5Pset_dxpl_mpio(plist_id, H5FD_MPIO_INDEPENDENT);
 //
         status = H5Dwrite(dset_id, H5T_NATIVE_INT, memspace, filespace,
-                      plist_id, &ifn_T.data()[0]);
+                      plist_id, &ifn_adaptedTetra.data()[0]);
         
-        //std::cout << "world " << nTotInteriorFaces_prism+TotIntFaces_offsets[world_rank ]+ifnOUT->getNrow() << " --> " << nTotInteriorFaces_prism+nTotInteriorFaces << " +++ "<< world_rank << std::endl;
         //===================================================================================
         int nbo = bcArrays.size();
         for(int i=0;i<bcsToT.size();i++)

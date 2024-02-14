@@ -961,10 +961,10 @@ void RepartitionObject::DeterminePartitionLayout(std::map<int,std::vector<int> >
 
    // MPI_Allreduce(element2rank_update.data(), element2rank_update_glob.data(), nglob, MPI_INT, MPI_SUM, comm);
 
-   if(rank == 0)
-   {
-        std::cout << "Succesfully found a redistribution of the elements2verts." << std::endl;
-   }
+//    if(rank == 0)
+//    {
+//         std::cout << "Succesfully found a redistribution of the elements2verts." << std::endl;
+//    }
    delete[] xadj_par;
    delete[] adjncy_par;
 }
@@ -3907,10 +3907,7 @@ void RepartitionObject::buildInteriorSharedAndBoundaryFaceMaps(MPI_Comm comm,
 
                             o_lhp[gfid] = lEl;
                             o_boundaryFace2Nodes[gfid] = fn_tag;
-                            if(o_lhp[gfid]>279070)
-                            {
-                                std::cout << gfid << " " << o_lhp[gfid] << " ElementDistr " << ElementDistr->getNel() << std::endl;
-                            }
+                            
                         }
                     }
                 }
@@ -3925,9 +3922,6 @@ void RepartitionObject::buildInteriorSharedAndBoundaryFaceMaps(MPI_Comm comm,
         u++;    
     }
 
-    std::cout << rank <<  " fownedInmap " << fownedInmap << " " << o_sharedFace2Nodes.size() << std::endl;
-
-    //std::cout << "o_gE2tagE o_gE2tagE " << o_gE2tagE.size() << std::endl;
 
     std::map<int,std::vector<int> >::iterator itv;
     ScheduleObj* rh_schedule = DoScheduling(o_colorRh,comm);

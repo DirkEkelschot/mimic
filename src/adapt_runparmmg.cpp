@@ -18,11 +18,13 @@ PMMG_pParMesh InitializeParMMGmesh(MPI_Comm comm,
     // Get the rank of the process
     int world_rank;
     MPI_Comm_rank(comm, &world_rank);
-
+    
     int k;
     // This test assumes that the following two build requests on the tetra_repart object have been called before entering this routine
     // tetra_repart->buildInteriorSharedAndBoundaryFacesMaps(comm,pttrace, ranges_id);
     // tetra_repart->buildTag2GlobalElementMapsAndFace2LeftRightElementMap(comm,pttrace, ranges_id);
+    tetra_repart->buildCommunicationMaps(comm);
+    
     std::vector<int> Owned_Elem_t                       = tetra_repart->getLocElem();
     std::map<int,std::vector<int> > gE2gV_t             = tetra_repart->getElement2VertexMap();
     std::map<int,int> locv2tagvID                       = tetra_repart->getLocalVert2VertTag();
@@ -45,8 +47,6 @@ PMMG_pParMesh InitializeParMMGmesh(MPI_Comm comm,
     int nTetrahedra = Owned_Elem_t.size();
     int nEdges      = 0;
     int nTriangles  = face4parmmg.size();
-
-    std::cout << "nVerticesInputted " << nVertices << std::endl; 
 
     PMMG_pParMesh   parmesh;
     PMMG_Init_parMesh(PMMG_ARG_start,
@@ -116,7 +116,7 @@ PMMG_pParMesh InitializeParMMGmesh(MPI_Comm comm,
 
     std::map<int,std::vector<int> > f2vmap = tetra_repart->getFace2VertexMap();
     std::map<int,std::vector<int> > f2refmap = tetra_repart->getFace2RefMap();
-    std::cout << "nTriangles " << nTriangles << " on rank " << world_rank << std::endl;
+
     for ( k=0; k<nTriangles; ++k )
     {
         
@@ -235,16 +235,16 @@ PMMG_pParMesh InitializeParMMGmesh(MPI_Comm comm,
     MPI_Allreduce(&wallbc, &wallbc_sum, 1, MPI_INT, MPI_SUM, comm);
     MPI_Allreduce(&symmetrybc, &symmetrybc_sum, 1, MPI_INT, MPI_SUM, comm);
 
-    if(world_rank == 0)
-    {
-        std::cout << "=============Boundary Face Stats for Tetrahedra ============" << std::endl;
-        std::cout << "                  Outflow: " << outflowbc_sum << std::endl;
-        std::cout << "                  Inflow: " << inflowbc_sum << std::endl;
-        std::cout << "                  Trace: " << tracebc_sum << std::endl;
-        std::cout << "                  Wall: " << wallbc_sum << std::endl;
-        std::cout << "                  Symmetry: " << symmetrybc_sum << std::endl;
-        std::cout << "============================================================" << std::endl;
-    }
+    // if(world_rank == 0)
+    // {
+    //     std::cout << "=============Boundary Face Stats for Tetrahedra ============" << std::endl;
+    //     std::cout << "                  Outflow: " << outflowbc_sum << std::endl;
+    //     std::cout << "                  Inflow: " << inflowbc_sum << std::endl;
+    //     std::cout << "                  Trace: " << tracebc_sum << std::endl;
+    //     std::cout << "                  Wall: " << wallbc_sum << std::endl;
+    //     std::cout << "                  Symmetry: " << symmetrybc_sum << std::endl;
+    //     std::cout << "============================================================" << std::endl;
+    // }
 
     int API_mode = 0;
     
@@ -348,7 +348,6 @@ void RunParMMGandWriteTetraUS3Dformat(MPI_Comm comm,
                 std::map<int,int> &oldglob2newglob,
                 std::map<int,int> &lh_T_bc,
                 std::map<int,int> &new_globE2locE,
-                std::vector<int> &tetra_type,
                 int &nLocIntVrts,
                 int &nLocShVrts,
                 std::map<int,int> tagE2gE_P)
@@ -397,7 +396,6 @@ void RunParMMGandWriteTetraUS3Dformat(MPI_Comm comm,
     {
         ier = PMMG_STRONGFAILURE;
     }
-    std::cout << "nVerticesIN  " << nVerticesIN << " " << world_rank << std::endl;
 
     // std::cout << "nVertices input " << nVerticesIN << std::endl;
     // std::cout << "nTetrahedra input " << nTetrahedraIN << std::endl;
@@ -544,10 +542,6 @@ void RunParMMGandWriteTetraUS3Dformat(MPI_Comm comm,
         new_vertices[k]=crds;
     }
 
-
-    std::cout << "nVerticesOUT  " << nVerticesOUT << " " << world_rank << std::endl;
-
-
     //===================================================================
     // Collect Faces    ->      (triangles)
     //===================================================================
@@ -557,7 +551,6 @@ void RunParMMGandWriteTetraUS3Dformat(MPI_Comm comm,
     std::vector<int> requiredFaces(nTrianglesOUT,0);
     FaceSetPointer m_PMMG_Face2RefPointer;
     FaceSetPointer m_PMMG_TraceFacePointer;
-    int facef   = 0;
     // std::cout << "leftright_trace " << leftright_trace.size() << std::endl;
     int tracef  = 0;
     int nreq2   = 0;
@@ -578,8 +571,6 @@ void RunParMMGandWriteTetraUS3Dformat(MPI_Comm comm,
             fprintf(inm,"Unable to get mesh triangle %d \n",k);
             ier = PMMG_STRONGFAILURE;
         }
-
-        tetra_type.push_back(2);
 
         face[0] = loc2globVid[face[0]];
         face[1] = loc2globVid[face[1]];
@@ -630,8 +621,6 @@ void RunParMMGandWriteTetraUS3Dformat(MPI_Comm comm,
                 {
                     (*Trace2PrismPointer.first)->SetFaceRightElement(PrismID);
                 }
-
-                facef++;
             }
         }
 
@@ -639,9 +628,6 @@ void RunParMMGandWriteTetraUS3Dformat(MPI_Comm comm,
 
         if ( required2 && required2[k] )  nreq2++;
     }
-
-    std::cout << "facef " << facef << " " << pf << " " << pfn << std::endl;
-
 
     int **out_tria_loc, **out_node_loc;
     int *nitem_face_comm,*nitem_node_comm;
@@ -866,7 +852,6 @@ void RunParMMGandWriteTetraUS3Dformat(MPI_Comm comm,
 
     int nPrismsTot = nElemsGlob_P;
     int curElID = TetraOUT_offsets[world_rank]+1+nPrismsTot;
-        std::cout << "nPrismsTot anfd curElID " << nPrismsTot << " " << curElID << std::endl;
 
     std::map<int,int> lhsh;
     std::map<int,std::vector<int> > InternalFaces_T;
@@ -892,7 +877,6 @@ void RunParMMGandWriteTetraUS3Dformat(MPI_Comm comm,
     int negit  = 0;
     int inhere = 0;
 
-    std::cout << "nTetrahedraOUT " << nTetrahedraOUT << std::endl;
     int larg = 0;
     int largf = 0;
     int larg2 = 0;
@@ -1092,11 +1076,7 @@ void RunParMMGandWriteTetraUS3Dformat(MPI_Comm comm,
     }
 
 
-    std::cout << "m_PMMG_TraceFace2PrismPointer " << m_PMMG_TraceFace2PrismPointer.size() << " " << m_PMMG_TraceFacePointer.size() << std::endl;
-    std::cout << "LARG STATUS = " << larg << " largf " << largf << " largtot " << largtot << " WR " << world_rank << std::endl;
-    std::cout << "larg3 " << larg3 << " " << largf3 << std::endl;
-    // std::cout << "int inhere = larg " << larg << " " << world_rank << " " << inhere << " " << rhtrace.size() << " NEGIT " << negit << " " << curElID << " " << world_rank << std::endl;
-
+    
     std::map<int,int> tagV2traceVref_glob  = AllGatherMap(tagV2traceVref,comm);
     std::map<int,int> traceref2newtag_glob = AllGatherMap(traceref2newtag,comm);
 
@@ -1313,17 +1293,9 @@ void RunParMMGandWriteTetraUS3Dformat(MPI_Comm comm,
         ifn_T[ftot*8+5]=rh_T[fid];
         ifn_T[ftot*8+6]=lh_T[fid];
         ifn_T[ftot*8+7]=2;
-        
-        if(rh_T[fid] == 0)
-        {
-            nfound++;
-            std::cout <<"Found the face -> " << fid << " " << world_rank << " " << lh_T[fid] << std::endl;
-        }
-
 
         ftot++;
     }
-    std::cout << "rh_T " << world_rank << " " << nfound << std::endl; 
     //===================================================================
     
     // std::map<int,int> locShF2globShF = tetra_repart->GetLocalSharedFace2GlobalSharedFace();
@@ -1428,8 +1400,6 @@ void RunParMMGandWriteTetraUS3Dformat(MPI_Comm comm,
 
         }
     }
-
-    std::cout << "[passed]" << std::endl;
     
     DistributedParallelState* rhbefore = new DistributedParallelState(rh_T.size(),comm);
     DistributedParallelState* lhbefore = new DistributedParallelState(lh_T.size(),comm);
@@ -1564,13 +1534,7 @@ void RunParMMGandWriteTetraUS3Dformat(MPI_Comm comm,
         } 
 
         ftot++;
-    }
-
-    std::cout << "[passed2]" << std::endl;
-    
-
-
-    
+    }    
 
 
 

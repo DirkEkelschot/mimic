@@ -1,5 +1,13 @@
 #include "adapt_gradreconstruct_lite.h"
 
+
+
+
+
+
+
+
+
 std::map<int,std::vector<double> > ComputedUdx_LSQ_US3D_Lite(RepartitionObject* RePa,
                                                              PrismTetraTrace* trace,
                                                              std::map<int,std::vector<double> > ghosts,
@@ -99,7 +107,7 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_US3D_Lite(RepartitionObject* 
         for(int j=0;j<nadj;j++)
         {
             int adjID       = Element2ElementMap[elID][j];
-            int faceID = -1;
+            int faceID      = -1;
             if(Element2FacesMap.find(elID)!=Element2FacesMap.end())
             {
                 faceID  = Element2FacesMap[elID][j];

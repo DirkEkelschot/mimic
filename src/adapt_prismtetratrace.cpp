@@ -211,8 +211,6 @@ PrismTetraTrace::PrismTetraTrace(MPI_Comm comm,
             ref++;
         }
     }
-
-    std::cout << "vref " << vref << std::endl;
 }
 
 // void PrismTetraTrace::GetRequiredPrisms()

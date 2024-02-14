@@ -197,7 +197,7 @@ Inputs* ReadXmlFile(MPI_Comm comm, const char* filename)
         std::cout << "===================================================" << std::endl;
         std::cout << "============== Metric parameters ==================" << std::endl;
         std::cout << "===================================================" << std::endl;
-        std::cout << "Nproc	    = " << world_size << std::endl;
+        std::cout << "Nproc     = " << world_size << std::endl;
         std::cout << "hgrad     = " << inp->hgrad << std::endl;
         std::cout << "hmin      = " << inp->hmin << std::endl;
         std::cout << "hmax      = " << inp->hmax << std::endl;
