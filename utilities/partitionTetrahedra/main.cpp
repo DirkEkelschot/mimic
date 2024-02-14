@@ -9,7 +9,6 @@
 #include "../../src/adapt_redistribute.h"
 #include "../../src/adapt_DefinePrismMesh.h"
 #include "../../src/adapt_prismaticlayer.h"
-// #include "../../src/NekFace.h"
 #include "../../src/adapt_prismtetratrace.h"
 #include "../../src/adapt_repartition.h"
 #include "../../src/adapt_output_vtk.h"
@@ -19,11 +18,15 @@
 #include "../../src/adapt_inputs.h"
 #include "../../src/adapt_writeus3ddata.h"
 
+
 #include <iomanip>
 
 #define MAX2(a,b)      (((a) > (b)) ? (a) : (b))
 #define MAX4(a,b,c,d)  (((MAX2(a,b)) > (MAX2(c,d))) ? (MAX2(a,b)) : (MAX2(c,d)))
 
+typedef CGAL::Simple_cartesian<double> Kernel;
+typedef Kernel::Point_2 Point_2;
+typedef Kernel::Segment_2 Segment_2;
 
 int main(int argc, char** argv)
 {
@@ -134,6 +137,7 @@ int main(int argc, char** argv)
                                                         tetras_e2e,
                                                         pttrace, 
                                                         tetras_data,
+                                                        2,
                                                         comm);
     end = clock();
     time_taken = ( end - start) / (double) CLOCKS_PER_SEC;
@@ -162,6 +166,14 @@ int main(int argc, char** argv)
     //=======================================================================================
     //=============================COMPUTE GRADIENTS/HESSIAN=================================
     //=======================================================================================
+    // std::map<int,std::vector<double> > tetra_grad = ComputedUdx_LSQ_LS_US3D_Lite(tetra_repart, 
+    //                                                                           pttrace,
+    //                                                                           meshRead->ghost,
+    //                                                                           meshRead->nElem,
+    //                                                                           1, 
+    //                                                                           1,
+    //                                                                           comm);
+
 
     std::map<int,std::vector<double> > tetra_grad = ComputedUdx_LSQ_US3D_Lite(tetra_repart, 
                                                                               pttrace,
@@ -232,6 +244,7 @@ int main(int argc, char** argv)
                                                         prisms_e2e,
                                                         pttrace, 
                                                         prisms_data,
+                                                        0,
                                                         comm);
 
         end = clock();

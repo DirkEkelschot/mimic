@@ -21,6 +21,7 @@ class RepartitionObject{
                                   std::map<int,std::vector<int> > elements2elements,
                                   PrismTetraTrace* trace,
                                   std::map<int,std::vector<double> > data,
+                                  int nAdjLayer,
                                   MPI_Comm comm);
                 ~RepartitionObject();
 

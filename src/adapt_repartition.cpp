@@ -6,6 +6,7 @@ RepartitionObject::RepartitionObject(mesh* meshInput,
                         std::map<int,std::vector<int> > elements2elements,
                         PrismTetraTrace* trace,
                         std::map<int,std::vector<double> > data,
+                        int nAdjLayer,
                         MPI_Comm comm)
 {
     
@@ -91,7 +92,6 @@ RepartitionObject::RepartitionObject(mesh* meshInput,
     //std::cout << "RANK == " << rank << " pre stats :: " << elements2verts_update.size() << " " << elements2faces_update.size() << " "  << elements2elements_update.size() << " " << elements2data_update.size() << " LocalVertsMap " << LocalVertsMap.size() << std::endl;
     vloc = LocalVertsMap.size();
 
-    int nAdjLayer = 1;
     for(int i=0;i<nAdjLayer;i++)
     {
         // std::cout << " i = " << i << " :: " << elements2verts_update.size() << " rank " << rank << std::endl;
