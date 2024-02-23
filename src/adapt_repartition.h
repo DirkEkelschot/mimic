@@ -41,7 +41,7 @@ class RepartitionObject{
                                                     std::map<int,std::vector<int> >& elements2elements_update,
                                                     std::map<int,std::vector<double> >& elements2data_update);
 
-                void DeterminePartitionLayout(std::map<int,std::vector<int> > elements, std::vector<int> element2rank, MPI_Comm comm);
+                void DeterminePartitionLayout(std::map<int,std::vector<int> > elements, std::vector<int> element2rank, std::vector<int> elTypes, MPI_Comm comm);
 
                 
                 void DetermineElement2ProcMap(std::map<int,std::vector<int> >     ien, 
@@ -162,6 +162,12 @@ class RepartitionObject{
                                              std::map<int,std::vector<int> >& elements2faces_update,
                                              std::map<int,std::vector<int> >& elements2elements_update,
                                              std::map<int,std::vector<double> >& elements2data_update);
+                
+                
+                std::map<int,std::set<int> > GetNode2ElementMap(RepartitionObject* prisms);
+
+
+                void AddStateVecForAdjacentElements(std::map<int,std::vector<double> > &U, int nvar, MPI_Comm comm);
 
         private:
                 std::vector<int> part;
@@ -172,6 +178,11 @@ class RepartitionObject{
                 int vloc;
                 int floc;
 
+                int Ne_glob;
+                int Nf_glob;
+                int Nv_glob;
+
+                std::map<int,std::set<int> > node2elem_map;
 
                 std::map<int, std::vector<int> > globElem2globVerts;
                 std::map<int, std::vector<int> > globElem2locVerts;

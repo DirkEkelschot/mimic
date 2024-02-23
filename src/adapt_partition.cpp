@@ -2835,6 +2835,7 @@ void Partition::AddStateVecForAdjacentElements(std::map<int,Array<double>* > &U,
     }
     
     delete[] new_offsets;
+    
 }
 
 
@@ -6231,7 +6232,8 @@ std::map<int,Array<double>* > Partition::ReduceStateVecToAllVertices_V2(std::map
             int gEl     = itmd->first;
             
             std::vector<double> VrtEl = itmd->second;
-//            double Vol  = elem2centVol[itmd->first];
+
+//          double Vol  = elem2centVol[itmd->first];
             
             //double error_r = fabs((VrtEl[0]-xcomp)*(VrtEl[0]-xcomp)+(VrtEl[1]-ycomp)*(VrtEl[1]-ycomp)+(VrtEl[2]-zcomp)*(VrtEl[2]-zcomp));
             

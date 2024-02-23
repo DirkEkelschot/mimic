@@ -47,8 +47,8 @@ inline ParallelState_Parmetis_Lite::ParallelState_Parmetis_Lite(std::map<int,std
     int rank;
     MPI_Comm_rank(comm, &rank);
 
-    int nloc             = e2n.size();
-    nElemTotal       = 0;
+    int nloc                = e2n.size();
+    nElemTotal              = 0;
     MPI_Allreduce(&nloc, &nElemTotal, 1, MPI_INT, MPI_SUM, comm);
 
     int npo_loc     = 0;

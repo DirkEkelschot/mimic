@@ -134,7 +134,7 @@ Eig* ComputeEigenDecomp(int n, double * A)
   for ( i = 0; i < n; i++)
     for ( j = 0; j < n; j++)
       V[i*n+j] = iV[j*n+i];
-  
+    /**/
     // Compute inverse of V1
     memcpy( iV, V, n*n*sizeof(double) );
     dgetrf_(&n, &n, iV, &n, Pivot, &info);

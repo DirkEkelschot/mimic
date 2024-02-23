@@ -794,7 +794,7 @@ void WriteBoundaryDataUS3DFormat(MPI_Comm comm,
     zdefs_row0[4] = nTotVertsPrismTetra;
     zdefs_row0[5] = zdefs[0][5];
     zdefs_row0[6] = zdefs[0][6];
-    for(int i = 0;i<(3+nbo);i++)
+    for(int i = 0;i<7;i++)
     {
         zdefs_new.push_back(zdefs_row0[i]);
     }
@@ -808,7 +808,7 @@ void WriteBoundaryDataUS3DFormat(MPI_Comm comm,
     zdefs_row1[4] = nTotElements;
     zdefs_row1[5] = zdefs[1][5];
     zdefs_row1[6] = 2;
-    for(int i = 0;i<(3+nbo);i++)
+    for(int i = 0;i<7;i++)
     {
         zdefs_new.push_back(zdefs_row1[i]);
     }
@@ -822,7 +822,7 @@ void WriteBoundaryDataUS3DFormat(MPI_Comm comm,
     zdefs_row2[4] = nTotIntFaces;
     zdefs_row2[5] = zdefs[2][5];
     zdefs_row2[6] = 2;
-    for(int i = 0;i<(3+nbo);i++)
+    for(int i = 0;i<7;i++)
     {
         zdefs_new.push_back(zdefs_row2[i]);
     }
@@ -858,7 +858,7 @@ void WriteBoundaryDataUS3DFormat(MPI_Comm comm,
         zdefs_row[4] = face_end;
         zdefs_row[5] = bnd_ref;
         zdefs_row[6] = 2;
-        for(int i = 0;i<(3+nbo);i++)
+        for(int i = 0;i<7;i++)
         {
             zdefs_new.push_back(zdefs_row[i]);
         }

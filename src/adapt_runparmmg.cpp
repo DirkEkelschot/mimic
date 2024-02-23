@@ -8,7 +8,8 @@
 PMMG_pParMesh InitializeParMMGmesh(MPI_Comm comm, 
                                    RepartitionObject* tetra_repart,
                                    PrismTetraTrace* pttrace, 
-                                   std::map<int,std::vector<int> > ranges_id)
+                                   std::map<int,std::vector<int> > ranges_id,
+                                   std::map<int, std::vector<std::vector<double> > > metric_vmap)
 {
     
     int ier;
@@ -82,14 +83,16 @@ PMMG_pParMesh InitializeParMMGmesh(MPI_Comm comm,
         }
 
         std::vector<double> tensor(6,0);
-        tensor[0] = 1.0;
-        tensor[1] = 0.0;
-        tensor[2] = 0.0;
-        tensor[3] = 1.0;
-        tensor[4] = 0.0;
-        tensor[5] = 1.0;
+        tensor[0] = metric_vmap[tagvid][0][0];
+        tensor[1] = metric_vmap[tagvid][0][1];
+        tensor[2] = metric_vmap[tagvid][0][2];
+        tensor[3] = metric_vmap[tagvid][1][1];
+        tensor[4] = metric_vmap[tagvid][1][2];
+        tensor[5] = metric_vmap[tagvid][2][2];
 
-        if(PMMG_Set_tensorMet(parmesh,tensor[0],tensor[1],tensor[2],tensor[3],tensor[4],tensor[5],k+1)!=1)
+        //std::cout << "TENSOR " << tensor[0] << " " << tensor[1] << " " << tensor[2] << " " << tensor[3] << " " << tensor[4] << " " << tensor[5] << std::endl;
+
+        if(PMMG_Set_tensorMet(parmesh,tensor[0],tensor[1],tensor[2],tensor[3],tensor[4],tensor[5],locvid+1)!=1)
         {
          MPI_Finalize();
          exit(EXIT_FAILURE);
@@ -449,9 +452,10 @@ void RunParMMGandWriteTetraUS3Dformat(MPI_Comm comm,
     }
 
     //std::cout << "ownedTracePrisms " << lr << " " << unique_prisms.size() << " " << ownedTracePrisms.size() << " " << world_rank << " " << FaceTraceRefs.size() << std::endl;
-    std::map<int,int> glob2tag_prisms_on_trace_glob = AllGatherMap(glob2tag_prisms_on_trace,comm);
-    std::map<int,int> tag2glob_prisms_on_trace_glob = AllGatherMap(tag2glob_prisms_on_trace,comm);
+    std::map<int,int> glob2tag_prisms_on_trace_glob = AllGatherMap_T(glob2tag_prisms_on_trace,comm);
+    std::map<int,int> tag2glob_prisms_on_trace_glob = AllGatherMap_T(tag2glob_prisms_on_trace,comm);
 
+    std::cout << "glob2tag_prisms_on_trace_glob " << glob2tag_prisms_on_trace_glob.size() << " " << glob2tag_prisms_on_trace.size() << std::endl; 
     //std::cout << "LR = " << lr << " unique_prisms " << unique_prisms.size() << std::endl; 
 
     // std::map<int,int>::iterator itmii;
@@ -1077,8 +1081,8 @@ void RunParMMGandWriteTetraUS3Dformat(MPI_Comm comm,
 
 
     
-    std::map<int,int> tagV2traceVref_glob  = AllGatherMap(tagV2traceVref,comm);
-    std::map<int,int> traceref2newtag_glob = AllGatherMap(traceref2newtag,comm);
+    std::map<int,int> tagV2traceVref_glob  = AllGatherMap_T(tagV2traceVref,comm);
+    std::map<int,int> traceref2newtag_glob = AllGatherMap_T(traceref2newtag,comm);
 
     // std::cout << "===============================================" << std::endl;
     // std::cout << "BoundaryFaces_T " << BoundaryFaces_T.size() << " " << world_rank << std::endl;
@@ -1670,7 +1674,7 @@ void RunParMMGandWriteTetraUS3Dformat(MPI_Comm comm,
         ftot++;
     }  
     
-    tracerefV2globalV = AllGatherMap(tracetag2glob,comm);
+    tracerefV2globalV = AllGatherMap_T(tracetag2glob,comm);
 
     
 }

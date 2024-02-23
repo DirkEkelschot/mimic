@@ -56,35 +56,25 @@ void OutputTetraMeshPartitionVTK(MPI_Comm comm,
     for(itis=varnames.begin();itis!=varnames.end();itis++)
     {
         vtkDoubleArray* VArray = vtkDoubleArray::New();    
-        VArray->SetNumberOfComponents(itis->first);
+        VArray->SetNumberOfComponents(1);
         VArray->SetName(varnames_new[itis->first]);
         varnames_new[itis->first];
-
         mapVars[itis->first] = VArray;
     }
 
-    vtkDoubleArray* TArray = vtkDoubleArray::New();    
-    TArray->SetNumberOfComponents(1);
-    TArray->SetName("Temperature");
-    vtkDoubleArray* TKEArray = vtkDoubleArray::New();    
-    TKEArray->SetNumberOfComponents(0);
-    TKEArray->SetName("TKE");
+    // vtkDoubleArray* TArray = vtkDoubleArray::New();    
+    // TArray->SetNumberOfComponents(1);
+    // TArray->SetName("Temperature");
+    // vtkDoubleArray* TKEArray = vtkDoubleArray::New();    
+    // TKEArray->SetNumberOfComponents(0);
+    // TKEArray->SetName("TKE");
 
     vtkIdType ielement = 0;
     std::map<int,std::vector<int> >::iterator itmiv;
-    // for(itmiv=gE2lV.begin();itmiv!=gE2lV.end();itmiv++)
-    // if(world_rank == 0)
-    // {
-    //     std::cout << "for " << filename << std::endl;
-    // }
+
     for(int k=0;k<OwnedElem.size();k++)
     {
         int elid   = OwnedElem[k];
-
-        // if(world_rank == 0)
-        // {
-        //     std::cout << "elid  " << filename << " "  <<  elid << std::endl;
-        // }
 
         vtkNew<vtkTetra> tetra;
         
@@ -108,19 +98,19 @@ void OutputTetraMeshPartitionVTK(MPI_Comm comm,
             {
                 int lvidn = g2lv[gvid];
                 tetra->GetPointIds()->SetId(q, lvidn);
-
             }
 
         }
         cellArray->InsertNextCell(tetra);
         
-        TKEArray->InsertNextTuple(&loc_data[elid][0]);
-        TArray->InsertNextTuple(&loc_data[elid][1]);
+        // TKEArray->InsertNextTuple(&loc_data[elid][0]);
+        // TArray->InsertNextTuple(&loc_data[elid][1]);
 
         for(itis=varnames.begin();itis!=varnames.end();itis++)
         {
             mapVars[itis->first]->InsertNextTuple(&loc_data[elid][itis->first]);
         }
+
         ielement++;
     }
 

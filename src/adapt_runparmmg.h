@@ -31,7 +31,8 @@ void RunParMMGandWriteTetraUS3Dformat(MPI_Comm comm,
 PMMG_pParMesh InitializeParMMGmesh(MPI_Comm comm, 
                                    RepartitionObject* tetra_repart,
                                    PrismTetraTrace* pttrace,
-                                   std::map<int,std::vector<int> > ranges_id);
+                                   std::map<int,std::vector<int> > ranges_id,
+                                   std::map<int, std::vector<std::vector<double> > >);
 
 void RunParMMGAndTestPartitioning(MPI_Comm comm, 
                                   PMMG_pParMesh parmesh, 

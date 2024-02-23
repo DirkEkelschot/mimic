@@ -1832,8 +1832,8 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_LS_US3D(Partition* Pa, std::map<in
 
         //delete[] Pijk;
         
-        int nadj_tot   = LocElem2Nf[elID];
-       
+        int nadj_tot = LocElem2Nf[elID];
+        std::cout << "LocElem2Nf[elID] " << std::endl;
         for(int j=0;j<nadj_tot;j++)
         {
             int adjid   = iee_vec->i_map[elID][j];
@@ -2971,7 +2971,7 @@ std::map<int,Array<double>* > ComputedUdx_LSQ_US3D_LargeStencil(Partition* Pa, s
                                      Padjadjadj[k*3+2]     = LocalVs[loc_vid][2];
                                  }
                                  
-                                 std::vector<double> Vadjadjadj          = ComputeCentroidCoord(Padjadjadj,NvPEladjadjadj);
+                                 std::vector<double> Vadjadjadj = ComputeCentroidCoord(Padjadjadj,NvPEladjadjadj);
 
                                  //delete[] Padjadjadj;
                                  

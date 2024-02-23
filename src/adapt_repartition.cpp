@@ -20,10 +20,15 @@ RepartitionObject::RepartitionObject(mesh* meshInput,
     vloc = 0;
     floc = 0;
 
-    int Ne_glob = meshInput->nElem;
-    int Nf_glob = meshInput->nFace;
-    int Nv_glob = meshInput->nVert;
-        
+    Ne_glob = meshInput->nElem;
+    Nf_glob = meshInput->nFace;
+    Nv_glob = meshInput->nVert;
+
+    std::vector<int> elTypes = meshInput->elTypes;
+    // elType[0] = tet;
+    // elType[1] = prism;
+    // elType[2] = pyramid;
+    // elType[3] = hex;
 
     std::map<int, std::vector<int> > elements2verts_optimal;
     std::map<int, std::vector<int> > elements2faces_optimal;
@@ -40,7 +45,7 @@ RepartitionObject::RepartitionObject(mesh* meshInput,
                                    elements2elements_optimal,
                                    elements2data_optimal);
 
-    DeterminePartitionLayout(elements2verts_optimal,meshInput->element2rank,comm);
+    DeterminePartitionLayout(elements2verts_optimal,meshInput->element2rank,elTypes,comm);
 
     DetermineElement2ProcMap(elements2verts_optimal, 
                              elements2faces_optimal,
@@ -87,14 +92,10 @@ RepartitionObject::RepartitionObject(mesh* meshInput,
                                face2verts_update, 
                                comm);
 
-    // std::cout << "data.size before " << rank << " -- " << data.size() << std::endl;
-
-    //std::cout << "RANK == " << rank << " pre stats :: " << elements2verts_update.size() << " " << elements2faces_update.size() << " "  << elements2elements_update.size() << " " << elements2data_update.size() << " LocalVertsMap " << LocalVertsMap.size() << std::endl;
     vloc = LocalVertsMap.size();
 
     for(int i=0;i<nAdjLayer;i++)
     {
-        // std::cout << " i = " << i << " :: " << elements2verts_update.size() << " rank " << rank << std::endl;
         getAdjacentElementLayer(elements2verts_update,
                                 elements2faces_update,
                                 elements2elements_update,
@@ -109,7 +110,21 @@ RepartitionObject::RepartitionObject(mesh* meshInput,
                                 elements2faces_update, 
                                 elements2elements_update,
                                 elements2data_update);
+    
+        getFace2EntityPerPartition(elements2faces_update, 
+                               meshInput->if_Nv, 
+                               Nf_glob, 
+                               face2Nverts_update, 
+                               comm);
+
+        getFace2EntityPerPartition(elements2faces_update, 
+                               meshInput->ifn, 
+                               Nf_glob, 
+                               face2verts_update, 
+                               comm);
+
     }
+    
 
 
 
@@ -221,18 +236,26 @@ void RepartitionObject::GetOptimalDistributionSchedule(std::map<int,std::vector<
     std::vector<int> ini_offsetDist(world_size,0);
     
     int nElem = elements2verts.size();
-    int nVpEl = 0;
-    int nFpEl = 0;
-    int nEpEl = 0;
+    // int nVpEl = 0;
+    // int nFpEl = 0;
+    // int nEpEl = 0;
     int ndata = 0;
 
     elements2verts_update.clear();
     std::map<int,std::vector<int> > elements2verts_update_v2;
 
+  
+
     if(nElem != 0)
     {
-        nVpEl = elements2verts.begin()->second.size();
-        nFpEl = elements2faces.begin()->second.size();
+        // std::map<int,std::vector<int> >::iterator itm;
+        
+        // // for(itm=elements2verts.begin();itm!=elements2verts.end();itm++)
+        // // {
+        // //     int elid = itm->first;
+        // // }
+        // nVpEl = elements2verts.begin()->second.size();
+        // nFpEl = elements2faces.begin()->second.size();
         ndata = data.begin()->second.size();
     }
 
@@ -516,9 +539,9 @@ void RepartitionObject::GetOptimalDistributionSchedule(std::map<int,std::vector<
         std::vector<std::vector<int> > elNvs;
         std::vector<std::vector<int> > elNfs;
         std::vector<std::vector<int> > elNdata;
-        std::vector<std::vector<int> > ien_to_send;
-        std::vector<std::vector<int> > ief_to_send;
-        std::vector<std::vector<int> > iee_to_send;
+        std::vector<std::vector<int> > ien_to_send(toRanks.size());
+        std::vector<std::vector<int> > ief_to_send(toRanks.size());
+        std::vector<std::vector<int> > iee_to_send(toRanks.size());
         std::vector<std::vector<double> > data_to_send;
         for(int i=0;i<toRanks.size();i++)
         {
@@ -533,12 +556,12 @@ void RepartitionObject::GetOptimalDistributionSchedule(std::map<int,std::vector<
             std::vector<int> rowNdataEl(Nel);
             elNdata.push_back(rowNdataEl);
 
-            std::vector<int> rows_ien(Nel*nVpEl);
-            ien_to_send.push_back(rows_ien);
-            std::vector<int> rows_ief(Nel*nFpEl);
-            ief_to_send.push_back(rows_ief);
-            std::vector<int> rows_iee(Nel*nFpEl);
-            iee_to_send.push_back(rows_iee);
+            //std::vector<int> rows_ien(Nel*nVpEl);
+            //ien_to_send.push_back(rows_ien);
+            //std::vector<int> rows_ief(Nel*nFpEl);
+            //ief_to_send.push_back(rows_ief);
+            //std::vector<int> rows_iee(Nel*nFpEl);
+            //iee_to_send.push_back(rows_iee);
 
             std::vector<double> rows_data(Nel*ndata);
             data_to_send.push_back(rows_data);
@@ -560,27 +583,36 @@ void RepartitionObject::GetOptimalDistributionSchedule(std::map<int,std::vector<
             int nv_el       = itmiv->second.size();
             int nf_el       = elements2faces[gElId].size();
             int ndata       = data[gElId].size();
+
             std::vector<int> ien_row(nv_el);
 
             if(u<toS_red_update[world_rank])
             {
                 if(t<(nelPrank))
                 {
+                    elIDs[cc][t]    = gElId;
+                    elNvs[cc][t]    = nv_el;
+                    elNfs[cc][t]    = nf_el;
+                    elNdata[cc][t]  = ndata;
 
-                    elIDs[cc][t] = gElId;
-                    elNvs[cc][t] = nv_el;
-                    elNfs[cc][t] = nf_el;
-                    elNdata[cc][t] = ndata;
                     for(int j=0;j<nv_el;j++)
                     {
-                        ien_to_send[cc][nVpEl*t+j] = itmiv->second[j];
+                        //ien_to_send[cc][nVpEl*t+j] = itmiv->second[j];
+                        ien_to_send[cc].push_back(itmiv->second[j]);
+                        // ien_to_send[cc][nv_el*t+j] = itmiv->second[j];
                     }
 
                     for(int j=0;j<nf_el;j++)
                     {
-                        ief_to_send[cc][nFpEl*t+j] = elements2faces[gElId][j];
-                        iee_to_send[cc][nFpEl*t+j] = elements2elements[gElId][j];
+                        //ief_to_send[cc][nFpEl*t+j] = elements2faces[gElId][j];
+                        //iee_to_send[cc][nFpEl*t+j] = elements2elements[gElId][j];
 
+                        ief_to_send[cc].push_back(elements2faces[gElId][j]);
+                        iee_to_send[cc].push_back(elements2elements[gElId][j]);
+                        
+                        
+                        // ief_to_send[cc][nf_el*t+j] = elements2faces[gElId][j];
+                        // iee_to_send[cc][nf_el*t+j] = elements2elements[gElId][j];
                     }
 
                     // if(world_rank == 1)
@@ -673,7 +705,6 @@ void RepartitionObject::GetOptimalDistributionSchedule(std::map<int,std::vector<
             std::vector<int> El2f    = ief_to_send[i];
             std::vector<int> El2e    = iee_to_send[i];
             std::vector<double> El2d = data_to_send[i];
-            //std::cout << "elIDs " << elNvs[i].size() << " " << n_Elem << " " << toS_red_update[world_rank] << " " << n_Vrt << std::endl;
 
             MPI_Send(&n_Elem         ,      1,     MPI_INT, dest, dest,           comm);
             MPI_Send(&ElIDs[0]       , n_Elem,     MPI_INT, dest, dest*123000,    comm);
@@ -820,6 +851,7 @@ void RepartitionObject::GetOptimalDistributionSchedule(std::map<int,std::vector<
 
 void RepartitionObject::DeterminePartitionLayout(std::map<int,std::vector<int> > elements2verts,
                                                 std::vector<int> element2rank,
+                                                std::vector<int> elTypes,
                                                 MPI_Comm comm)
 {
     int size;
@@ -832,16 +864,6 @@ void RepartitionObject::DeterminePartitionLayout(std::map<int,std::vector<int> >
     int nvpEL = elements2verts.begin()->second.size();
     int nloc = nrow;
 
-    std::vector<int> elTypes(3,0);
-    if(nvpEL == 4)
-    {
-        elTypes[0] = 1;
-    }
-    if(nvpEL == 6)
-    {
-        elTypes[1] = 1;
-    }
-
     //std::cout << " elTypes " << elTypes[0] << " " << elTypes[1] << " " << elTypes[2] << " " << nvpEL << std::endl;
     
     ParallelState_Parmetis_Lite* pstate_parmetis = new ParallelState_Parmetis_Lite(elements2verts,  elTypes, comm);
@@ -852,38 +874,37 @@ void RepartitionObject::DeterminePartitionLayout(std::map<int,std::vector<int> >
     
     //ParallelState_Parmetis* pstate_parmetis2 = new ParallelState_Parmetis(ien,comm,8);
 //
-    idx_t numflag_[] = {0};
-    idx_t *numflag = numflag_;
-    idx_t ncommonnodes_[] = {pstate_parmetis->getNcommonNodes()};
-    idx_t *ncommonnodes = ncommonnodes_;
-    int edgecut      = 0;
-    idx_t *xadj_par      = NULL;
-    idx_t *adjncy_par    = NULL;
-    idx_t options_[] = {0, 0, 0};
-    idx_t *options   = options_;
-    idx_t wgtflag_[] = {2};
-    idx_t *wgtflag   = wgtflag_;
-    real_t ubvec_[]  = {1.1};
-    real_t *ubvec    = ubvec_;
+    idx_t numflag_[]        = {0};
+    idx_t *numflag          = numflag_;
+    idx_t ncommonnodes_[]   = {pstate_parmetis->getNcommonNodes()};
+    idx_t *ncommonnodes     = ncommonnodes_;
+    int edgecut             = 0;
+    idx_t *xadj_par         = NULL;
+    idx_t *adjncy_par       = NULL;
+    idx_t options_[]        = {0, 0, 0};
+    idx_t *options          = options_;
+    idx_t wgtflag_[]        = {2};
+    idx_t *wgtflag          = wgtflag_;
+    real_t ubvec_[]         = {1.1};
+    real_t *ubvec           = ubvec_;
 
     std::vector<int> elmwgt = pstate_parmetis->getElmWgt();
     
-    int np           = size;
-    idx_t ncon_[]    = {1};
-    idx_t *ncon      = ncon_;
-    real_t *tpwgts   = new real_t[np*ncon[0]];
+    int np                  = size;
+    idx_t ncon_[]           = {1};
+    idx_t *ncon             = ncon_;
+    real_t *tpwgts          = new real_t[np*ncon[0]];
 
     for(int i=0; i<np*ncon[0]; i++)
     {
         tpwgts[i] = 1.0/np;
     }
 
-    idx_t nparts_[] = {np};
-    idx_t *nparts = nparts_;
-    //int* part_arr = new int[nloc];
+    idx_t nparts_[]         = {np};
+    idx_t *nparts           = nparts_;
     std::vector<int> part_arr(nloc,0);
-    real_t itr_[]    = {1.05};
-    real_t *itr = itr_;
+    real_t itr_[]           = {1.05};
+    real_t *itr             = itr_;
 
     idx_t *vsize = NULL;
     idx_t *adjwgt = NULL;
@@ -946,27 +967,8 @@ void RepartitionObject::DeterminePartitionLayout(std::map<int,std::vector<int> >
         part_global[eid] = rid;
     }
 
-   // int nglob = element2rank.size();
-   // std::vector<int> element2rank_update(element2rank.size(),0);
-   //  std::vector<int> element2rank_update_glob(element2rank.size(),0);
-   // for(int i=0;i<element2rank.size();i++)
-   // {
-   //      int r_old = element2rank[i];
-
-   //      if(part_map.find(i)!=part_map.end())
-   //      {
-   //          element2rank_update[i] = part_map[i];
-   //      }
-   // }
-
-   // MPI_Allreduce(element2rank_update.data(), element2rank_update_glob.data(), nglob, MPI_INT, MPI_SUM, comm);
-
-//    if(rank == 0)
-//    {
-//         std::cout << "Succesfully found a redistribution of the elements2verts." << std::endl;
-//    }
-   delete[] xadj_par;
-   delete[] adjncy_par;
+    delete[] xadj_par;
+    delete[] adjncy_par;
 }
 
 
@@ -1066,8 +1068,6 @@ void RepartitionObject::DetermineElement2ProcMap(std::map<int,std::vector<int> >
             for(int k=0;k<nvPerEl;k++)//This works for hexes.
             {
                 v_id = ien[el_id][k];
-
-                
 
                 vertIDs_to_send_to_ranks[p_id].push_back(v_id);
 
@@ -3000,6 +3000,208 @@ void RepartitionObject::getAdjacentElementLayer(std::map<int,std::vector<int> > 
 }
 
 
+
+
+
+
+
+void RepartitionObject::AddStateVecForAdjacentElements(std::map<int,std::vector<double> > &U, int nvar, MPI_Comm comm)
+{
+    int nanhere =0;
+    int nothere = 0;
+    int floc_tmp = 0;
+    int vloc_tmp = 0;
+    int q=0;
+    int i=0;
+    int size;
+    MPI_Comm_size(comm, &size);
+    // Get the rank of the process
+    int rank;
+    MPI_Comm_rank(comm, &rank);
+    //std::cout << xcn->getOffset(rank) << " " << xcn_pstate->getOffset(rank) << std::endl;
+    
+    //int ien_o = ien_pstate->getOffset(rank);
+
+    int el_id;
+    int p_id;
+    int v_id;
+    int f_id;
+    int r;
+    std::vector<int> faceIDs_on_rank;
+    std::vector<int> vertIDs_on_rank;
+    std::map<int,std::vector<int> > rank2req_Elems;
+    std::map<int,std::vector<double> > U_loc;
+    
+    
+    std::map<int,std::vector<int> > req_elem;
+    int itel = 0;
+    
+    std::vector<int> ee;
+
+    for(int i=0;i<LocAndAdj_Elem.size();i++)
+    {
+        int el_req = LocAndAdj_Elem[i];
+        
+        // r = part_global->getVal(el_req,0);
+        r = part_global[el_req];
+        if(r != rank)
+        {
+            rank2req_Elems[r].push_back(el_req);
+        }
+//        else
+//        {
+//            Array<double>* StateVec = new Array<double>(nvar,1);
+//            for(int q=0;q<nvar;q++)
+//            {
+//                StateVec->setVal(q,0,U[el_req]->getVal(q,0));
+//            }
+//            U_loc[el_req] = StateVec;
+//        }
+    }
+    
+    ScheduleObj* iee_schedule = DoScheduling(rank2req_Elems,comm);
+
+    std::map<int,std::vector<int> >::iterator it;
+    std::map<int,std::vector<int> >  reqstd_E_IDs_per_rank;
+
+    for(q=0;q<size;q++)
+    {
+        if(rank==q)
+        {
+            int i=0;
+            for (it = rank2req_Elems.begin(); it != rank2req_Elems.end(); it++)
+            {
+                int n_req           = it->second.size();
+                int dest            = it->first;
+
+                
+                MPI_Send(&n_req, 1, MPI_INT, dest, 9876*7654+20*dest, comm);
+                MPI_Send(&it->second.data()[0], n_req, MPI_INT, dest, 9876*2*7654+dest*40, comm);
+
+                i++;
+            }
+        }
+        else if (iee_schedule->SendFromRank2Rank[q].find( rank ) != iee_schedule->SendFromRank2Rank[q].end())
+        {
+            int n_reqstd_ids;
+            MPI_Recv(&n_reqstd_ids, 1, MPI_INT, q, 9876*7654+20*rank, comm, MPI_STATUS_IGNORE);
+
+            std::vector<int> recv_reqstd_ids(n_reqstd_ids);
+            
+            MPI_Recv(&recv_reqstd_ids[0], n_reqstd_ids, MPI_INT, q, 9876*2*7654+rank*40, comm, MPI_STATUS_IGNORE);
+            
+            reqstd_E_IDs_per_rank[q] = recv_reqstd_ids;
+        }
+    }
+    
+    std::map<int,std::vector<int> >::iterator ite;
+    std::map<int,std::vector<int> > send_IEE_Elem_IDs;
+    std::vector<int> TotIEE_El_IDs;
+
+    int TotNelem_IEE_recv   = 0;
+    int eIEE_id             = 0;
+    
+    int offset_xcn = 0;
+    int nloc_xcn = 0;
+    std::map<int,int > recv_back_Niee;
+    std::map<int,std::vector<int> > recv_back_el_ids;
+    std::map<int,std::vector<double> > recv_back_iee;
+    int n_recv_back;
+
+    for(q=0;q<size;q++)
+    {
+        if(rank == q)
+        {
+            for (it = reqstd_E_IDs_per_rank.begin(); it != reqstd_E_IDs_per_rank.end(); it++)
+            {
+                int ne_send             = it->second.size();
+                //double* iee_send      = new double[ne_send*nvar];
+                std::vector<double> iee_send(ne_send*nvar);
+                //int offset_iee        = ien_pstate->getOffset(rank);
+                
+                for(int u=0;u<ne_send;u++)
+                {
+                    
+                    for(int s=0;s<nvar;s++)
+                    {
+                        if(U.find(it->second[u])==U.end())
+                        {
+                            nothere++;
+                        }
+                        
+                        iee_send[u*nvar+s]=U[it->second[u]][s];
+                        //std::cout << "it->second.size(); " << iee_send[u*nvar+s] << std::endl;
+                        if(std::isnan(U[it->second[u]][s]))
+                        {
+                            nanhere++;
+                        }
+                        
+                        
+                    }
+                }
+
+                int dest = it->first;
+                MPI_Send(&ne_send, 1, MPI_INT, dest, 9876*6666+1000*dest, comm);
+                
+                MPI_Send(&it->second.data()[0], ne_send, MPI_INT, dest, 9876*7777+dest*888, comm);
+
+                MPI_Send(&iee_send.data()[0], ne_send*nvar, MPI_DOUBLE, dest, 9876*6666+dest*8888, comm);
+
+                //delete[] iee_send;
+            }
+        }
+        if(iee_schedule->RecvRankFromRank[q].find( rank ) != iee_schedule->RecvRankFromRank[q].end())
+         {
+            MPI_Recv(&n_recv_back, 1, MPI_INT, q, 9876*6666+1000*rank, comm, MPI_STATUS_IGNORE);
+             
+//          int*    recv_back_ids_arr   = new int[n_recv_back];
+//          double* recv_back_iee_arr   = new double[n_recv_back*nvar];
+             
+            std::vector<int> recv_back_ids_arr(n_recv_back,0.0);
+            std::vector<double> recv_back_iee_arr(n_recv_back*nvar,0.0);
+             
+            MPI_Recv(&recv_back_ids_arr.data()[0], n_recv_back, MPI_INT, q, 9876*7777+rank*888, comm, MPI_STATUS_IGNORE);
+            MPI_Recv(&recv_back_iee_arr.data()[0], n_recv_back*nvar, MPI_DOUBLE, q, 9876*6666+rank*8888, comm, MPI_STATUS_IGNORE);
+
+            recv_back_Niee[q]     = n_recv_back;
+            recv_back_el_ids[q]   = recv_back_ids_arr;
+            recv_back_iee[q]      = recv_back_iee_arr;
+
+         }
+    }
+    
+    
+//
+    std::map<int,int >::iterator iter;
+    int ntotal=0;
+    ee.clear();
+    for(iter=recv_back_Niee.begin();iter!=recv_back_Niee.end();iter++)
+    {
+        int L = iter->second;
+        
+        for(int s=0;s<L;s++)
+        {
+            el_id = recv_back_el_ids[iter->first][s];
+            std::vector<double> StateVec(nvar,0.0);
+            for(int p=0;p<nvar;p++)
+            {
+                StateVec[p]=recv_back_iee[iter->first][s*nvar+p];
+                //std::cout << "receive " << recv_back_iee[iter->first][s*nvar+p] << " ";
+            }
+            //std::cout << std::endl;
+            
+            U[el_id] = StateVec;
+        }
+    }
+
+}
+
+
+
+
+
+
+
 void RepartitionObject::buildCommunicationMaps(MPI_Comm comm)
 {
 
@@ -4108,7 +4310,93 @@ void RepartitionObject::buildInteriorSharedAndBoundaryFaceMaps(MPI_Comm comm,
 
 
 }
-    
+
+
+std::map<int,std::set<int> > RepartitionObject::GetNode2ElementMap(RepartitionObject* prisms)
+{
+    std::map<int,std::set<int> > node2elem_map;
+
+    std::map<int,std::vector<int> > loc_prisms = prisms->getElement2VertexMap();
+
+    for(int i=0;i<Loc_Elem.size();i++)
+    {
+        int elid = Loc_Elem[i];
+        int Nv   = elements2verts_update[elid].size();
+        int nadj = elements2elements_update[elid].size();
+
+        for(int j=0;j<Nv;j++)
+        {
+            int gvid = elements2verts_update[elid][j];
+            node2elem_map[gvid].insert(elid);
+        }
+
+        /*
+        for(int j=0;j<nadj;j++)
+        {
+            int adjID = elements2verts_update[elid][j];
+        
+            if(adjID < Ne_glob && adjID!=elid)
+            {
+                if(elements2verts_update.find(adjID)!=elements2verts_update.end())
+                {
+                    int Nvadj = elements2verts_update[adjID].size();
+
+                    for(int j=0;j<Nvadj;j++)
+                    {
+                        int gvid = elements2verts_update[adjID][j];
+                        node2elem_map[gvid].insert(adjID);
+                    }
+
+                    int nadjadj = elements2elements_update[adjID].size();
+
+                    for(int j=0;j<nadjadj;j++)
+                    {
+                        int adjadjID    = elements2verts_update[adjID][j];
+
+                        if(adjadjID < Ne_glob && adjadjID!=elid)
+                        {
+                            if(elements2verts_update.find(adjadjID)!=elements2verts_update.end())
+                            {
+                                int Nvadjadj = elements2verts_update[adjadjID].size();
+
+                                for(int j=0;j<Nvadjadj;j++)
+                                {
+                                    int gvid = elements2verts_update[adjadjID][j];
+                                    node2elem_map[gvid].insert(adjadjID);
+                                }
+                            }
+                        }
+                        if(loc_prisms.find(adjadjID)!=loc_prisms.end())
+                        {
+                            //std::cout << "adjadjID in prisms " << std::endl;  
+                            int Nvadjadj = loc_prisms[adjadjID].size();
+
+                            for(int j=0;j<Nvadjadj;j++)
+                            {
+                                int gvid = loc_prisms[adjadjID][j];
+                                node2elem_map[gvid].insert(adjadjID);
+                            }
+                        }       
+                    }
+                }
+            }
+            if(loc_prisms.find(adjID)!=loc_prisms.end())
+            {
+                int Nvadj = loc_prisms[adjID].size();
+
+                for(int j=0;j<Nvadj;j++)
+                {
+                    int gvid = loc_prisms[adjID][j];
+                    node2elem_map[gvid].insert(adjID);
+                }
+            }
+        }*/
+        
+    }
+
+    return node2elem_map;
+
+}
 
 
 std::map<int,std::vector<int> > RepartitionObject::getZone2boundaryFaceID()
