@@ -1227,7 +1227,6 @@ int main(int argc, char** argv)
         filespace = H5Dget_space(dset_zdefs_id);
         
         //H5Sselect_hyperslab(filespace, H5S_SELECT_SET, offset, NULL, count, NULL);
-        std::cout << "zdefs_new.data() " << zdefs_new.size() << std::endl;
         status = H5Dwrite(dset_zdefs_id, H5T_NATIVE_INT, memspace, filespace, plist_id, zdefs_new.data());
 
         //====================================================================================

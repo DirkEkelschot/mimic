@@ -455,7 +455,6 @@ void RunParMMGandWriteTetraUS3Dformat(MPI_Comm comm,
     std::map<int,int> glob2tag_prisms_on_trace_glob = AllGatherMap_T(glob2tag_prisms_on_trace,comm);
     std::map<int,int> tag2glob_prisms_on_trace_glob = AllGatherMap_T(tag2glob_prisms_on_trace,comm);
 
-    std::cout << "glob2tag_prisms_on_trace_glob " << glob2tag_prisms_on_trace_glob.size() << " " << glob2tag_prisms_on_trace.size() << std::endl; 
     //std::cout << "LR = " << lr << " unique_prisms " << unique_prisms.size() << std::endl; 
 
     // std::map<int,int>::iterator itmii;
