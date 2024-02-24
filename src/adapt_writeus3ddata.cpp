@@ -786,7 +786,7 @@ void WriteBoundaryDataUS3DFormat(MPI_Comm comm,
     // Collect node data (10) . Starting index-ending index Nodes
     // std::vector<std::vector<int> > zdefs_new(3+nbo);
     std::vector<std::vector<int> > zdefs_new_copy;
-    std::vector<int> zdefs_row0(3+nbo,0);
+    std::vector<int> zdefs_row0(7,0);
     zdefs_row0[0] = 10;
     zdefs_row0[1] = -1;
     zdefs_row0[2] = 1;
@@ -800,7 +800,7 @@ void WriteBoundaryDataUS3DFormat(MPI_Comm comm,
     }
     zdefs_new_copy.push_back(zdefs_row0);
     // Collect element data (12) . Starting index-ending index Element
-    std::vector<int> zdefs_row1(3+nbo,0);
+    std::vector<int> zdefs_row1(7,0);
     zdefs_row1[0] = 12;
     zdefs_row1[1] = -1;
     zdefs_row1[2] = 2;
@@ -814,7 +814,7 @@ void WriteBoundaryDataUS3DFormat(MPI_Comm comm,
     }
     zdefs_new_copy.push_back(zdefs_row1);
     // Collect internal face data (13) . Starting index-ending index internal face.
-    std::vector<int> zdefs_row2(3+nbo,0);
+    std::vector<int> zdefs_row2(7,0);
     zdefs_row2[0] = 13;
     zdefs_row2[1] = -1;
     zdefs_row2[2] = 3;
@@ -850,7 +850,7 @@ void WriteBoundaryDataUS3DFormat(MPI_Comm comm,
         
         int bnd_size = itr->second;
         face_end = face_start+bnd_size-1;
-        std::vector<int> zdefs_row(3+nbo,0);
+        std::vector<int> zdefs_row(7,0);
         zdefs_row[0] = 13;
         zdefs_row[1] = -1;
         zdefs_row[2] = 3+qq;
