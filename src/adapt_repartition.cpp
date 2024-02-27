@@ -4,6 +4,7 @@ RepartitionObject::RepartitionObject(mesh* meshInput,
                         std::map<int,std::vector<int> > elements2verts,
                         std::map<int,std::vector<int> > elements2faces,
                         std::map<int,std::vector<int> > elements2elements,
+                        std::map<int,int> element2type,
                         PrismTetraTrace* trace,
                         std::map<int,std::vector<double> > data,
                         int nAdjLayer,
@@ -34,23 +35,26 @@ RepartitionObject::RepartitionObject(mesh* meshInput,
     std::map<int, std::vector<int> > elements2faces_optimal;
     std::map<int, std::vector<int> > elements2elements_optimal;
     std::map<int, std::vector<double> > elements2data_optimal;
-
+    std::map<int, int> elements2type_optimal;
     GetOptimalDistributionSchedule(elements2verts, 
                                    elements2faces, 
                                    elements2elements, 
+                                   element2type,
                                    data,
-                                   comm, 
+                                   comm,
+                                   elements2type_optimal, 
                                    elements2verts_optimal, 
                                    elements2faces_optimal, 
                                    elements2elements_optimal,
                                    elements2data_optimal);
-
+    
     DeterminePartitionLayout(elements2verts_optimal,meshInput->element2rank,elTypes,comm);
-
+    
     DetermineElement2ProcMap(elements2verts_optimal, 
                              elements2faces_optimal,
                              elements2elements_optimal, 
                              elements2data_optimal, 
+                             elements2type_optimal,
                              meshInput->xcn,
                              Nf_glob,
                              Nv_glob, 
@@ -59,7 +63,7 @@ RepartitionObject::RepartitionObject(mesh* meshInput,
                              elements2faces_update, 
                              elements2elements_update,
                              elements2data_update);
-
+    
     // The partitioning happens over the elements. 
     // The faces still live equally distributed over the available ranks.
     // They need to be distributed over the ranks.
@@ -152,75 +156,19 @@ RepartitionObject::RepartitionObject(mesh* meshInput,
     // GetSharedTraces(elements2verts_update,
     //                 face2elements_update,face2reference_update,
     //                 meshInput->element2rank,comm);
+    
 
 }
-
-
-
-void RepartitionObject::GetSharedTraces(std::map<int,std::vector<int> > elements2verts,
-                                        std::map<int,std::vector<int> > ife,
-                                        std::map<int,std::vector<int> > if_ref,
-                                        std::vector<int> element2rank,
-                                        MPI_Comm comm)
-{
-
-    int size;
-    MPI_Comm_size(comm, &size);
-    // Get the rank of the process
-    int rank;
-    MPI_Comm_rank(comm, &rank);
-
-    std::map<int,int> sharedFaces;
-    std::map<int,std::vector<int> >::iterator itmiv;
-    int shf = 0;
-    for(itmiv=ife.begin();itmiv!=ife.end();itmiv++)
-    {
-        int gfid        = itmiv->first;
-        int fref        = if_ref[gfid][0];
-        int el0         = itmiv->second[0];
-        int el1         = itmiv->second[1];
-        int eltype0     = -1;
-        int eltype1     = -1;
-        if(elements2verts[el0].size()==4)
-        {
-            eltype0     = 2;
-        }
-        if(elements2verts[el0].size()==6)
-        {
-            eltype0     = 6;
-        }
-        // eltype0         = iet[el0][0];
-        // eltype1         = iet[el1][0];
-        int r0          = element2rank[el0];
-        int r1          = element2rank[el1];
-
-        if(fref==2)
-        {
-            if(r0==rank && r1!=rank)
-            {
-                sharedFaces[gfid] = r0;
-                shf++;
-            }
-            if(r0!=rank && r1==rank)
-            {
-                sharedFaces[gfid] = r1;
-                shf++;
-            }
-        }
-    }
-}
-
-
-
-
 
 
 
 void RepartitionObject::GetOptimalDistributionSchedule(std::map<int,std::vector<int> > elements2verts,
                                                        std::map<int,std::vector<int> > elements2faces,
                                                        std::map<int,std::vector<int> > elements2elements,
+                                                       std::map<int,int> element2type,
                                                        std::map<int,std::vector<double> > data,
                                                        MPI_Comm comm,
+                                                       std::map<int,int> &element2type_update,
                                                        std::map<int,std::vector<int> >& elements2verts_update,
                                                        std::map<int,std::vector<int> >& elements2faces_update,
                                                        std::map<int,std::vector<int> >& elements2elements_update,
@@ -503,10 +451,11 @@ void RepartitionObject::GetOptimalDistributionSchedule(std::map<int,std::vector<
         for(itmiv=elements2verts.begin();itmiv!=elements2verts.end();itmiv++)
         {
             int gElId = itmiv->first;
+            int gtype = element2type[gElId];
 
             elements2verts_update[gElId]      = itmiv->second;
             elements2verts_update_v2[gElId]   = itmiv->second;
-
+            element2type_update[gElId]        = gtype;
             // for(int j=0;j<elements2verts.size();j++)
             // {
                 
@@ -536,6 +485,7 @@ void RepartitionObject::GetOptimalDistributionSchedule(std::map<int,std::vector<
         std::vector<int> NeltoRanks = sendNe[world_rank];
 
         std::vector<std::vector<int> > elIDs;
+        std::vector<std::vector<int> > elTypes;
         std::vector<std::vector<int> > elNvs;
         std::vector<std::vector<int> > elNfs;
         std::vector<std::vector<int> > elNdata;
@@ -549,6 +499,8 @@ void RepartitionObject::GetOptimalDistributionSchedule(std::map<int,std::vector<
 
             std::vector<int> rowElID(Nel);
             elIDs.push_back(rowElID);
+            std::vector<int> rowTypes(Nel);
+            elTypes.push_back(rowTypes);
             std::vector<int> rowNvEl(Nel);
             elNvs.push_back(rowNvEl);
             std::vector<int> rowNfEl(Nel);
@@ -579,10 +531,11 @@ void RepartitionObject::GetOptimalDistributionSchedule(std::map<int,std::vector<
         {
             int nelPrank    = NeltoRanks[cc];
 
-            int gElId       = itmiv->first;
-            int nv_el       = itmiv->second.size();
-            int nf_el       = elements2faces[gElId].size();
-            int ndata       = data[gElId].size();
+            int gElId               = itmiv->first;
+            int update_type         = element2type[gElId];
+            int nv_el               = itmiv->second.size();
+            int nf_el               = elements2faces[gElId].size();
+            int ndata               = data[gElId].size();
 
             std::vector<int> ien_row(nv_el);
 
@@ -590,6 +543,7 @@ void RepartitionObject::GetOptimalDistributionSchedule(std::map<int,std::vector<
             {
                 if(t<(nelPrank))
                 {
+                    elTypes[cc][t]  = update_type;
                     elIDs[cc][t]    = gElId;
                     elNvs[cc][t]    = nv_el;
                     elNfs[cc][t]    = nf_el;
@@ -678,7 +632,7 @@ void RepartitionObject::GetOptimalDistributionSchedule(std::map<int,std::vector<
                     update_data_row[j] = data[gElId][j];
                     //std::cout << "update_data_row[j] " << update_data_row[j] << std::endl;
                 }
-
+                element2type_update[gElId]      = update_type;
                 elements2verts_update[gElId]    = update_e2v_row;
                 elements2faces_update[gElId]    = update_e2f_row;
                 elements2elements_update[gElId] = update_e2e_row;
@@ -698,6 +652,7 @@ void RepartitionObject::GetOptimalDistributionSchedule(std::map<int,std::vector<
             int n_Data   = data_to_send[i].size();
 
             std::vector<int> ElIDs   = elIDs[i];
+            std::vector<int> ElTypes = elTypes[i];
             std::vector<int> NvEl    = elNvs[i];
             std::vector<int> NfEl    = elNfs[i];
             std::vector<int> NdataEl = elNdata[i];
@@ -708,6 +663,7 @@ void RepartitionObject::GetOptimalDistributionSchedule(std::map<int,std::vector<
 
             MPI_Send(&n_Elem         ,      1,     MPI_INT, dest, dest,           comm);
             MPI_Send(&ElIDs[0]       , n_Elem,     MPI_INT, dest, dest*123000,    comm);
+            MPI_Send(&ElTypes[0]     , n_Elem,     MPI_INT, dest, dest*128000,    comm);
             MPI_Send(&NvEl[0]        , n_Elem,     MPI_INT, dest, dest*492000,    comm);
             MPI_Send(&NfEl[0]        , n_Elem,     MPI_INT, dest, dest*984000,    comm);
 
@@ -730,6 +686,7 @@ void RepartitionObject::GetOptimalDistributionSchedule(std::map<int,std::vector<
         std::vector<int > expFromRank = recvRa[world_rank];
         
         std::map<int,std::vector<int> > recvd_elem_ids;
+        std::map<int,std::vector<int> > recvd_elem_type;
         std::map<int,std::vector<int> > recvd_elem_nvs;
         std::map<int,std::vector<int> > recvd_elem_nfs;
         std::map<int,std::vector<int> > recvd_elem_ndata;
@@ -745,6 +702,8 @@ void RepartitionObject::GetOptimalDistributionSchedule(std::map<int,std::vector<
             MPI_Recv(&n_Elem,   1, MPI_INT, origin, world_rank, comm, MPI_STATUS_IGNORE);   
             std::vector<int> rcvd_el_ids(n_Elem,0);
             MPI_Recv(&rcvd_el_ids[0], n_Elem, MPI_INT, origin, world_rank*123000, comm, MPI_STATUS_IGNORE);
+            std::vector<int> rcvd_el_type(n_Elem,0);
+            MPI_Recv(&rcvd_el_type[0], n_Elem, MPI_INT, origin, world_rank*128000, comm, MPI_STATUS_IGNORE);
             std::vector<int> rcvd_el_nvs(n_Elem,0);
             MPI_Recv(&rcvd_el_nvs[0], n_Elem, MPI_INT, origin, world_rank*492000, comm, MPI_STATUS_IGNORE);  
             std::vector<int> rcvd_el_nfs(n_Elem,0);
@@ -773,6 +732,7 @@ void RepartitionObject::GetOptimalDistributionSchedule(std::map<int,std::vector<
             MPI_Recv(&rcvd_el_ndatas[0], n_Elem, MPI_INT, origin, world_rank*251904, comm, MPI_STATUS_IGNORE);
             
             recvd_elem_ids[origin]       = rcvd_el_ids;
+            recvd_elem_type[origin]      = rcvd_el_type;
             recvd_elem_nvs[origin]       = rcvd_el_nvs;
             recvd_elem_vert_ids[origin]  = rcvd_el_vrt_ids;
             recvd_elem_nfs[origin]       = rcvd_el_nfs;
@@ -788,17 +748,19 @@ void RepartitionObject::GetOptimalDistributionSchedule(std::map<int,std::vector<
         for(itmiv=elements2verts.begin();itmiv!=elements2verts.end();itmiv++)
         {
             int gElId                        = itmiv->first;
+            int type_update                  = element2type[gElId]; 
             elements2verts_update[gElId]     = itmiv->second;
             elements2faces_update[gElId]     = elements2faces[gElId];
             elements2elements_update[gElId]  = elements2elements[gElId];
             elements2data_update[gElId]      = data[gElId];
+            element2type_update[gElId]       = type_update; 
         }
 
         int ntot = elements2verts.size();
         for(itmiv=recvd_elem_ids.begin();itmiv!=recvd_elem_ids.end();itmiv++)
         {
-            int nel = itmiv->second.size();
-
+            int nel  = itmiv->second.size();
+            
             //int fromRank = collit->first;
 
             int accul_v = 0;
@@ -807,6 +769,7 @@ void RepartitionObject::GetOptimalDistributionSchedule(std::map<int,std::vector<
             for(int q=0;q<nel;q++)
             {
                 int gElId = itmiv->second[q];
+                int type = recvd_elem_type[itmiv->first][q];
                 int nvpel = recvd_elem_nvs[itmiv->first][q];
                 int nfpel = recvd_elem_nfs[itmiv->first][q];
                 int ndata = recvd_elem_ndata[itmiv->first][q];
@@ -830,6 +793,8 @@ void RepartitionObject::GetOptimalDistributionSchedule(std::map<int,std::vector<
                     //std::cout << "recvd_elem_data_ids[itmiv->first][accul+s] " << recvd_elem_data_ids[itmiv->first][accul+s] << std::endl;
                 }
 
+
+                element2type_update[gElId]          = type;
                 elements2verts_update[gElId]        = elements2verts_update_row;
                 elements2faces_update[gElId]        = elements2faces_update_row;
                 elements2elements_update[gElId]     = elements2elements_update_row;
@@ -976,7 +941,8 @@ void RepartitionObject::DeterminePartitionLayout(std::map<int,std::vector<int> >
 void RepartitionObject::DetermineElement2ProcMap(std::map<int,std::vector<int> >     ien, 
                                                  std::map<int,std::vector<int> >     ief,
                                                  std::map<int,std::vector<int> >     iee,
-                                                 std::map<int,std::vector<double> >  data, 
+                                                 std::map<int,std::vector<double> >  data,
+                                                 std::map<int,int> element2type, 
                                                  std::map<int,std::vector<double> >  xcn,
                                                  int Nf_glob,
                                                  int Nv_glob, 
@@ -1012,7 +978,7 @@ void RepartitionObject::DetermineElement2ProcMap(std::map<int,std::vector<int> >
     std::map<int,std::vector<int> > faceIDs_to_send_to_ranks;
     std::map<int,std::vector<int> > elemIDs_to_send_to_ranks;
     std::map<int,std::vector<double> > data_to_send_to_ranks;
-
+    std::map<int,std::vector<int> > elmtype_to_send_to_ranks;
     ParallelState* ife_pstate = new ParallelState(Nf_glob,comm);
     ParallelState* xcn_pstate = new ParallelState(Nv_glob,comm);
 
@@ -1048,12 +1014,13 @@ void RepartitionObject::DetermineElement2ProcMap(std::map<int,std::vector<int> >
     std::vector<double> loc_r_data;
     std::vector<int> loc_r_Ndata;
     std::vector<int> loc_r_elem;
-                
+
     for(itmii=part_map.begin();itmii!=part_map.end();itmii++)
     {
         el_id   = itmii->first;
         p_id    = itmii->second;
-        
+        int el_type = element2type[el_id];
+    
         nvPerEl = ien[el_id].size();
         nfPerEl = ief[el_id].size();
         ndataPerEl = data[el_id].size();
@@ -1064,6 +1031,7 @@ void RepartitionObject::DetermineElement2ProcMap(std::map<int,std::vector<int> >
             nvPerElms_to_send_to_ranks[p_id].push_back(nvPerEl);
             nfPerElms_to_send_to_ranks[p_id].push_back(nfPerEl);
             ndataPerElms_to_send_to_ranks[p_id].push_back(ndataPerEl);
+            elmtype_to_send_to_ranks[p_id].push_back(el_type);
             //====================Hybrid=======================
             for(int k=0;k<nvPerEl;k++)//This works for hexes.
             {
@@ -1152,7 +1120,7 @@ void RepartitionObject::DetermineElement2ProcMap(std::map<int,std::vector<int> >
             elem_set.insert(el_id);
             loc_r_elem_set.insert(el_id);
             elem_map[el_id] = on_rank;
-            
+            elem2type_on_rank[el_id] = el_type;
             
             on_rank++;
         }
@@ -1171,6 +1139,7 @@ void RepartitionObject::DetermineElement2ProcMap(std::map<int,std::vector<int> >
     std::map<int,std::vector<int> > TotRecvElement_IDs_f_map;
     std::map<int,std::vector<int> > TotRecvElement_IDs_e_map;
     std::map<int,std::vector<int> > part_tot_recv_elNdata_map;
+    std::map<int,std::vector<int> > part_tot_recv_elTypes_map;
     std::map<int,std::vector<int> >::iterator it;
     
     int n_req_recv;
@@ -1205,6 +1174,8 @@ void RepartitionObject::DetermineElement2ProcMap(std::map<int,std::vector<int> >
                 MPI_Send(&faceIDs_to_send_to_ranks[it->first][0], n_req_f, MPI_INT, dest, 229000+100+dest*2, comm);
                 MPI_Send(&elemIDs_to_send_to_ranks[it->first][0], n_req_f, MPI_INT, dest, 449000+100+dest*2, comm);
                 MPI_Send(&data_to_send_to_ranks[it->first][0], n_data2send, MPI_DOUBLE, dest, 339000+100+dest*2, comm);
+                MPI_Send(&elmtype_to_send_to_ranks[it->first][0], n_req, MPI_INT, dest, dest*55555+7777, comm);
+
                 //MPI_Send(&vrt_coords_to_send_to_ranks[it->first][0], n_req_v*3, MPI_DOUBLE, dest, 678000+100+dest*2, comm);
 
                 i++;
@@ -1218,6 +1189,7 @@ void RepartitionObject::DetermineElement2ProcMap(std::map<int,std::vector<int> >
             MPI_Recv(&n_req_recv_d, 1, MPI_INT, q, rank*333, comm, MPI_STATUS_IGNORE);
 
             std::vector<int>    part_recv_el_id(n_req_recv,0);
+            std::vector<int>    part_recv_el_type(n_req_recv,0);
             std::vector<int>    part_recv_el_nv(n_req_recv,0);
             std::vector<int>    part_recv_el_nf(n_req_recv,0);
             std::vector<int>    part_recv_el_ndata(n_req_recv,0);
@@ -1237,6 +1209,8 @@ void RepartitionObject::DetermineElement2ProcMap(std::map<int,std::vector<int> >
             MPI_Recv(&part_recv_face_id[0], n_req_recv_f, MPI_INT, q, 229000+100+rank*2, comm, MPI_STATUS_IGNORE);
             MPI_Recv(&part_recv_elem_id[0], n_req_recv_f, MPI_INT, q, 449000+100+rank*2, comm, MPI_STATUS_IGNORE);
             MPI_Recv(&part_recv_data[0], n_req_recv_d, MPI_DOUBLE, q, 339000+100+rank*2, comm, MPI_STATUS_IGNORE);
+            MPI_Recv(&part_recv_el_type[0], n_req_recv, MPI_INT, q, rank*55555+7777, comm, MPI_STATUS_IGNORE);
+
             //MPI_Recv(&part_recv_vrt_coords[0], n_req_recv_d*3, MPI_DOUBLE, q, 678000+100+rank*2, comm, MPI_STATUS_IGNORE);
             
             TotRecvElement_IDs_v_map[q]     = part_recv_vrt_id;
@@ -1244,6 +1218,8 @@ void RepartitionObject::DetermineElement2ProcMap(std::map<int,std::vector<int> >
             TotRecvElement_IDs_e_map[q]     = part_recv_elem_id;
 
             part_tot_recv_elIDs_map[q]      = part_recv_el_id;
+            part_tot_recv_elTypes_map[q]    = part_recv_el_type;
+
             part_tot_recv_elNVs_map[q]      = part_recv_el_nv;
             part_tot_recv_elNFs_map[q]      = part_recv_el_nf;
             part_tot_recv_elNdata_map[q]    = part_recv_el_ndata;
@@ -1254,6 +1230,7 @@ void RepartitionObject::DetermineElement2ProcMap(std::map<int,std::vector<int> >
     std::vector<int> TotRecvElement_IDs;
     std::vector<int> TotRecvElement_NVs;
     std::vector<int> TotRecvElement_NFs;
+    std::vector<int> TotRecvElement_Types;
     std::vector<int> TotRecvVerts_IDs;
     std::vector<int> TotRecvFaces_IDs;
     std::vector<int> TotRecvElem_IDs;
@@ -1270,6 +1247,8 @@ void RepartitionObject::DetermineElement2ProcMap(std::map<int,std::vector<int> >
             TotRecvElement_IDs.push_back(part_tot_recv_elIDs_map[totrecv->first][r]);
             TotRecvElement_NVs.push_back(part_tot_recv_elNVs_map[totrecv->first][r]);
             TotRecvElement_NFs.push_back(part_tot_recv_elNFs_map[totrecv->first][r]);
+            TotRecvElement_Types.push_back(part_tot_recv_elTypes_map[totrecv->first][r]);
+
             TotRecvElement_Ndatas.push_back(part_tot_recv_elNdata_map[totrecv->first][r]);
         }
         TotNelem_recv = TotNelem_recv + totrecv->second.size();
@@ -1680,7 +1659,8 @@ void RepartitionObject::DetermineElement2ProcMap(std::map<int,std::vector<int> >
         // {
         //     std::cout << std::endl;
         // }
-        
+        //elem2type_on_rank[el_id] = el_type;
+
 
         //=======================================
         elements2verts_update[el_id]    = tmp_globv;
@@ -1701,10 +1681,11 @@ void RepartitionObject::DetermineElement2ProcMap(std::map<int,std::vector<int> >
     for(m=0;m<Nel_extra;m++)
     {
         el_id                             = TotRecvElement_IDs[m];
+        int el_type                       = TotRecvElement_Types[m];
         nvPerEl                           = TotRecvElement_NVs[m];
         nfPerEl                           = TotRecvElement_NFs[m];
         int ndatas                        = TotRecvElement_Ndatas[m];
-
+        elem2type_on_rank[el_id]          = el_type;
         Loc_Elem_Set.insert(el_id);
         LocElem2Nv[el_id]                 = nvPerEl;
         LocElem2Nf[el_id]                 = nfPerEl;
@@ -3352,7 +3333,6 @@ void RepartitionObject::buildCommunicationMaps(MPI_Comm comm)
     std::map<int,std::vector<int> >::iterator itc;
     
     
-    
     for(itc=o_ColorsFaces.begin();itc!=o_ColorsFaces.end();itc++)
     {
         o_color_face[icomm]     = itc->first;
@@ -3365,6 +3345,8 @@ void RepartitionObject::buildCommunicationMaps(MPI_Comm comm)
             o_ifc_tria_glo[icomm][q] = itc->second[q]+1;
             o_ifc_tria_loc[icomm][q]  = o_globShF2locShF[itc->second[q]]+1;
         }
+
+        //std::cout << std::endl;
 
 
         icomm++;
@@ -3461,6 +3443,7 @@ void RepartitionObject::buildUpdatedVertexAndFaceNumbering(MPI_Comm comm,
             }
         }
     }
+
     
     // Take care of shared faces and vertices
     std::set<int> UniqueSharedVertsOnRank_set;
@@ -3471,10 +3454,12 @@ void RepartitionObject::buildUpdatedVertexAndFaceNumbering(MPI_Comm comm,
         int gfid = itmii->first;
         // int Nv = face2verts_update[gfid].size();
         int Nv   = face2Nverts_update[gfid][0];
+
+
         for(int q=0;q<Nv;q++)
         {
             int vid = face2verts_update[gfid][q];
-
+            //std::cout << vid << " ";
             if(UniqueSharedVertsOnRank_set.find(vid)==UniqueSharedVertsOnRank_set.end() &&
                    uniqure_trace_verts2ref.find(vid)==uniqure_trace_verts2ref.end()
             )
@@ -3483,6 +3468,7 @@ void RepartitionObject::buildUpdatedVertexAndFaceNumbering(MPI_Comm comm,
                 UniqueSharedVertsOnRank_RankID.push_back(rank);
             }
         }
+        //std::cout << std::endl;
     }
     int nLocalVertsTot = unique_vertex_set_on_rank.size();
     std::vector<int> nLocalVertsTot_loc_test(size,0);
@@ -3588,7 +3574,6 @@ void RepartitionObject::buildUpdatedVertexAndFaceNumbering(MPI_Comm comm,
     //===============================SHARED VERTEX=========================================
     //=====================================================================================
     int nSharedVerts = UniqueSharedVertsOnRank_set.size();
-
     DistributedParallelState* distSharedVerts = new DistributedParallelState(nSharedVerts,comm);
     
     int Nt_shVerts = distSharedVerts->getNel();
@@ -4029,7 +4014,6 @@ void RepartitionObject::buildInteriorSharedAndBoundaryFaceMaps(MPI_Comm comm,
 
                             o_sharedFace2Nodes[gfid] = fn_tag;
                             
-                            
                             o_lhp[gfid] = lEl;
 
                         }
@@ -4307,7 +4291,7 @@ void RepartitionObject::buildInteriorSharedAndBoundaryFaceMaps(MPI_Comm comm,
     DistributedParallelState* distnLocIntVrts = new DistributedParallelState(nLocIntVrts,comm);
     DistributedParallelState* distnLocShVrts  = new DistributedParallelState(nLocShVrts,comm);
 
-
+    //std::cout << "nLocShVrts " << nLocShVrts << std::endl;
 
 }
 
@@ -4316,7 +4300,7 @@ std::map<int,std::set<int> > RepartitionObject::GetNode2ElementMap(RepartitionOb
 {
     std::map<int,std::set<int> > node2elem_map;
 
-    std::map<int,std::vector<int> > loc_prisms = prisms->getElement2VertexMap();
+    //std::map<int,std::vector<int> > loc_prisms = prisms->getElement2VertexMap();
 
     for(int i=0;i<Loc_Elem.size();i++)
     {
@@ -4398,6 +4382,10 @@ std::map<int,std::set<int> > RepartitionObject::GetNode2ElementMap(RepartitionOb
 
 }
 
+std::map<int,int> RepartitionObject::GetElement2TypeOnRankMap()
+{
+    return elem2type_on_rank;
+}
 
 std::map<int,std::vector<int> > RepartitionObject::getZone2boundaryFaceID()
 {

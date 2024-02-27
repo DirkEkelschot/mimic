@@ -59,7 +59,7 @@ PrismTetraTrace::PrismTetraTrace(MPI_Comm comm,
         std::vector<int> trave_v(3,0);
         if(elem_0<nElem && elem_1<nElem)
         {
-            if(type_0==2 && type_1==6)
+            if(type_0==2 && type_1!=2)
             {
                 rank_l.push_back(rank_0);
                 rank_r.push_back(rank_1);
@@ -75,7 +75,7 @@ PrismTetraTrace::PrismTetraTrace(MPI_Comm comm,
                 }
                 trace_loc++;
             }
-            if(type_0==6 && type_1==2)
+            if(type_0!=2 && type_1==2)
             {
                 rank_l.push_back(rank_1);
                 rank_r.push_back(rank_0);
@@ -211,6 +211,8 @@ PrismTetraTrace::PrismTetraTrace(MPI_Comm comm,
             ref++;
         }
     }
+    std::cout << "trace_ref " << trace_verts.size() << std::endl;
+
 }
 
 // void PrismTetraTrace::GetRequiredPrisms()

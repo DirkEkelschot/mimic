@@ -19,17 +19,20 @@ PMMG_pParMesh InitializeParMMGmesh(MPI_Comm comm,
     // Get the rank of the process
     int world_rank;
     MPI_Comm_rank(comm, &world_rank);
-    
+    PMMG_pParMesh   parmesh;
     int k;
     // This test assumes that the following two build requests on the tetra_repart object have been called before entering this routine
     // tetra_repart->buildInteriorSharedAndBoundaryFacesMaps(comm,pttrace, ranges_id);
     // tetra_repart->buildTag2GlobalElementMapsAndFace2LeftRightElementMap(comm,pttrace, ranges_id);
+
     tetra_repart->buildCommunicationMaps(comm);
+
     
     std::vector<int> Owned_Elem_t                       = tetra_repart->getLocElem();
     std::map<int,std::vector<int> > gE2gV_t             = tetra_repart->getElement2VertexMap();
     std::map<int,int> locv2tagvID                       = tetra_repart->getLocalVert2VertTag();
     // std::map<int,int> le2tagID                       = tetra_repart->getLocalElement2ElementTag();
+    
     std::map<int,int> globalv2localvID                  = tetra_repart->getUpdatedGlobal2LocalVMap();
     std::map<int,int> tag2globalV                       = tetra_repart->getUpdatedTag2GlobalVMap();
     std::vector<int> face4parmmg                        = tetra_repart->getFace4ParMMG(); // checked
@@ -43,13 +46,14 @@ PMMG_pParMesh InitializeParMMGmesh(MPI_Comm comm,
     int *ntifc                                          = tetra_repart->getParMMGCommNFacesPerColor();
     int ncomm                                           = tetra_repart->getParMMGNComm();
 
-
+    
     int nVertices   = locv2tagvID.size();
     int nTetrahedra = Owned_Elem_t.size();
     int nEdges      = 0;
     int nTriangles  = face4parmmg.size();
 
-    PMMG_pParMesh   parmesh;
+    
+    
     PMMG_Init_parMesh(PMMG_ARG_start,
                       PMMG_ARG_ppParMesh,&parmesh,
                       PMMG_ARG_pMesh,PMMG_ARG_pMet,
@@ -89,8 +93,6 @@ PMMG_pParMesh InitializeParMMGmesh(MPI_Comm comm,
         tensor[3] = metric_vmap[tagvid][1][1];
         tensor[4] = metric_vmap[tagvid][1][2];
         tensor[5] = metric_vmap[tagvid][2][2];
-
-        //std::cout << "TENSOR " << tensor[0] << " " << tensor[1] << " " << tensor[2] << " " << tensor[3] << " " << tensor[4] << " " << tensor[5] << std::endl;
 
         if(PMMG_Set_tensorMet(parmesh,tensor[0],tensor[1],tensor[2],tensor[3],tensor[4],tensor[5],locvid+1)!=1)
         {
@@ -328,7 +330,8 @@ PMMG_pParMesh InitializeParMMGmesh(MPI_Comm comm,
             exit(EXIT_FAILURE);
         }
     }
-
+    /**/
+    
 
     return parmesh;
 }

@@ -19,6 +19,7 @@ class RepartitionObject{
                                   std::map<int,std::vector<int> > elements2verts,
                                   std::map<int,std::vector<int> > elements2faces,
                                   std::map<int,std::vector<int> > elements2elements,
+                                  std::map<int,int> element2type,
                                   PrismTetraTrace* trace,
                                   std::map<int,std::vector<double> > data,
                                   int nAdjLayer,
@@ -34,8 +35,10 @@ class RepartitionObject{
                 void GetOptimalDistributionSchedule(std::map<int,std::vector<int> > elements2verts,
                                                     std::map<int,std::vector<int> > elements2faces,
                                                     std::map<int,std::vector<int> > elements2elements,
+                                                    std::map<int,int> element2type,
                                                     std::map<int,std::vector<double> > data,
                                                     MPI_Comm comm, 
+                                                    std::map<int,int>& element2type_update,
                                                     std::map<int,std::vector<int> >& elements2verts_update, 
                                                     std::map<int,std::vector<int> >& elements2faces_update, 
                                                     std::map<int,std::vector<int> >& elements2elements_update,
@@ -48,6 +51,7 @@ class RepartitionObject{
                                                  std::map<int,std::vector<int> >   ief,
                                                  std::map<int,std::vector<int> >   iee,  
                                                  std::map<int,std::vector<double> > data,
+                                                 std::map<int,int> element2type,
                                                  std::map<int,std::vector<double> >   xcn,
                                                  int Nf_glob,
                                                  int Nv_glob, 
@@ -136,6 +140,7 @@ class RepartitionObject{
                 std::map<int,int> getSharedVertsNotOwned();
                 std::map<int,int> GetLeftHandFaceElementMap();
                 std::map<int,int> GetRightHandFaceElementMap();
+                std::map<int,int> GetElement2TypeOnRankMap();
                 std::map<int,std::vector<int> > getZone2boundaryFaceID();
                 void buildParMMGCommunicationMaps(MPI_Comm comm);
 
@@ -219,7 +224,7 @@ class RepartitionObject{
                 std::map<int,int> globPartV2locV;
                 std::set<int> Loc_Elem_Set;
                 std::map<int,std::vector<int> > o_zone2bcface;
-                
+                std::map<int,int> elem2type_on_rank;
                 std::map<int,int> LocElem2Nv;
                 std::map<int,int> LocElem2Nf;
                 std::map<int,int> LocElem2Ndata;

@@ -173,7 +173,8 @@ int main(int argc, char** argv)
 
     std::map<int,double> tracePrismData;
     std::map<int,double> traceTetraData;
-
+    std::map<int,int> tetra2type;
+    std::map<int,int> prism2type;   
 
     for(itmiv=meshRead->ien.begin();itmiv!=meshRead->ien.end();itmiv++)
     {
@@ -186,7 +187,7 @@ int main(int argc, char** argv)
             tetras_e2f[elid]  = meshRead->ief[elid];
             tetras_e2e[elid]  = meshRead->iee[elid];
             tetras_data[elid] = meshRead->interior[elid]; 
-            
+            tetra2type[elid]  = eltype;
             //int nf = 4;
             // for(int j=0;j<nf;j++)
             // {
@@ -203,7 +204,7 @@ int main(int argc, char** argv)
             prisms_e2f[elid]  = meshRead->ief[elid];
             prisms_e2e[elid]  = meshRead->iee[elid];
             prisms_data[elid] = meshRead->interior[elid];
-
+            prism2type[elid] = eltype;
             int nf = 5;
             for(int j=0;j<nf;j++)
             {
@@ -263,12 +264,17 @@ int main(int argc, char** argv)
                                                         tetras_e2v, 
                                                         tetras_e2f,
                                                         tetras_e2e,
+                                                        tetra2type,
                                                         pttrace, 
                                                         tetras_data,
                                                         3,
                                                         comm);
+
+                                                        
     end = clock();
     time_taken = ( end - start) / (double) CLOCKS_PER_SEC;
+
+    
     MPI_Allreduce(&time_taken, &dur_max, 1, MPI_DOUBLE, MPI_MAX, comm);
     if(world_rank == 0)
     {
@@ -288,6 +294,7 @@ int main(int argc, char** argv)
                                                     prisms_e2v, 
                                                     prisms_e2f,
                                                     prisms_e2e,
+                                                    prism2type,
                                                     pttrace, 
                                                     prisms_data,
                                                     0,
@@ -378,7 +385,7 @@ int main(int argc, char** argv)
                                                                              1,
                                                                              comm,
                                                                              0);
-    std::cout << d2udx2_o1.begin()->second.size() << " " << d2udy2_o1.begin()->second.size() << " " << d2udz2_o1.begin()->second.size() << std::endl;
+    //std::cout << d2udx2_o1.begin()->second.size() << " " << d2udy2_o1.begin()->second.size() << " " << d2udz2_o1.begin()->second.size() << std::endl;
 
     string filename_tg = "tetraGrad_" + std::to_string(world_rank) + ".vtu";
     std::map<int,std::string > varnamesGrad;
@@ -402,11 +409,9 @@ int main(int argc, char** argv)
 
     string filename_tg_o1 = "tetraGrad_o1_" + std::to_string(world_rank) + ".vtu";
 
-    std::cout << "d2udx2_o1 before " << d2udx2_o1.size() << std::endl;
     tetra_repart->AddStateVecForAdjacentElements(d2udx2_o1,3,comm);
     tetra_repart->AddStateVecForAdjacentElements(d2udy2_o1,3,comm);
     tetra_repart->AddStateVecForAdjacentElements(d2udz2_o1,3,comm);
-    std::cout << "d2udx2_o1 after " << d2udx2_o1.size() << std::endl;
     std::map<int,std::vector<double> > hessian_o1;
     std::map<int,std::vector<double> >::iterator itmivd;
     for(itmivd=tetra_grad_o1.begin();itmivd!=tetra_grad_o1.end();itmivd++)
@@ -717,9 +722,10 @@ int main(int argc, char** argv)
 
         
         //==================================================================================================
-
-        PMMG_pParMesh parmesh = InitializeParMMGmesh(comm, tetra_repart, pttrace, meshRead->ranges_id, metric_vmap);
+        //tetra_repart->buildCommunicationMaps(comm);
         
+        PMMG_pParMesh parmesh = InitializeParMMGmesh(comm, tetra_repart, pttrace, meshRead->ranges_id, metric_vmap);
+
         //==============================================
 
         prisms_e2v.clear();prisms_e2f.clear();prisms_e2e.clear();                                                  
@@ -888,9 +894,15 @@ int main(int argc, char** argv)
         int nPrismLoc = prism_repart->getLocElem().size();
 
         std::vector<int> prisms_type(nPrismLoc,0);
+        DistributedParallelState* PrismElementDistr = new DistributedParallelState(nPrismLoc,comm);
+        std::map<int,int> element2type_bl = prism_repart->GetElement2TypeOnRankMap();
+        std::map<int,int> new2tag = prism_repart->getGlobalElement2ElementTag();
+
         for(int i=0;i<nPrismLoc;i++)
         {
-            prisms_type[i] = 6;
+            int newid = PrismElementDistr->getOffsets()[world_rank] + i + 1;
+            int tag_el_id = new2tag[newid];
+            prisms_type[i] = element2type_bl[tag_el_id];
         }
 
         std::vector<int> tetra_type2(nTetraLoc,0);
@@ -1262,7 +1274,6 @@ int main(int argc, char** argv)
         //===================================================================================
         //===================================================================================
     
-    
         // clock_t t1_ijk = clock();
         // double duration = ( t1_ijk - t0_ijk) / (double) CLOCKS_PER_SEC;
         // double dur_max;
@@ -1276,8 +1287,9 @@ int main(int argc, char** argv)
         //     std::cout << std::setprecision(16) << "Writing out the grid takes " << dur_max << " seconds using " << world_size << "procs. " << std::endl;
         //     std::cout << "Finalizing process" << std::endl;     
         // }
-        
+      
     }
+    /**/
     /**/
     
     MPI_Finalize();
