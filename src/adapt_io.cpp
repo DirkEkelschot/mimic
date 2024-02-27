@@ -3671,7 +3671,7 @@ void WriteUS3DGridFromMMG_it0_NEW(MMG5_pMesh mmgMesh,MMG5_pSol mmgSol, US3D* us3
 //
 //    for(i=0;i<nrow;i++)
 //    {
-//        for(j=0;j<ncol_ief;j++)
+//        for(int j=0;j<ncol_ief;j++)
 //        {
 //            ief_copy->setVal(i,j,fabs(ief->getVal(i,j+1))-1);
 //        }
@@ -3683,7 +3683,7 @@ void WriteUS3DGridFromMMG_it0_NEW(MMG5_pMesh mmgMesh,MMG5_pSol mmgSol, US3D* us3
 //
 //    for(i=0;i<nrow;i++)
 //    {
-//        for(j=0;j<ncol_iee;j++)
+//        for(int j=0;j<ncol_iee;j++)
 //        {
 //            iee_copy->setVal(i,j,iee->getVal(i,j+1)-1);
 //        }
@@ -4292,13 +4292,13 @@ mesh* ReadUS3DMeshData(const char* fn_conn, const char* fn_grid, const char* fn_
         }
         
         std::vector<int> ief_copy_row(ncol_ief);
-        for(j=0;j<ncol_ief;j++)
+        for(int j=0;j<ncol_ief;j++)
         {
             ief_copy_row[j] = fabs(ief[i][j+1])-1;
         }
 
         std::vector<int> iee_copy_row(ncol_iee);
-        for(j=0;j<ncol_iee;j++)
+        for(int j=0;j<ncol_iee;j++)
         {
             iee_copy_row[j] = iee[i][j+1]-1;
         }
@@ -4824,7 +4824,7 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
 
     for(i=0;i<nrow;i++)
     {
-        for(j=0;j<ncol_ief;j++)
+        for(int j=0;j<ncol_ief;j++)
         {
             ief_copy->setVal(i,j,fabs(ief->getVal(i,j+1))-1);
         }
@@ -4836,7 +4836,7 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
     
     for(i=0;i<nrow;i++)
     {
-        for(j=0;j<ncol_iee;j++)
+        for(int j=0;j<ncol_iee;j++)
         {
             iee_copy->setVal(i,j,iee->getVal(i,j+1)-1);
         }
@@ -5161,7 +5161,7 @@ US3D* ReadUS3DGrid(const char* fn_conn, const char* fn_grid, int readFromStats, 
 
     for(i=0;i<nrow;i++)
     {
-        for(j=0;j<ncol_ief;j++)
+        for(int j=0;j<ncol_ief;j++)
         {
             ief_copy->setVal(i,j,fabs(ief->getVal(i,j+1))-1);
         }
@@ -5173,7 +5173,7 @@ US3D* ReadUS3DGrid(const char* fn_conn, const char* fn_grid, int readFromStats, 
     
     for(i=0;i<nrow;i++)
     {
-        for(j=0;j<ncol_iee;j++)
+        for(int j=0;j<ncol_iee;j++)
         {
             iee_copy->setVal(i,j,iee->getVal(i,j+1)-1);
         }

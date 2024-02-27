@@ -139,6 +139,13 @@ int main(int argc, char** argv)
     //Start building the trace object that contains the information regarding the prism-tetra interfaces.
     // It contains the unique vertex and face information.
     //====================================================================================
+    
+
+    clock_t start1, end1;
+    double dur_max1,time_taken1;
+
+    start1 = clock();
+
     PrismTetraTrace* pttrace = new PrismTetraTrace(comm, 
                                                    meshRead->element2rank, 
                                                    meshRead->ife,
@@ -147,6 +154,17 @@ int main(int argc, char** argv)
                                                    meshRead->nElem, 
                                                    meshRead->nFace, 
                                                    meshRead->nVert);
+
+    end1 = clock();
+    time_taken1 = ( end1 - start1) / (double) CLOCKS_PER_SEC;
+    MPI_Allreduce(&time_taken1, &dur_max1, 1, MPI_DOUBLE, MPI_MAX, comm);
+    if(world_rank == 0)
+    {
+        cout << "Time taken to broadcast boundary layer/tetra trace data is : " << fixed
+        << dur_max1 << setprecision(16);
+        cout << " sec " << endl;
+    }
+
 
     std::map<int,std::map<int,int> > trace_elem     = pttrace->GetTrace();
     std::map<int,std::vector<int> > trace_verts     = pttrace->GetTraceVerts();
@@ -267,7 +285,7 @@ int main(int argc, char** argv)
                                                         tetra2type,
                                                         pttrace, 
                                                         tetras_data,
-                                                        3,
+                                                        2,
                                                         comm);
 
                                                         
@@ -398,7 +416,7 @@ int main(int argc, char** argv)
     varnamesGrad[6]         = "d2udy2";
     varnamesGrad[7]         = "dudyz";
     varnamesGrad[8]         = "d2udz2";
-
+/*
     OutputTetraMeshPartitionVTK(comm,
                                 filename_tg, 
                                 Owned_Elem_t, 
@@ -406,7 +424,7 @@ int main(int argc, char** argv)
                                 tetra_grad, 
                                 varnamesGrad, 
                                 LocalVertsMap_t);
-
+*/
     string filename_tg_o1 = "tetraGrad_o1_" + std::to_string(world_rank) + ".vtu";
 
     tetra_repart->AddStateVecForAdjacentElements(d2udx2_o1,3,comm);
@@ -449,7 +467,8 @@ int main(int argc, char** argv)
     varnamesGrad2[9]         = "u";
 
     // varnamesGrad2[0]         = "d2udx2";
-    OutputTetraMeshPartitionVTK(comm,
+/*  
+  OutputTetraMeshPartitionVTK(comm,
                             filename_tg_o1, 
                             Owned_Elem_t, 
                             gE2gV_t, 
@@ -457,7 +476,7 @@ int main(int argc, char** argv)
                             varnamesGrad2, 
                             LocalVertsMap_t);
 
-    
+  */  
 
     
 

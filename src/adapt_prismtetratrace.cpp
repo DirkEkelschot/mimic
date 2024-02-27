@@ -211,7 +211,7 @@ PrismTetraTrace::PrismTetraTrace(MPI_Comm comm,
             ref++;
         }
     }
-    std::cout << "trace_ref " << trace_verts.size() << std::endl;
+    //std::cout << "trace_ref " << trace_verts.size() << std::endl;
 
 }
 

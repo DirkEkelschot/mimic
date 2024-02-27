@@ -1,10 +1,9 @@
-TESTBIN = ../bin
+TESTBIN = build
 
 SRC_OBJ = ../../src/*.cpp
 TES_OBJ = main.cpp
-TEST    = PartitionTetrahedra
-
-include ../../module_new.mk
+TEST    = partTetra
+include module.mk
 
 test:makebin
 	$(CC) $(CXXFLAGS) $(SRC_OBJ) $(TES_OBJ) -o $(TESTBIN)/$(TEST) $(LDFLAGS) $(LDLIBS)

@@ -1,18 +1,13 @@
-PARMETIS_HOME = /Users/dekelsch/Software/parmetis-install
-METIS_HOME = /Users/dekelsch/Software/metis-install
-HDF5_HOME = /Users/dekelsch/Software/hdf5-1.14.2/install
-VTK_HOME = /Users/dekelsch/Software/VTK-9.3.0/build
-MPICH_HOME = /Users/dekelsch/Software/mpich-4.1.2
-PARMMG_HOME = /Users/dekelsch/Software/pmmg/build
-MMG_HOME = /Users/dekelsch/Software/pmmg/build/Mmg-prefix/src/Mmg-build
-XML_HOME = /Users/dekelsch/Software/tinyxml
-#CGNS_HOME = /Users/dekelsch/Software/CGNS-3.3.0/src/install
-BOOST_HOME = /Users/dekelsch/Software/boost_1_83_0
-TETGEN_HOME = /Users/dekelsch/Software/tetgen1.6.0
-CXXFLAGS += -std=c++11 -I$(VTK_HOME)/include/vtk-9.3 -I$(MMG_HOME)/include -I$(PARMMG_HOME)/include -I$(PARMETIS_HOME)/include -I$(MPICH_HOME)/include -I$(HDF5_HOME)/include -I$(METIS_HOME)/include -I$(XML_HOME) -I$(BOOST_HOME)
+PARMMG_HOME = /home1/dekelsch/Software/parmmg_1.4_toss4/build
+MMG_HOME = /home1/dekelsch/Software/mmg_new/build
+PARMETIS_HOME = /nobackupp19/dekelsch/parmetis-4.0.3/parmetis-install
+METIS_HOME = /nobackupp19/dekelsch/parmetis-4.0.3/metis/metis-install
+CGNS_HOME = /nobackupp19/dekelsch/CGNS-3.3.0/src/install
+BOOST_HOME = /home1/dekelsch/Software/boost_1_71_0
+XML_HOME = /home1/dekelsch/Software/tinyxml
+CXXFLAGS += -std=c++17 -g -DMPI_NO_CPPBIND -I$(MMG_HOME)/include -I$(PARMMG_HOME)/include -I$(PARMETIS_HOME)/include -I$(METIS_HOME)/include -I$(BOOST_HOME) -I$(XML_HOME) -I$(CGNS_HOME)/include
+LDFLAGS += -L$(MMG_HOME)/lib -L$(PARMMG_HOME)/lib -L$(PARMETIS_HOME)/lib -L$(METIS_HOME)/lib -L$(BOOST_HOME)/stage/lib -L$(XML_HOME) -L$(CGNS_HOME)/lib
 
-LDFLAGS += -L$(VTK_HOME)/lib -L$(MMG_HOME)/lib -L$(PARMMG_HOME)/lib -L$(PARMETIS_HOME)/lib -L$(METIS_HOME)/lib -L$(MPICH_HOME)/lib -L$(HDF5_HOME)/lib -L$(XML_HOME)
+LDLIBS += -lmpi -lparmetis -lmetis -lhdf5 -mkl -lparmmg -lmmg -lcgns
 
-LDLIBS += -lmetis -lparmetis -lhdf5 -lmpi -llapack -lblas -lmmg -lparmmg
-CC = /Users/dekelsch/Software/mpich-4.1.2/mpich-install/bin/mpic++
-
+CC = icpc
