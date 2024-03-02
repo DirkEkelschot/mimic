@@ -44,57 +44,59 @@ PrismTetraTrace::PrismTetraTrace(MPI_Comm comm,
     std::vector<int> face_vf;
     std::vector<int> trace_f;
 
+    
     for(itmiv=ife.begin();itmiv!=ife.end();itmiv++)
     {
         int face_id = itmiv->first;
 
         int elem_0  = itmiv->second[0];
         int elem_1  = itmiv->second[1];
-
-        int type_0  = iet_glob[elem_0];
-        int type_1  = iet_glob[elem_1];
-
-        int rank_0  = element2rank[elem_0];
-        int rank_1  = element2rank[elem_1];
-        std::vector<int> trave_v(3,0);
         if(elem_0<nElem && elem_1<nElem)
         {
-            if(type_0==2 && type_1!=2)
+            int type_0  = iet_glob[elem_0];
+            int type_1  = iet_glob[elem_1];
+            int rank_0  = element2rank[elem_0];
+            int rank_1  = element2rank[elem_1];
+            std::vector<int> trave_v(3,0);
+            if(elem_0<nElem && elem_1<nElem)
             {
-                rank_l.push_back(rank_0);
-                rank_r.push_back(rank_1);
-
-                elem_l.push_back(elem_0);
-                elem_r.push_back(elem_1);
-
-                trace_f.push_back(face_id);
-
-                for(int q=0;q<3;q++)
+                if(type_0==2 && type_1!=2)
                 {
-                    face_vf.push_back(ifn[face_id][q]);
+                    rank_l.push_back(rank_0);
+                    rank_r.push_back(rank_1);
+
+                    elem_l.push_back(elem_0);
+                    elem_r.push_back(elem_1);
+
+                    trace_f.push_back(face_id);
+
+                    for(int q=0;q<3;q++)
+                    {
+                        face_vf.push_back(ifn[face_id][q]);
+                    }
+                    trace_loc++;
                 }
-                trace_loc++;
-            }
-            if(type_0!=2 && type_1==2)
-            {
-                rank_l.push_back(rank_1);
-                rank_r.push_back(rank_0);
-
-                elem_l.push_back(elem_1);
-                elem_r.push_back(elem_0);
-
-                trace_f.push_back(face_id);
-
-                for(int q=0;q<3;q++)
+                if(type_0!=2 && type_1==2)
                 {
-                    face_vf.push_back(ifn[face_id][q]);
-                }
+                    rank_l.push_back(rank_1);
+                    rank_r.push_back(rank_0);
 
-                trace_loc++;
-            }
-        }   
+                    elem_l.push_back(elem_1);
+                    elem_r.push_back(elem_0);
+
+                    trace_f.push_back(face_id);
+
+                    for(int q=0;q<3;q++)
+                    {
+                        face_vf.push_back(ifn[face_id][q]);
+                    }
+
+                    trace_loc++;
+                }
+            }  
+         } 
     }
-
+    
     int nTraceF  = trace_f.size();
     int nTraceFV = face_vf.size();
     DistributedParallelState* trace_comm = new DistributedParallelState(nTraceF,comm);
@@ -109,7 +111,7 @@ PrismTetraTrace::PrismTetraTrace(MPI_Comm comm,
     std::vector<int> elem_r_glob(nTraceF_glob,0);
     std::vector<int> trace_f_glob(nTraceF_glob,0);
     std::vector<int> trace_fv_glob(nTraceFV_glob,0);
-
+    
     MPI_Allgatherv(rank_l.data(),
                    nTraceF,
                    MPI_INT,
@@ -117,7 +119,7 @@ PrismTetraTrace::PrismTetraTrace(MPI_Comm comm,
                    trace_comm->getNlocs(),
                    trace_comm->getOffsets(),
                    MPI_INT,comm);
-
+    
     MPI_Allgatherv(rank_r.data(),
                    nTraceF,
                    MPI_INT,
@@ -211,6 +213,7 @@ PrismTetraTrace::PrismTetraTrace(MPI_Comm comm,
             ref++;
         }
     }
+    
     //std::cout << "trace_ref " << trace_verts.size() << std::endl;
 
 }
@@ -222,6 +225,7 @@ FaceSetPointer PrismTetraTrace::GetRefTraceFaceSet()
 {
     return m_RefTraceFaces;
 }
+
 std::map<int,int> PrismTetraTrace::GetUniqueTraceVerts2RefMap()
 {
     return unique_trace_verts;
@@ -245,4 +249,14 @@ std::map<int,std::vector<int> > PrismTetraTrace::GetLeftRightElements()
 std::map<int,int > PrismTetraTrace::GetTraceRef()
 {
     return trace_ref;
+}
+
+PrismTetraTrace::~PrismTetraTrace()
+{
+    m_RefTraceFaces.clear();
+    unique_trace_verts.clear();
+    trace_elems.clear();
+    trace_verts.clear();
+    trace_LR_elem.clear();
+    trace_ref.clear();
 }

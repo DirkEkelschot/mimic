@@ -1,8 +1,7 @@
 #include "adapt_gradreconstruct_lite.h"
 
 
-std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D_Lite(RepartitionObject* RePa, 
-                                                            std::map<int,std::vector<double> > Ue,
+std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D_Lite(RepartitionObject* RePa,
                                                            PrismTetraTrace* trace,
                                                            std::map<int,std::vector<double> > ghosts,
                                                            int Nel,
@@ -16,12 +15,17 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D_Lite(RepartitionObjec
    int world_rank;
    MPI_Comm_rank(comm, &world_rank);
    //std::map<int,std::vector<double> > Ue                = RePa->getElement2DataMap();
+      std::map<int,std::vector<double> > Ue                = RePa->getElement2DataMap();
+
+   
+   RePa->AddStateVecForAdjacentElements(Ue,2,comm);
+
+
    std::map<int,std::vector<double> > LocalVs           = RePa->getLocalVertsMap();
    std::vector<int> Loc_Elem                            = RePa->getLocElem();
    int nLoc_Elem                                        = Loc_Elem.size();
    std::map<int, std::vector<int> > Face2VertexMap      = RePa->getFace2VertexMap();
    std::map<int, std::vector<int> > Element2FaceMap     = RePa->getElement2FacesMap();
-   std::map<int, std::vector<int> > Face2NVertexMap     = RePa->getFace2NVertexMap();
    std::map<int, std::map<int,int> > trace2elements     = trace->GetTrace();
    std::map<int, std::vector<int> > Element2FacesMap    = RePa->getElement2FacesMap();
    std::map<int, std::vector<int> > Element2VertexMap   = RePa->getElement2VertexMap();
@@ -85,7 +89,7 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D_Lite(RepartitionObjec
         {
             int adjid  = Element2ElementMap[elID][j];
             int Faceid = Element2FaceMap[elID][j];
-            
+                        
             if(Element2VertexMap.find(adjid)!=Element2VertexMap.end() 
                         && ghosts.find(adjid)!=ghosts.end())
             {
@@ -110,8 +114,8 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D_Lite(RepartitionObjec
             {
                 if(vrt_collect.find(adjid)==vrt_collect.end())
                 {
-
-                    int NvPerF = Face2NVertexMap[Faceid][0];
+                    
+                    int NvPerF = Face2VertexMap[Faceid].size();
                     
                     std::vector<double> Vc(3);
                     Vc[0] = 0.0;
@@ -120,36 +124,38 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D_Lite(RepartitionObjec
                     
                     for(int s=0;s<NvPerF;s++)
                     {
-                        int gvid = Face2VertexMap[Faceid][s];
-
-                        Vc[0] = Vc[0]+LocalVs[gvid][0];
-                        Vc[1] = Vc[1]+LocalVs[gvid][1];
-                        Vc[2] = Vc[2]+LocalVs[gvid][2];
+                        int gvid    = Face2VertexMap[Faceid][s];
                         
-                        std::vector<double> V(3);
-                        V[0]    = LocalVs[gvid][0];
-                        V[1]    = LocalVs[gvid][1];
-                        V[2]    = LocalVs[gvid][2];
-                        face.push_back(V);
-                    }
+                        Vc[0]       = Vc[0]+LocalVs[gvid][0];
+                        Vc[1]       = Vc[1]+LocalVs[gvid][1];
+                        Vc[2]       = Vc[2]+LocalVs[gvid][2];
+                        
+                        std::vector<double> V(3,0.0);
+                        V[0]        = LocalVs[gvid][0];
+                        V[1]        = LocalVs[gvid][1];
+                        V[2]        = LocalVs[gvid][2];
 
+                        face.push_back(V);    
+                    }
+                    
                     Vc[0] = Vc[0]/NvPerF;
                     Vc[1] = Vc[1]/NvPerF;
                     Vc[2] = Vc[2]/NvPerF;
-        
+                
                     std::vector<double> r0(3);
                     r0[0] = (Vc[0]-Vijk[0]);
                     r0[1] = (Vc[1]-Vijk[1]);
                     r0[2] = (Vc[2]-Vijk[2]);
                     
+
                     v0[0] = face[1][0]-face[0][0];
                     v0[1] = face[1][1]-face[0][1];
                     v0[2] = face[1][2]-face[0][2];
-
+                    
                     v1[0] = face[2][0]-face[0][0];
                     v1[1] = face[2][1]-face[0][1];
                     v1[2] = face[2][2]-face[0][2];
-                    
+                   
                     std::vector<double> n0 = ComputeSurfaceNormal(v0,v1);
                     double orient0   = DotVec3D(r0,n0);
                     
@@ -173,10 +179,11 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D_Lite(RepartitionObjec
                     vrt_collect[adjid]  = Vc;
                     sol_collect[adjid]  = u_ijk;//ghosts[adjid][variable];
                     
-                    face.clear();/**/
+                   
+                
+                    face.clear();
                 }
             }
-            
             if(Element2ElementMap.find(adjid)!=Element2ElementMap.end())
             {
                 int n_adjid         = Element2ElementMap[adjid].size();
@@ -221,7 +228,7 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D_Lite(RepartitionObjec
                     {
                         if(vrt_collect.find(adjadj)==vrt_collect.end())
                         {
-                            int NvPerF = Face2NVertexMap[fadjadj][0];
+                            int NvPerF = Face2VertexMap[fadjadj].size();
                             
                             std::vector<double> Vc(3);
                             Vc[0]       = 0.0;
@@ -333,7 +340,7 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D_Lite(RepartitionObjec
                             else if(ghosts.find(adjadjadj)!=ghosts.end())
                             {
                                 
-                                int NvPerF = Face2NVertexMap[fadjadjadj][0];
+                                int NvPerF = Face2VertexMap[fadjadjadj].size();
                                 
                                 std::vector<double> Vc(3);
                                 Vc[0] = 0.0;
@@ -406,8 +413,7 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D_Lite(RepartitionObjec
             }
         }
 
-        
-        
+    
         if(vrt_collect.size() > 9)
         {
             int Ndata = vrt_collect.size();
@@ -470,13 +476,7 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D_Lite(RepartitionObjec
             }
 
             x = SolveQR_Lite(A_cm,Ndata,9,bvec);
-            if(x[8]>1.0e07)
-            {
-                for(int y=0;y<Ndata;y++)
-                {
-                    std::cout << "bvec " << y << " " << bvec[y] << std::endl;
-                }
-            }
+
             dudx_map[elID] = x;
             
         }
@@ -539,7 +539,7 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D_Lite(RepartitionObjec
             // delete bvec;
         }
         //
-
+        
         vrt_collect.clear();
         sol_collect.clear();
         
@@ -578,7 +578,6 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_US3D_Lite(RepartitionObject* 
     std::map<int, std::vector<int> > Element2FacesMap   = RePa->getElement2FacesMap();
     std::map<int, std::vector<int> > Element2ElementMap = RePa->getElement2ElementMap();
     std::map<int, std::vector<int> > Face2VertexMap     = RePa->getFace2VertexMap();
-    std::map<int, std::vector<int> > Face2NVertexMap    = RePa->getFace2NVertexMap();
     std::vector<int> Owned_Elem                         = RePa->getLocElem();
     int nLoc_Elem                                       = Owned_Elem.size();
     std::map<int,std::map<int,int> > trace2elements     = trace->GetTrace();
@@ -673,7 +672,7 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_US3D_Lite(RepartitionObject* 
             if(adjID<Nel)
             {
                 int nvpf        = Face2VertexMap[faceID].size();
-                int nvpf_real   = Face2NVertexMap[faceID][0];
+                int nvpf_real   = Face2VertexMap[faceID].size();
 
                 if(Element2VertexMap.find(adjID)!=Element2VertexMap.end())
                 {
@@ -717,8 +716,8 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_US3D_Lite(RepartitionObject* 
             {    
 
                 int ghost_id    = adjID;
-                int nvpf        = Face2NVertexMap[faceID][0];//Face2VertexMap[faceID].size();
-                int nvpf_real   = Face2NVertexMap[faceID][0];
+                int nvpf        = Face2VertexMap[faceID].size();//Face2VertexMap[faceID].size();
+                int nvpf_real   = Face2VertexMap[faceID].size();
 
                 std::vector<double> Vface(3,0.0);
 
@@ -753,7 +752,7 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_US3D_Lite(RepartitionObject* 
 
                 int ghost_id    = adjID;
                 //int nvpf        = Face2VertexMap[faceID].size();
-                int nvpf_real   = Face2NVertexMap[faceID][0];
+                int nvpf_real   = Face2VertexMap[faceID].size();
 
                 std::vector<double> Vface(3,0.0);
 

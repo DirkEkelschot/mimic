@@ -810,13 +810,14 @@ std::vector<std::vector<T> > ReadDataSetFromFileInParallel_Lite(const char* file
      
     ret = H5Sselect_hyperslab (memspace, H5S_SELECT_SET, offsets_out, NULL,counts_out, NULL);
 
-    T* PA = new T[nrow*ncol];
+    //T* PA = new T[nrow*ncol];
+    std::vector<T> PA(nloc*ncol);
 
-    ret = H5Dread (dset_id, hid_from_type<T>(), memspace, dspace, H5P_DEFAULT, PA);
+    ret = H5Dread (dset_id, hid_from_type<T>(), memspace, dspace, H5P_DEFAULT, &PA.data()[0]);
 
-    std::vector<std::vector<T> > PAv(nrow);
+    std::vector<std::vector<T> > PAv(nloc);
 
-    for(int i=0;i<nrow;i++)
+    for(int i=0;i<nloc;i++)
     {
         std::vector<T> PavRow(ncol);
         
@@ -824,16 +825,17 @@ std::vector<std::vector<T> > ReadDataSetFromFileInParallel_Lite(const char* file
         {
             PavRow[j] = PA[i*ncol+j];
         }
+
         PAv[i] = PavRow;
     }
-
+    PA.clear();
     H5Sclose(dspace);
     H5Sclose(memspace);
 
     H5Dclose(dset_id);
     H5Fclose(file_id);
 
-    delete[] PA;
+    //delete[] PA;
     return PAv;
 }
 

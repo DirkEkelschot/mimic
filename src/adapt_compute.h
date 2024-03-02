@@ -2,10 +2,15 @@
 #include "adapt_partition.h"
 #include "adapt_math.h"
 #include "adapt.h"
-
+#include "adapt_inputs.h"
+#include "adapt_repartition.h"
 #ifndef ADAPT_COMPUTE_H
 #define ADAPT_COMPUTE_H
 
+std::vector<std::vector<double> > MatMul_Lite(std::vector<std::vector<double> > A, 
+                           std::vector<std::vector<double> > B);
+
+std::vector<std::vector<double> > MatInv_Lite(std::vector<std::vector<double> > A);
 
 void NegateVec3D(std::vector<double> a);
 
@@ -66,6 +71,12 @@ double ComputeTetVolume(std::vector<double> P);
 double* ComputeVolumeCellsReducedToVerts(Array<double>* xcn, Array<int>* ien);
 
 void UnitTestJacobian();
+
+std::map<int,std::vector<std::vector<double> > > ComputeMetric_Lite(MPI_Comm comm, 
+                        RepartitionObject* tetra_repart,
+                        std::map<int,std::vector<double> > tetra_grad,
+                        Inputs* inputs);
+
 
 void ComputeMetricWithWake(Partition* Pa,
                    MPI_Comm comm,

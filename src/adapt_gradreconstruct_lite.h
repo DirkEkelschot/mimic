@@ -6,8 +6,7 @@
 #ifndef ADAPT_RECONGRAD_LITE_H
 #define ADAPT_RECONGRAD_LITE_H
 
-std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D_Lite(RepartitionObject* RePa, 
-                                                           std::map<int,std::vector<double> > Ue,
+std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D_Lite(RepartitionObject* RePa,
                                                            PrismTetraTrace* trace,
                                                            std::map<int,std::vector<double> > ghosts,
                                                            int Nel,

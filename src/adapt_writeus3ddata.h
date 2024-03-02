@@ -14,7 +14,6 @@ void WritePrismsUS3DFormat(MPI_Comm comm,
 
 void WriteBoundaryDataUS3DFormat(MPI_Comm comm, 
                                 RepartitionObject* prism_repart,
-                                PrismTetraTrace* pttrace,
                                 std::vector<int> ifn_T,
                                 std::vector<int> ifn_P,
                                 std::map<int,std::vector<int> > bcref2bcface_T,

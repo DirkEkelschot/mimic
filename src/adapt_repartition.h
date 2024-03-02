@@ -67,6 +67,37 @@ class RepartitionObject{
                                                 std::map<int,std::vector<int> > &ife_loc,
                                                 MPI_Comm comm);
 
+                void getFace2EntityPerPartitionVector(std::map<int,std::vector<int> > ief, 
+                                                   std::map<int,std::vector<int> > ife_read,
+                                                   std::map<int,std::vector<int> > ifref_read, 
+                                                   std::map<int,std::vector<int> > ifNv_read, 
+                                                   std::map<int,std::vector<int> > ifn_read,  
+                                                   int Nf_glob, 
+                                                   std::map<int,std::vector<int> > &ife_loc,
+                                                   std::map<int,std::vector<int> > &ifref_loc,
+                                                   std::map<int,std::vector<int> > &ifNv_loc,
+                                                   std::map<int,std::vector<int> > &ifn_loc,
+                                                   MPI_Comm comm);
+                
+                void getFace2EntityPerPartitionMap(std::map<int,std::vector<int> > ief, 
+                                                   std::map<int,std::vector<int> > ife_read,
+                                                   std::map<int,std::vector<int> > ifref_read, 
+                                                   std::map<int,std::vector<int> > ifNv_read, 
+                                                   std::map<int,std::vector<int> > ifn_read,  
+                                                   int Nf_glob, 
+                                                   std::map<int,std::vector<int> > &ife_loc,
+                                                   std::map<int,std::vector<int> > &ifref_loc,
+                                                   std::map<int,std::vector<int> > &ifNv_loc,
+                                                   std::map<int,std::vector<int> > &ifn_loc,
+                                                   MPI_Comm comm);
+
+                void updateFace2EntityPerPartition(std::map<int,std::vector<int> > ief, 
+                                                   std::map<int,std::vector<int> > ife_read,
+                                                   std::map<int,std::vector<int> > if_Nv_read,  
+                                                   int Nf_glob, 
+                                                   std::map<int,std::vector<int> > &ife_loc,
+                                                   MPI_Comm comm);
+
                 
                 std::map<int,std::vector<double> > getElement2DataMap();
 
@@ -153,7 +184,7 @@ class RepartitionObject{
                 std::map<int,std::vector<int> > getFaceTag2VertTagMap();
                 void buildSharedVertexMap(MPI_Comm comm, PrismTetraTrace* trace);
 
-                void getAdjacentElementLayer(std::map<int,std::vector<int> > element2verts,
+                std::map<int,std::vector<int> > getAdjacentElementLayer(std::map<int,std::vector<int> > element2verts,
                                              std::map<int,std::vector<int> > element2faces,
                                              std::map<int,std::vector<int> > element2element,
                                              PrismTetraTrace* trace,
@@ -169,7 +200,7 @@ class RepartitionObject{
                                              std::map<int,std::vector<double> >& elements2data_update);
                 
                 
-                std::map<int,std::set<int> > GetNode2ElementMap(RepartitionObject* prisms);
+                std::map<int,std::set<int> > GetNode2ElementMap();
 
 
                 void AddStateVecForAdjacentElements(std::map<int,std::vector<double> > &U, int nvar, MPI_Comm comm);

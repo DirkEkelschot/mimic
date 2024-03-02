@@ -26,6 +26,7 @@ RepartitionObject::RepartitionObject(mesh* meshInput,
     Nv_glob = meshInput->nVert;
 
     std::vector<int> elTypes = meshInput->elTypes;
+
     // elType[0] = tet;
     // elType[1] = prism;
     // elType[2] = pyramid;
@@ -36,6 +37,12 @@ RepartitionObject::RepartitionObject(mesh* meshInput,
     std::map<int, std::vector<int> > elements2elements_optimal;
     std::map<int, std::vector<double> > elements2data_optimal;
     std::map<int, int> elements2type_optimal;
+    
+    clock_t start1, end1;
+    double dur_max1,time_taken1;
+
+    start1 = clock();
+
     GetOptimalDistributionSchedule(elements2verts, 
                                    elements2faces, 
                                    elements2elements, 
@@ -47,9 +54,40 @@ RepartitionObject::RepartitionObject(mesh* meshInput,
                                    elements2faces_optimal, 
                                    elements2elements_optimal,
                                    elements2data_optimal);
+
+    end1 = clock();
+    time_taken1 = ( end1 - start1) / (double) CLOCKS_PER_SEC;
+    MPI_Allreduce(&time_taken1, &dur_max1, 1, MPI_DOUBLE, MPI_MAX, comm);
+    if(rank == 0)
+    {
+        std::cout << "Time taken to execute GetOptimalDistributionSchedule : " << std::fixed
+        << dur_max1 << std::setprecision(16);
+        std::cout << " sec " << std::endl;
+    }
     
+    
+
+    start1 = clock();
+
+
     DeterminePartitionLayout(elements2verts_optimal,meshInput->element2rank,elTypes,comm);
     
+
+    end1 = clock();
+    time_taken1 = ( end1 - start1) / (double) CLOCKS_PER_SEC;
+    MPI_Allreduce(&time_taken1, &dur_max1, 1, MPI_DOUBLE, MPI_MAX, comm);
+    if(rank == 0)
+    {
+        std::cout << "Time taken to execute DeterminePartitionLayout : " << std::fixed
+        << dur_max1 << std::setprecision(16);
+        std::cout << " sec " << std::endl;
+    }
+
+    
+
+    
+    start1 = clock();
+
     DetermineElement2ProcMap(elements2verts_optimal, 
                              elements2faces_optimal,
                              elements2elements_optimal, 
@@ -64,100 +102,129 @@ RepartitionObject::RepartitionObject(mesh* meshInput,
                              elements2elements_update,
                              elements2data_update);
     
+    end1 = clock();
+    time_taken1 = ( end1 - start1) / (double) CLOCKS_PER_SEC;
+    MPI_Allreduce(&time_taken1, &dur_max1, 1, MPI_DOUBLE, MPI_MAX, comm);
+    if(rank == 0)
+    {
+        std::cout << "Time taken to execute DetermineElement2ProcMap : " << std::fixed
+        << dur_max1 << std::setprecision(16);
+        std::cout << " sec " << std::endl;
+    }
+    
     // The partitioning happens over the elements. 
     // The faces still live equally distributed over the available ranks.
     // They need to be distributed over the ranks.
 
     // std::map<int,std::vector<int> > face2elements_update;
-    getFace2EntityPerPartition(elements2faces_update, 
-                               meshInput->ife, 
-                               Nf_glob, 
-                               face2elements_update, 
-                               comm);
+    start1 = clock();
+    getFace2EntityPerPartitionMap(elements2faces_update,
+                                  meshInput->ife,
+                                  meshInput->if_ref,
+                                  meshInput->if_Nv,
+                                  meshInput->ifn,
+                                  Nf_glob,
+                                  face2elements_update,
+                                  face2reference_update,
+                                  face2Nverts_update,
+                                  face2verts_update,
+                                  comm);
+    
+
+    end1 = clock();
+    time_taken1 = ( end1 - start1) / (double) CLOCKS_PER_SEC;
+    MPI_Allreduce(&time_taken1, &dur_max1, 1, MPI_DOUBLE, MPI_MAX, comm);
+    if(rank == 0)
+    {
+        std::cout << "Time taken to execute getFace2EntityPerPartitionMap : " << std::fixed
+        << dur_max1 << std::setprecision(16);
+        std::cout << " sec " << std::endl;
+    }
+
+    // getFace2EntityPerPartition(elements2faces_update, 
+    //                            meshInput->ife, 
+    //                            Nf_glob, 
+    //                            face2elements_update, 
+    //                            comm);
+
 
     // std::map<int,std::vector<int> > face2reference_update;
-    getFace2EntityPerPartition(elements2faces_update, 
-                               meshInput->if_ref, 
-                               Nf_glob, 
-                               face2reference_update, 
-                               comm);
+    // getFace2EntityPerPartition(elements2faces_update, 
+    //                            meshInput->if_ref, 
+    //                            Nf_glob, 
+    //                            face2reference_update, 
+    //                            comm);
 
-    //std::map<int,std::vector<int> > face2verts_update;
-    getFace2EntityPerPartition(elements2faces_update, 
-                               meshInput->if_Nv, 
-                               Nf_glob, 
-                               face2Nverts_update, 
-                               comm);
+    // //std::map<int,std::vector<int> > face2verts_update;
+    // getFace2EntityPerPartition(elements2faces_update, 
+    //                            meshInput->if_Nv, 
+    //                            Nf_glob, 
+    //                            face2Nverts_update, 
+    //                            comm);
 
-    //std::map<int,std::vector<int> > face2verts_update;
-    getFace2EntityPerPartition(elements2faces_update, 
-                               meshInput->ifn, 
-                               Nf_glob, 
-                               face2verts_update, 
-                               comm);
+    // //std::map<int,std::vector<int> > face2verts_update;
+    // getFace2EntityPerPartition(elements2faces_update, 
+    //                            meshInput->ifn, 
+    //                            Nf_glob, 
+    //                            face2verts_update, 
+    //                            comm);
 
-    vloc = LocalVertsMap.size();
+
+
+
+    // vloc = LocalVertsMap.size();
 
     for(int i=0;i<nAdjLayer;i++)
     {
-        getAdjacentElementLayer(elements2verts_update,
-                                elements2faces_update,
-                                elements2elements_update,
-                                trace,
-                                meshInput->xcn, 
-                                elements2data_update,
-                                Ne_glob,
-                                Nf_glob,
-                                Nv_glob, 
-                                comm,
-                                elements2verts_update, 
-                                elements2faces_update, 
-                                elements2elements_update,
-                                elements2data_update);
-    
-        getFace2EntityPerPartition(elements2faces_update, 
-                               meshInput->if_Nv, 
-                               Nf_glob, 
-                               face2Nverts_update, 
-                               comm);
+        
+        
+        start1 = clock();
+        std::map<int,std::vector<int> > adjEl2Face = getAdjacentElementLayer(elements2verts_update,
+                                                                        elements2faces_update,
+                                                                        elements2elements_update,
+                                                                        trace,
+                                                                        meshInput->xcn, 
+                                                                        elements2data_update,
+                                                                        Ne_glob,
+                                                                        Nf_glob,
+                                                                        Nv_glob, 
+                                                                        comm,
+                                                                        elements2verts_update, 
+                                                                        elements2faces_update, 
+                                                                        elements2elements_update,
+                                                                        elements2data_update);
+        
+        
+        end1 = clock();
+        time_taken1 = ( end1 - start1) / (double) CLOCKS_PER_SEC;
+        MPI_Allreduce(&time_taken1, &dur_max1, 1, MPI_DOUBLE, MPI_MAX, comm);
+        if(rank == 0)
+        {
+            std::cout << "Time taken to execute getAdjacentElementLayer : " << std::fixed
+            << dur_max1 << std::setprecision(16);
+            std::cout << " sec " << std::endl;
+        }
 
-        getFace2EntityPerPartition(elements2faces_update, 
-                               meshInput->ifn, 
-                               Nf_glob, 
-                               face2verts_update, 
-                               comm);
+        start1 = clock();
+        
 
+        updateFace2EntityPerPartition(adjEl2Face, 
+                                    meshInput->ifn,
+                                    meshInput->if_Nv,  
+                                    Nf_glob, 
+                                    face2verts_update, 
+                                    comm);
+        
+        end1 = clock();
+        time_taken1 = ( end1 - start1) / (double) CLOCKS_PER_SEC;
+        MPI_Allreduce(&time_taken1, &dur_max1, 1, MPI_DOUBLE, MPI_MAX, comm);
+        if(rank == 0)
+        {
+            std::cout << "Time taken to execute updateFace2EntityPerPartition : " << std::fixed
+            << dur_max1 << std::setprecision(16);
+            std::cout << " sec " << std::endl;
+        }
     }
-    
-
-
-
-    
-
-
-
-    //std::cout << "RANK == " << rank << " post stats :: " << elements2verts_update.size() << " " << elements2faces_update.size() << " "  << elements2elements_update.size() << " " << elements2data_update.size() << " LocalVertsMap " << LocalVertsMap.size() << std::endl;
-
-    //for(itmiv=face2elements_update.begin();)
-
-
-    // elements2verts_update;
-    // elements2faces_update;
-    // elements2elements_update;
-    // elements2data_update;
-
-    // face2elements_update;
-    // face2reference_update;
-    // face2verts_update;
-
-
-
-
-    // GetSharedTraces(elements2verts_update,
-    //                 face2elements_update,face2reference_update,
-    //                 meshInput->element2rank,comm);
-    
-
 }
 
 
@@ -1990,8 +2057,233 @@ void RepartitionObject::getElement2EntityPerPartition(std::map<int,std::vector<i
     
     return iee_p_map;
 }
-
 */
+
+
+void RepartitionObject::updateFace2EntityPerPartition(std::map<int,std::vector<int> > ief, 
+                                                   std::map<int,std::vector<int> > ife_read,
+                                                   std::map<int,std::vector<int> > if_Nv_read, 
+                                                   int Nf_glob, 
+                                                   std::map<int,std::vector<int> > &ife_loc,
+                                                   MPI_Comm comm)
+{
+    
+    ParallelState* ife_pstate = new ParallelState(Nf_glob,comm);    
+    int floc_tmp = 0;
+    int vloc_tmp = 0;
+    int q=0;
+    int i=0;
+    int size;
+    MPI_Comm_size(comm, &size);
+    // Get the rank of the process
+    int rank;
+    MPI_Comm_rank(comm, &rank);
+    
+    int ife_o = ife_pstate->getOffset(rank);
+    int face_id;
+    int p_id;
+    int v_id;
+    int f_id;
+    int r;
+    std::vector<int> faceIDs_on_rank;
+    std::vector<int> vertIDs_on_rank;
+    std::map<int,std::vector<int> > rank2req_Faces;
+    int* new_offsets = new int[size];
+    
+    
+    for(int i=0;i<size;i++)
+    {
+        new_offsets[i] = ife_pstate->getOffsets()[i]-1;
+    }
+    
+    //std::cout << " " << rank << " LocalVerts.size() before " << LocalVerts.size() << std::endl;
+    std::map<int,std::vector<int> > req_face;
+    int itel = 0;
+    
+    int Nel = part_global.size();
+    
+    std::vector<int> ee;
+    std::map<int,std::vector<int> >::iterator itefmap;
+    
+    for(itefmap=ief.begin();itefmap!=ief.end();itefmap++)
+    {
+        for(int q=0;q<itefmap->second.size();q++)
+        {
+            int face_req = itefmap->second[q];
+            
+            r = FindRank(new_offsets,size,face_req);
+            
+            if(r != rank && ife_loc.find(face_req)==ife_loc.end())
+            {
+                rank2req_Faces[r].push_back(face_req);
+            }
+            else
+            {
+                if(ife_loc.find(face_req)==ife_loc.end())
+                {
+                    int ncol = ife_read[face_req].size();
+                    int ncol_d = if_Nv_read[face_req][0];
+                    //std::cout << "ncol first " << ncol << " " << ncol_d << std::endl;
+                    for(int j=0;j<ncol_d;j++)
+                    {
+                        int vrtid = ife_read[face_req][j];
+                        ife_loc[face_req].push_back(vrtid);
+                    }
+                }
+            }
+        }
+    }
+    
+    int own = ife_loc.size();
+    
+    ScheduleObj* ife_schedule = DoScheduling(rank2req_Faces,comm);
+
+    std::map<int,std::vector<int> >::iterator it;
+    std::map<int,std::vector<int> >  reqstd_F_IDs_per_rank;
+
+    for(q=0;q<size;q++)
+    {
+        if(rank==q)
+        {
+            int i=0;
+            for (it = rank2req_Faces.begin(); it != rank2req_Faces.end(); it++)
+            {
+                int n_req           = it->second.size();
+                int dest            = it->first;
+
+                //MPI_Send(&dest, 1, MPI_INT, dest, 9876+10*dest, comm);
+                MPI_Send(&n_req, 1, MPI_INT, dest, 9876*7654+10*dest, comm);
+                //MPI_Send(&it->second.data()[0], n_req, MPI_INT, dest, 9876+dest*2, comm);
+                MPI_Send(&it->second.data()[0], n_req, MPI_INT, dest, 9876*2*7654+dest*2, comm);
+
+                i++;
+            }
+        }
+        else if (ife_schedule->SendFromRank2Rank[q].find( rank ) != ife_schedule->SendFromRank2Rank[q].end())
+        {
+            int n_reqstd_ids;
+            MPI_Recv(&n_reqstd_ids, 1, MPI_INT, q, 9876*7654+10*rank, comm, MPI_STATUS_IGNORE);
+            //MPI_Recv(&TotRecvVert_IDs[RecvAlloc_offset_map_v[q]], n_reqstd_ids, MPI_INT, q, 9876+rank*2, comm, MPI_STATUS_IGNORE);
+
+            std::vector<int> recv_reqstd_ids(n_reqstd_ids);
+            
+            MPI_Recv(&recv_reqstd_ids[0], n_reqstd_ids, MPI_INT, q, 9876*2*7654+rank*2, comm, MPI_STATUS_IGNORE);
+            
+            reqstd_F_IDs_per_rank[q] = recv_reqstd_ids;
+        }
+    }
+    
+    std::map<int,std::vector<int> >::iterator ite;
+    std::map<int,std::vector<int> > send_IFE_Face_IDs;
+    std::vector<int> TotIEE_El_IDs;
+
+    int TotNelem_IFE_recv   = 0;
+    int eIFE_id             = 0;
+
+
+    
+    int offset_xcn = 0;
+    int nloc_xcn = 0;
+    std::map<int,int > recv_back_Nife;
+    std::map<int,std::vector<int> > recv_back_face_ids;
+    std::map<int,std::vector<int> > recv_back_ife;
+    std::map<int,std::vector<int> > recv_back_face_Ne;
+    int n_recv_back;
+
+    for(q=0;q<size;q++)
+    {
+        if(rank == q)
+        {
+            for (it = reqstd_F_IDs_per_rank.begin(); it != reqstd_F_IDs_per_rank.end(); it++)
+            {
+                int nf_send = it->second.size();
+                std::vector<int> ife_send;
+                std::vector<int> fncol(it->second.size(),0);
+                for(int u=0;u<it->second.size();u++)
+                {
+                    //int ncol = ife_read[it->second[u]].size();
+                    int ncol = if_Nv_read[it->second[u]][0];
+                    for(int q=0;q<ncol;q++)
+                    {
+                        ife_send.push_back(ife_read[it->second[u]][q]);
+                    }
+
+                    fncol[u] = ncol;
+
+                }
+
+                int nfe_send = ife_send.size();
+
+
+                int dest = it->first;
+                MPI_Send(&nf_send, 1, MPI_INT, dest, 9876*6666+1000*dest, comm);
+                MPI_Send(&nfe_send, 1, MPI_INT, dest, 223*6666+1000*dest, comm);
+
+                MPI_Send(&it->second.data()[0], nf_send, MPI_INT, dest, 9876*7777+dest*888, comm);
+                MPI_Send(&fncol[0], nf_send, MPI_INT, dest, 12*6666+dest*8888, comm);
+                MPI_Send(&ife_send[0], nfe_send, MPI_INT, dest, 9876*6666+dest*8888, comm);
+
+            }
+        }
+        if(ife_schedule->RecvRankFromRank[q].find( rank ) != ife_schedule->RecvRankFromRank[q].end())
+         {
+            int nfe_recv;
+            MPI_Recv(&n_recv_back, 1, MPI_INT, q, 9876*6666+1000*rank, comm, MPI_STATUS_IGNORE);
+            MPI_Recv(&nfe_recv, 1, MPI_INT, q, 223*6666+1000*rank, comm, MPI_STATUS_IGNORE);
+             
+            std::vector<int> recv_back_ife_arr(nfe_recv);
+            std::vector<int> recv_back_ids_arr(n_recv_back);
+            std::vector<int> fncol_rcv(n_recv_back);
+
+            MPI_Recv(&recv_back_ids_arr.data()[0], n_recv_back, MPI_INT, q, 9876*7777+rank*888, comm, MPI_STATUS_IGNORE);
+            MPI_Recv(&fncol_rcv.data()[0], n_recv_back, MPI_INT, q, 12*6666+rank*8888, comm, MPI_STATUS_IGNORE);
+            MPI_Recv(&recv_back_ife_arr.data()[0], nfe_recv, MPI_INT, q, 9876*6666+rank*8888, comm, MPI_STATUS_IGNORE);
+
+            recv_back_Nife[q]       = n_recv_back;
+            recv_back_face_ids[q]   = recv_back_ids_arr;
+            recv_back_face_Ne[q]    = fncol_rcv;
+            recv_back_ife[q]        = recv_back_ife_arr;
+
+         }
+    }
+
+
+
+    std::map<int,int >::iterator iter;
+    int ntotal=0;
+    ee.clear();
+    for(iter=recv_back_Nife.begin();iter!=recv_back_Nife.end();iter++)
+    {
+        int L = iter->second;
+        int offset = 0;
+        for(int s=0;s<L;s++)
+        {
+            face_id  = recv_back_face_ids[iter->first][s];
+            int ncol = recv_back_face_Ne[iter->first][s];
+            
+            std::vector<int> ife_row_loc(ncol,0);
+            for(int r=0;r<ncol;r++)
+            {
+                ife_row_loc[r]      = recv_back_ife[iter->first][offset+r];
+                ife_loc[face_id]    = ife_row_loc;
+            }
+                
+            
+            offset = offset+ncol;
+            
+        }
+        ntotal=ntotal+L;
+    }
+}
+
+
+
+
+
+
+
+
+
 
 void RepartitionObject::getFace2EntityPerPartition(std::map<int,std::vector<int> > ief, 
                                                    std::map<int,std::vector<int> > ife_read, 
@@ -2211,7 +2503,534 @@ void RepartitionObject::getFace2EntityPerPartition(std::map<int,std::vector<int>
 }
 
 
-void RepartitionObject::getAdjacentElementLayer(std::map<int,std::vector<int> > element2verts,
+                                //     elements2faces_update,
+                                //   meshInput->ife,
+                                //   meshInput->if_ref,
+                                //   meshInput->if_Nv,
+                                //   meshInput->ifn,
+                                //   Nf_glob,
+                                //   face2elements_update,
+                                //   face2reference_update,
+                                //   face2Nverts_update,
+                                //   face2verts_update,
+                                //   comm);
+
+
+void RepartitionObject::getFace2EntityPerPartitionMap(std::map<int,std::vector<int> > ief, 
+                                                   std::map<int,std::vector<int> > ife_read,
+                                                   std::map<int,std::vector<int> > ifref_read, 
+                                                   std::map<int,std::vector<int> > ifNv_read, 
+                                                   std::map<int,std::vector<int> > ifn_read,  
+                                                   int Nf_glob, 
+                                                   std::map<int,std::vector<int> > &ife_loc,
+                                                   std::map<int,std::vector<int> > &ifref_loc,
+                                                   std::map<int,std::vector<int> > &ifNv_loc,
+                                                   std::map<int,std::vector<int> > &ifn_loc,
+                                                   MPI_Comm comm)
+{
+    
+    ParallelState* ife_pstate = new ParallelState(Nf_glob,comm);    
+    int floc_tmp = 0;
+    int vloc_tmp = 0;
+    int q=0;
+    int i=0;
+    int size;
+    MPI_Comm_size(comm, &size);
+    // Get the rank of the process
+    int rank;
+    MPI_Comm_rank(comm, &rank);
+    
+    int ife_o = ife_pstate->getOffset(rank);
+    int face_id;
+    int p_id;
+    int v_id;
+    int f_id;
+    int r;
+    std::vector<int> faceIDs_on_rank;
+    std::vector<int> vertIDs_on_rank;
+    std::map<int,std::vector<int> > rank2req_Faces;
+    int* new_offsets = new int[size];
+    
+    
+    for(int i=0;i<size;i++)
+    {
+        new_offsets[i] = ife_pstate->getOffsets()[i]-1;
+    }
+    
+    //std::cout << " " << rank << " LocalVerts.size() before " << LocalVerts.size() << std::endl;
+    std::map<int,std::vector<int> > req_face;
+    int itel = 0;
+    
+    int Nel = part_global.size();
+    
+    std::vector<int> ee;
+    std::map<int,std::vector<int> >::iterator itefmap;
+
+    for(itefmap=ief.begin();itefmap!=ief.end();itefmap++)
+    {
+        for(int q=0;q<itefmap->second.size();q++)
+        {
+            int face_req = itefmap->second[q];
+            
+            r = FindRank(new_offsets,size,face_req);
+            
+            if(r != rank)
+            {
+                rank2req_Faces[r].push_back(face_req);
+            }
+            else
+            {
+                if(ife_loc.find(face_req)==ife_loc.end())
+                {
+                    ife_loc[face_req]   = ife_read[face_req];
+                    ifref_loc[face_req] = ifref_read[face_req];
+                    //ifNv_loc[face_req]  = ifNv_read[face_req];
+
+                    int Nv              = ifNv_read[face_req][0];
+                    std::vector<int> ifn_row(Nv,0);
+                    for(int j=0;j<Nv;j++)
+                    {
+                        ifn_row[j] = ifn_read[face_req][j];
+                    }
+
+                    ifn_loc[face_req]  = ifn_row;
+                }
+            }
+        }
+    }
+    
+    int own = ife_loc.size();
+    
+    ScheduleObj* ife_schedule = DoScheduling(rank2req_Faces,comm);
+
+    std::map<int,std::vector<int> >::iterator it;
+    std::map<int,std::vector<int> >  reqstd_F_IDs_per_rank;
+
+    for(q=0;q<size;q++)
+    {
+        if(rank==q)
+        {
+            int i=0;
+            for (it = rank2req_Faces.begin(); it != rank2req_Faces.end(); it++)
+            {
+                int n_req           = it->second.size();
+                int dest            = it->first;
+
+                //MPI_Send(&dest, 1, MPI_INT, dest, 9876+10*dest, comm);
+                MPI_Send(&n_req, 1, MPI_INT, dest, 9876*7654+10*dest, comm);
+                //MPI_Send(&it->second.data()[0], n_req, MPI_INT, dest, 9876+dest*2, comm);
+                MPI_Send(&it->second.data()[0], n_req, MPI_INT, dest, 9876*2*7654+dest*2, comm);
+
+                i++;
+            }
+        }
+        else if (ife_schedule->SendFromRank2Rank[q].find( rank ) != ife_schedule->SendFromRank2Rank[q].end())
+        {
+            int n_reqstd_ids;
+            MPI_Recv(&n_reqstd_ids, 1, MPI_INT, q, 9876*7654+10*rank, comm, MPI_STATUS_IGNORE);
+            //MPI_Recv(&TotRecvVert_IDs[RecvAlloc_offset_map_v[q]], n_reqstd_ids, MPI_INT, q, 9876+rank*2, comm, MPI_STATUS_IGNORE);
+
+            std::vector<int> recv_reqstd_ids(n_reqstd_ids);
+            
+            MPI_Recv(&recv_reqstd_ids[0], n_reqstd_ids, MPI_INT, q, 9876*2*7654+rank*2, comm, MPI_STATUS_IGNORE);
+            
+            reqstd_F_IDs_per_rank[q] = recv_reqstd_ids;
+        }
+    }
+    
+    std::map<int,std::vector<int> >::iterator ite;
+    std::map<int,std::vector<int> > send_IFE_Face_IDs;
+    std::vector<int> TotIEE_El_IDs;
+
+    int TotNelem_IFE_recv   = 0;
+    int eIFE_id             = 0;
+
+
+    
+    int offset_xcn = 0;
+    int nloc_xcn = 0;
+    std::map<int,int > recv_back_Nife;
+    std::map<int,std::vector<int> > recv_back_face_ids;
+    std::map<int,std::vector<int> > recv_back_ife;
+    std::map<int,std::vector<int> > recv_back_face_Ne;
+    int n_recv_back;
+
+    for(q=0;q<size;q++)
+    {
+        if(rank == q)
+        {
+            for (it = reqstd_F_IDs_per_rank.begin(); it != reqstd_F_IDs_per_rank.end(); it++)
+            {
+                int nf_send = it->second.size();
+                std::vector<int> ife_send;
+                std::vector<int> fncol(it->second.size(),0);
+                for(int u=0;u<it->second.size();u++)
+                {
+                    int Nv   = ifNv_read[it->second[u]][0];
+                    int ncol = 2+1+Nv;
+                    // ife_send.push_back(ncol);
+                    ife_send.push_back(ife_read[it->second[u]][0]);
+                    ife_send.push_back(ife_read[it->second[u]][1]);
+                    ife_send.push_back(ifref_read[it->second[u]][0]);
+                    //ife_send.push_back(ifNv_read[it->second[u]][0]);
+                    for(int s=0;s<Nv;s++)
+                    {
+                        ife_send.push_back(ifn_read[it->second[u]][s]);
+                    }
+                    fncol[u] = ncol;
+                }
+
+                int nfe_send = ife_send.size();
+
+                int dest = it->first;
+                MPI_Send(&nf_send, 1, MPI_INT, dest, 9876*6666+1000*dest, comm);
+                MPI_Send(&nfe_send, 1, MPI_INT, dest, 223*6666+1000*dest, comm);
+
+                MPI_Send(&fncol[0], nf_send, MPI_INT, dest, 12*6666+dest*8888, comm);
+                MPI_Send(&ife_send[0], nfe_send, MPI_INT, dest, 9876*6666+dest*8888, comm);
+
+            }
+        }
+        if(ife_schedule->RecvRankFromRank[q].find( rank ) != ife_schedule->RecvRankFromRank[q].end())
+         {
+            int nfe_recv;
+            MPI_Recv(&n_recv_back, 1, MPI_INT, q, 9876*6666+1000*rank, comm, MPI_STATUS_IGNORE);
+            MPI_Recv(&nfe_recv, 1, MPI_INT, q, 223*6666+1000*rank, comm, MPI_STATUS_IGNORE);
+             
+            std::vector<int> recv_back_ife_arr(nfe_recv);
+            std::vector<int> recv_back_ids_arr(n_recv_back);
+            std::vector<int> fncol_rcv(n_recv_back);
+
+            MPI_Recv(&fncol_rcv.data()[0], n_recv_back, MPI_INT, q, 12*6666+rank*8888, comm, MPI_STATUS_IGNORE);
+            MPI_Recv(&recv_back_ife_arr.data()[0], nfe_recv, MPI_INT, q, 9876*6666+rank*8888, comm, MPI_STATUS_IGNORE);
+
+            recv_back_face_Ne[q]    = fncol_rcv;
+            recv_back_ife[q]        = recv_back_ife_arr;
+
+         }
+    }
+
+
+
+    std::map<int,std::vector<int> >::iterator iter;
+    int ntotal=0;
+    ee.clear();
+    for(iter=rank2req_Faces.begin();iter!=rank2req_Faces.end();iter++)
+    {
+        int recvdrank = iter->first;
+
+        int L = iter->second.size();
+        int offset = 0;
+        int ncol = 0;
+        for(int s=0;s<L;s++)
+        {
+            face_id  = rank2req_Faces[recvdrank][s];
+            ncol     = recv_back_face_Ne[iter->first][s];
+
+            std::vector<int> ife_loc_row(2,0);
+            std::vector<int> ifref_loc_row(1,0);
+            ife_loc_row[0]   = recv_back_ife[iter->first][offset+0];
+            ife_loc_row[1]   = recv_back_ife[iter->first][offset+1];
+            ifref_loc_row[0] = recv_back_ife[iter->first][offset+2];
+            int Nv           = ncol-3;//recv_back_ife[iter->first][s*ncol+3];
+            std::vector<int> ifn_loc_row(Nv,0);
+            for(int v=0;v<Nv;v++)
+            {
+                ifn_loc_row[v] = recv_back_ife[iter->first][offset+3+v];
+            }
+
+            ife_loc[face_id]    = ife_loc_row;
+            ifref_loc[face_id]  = ifref_loc_row;
+            ifn_loc[face_id]    = ifn_loc_row;
+
+            offset = offset + ncol;
+        }
+
+        ntotal=ntotal+L;
+    }
+}
+
+
+
+void RepartitionObject::getFace2EntityPerPartitionVector(std::map<int,std::vector<int> > ief, 
+                                                   std::map<int,std::vector<int> > ife_read,
+                                                   std::map<int,std::vector<int> > ifref_read, 
+                                                   std::map<int,std::vector<int> > ifNv_read, 
+                                                   std::map<int,std::vector<int> > ifn_read,  
+                                                   int Nf_glob, 
+                                                   std::map<int,std::vector<int> > &ife_loc,
+                                                   std::map<int,std::vector<int> > &ifref_loc,
+                                                   std::map<int,std::vector<int> > &ifNv_loc,
+                                                   std::map<int,std::vector<int> > &ifn_loc,
+                                                   MPI_Comm comm)
+{
+    
+    ParallelState* ife_pstate = new ParallelState(Nf_glob,comm);    
+    int floc_tmp = 0;
+    int vloc_tmp = 0;
+    int q=0;
+    int i=0;
+    int size;
+    MPI_Comm_size(comm, &size);
+    // Get the rank of the process
+    int rank;
+    MPI_Comm_rank(comm, &rank);
+    
+    int ife_o = ife_pstate->getOffset(rank);
+    int face_id;
+    int p_id;
+    int v_id;
+    int f_id;
+    int r;
+    std::vector<int> faceIDs_on_rank;
+    std::vector<int> vertIDs_on_rank;
+    std::map<int,std::vector<int> > rank2req_Faces;
+    int* new_offsets = new int[size];
+    
+    
+    for(int i=0;i<size;i++)
+    {
+        new_offsets[i] = ife_pstate->getOffsets()[i]-1;
+    }
+    
+    //std::cout << " " << rank << " LocalVerts.size() before " << LocalVerts.size() << std::endl;
+    std::map<int,std::vector<int> > req_face;
+    int itel = 0;
+    
+    int Nel = part_global.size();
+    
+    std::vector<int> ee;
+    std::map<int,std::vector<int> >::iterator itefmap;
+    std::set<int> collectFids;
+
+    std::vector<int> FIDs;
+    std::vector<int> ifeLoc;
+    std::vector<int> ifrefLoc;
+    std::vector<int> ifNvLoc;
+    std::vector<int> ifnLoc;
+    for(itefmap=ief.begin();itefmap!=ief.end();itefmap++)
+    {
+        for(int q=0;q<itefmap->second.size();q++)
+        {
+            int face_req = itefmap->second[q];
+            
+            r = FindRank(new_offsets,size,face_req);
+            
+            if(r != rank)
+            {
+                rank2req_Faces[r].push_back(face_req);
+            }
+            else
+            {
+                if(collectFids.find(face_req)==collectFids.end())
+                {
+
+                    FIDs.push_back(face_req);
+
+                    ifeLoc.push_back(ife_read[face_req][0]);
+                    ifeLoc.push_back(ife_read[face_req][1]);
+
+                    ifrefLoc.push_back(ifref_read[face_req][0]);
+
+                    int Nv = ifNv_read[face_req][0];
+                    ifNvLoc.push_back(Nv);
+                    
+                    for(int j=0;j<Nv;j++)
+                    {
+                        // ifn_row[j] = ifn_read[face_req][j];
+                        ifnLoc.push_back(ifn_read[face_req][j]);
+                    }
+                    // ife_loc[face_req]   = ife_read[face_req];
+                    // ifref_loc[face_req] = ifref_read[face_req];
+                    // ifNv_loc[face_req]  = ifNv_read[face_req];
+                    // int Nv              = ifNv_read[face_req][0];
+                    // std::vector<int> ifn_row(Nv,0);
+                    
+                    // ifn_loc[face_req] = ifn_row;
+                }
+            }
+        }
+    }
+    
+    int own = ife_loc.size();
+    
+    ScheduleObj* ife_schedule = DoScheduling(rank2req_Faces,comm);
+
+    std::map<int,std::vector<int> >::iterator it;
+    std::map<int,std::vector<int> >  reqstd_F_IDs_per_rank;
+
+    for(q=0;q<size;q++)
+    {
+        if(rank==q)
+        {
+            int i=0;
+            for (it = rank2req_Faces.begin(); it != rank2req_Faces.end(); it++)
+            {
+                int n_req           = it->second.size();
+                int dest            = it->first;
+
+                //MPI_Send(&dest, 1, MPI_INT, dest, 9876+10*dest, comm);
+                MPI_Send(&n_req, 1, MPI_INT, dest, 9876*7654+10*dest, comm);
+                //MPI_Send(&it->second.data()[0], n_req, MPI_INT, dest, 9876+dest*2, comm);
+                MPI_Send(&it->second.data()[0], n_req, MPI_INT, dest, 9876*2*7654+dest*2, comm);
+
+                i++;
+            }
+        }
+        else if (ife_schedule->SendFromRank2Rank[q].find( rank ) != ife_schedule->SendFromRank2Rank[q].end())
+        {
+            int n_reqstd_ids;
+            MPI_Recv(&n_reqstd_ids, 1, MPI_INT, q, 9876*7654+10*rank, comm, MPI_STATUS_IGNORE);
+            //MPI_Recv(&TotRecvVert_IDs[RecvAlloc_offset_map_v[q]], n_reqstd_ids, MPI_INT, q, 9876+rank*2, comm, MPI_STATUS_IGNORE);
+
+            std::vector<int> recv_reqstd_ids(n_reqstd_ids);
+            
+            MPI_Recv(&recv_reqstd_ids[0], n_reqstd_ids, MPI_INT, q, 9876*2*7654+rank*2, comm, MPI_STATUS_IGNORE);
+            
+            reqstd_F_IDs_per_rank[q] = recv_reqstd_ids;
+        }
+    }
+    
+    std::map<int,std::vector<int> >::iterator ite;
+    std::map<int,std::vector<int> > send_IFE_Face_IDs;
+    std::vector<int> TotIEE_El_IDs;
+
+    int TotNelem_IFE_recv   = 0;
+    int eIFE_id             = 0;
+
+
+    
+    int offset_xcn = 0;
+    int nloc_xcn = 0;
+    std::map<int,int > recv_back_Nife;
+    std::map<int,std::vector<int> > recv_back_face_ids;
+    std::map<int,std::vector<int> > recv_back_ife;
+    std::map<int,std::vector<int> > recv_back_face_Ne;
+    int n_recv_back;
+
+    for(q=0;q<size;q++)
+    {
+        if(rank == q)
+        {
+            for (it = reqstd_F_IDs_per_rank.begin(); it != reqstd_F_IDs_per_rank.end(); it++)
+            {
+                int nf_send = it->second.size();
+                std::vector<int> ife_send;
+                std::vector<int> fncol(it->second.size(),0);
+                for(int u=0;u<it->second.size();u++)
+                {
+                    int Nv   = ifNv_read[it->second[u]][0];
+                    int ncol = 2+1+1+Nv;
+                    ife_send.push_back(ncol);
+                    ife_send.push_back(ife_read[it->second[u]][0]);
+                    ife_send.push_back(ife_read[it->second[u]][1]);
+                    ife_send.push_back(ifref_read[it->second[u]][0]);
+                    ife_send.push_back(ifNv_read[it->second[u]][0]);
+                    
+                    for(int s=0;s<Nv;s++)
+                    {
+                        ife_send.push_back(ifn_read[it->second[u]][s]);
+                    }
+
+                }
+
+                int nfe_send = ife_send.size();
+
+                int dest = it->first;
+                MPI_Send(&nf_send, 1, MPI_INT, dest, 9876*6666+1000*dest, comm);
+                MPI_Send(&nfe_send, 1, MPI_INT, dest, 223*6666+1000*dest, comm);
+
+                //MPI_Send(&it->second.data()[0], nf_send, MPI_INT, dest, 9876*7777+dest*888, comm);
+                //MPI_Send(&fncol[0], nf_send, MPI_INT, dest, 12*6666+dest*8888, comm);
+                //MPI_Send(&ife_send[0], nfe_send, MPI_INT, dest, 9876*6666+dest*8888, comm);
+
+            }
+        }
+        if(ife_schedule->RecvRankFromRank[q].find( rank ) != ife_schedule->RecvRankFromRank[q].end())
+         {
+            int nfe_recv;
+            MPI_Recv(&n_recv_back, 1, MPI_INT, q, 9876*6666+1000*rank, comm, MPI_STATUS_IGNORE);
+            MPI_Recv(&nfe_recv, 1, MPI_INT, q, 223*6666+1000*rank, comm, MPI_STATUS_IGNORE);
+             
+            std::vector<int> recv_back_ife_arr(nfe_recv);
+            //std::vector<int> recv_back_ids_arr(n_recv_back);
+            //std::vector<int> fncol_rcv(n_recv_back);
+
+            //MPI_Recv(&recv_back_ids_arr.data()[0], n_recv_back, MPI_INT, q, 9876*7777+rank*888, comm, MPI_STATUS_IGNORE);
+            //MPI_Recv(&fncol_rcv.data()[0], n_recv_back, MPI_INT, q, 12*6666+rank*8888, comm, MPI_STATUS_IGNORE);
+            //MPI_Recv(&recv_back_ife_arr.data()[0], nfe_recv, MPI_INT, q, 9876*6666+rank*8888, comm, MPI_STATUS_IGNORE);
+
+            recv_back_Nife[q]       = n_recv_back;
+            //recv_back_face_ids[q]   = recv_back_ids_arr;
+            //recv_back_face_Ne[q]    = fncol_rcv;
+            recv_back_ife[q]        = recv_back_ife_arr;
+
+         }
+    }
+/*
+
+
+    std::map<int,int >::iterator iter;
+    int ntotal=0;
+    ee.clear();
+    for(iter=recv_back_Nife.begin();iter!=recv_back_Nife.end();iter++)
+    {
+        int L = iter->second;
+        
+        for(int s=0;s<L;s++)
+        {
+            face_id  = recv_back_face_ids[iter->first][s];
+            int ncol = recv_back_face_Ne[iter->first][s];
+            // if(ife_loc.find(face_id)==ife_loc.end())
+            if(collectFids.find(face_id)==collectFids.end())
+            {
+
+                FIDs.push_back(face_id);
+
+                ifeLoc.push_back(recv_back_ife[iter->first][s*ncol+0]);
+                ifeLoc.push_back(recv_back_ife[iter->first][s*ncol+1]);
+
+                ifrefLoc.push_back(recv_back_ife[iter->first][s*ncol+2]);
+
+                int Nv = recv_back_ife[iter->first][s*ncol+3];
+                ifNvLoc.push_back(Nv);
+                
+                for(int j=0;j<Nv;j++)
+                {
+                    // ifn_row[j] = ifn_read[face_req][j];
+                    ifnLoc.push_back(recv_back_ife[iter->first][s*ncol+4+j]);
+                }
+
+
+                // std::vector<int> ife_loc_row(2,0);
+                // std::vector<int> ifref_loc_row(1,0);
+                // std::vector<int> ifNv_loc_row(1,0);
+                // ife_loc_row[0]   = recv_back_ife[iter->first][s*ncol+0];
+                // ife_loc_row[1]   = recv_back_ife[iter->first][s*ncol+1];
+                // ifref_loc_row[0] = recv_back_ife[iter->first][s*ncol+2];
+                // ifNv_loc_row[0]  = recv_back_ife[iter->first][s*ncol+3];
+                // int Nv = recv_back_ife[iter->first][s*ncol+3];
+                // std::vector<int> ifn_loc_row(Nv,0);
+                // for(int v=0;v<Nv;v++)
+                // {
+                //     ifn_loc_row[v] = recv_back_ife[iter->first][s*ncol+4+v];
+                // }
+
+                // ife_loc[face_id] = ife_loc_row;
+                // ifref_loc[face_id] = ifref_loc_row;
+                // ifNv_loc[face_id] = ifNv_loc_row;
+                // ifn_loc[face_id] = ifn_loc_row;
+            }   
+        }
+
+        ntotal=ntotal+L;
+    }
+    */
+
+}
+
+
+std::map<int, std::vector<int> > RepartitionObject::getAdjacentElementLayer(std::map<int,std::vector<int> > element2verts,
                                                 std::map<int,std::vector<int> > element2faces,
                                                 std::map<int,std::vector<int> > element2element,
                                                 PrismTetraTrace* trace,
@@ -2226,9 +3045,10 @@ void RepartitionObject::getAdjacentElementLayer(std::map<int,std::vector<int> > 
                                                 std::map<int,std::vector<int> >& elements2elements_update_output,
                                                 std::map<int,std::vector<double> >& elements2data_update_output)
 {
-    
     ParallelState* ife_pstate = new ParallelState(Nf_glob,comm);
     ParallelState* xcn_pstate = new ParallelState(Nv_glob,comm);
+
+    std::map<int, std::vector<int> > adjEl2Face;
 
     std::map<int,std::vector<int> > adj_elements;
 
@@ -2259,12 +3079,12 @@ void RepartitionObject::getAdjacentElementLayer(std::map<int,std::vector<int> > 
     std::map<int,std::vector<int> > rank2req_vert;
     std::map<int,std::vector<int> > rank2req_face;
     int* new_V_offsets = new int[size];
-    int* new_F_offsets = new int[size];
+    //int* new_F_offsets = new int[size];
 
     for(int i=0;i<size;i++)
     {
         new_V_offsets[i] = xcn_pstate->getOffsets()[i]-1;
-        new_F_offsets[i] = ife_pstate->getOffsets()[i]-1;
+        //new_F_offsets[i] = ife_pstate->getOffsets()[i]-1;
     }
         
     std::map<int,std::vector<int> > req_elem;
@@ -2953,7 +3773,7 @@ void RepartitionObject::getAdjacentElementLayer(std::map<int,std::vector<int> > 
         elements2elements_update_output[el_id] = tmp_globe;
         elements2data_update_output[el_id]     = datarow;
         //=======================================
-        
+        adjEl2Face[el_id] = tmp_globf;
 
         offvv = offvv+Nv;
         //LocalElem2GlobalVert.push_back(tmp_globv);
@@ -2963,7 +3783,7 @@ void RepartitionObject::getAdjacentElementLayer(std::map<int,std::vector<int> > 
     }
 
     delete[] new_V_offsets;
-    delete[] new_F_offsets;
+    //delete[] new_F_offsets;
 
     reqstd_ids_per_rank.clear();
     recv_back_Nverts.clear();
@@ -2977,6 +3797,8 @@ void RepartitionObject::getAdjacentElementLayer(std::map<int,std::vector<int> > 
     recv_back_Nverts.clear();
     recv_back_verts.clear();
     recv_back_verts_ids.clear();
+
+    return adjEl2Face;
 
 }
 
@@ -3359,8 +4181,8 @@ void RepartitionObject::buildCommunicationMaps(MPI_Comm comm)
 
 
 void RepartitionObject::buildUpdatedVertexAndFaceNumbering(MPI_Comm comm, 
-                                                                PrismTetraTrace* trace,
-                                                                std::map<int,std::vector<int> > ranges_id)
+                                                           PrismTetraTrace* trace,
+                                                           std::map<int,std::vector<int> > ranges_id)
 {
     int size;
     MPI_Comm_size(comm, &size);
@@ -3392,6 +4214,7 @@ void RepartitionObject::buildUpdatedVertexAndFaceNumbering(MPI_Comm comm,
 
     std::set<int>::iterator its;
     int ntrace = 0;
+
     for(its=Loc_Elem_Set.begin();its!=Loc_Elem_Set.end();its++)
     {
         int elid = *its;
@@ -3400,7 +4223,6 @@ void RepartitionObject::buildUpdatedVertexAndFaceNumbering(MPI_Comm comm,
         for(int j=0;j<Nf;j++)
         {
             int gfid = elements2faces_update[elid][j];
-            //std::cout << "gfid " << gfid << std::endl;
             if(trace_elem.find(gfid)!=trace_elem.end())
             {
                 ref = 13;
@@ -3408,36 +4230,42 @@ void RepartitionObject::buildUpdatedVertexAndFaceNumbering(MPI_Comm comm,
             }
             else
             {
-                ref      = face2reference_update[gfid][0];
-                int e0   = face2elements_update[gfid][0];
-                int e1   = face2elements_update[gfid][1];
-                int Nv   = face2Nverts_update[gfid][0];
-                // copy the correct amount of nodes into a new face vector.
-                std::vector<int> face(Nv,0);
-                for(int k=0;k<Nv;k++)
+                if(face2reference_update.find(gfid)!=face2reference_update.end())
                 {
-                    int vid = face2verts_update[gfid][k];
-                    face[k] = vid;
+                    ref      = face2reference_update[gfid][0];
+                    int e0   = face2elements_update[gfid][0];
+                    int e1   = face2elements_update[gfid][1];
+                    int Nv   = face2verts_update[gfid].size();
 
-                    if(unique_vertex_set_on_rank.find(vid)==unique_vertex_set_on_rank.end() &&
-                    uniqure_trace_verts2ref.find(vid)==uniqure_trace_verts2ref.end())
+                    // copy the correct amount of nodes into a new face vector.
+                    std::vector<int> face(Nv,0);
+                    for(int k=0;k<Nv;k++)
                     {
-                        unique_vertex_set_on_rank.insert(vid);
-                    }
-                }
+                        int vid = face2verts_update[gfid][k];
+                        face[k] = vid;
 
-                int r0 = part_global[e0]; // rank of first adjacent element.
-                int r1 = part_global[e1]; // rank of second adjacent element.
-           
-                if(ref==2)// Internal and Shared faces are here.
-                {
-                    if(r0==rank && r1!=rank)
-                    {
-                        sharedFace2Rank[gfid] = r0;
+                        if(unique_vertex_set_on_rank.find(vid)==unique_vertex_set_on_rank.end() &&
+                        uniqure_trace_verts2ref.find(vid)==uniqure_trace_verts2ref.end())
+                        {
+                            unique_vertex_set_on_rank.insert(vid);
+                        }
                     }
-                    if(r0!=rank && r1==rank)
+                    if(e0<Ne_glob && e1<Ne_glob)
                     {
-                        sharedFace2Rank[gfid] = r1;
+                        int r0 = part_global[e0]; // rank of first adjacent element.
+                        int r1 = part_global[e1]; // rank of second adjacent element.
+            
+                        if(ref==2)// Internal and Shared faces are here.
+                        {
+                            if(r0==rank && r1!=rank)
+                            {
+                                sharedFace2Rank[gfid] = r0;
+                            }
+                            if(r0!=rank && r1==rank)
+                            {
+                                sharedFace2Rank[gfid] = r1;
+                            }
+                        }
                     }
                 }
             }
@@ -3445,6 +4273,8 @@ void RepartitionObject::buildUpdatedVertexAndFaceNumbering(MPI_Comm comm,
     }
 
     
+
+
     // Take care of shared faces and vertices
     std::set<int> UniqueSharedVertsOnRank_set;
     std::vector<int> UniqueSharedVertsOnRank_RankID;
@@ -3453,7 +4283,7 @@ void RepartitionObject::buildUpdatedVertexAndFaceNumbering(MPI_Comm comm,
     {
         int gfid = itmii->first;
         // int Nv = face2verts_update[gfid].size();
-        int Nv   = face2Nverts_update[gfid][0];
+        int Nv   = face2verts_update[gfid].size();
 
 
         for(int q=0;q<Nv;q++)
@@ -3569,7 +4399,7 @@ void RepartitionObject::buildUpdatedVertexAndFaceNumbering(MPI_Comm comm,
     //     iFshared++;
     // }
 
-
+    
     //=====================================================================================
     //===============================SHARED VERTEX=========================================
     //=====================================================================================
@@ -3742,6 +4572,7 @@ void RepartitionObject::buildUpdatedVertexAndFaceNumbering(MPI_Comm comm,
     int gloFid = nNonSharedFacesArrayOff[rank];
     int locVid = 0;
     int locFid = 0;
+    
     for(int i = 0;i < Nel_loc;i++)
     {
         int gelid   = Loc_Elem[i];       
@@ -3836,7 +4667,7 @@ void RepartitionObject::buildUpdatedVertexAndFaceNumbering(MPI_Comm comm,
         u = u + 1;
 
     }
-
+    
     for(itmiv=o_element2faces_global.begin();itmiv!=o_element2faces_global.end();itmiv++)
     {
         int eid = itmiv->first;
@@ -3847,21 +4678,25 @@ void RepartitionObject::buildUpdatedVertexAndFaceNumbering(MPI_Comm comm,
             int fid    = o_element2faces_global[eid][i];
             int tagfid = o_glob2tagF[fid];
             // int nv     = face2verts_update[tagfid].size();
-            int nv     = face2Nverts_update[tagfid][0];
-            std::vector<int> verts(nv,0);
 
-            for(int j=0;j<nv;j++)
+
+            if(face2verts_update.find(tagfid)!=face2verts_update.end())
             {
-                int tagvid  =  face2verts_update[tagfid][j];
-                verts[j]    =  o_tag2globV[tagvid];
-            }
-            
-            if(o_face2verts_global.find(fid)==o_face2verts_global.end())
-            {
-                o_face2verts_global[fid] = verts;
+                int nv     = face2verts_update[tagfid].size();
+                std::vector<int> verts(nv,0);
+                for(int j=0;j<nv;j++)
+                {
+                    int tagvid  =  face2verts_update[tagfid][j];
+                    verts[j]    =  o_tag2globV[tagvid];
+                }
+                if(o_face2verts_global.find(fid)==o_face2verts_global.end())
+                {
+                    o_face2verts_global[fid] = verts;
+                }
             }
         }
     }
+    /**/
 }
 
 
@@ -3958,152 +4793,159 @@ void RepartitionObject::buildInteriorSharedAndBoundaryFaceMaps(MPI_Comm comm,
         for(int q=0;q<Nf;q++)
         {
             int gfid = elements2faces_update[gelid][q];
-            int Nv   = face2Nverts_update[gfid][0];
 
-            if(trace_elem.find(gfid)!=trace_elem.end())
+            if(face2verts_update.find(gfid)!=face2verts_update.end())
             {
-                ref  = 13;
-            }
-            else
-            {
-                ref  = face2reference_update[gfid][0];            
-            }
-            
-            if(faceset.find(gfid)==faceset.end())
-            {
-                faceset.insert(gfid);
-            
-                if(o_sharedFace2RankMap.find(gfid)!=o_sharedFace2RankMap.end() && ref!=13)
+                int Nv   = face2verts_update[gfid].size();
+
+                if(trace_elem.find(gfid)!=trace_elem.end())
                 {
+                    ref  = 13;
+                }
+                else
+                {
+                    ref  = face2reference_update[gfid][0];            
+                }
+                
+                if(faceset.find(gfid)==faceset.end())
+                {
+                    faceset.insert(gfid);
+                
+                    if(o_sharedFace2RankMap.find(gfid)!=o_sharedFace2RankMap.end() && ref!=13)
+                    {
 
-                    if(o_sharedFace2RankMap[gfid] == rank)
-                    {                                
-                        if(o_sharedFace2Nodes.find(gfid)==o_sharedFace2Nodes.end())
-                        {
-                            int e0   = face2elements_update[gfid][0];
-                            int e1   = face2elements_update[gfid][1];
-                            
-                            int r0   = part_global[e0];
-                            int r1   = part_global[e1];
-                            
-                            if(r0==rank && r1!=rank)
+                        if(o_sharedFace2RankMap[gfid] == rank)
+                        {                                
+                            if(o_sharedFace2Nodes.find(gfid)==o_sharedFace2Nodes.end())
                             {
-                                o_colorRh[r1].push_back(e1);
-                                o_colorFh[r1].push_back(gfid);
-                            }
-                            else if(r1==rank && r0!=rank)
-                            {
-                                o_colorRh[r0].push_back(e0);
-                                o_colorFh[r0].push_back(gfid);
-                            }
-                            
-                            std::vector<int> fn_tag(Nv,0);
-                            for(int n=0;n<Nv;n++)
-                            {
-                                fn_tag[n] = face2verts_update[gfid][n];
-
-                                if(o_SharedVertsOwned.find(fn_tag[n])==o_SharedVertsOwned.end() 
-                                        && uniqure_trace_verts2ref.find(fn_tag[n])==uniqure_trace_verts2ref.end())
+                                int e0   = face2elements_update[gfid][0];
+                                int e1   = face2elements_update[gfid][1];
+                                
+                                int r0   = part_global[e0];
+                                int r1   = part_global[e1];
+                                
+                                if(r0==rank && r1!=rank)
                                 {
-                                    if(o_SharedVertsNotOwned.find(fn_tag[n])==o_SharedVertsNotOwned.end())
+                                    o_colorRh[r1].push_back(e1);
+                                    o_colorFh[r1].push_back(gfid);
+                                }
+                                else if(r1==rank && r0!=rank)
+                                {
+                                    o_colorRh[r0].push_back(e0);
+                                    o_colorFh[r0].push_back(gfid);
+                                }
+                                
+                                std::vector<int> fn_tag(Nv,0);
+                                for(int n=0;n<Nv;n++)
+                                {
+                                    fn_tag[n] = face2verts_update[gfid][n];
+
+                                    if(o_SharedVertsOwned.find(fn_tag[n])==o_SharedVertsOwned.end() 
+                                            && uniqure_trace_verts2ref.find(fn_tag[n])==uniqure_trace_verts2ref.end())
                                     {
-                                        o_SharedVertsNotOwned[fn_tag[n]] = o_sharedVertexMapUpdatedGlobalID[fn_tag[n]];
+                                        if(o_SharedVertsNotOwned.find(fn_tag[n])==o_SharedVertsNotOwned.end())
+                                        {
+                                            o_SharedVertsNotOwned[fn_tag[n]] = o_sharedVertexMapUpdatedGlobalID[fn_tag[n]];
+                                        }
                                     }
                                 }
+
+                                o_sharedFace2Nodes[gfid] = fn_tag;
+                                
+                                o_lhp[gfid] = lEl;
+
                             }
+                        }
+                    }
+                    else
+                    {
+                        if(ref == 2)
+                        {
+                            if(o_interiorFace2Nodes.find(gfid)==o_interiorFace2Nodes.end())
+                            {
+                                std::vector<int> fn_tag(Nv,0);
+                                for(int n=0;n<Nv;n++)
+                                {
+                                    fn_tag[n] = face2verts_update[gfid][n];
+                                    
+                                    if(o_sharedVertex2RankMap.find(fn_tag[n])!=o_sharedVertex2RankMap.end())
+                                    {
+                                        if(o_SharedVertsOwned.find(fn_tag[n])==o_SharedVertsOwned.end() 
+                                                && uniqure_trace_verts2ref.find(fn_tag[n])==uniqure_trace_verts2ref.end())
+                                        {
+                                            if(o_SharedVertsNotOwned.find(fn_tag[n])==o_SharedVertsNotOwned.end())
+                                            {
+                                                o_SharedVertsNotOwned[fn_tag[n]] = o_sharedVertexMapUpdatedGlobalID[fn_tag[n]];
+                                            }
+                                        }
+                                    }
+                                    else
+                                    {
+                                        if(o_NonSharedVertsOwned.find(fn_tag[n])==o_NonSharedVertsOwned.end() 
+                                        && uniqure_trace_verts2ref.find(fn_tag[n])==uniqure_trace_verts2ref.end())
+                                        {
+                                            o_NonSharedVertsOwned[fn_tag[n]]  = gvidd;
+                                            gvidd++;
+                                        }
+                                    }
+                                }
+                                o_lhp[gfid] = lEl;
+                                o_interiorFace2Nodes[gfid] = fn_tag;
+                            }
+                        }
+                        if(ref != 2 && ref!=13)
+                        {
 
-                            o_sharedFace2Nodes[gfid] = fn_tag;
-                            
-                            o_lhp[gfid] = lEl;
+                            int fzone = ProvideBoundaryID(gfid,ranges_id);
+                            o_zone2bcface[fzone].push_back(gfid);
 
+                            if(o_boundaryFace2Nodes.find(gfid)==o_boundaryFace2Nodes.end())
+                            {
+                                std::vector<int> fn_tag(Nv,0);
+                                for(int n=0;n<Nv;n++)
+                                {
+                                    fn_tag[n] = face2verts_update[gfid][n];
+
+                                    if(o_sharedVertex2RankMap.find(fn_tag[n])!=o_sharedVertex2RankMap.end())
+                                    {
+                                        if(o_SharedVertsOwned.find(fn_tag[n])==o_SharedVertsOwned.end() 
+                                                && uniqure_trace_verts2ref.find(fn_tag[n])==uniqure_trace_verts2ref.end())
+                                        {
+                                            if(o_SharedVertsNotOwned.find(fn_tag[n])==o_SharedVertsNotOwned.end())
+                                            {
+                                                o_SharedVertsNotOwned[fn_tag[n]] = o_sharedVertexMapUpdatedGlobalID[fn_tag[n]];
+                                            }
+                                        }
+                                    }
+                                    else
+                                    {
+                                        if(o_NonSharedVertsOwned.find(fn_tag[n])==o_NonSharedVertsOwned.end() 
+                                        && uniqure_trace_verts2ref.find(fn_tag[n])==uniqure_trace_verts2ref.end())
+                                        {
+                                            o_NonSharedVertsOwned[fn_tag[n]]  = gvidd;
+                                            gvidd++;
+                                        }
+                                    }
+                                    
+                                }
+
+                                o_lhp[gfid] = lEl;
+                                o_boundaryFace2Nodes[gfid] = fn_tag;
+                                
+                            }
                         }
                     }
                 }
                 else
                 {
-                    if(ref == 2)
-                    {
-                        if(o_interiorFace2Nodes.find(gfid)==o_interiorFace2Nodes.end())
-                        {
-                            std::vector<int> fn_tag(Nv,0);
-                            for(int n=0;n<Nv;n++)
-                            {
-                                fn_tag[n] = face2verts_update[gfid][n];
-                                
-                                if(o_sharedVertex2RankMap.find(fn_tag[n])!=o_sharedVertex2RankMap.end())
-                                {
-                                    if(o_SharedVertsOwned.find(fn_tag[n])==o_SharedVertsOwned.end() 
-                                            && uniqure_trace_verts2ref.find(fn_tag[n])==uniqure_trace_verts2ref.end())
-                                    {
-                                        if(o_SharedVertsNotOwned.find(fn_tag[n])==o_SharedVertsNotOwned.end())
-                                        {
-                                            o_SharedVertsNotOwned[fn_tag[n]] = o_sharedVertexMapUpdatedGlobalID[fn_tag[n]];
-                                        }
-                                    }
-                                }
-                                else
-                                {
-                                    if(o_NonSharedVertsOwned.find(fn_tag[n])==o_NonSharedVertsOwned.end() 
-                                    && uniqure_trace_verts2ref.find(fn_tag[n])==uniqure_trace_verts2ref.end())
-                                    {
-                                        o_NonSharedVertsOwned[fn_tag[n]]  = gvidd;
-                                        gvidd++;
-                                    }
-                                }
-                            }
-                            o_lhp[gfid] = lEl;
-                            o_interiorFace2Nodes[gfid] = fn_tag;
-                        }
-                    }
-                    if(ref != 2 && ref!=13)
-                    {
+                    tag2ElementID[gelid] = lEl;
 
-                        int fzone = ProvideBoundaryID(gfid,ranges_id);
-                        o_zone2bcface[fzone].push_back(gfid);
-
-                        if(o_boundaryFace2Nodes.find(gfid)==o_boundaryFace2Nodes.end())
-                        {
-                            std::vector<int> fn_tag(Nv,0);
-                            for(int n=0;n<Nv;n++)
-                            {
-                                fn_tag[n] = face2verts_update[gfid][n];
-
-                                if(o_sharedVertex2RankMap.find(fn_tag[n])!=o_sharedVertex2RankMap.end())
-                                {
-                                    if(o_SharedVertsOwned.find(fn_tag[n])==o_SharedVertsOwned.end() 
-                                            && uniqure_trace_verts2ref.find(fn_tag[n])==uniqure_trace_verts2ref.end())
-                                    {
-                                        if(o_SharedVertsNotOwned.find(fn_tag[n])==o_SharedVertsNotOwned.end())
-                                        {
-                                            o_SharedVertsNotOwned[fn_tag[n]] = o_sharedVertexMapUpdatedGlobalID[fn_tag[n]];
-                                        }
-                                    }
-                                }
-                                else
-                                {
-                                    if(o_NonSharedVertsOwned.find(fn_tag[n])==o_NonSharedVertsOwned.end() 
-                                    && uniqure_trace_verts2ref.find(fn_tag[n])==uniqure_trace_verts2ref.end())
-                                    {
-                                        o_NonSharedVertsOwned[fn_tag[n]]  = gvidd;
-                                        gvidd++;
-                                    }
-                                }
-                                
-                            }
-
-                            o_lhp[gfid] = lEl;
-                            o_boundaryFace2Nodes[gfid] = fn_tag;
-                            
-                        }
-                    }
+                    o_rhp[gfid]          = lEl;
                 }
-            }
-            else
-            {
-                tag2ElementID[gelid] = lEl;
 
-                o_rhp[gfid]          = lEl;
             }
+
+            
         }
         u++;    
     }
@@ -4296,7 +5138,7 @@ void RepartitionObject::buildInteriorSharedAndBoundaryFaceMaps(MPI_Comm comm,
 }
 
 
-std::map<int,std::set<int> > RepartitionObject::GetNode2ElementMap(RepartitionObject* prisms)
+std::map<int,std::set<int> > RepartitionObject::GetNode2ElementMap()
 {
     std::map<int,std::set<int> > node2elem_map;
 
@@ -4583,6 +5425,6 @@ std::map<int,int> RepartitionObject::getTag2ElementTrace()
 // destructor
 RepartitionObject::~RepartitionObject()
 {
-    
+    LocalVertsMap.clear();
 }
 

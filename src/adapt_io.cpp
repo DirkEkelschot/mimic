@@ -4314,6 +4314,11 @@ mesh* ReadUS3DMeshData(const char* fn_conn, const char* fn_grid, const char* fn_
 
     }
 
+    ien.clear();
+    iee.clear();
+    iet.clear();
+    ief.clear();
+
     std::vector<int> element2rank_glob(nglob,0);
     MPI_Allreduce(element2rank_loc.data(), element2rank_glob.data(), nglob, MPI_INT, MPI_SUM, comm);
     element2rank_loc.clear();
@@ -4426,7 +4431,8 @@ mesh* ReadUS3DMeshData(const char* fn_conn, const char* fn_grid, const char* fn_
         ifn_copy[fid] = ifn_copy_row;
         ife_copy[fid] = ife_copy_row;
     }
-
+    ife.clear();
+    ifn.clear();
 
     
     std::map<int,std::vector<double> > xcn_copy;
@@ -4444,6 +4450,8 @@ mesh* ReadUS3DMeshData(const char* fn_conn, const char* fn_grid, const char* fn_
         }
         xcn_copy[vid] = coords;
     }
+    xcn.clear();
+    
 
     
     mRead->nElem          = nElem;

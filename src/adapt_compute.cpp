@@ -3,6 +3,82 @@
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #define MAX(a,b) (((a)>(b))?(a):(b))
 
+
+std::vector<std::vector<double> > MatInv_Lite(std::vector<std::vector<double> > A)
+{
+    int n = A.size();
+    int size = n*n;
+    double WORK [size];
+    int info;
+    int Pivot[n];
+    std::vector<double> R_tmp(n*n,0.0);
+    for(int i=0;i<n;i++)
+    {
+        for(int j=0;j<n;j++)
+        {
+            R_tmp[n*i+j] = A[i][j];
+        }
+    }
+    
+    dgetrf_(&n, &n, R_tmp.data(), &n, Pivot, &info);
+    dgetri_(&n, R_tmp.data(), &n, Pivot, WORK, &size, &info);
+
+    std::vector<std::vector<double> > R(n);
+
+    for(int i=0;i<n;i++)
+    {
+        std::vector<double> row(n,0.0);
+        for(int j=0;j<3;j++)
+        {
+            row[j] = R_tmp[i*n+j];
+        }
+
+        R[i] = row;
+    }
+    
+    return R;
+}
+
+std::vector<std::vector<double> > MatMul_Lite(std::vector<std::vector<double> > A, 
+                           std::vector<std::vector<double> > B)
+{
+    
+    int n = A.size();
+    int o = A[0].size();
+    int m = B.size();
+    int k = B[0].size();
+
+    if(k!=o)
+    {
+        throw std::runtime_error("error :: Dimensions of A and B do not correspond.");
+    }
+
+    std::vector<std::vector<double> > R(n);
+    //Array<double>* R = new Array<double>(n,m);
+    
+    double res = 0.0;
+    for(int i=0;i<n;i++)
+    {
+        std::vector<double> row(m,0.0);
+
+        for(int j=0;j<m;j++)
+        {
+            res = 0.0;
+            for(int k=0;k<o;k++)
+            {
+                res = res + A[i][k]*B[k][j];
+            }
+            row[j] = res;
+        }
+
+        R[i] = row;
+
+    }
+    return R;
+}
+
+
+
 void NegateVec3D(std::vector<double> a)
 {
     a[0] = -a[0];
@@ -1099,6 +1175,213 @@ void UnitTestJacobian()
 }
 
 
+
+std::map<int,std::vector<std::vector<double> > > ComputeMetric_Lite(MPI_Comm comm, 
+                        RepartitionObject* tetra_repart,
+                        std::map<int,std::vector<double> > tetra_grad, 
+                        Inputs* inputs)
+{
+    // Preparing the metric tensor field.
+    std::vector<double> eignval(3,0.0);
+    double po = 6.0;
+
+    int rec         = inputs->recursive;
+    int ext         = inputs->extended;
+    double hmin     = inputs->hmin;
+    double hmax     = inputs->hmax;
+    double Scale    = inputs->MetScale;
+    std::map<int,std::vector<std::vector<double> > > metric_vmap;
+
+
+
+    std::map<int,std::vector<double> >::iterator itmidv;
+    int yep = 0;
+    std::vector<int> Owned_Elem_t                       = tetra_repart->getLocElem();
+    std::map<int,std::vector<int> > gE2gV_t             = tetra_repart->getElement2VertexMap();
+    std::map<int,std::set<int> > node2element_map       = tetra_repart->GetNode2ElementMap();
+
+    for(int i=0;i<Owned_Elem_t.size();i++)
+    {
+        int elid = Owned_Elem_t[i];
+        int nv   = gE2gV_t[elid].size();
+        for(int j=0;j<nv;j++)
+        {
+            int gvid = gE2gV_t[elid][j];
+
+            if(node2element_map.find(gvid)!=node2element_map.end())
+            {
+                std::set<int>::iterator its;
+                std::set<int> elems = node2element_map[gvid];
+                double gval         = 0.0;
+                int nc              = 0;
+                std::vector<double> row_tmp(6,0.0);
+
+                for(its=elems.begin();its!=elems.end();its++)
+                {
+                    int elid = *its;
+
+                    if(tetra_grad.find(elid)!=tetra_grad.end())
+                    {
+                        for(int k=0;k<6;k++)
+                        {
+                            row_tmp[k]=row_tmp[k]+tetra_grad[elid][3+k];
+                        }
+                        nc++;
+                    }   
+                }
+                
+                for(int k=0;k<6;k++)
+                {
+                    row_tmp[k]  = row_tmp[k]/nc;
+                }
+
+                std::vector<double> row(9,0.0);
+
+                row[0]=row_tmp[0];  row[1]=row_tmp[1];  row[2]=row_tmp[2];
+                row[3]=row_tmp[1];  row[4]=row_tmp[3];  row[5]=row_tmp[4];
+                row[6]=row_tmp[2];  row[7]=row_tmp[4];  row[8]=row_tmp[5];
+
+                
+                Eig* eig = ComputeEigenDecomp(3, row.data());
+                eignval[0] =  std::min(std::max(Scale*fabs(eig->Dre[0]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
+                eignval[1] =  std::min(std::max(Scale*fabs(eig->Dre[1]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
+                eignval[2] =  std::min(std::max(Scale*fabs(eig->Dre[2]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
+                
+                double Lambdamax = *std::max_element(eignval.begin(),eignval.end());
+                double Lambdamin = *std::min_element(eignval.begin(),eignval.end());
+                //std::cout << "eign " << eignval[0] << " " << eignval[1] << " " << eignval[2] << " --> " << eig->Dre[0] << " " << eig->Dre[1] << " " << eig->Dre[2] << std::endl;
+                std::vector<std::vector<double> > Diag(3);
+                std::vector<std::vector<double> > EigVec(3);
+                
+                for(int k=0;k<3;k++)
+                {
+                    std::vector<double> rowDiag(3,0.0);
+                    rowDiag[k]      = eignval[k];
+                    std::vector<double> rowEigVec(3,0.0);
+                    Diag[k]         = rowDiag;
+                    EigVec[k]       = rowEigVec;
+                }
+            
+                EigVec[0][0] = eig->V[0];   EigVec[0][1] = eig->V[1];   EigVec[0][2] = eig->V[2];
+                EigVec[1][0] = eig->V[3];   EigVec[1][1] = eig->V[4];   EigVec[1][2] = eig->V[5];
+                EigVec[2][0] = eig->V[6];   EigVec[2][1] = eig->V[7];   EigVec[2][2] = eig->V[8];
+
+                std::vector<std::vector<double> > iVR       = MatInv_Lite(EigVec);
+                std::vector<std::vector<double> > Rs        = MatMul_Lite(EigVec,Diag);  
+                std::vector<std::vector<double> > metric    = MatMul_Lite(Rs,iVR);
+
+                double detMetric        = metric[0][0]*(metric[1][1]*metric[2][2]-metric[2][1]*metric[1][2])
+                                        - metric[0][1]*(metric[1][0]*metric[2][2]-metric[2][0]*metric[1][2])
+                                        + metric[0][2]*(metric[1][0]*metric[2][1]-metric[2][0]*metric[1][1]);
+                
+                double pow              = -1.0/(2.0*po+3.0);
+                double eigRat           = Lambdamin/Lambdamax;
+                detMetric               = std::pow(detMetric,pow);
+
+                for(int i=0;i<3;i++)
+                {
+                    for(int j=0;j<3;j++)
+                    {
+                        metric[i][j] = detMetric*metric[i][j];
+                    }
+                }
+
+                metric_vmap[gvid] = metric;
+
+                delete[] eig->Dre;
+                delete[] eig->Dim;
+                delete[] eig->V;
+                delete[] eig->iV;
+            }
+        }
+    }
+
+
+
+    //==================================================================================================
+    // std::map<int,std::vector<double> > metric_diagnose;
+    // for(int i=0;i<Owned_Elem_t.size();i++)
+    // {
+    //     int elid = Owned_Elem_t[i];
+
+    //     std::vector<double> metric_tmp(9,0.0);
+    //     std::vector<double> row_tmp(6,0.0);
+    //     for(int k=0;k<6;k++)
+    //     {
+    //         row_tmp[k]=row_tmp[k]+tetra_grad[elid][3+k];
+    //     }
+
+
+    //     metric_tmp[0]=row_tmp[0];  metric_tmp[1]=row_tmp[1];  metric_tmp[2]=row_tmp[2];
+    //     metric_tmp[3]=row_tmp[1];  metric_tmp[4]=row_tmp[3];  metric_tmp[5]=row_tmp[4];
+    //     metric_tmp[6]=row_tmp[2];  metric_tmp[7]=row_tmp[4];  metric_tmp[8]=row_tmp[5];
+
+    
+    //     Eig* eig = ComputeEigenDecomp(3, metric_tmp.data());
+    //     eignval[0] =  std::min(std::max(fabs(Scale*eig->Dre[0]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
+    //     eignval[1] =  std::min(std::max(fabs(Scale*eig->Dre[1]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
+    //     eignval[2] =  std::min(std::max(fabs(Scale*eig->Dre[2]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
+        
+    //     double Lambdamax = *std::max_element(eignval.begin(),eignval.end());
+    //     double Lambdamin = *std::min_element(eignval.begin(),eignval.end());
+
+    //     std::vector<std::vector<double> > Diag(3);
+    //     std::vector<std::vector<double> > EigVec(3);
+        
+    //     for(int k=0;k<3;k++)
+    //     {
+    //         std::vector<double> rowDiag(3,0.0);
+    //         rowDiag[k] = eignval[k];
+    //         std::vector<double> rowEigVec(3,0.0);
+    //         Diag[k]      = rowDiag;
+    //         EigVec[k]    = rowEigVec;
+    //     }
+    
+    //     EigVec[0][0] = eig->V[0];   EigVec[0][1] = eig->V[1];   EigVec[0][2] = eig->V[2];
+    //     EigVec[1][0] = eig->V[3];   EigVec[1][1] = eig->V[4];   EigVec[1][2] = eig->V[5];
+    //     EigVec[2][0] = eig->V[6];   EigVec[2][1] = eig->V[7];   EigVec[2][2] = eig->V[8];
+
+    //     std::vector<std::vector<double> > iVR       = MatInv_Lite(EigVec);
+    //     std::vector<std::vector<double> > Rs        = MatMul_Lite(EigVec,Diag);  
+    //     std::vector<std::vector<double> > metric    = MatMul_Lite(Rs,iVR);
+
+    //     double detMetric        = metric[0][0]*(metric[1][1]*metric[2][2]-metric[2][1]*metric[1][2])
+    //                             - metric[0][1]*(metric[1][0]*metric[2][2]-metric[2][0]*metric[1][2])
+    //                             + metric[0][2]*(metric[1][0]*metric[2][1]-metric[2][0]*metric[1][1]);
+        
+    //     double pow              = -1.0/(2.0*po+3.0);
+    //     double eigRat           = Lambdamin/Lambdamax;
+    //     detMetric               = std::pow(detMetric,pow);
+
+    //     for(int i=0;i<3;i++)
+    //     {
+    //         for(int j=0;j<3;j++)
+    //         {
+    //             metric_tmp[i*3+j] = detMetric*metric[i][j];
+    //         }
+    //     }
+
+    //     metric_diagnose[elid] = metric_tmp;
+    // }
+
+    // string filename_metric = "metric_" + std::to_string(world_rank) + ".vtu";
+    // std::map<int,std::string > varnames_metric;
+    // varnames_metric[0] = "m00";    varnames_metric[1] = "m01";    varnames_metric[2] = "m02";
+    // varnames_metric[3] = "m10";    varnames_metric[4] = "m11";    varnames_metric[5] = "m12";
+    // varnames_metric[6] = "m20";    varnames_metric[7] = "m21";    varnames_metric[8] = "m22";
+
+    // OutputTetraMeshPartitionVTK(comm,
+    //                         filename_metric, 
+    //                         Owned_Elem_t, 
+    //                         gE2gV_t, 
+    //                         metric_diagnose, 
+    //                         varnames_metric, 
+    //                         LocalVertsMap_t);
+    //==================================================================================================
+
+    return metric_vmap;
+
+}
 
 
 
