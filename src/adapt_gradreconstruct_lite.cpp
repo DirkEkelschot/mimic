@@ -413,7 +413,7 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D_Lite(RepartitionObjec
             }
         }
 
-    
+        
         if(vrt_collect.size() > 9)
         {
             int Ndata = vrt_collect.size();
@@ -539,13 +539,14 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D_Lite(RepartitionObjec
             // delete bvec;
         }
         //
-        
+        /**/
+        //std::cout << " vrt_collect " << vrt_collect.size() << " " << sol_collect.size() << std::endl;
         vrt_collect.clear();
         sol_collect.clear();
         
    }
    
- 
+    
     
    return dudx_map;
 }

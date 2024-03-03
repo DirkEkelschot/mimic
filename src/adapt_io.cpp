@@ -4412,7 +4412,7 @@ mesh* ReadUS3DMeshData(const char* fn_conn, const char* fn_grid, const char* fn_
         {
             std::cout << "mapping ranges are wrong"  << std::endl;
         }
-
+        ncol_ifn = ifn[i][0];
         std::vector<int> ifn_copy_row(ncol_ifn);
         for(j=0;j<ncol_ifn;j++)
         {

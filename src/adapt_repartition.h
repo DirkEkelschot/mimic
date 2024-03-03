@@ -8,6 +8,7 @@
 #include "adapt_distri_parstate.h"
 #include "adapt_prismtetratrace.h"
 #include "adapt_io.h"
+#include "adapt_elements.h"
 
 #ifndef ADAPT_REPARTITION_H
 #define ADAPT_REPARTITION_H
@@ -91,13 +92,21 @@ class RepartitionObject{
                                                    std::map<int,std::vector<int> > &ifn_loc,
                                                    MPI_Comm comm);
 
-                void updateFace2EntityPerPartition(std::map<int,std::vector<int> > ief, 
+                void getFace2EntityPerPartitionMapRef(std::map<int,std::vector<int> > ief, 
                                                    std::map<int,std::vector<int> > ife_read,
-                                                   std::map<int,std::vector<int> > if_Nv_read,  
+                                                   std::map<int,std::vector<int> > ifref_read, 
+                                                   int Nf_glob, 
+                                                   std::map<int,std::vector<int> > &ife_loc,
+                                                   std::map<int,std::vector<int> > &ifref_loc,
+                                                   MPI_Comm comm);
+
+                void updateFace2EntityPerPartition(std::map<int,std::vector<int> > ief, 
+                                                   std::map<int,std::vector<int> > ife_read,  
                                                    int Nf_glob, 
                                                    std::map<int,std::vector<int> > &ife_loc,
                                                    MPI_Comm comm);
 
+                void ReconstructFace2VertexMap(std::vector<int> Loc_Elem_tmp, MPI_Comm comm, std::map<int,std::vector<int> > ife_read);
                 
                 std::map<int,std::vector<double> > getElement2DataMap();
 
@@ -184,7 +193,7 @@ class RepartitionObject{
                 std::map<int,std::vector<int> > getFaceTag2VertTagMap();
                 void buildSharedVertexMap(MPI_Comm comm, PrismTetraTrace* trace);
 
-                std::map<int,std::vector<int> > getAdjacentElementLayer(std::map<int,std::vector<int> > element2verts,
+                std::vector<int> getAdjacentElementLayer(std::map<int,std::vector<int> > element2verts,
                                              std::map<int,std::vector<int> > element2faces,
                                              std::map<int,std::vector<int> > element2element,
                                              PrismTetraTrace* trace,
