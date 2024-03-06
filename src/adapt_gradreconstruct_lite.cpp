@@ -46,6 +46,7 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D_Lite(RepartitionObjec
      
 
    std::map<int,std::vector<double> > dudx_map;
+   std::map<int,std::vector<double> > dudx_map2update;
    double d;
    int loc_vid,adjID,elID;
    int cou = 0;
@@ -66,6 +67,7 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D_Lite(RepartitionObjec
 
    int rr =0;
    std::set<int> vert_scheme;
+   int cc = 0;
    for(int i=0;i<nLoc_Elem;i++)
    {
         std::vector<double> x;
@@ -413,7 +415,7 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D_Lite(RepartitionObjec
             }
         }
 
-        
+    
         if(vrt_collect.size() > 9)
         {
             int Ndata = vrt_collect.size();
@@ -494,44 +496,53 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D_Lite(RepartitionObjec
                 std::vector<double> row(3,0);
                 Vrt[q] = row;
             }
+            // std::map<int,std::vector<double> >::iterator vit;
+            // int te = 0;
             
-            std::map<int,std::vector<double> >::iterator vit;
-            int te = 0;
+            // double a,b,c,h00,h01,h02,h10,h11,h12,h20,h21,h22;
             
-            double a,b,c,h00,h01,h02,h10,h11,h12,h20,h21,h22;
-            
-            for(vit=vrt_collect.begin();vit!=vrt_collect.end();vit++)
-            {
-                double di = sqrt((vit->second[0]-Vijk[0])*(vit->second[0]-Vijk[0])+
-                                 (vit->second[1]-Vijk[1])*(vit->second[1]-Vijk[1])+
-                                 (vit->second[2]-Vijk[2])*(vit->second[2]-Vijk[2]));
+            // for(vit=vrt_collect.begin();vit!=vrt_collect.end();vit++)
+            // {
+            //     double di = sqrt((vit->second[0]-Vijk[0])*(vit->second[0]-Vijk[0])+
+            //                      (vit->second[1]-Vijk[1])*(vit->second[1]-Vijk[1])+
+            //                      (vit->second[2]-Vijk[2])*(vit->second[2]-Vijk[2]));
 
-                a = (vit->second[0] - Vijk[0]);
-                b = (vit->second[1] - Vijk[1]);
-                c = (vit->second[2] - Vijk[2]);
+            //     a = (vit->second[0] - Vijk[0]);
+            //     b = (vit->second[1] - Vijk[1]);
+            //     c = (vit->second[2] - Vijk[2]);
                 
-                Vrt[te][0]      = (1.0/di)*a;
-                Vrt[te][1]      = (1.0/di)*b;
-                Vrt[te][2]      = (1.0/di)*c;
-                double Udata    = sol_collect[vit->first];
-                bvec[te]        = (1.0/di)*(Udata-u_ijk);
-                te++;
-            }
+            //     Vrt[te][0]      = (1.0/di)*a;
+            //     Vrt[te][1]      = (1.0/di)*b;
+            //     Vrt[te][2]      = (1.0/di)*c;
+            //     double Udata    = sol_collect[vit->first];
+            //     bvec[te]        = (1.0/di)*(Udata-u_ijk);
+            //     te++;
+            // }
 
-            // double* A_cm = new double[Ndata*3];
-            std::vector<double> A_cm(Ndata*3,0);
-            for(int s=0;s<Ndata;s++)
-            {
-                for(int g=0;g<3;g++)
-                {
-                    A_cm[g*Ndata+s] = Vrt[s][g];
-                }
-            }
+            // // double* A_cm = new double[Ndata*3];
+            // std::vector<double> A_cm(Ndata*3,0);
+            // for(int s=0;s<Ndata;s++)
+            // {
+            //     for(int g=0;g<3;g++)
+            //     {
+            //         A_cm[g*Ndata+s] = Vrt[s][g];
+            //     }
+            // }
 
-            x = SolveQR_Lite(A_cm,Ndata,3,bvec);
-            
-            dudx_map[elID] = x;
-            
+            // x = SolveQR_Lite(A_cm,Ndata,3,bvec);
+            x.resize(9);
+            x[0] = 0.0;
+            x[1] = 0.0;
+            x[2] = 0.0;
+            x[3] = 0.0;
+            x[4] = 0.0;
+            x[5] = 0.0;
+            x[6] = 0.0;
+            x[7] = 0.0;
+            x[8] = 0.0;
+            // dudx_map[elID] = x;
+            dudx_map2update[elID] = x;
+            cc++;
             // delete[] A_cm;
             // ////delete[] Pijk;
             // delete Vrt_T;
@@ -539,14 +550,83 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D_Lite(RepartitionObjec
             // delete bvec;
         }
         //
-        /**/
-        //std::cout << " vrt_collect " << vrt_collect.size() << " " << sol_collect.size() << std::endl;
+        
         vrt_collect.clear();
         sol_collect.clear();
         
    }
+
+   std::map<int,std::vector<double> >::iterator itr;
+
+   for(itr=dudx_map2update.begin();itr!=dudx_map2update.end();itr++)
+   {
+        int elid = itr->first;
+        
+        int nadj = Element2ElementMap[elid].size();
+        
+        std::vector<double> xnew(9,0);
+        int tel = 0;
+        for(int i=0;i<nadj;i++)
+        {
+            int adjid = Element2ElementMap[elid][i];
+            
+            if(dudx_map.find(adjid)!=dudx_map.end())
+            {
+                xnew[0] = xnew[0] + dudx_map[adjid][0];
+                xnew[1] = xnew[1] + dudx_map[adjid][1];
+                xnew[2] = xnew[2] + dudx_map[adjid][2];
+                xnew[3] = xnew[3] + dudx_map[adjid][3];
+                xnew[4] = xnew[4] + dudx_map[adjid][4];
+                xnew[5] = xnew[5] + dudx_map[adjid][5];
+                xnew[6] = xnew[6] + dudx_map[adjid][6];
+                xnew[7] = xnew[7] + dudx_map[adjid][7];
+                xnew[8] = xnew[8] + dudx_map[adjid][8];
+                tel = tel + 1;
+            }
+
+            int nadjadj = Element2ElementMap[adjid].size();
+            for(int j=0;j<nadjadj;j++)
+            {
+                int adjadjid = Element2ElementMap[adjid][j];
+
+                if(dudx_map.find(adjadjid)!=dudx_map.end())
+                {
+                    xnew[0] = xnew[0] + dudx_map[adjadjid][0];
+                    xnew[1] = xnew[1] + dudx_map[adjadjid][1];
+                    xnew[2] = xnew[2] + dudx_map[adjadjid][2];
+                    xnew[3] = xnew[3] + dudx_map[adjadjid][3];
+                    xnew[4] = xnew[4] + dudx_map[adjadjid][4];
+                    xnew[5] = xnew[5] + dudx_map[adjadjid][5];
+                    xnew[6] = xnew[6] + dudx_map[adjadjid][6];
+                    xnew[7] = xnew[7] + dudx_map[adjadjid][7];
+                    xnew[8] = xnew[8] + dudx_map[adjadjid][8];
+                    tel = tel + 1;
+                }
+            }
+        }
+
+        if(tel != 0)
+        {
+            xnew[0] = xnew[0]/tel;
+            xnew[1] = xnew[1]/tel;
+            xnew[2] = xnew[2]/tel;
+            xnew[3] = xnew[3]/tel;
+            xnew[4] = xnew[4]/tel;
+            xnew[5] = xnew[5]/tel;
+            xnew[6] = xnew[6]/tel;
+            xnew[7] = xnew[7]/tel;
+            xnew[8] = xnew[8]/tel;
+        }
+
+        
+
+        std::cout << "xnew " << tel << " " << xnew[0] << " " << xnew[1] << " " << xnew[2] << std::endl;
+        std::cout << "xnew " << tel << " " << xnew[3] << " " << xnew[4] << " " << xnew[5] << std::endl;
+        std::cout << "xnew " << tel << " " << xnew[6] << " " << xnew[7] << " " << xnew[8] << std::endl;
+        dudx_map[elid] = xnew;
+   }
    
-    
+ 
     
    return dudx_map;
 }
