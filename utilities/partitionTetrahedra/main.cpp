@@ -17,8 +17,6 @@
 #include "../../src/adapt_runparmmg.h"
 #include "../../src/adapt_inputs.h"
 #include "../../src/adapt_writeus3ddata.h"
-#include "../../src/adapt_elements.h"
-
 #include <iomanip>
 
 #define MAX2(a,b)      (((a) > (b)) ? (a) : (b))
@@ -149,7 +147,8 @@ int main(int argc, char** argv)
             prisms_e2e[elid]  = meshRead->iee[elid];
             prisms_data[elid] = meshRead->interior[elid];
             prism2type[elid] = eltype;
-            int nf = 5;
+            int nf = meshRead->ief[elid].size();
+
             for(int j=0;j<nf;j++)
             {
                 int faceID = meshRead->ief[elid][j];
@@ -162,6 +161,13 @@ int main(int argc, char** argv)
                 }
             }
         }   
+    }
+
+    bool tetra_ifn = true;
+    bool prism_ifn = true;
+    if(meshRead->elTypes[3]>0)
+    {
+        prism_ifn = false;
     }
 
     if(world_rank == 0)
@@ -194,6 +200,8 @@ int main(int argc, char** argv)
     MPI_Allreduce(&nLocTetra, &nElemsGlob_T, 1, MPI_INT, MPI_SUM, comm);
     MPI_Allreduce(&nLocPrism, &nElemsGlob_P, 1, MPI_INT, MPI_SUM, comm);
 
+    
+
     if(world_rank == 0)
     {
         std::cout << "Done trace operation..." << std::endl; 
@@ -220,6 +228,7 @@ int main(int argc, char** argv)
                                                         pttrace, 
                                                         tetras_data,
                                                         2,
+                                                        tetra_ifn,
                                                         comm);
 
     tetras_e2v.clear();
@@ -240,90 +249,20 @@ int main(int argc, char** argv)
         cout << " sec " << endl;
     }
 
-    std::vector<int> Owned_Elem_t            = tetra_repart->getLocElem();
-    std::map<int,std::vector<int> > gE2gV_t  = tetra_repart->getElement2VertexMap();
-    std::map<int,std::vector<int> > gE2gF_t  = tetra_repart->getElement2FacesMap();
-    std::map<int,std::vector<int> > gF2gV_t  = tetra_repart->getFace2VertexMap();
-    std::map<int,int> gE2type                = tetra_repart->GetElement2TypeOnRankMap();
-
-    std::vector<std::vector<int> > tetra_faces = getTetraFaceMap(); 
-    std::vector<std::vector<int> > prism_faces = getPrismFaceMap(); 
-    std::vector<std::vector<int> > pyramid_faces = getPyramidFaceMap(); 
-    std::vector<std::vector<int> > hex_faces = getHexFaceMap(); 
-
-    //FaceSetPointer m_FaceSetPointer;
-    start = clock();
-    std::vector<std::vector<int> > map_faces;
-    std::map<int,std::vector<int> > face2vertexmap_a;
-    for(int i=0;i<Owned_Elem_t.size();i++)
-    {
-        int elid = Owned_Elem_t[i];
-        int nf   = gE2gF_t[elid].size();
-        int nv   = gE2gV_t[elid].size(); 
-        int type = gE2type[elid];
-        switch (type) {
-        case 2:
-            map_faces = tetra_faces;
-            break;
-        case 4:
-            map_faces = hex_faces;
-            break;
-        case 5:
-            map_faces = pyramid_faces;
-            break;
-        case 6:
-            map_faces = prism_faces;
-            break;
-        }
-
-        if(nf!=map_faces.size())
-        {
-            std::cout << "Error: facemap for element type does not correspond." << std::endl; 
-        }
-
-        for(int u=0;u<map_faces.size();u++)
-        {
-            int nv  = map_faces[u].size();
-            int fid = gE2gF_t[elid][u];
-
-            std::vector<int> face(nv,0);
-            for(int w=0;w<nv;w++)
-            {
-                face[w] = gE2gV_t[elid][map_faces[u][w]];
-            }
-
-            if(face2vertexmap_a.find(fid)==face2vertexmap_a.end())
-            {
-                face2vertexmap_a[fid] = face;
-            }
-
-            // FaceSharedPtr facePointer = std::shared_ptr<NekFace>(new NekFace(face));
-            // std::pair<FaceSetPointer::iterator, bool> testInsPointer;
-            // testInsPointer = m_FaceSetPointer.insert(facePointer);
-        }
-    }
-    end = clock();
-    time_taken = ( end - start) / (double) CLOCKS_PER_SEC;
-
-    
-    MPI_Allreduce(&time_taken, &dur_max, 1, MPI_DOUBLE, MPI_MAX, comm);
-    //std::cout << "FaceSetPointer m_FaceSetPointer " << m_FaceSetPointer.size() << " " << gF2gV_t.size() << " " << face2vertexmap_a.size() << std::endl;
-    MPI_Allreduce(&time_taken, &dur_max, 1, MPI_DOUBLE, MPI_MAX, comm);
-    if(world_rank == 0)
-    {
-        cout << "Time taken to execute unique face list : " << fixed 
-        << dur_max << setprecision(16); 
-        cout << " sec " << endl;
-    }
-
-
     
     
     tetras_e2v.clear();tetras_e2f.clear();tetras_e2e.clear();
 
-    tetra_repart->buildUpdatedVertexAndFaceNumbering(comm, pttrace, meshRead->ranges_id);
-    tetra_repart->buildInteriorSharedAndBoundaryFaceMaps(comm, pttrace, meshRead->ranges_id);
-    
+    tetra_repart->buildUpdatedVertexAndFaceNumbering(comm, 
+                                                    pttrace, 
+                                                    meshRead->ranges_id, 
+                                                    meshRead->ranges_ref);
+
+    tetra_repart->buildInteriorSharedAndBoundaryFaceMaps(comm, 
+                                                         pttrace,
+                                                         meshRead->ranges_id,
+                                                         meshRead->ranges_ref);
+
     // std::vector<int> face4parmmg                        = tetra_repart->getFace4ParMMG(); // checked
     // std::map<int,int> global2tagF                       = tetra_repart->getGlobal2TagFMap();
     // int** ifc_tria_glob                                 = tetra_repart->getParMMGCommFace2GlobalVertMap();
@@ -358,7 +297,7 @@ int main(int argc, char** argv)
         << dur_max << setprecision(16); 
         cout << " sec " << endl;
     }
-    
+
     //==============================================
 
     std::map<int,std::set<int> >::iterator itmis;
@@ -414,6 +353,7 @@ int main(int argc, char** argv)
                                                         pttrace, 
                                                         prisms_data,
                                                         0,
+                                                        prism_ifn,
                                                         comm);
         prisms_e2v.clear();
         prisms_e2f.clear();
@@ -446,8 +386,8 @@ int main(int argc, char** argv)
         meshRead->interior.clear();
         meshRead->ghost.clear();
 
-        prism_repart->buildUpdatedVertexAndFaceNumbering(comm,pttrace, meshRead->ranges_id);
-        prism_repart->buildInteriorSharedAndBoundaryFaceMaps(comm,pttrace, meshRead->ranges_id);
+        prism_repart->buildUpdatedVertexAndFaceNumbering(comm,pttrace, meshRead->ranges_id, meshRead->ranges_ref);
+        prism_repart->buildInteriorSharedAndBoundaryFaceMaps(comm,pttrace, meshRead->ranges_id, meshRead->ranges_ref);
 
         std::map<int,int> NonSharedVertsOwned_P       = prism_repart->getNonSharedVertsOwned();
         std::map<int,int> SharedVertsOwned_P          = prism_repart->getSharedVertsOwned();
@@ -1002,9 +942,9 @@ int main(int argc, char** argv)
         //     std::cout << std::setprecision(16) << "Writing out the grid takes " << dur_max << " seconds using " << world_size << "procs. " << std::endl;
         //     std::cout << "Finalizing process" << std::endl;     
         // }
-      
+       /**/
     }
-    /**/
+    
     MPI_Finalize();
         
 }
