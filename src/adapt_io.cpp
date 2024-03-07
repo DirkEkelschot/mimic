@@ -4094,11 +4094,12 @@ mesh* ReadUS3DMeshData(const char* fn_conn, const char* fn_grid, const char* fn_
     int t=0;
     int gg=0;
     std::map<int,std::vector<int> > ranges_id;
+    std::map<int,std::vector<int> > ranges_ref;
     std::map<int,int> zone2ref;
     
     for(int i=2;i<zdefs.size();i++)
     {
-        //std::cout << zdefs[i][2] << " " << zdefs[i][3] << " " << zdefs[i][4] << " " << zdefs[i][5] << std::endl;
+        // std::cout << zdefs[i][2] << " " << zdefs[i][3] << " " << zdefs[i][4] << " " << zdefs[i][5] << std::endl;
         bnd_m.push_back(zdefs[i][5]);
         
         low_range.push_back(zdefs[i][3]);
@@ -4111,8 +4112,9 @@ mesh* ReadUS3DMeshData(const char* fn_conn, const char* fn_grid, const char* fn_
         ra[0] = zdefs[i][3]-1;
         ra[1] = zdefs[i][4]-1;
         ranges_id[zdefs[i][2]] = ra;
-        ranges_id[zdefs[i][2]].push_back(zdefs[i][3]-1);
-        ranges_id[zdefs[i][2]].push_back(zdefs[i][4]-1);
+        // ranges_id[zdefs[i][2]].push_back(zdefs[i][3]-1);
+        // ranges_id[zdefs[i][2]].push_back(zdefs[i][4]-1);
+        ranges_ref[zdefs[i][5]]=ra;
         
         // gg++;
     }
@@ -4243,7 +4245,7 @@ mesh* ReadUS3DMeshData(const char* fn_conn, const char* fn_grid, const char* fn_
         {
             ie_Nv_copy[elid] = 4;
             ie_Nf_copy[elid] = 4;
-            check_tet        = 1;
+            check_tet        = check_tet+1;
             ncol_ien         = 4;
             ncol_iee         = 4;
             ncol_ief         = 4;
@@ -4256,7 +4258,7 @@ mesh* ReadUS3DMeshData(const char* fn_conn, const char* fn_grid, const char* fn_
             ncol_ien         = 8;
             ncol_ief         = 6;
             ncol_iee         = 6;
-            check_hex        = 1;
+            check_hex        = check_hex+1;
             hexCount++;
         }
         if(iet[i][0]==5) // Pyramid
@@ -4266,7 +4268,7 @@ mesh* ReadUS3DMeshData(const char* fn_conn, const char* fn_grid, const char* fn_
            ncol_ien          = 5;
            ncol_ief          = 5;
            ncol_iee          = 5;
-           check_pyr         = 1;
+           check_pyr         = check_pyr+1;
            pyrCount++;
         }
         if(iet[i][0]==6) // Prism
@@ -4276,7 +4278,7 @@ mesh* ReadUS3DMeshData(const char* fn_conn, const char* fn_grid, const char* fn_
             ncol_ien         = 6;
             ncol_ief         = 5;
             ncol_iee         = 5;
-            check_pri        = 1;
+            check_pri        = check_pri+1;
             priCount++;
         }
 
@@ -4307,10 +4309,10 @@ mesh* ReadUS3DMeshData(const char* fn_conn, const char* fn_grid, const char* fn_
         ief_copy[elid] = ief_copy_row;
         iee_copy[elid] = iee_copy_row;
 
-        if(iet[i][0]!=2 && iet[i][0]!=4 && iet[i][0]!=6)
-        {
-            std::cout << "Warning: this mesh has pyramids! " << iet[i][0] << std::endl;
-        }
+        // if(iet[i][0]!=2 && iet[i][0]!=4 && iet[i][0]!=6)
+        // {
+        //     std::cout << "Warning: this mesh has pyramids! " << iet[i][0] << std::endl;
+        // }
 
     }
 
@@ -4367,10 +4369,16 @@ mesh* ReadUS3DMeshData(const char* fn_conn, const char* fn_grid, const char* fn_
     }
     //std::cout << "before partitioning rank = " << rank << " #tets = " << tett << " #prisms " << pris << std::endl;
     std::vector<int> elTypes(4);
-    elTypes[0] = check_tet;
-    elTypes[1] = check_pri;
-    elTypes[2] = check_pyr;
-    elTypes[3] = check_hex;
+    int check_tet_glob, check_pri_glob, check_pyr_glob, check_hex_glob;
+    MPI_Allreduce(&check_tet, &check_tet_glob, 1, MPI_INT, MPI_SUM, comm);
+    MPI_Allreduce(&check_pri, &check_pri_glob, 1, MPI_INT, MPI_SUM, comm);
+    MPI_Allreduce(&check_pyr, &check_pyr_glob, 1, MPI_INT, MPI_SUM, comm);
+    MPI_Allreduce(&check_hex, &check_hex_glob, 1, MPI_INT, MPI_SUM, comm);
+
+    elTypes[0] = check_tet_glob;
+    elTypes[1] = check_pri_glob;
+    elTypes[2] = check_pyr_glob;
+    elTypes[3] = check_hex_glob;
     
     delete[] OffcolTetCount;
 
@@ -4385,7 +4393,7 @@ mesh* ReadUS3DMeshData(const char* fn_conn, const char* fn_grid, const char* fn_
     int nrow_fglob  = face_rankInfo[0];
     int nrow_floc   = face_rankInfo[1];
     int offset_floc = face_rankInfo[2];
-    int ncol_ifn    = 4;
+    // int ncol_ifn    = 4;
     int ncol_ife    = 2;
     
     // ParMatrix<int> ifn_copy        = new ParMatrix<int>(nrow_fglob,ncol_ifn,comm);
@@ -4407,12 +4415,12 @@ mesh* ReadUS3DMeshData(const char* fn_conn, const char* fn_grid, const char* fn_
         int index      = i + offset_floc;
         int fzone      = ProvideBoundaryID(index,ranges_id);
         int fref2      = zone2ref[fzone];
-        
+        int ncol_ifn   = ifn[i][0];
         if((fref2!=fref))
         {
             std::cout << "mapping ranges are wrong"  << std::endl;
         }
-        ncol_ifn = ifn[i][0];
+
         std::vector<int> ifn_copy_row(ncol_ifn);
         for(j=0;j<ncol_ifn;j++)
         {
@@ -4481,6 +4489,7 @@ mesh* ReadUS3DMeshData(const char* fn_conn, const char* fn_grid, const char* fn_
     mRead->znames         = znames;
     mRead->zdefs          = zdefs;
     mRead->ranges_id      = ranges_id;
+    mRead->ranges_ref     = ranges_ref;
     mRead->ntetra         = tetCount;
     mRead->nprism         = priCount;
     mRead->nhexahedral    = hexCount;
@@ -4953,10 +4962,10 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
             check_pri = 1;
         }
         
-        if(iet->getVal(i,0)!=2 && iet->getVal(i,0)!=4 && iet->getVal(i,0)!=6)
-        {
-            std::cout << "Warning: this mesh has pyramids! " << iet->getVal(i,0) << std::endl;
-        }
+        // if(iet->getVal(i,0)!=2 && iet->getVal(i,0)!=4 && iet->getVal(i,0)!=6)
+        // {
+        //     std::cout << "Warning: this mesh has pyramids! " << iet->getVal(i,0) << std::endl;
+        // }
     }
     
     int* colTetCount    = new int[size];

@@ -54,15 +54,16 @@ inline ParallelState_Parmetis_Lite::ParallelState_Parmetis_Lite(std::map<int,std
     int npo_loc     = 0;
     int npo_loc_tot = 0;
 
-    if(elTypes[0] == 1 || elTypes[1] == 1)
+    if(elTypes[0] > 0 || elTypes[1] > 0)
     {
         ncommonnodes = 3;
     }
-    else if(elTypes[2] == 1)
+    else if(elTypes[3] > 0)
     {
         ncommonnodes = 4;
     }
     
+    ncommonnodes = 3; 
     
     elmwgt = std::vector<int>(nloc,0);
     std::map<int,std::vector<int> >::iterator itmiv;

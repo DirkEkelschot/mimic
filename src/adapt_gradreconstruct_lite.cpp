@@ -68,8 +68,11 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D_Lite(RepartitionObjec
    int rr =0;
    std::set<int> vert_scheme;
    int cc = 0;
+   
    for(int i=0;i<nLoc_Elem;i++)
    {
+
+        int ghostelem = 0;
         std::vector<double> x;
         int elID     = Loc_Elem[i];
         int NvPEl    = Element2VertexMap[elID].size();
@@ -114,6 +117,7 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D_Lite(RepartitionObjec
             
             else if(ghosts.find(adjid)!=ghosts.end())
             {
+                ghostelem++;
                 if(vrt_collect.find(adjid)==vrt_collect.end())
                 {
                     
@@ -186,6 +190,9 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D_Lite(RepartitionObjec
                     face.clear();
                 }
             }
+
+
+
             if(Element2ElementMap.find(adjid)!=Element2ElementMap.end())
             {
                 int n_adjid         = Element2ElementMap[adjid].size();
@@ -228,6 +235,8 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D_Lite(RepartitionObjec
                     }
                     else if(ghosts.find(adjadj)!=ghosts.end())
                     {
+
+                        ghostelem++;
                         if(vrt_collect.find(adjadj)==vrt_collect.end())
                         {
                             int NvPerF = Face2VertexMap[fadjadj].size();
@@ -341,7 +350,7 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D_Lite(RepartitionObjec
                             }
                             else if(ghosts.find(adjadjadj)!=ghosts.end())
                             {
-                                
+                                ghostelem++;
                                 int NvPerF = Face2VertexMap[fadjadjadj].size();
                                 
                                 std::vector<double> Vc(3);
@@ -486,7 +495,7 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D_Lite(RepartitionObjec
         {
             int Ndata = vrt_collect.size();
             
-            std::cout << "Warning:: not enough data points to reconstruct the gradient! Number of neigboring points is " << Ndata << std::endl;
+            std::cout << "Warning:: not enough data points to reconstruct the gradient! Number of neigboring points is " << Ndata << " number of ghost elements -> " << ghostelem << " for element ID " << elID << std::endl;
             
             std::vector<std::vector<double> > Vrt(Ndata);
             std::vector<double> bvec(3,0);
@@ -555,8 +564,76 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D_Lite(RepartitionObjec
         sol_collect.clear();
         
    }
-
    std::map<int,std::vector<double> >::iterator itr;
+
+    if(dudx_map2update.size()!=0)
+    {
+        int inhere = 0;
+        int inhere2 = 0;
+        std::map<int, std::vector<int> > new_map;
+        for(itr=dudx_map2update.begin();itr!=dudx_map2update.end();itr++)
+        {
+            int elid = itr->first;
+            
+            if(Element2ElementMap.find(elid)!=Element2ElementMap.end())
+            {
+                inhere++;
+                int nadj = Element2ElementMap[elid].size();
+                for(int i=0;i<nadj;i++)
+                {
+                    int adjid = Element2ElementMap[elid][i];
+
+                    if(dudx_map.find(adjid)!=dudx_map.end())
+                    {
+                        new_map[elid].push_back(adjid);
+                    }
+
+                    if(Element2ElementMap.find(adjid)!=Element2ElementMap.end())
+                    {
+                        inhere2++;
+                        int nadj2 = Element2ElementMap[adjid].size();
+                        for(int j=0;j<nadj2;j++)
+                        {
+                            int adjid2 = Element2ElementMap[adjid][j];
+                            if(dudx_map.find(adjid2)!=dudx_map.end())
+                            {
+                                new_map[elid].push_back(adjid2);
+                            }
+
+                            if(Element2ElementMap.find(adjid2)!=Element2ElementMap.end())
+                            {
+                                int nadj3 = Element2ElementMap[adjid2].size();
+                                for(int k=0;k<nadj3;k++)
+                                {
+                                    int adjid3 = Element2ElementMap[adjid2][k];
+                                    if(dudx_map.find(adjid3)!=dudx_map.end())
+                                    {
+                                        new_map[elid].push_back(adjid3);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+
+        std::cout << "new_map.size() " << new_map.size() << " inhere " << inhere << " " << inhere2 << std::endl;
+        std::map<int,std::vector<int> >::iterator itr0;
+        for(itr0=new_map.begin();itr0!=new_map.end();itr0++)
+        {
+                std::cout << " itr0 " << itr0->first << " " << itr0->second.size() << std::endl;
+        }
+    }
+    
+
+
+
+
+   
+
+
 
    for(itr=dudx_map2update.begin();itr!=dudx_map2update.end();itr++)
    {
@@ -584,23 +661,99 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D_Lite(RepartitionObjec
                 tel = tel + 1;
             }
 
-            int nadjadj = Element2ElementMap[adjid].size();
-            for(int j=0;j<nadjadj;j++)
+            if(Element2ElementMap.find(adjid)!=Element2ElementMap.end()
+                && ghosts.find(adjid)==ghosts.end())
             {
-                int adjadjid = Element2ElementMap[adjid][j];
+                int nadjadj = Element2ElementMap[adjid].size();
 
-                if(dudx_map.find(adjadjid)!=dudx_map.end())
+                for(int j=0;j<nadjadj;j++)
                 {
-                    xnew[0] = xnew[0] + dudx_map[adjadjid][0];
-                    xnew[1] = xnew[1] + dudx_map[adjadjid][1];
-                    xnew[2] = xnew[2] + dudx_map[adjadjid][2];
-                    xnew[3] = xnew[3] + dudx_map[adjadjid][3];
-                    xnew[4] = xnew[4] + dudx_map[adjadjid][4];
-                    xnew[5] = xnew[5] + dudx_map[adjadjid][5];
-                    xnew[6] = xnew[6] + dudx_map[adjadjid][6];
-                    xnew[7] = xnew[7] + dudx_map[adjadjid][7];
-                    xnew[8] = xnew[8] + dudx_map[adjadjid][8];
-                    tel = tel + 1;
+                    int adjadjid = Element2ElementMap[adjid][j];
+
+                    if(dudx_map.find(adjadjid)!=dudx_map.end())
+                    {
+                        xnew[0] = xnew[0] + dudx_map[adjadjid][0];
+                        xnew[1] = xnew[1] + dudx_map[adjadjid][1];
+                        xnew[2] = xnew[2] + dudx_map[adjadjid][2];
+                        xnew[3] = xnew[3] + dudx_map[adjadjid][3];
+                        xnew[4] = xnew[4] + dudx_map[adjadjid][4];
+                        xnew[5] = xnew[5] + dudx_map[adjadjid][5];
+                        xnew[6] = xnew[6] + dudx_map[adjadjid][6];
+                        xnew[7] = xnew[7] + dudx_map[adjadjid][7];
+                        xnew[8] = xnew[8] + dudx_map[adjadjid][8];
+                        tel = tel + 1;
+                    }
+
+                     if(Element2ElementMap.find(adjadjid)!=Element2ElementMap.end()
+                     && ghosts.find(adjadjid)==ghosts.end())
+                     {
+                        int nadjadjadj = Element2ElementMap[adjadjid].size();
+                        for(int k=0;k<nadjadjadj;k++)
+                        {
+                            int adjadjadjid = Element2ElementMap[adjadjid][k];
+                            if(dudx_map.find(adjadjadjid)!=dudx_map.end())
+                            {
+                                xnew[0] = xnew[0] + dudx_map[adjadjadjid][0];
+                                xnew[1] = xnew[1] + dudx_map[adjadjadjid][1];
+                                xnew[2] = xnew[2] + dudx_map[adjadjadjid][2];
+                                xnew[3] = xnew[3] + dudx_map[adjadjadjid][3];
+                                xnew[4] = xnew[4] + dudx_map[adjadjadjid][4];
+                                xnew[5] = xnew[5] + dudx_map[adjadjadjid][5];
+                                xnew[6] = xnew[6] + dudx_map[adjadjadjid][6];
+                                xnew[7] = xnew[7] + dudx_map[adjadjadjid][7];
+                                xnew[8] = xnew[8] + dudx_map[adjadjadjid][8];
+                                tel = tel + 1;
+                            }
+
+                            if(Element2ElementMap.find(adjadjadjid)!=Element2ElementMap.end()
+                            && ghosts.find(adjadjadjid)==ghosts.end())
+                            {
+                                int nadjadjadjadj = Element2ElementMap[adjadjadjid].size();
+                                for(int m=0;m<nadjadjadjadj;m++)
+                                {
+                                    int adjadjadjadjid = Element2ElementMap[adjadjadjid][m];
+                                    if(dudx_map.find(adjadjadjadjid)!=dudx_map.end())
+                                    {
+                                        xnew[0] = xnew[0] + dudx_map[adjadjadjadjid][0];
+                                        xnew[1] = xnew[1] + dudx_map[adjadjadjadjid][1];
+                                        xnew[2] = xnew[2] + dudx_map[adjadjadjadjid][2];
+                                        xnew[3] = xnew[3] + dudx_map[adjadjadjadjid][3];
+                                        xnew[4] = xnew[4] + dudx_map[adjadjadjadjid][4];
+                                        xnew[5] = xnew[5] + dudx_map[adjadjadjadjid][5];
+                                        xnew[6] = xnew[6] + dudx_map[adjadjadjadjid][6];
+                                        xnew[7] = xnew[7] + dudx_map[adjadjadjadjid][7];
+                                        xnew[8] = xnew[8] + dudx_map[adjadjadjadjid][8];
+                                        tel = tel + 1;
+                                    }
+
+                                    if(Element2ElementMap.find(adjadjadjadjid)!=Element2ElementMap.end()
+                                        && ghosts.find(adjadjadjadjid)==ghosts.end())
+                                    {
+                                        int nadjadjadjadjid = Element2ElementMap[adjadjadjadjid].size();
+
+                                        for(int n=0;n<nadjadjadjadjid;n++)
+                                        {
+                                            int adjadjadjadjadjid = Element2ElementMap[adjadjadjadjid][n];
+
+                                            if(dudx_map.find(adjadjadjadjadjid)!=dudx_map.end())
+                                            {
+                                                xnew[0] = xnew[0] + dudx_map[adjadjadjadjadjid][0];
+                                                xnew[1] = xnew[1] + dudx_map[adjadjadjadjadjid][1];
+                                                xnew[2] = xnew[2] + dudx_map[adjadjadjadjadjid][2];
+                                                xnew[3] = xnew[3] + dudx_map[adjadjadjadjadjid][3];
+                                                xnew[4] = xnew[4] + dudx_map[adjadjadjadjadjid][4];
+                                                xnew[5] = xnew[5] + dudx_map[adjadjadjadjadjid][5];
+                                                xnew[6] = xnew[6] + dudx_map[adjadjadjadjadjid][6];
+                                                xnew[7] = xnew[7] + dudx_map[adjadjadjadjadjid][7];
+                                                xnew[8] = xnew[8] + dudx_map[adjadjadjadjadjid][8];
+                                                tel = tel + 1;
+                                            }
+                                        }        
+                                    }
+                                }
+                            }
+                        }
+                     }
                 }
             }
         }
@@ -617,12 +770,18 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D_Lite(RepartitionObjec
             xnew[7] = xnew[7]/tel;
             xnew[8] = xnew[8]/tel;
         }
-
+        else
+        {
+            //std::cout << "Element ID " << elid <<  " has no proper gradient information." << std::endl;
+        }
         
-
-        std::cout << "xnew " << tel << " " << xnew[0] << " " << xnew[1] << " " << xnew[2] << std::endl;
-        std::cout << "xnew " << tel << " " << xnew[3] << " " << xnew[4] << " " << xnew[5] << std::endl;
-        std::cout << "xnew " << tel << " " << xnew[6] << " " << xnew[7] << " " << xnew[8] << std::endl;
+        // std::cout << "number of points found: " << tel << std::endl;
+        // std::cout << "===================dUdx       dUdy        dUdz===================" << std::endl;
+        // std::cout << "                    " << xnew[0] << "       " << xnew[1] << "       " << xnew[2] << std::endl;
+        // std::cout << "===================         Hessian           ===================" << std::endl;
+        // std::cout << "                    " << xnew[3] << "       " << xnew[4] << "       " << xnew[5] << std::endl;
+        // std::cout << "                    " << xnew[4] << "       " << xnew[6] << "       " << xnew[7] << std::endl;
+        // std::cout << "                    " << xnew[5] << "       " << xnew[7] << "       " << xnew[8] << std::endl;
         dudx_map[elid] = xnew;
    }
    

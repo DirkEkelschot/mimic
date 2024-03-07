@@ -126,6 +126,7 @@ struct mesh{
     std::map<int,int> vert_ref_map;
     
     std::map<int,std::vector<int> > ranges_id;
+    std::map<int,std::vector<int> > ranges_ref;
     std::map<int,int> zone2bcref;
     std::map<int,char*> zone2name;
 
