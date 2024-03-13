@@ -33,6 +33,7 @@
 
 int main(int argc, char** argv)
 {
+    clock_t start_total = clock();
     MPI_Init(NULL, NULL);
     FILE            *inm;
     MPI_Comm comm = MPI_COMM_WORLD;
@@ -284,7 +285,8 @@ int main(int argc, char** argv)
                                                                               pttrace,
                                                                               meshRead->ghost,
                                                                               meshRead->nElem,
-                                                                              1, 
+                                                                              1,
+                                                                              2, 
                                                                               1,
                                                                               comm);
     end = clock();
@@ -943,6 +945,18 @@ int main(int argc, char** argv)
         //     std::cout << "Finalizing process" << std::endl;     
         // }
        /**/
+    }
+    
+    clock_t end_total = clock();
+
+    end1 = clock();
+    time_taken1 = ( end_total - start_total) / (double) CLOCKS_PER_SEC;
+    MPI_Allreduce(&time_taken1, &dur_max1, 1, MPI_DOUBLE, MPI_MAX, comm);
+    if(world_rank == 0)
+    {
+        cout << "Time taken to execute MIMIC : " << fixed
+        << dur_max1 << setprecision(16);
+        cout << " sec " << endl;
     }
     
     MPI_Finalize();

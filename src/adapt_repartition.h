@@ -131,6 +131,8 @@ class RepartitionObject{
 
                 std::map<int, std::vector<int> > getFace2VertexMap();
 
+                std::map<int,std::vector<int> > getFace2ElementMap();
+
                 std::map<int,std::vector<int> > getFace2RefMap();
 
                 std::map<int, std::vector<int> > getFace2NVertexMap();
@@ -228,6 +230,7 @@ class RepartitionObject{
 
 
                 void AddStateVecForAdjacentElements(std::map<int,std::vector<double> > &U, int nvar, MPI_Comm comm);
+                void SetStateVec(std::map<int,std::vector<double> > U, int nvar);
 
         private:
                 std::vector<int> part;

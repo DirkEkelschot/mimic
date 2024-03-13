@@ -1,3 +1,5 @@
+
+#include <chrono>
 #include "../../src/adapt_recongrad.h"
 #include "../../src/adapt_io.h"
 #include "../../src/adapt_parops.h"
@@ -7,558 +9,116 @@
 #include "../../src/adapt_redistribute.h"
 #include "../../src/adapt_DefinePrismMesh.h"
 #include "../../src/adapt_prismaticlayer.h"
-#include <math.h>
+#include "../../src/adapt_prismtetratrace.h"
+#include "../../src/adapt_repartition.h"
+#include "../../src/adapt_output_vtk.h"
+#include "../../src/adapt_meshtopology_lite.h"
+#include "../../src/adapt_gradreconstruct_lite.h"
+#include "../../src/adapt_runparmmg.h"
+#include "../../src/adapt_inputs.h"
+#include "../../src/adapt_writeus3ddata.h"
 #include <iomanip>
 
 #define MAX2(a,b)      (((a) > (b)) ? (a) : (b))
 #define MAX4(a,b,c,d)  (((MAX2(a,b)) > (MAX2(c,d))) ? (MAX2(a,b)) : (MAX2(c,d)))
 
-// This is basically textbook recursive merge sort using std::merge_inplace
-// but it considers the offsets of segments that are already sorted
+// typedef CGAL::Simple_cartesian<double> Kernel;
+// typedef Kernel::Point_2 Point_2;
+// typedef Kernel::Segment_2 Segment_2;
 
 
-std::vector<double> ReadReferenceErrors(const char* fn_errors)
+
+void SetAnalyticalSolution(RepartitionObject* tetra_repart,
+                            int Nel_glob,
+                            std::map<int,std::vector<double> > &U_map,
+                            std::map<int,std::vector<double> > &Usol,
+                            std::map<int,std::vector<double> > &gbMap,
+                            std::map<int,std::vector<double> > &gbMap_dUdx,
+                            std::map<int,std::vector<double> > &gbMap_dUdy,
+                            std::map<int,std::vector<double> > &gbMap_dUdz,
+                            std::map<int,std::vector<double> > &gbMap_dU2dx2,
+                            std::map<int,std::vector<double> > &gbMap_dU2dxy,
+                            std::map<int,std::vector<double> > &gbMap_dU2dxz)
 {
-    std::ifstream fin;
-    fin.open(fn_errors);
-    if(!fin.is_open())
-    {
-        std::cout << "Error:: Make sure there is a errors.ref file in the directory where test.cpp resides. "<<std::endl;
-        exit(0);
-    }
-    
-    double v=0.0;
-    std::vector<double> errors_inputs;
-    int t=0;
-    while(fin >> v)
-    {
-        errors_inputs.push_back(v);
-       t++;
-    }
-    return errors_inputs;
-}
 
 
-
-
-
-void OutputMesh_PMMG(int nV, double* VertOUT, int nE, int* tetraOUT, string fname)
-{
-    int pos;
-        
-    std::ofstream myfile;
-    myfile.open(fname);
-    myfile << "TITLE=\"new_volume.tec\"" << std::endl;
-    myfile <<"VARIABLES = \"X\", \"Y\", \"Z\"" << std::endl;
-    myfile <<"ZONE N = " << nV << ", E = " << nE << ", DATAPACKING = POINT, ZONETYPE = FETETRAHEDRON" << std::endl;
-
-    for(int i=0;i<nV;i++)
-    {
-        pos = 3*i;
-        myfile << VertOUT[pos] << " " <<VertOUT[pos+1] << " " << VertOUT[pos+2] <<  std::endl;
-    }
-    for(int i=0;i<nE;i++)
-    {
-        pos=4*i;
-        myfile << tetraOUT[pos] << " " << tetraOUT[pos+1]  << " " << tetraOUT[pos+2]  << " " << tetraOUT[pos+3]  << std::endl;
-    }
-    myfile.close();
-}
-
-
-std::map<int,int> AllGatherMap(std::map<int,int> mappie, MPI_Comm mpi_comm)
-{
-    int mapSizeLoc = mappie.size();
-    DistributedParallelState* distrimap = new DistributedParallelState(mapSizeLoc,mpi_comm);
-    int mapSizeTot = distrimap->getNel();
-    
-    int* key_loc = new int[mapSizeLoc];
-    int* val_loc = new int[mapSizeLoc];
-    int* key_tot = new int[mapSizeTot];
-    int* val_tot = new int[mapSizeTot];
-    int i = 0;
-    
-    std::map<int,int>::iterator itred;
-    for(itred=mappie.begin();itred!=mappie.end();itred++)
-    {
-        key_loc[i] = itred->first;
-        val_loc[i] = itred->second;
-        i++;
-    }
-    
-    int* offsets = distrimap->getOffsets();
-    int* nlocs   = distrimap->getNlocs();
-    
-    
-    MPI_Allgatherv(key_loc,
-                   mapSizeLoc,
-                   MPI_INT,
-                   key_tot,
-                   nlocs,
-                   offsets,
-                   MPI_INT, mpi_comm);
-    
-    
-    MPI_Allgatherv(val_loc,
-                   mapSizeLoc,
-                   MPI_INT,
-                   val_tot,
-                   nlocs,
-                   offsets,
-                   MPI_INT, mpi_comm);
-    
-    int key,val;
-    std::map<int,int> mappie_glob;
-    for(int i=0;i<mapSizeTot;i++)
-    {
-        key = key_tot[i];
-        val = val_tot[i];
-        
-        if(mappie_glob.find(key)==mappie_glob.end())
-        {
-        	mappie_glob[key] = val;
-        }
-    }
-    
-    return mappie_glob;
-}
-
-
-
-std::map<int,std::vector<double> > AllGatherMapDoubleVec(std::map<int,std::vector<double> > mappie, MPI_Comm mpi_comm)
-{
-    int mapSizeLoc = mappie.size();
-    DistributedParallelState* distrimap = new DistributedParallelState(mapSizeLoc,mpi_comm);
-    
-    DistributedParallelState* distrimapVal = new DistributedParallelState(mapSizeLoc*3,mpi_comm);
-    
-    int mapSizeTot = distrimap->getNel();
-    int* key_loc = new int[mapSizeLoc];
-    double* val_loc = new double[mapSizeLoc*3];
-    int* key_tot = new int[mapSizeTot];
-    double* val_tot = new double[mapSizeTot*3];
-    int i = 0;
-    
-    std::map<int,std::vector<double> >::iterator itred;
-    for(itred=mappie.begin();itred!=mappie.end();itred++)
-    {
-        key_loc[i] = itred->first;
-        int nrow   = itred->second.size();
-        for(int q=0;q<nrow;q++)
-        {
-            val_loc[i*3+q] = itred->second[q];
-            //std::cout << "itred->second[q] " << itred->second[q] << std::endl;
-        }
-        
-        i++;
-    }
-    
-    int* offsets = distrimap->getOffsets();
-    int* nlocs   = distrimap->getNlocs();
-    
-    
-    MPI_Allgatherv(key_loc,
-                   mapSizeLoc,
-                   MPI_INT,
-                   key_tot,
-                   nlocs,
-                   offsets,
-                   MPI_INT, mpi_comm);
-    
-    int* offsetsVal = distrimapVal->getOffsets();
-    int* nlocsVal   = distrimapVal->getNlocs();
-    
-    MPI_Allgatherv(val_loc,
-                   mapSizeLoc*3,
-                   MPI_DOUBLE,
-                   val_tot,
-                   nlocsVal,
-                   offsetsVal,
-                   MPI_DOUBLE, mpi_comm);
-    
-    int key,val;
-    std::map<int,std::vector<double> > mappie_glob;
-    for(int i=0;i<mapSizeTot;i++)
-    {
-        key = key_tot[i];
-        
-        std::vector<double> values(3);
-        for(int q=0;q<3;q++)
-        {
-            values[q] = val_tot[i*3+q];
-        }
-        
-        if(mappie_glob.find(key)==mappie_glob.end())
-        {
-            
-            mappie_glob[key] = values;
-            //std::cout << "itred->second[q] " << val[0] << " " << val[1] << " " << val[2] << std::endl;
-        }
-    }
-    
-    return mappie_glob;
-}
-
-
-
-
-
-
-
-//void OutputTetrahedralMeshOnPartition(TetrahedraMesh* tmesh, MPI_Comm comm)
-//{
-//
-//    int world_size;
-//    MPI_Comm_size(comm, &world_size);
-//    // Get the rank of the process
-//    int world_rank;
-//    MPI_Comm_rank(comm, &world_rank);
-//
-//    std::vector<int> lverts;
-//    std::map<int,int> lpartv2gv_v2;
-//    std::map<int,int> gv2lpv2;
-//
-//    std::set<int> gv_set;
-//    int lcv2 = 0;
-//    Array<int>* ien_part_tetra     = tmesh->ien_part_tetra;
-//    Array<int>* ien_part_hybrid    = tmesh->ien_part_hybrid;
-//    std::vector<Vert*> locVs       = tmesh->LocalVerts;
-//    int nElonRank = ien_part_tetra->getNrow();
-//
-//    Array<int>* locelem2locnode= new Array<int>(nElonRank,4);
-//
-//    std::vector<Vert*> printVs;
-//
-//    for(int i=0;i<ien_part_tetra->getNrow();i++)
-//    {
-//        for(int q=0;q<ien_part_tetra->getNcol();q++)
-//        {
-//            int gv = ien_part_tetra->getVal(i,q);
-//            int lvv = tmesh->globV2locV[gv];
-//
-//            if(gv_set.find(gv)==gv_set.end())
-//            {
-//                gv_set.insert(gv);
-//                lverts.push_back(lvv);
-//                lpartv2gv_v2[lvv]=gv;
-//                gv2lpv2[gv]=lcv2;
-//                locelem2locnode->setVal(i,q,lcv2);
-//
-//                printVs.push_back(locVs[lvv]);
-//
-//                lcv2=lcv2+1;
-//            }
-//            else
-//            {
-//                int lcv_u = gv2lpv2[gv];
-//                locelem2locnode->setVal(i,q,lcv_u);
-//            }
-//        }
-//    }
-//
-//    std::vector<Vert*> lv = tmesh->LocalVerts;
-//    std::string filename = "checkPart_" + std::to_string(world_rank) + ".dat";
-//    std::ofstream myfile;
-//    myfile.open(filename);
-//    myfile << "TITLE=\"volume_part_"  + std::to_string(world_rank) +  ".tec\"" << std::endl;
-//    myfile <<"VARIABLES = \"X\", \"Y\", \"Z\"" << std::endl;
-//    myfile <<"ZONE N = " << printVs.size() << ", E = " << nElonRank << ", DATAPACKING = POINT, ZONETYPE = FETETRAHEDRON" << std::endl;
-//
-//    for(int i=0;i<printVs.size();i++)
-//    {
-//        myfile << printVs[i][0] << " " << printVs[i][1] << " " << printVs[i][2] << std::endl;
-//    }
-//    int gv0,gv1,gv2,gv3,gv4,gv5,gv6,gv7;
-//    int lv0,lv1,lv2,lv3,lv4,lv5,lv6,lv7;
-//    for(int i=0;i<ien_part_hybrid->getNrow();i++)
-//    {
-//        myfile <<   locelem2locnode->getVal(i,0)+1 << "  " <<
-//        locelem2locnode->getVal(i,1)+1 << "  " <<
-//        locelem2locnode->getVal(i,2)+1 << "  " <<
-//        locelem2locnode->getVal(i,3)+1 << "  " << std::endl;
-//    }
-//
-//
-//    myfile.close();
-//}
-
-
-
-
-
-
-
-
-
-
-
-
-int main(int argc, char** argv)
-{
-    MPI_Init(NULL, NULL);
-    FILE            *inm;
-    MPI_Comm comm = MPI_COMM_WORLD;
-    MPI_Info info = MPI_INFO_NULL;
-    int world_size;
-    MPI_Comm_size(comm, &world_size);
-    // Get the rank of the process
-    int world_rank;
-    MPI_Comm_rank(comm, &world_rank);
-    int i,j,k;
-    clock_t t0_met = clock();
-
-    int ier,opt;
-    int debug = 0;
-//    const char* fn_grid="../test_mesh/cylinder_hybrid/grid.h5";
-//    const char* fn_conn="../test_mesh/cylinder_hybrid/conn.h5";
-//    const char* fn_data="../test_mesh/cylinder_hybrid/data.h5";
-    
-    
-    
-    const char* fn_grid   = "box_inputs/boxes_cas/grid_h0p01.h5";
-    const char* fn_conn   = "box_inputs/boxes_cas/conn_h0p01.h5";
-    const char* fn_metric = "inputs_h0p05/metric.inp";
-    
-    std::vector<double> metric_inputs = ReadMetricInputs(fn_metric);
-
-    
-    //===========================================================================
-    
-    double hgrad         = metric_inputs[0];
-    double hmin          = metric_inputs[1];
-    double hmax          = metric_inputs[2];
-    double MetScale      = metric_inputs[3];
-    int ReadFromStats    = metric_inputs[4];
-    int RunWakRefinement = metric_inputs[5];
-    double hwake         = metric_inputs[6];
-    int niter            = metric_inputs[7];
-    
-    if(world_rank == 0)
-    {
-        std::cout << "===================================================" << std::endl;
-        std::cout << "============== Metric parameters ==================" << std::endl;
-        std::cout << "===================================================" << std::endl;
-        std::cout << "Nproc	    = " << world_size << std::endl;
-        std::cout << "hgrad     = " << hgrad << std::endl;
-        std::cout << "hmin      = " << hmin << std::endl;
-        std::cout << "hmax      = " << hmax << std::endl;
-        std::cout << "MetScale  = " << MetScale << std::endl;
-        std::cout << "NiterPart = " << niter << std::endl;
-        if(ReadFromStats == 0)
-        {
-            std::cout << "Reading statistics? -> NO (5th entry in the metric.inp file is set to 0.)" << std::endl;
-            std::cout << "The metric is reconstructed based on instantaneous Mach number"<<std::endl;
-        }
-        if(ReadFromStats == 1)
-        {
-            std::cout << "Reading statistics? -> YES (5th entry in the metric.inp file is set to 1.)" << std::endl;
-            std::cout << "The metric is reconstructed based on the mean of Mach number."<<std::endl;
-
-        }
-        if(RunWakRefinement==0)
-        {
-            std::cout << "Wake refinement is switch OFF. (6th entry in the metric.inp file is set to 0. hwake, the 7th entry defined in the metric.inp file, is being ignored)" << std::endl;
-            
-        }
-        if(RunWakRefinement==1)
-        {
-            std::cout << "Wake refinement is switch ON with hwake = " << hwake << "(6th entry in the metric.inp file is set to 1 and hwake is set equal to the 7th entry defined in the metric.inp file.) " << std::endl;
-        }
-        
-        std::cout << "===================================================" << std::endl;
-        std::cout << "===================================================" << std::endl;
-        std::cout << "===================================================" << std::endl;
-        std::cout << "  " << std::endl;
-    }
-    //===========================================================================
-    US3D* us3d    = ReadUS3DGrid(fn_conn,fn_grid,ReadFromStats,comm,info);
-
-    //US3D* us3d  = ReadUS3DData(fn_conn,fn_grid,fn_data,ReadFromStats,comm,info);
-    int Nve       = us3d->xcn->getNglob();
-    
-    int Nel_part  = us3d->ien->getNrow();
-    int Nel_glob  = us3d->ien->getNglob();
-
-    Array<double>* Ui = new Array<double>(Nel_part,1);
-    
-    for(int i=0;i<Nel_part;i++)
-    {
-        Ui->setVal(i,0,1.0);
-    }
-
-    delete us3d->interior;
- 
-    Array<double>* gB = new Array<double>(us3d->ghost->getNrow(),1);
-    for(int i=0;i<us3d->ghost->getNrow();i++)
-    {
-        gB->setVal(i,0,0.0);
-    }
-    int ngho = us3d->ghost->getNrow();
-    int ngval;
-    MPI_Allreduce(&ngho, &ngval, 1, MPI_INT, MPI_MAX, comm);
-    
-       
-    ParallelState* ien_pstate               = new ParallelState(us3d->ien->getNglob(),comm);
-    ParallelState* ife_pstate               = new ParallelState(us3d->ifn->getNglob(),comm);
-    
-    ParallelState_Parmetis* parmetis_pstate = new ParallelState_Parmetis(us3d->ien,us3d->elTypes,us3d->ie_Nv,comm);
-    ParallelState* xcn_pstate               = new ParallelState(us3d->xcn->getNglob(),comm);
-    
-    clock_t t;
-    double tn = 0.0;
-    t = clock();
-      
-    Partition* P = new Partition(us3d->ien, us3d->iee, us3d->ief,
-                                 us3d->ie_Nv , us3d->ie_Nf,
-                                 us3d->ifn, us3d->ife,
-                                 us3d->if_ref, us3d->if_Nv,
-                                 parmetis_pstate,
-                                 ien_pstate, ife_pstate,
-                                 us3d->xcn, xcn_pstate, Ui, us3d->ie_tetCnt, comm);
-    if(world_rank == 0)
-    {
-        std::cout << "Done Partitioning..." << std::endl;
-    }
-
-    
-    std::vector<int> LocElem    = P->getLocElem();
-    std::vector<int> LocAndAdjElem    = P->getLocAndAdjElem();
-
-    i_part_map* ien_pmap        = P->getIENpartmap();
-    i_part_map* iee_pmap        = P->getIEEpartmap();
-    i_part_map* ief_pmap        = P->getIEFpartmap();
-    i_part_map* ifn_pmap        = P->getIFNpartmap();
-    
-    std::map<int,int> gV2lV     = P->getGlobalVert2LocalVert();
-    std::vector<std::vector<double> > locVs    = P->getLocalVerts();
-    
-    std::map<int,Array<double>*> Uvaria_map;
-    std::map<int,Array<double>*> dUdxAnalytical;
-    std::map<int,Array<double>*> dUdyAnalytical;
-    std::map<int,Array<double>*> dUdzAnalytical;
-    std::map<int,Array<double>*> dU2dx2Analytical;
-    std::map<int,Array<double>*> dU2dxyAnalytical;
-    std::map<int,Array<double>*> dU2dxzAnalytical;
-    
-    std::map<int,double> gbMap;
-    std::map<int,double> gbMap_dUdx;
-    std::map<int,double> gbMap_dUdy;
-    std::map<int,double> gbMap_dUdz;
-    std::map<int,double> gbMap_dU2dx2;
-    std::map<int,double> gbMap_dU2dxy;
-    std::map<int,double> gbMap_dU2dxz;
-    
+    std::map<int,std::vector<int> >::iterator itmii;
+    std::vector<double> v0(3,0.0);
+    std::vector<double> v1(3,0.0);
+    std::vector<double> n0(3,0.0);
+    std::vector<double> n1(3,0.0);
+    std::vector<double> r0(3,0.0);
+    double rdotn, U, dUdx, dUdy, dUdz, dU2dx2, dU2dxy, dU2dxz;
     std::vector<std::vector<double> > face;
-    double rdotn;
-
-    
-    std::vector<double> v0(3);
-    std::vector<double> v1(3);
-    std::vector<double> n0(3);
-    
     int loc_vid;
-    std::map<int,std::vector<int> > gE2lV = P->getGlobElem2LocVerts();
-    double dUdx,dUdy,dUdz,dU2dx2,dU2dxy,dU2dxz;
-    for(int i=0;i<LocElem.size();i++)
+
+    std::map<int,std::vector<int> > element2vert_map    = tetra_repart->getElement2VertexMap();
+    std::map<int,std::vector<int> > element2element_map = tetra_repart->getElement2ElementMap();
+    std::map<int,std::vector<int> > element2face_map    = tetra_repart->getElement2FacesMap();
+    std::map<int,std::vector<int> > face2vert_map       = tetra_repart->getFace2VertexMap();
+    std::map<int,std::vector<double> > locVs            = tetra_repart->getLocalVertsMap();
+
+    for(itmii=element2vert_map.begin();itmii!=element2vert_map.end();itmii++)
     {
-        int gid   = LocElem[i];
-        int nvrts = ien_pmap->i_map[gid].size();
-        //double* Pv = new double[nvrts*3];
+        int gid   = itmii->first;
+        int nvrts = element2vert_map[gid].size();
+
         std::vector<double> Pv(nvrts*3);
         for(int q=0;q<nvrts;q++)
         {
-            int gvid = ien_pmap->i_map[gid][q];
-            int lvid = gV2lV[gvid];
-            Pv[q*3+0] = locVs[lvid][0];
-            Pv[q*3+1] = locVs[lvid][1];
-            Pv[q*3+2] = locVs[lvid][2];
+            int gvid = element2vert_map[gid][q];
+            Pv[q*3+0] = locVs[gvid][0];
+            Pv[q*3+1] = locVs[gvid][1];
+            Pv[q*3+2] = locVs[gvid][2];
         }
         
         std::vector<double> Vijk = ComputeCentroidCoord(Pv,nvrts);
 
-//        double U    = 0.1*sin(50*Vm[0]*Vm[2])+atan(0.1/((sin(5.0*Vm[1])-2.0*Vm[0]*Vm[2])));
-//        double nom  = (Vm[0]*Vm[0]*Vm[2]*Vm[2]-Vm[0]*Vm[2]*sin(5.0*Vm[1])+0.25*sin(5.0*Vm[1])*sin(5.0*Vm[1])+0.0025);
-//        double dUdx = 0.05*Vm[2]/nom+0.5*Vm[2]*cos(5.0*Vm[0]*Vm[2]);
-        //double dUdy = -0.125*cos(5.0*Vm[1])/nom;
-        //double dUdz = 0.05*Vm[0]/nom+0.5*Vm[0]*cos(5.0*Vm[0]*Vm[2]);
         double vmx = Vijk[0];
         double vmy = Vijk[1];
         double vmz = Vijk[2];
 
-//        double U = 2.0*vmx*vmx+0.5*vmy+0.25*vmz;
-//        double dUdx = 4.0*vmx;
-//        double dUdy = 0.5;
-//        double dUdz = 0.25;
-//        double dU2dx2 = 4.0;
-        // sqrt(x*x+(y-0.5)*(y-0.5)+(z-0.5)*(z-0.5))
-//        double r    = sqrt(vmx*vmx+(vmy-0.5)*(vmy-0.5)+(vmz-0.5)*(vmz-0.5));
-//        double U    = 0.1*tanh(50*(r-0.5))+1.0;
-//
-//        dUdx = 5*vmx/(r*cosh(50*(r-0.5))*cosh(50*(r-0.5)));
-//        dUdy = 5*(vmy-0.5)/(r*cosh(50*(r-0.5))*cosh(50*(r-0.5)));
-//        dUdz = 5*(vmz-0.5)/(r*cosh(50*(r-0.5))*cosh(50*(r-0.5)));
-//
-//
-//        dU2dx2 = (5*(-100*vmx*vmx*r*tanh(50*(r-0.5)))+(vmy-0.5)*(vmy-0.5)+(vmz-0.5)*(vmz-0.5))/(cosh(50*(r-0.5))*cosh(50*(r-0.5))*pow(r,3.0/2.0));
-//        dU2dxy =  5*vmx*(vmy-0.5)*(-1.0/(pow(r*r,3.0/2.0))-100*tanh(50*(r-0.5))/(r*r))/(cosh(50*(r-0.5))*cosh(50*(r-0.5)));
-//        dU2dxz = 5*vmx*(vmz-0.5)*(-1.0/(pow(r*r,3.0/2.0))-100*tanh(50*(r-0.5))/(r*r))/(cosh(50*(r-0.5))*cosh(50*(r-0.5)));
         
         double S = 50.0;
-        double U = sin(S*(vmx-0.4)*(vmy-0.4)*(vmz-0.4));
-        dUdx   = S*(vmy-0.4)*(vmz-0.4)*cos(S*(vmx-0.4)*(vmy-0.4)*(vmz-0.4));
-        dUdy   = S*(vmx-0.4)*(vmz-0.4)*cos(S*(vmx-0.4)*(vmy-0.4)*(vmz-0.4));
-        dUdz   = S*(vmx-0.4)*(vmy-0.4)*cos(S*(vmx-0.4)*(vmy-0.4)*(vmz-0.4));
-        dU2dx2 = -(S*S)*(vmy-0.4)*(vmy-0.4)*(vmz-0.4)*(vmz-0.4)*sin(S*(vmx-0.4)*(vmy-0.4)*(vmz-0.4));
-        dU2dxy = S*(vmz-0.4)*(cos(S*(vmx-0.4)*(vmy-0.4)*(vmz-0.4))-S*(vmx-0.4)*(vmy-0.4)*(vmz-0.4)*sin(S*(vmx-0.4)*(vmy-0.4)*(vmz-0.4)));
-        dU2dxz = S*(vmy-0.4)*(cos(S*(vmx-0.4)*(vmy-0.4)*(vmz-0.4))-S*(vmx-0.4)*(vmy-0.4)*(vmz-0.4)*sin(S*(vmx-0.4)*(vmy-0.4)*(vmz-0.4)));
-        
-        
-        Array<double>* Uarr = new Array<double>(1,1);
-        Uarr->setVal(0,0,U);
-        Uvaria_map[gid] = Uarr;
-        Array<double>* dUdx_a = new Array<double>(1,1);
-        dUdx_a->setVal(0,0,dUdx);
-        dUdxAnalytical[gid] = dUdx_a;
-        Array<double>* dUdy_a = new Array<double>(1,1);
-        dUdy_a->setVal(0,0,dUdy);
-        dUdyAnalytical[gid] = dUdy_a;
-        Array<double>* dUdz_a = new Array<double>(1,1);
-        dUdz_a->setVal(0,0,dUdz);
-        Array<double>* dU2dx2_a = new Array<double>(1,1);
-        dU2dx2_a->setVal(0,0,dU2dx2);
-        dU2dx2Analytical[gid] = dU2dx2_a;
-        Array<double>* dU2dxy_a = new Array<double>(1,1);
-        dU2dxy_a->setVal(0,0,dU2dxy);
-        dU2dxyAnalytical[gid] = dU2dxy_a;
-        Array<double>* dU2dxz_a = new Array<double>(1,1);
-        dU2dxz_a->setVal(0,0,dU2dxz);
-        dU2dxzAnalytical[gid] = dU2dxz_a;
-        //delete[] Pv;
-        
-        int nadj = iee_pmap->i_map[gid].size();
+        std::vector<double> Uvec(7,0.0);
+        std::vector<double> Uvec2(1,0.0);
+        Uvec2[0] = sin(S*(vmx-0.4)*(vmy-0.4)*(vmz-0.4));
+        Uvec[0] = sin(S*(vmx-0.4)*(vmy-0.4)*(vmz-0.4));
+        Uvec[1] = S*(vmy-0.4)*(vmz-0.4)*cos(S*(vmx-0.4)*(vmy-0.4)*(vmz-0.4));
+        Uvec[2] = S*(vmx-0.4)*(vmz-0.4)*cos(S*(vmx-0.4)*(vmy-0.4)*(vmz-0.4));
+        Uvec[3] = S*(vmx-0.4)*(vmy-0.4)*cos(S*(vmx-0.4)*(vmy-0.4)*(vmz-0.4));
+
+        Uvec[4] = -(S*S)*(vmy-0.4)*(vmy-0.4)*(vmz-0.4)*(vmz-0.4)*sin(S*(vmx-0.4)*(vmy-0.4)*(vmz-0.4));
+        Uvec[5] = S*(vmz-0.4)*(cos(S*(vmx-0.4)*(vmy-0.4)*(vmz-0.4))-S*(vmx-0.4)*(vmy-0.4)*(vmz-0.4)*sin(S*(vmx-0.4)*(vmy-0.4)*(vmz-0.4)));
+        Uvec[6] = S*(vmy-0.4)*(cos(S*(vmx-0.4)*(vmy-0.4)*(vmz-0.4))-S*(vmx-0.4)*(vmy-0.4)*(vmz-0.4)*sin(S*(vmx-0.4)*(vmy-0.4)*(vmz-0.4)));
+        U_map[gid] = Uvec;
+        Usol[gid] = Uvec2;
+        int nadj = element2element_map[gid].size();
 
         for(int j=0;j<nadj;j++)
         {
-            int adjID = iee_pmap->i_map[gid][j];
+            int adjID = element2element_map[gid][j];
             
             if(adjID>=Nel_glob)
             {
-                int fid = ief_pmap->i_map[gid][j];
-                int nvf = ifn_pmap->i_map[fid].size();
+                
+                int fid = element2face_map[gid][j];
+                int nvf = face2vert_map[fid].size();
                 double* Fa = new double[nvf*3];
                 std::vector<double> vface(3);
+
                 for(int k=0;k<nvf;k++)
                 {
-                    int gvid = ifn_pmap->i_map[fid][k];
-                    int lvid = gV2lV[gvid];
-                    vface[0] = vface[0] + locVs[lvid][0];
-                    vface[1] = vface[1] + locVs[lvid][1];
-                    vface[2] = vface[2] + locVs[lvid][2];
+                    int gvid = face2vert_map[fid][k];
+                 
+                    vface[0] = vface[0] + locVs[gvid][0];
+                    vface[1] = vface[1] + locVs[gvid][1];
+                    vface[2] = vface[2] + locVs[gvid][2];
                     
                     std::vector<double> V(3);
-                    V[0]    = locVs[lvid][0];
-                    V[1]    = locVs[lvid][1];
-                    V[2]    = locVs[lvid][2];
+                    V[0]    = locVs[gvid][0];
+                    V[1]    = locVs[gvid][1];
+                    V[2]    = locVs[gvid][2];
                     face.push_back(V);
                 }
                 
@@ -601,7 +161,7 @@ int main(int argc, char** argv)
                 double vgz = vface[2] - reflect[2];
                 
                 
-                U = sin(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4));
+                U      = sin(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4));
                 dUdx   = S*(vgy-0.4)*(vgz-0.4)*cos(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4));
                 dUdy   = S*(vgx-0.4)*(vgz-0.4)*cos(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4));
                 dUdz   = S*(vgx-0.4)*(vgy-0.4)*cos(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4));
@@ -609,67 +169,71 @@ int main(int argc, char** argv)
                 dU2dxy = S*(vgz-0.4)*(cos(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4))-S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4)*sin(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4)));
                 dU2dxz = S*(vgy-0.4)*(cos(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4))-S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4)*sin(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4)));
                 
-//                r = sqrt(vgx*vgx+(vgy-0.5)*(vgy-0.5)+(vgz-0.5)*(vgz-0.5));
-//                U = 0.1*tanh(50*(r-0.5))+1.0;
-//                dUdx = 5*vgx/(r*cosh(50*(r-0.5))*cosh(50*(r-0.5)));
-//                dUdy = 5*(vgy-0.5)/(r*cosh(50*(r-0.5))*cosh(50*(r-0.5)));
-//                dUdz = 5*(vgz-0.5)/(r*cosh(50*(r-0.5))*cosh(50*(r-0.5)));
-//
-//                dU2dx2 = (5*(-100*vgx*vgx*r*tanh(50*(r-0.5)))+(vgy-0.5)*(vgy-0.5)+(vgz-0.5)*(vgz-0.5))/(cosh(50*(r-0.5))*cosh(50*(r-0.5))*pow(r,3.0/2.0));
-//                dU2dxy =  5*vgx*(vgy-0.5)*(-1.0/(pow(r*r,3.0/2.0))-100*tanh(50*(r-0.5))/(r*r))/(cosh(50*(r-0.5))*cosh(50*(r-0.5)));
-//                dU2dxz = 5*vgx*(vmz-0.5)*(-1.0/(pow(r*r,3.0/2.0))-100*tanh(50*(r-0.5))/(r*r))/(cosh(50*(r-0.5))*cosh(50*(r-0.5)));
+                std::vector<double> gbMap_vec(1,0.0);
+                gbMap_vec[0] = U;
+                gbMap[adjID]=gbMap_vec;
                 
-                gbMap[adjID]=U;
-                gbMap_dUdx[adjID]=dUdx;
-                gbMap_dUdy[adjID]=dUdy;
-                gbMap_dUdz[adjID]=dUdz;
+                std::vector<double> gbMap_dUdx_vec(1,0.0);
+                gbMap_dUdx_vec[0] = dUdx;
+                gbMap_dUdx[adjID] = gbMap_dUdx_vec;
+                std::vector<double> gbMap_dUdy_vec(1,0.0);
+                gbMap_dUdy_vec[0] = dUdy;
+                gbMap_dUdy[adjID] = gbMap_dUdy_vec;
+                std::vector<double> gbMap_dUdz_vec(1,0.0);
+                gbMap_dUdz_vec[0] = dUdz;
+                gbMap_dUdz[adjID] = gbMap_dUdz_vec;
                 
-                gbMap_dU2dx2[adjID]=dU2dx2;
-                gbMap_dU2dxy[adjID]=dU2dxy;
-                gbMap_dU2dxz[adjID]=dU2dxz;
+                std::vector<double> gbMap_dU2dx2_vec(1,0.0);
+                gbMap_dU2dx2_vec[0] = dU2dx2;
+                gbMap_dU2dx2[adjID]=gbMap_dU2dx2_vec;
+                std::vector<double> gbMap_dU2dxy_vec(1,0.0);
+                gbMap_dU2dxy_vec[0] = dU2dxy;
+                gbMap_dU2dxy[adjID] = gbMap_dU2dxy_vec;
+                std::vector<double> gbMap_dU2dxz_vec(1,0.0);
+                gbMap_dU2dxz_vec[0] = dU2dxz;
+                gbMap_dU2dxz[adjID] = gbMap_dU2dxz_vec;
+                
                 face.clear();
             }
             
-            if(iee_pmap->i_map.find(adjID)!=iee_pmap->i_map.end())
+            if(element2element_map.find(adjID)!=element2element_map.end())
             {
-                int NadjadjID = iee_pmap->i_map[adjID].size();
+                int NadjadjID = element2element_map[adjID].size();
                 
-                int NvPadjadjID = gE2lV[adjID].size();
+                int NvPadjadjID = element2vert_map[adjID].size();
                 //double* PadjadjID = new double[NvPadjadjID*3];
                 std::vector<double> PadjadjID(NvPadjadjID*3);
                 for(int k=0;k<NvPadjadjID;k++)
                 {
-                    loc_vid     = gE2lV[adjID][k];
+                    loc_vid          = element2vert_map[adjID][k];
                     PadjadjID[k*3+0] = locVs[loc_vid][0];
                     PadjadjID[k*3+1] = locVs[loc_vid][1];
                     PadjadjID[k*3+2] = locVs[loc_vid][2];
                 }
                 
                 std::vector<double> VadjadjID   = ComputeCentroidCoord(PadjadjID,NvPadjadjID);
-                
-                //delete[] PadjadjID;
-                
+                                
                 for(int k=0;k<NadjadjID;k++)
                 {
-                    int adjadjID = iee_pmap->i_map[adjID][k];
+                    int adjadjID = element2element_map[adjID][k];
                     
                     if(adjadjID>=Nel_glob)
                     {
-                        int fid = ief_pmap->i_map[adjID][k];
-                        int nvf = ifn_pmap->i_map[fid].size();
-                        std::vector<double> vface(3);
+                        int fid = element2face_map[adjID][k];
+                        int nvf = face2vert_map[fid].size();
+                        
+                        std::vector<double> vface(3,0);
                         for(int k=0;k<nvf;k++)
                         {
-                            int gvid = ifn_pmap->i_map[fid][k];
-                            int lvid = gV2lV[gvid];
-                            vface[0] = vface[0] + locVs[lvid][0];
-                            vface[1] = vface[1] + locVs[lvid][1];
-                            vface[2] = vface[2] + locVs[lvid][2];
+                            int gvid = face2vert_map[fid][k];
+                            vface[0] = vface[0] + locVs[gvid][0];
+                            vface[1] = vface[1] + locVs[gvid][1];
+                            vface[2] = vface[2] + locVs[gvid][2];
                             
                             std::vector<double> V(3);
-                            V[0]    = locVs[lvid][0];
-                            V[1]    = locVs[lvid][1];
-                            V[2]    = locVs[lvid][2];
+                            V[0]    = locVs[gvid][0];
+                            V[1]    = locVs[gvid][1];
+                            V[2]    = locVs[gvid][2];
                             face.push_back(V);
                         }
                         
@@ -717,39 +281,44 @@ int main(int argc, char** argv)
                         dU2dxy = S*(vgz-0.4)*(cos(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4))-S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4)*sin(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4)));
                         dU2dxz = S*(vgy-0.4)*(cos(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4))-S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4)*sin(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4)));
                         
-//                        r = sqrt(vgx*vgx+(vgy-0.5)*(vgy-0.5)+(vgz-0.5)*(vgz-0.5));
-//                        U = 0.1*tanh(50*(r-0.5))+1.0;
-//                        dUdx = 5*vgx/(r*cosh(50*(r-0.5))*cosh(50*(r-0.5)));
-//                        dUdy = 5*(vgy-0.5)/(r*cosh(50*(r-0.5))*cosh(50*(r-0.5)));
-//                        dUdz = 5*(vgz-0.5)/(r*cosh(50*(r-0.5))*cosh(50*(r-0.5)));
-//
-//                        dU2dx2 = (5*(-100*vgx*vgx*r*tanh(50*(r-0.5)))+(vgy-0.5)*(vgy-0.5)+(vgz-0.5)*(vgz-0.5))/(cosh(50*(r-0.5))*cosh(50*(r-0.5))*pow(r,3.0/2.0));
-//                        dU2dxy =  5*vgx*(vgy-0.5)*(-1.0/(pow(r*r,3.0/2.0))-100*tanh(50*(r-0.5))/(r*r))/(cosh(50*(r-0.5))*cosh(50*(r-0.5)));
-//                        dU2dxz = 5*vgx*(vmz-0.5)*(-1.0/(pow(r*r,3.0/2.0))-100*tanh(50*(r-0.5))/(r*r))/(cosh(50*(r-0.5))*cosh(50*(r-0.5)));
                         
-                        gbMap[adjadjID]=U;
+                        std::vector<double> gbMap_vec(1,0.0);
+                        gbMap_vec[0] = U;
+                        gbMap[adjadjID]=gbMap_vec;
                         
-                        gbMap_dUdx[adjadjID]=dUdx;
-                        gbMap_dUdy[adjadjID]=dUdy;
-                        gbMap_dUdz[adjadjID]=dUdz;
+                        std::vector<double> gbMap_dUdx_vec(1,0.0);
+                        gbMap_dUdx_vec[0] = dUdx;
+                        gbMap_dUdx[adjadjID]=gbMap_dUdx_vec;
+                        std::vector<double> gbMap_dUdy_vec(1,0.0);
+                        gbMap_dUdy_vec[0] = dUdy;
+                        gbMap_dUdy[adjadjID]=gbMap_dUdy_vec;
+                        std::vector<double> gbMap_dUdz_vec(1,0.0);
+                        gbMap_dUdz_vec[0] = dUdz;
+                        gbMap_dUdz[adjadjID]=gbMap_dUdz_vec;
                         
-                        gbMap_dU2dx2[adjadjID]=dU2dx2;
-                        gbMap_dU2dxy[adjadjID]=dU2dxy;
-                        gbMap_dU2dxz[adjadjID]=dU2dxz;
+                        std::vector<double> gbMap_dU2dx2_vec(1,0.0);
+                        gbMap_dU2dx2_vec[0] = dU2dx2;
+                        gbMap_dU2dx2[adjadjID]=gbMap_dU2dx2_vec;
+                        std::vector<double> gbMap_dU2dxy_vec(1,0.0);
+                        gbMap_dU2dxy_vec[0] = dU2dxy;
+                        gbMap_dU2dxy[adjadjID]=gbMap_dU2dxy_vec;
+                        std::vector<double> gbMap_dU2dxz_vec(1,0.0);
+                        gbMap_dU2dxz_vec[0] = dU2dxz;
+                        gbMap_dU2dxz[adjadjID]=gbMap_dU2dxz_vec;
                         
                         face.clear();
                     }
                     
-                    if(iee_pmap->i_map.find(adjadjID)!=iee_pmap->i_map.end())
+                    if(element2element_map.find(adjadjID)!=element2element_map.end())
                     {
-                        int NadjadjadjID = iee_pmap->i_map[adjadjID].size();
+                        int NadjadjadjID = element2element_map[adjadjID].size();
 //
-                        int NvPadjadjadjID = gE2lV[adjadjID].size();
+                        int NvPadjadjadjID = element2vert_map[adjadjID].size();
                         //double* PadjadjadjID = new double[NvPadjadjadjID*3];
                         std::vector<double> PadjadjadjID(NvPadjadjadjID*3);
                         for(int k=0;k<NvPadjadjadjID;k++)
                         {
-                            loc_vid     = gE2lV[adjadjID][k];
+                            loc_vid     = element2vert_map[adjadjID][k];
                             PadjadjadjID[k*3+0] = locVs[loc_vid][0];
                             PadjadjadjID[k*3+1] = locVs[loc_vid][1];
                             PadjadjadjID[k*3+2] = locVs[loc_vid][2];
@@ -761,25 +330,25 @@ int main(int argc, char** argv)
 
                         for(int f=0;f<NadjadjadjID;f++)
                         {
-                            int adjadjadjID = iee_pmap->i_map[adjadjID][f];
+                            int adjadjadjID = element2element_map[adjadjID][f];
 
                             if(adjadjadjID>=Nel_glob)
                             {
-                                int fid = ief_pmap->i_map[adjadjID][f];
-                                int nvf = ifn_pmap->i_map[fid].size();
+                                int fid = element2face_map[adjadjID][f];
+                                int nvf = face2vert_map[fid].size();
+                            
                                 std::vector<double> vface(3);
                                 for(int ve=0;ve<nvf;ve++)
                                 {
-                                    int gvid = ifn_pmap->i_map[fid][ve];
-                                    int lvid = gV2lV[gvid];
-                                    vface[0] = vface[0] + locVs[lvid][0];
-                                    vface[1] = vface[1] + locVs[lvid][1];
-                                    vface[2] = vface[2] + locVs[lvid][2];
+                                    int gvid = face2vert_map[fid][ve];
+                                    vface[0] = vface[0] + locVs[gvid][0];
+                                    vface[1] = vface[1] + locVs[gvid][1];
+                                    vface[2] = vface[2] + locVs[gvid][2];
 
                                     std::vector<double> V(3);
-                                    V[0]    = locVs[lvid][0];
-                                    V[1]    = locVs[lvid][1];
-                                    V[2]    = locVs[lvid][2];
+                                    V[0]    = locVs[gvid][0];
+                                    V[1]    = locVs[gvid][1];
+                                    V[2]    = locVs[gvid][2];
                                     face.push_back(V);
                                 }
 
@@ -827,25 +396,30 @@ int main(int argc, char** argv)
                                 dU2dx2 = -(S*S)*(vgy-0.4)*(vgy-0.4)*(vgz-0.4)*(vgz-0.4)*sin(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4));
                                 dU2dxy = S*(vgz-0.4)*(cos(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4))-S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4)*sin(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4)));
                                 dU2dxz = S*(vgy-0.4)*(cos(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4))-S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4)*sin(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4)));
-//                                r = sqrt(vgx*vgx+(vgy-0.5)*(vgy-0.5)+(vgz-0.5)*(vgz-0.5));
-//                                U = 0.1*tanh(50*(r-0.5))+1.0;
-//                                dUdx = 5*vgx/(r*cosh(50*(r-0.5))*cosh(50*(r-0.5)));
-//                                dUdy = 5*(vgy-0.5)/(r*cosh(50*(r-0.5))*cosh(50*(r-0.5)));
-//                                dUdz = 5*(vgz-0.5)/(r*cosh(50*(r-0.5))*cosh(50*(r-0.5)));
-//
-//                                dU2dx2 = (5*(-100*vgx*vgx*r*tanh(50*(r-0.5)))+(vgy-0.5)*(vgy-0.5)+(vgz-0.5)*(vgz-0.5))/(cosh(50*(r-0.5))*cosh(50*(r-0.5))*pow(r,3.0/2.0));
-//                                dU2dxy =  5*vgx*(vgy-0.5)*(-1.0/(pow(r*r,3.0/2.0))-100*tanh(50*(r-0.5))/(r*r))/(cosh(50*(r-0.5))*cosh(50*(r-0.5)));
-//                                dU2dxz = 5*vgx*(vmz-0.5)*(-1.0/(pow(r*r,3.0/2.0))-100*tanh(50*(r-0.5))/(r*r))/(cosh(50*(r-0.5))*cosh(50*(r-0.5)));
+
+                                std::vector<double> gbMap_vec(1,0.0);
+                                gbMap_vec[0] = U;
+                                gbMap[adjadjadjID]=gbMap_vec;
                                 
-                                gbMap[adjadjadjID]=U;
+                                std::vector<double> gbMap_dUdx_vec(1,0.0);
+                                gbMap_dUdx_vec[0] = dUdx;
+                                gbMap_dUdx[adjadjadjID]=gbMap_dUdx_vec;
+                                std::vector<double> gbMap_dUdy_vec(1,0.0);
+                                gbMap_dUdy_vec[0] = dUdy;
+                                gbMap_dUdy[adjadjadjID]=gbMap_dUdy_vec;
+                                std::vector<double> gbMap_dUdz_vec(1,0.0);
+                                gbMap_dUdz_vec[0] = dUdz;
+                                gbMap_dUdz[adjadjadjID]=gbMap_dUdz_vec;
                                 
-                                gbMap_dUdx[adjadjadjID]=dUdx;
-                                gbMap_dUdy[adjadjadjID]=dUdy;
-                                gbMap_dUdz[adjadjadjID]=dUdz;
-                                
-                                gbMap_dU2dx2[adjadjadjID]=dU2dx2;
-                                gbMap_dU2dxy[adjadjadjID]=dU2dxy;
-                                gbMap_dU2dxz[adjadjadjID]=dU2dxz;
+                                std::vector<double> gbMap_dU2dx2_vec(1,0.0);
+                                gbMap_dU2dx2_vec[0] = dU2dx2;
+                                gbMap_dU2dx2[adjadjadjID]=gbMap_dU2dx2_vec;
+                                std::vector<double> gbMap_dU2dxy_vec(1,0.0);
+                                gbMap_dU2dxy_vec[0] = dU2dxy;
+                                gbMap_dU2dxy[adjadjadjID]=gbMap_dU2dxy_vec;
+                                std::vector<double> gbMap_dU2dxz_vec(1,0.0);
+                                gbMap_dU2dxz_vec[0] = dU2dxz;
+                                gbMap_dU2dxz[adjadjadjID]=gbMap_dU2dxz_vec;
                                 face.clear();
                             }
                         }
@@ -854,327 +428,591 @@ int main(int argc, char** argv)
             }
         }
     }
+}
 
-    if(world_rank == 0)
-    {
-        std::cout << "Done Preparing Boundary Data..." << std::endl;
-    }
+
+
+
+
+int main(int argc, char** argv)
+{
+    MPI_Init(NULL, NULL);
+    FILE            *inm;
+    MPI_Comm comm = MPI_COMM_WORLD;
+    MPI_Info info = MPI_INFO_NULL;
+    int world_size;
+    MPI_Comm_size(comm, &world_size);
+    // Get the rank of the process
+    int world_rank;
+    MPI_Comm_rank(comm, &world_rank);
+    int i,j,k;
+    clock_t t0_met = clock();
+
+    int ier,opt;
+    int debug = 1;
 
     
-    double sum      = 0.0;
-    double sum_dist = 0.0;
-    double di       = 0.0;
-    double uval     = 0.0;
-    double du       = 0.0;
-    
-    Mesh_Topology* meshTopo = new Mesh_Topology(P,comm);
+    std::map<int,std::vector<const char*> > grids;
+    grids[10].push_back("inputs/grid101010.h5");
+    grids[10].push_back("inputs/conn101010.h5");
+    grids[25].push_back("inputs/grid252525.h5");
+    grids[25].push_back("inputs/conn252525.h5");
+    grids[50].push_back("inputs/grid505050.h5");
+    grids[50].push_back("inputs/conn505050.h5");
+    // Read in the inputs from metric.xml
+    Inputs* inputs = ReadXmlFile(comm, "inputs/metric.xml");
 
-    P->AddStateVecForAdjacentElements(Uvaria_map,1,comm);
-        
-    std::map<int,Array<double>* > Mvar_vmap = P->ReduceStateVecToAllVertices(Uvaria_map,1);
-    
-    std::map<int,Array<double>* >::iterator vm;
-    
-    delete us3d->ghost;
-    delete us3d->ien;
-    delete us3d->iee;
-    delete us3d->ief;
-    delete us3d->ie_Nv;
-    delete us3d->ie_Nf;
-//  delete us3d->ifn;
-    delete us3d->ife;
-    //delete us3d->if_ref;
-    delete us3d->if_Nv;
-//  delete us3d->xcn;
-    
-    std::map<int,Array<double>* > dUdXi_HO  = ComputedUdx_LSQ_HO_US3D(P,Uvaria_map,meshTopo,gbMap,comm);
-    //std::map<int,Array<double>* > dUdXi_LS  = ComputedUdx_LSQ_US3D_LargeStencil(P,Uvaria_map,meshTopo,gbMap,comm);
-    std::map<int,Array<double>* > dUdXi     = ComputedUdx_LSQ_US3D(P,Uvaria_map,meshTopo,gbMap,comm);
-    std::map<int,Array<double>* > dUdXi_mgg = ComputedUdx_MGG(P,Uvaria_map,meshTopo,gbMap,comm);
-    std::map<int,Array<double>* > dUdx_lsqv1;
-    std::map<int,Array<double>* >::iterator itsol;
-    double L2_dudx_lsq_1   = 0.0;
-    double L2_dudx_mgg     = 0.0;
-    double L2_dudx_lsq_2   = 0.0;
-    double L2_d2udx2_lsq_2 = 0.0;
-    double L2_d2udxy_lsq_2 = 0.0;
-    double L2_d2udxz_lsq_2 = 0.0;
-    int Nell=0;
-    for(itsol=dUdXi_HO.begin();itsol!=dUdXi_HO.end();itsol++)
+
+    std::map<int,std::vector<const char*> >::iterator itg;
+    for(itg=grids.begin();itg!=grids.end();itg++)
     {
-        int elId = itsol->first;
+        const char* fn_grid = itg->second[0];
+        const char* fn_conn = itg->second[1];
+
+        //===========================================================================
+        // Read in the data from grid.h5/conn.h5/data.h5 in parallel using HDF5.
+        // the outputted data in meshRead contains uniformly distributed data structures that will have to be partitioned.
+        mesh* meshRead = ReadUS3DMesh(fn_conn,fn_grid,
+                                        inputs->ReadFromStats,
+                                        inputs->StateVar,
+                                        comm,info);
+
+        int Nel_loc = meshRead->ien.size();
+        //Start building the trace object that contains the information regarding the prism-tetra interfaces.
+        // It contains the unique vertex and face information.
+        //====================================================================================
         
-        Array<double>* entry=new Array<double>(1,1);
-        entry->setVal(0,0,dUdXi[elId]->getVal(0,0));
-        dUdx_lsqv1[elId] = entry;
-        L2_dudx_lsq_1   = L2_dudx_lsq_1+(dUdXi[elId]->getVal(0,0)-dUdxAnalytical[elId]->getVal(0,0))*(dUdXi[elId]->getVal(0,0)-dUdxAnalytical[elId]->getVal(0,0));
-        L2_dudx_mgg     = L2_dudx_mgg+(dUdXi_mgg[elId]->getVal(0,0)-dUdxAnalytical[elId]->getVal(0,0))*(dUdXi_mgg[elId]->getVal(0,0)-dUdxAnalytical[elId]->getVal(0,0));
-        L2_dudx_lsq_2   = L2_dudx_lsq_2+(itsol->second->getVal(0,0)-dUdxAnalytical[elId]->getVal(0,0))*(itsol->second->getVal(0,0)-dUdxAnalytical[elId]->getVal(0,0));
-        L2_d2udx2_lsq_2 = L2_d2udx2_lsq_2+(itsol->second->getVal(3,0)-dU2dx2Analytical[elId]->getVal(0,0))*(itsol->second->getVal(3,0)-dU2dx2Analytical[elId]->getVal(0,0));
-        L2_d2udxy_lsq_2 = L2_d2udxy_lsq_2+(itsol->second->getVal(4,0)-dU2dxyAnalytical[elId]->getVal(0,0))*(itsol->second->getVal(4,0)-dU2dxyAnalytical[elId]->getVal(0,0));
-        L2_d2udxz_lsq_2 = L2_d2udxz_lsq_2+(itsol->second->getVal(5,0)-dU2dxzAnalytical[elId]->getVal(0,0))*(itsol->second->getVal(5,0)-dU2dxzAnalytical[elId]->getVal(0,0));
+
+        clock_t start1, end1, start, end;
+        double dur_max1,time_taken1;
+
+        start1 = clock();
+
+        PrismTetraTrace* pttrace = new PrismTetraTrace(comm, 
+                                                    meshRead->element2rank, 
+                                                    meshRead->ife,
+                                                    meshRead->ifn,
+                                                    meshRead->iet, 
+                                                    meshRead->nElem, 
+                                                    meshRead->nFace, 
+                                                    meshRead->nVert);
+
         
-        Nell++;
-    }
-    double L2_dudx_lsq_1_tot;
-    MPI_Allreduce(&L2_dudx_lsq_1, &L2_dudx_lsq_1_tot, 1, MPI_DOUBLE, MPI_SUM, comm);
-    double L2_dudx_mgg_tot;
-    MPI_Allreduce(&L2_dudx_mgg, &L2_dudx_mgg_tot, 1, MPI_DOUBLE, MPI_SUM, comm);
-    double L2_dudx_lsq_2_tot;
-    MPI_Allreduce(&L2_dudx_lsq_2, &L2_dudx_lsq_2_tot, 1, MPI_DOUBLE, MPI_SUM, comm);
-    double L2_d2udx2_lsq_2_tot;
-    MPI_Allreduce(&L2_d2udx2_lsq_2, &L2_d2udx2_lsq_2_tot, 1, MPI_DOUBLE, MPI_SUM, comm);
-    double L2_d2udxy_lsq_2_tot;
-    MPI_Allreduce(&L2_d2udxy_lsq_2, &L2_d2udxy_lsq_2_tot, 1, MPI_DOUBLE, MPI_SUM, comm);
-    double L2_d2udxz_lsq_2_tot;
-    MPI_Allreduce(&L2_d2udxz_lsq_2, &L2_d2udxz_lsq_2_tot, 1, MPI_DOUBLE, MPI_SUM, comm);
-    int Nell_tot;
-    MPI_Allreduce(&Nell, &Nell_tot, 1, MPI_INT, MPI_SUM, comm);
-    
-    P->AddStateVecForAdjacentElements(dUdx_lsqv1,1,comm);
-    std::map<int,Array<double>* > dU2dXi2   = ComputedUdx_LSQ_US3D(P,dUdx_lsqv1,meshTopo,gbMap_dUdx,comm);
-    int Nell2 = 0;
-    double L2_d2udx2_lsq_1 = 0.0;
-    double L2_d2udxy_lsq_1 = 0.0;
-    double L2_d2udxz_lsq_1 = 0.0;
-    for(itsol=dU2dXi2.begin();itsol!=dU2dXi2.end();itsol++)
-    {
-        int elId = itsol->first;
-        L2_d2udx2_lsq_1 = L2_d2udx2_lsq_1+(itsol->second->getVal(0,0)-dU2dx2Analytical[elId]->getVal(0,0))*(itsol->second->getVal(0,0)-dU2dx2Analytical[elId]->getVal(0,0));
-        L2_d2udxy_lsq_1 = L2_d2udxy_lsq_1+(itsol->second->getVal(1,0)-dU2dxyAnalytical[elId]->getVal(0,0))*(itsol->second->getVal(1,0)-dU2dxyAnalytical[elId]->getVal(0,0));
-        L2_d2udxz_lsq_1 = L2_d2udxz_lsq_1+(itsol->second->getVal(2,0)-dU2dxzAnalytical[elId]->getVal(0,0))*(itsol->second->getVal(2,0)-dU2dxzAnalytical[elId]->getVal(0,0));
-        Nell2++;
-    }
-    double L2_d2udx2_lsq_1_tot;
-    double L2_d2udxy_lsq_1_tot;
-    double L2_d2udxz_lsq_1_tot;
-    
-    MPI_Allreduce(&L2_d2udx2_lsq_1, &L2_d2udx2_lsq_1_tot, 1, MPI_DOUBLE, MPI_SUM, comm);
-    MPI_Allreduce(&L2_d2udxy_lsq_1, &L2_d2udxy_lsq_1_tot, 1, MPI_DOUBLE, MPI_SUM, comm);
-    MPI_Allreduce(&L2_d2udxz_lsq_1, &L2_d2udxz_lsq_1_tot, 1, MPI_DOUBLE, MPI_SUM, comm);
-    int Nell_tot2;
-    MPI_Allreduce(&Nell2, &Nell_tot2, 1, MPI_INT, MPI_SUM, comm);
-    
-    std::vector<double> errors = ReadReferenceErrors("errors.ref");
-    
-    if(world_rank == 0)
-    {
-        double err0 = sqrt(L2_dudx_lsq_1_tot)/Nell_tot-errors[0];
-        double err1 = sqrt(L2_dudx_lsq_2_tot)/Nell_tot-errors[1];
-        double err2 = sqrt(L2_dudx_mgg_tot)/Nell_tot-errors[2];
-        double err3 = sqrt(L2_d2udx2_lsq_1_tot)/Nell_tot2-errors[3];
-        double err4 = sqrt(L2_d2udxy_lsq_1_tot)/Nell_tot2-errors[4];
-        double err5 = sqrt(L2_d2udxz_lsq_1_tot)/Nell_tot2-errors[5];
-        double err6 = sqrt(L2_d2udx2_lsq_2_tot)/Nell_tot-errors[6];
-        double err7 = sqrt(L2_d2udxy_lsq_2_tot)/Nell_tot-errors[7];
-        double err8 = sqrt(L2_d2udxz_lsq_2_tot)/Nell_tot-errors[8];
-        
-        std::cout << std::setprecision(16) << "L2norm dUdx   lsq v1   = " << sqrt(L2_dudx_lsq_1_tot)/Nell_tot << std::endl;
-        std::cout << std::setprecision(16) << "L2norm dUdx   lsq v2   = " << sqrt(L2_dudx_lsq_2_tot)/Nell_tot << std::endl;
-        std::cout << std::setprecision(16) << "L2norm dUdx   mgg      = " << sqrt(L2_dudx_mgg_tot)/Nell_tot << std::endl;
-        std::cout << std::setprecision(16) << "L2norm dU2dx2 lsq v1   = " << sqrt(L2_d2udx2_lsq_1_tot)/Nell_tot2 << std::endl;
-        std::cout << std::setprecision(16) << "L2norm dU2dxy lsq v1   = " << sqrt(L2_d2udxy_lsq_1_tot)/Nell_tot2 << std::endl;
-        std::cout << std::setprecision(16) << "L2norm dU2dxz lsq v1   = " << sqrt(L2_d2udxz_lsq_1_tot)/Nell_tot2 << std::endl;
-        std::cout << std::setprecision(16) << "L2norm dU2dx2 lsq v2   = " << sqrt(L2_d2udx2_lsq_2_tot)/Nell_tot << std::endl;
-        std::cout << std::setprecision(16) << "L2norm dU2dxy lsq v2   = " << sqrt(L2_d2udxy_lsq_2_tot)/Nell_tot << std::endl;
-        std::cout << std::setprecision(16) << "L2norm dU2dxz lsq v2   = " << sqrt(L2_d2udxz_lsq_2_tot)/Nell_tot << std::endl;
-        
-        double total_error = err0+err1+err2+err3+err4+err5+err6+err7+err8;
-        std::cout << "Total error " << total_error << std::endl;
-        
-        if(fabs(total_error) < 1.0e-16)
+        end1 = clock();
+        time_taken1 = ( end1 - start1) / (double) CLOCKS_PER_SEC;
+        MPI_Allreduce(&time_taken1, &dur_max1, 1, MPI_DOUBLE, MPI_MAX, comm);
+        if(world_rank == 0)
         {
-            std::cout << "The gradient reconstruction tests have PASSED!" << std::endl;
-	    std::cout << "Partitioning test has PASSED." << std::endl;
-            
-            std::ofstream myfile;
-            myfile.open("gradient_reconstruction_test.PASSED");
-            myfile << "SUCCES!" << std::endl;
-            myfile.close();
+            cout << "Time taken to broadcast boundary layer/tetra trace data is : " << fixed
+            << dur_max1 << setprecision(16);
+            cout << " sec " << endl;
         }
-	else
-        {
-            std::cout << "The gradient reconstruction tests have FAILED. " << total_error <<  std::endl;
-            std::ofstream myfile;
-            myfile.open("gradient_reconstruction.FAILED");
-            myfile << "FAILED! error = " << total_error << std::endl;
-            myfile.close();
-        }
-        
-    }
-    
-    std::map<int,std::vector<int> >::iterator ienit;
-    
-    P->AddStateVecForAdjacentElements(dUdXi_HO,9,comm);
-    std::map<int,Array<double>* > dudx_ho_vmap = P->ReduceStateVecToAllVertices(dUdXi_HO,9);
-    
-    P->AddStateVecForAdjacentElements(dUdXi_mgg,3,comm);
-    std::map<int,Array<double>* > dudx_mgg_vmap = P->ReduceStateVecToAllVertices(dUdXi_mgg,3);
-    
-    P->AddStateVecForAdjacentElements(dUdXi,3,comm);
-    std::map<int,Array<double>* > dudx_vmap = P->ReduceStateVecToAllVertices(dUdXi,3);
-    
-    P->AddStateVecForAdjacentElements(dU2dXi2,3,comm);
-    std::map<int,Array<double>* > du2dx2_vmap = P->ReduceStateVecToAllVertices(dU2dXi2,3);
 
-    P->AddStateVecForAdjacentElements(dUdxAnalytical,1,comm);
-    std::map<int,Array<double>* > dudx_a_vmap = P->ReduceStateVecToAllVertices(dUdxAnalytical,1);
-    
-    P->AddStateVecForAdjacentElements(dU2dx2Analytical,1,comm);
-    std::map<int,Array<double>* > du2dx2_a_vmap = P->ReduceStateVecToAllVertices(dU2dx2Analytical,1);
-    
-    std::set<int> gv_set;
-    std::vector<int> lverts;
-    std::map<int,int> lpartv2gv_v2;
-    std::map<int,int> gv2lpv2;
-    std::vector<std::vector<int> > locelem2locnode;
-    std::vector<std::vector<double> > printVs;
-    int lcv2 = 0;
-    std::vector<std::vector<double>> variable;
-    
-    for(int p=0;p<LocElem.size();p++)
-    {
-        int gEl = LocElem[p];
-        int nv = ien_pmap->i_map[gEl].size();
-        
-        if(nv == 4) // tetrahedra
+
+        std::map<int,std::map<int,int> > trace_elem     = pttrace->GetTrace();
+        std::map<int,std::vector<int> > trace_verts     = pttrace->GetTraceVerts();
+        std::map<int,int> unique_trace_verts2refmap     = pttrace->GetUniqueTraceVerts2RefMap();
+        std::map<int,std::vector<int> > leftright_trace = pttrace->GetLeftRightElements();
+        std::map<int,int> trace_ref                     = pttrace->GetTraceRef();
+        FaceSetPointer FaceTraceRefs                    = pttrace->GetRefTraceFaceSet();
+
+        //Filter out the tetrahedra and prisms into seperate maps from the IO data structures (meshRead).
+        //=====================================================================================
+        std::map<int,std::vector<int> > tetras_e2v,tetras_e2f,tetras_e2e;
+        std::map<int,std::vector<double> > tetras_data;
+        std::map<int,std::vector<int> > prisms_e2v,prisms_e2f,prisms_e2e;
+        std::map<int,std::vector<double> > prisms_data;
+
+        int ntetra      = meshRead->ntetra;
+        int nprism      = meshRead->nprism;
+        std::map<int,std::vector<int> >::iterator itmiv;
+        int foundte     = 0;
+        int foundpr     = 0;
+
+        int ndata    = meshRead->interior.begin()->second.size();
+        int nTrcFace = trace_verts.size();
+
+        std::map<int,double> tracePrismData;
+        std::map<int,double> traceTetraData;
+        std::map<int,int> tetra2type;
+        std::map<int,int> prism2type;   
+
+        if(world_rank == 0)
         {
-            std::vector<int> nodes(4);
-            for(int q=0;q<nv;q++)
+            std::cout << "Start filtering the element types..." << std::endl; 
+        }
+
+        for(itmiv=meshRead->ien.begin();itmiv!=meshRead->ien.end();itmiv++)
+        {
+            int elid   = itmiv->first;
+            int eltype = meshRead->iet[elid];
+
+            if(eltype == 2)
             {
-                int gv = ien_pmap->i_map[gEl][q];
-                int lvv = gV2lV[gv];
-                if(gv_set.find(gv)==gv_set.end())
+                tetras_e2v[elid]  = itmiv->second;
+                tetras_e2f[elid]  = meshRead->ief[elid];
+                tetras_e2e[elid]  = meshRead->iee[elid];
+                std::vector<double> Uvec(1,0.0);
+                Uvec[0] = 0.0;
+                tetras_data[elid] = Uvec;
+
+                tetra2type[elid]  = eltype;
+            }
+            else
+            {
+                prisms_e2v[elid]  = itmiv->second;
+                prisms_e2f[elid]  = meshRead->ief[elid];
+                prisms_e2e[elid]  = meshRead->iee[elid];
+                std::vector<double> Uvec(1,0.0);
+                Uvec[0]           = 0.0;
+                prisms_data[elid] = Uvec;
+
+                prism2type[elid] = eltype;
+                int nf = meshRead->ief[elid].size();
+
+                for(int j=0;j<nf;j++)
                 {
-                    gv_set.insert(gv);
-                    lverts.push_back(lvv);
-                    lpartv2gv_v2[lvv]=gv;
-                    gv2lpv2[gv]=lcv2;
-                    nodes[q] = lcv2;
-    
-                    printVs.push_back(locVs[lvv]);
-                    std::vector<double> comp(8);
-                    comp[0] = Mvar_vmap[gv]->getVal(0,0);
-                    comp[1] = dudx_vmap[gv]->getVal(0,0);
-                    comp[2] = dudx_mgg_vmap[gv]->getVal(0,0);
-                    comp[3] = dudx_a_vmap[gv]->getVal(0,0);
-                    comp[4] = dudx_ho_vmap[gv]->getVal(0,0);
-                    comp[5] = dudx_ho_vmap[gv]->getVal(3,0);
-                    comp[6] = du2dx2_vmap[gv]->getVal(0,0);
-                    comp[7] = du2dx2_a_vmap[gv]->getVal(0,0);
-                    variable.push_back(comp);
-                    
-                    lcv2=lcv2+1;
+                    int faceID = meshRead->ief[elid][j];
+                    if(trace_verts.find(faceID)!=trace_verts.end())
+                    {
+                        if(tracePrismData.find(elid)==tracePrismData.end())
+                        {
+                            tracePrismData[elid] = meshRead->interior[elid][1];
+                        }
+                    }
                 }
-                else
+            }   
+        }
+
+        bool tetra_ifn = true;
+        bool prism_ifn = true;
+        if(meshRead->elTypes[3]>0)
+        {
+            prism_ifn = false;
+        }
+
+        if(world_rank == 0)
+        {
+            std::cout << "Done filtering the element types..." << std::endl; 
+        }
+        
+        //I am adding the prism elements and their data to the ghost map so that that data is in the boundaries data structures.
+        std::map<int,double> tracePrismData_glob = AllGatherMap_T(tracePrismData,comm);
+        
+        std::map<int,double>::iterator itr;
+        for(itr=tracePrismData_glob.begin();itr!=tracePrismData_glob.end();itr++)
+        {
+            int elid    = itr->first;
+            double data = itr->second;
+
+            std::vector<double> rowghost(2,0.0);
+            rowghost[0] = 0.0;
+            rowghost[1] = data;
+
+            if(meshRead->ghost.find(elid)==meshRead->ghost.end())
+            {
+                meshRead->ghost[elid] = rowghost;
+            }
+        }
+        int nLocTetra  = tetras_e2v.size();
+        int nLocPrism  = prisms_e2v.size();
+        int nElemsGlob_T = 0;
+        int nElemsGlob_P = 0;
+        MPI_Allreduce(&nLocTetra, &nElemsGlob_T, 1, MPI_INT, MPI_SUM, comm);
+        MPI_Allreduce(&nLocPrism, &nElemsGlob_P, 1, MPI_INT, MPI_SUM, comm);
+
+        
+
+        if(world_rank == 0)
+        {
+            std::cout << "Done trace operation..." << std::endl; 
+        }
+
+        //=========END FILTERING OUT TETRA AND PRISMS FROM IO DATA STRUCTURES===============
+
+        // we need to pass the number of verts per element in case the partition has no elements of this type.
+
+    
+        //  You can call it like this : start = time(NULL); 
+        // in both the way start contain total time in seconds 
+        // since the Epoch. 
+
+
+        double dur_max,time_taken;
+
+        start = clock();
+        RepartitionObject* tetra_repart = new RepartitionObject(meshRead, 
+                                                            tetras_e2v, 
+                                                            tetras_e2f,
+                                                            tetras_e2e,
+                                                            tetra2type,
+                                                            pttrace, 
+                                                            tetras_data,
+                                                            2,
+                                                            tetra_ifn,
+                                                            comm);
+
+        
+
+        tetras_e2v.clear();
+        tetras_e2f.clear();
+        tetras_e2e.clear();
+        tetra2type.clear();
+        tetras_data.clear();
+                                                            
+        end = clock();
+        time_taken = ( end - start) / (double) CLOCKS_PER_SEC;
+
+        
+        MPI_Allreduce(&time_taken, &dur_max, 1, MPI_DOUBLE, MPI_MAX, comm);
+        if(world_rank == 0)
+        {
+            cout << "Time taken to execute repartioning tetrahedera is : " << fixed 
+            << dur_max << setprecision(16); 
+            cout << " sec " << endl;
+        }
+
+        
+        
+        tetras_e2v.clear();tetras_e2f.clear();tetras_e2e.clear();
+
+        tetra_repart->buildUpdatedVertexAndFaceNumbering(comm, 
+                                                        pttrace, 
+                                                        meshRead->ranges_id, 
+                                                        meshRead->ranges_ref);
+
+        tetra_repart->buildInteriorSharedAndBoundaryFaceMaps(comm, 
+                                                            pttrace,
+                                                            meshRead->ranges_id,
+                                                            meshRead->ranges_ref);
+
+        int nGlob = meshRead->nElem;
+        std::map<int,std::vector<double> > Usol;
+        std::map<int,std::vector<double> > U_map;
+        std::map<int,std::vector<double> > dUdx_map;
+        std::map<int,std::vector<double> > dUdy_map;
+        std::map<int,std::vector<double> > dUdz_map;
+        std::map<int,std::vector<double> > dU2dx2_map;
+        std::map<int,std::vector<double> > dU2dxy_map;
+        std::map<int,std::vector<double> > dU2dxz_map;
+
+        std::map<int,std::vector<double> > gbMap;
+        std::map<int,std::vector<double> > gbMap_dUdx;
+        std::map<int,std::vector<double> > gbMap_dUdy;
+        std::map<int,std::vector<double> > gbMap_dUdz;
+        std::map<int,std::vector<double> > gbMap_dU2dx2;
+        std::map<int,std::vector<double> > gbMap_dU2dxy;
+        std::map<int,std::vector<double> > gbMap_dU2dxz;
+        
+        SetAnalyticalSolution(tetra_repart, nGlob,
+                            U_map, Usol,
+                            gbMap, gbMap_dUdx, gbMap_dUdy, gbMap_dUdz, gbMap_dU2dx2, gbMap_dU2dxy, gbMap_dU2dxz);
+        // 0,1,2,3,4,5
+        //std::cout << "compare size " << U_map.size() << " " << tetra_repart->getElement2VertexMap().size() << std::endl;
+        tetra_repart->SetStateVec(U_map,7);
+
+        start = clock();
+        std::map<int,std::vector<double> > tetra_grad = ComputedUdx_LSQ_LS_US3D_Lite(tetra_repart,
+                                                                                pttrace,
+                                                                                gbMap,
+                                                                                meshRead->nElem,
+                                                                                0,
+                                                                                1, 
+                                                                                1,
+                                                                                comm);
+
+        std::map<int,std::vector<double> > tetra_grad_v2 = ComputedUdx_LSQ_US3D_Lite(tetra_repart,
+                                                                                pttrace,
+                                                                                Usol,
+                                                                                gbMap,
+                                                                                meshRead->nElem,
+                                                                                0,
+                                                                                1, 
+                                                                                0,
+                                                                                comm,
+                                                                                0);
+        
+        std::map<int,std::vector<double> >::iterator iti;
+        std::map<int,std::vector<double> > dudx_map;
+        std::map<int,std::vector<double> > dudy_map;
+        std::map<int,std::vector<double> > dudz_map;
+        for(iti=tetra_grad_v2.begin();iti!=tetra_grad_v2.end();iti++)
+        {
+            int elid = iti->first;
+            dudx_map[elid].push_back(iti->second[0]);
+            dudy_map[elid].push_back(iti->second[1]);
+            dudz_map[elid].push_back(iti->second[2]);
+        }
+
+        std::map<int,std::vector<double> > dU2dx2 = ComputedUdx_LSQ_US3D_Lite(tetra_repart,
+                                                                                pttrace,
+                                                                                dudx_map,
+                                                                                gbMap,
+                                                                                meshRead->nElem,
+                                                                                0,
+                                                                                1, 
+                                                                                0,
+                                                                                comm,
+                                                                                0);
+        
+        // std::map<int,std::vector<double> > dU2dy2 = ComputedUdx_LSQ_US3D_Lite(tetra_repart,
+        //                                                                         pttrace,
+        //                                                                         dudy_map,
+        //                                                                         gbMap,
+        //                                                                         meshRead->nElem,
+        //                                                                         0,
+        //                                                                         1, 
+        //                                                                         1,
+        //                                                                         comm,
+        //                                                                         0);
+
+        // std::map<int,std::vector<double> > dU2dz2 = ComputedUdx_LSQ_US3D_Lite(tetra_repart,
+        //                                                                         pttrace,
+        //                                                                         dudz_map,
+        //                                                                         gbMap,
+        //                                                                         meshRead->nElem,
+        //                                                                         0,
+        //                                                                         1, 
+        //                                                                         1,
+        //                                                                         comm,
+        //                                                                         0);
+        
+        std::map<int,std::vector<double> > tetra_grad_final;
+        double grad_sum0 = 0.0;
+        double grad_sum1 = 0.0;
+        double grad_sum2 = 0.0;
+        for(iti=dudx_map.begin();iti!=dudx_map.end();iti++)
+        {
+            int elid = iti->first;
+            std::vector<double> row(9,0.0);
+            row[0] = dudx_map[elid][0];
+            //std::cout << "elID " << elid << " " << dudx_map[elid][0] << std::endl;
+            row[1] = dudy_map[elid][0];
+            row[2] = dudz_map[elid][0];
+
+
+            grad_sum0 = grad_sum0 + dudx_map[elid][0];
+            grad_sum1 = grad_sum1 + dudy_map[elid][0];
+            grad_sum2 = grad_sum2 + dudz_map[elid][0];
+
+            row[3] = dU2dx2[elid][0];
+            row[4] = dU2dx2[elid][1];
+            row[5] = dU2dx2[elid][2];
+            tetra_grad_final[elid] = row;
+
+        }
+
+        std::cout << "double grad_sum " << grad_sum0 << " " << grad_sum1 << " " << grad_sum2 << std::endl;
+
+        end = clock();
+        time_taken = ( end - start) / (double) CLOCKS_PER_SEC;
+
+        MPI_Allreduce(&time_taken, &dur_max, 1, MPI_DOUBLE, MPI_MAX, comm);
+        if(world_rank == 0)
+        {
+            cout << "Time taken to execute calculating first and second order gradients : " << fixed 
+            << dur_max << setprecision(16); 
+            cout << " sec " << endl;
+        }
+
+        std::map<int,std::vector<double> >::iterator itmivd;
+        int var = 0;
+        //std::vector<std::vector<double> > L2_errors(tetra_grad.size(),0.0);
+        double rec=0.0, exact=0.0;
+        std::map<int,std::vector<double> > error_c;
+        std::map<int,std::vector<double> > error_c_nobnd;
+        int el = 0;
+        std::set<int> el2consider;
+        std::map<int,std::vector<int> > element2face_map    = tetra_repart->getElement2FacesMap();
+        std::map<int,std::vector<int> > element2vert_map    = tetra_repart->getElement2VertexMap();
+
+        std::map<int,std::vector<int> > face2element_map    = tetra_repart->getFace2ElementMap();
+        std::map<int,std::vector<double> > locVerts         = tetra_repart->getLocalVertsMap();
+
+        std::map<int,double> error_c2;
+        double dUdx_error_cul = 0.0;
+        double volume_tot = 0.0;
+        for(itmivd=tetra_grad.begin();itmivd!=tetra_grad.end();itmivd++)
+        {
+            int elid        = itmivd->first;
+            int nf          = element2face_map[elid].size();
+            int bnd         = 0;
+
+            std::vector<double> Pijk(4*3);
+            
+            for(int k=0;k<4;k++)
+            {
+                int global_vid   = element2vert_map[elid][k];
+                Pijk[k*3+0]      = locVerts[global_vid][0];
+                Pijk[k*3+1]      = locVerts[global_vid][1];
+                Pijk[k*3+2]      = locVerts[global_vid][2];
+            }
+            double volume   = ComputeVolumeTetCell(Pijk);
+
+
+            for(int j=0;j<nf;j++)
+            {
+                int fid = element2face_map[elid][j];
+                int el0 = face2element_map[fid][0];
+                int el1 = face2element_map[fid][1];
+
+                if(el0>nGlob || el1 >nGlob)
                 {
-                    int lcv_u = gv2lpv2[gv];
-                    nodes[q] = lcv_u;
+
+                    bnd = 1;
                 }
             }
+
+            int nvar = U_map[elid].size();
+            std::vector<double> row(nvar-1,0.0);
+
+            for(int i=1;i<nvar;i++)
+            {
+                
+                exact             = U_map[elid][i];
+                rec               = itmivd->second[i-1];
+                //rec             = tetra_grad_final[elid][i-1];
+                row[i-1]          = (rec-exact)*(rec-exact);
+            }
+            //std::cout << std::endl;
+            error_c[elid]         = row;
+
+
+            if(bnd == 0)
+            {
+                error_c_nobnd[elid] = row;
+                el2consider.insert(elid);    
+            }
+            volume_tot = volume_tot + volume;
+            el++;
+        }
+        int el_sum = 0;
+        MPI_Allreduce(&el, &el_sum, 1, MPI_INT, MPI_SUM, comm);
+        double volume_tot_sum = 0.0;
+        MPI_Allreduce(&volume_tot, &volume_tot_sum, 1, MPI_DOUBLE, MPI_SUM, comm);
+        std::cout << "volume_tot " << volume_tot << " " << volume_tot_sum << std::endl;
+
+
+        std::vector<double>L2errors(6,0.0);
+        for(itmivd=error_c.begin();itmivd!=error_c.end();itmivd++)
+        {
+            int elid = itmivd->first;
+            for(int i=0;i<6;i++)
+            {
+                L2errors[i] = L2errors[i] + error_c[elid][i];
+            }
+        }
+
+        std::vector<double> L2errors_reduce(6,0.0);
+        std::map<int,std::string > vnames;
+        vnames[0]     = "dUdx";
+        vnames[1]     = "dUdy";
+        vnames[2]     = "dUdz";
+        vnames[3]     = "dU2dx2";
+        vnames[4]     = "dU2dxy";
+        vnames[5]     = "dU2dxz";
+        if(world_rank == 0)
+        {
+            std::cout << "[";
+            for(int i=0;i<6;i++)
+            {           
+                MPI_Allreduce(&L2errors[i], &L2errors_reduce[i], 1, MPI_DOUBLE, MPI_SUM, comm);
+                L2errors_reduce[i] = sqrt(L2errors_reduce[i]);
+
+    
+                if(world_rank == 0 && i < 5)
+                {
+                    std::cout << L2errors_reduce[i]/el_sum << ", ";
+                }
             
-            locelem2locnode.push_back(nodes);
+                if(world_rank == 0 && i == 5)
+                {
+                    std::cout << L2errors_reduce[i]/el_sum;
+                }
+            }
+            std::cout << "]" << std::endl;
         }
+        
+
+        std::map<int,std::vector<double> > loc_data_t       = tetra_repart->getElement2DataMap();
+        std::map<int,std::vector<int> > gE2lV_t             = tetra_repart->getGlobalElement2LocalVertMap();
+        std::map<int,std::vector<int> > gE2gV_t             = tetra_repart->getElement2VertexMap();
+        std::map<int, std::vector<double> > LocalVertsMap_t = tetra_repart->getLocalVertsMap();
+        std::vector<int> Owned_Elem_t                       = tetra_repart->getLocElem();
+
+        std::map<int,std::string > varnamesGrad;
+
+        varnamesGrad[0]     = "dUdx";
+        varnamesGrad[1]     = "dUdy";
+        varnamesGrad[2]     = "dUdz";
+        varnamesGrad[3]     = "dU2dx2";
+        varnamesGrad[4]     = "dU2dxy";
+        varnamesGrad[5]     = "dU2dxz";
+        varnamesGrad[6]     = "dU2dy2";
+        varnamesGrad[7]     = "dU2dyz";
+        varnamesGrad[8]     = "dU2dz2";
+        
+        string filename_tg = "tetraRecon"+std::to_string(itg->first)+"_" + std::to_string(world_rank) + ".vtu";
+
+        OutputTetraMeshPartitionVTK(comm,
+                                filename_tg, 
+                                Owned_Elem_t, 
+                                gE2gV_t, 
+                                tetra_grad, 
+                                varnamesGrad, 
+                                LocalVertsMap_t);
+
+        string filename_te = "tetraExact"+std::to_string(itg->first)+"_" + std::to_string(world_rank) + ".vtu";
+
+        std::map<int,std::string > varnamesGraExact;
+
+        varnamesGraExact[0]     = "U";
+        varnamesGraExact[1]     = "dUdx";
+        varnamesGraExact[2]     = "dUdy";
+        varnamesGraExact[3]     = "dUdz";
+        varnamesGraExact[4]     = "dU2dx2";
+        varnamesGraExact[5]     = "dU2dxy";
+        varnamesGraExact[6]     = "dU2dxz";
+        
+        OutputTetraMeshPartitionVTK(comm,
+                                filename_te, 
+                                Owned_Elem_t, 
+                                gE2gV_t, 
+                                U_map, 
+                                varnamesGraExact, 
+                                LocalVertsMap_t);
+
+        string filename_terror = "tetraError"+std::to_string(itg->first)+"_" + std::to_string(world_rank) + ".vtu";
+
+        std::map<int,std::string > varnamesGrad_error;
+
+        varnamesGrad_error[0]     = "dUdx_error";
+        varnamesGrad_error[1]     = "dUdy_error";
+        varnamesGrad_error[2]     = "dUdz_error";
+        varnamesGrad_error[3]     = "dU2dx_error";
+        varnamesGrad_error[4]     = "dU2dxy_error";
+        varnamesGrad_error[5]     = "dU2dxz_error";
+
+        OutputTetraMeshPartitionVTK(comm,
+                                filename_terror, 
+                                Owned_Elem_t, 
+                                gE2gV_t, 
+                                error_c, 
+                                varnamesGrad_error, 
+                                LocalVertsMap_t);
+
+                               /* */
     }
-    
-    if(locelem2locnode.size()>0)
-    {
-        std::string filename = "checkPart_" + std::to_string(world_rank) + ".dat";
-        std::ofstream myfile;
-        myfile.open(filename);
-        myfile << "TITLE=\"volume_part_"  + std::to_string(world_rank) +  ".tec\"" << std::endl;
-        myfile <<"VARIABLES = \"X\", \"Y\", \"Z\", \"U\", \"dUdx\", \"dUdx_mgg\", \"dUdxa\", \"dUdx_ho\", \"d2Udx2_ho\", \"dU2dx2_lo\", \"dU2dx2_a\"" << std::endl;
-        myfile <<"ZONE N = " << printVs.size() << ", E = " << locelem2locnode.size() << ", DATAPACKING = POINT, ZONETYPE = FETETRAHEDRON" << std::endl;
-
-        for(int i=0;i<printVs.size();i++)
-        {
-            myfile << printVs[i][0] << " " << printVs[i][1] << " " << printVs[i][2]  << " " << variable[i][0] << " " << variable[i][1]<< " " << variable[i][2] << " " << variable[i][3] << " " << variable[i][4] << " " << variable[i][5] << " " << variable[i][6] << " " << variable[i][7] << std::endl;
-        }
-        int gv0,gv1,gv2,gv3,gv4,gv5,gv6,gv7;
-        int lv0,lv1,lv2,lv3,lv4,lv5,lv6,lv7;
-        for(int i=0;i<locelem2locnode.size();i++)
-        {
-            myfile <<   locelem2locnode[i][0]+1 << "  " <<
-                        locelem2locnode[i][1]+1 << "  " <<
-                        locelem2locnode[i][2]+1 << "  " <<
-                        locelem2locnode[i][3]+1 << "  " << std::endl;
-        }
 
 
-        myfile.close();
-    }
+
     
-    
-    
-//    std::vector<int> lverts;
-//    std::map<int,int> lpartv2gv_v2;
-//    std::map<int,int> gv2lpv2;
-//
-//    std::set<int> gv_set;
-//    int lcv2 = 0;
-//    Array<int>* ien_part_tetra     = tmesh->ien_part_tetra;
-//    Array<int>* ien_part_hybrid    = tmesh->ien_part_hybrid;
-//    std::vector<Vert*> locVs       = tmesh->LocalVerts;
-//    int nElonRank                  = ien_part_tetra->getNrow();
-//
-//    Array<int>* locelem2locnode= new Array<int>(nElonRank,4);
-//
-//    std::vector<Vert*> printVs;
-//
-//    for(int i=0;i<ien_part_tetra->getNrow();i++)
-//    {
-//        for(int q=0;q<ien_part_tetra->getNcol();q++)
-//        {
-//            int gv = ien_part_tetra->getVal(i,q);
-//            int lvv = tmesh->globV2locV[gv];
-//
-//            if(gv_set.find(gv)==gv_set.end())
-//            {
-//                gv_set.insert(gv);
-//                lverts.push_back(lvv);
-//                lpartv2gv_v2[lvv]=gv;
-//                gv2lpv2[gv]=lcv2;
-//                locelem2locnode->setVal(i,q,lcv2);
-//
-//                printVs.push_back(locVs[lvv]);
-//
-//                lcv2=lcv2+1;
-//            }
-//            else
-//            {
-//                int lcv_u = gv2lpv2[gv];
-//                locelem2locnode->setVal(i,q,lcv_u);
-//            }
-//        }
-//    }
-//
-//    std::vector<Vert*> lv = tmesh->LocalVerts;
-//    std::string filename = "checkPart_" + std::to_string(world_rank) + ".dat";
-//    std::ofstream myfile;
-//    myfile.open(filename);
-//    myfile << "TITLE=\"volume_part_"  + std::to_string(world_rank) +  ".tec\"" << std::endl;
-//    myfile <<"VARIABLES = \"X\", \"Y\", \"Z\"" << std::endl;
-//    myfile <<"ZONE N = " << printVs.size() << ", E = " << nElonRank << ", DATAPACKING = POINT, ZONETYPE = FETETRAHEDRON" << std::endl;
-//
-//    for(int i=0;i<printVs.size();i++)
-//    {
-//        myfile << printVs[i][0] << " " << printVs[i][1] << " " << printVs[i][2] << std::endl;
-//    }
-//    int gv0,gv1,gv2,gv3,gv4,gv5,gv6,gv7;
-//    int lv0,lv1,lv2,lv3,lv4,lv5,lv6,lv7;
-//    for(int i=0;i<ien_part_hybrid->getNrow();i++)
-//    {
-//        myfile <<   locelem2locnode->getVal(i,0)+1 << "  " <<
-//        locelem2locnode->getVal(i,1)+1 << "  " <<
-//        locelem2locnode->getVal(i,2)+1 << "  " <<
-//        locelem2locnode->getVal(i,3)+1 << "  " << std::endl;
-//    }
-//
-//
-//    myfile.close();
-    
+
+
+/**/
+    //=======================================================================================
     
     MPI_Finalize();
-    
+        
 }
 

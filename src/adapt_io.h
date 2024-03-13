@@ -45,7 +45,7 @@ return(p_type);
 double* ReadDataSetDoubleFromFile(const char* file_name, const char* dataset_name);
 
 mesh* ReadUS3DMeshData(const char* fn_conn, const char* fn_grid, const char* fn_data, int readFromStats, int StateVar, MPI_Comm comm, MPI_Info info);
-
+mesh* ReadUS3DMesh(const char* fn_conn, const char* fn_grid, int readFromStats, int StateVar, MPI_Comm comm, MPI_Info info);
 std::vector<int> ReadDataSetSizeFromFileInParallel(const char* file_name, const char* dataset_name, MPI_Comm comm, MPI_Info info);
 
 

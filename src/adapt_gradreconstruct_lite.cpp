@@ -6,6 +6,7 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D_Lite(RepartitionObjec
                                                            std::map<int,std::vector<double> > ghosts,
                                                            int Nel,
                                                            int variable,
+                                                           int nvariables,
                                                            int approxOrder,
                                                            MPI_Comm comm)
 {
@@ -15,10 +16,10 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D_Lite(RepartitionObjec
    int world_rank;
    MPI_Comm_rank(comm, &world_rank);
    //std::map<int,std::vector<double> > Ue                = RePa->getElement2DataMap();
-      std::map<int,std::vector<double> > Ue                = RePa->getElement2DataMap();
+   //std::map<int,std::vector<double> > Ue                = RePa->getElement2DataMap();
 
-   
-   RePa->AddStateVecForAdjacentElements(Ue,2,comm);
+   std::map<int,std::vector<double> > Ue             = RePa->getElement2DataMap();
+   RePa->AddStateVecForAdjacentElements(Ue,nvariables,comm);
 
 
    std::map<int,std::vector<double> > LocalVs           = RePa->getLocalVertsMap();
@@ -89,7 +90,7 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D_Lite(RepartitionObjec
         
         std::vector<double> Vijk = ComputeCentroidCoord(Pijk,NvPEl);
         u_ijk = Ue[elID][variable];
-        
+        //std::cout << "u_ijk " << u_ijk << " " << variable << std::endl;
         for(int j=0;j<nadj;j++)
         {
             int adjid  = Element2ElementMap[elID][j];
@@ -183,9 +184,7 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D_Lite(RepartitionObjec
                     Vc[2] = Vc[2] - reflect[2];
                     
                     vrt_collect[adjid]  = Vc;
-                    sol_collect[adjid]  = u_ijk;//ghosts[adjid][variable];
-                    
-                   
+                    sol_collect[adjid]  = ghosts[adjid][variable];
                 
                     face.clear();
                 }
@@ -301,7 +300,7 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D_Lite(RepartitionObjec
                                             
 
                             vrt_collect[adjadj]  = Vc;
-                            sol_collect[adjadj]  = u_ijk;//ghosts[adjadj][variable];
+                            sol_collect[adjadj]  = ghosts[adjadj][variable];
                             
                             
                             face.clear();
@@ -411,7 +410,7 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D_Lite(RepartitionObjec
                                 Vc[2] = Vc[2] - reflect[2];
     
                                 vrt_collect[adjadjadj]  = Vc;
-                                sol_collect[adjadjadj]  = u_ijk;//ghosts[adjadjadj][variable];
+                                sol_collect[adjadjadj]  = ghosts[adjadjadj][variable];
                                 
                                 face.clear();
                                 
@@ -796,21 +795,24 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D_Lite(RepartitionObjec
 
 
 std::map<int,std::vector<double> > ComputedUdx_LSQ_US3D_Lite(RepartitionObject* RePa,
-                                                             std::map<int,std::vector<double> > Uval,
                                                              PrismTetraTrace* trace,
+                                                             std::map<int,std::vector<double> > Uval,
                                                              std::map<int,std::vector<double> > ghosts,
                                                              int Nel,
                                                              int variable,
+                                                             int nvariable,
                                                              int approxOrder,
                                                              MPI_Comm comm,
                                                              int print)
 {
+
     int world_size;
     MPI_Comm_size(comm, &world_size);
     // Get the rank of the process;
     int world_rank;
     MPI_Comm_rank(comm, &world_rank);
-
+    std::map<int,std::vector<double> > Ue             = RePa->getElement2DataMap();
+    RePa->AddStateVecForAdjacentElements(Uval,nvariable,comm);
     std::map<int,std::vector<double> > dudx_map;
     std::vector<int> Loc_Elem                           = RePa->getLocElem();
     std::map<int, std::vector<double> > LocalVs         = RePa->getLocalVertsMap();
@@ -855,6 +857,8 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_US3D_Lite(RepartitionObject* 
     std::set<int> treated;
     int traceelem=0;
     int letmeknow=0;
+
+    
     for(int q = 0;q < Owned_Elem.size();q++)
     {
         std::vector<double> x;
@@ -865,7 +869,7 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_US3D_Lite(RepartitionObject* 
    
         std::vector<double> A_cm(nadj*3,0.0);
         std::vector<double> b(nadj,0.0);
-
+        Array<double>* bvec     = new Array<double>(nadj,1);
         std::vector<double> Pijk(NvPEl*3);
         for(int k=0;k<Element2VertexMap[elID].size();k++)
         {
@@ -956,7 +960,6 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_US3D_Lite(RepartitionObject* 
             {    
 
                 int ghost_id    = adjID;
-                int nvpf        = Face2VertexMap[faceID].size();//Face2VertexMap[faceID].size();
                 int nvpf_real   = Face2VertexMap[faceID].size();
 
                 std::vector<double> Vface(3,0.0);
@@ -967,18 +970,73 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_US3D_Lite(RepartitionObject* 
                     Vface[0] = Vface[0]+LocalVs[global_vid][0];
                     Vface[1] = Vface[1]+LocalVs[global_vid][1];
                     Vface[2] = Vface[2]+LocalVs[global_vid][2];
+
+                    std::vector<double> V(3,0.0);
+                    V[0] = +LocalVs[global_vid][0];
+                    V[1] = +LocalVs[global_vid][1];
+                    V[2] = +LocalVs[global_vid][2];
+                    face.push_back(V);
                 }
 
                 Vface[0] = Vface[0]/nvpf_real;
                 Vface[1] = Vface[1]/nvpf_real;
                 Vface[2] = Vface[2]/nvpf_real;
 
+                std::vector<double> r0(3);
+                r0[0] = (Vface[0]-Vijk[0]);
+                r0[1] = (Vface[1]-Vijk[1]);
+                r0[2] = (Vface[2]-Vijk[2]);
+
+                if(nvpf_real==3) // triangle
+                {
+                    v0[0] = face[1][0]-face[0][0];
+                    v0[1] = face[1][1]-face[0][1];
+                    v0[2] = face[1][2]-face[0][2];
+
+                    v1[0] = face[2][0]-face[0][0];
+                    v1[1] = face[2][1]-face[0][1];
+                    v1[2] = face[2][2]-face[0][2];
+                }
+
+                if(nvpf_real==4) // triangle
+                {
+                    v0[0] = face[1][0]-face[0][0];
+                    v0[1] = face[1][1]-face[0][1];
+                    v0[2] = face[1][2]-face[0][2];
+
+                    v1[0] = face[3][0]-face[0][0];
+                    v1[1] = face[3][1]-face[0][1];
+                    v1[2] = face[3][2]-face[0][2];
+                }
+
+
+                std::vector<double> n0 = ComputeSurfaceNormal(v0,v1);
+
+                orient0   = DotVec3D(r0,n0);
+
+                if(orient0<0.0)
+                {
+                    NegateVec3D(n0);
+                }
+
+                rdotn = DotVec3D(r0,n0);
+
+                std::vector<double> reflect(3);
+               
+                reflect[0] = r0[0]-2.0*(rdotn)*n0[0];
+                reflect[1] = r0[1]-2.0*(rdotn)*n0[1];
+                reflect[2] = r0[2]-2.0*(rdotn)*n0[2];
+                
+                Vface[0] = Vface[0] - reflect[0];
+                Vface[1] = Vface[1] - reflect[1];
+                Vface[2] = Vface[2] - reflect[2];
+
                 u_po = u_ijk;
 
 
                 d = sqrt((Vface[0]-Vijk[0])*(Vface[0]-Vijk[0])+
-                        (Vface[1]-Vijk[1])*(Vface[1]-Vijk[1])+
-                        (Vface[2]-Vijk[2])*(Vface[2]-Vijk[2]));
+                         (Vface[1]-Vijk[1])*(Vface[1]-Vijk[1])+
+                         (Vface[2]-Vijk[2])*(Vface[2]-Vijk[2]));
                
                 for(int s=0;s<3;s++)
                 {
@@ -986,6 +1044,10 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_US3D_Lite(RepartitionObject* 
                 }
 
                 b[t] = (1.0/d)*(u_po-u_ijk);
+
+                t++;
+                
+                face.clear();
             }    
             else if(approxOrder == 1)
             {    
@@ -1020,38 +1082,22 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_US3D_Lite(RepartitionObject* 
                     A_cm[s*nadj+t] = (1.0/d)*(Vface[s]-Vijk[s]);
                 }
 
+
                 b[t] = (1.0/d)*(u_po-u_ijk);
 
                 t++;
             }    
         }
 
-        // if(world_rank == 0 && print == 1)
-        // {
-        //     for(int i=0;i<nadj;i++)
-        //     {
-        //         for(int j=0;j<3;j++)
-        //         {
-        //             std::cout << A_cm[i*nadj+j] << " ";
-        //         }
-        //         std::cout << std::endl;
-        //     }
-        //     std::cout << std::endl;
-        //     for(int i=0;i<nadj;i++)
-        //     {
-        //         std::cout << b[t] << std::endl;
-        //     }
-        // }
+        
+
+
     
         x = SolveQR_Lite(A_cm,nadj,3,b);
-        
+        Array<double>* xold = SolveQR(A_cm.data(),nadj,3,bvec);
         dudx_map[elID] = x;
 
-        // if(world_rank == 0 && print == 1)
-        // {
-        //     std::cout <<  elID << " x " << x[0] << " " << x[1] << " " << x[2] << std::endl; 
-        // }
-
+        
 
     }   
 

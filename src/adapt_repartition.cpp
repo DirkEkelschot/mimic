@@ -4955,7 +4955,7 @@ void RepartitionObject::buildUpdatedVertexAndFaceNumbering(MPI_Comm comm,
     MPI_Comm_rank(comm, &rank);
 
     std::map<int,std::map<int,int> > trace_elem     = trace->GetTrace();
-    std::map<int,std::vector<int> > trace_verts     = trace->GetTraceVerts();
+    //std::map<int,std::vector<int> > trace_verts     = trace->GetTraceVerts();
     std::map<int,int> uniqure_trace_verts2ref       = trace->GetUniqueTraceVerts2RefMap();
 
     int Nel_loc  = Loc_Elem.size();
@@ -5491,7 +5491,7 @@ void RepartitionObject::buildInteriorSharedAndBoundaryFaceMaps(MPI_Comm comm,
 
     // buildInteriorSharedAndBoundaryFaceMaps()
     std::map<int,std::map<int,int> > trace_elem     = trace->GetTrace();
-    std::map<int,std::vector<int> > trace_verts     = trace->GetTraceVerts();
+    //std::map<int,std::vector<int> > trace_verts     = trace->GetTraceVerts();
     std::map<int,int> uniqure_trace_verts2ref       = trace->GetUniqueTraceVerts2RefMap();
     
     DistributedParallelState* ElementDistr = new DistributedParallelState(Loc_Elem_Set.size(),comm);
@@ -5989,6 +5989,17 @@ std::map<int,std::set<int> > RepartitionObject::GetNode2ElementMap()
 
     return node2elem_map;
 
+}
+
+
+void RepartitionObject::SetStateVec(std::map<int,std::vector<double> > U, int nvar)
+{
+    elements2data_update = U;
+}
+
+std::map<int,std::vector<int> > RepartitionObject::getFace2ElementMap()
+{
+    return face2elements_update;
 }
 
 std::map<int,int> RepartitionObject::GetElement2TypeOnRankMap()
