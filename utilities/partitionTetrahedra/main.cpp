@@ -220,85 +220,221 @@ int main(int argc, char** argv)
 
     double dur_max,time_taken;
 
-    start = clock();
-    RepartitionObject* tetra_repart = new RepartitionObject(meshRead, 
-                                                        tetras_e2v, 
-                                                        tetras_e2f,
-                                                        tetras_e2e,
-                                                        tetra2type,
+    RepartitionObject* tetra_repart;
+    std::map<int,std::vector<double> > tetra_grad;
+    
+    if(inputs->recursive == 0)
+    {
+        start = clock();
+        tetra_repart = new RepartitionObject(meshRead, 
+                                            tetras_e2v, 
+                                            tetras_e2f,
+                                            tetras_e2e,
+                                            tetra2type,
+                                            pttrace, 
+                                            tetras_data,
+                                            2,
+                                            tetra_ifn,
+                                            comm);
+
+        tetras_e2v.clear();
+        tetras_e2f.clear();
+        tetras_e2e.clear();
+        tetra2type.clear();
+        tetras_data.clear();
+                                                            
+        end = clock();
+        time_taken = ( end - start) / (double) CLOCKS_PER_SEC;
+
+        
+        MPI_Allreduce(&time_taken, &dur_max, 1, MPI_DOUBLE, MPI_MAX, comm);
+        if(world_rank == 0)
+        {
+            cout << "Time taken to execute repartioning tetrahedera is : " << fixed 
+            << dur_max << setprecision(16); 
+            cout << " sec " << endl;
+        }
+
+        tetra_repart->buildUpdatedVertexAndFaceNumbering(comm, 
                                                         pttrace, 
-                                                        tetras_data,
-                                                        2,
-                                                        tetra_ifn,
-                                                        comm);
+                                                        meshRead->ranges_id, 
+                                                        meshRead->ranges_ref);
 
-    tetras_e2v.clear();
-    tetras_e2f.clear();
-    tetras_e2e.clear();
-    tetra2type.clear();
-    tetras_data.clear();
-                                                        
-    end = clock();
-    time_taken = ( end - start) / (double) CLOCKS_PER_SEC;
+        tetra_repart->buildInteriorSharedAndBoundaryFaceMaps(comm, 
+                                                            pttrace,
+                                                            meshRead->ranges_id,
+                                                            meshRead->ranges_ref);
+        start = clock();
+        tetra_grad = ComputedUdx_LSQ_LS_US3D_Lite(tetra_repart,
+                                                pttrace,
+                                                meshRead->ghost,
+                                                meshRead->nElem,
+                                                1,
+                                                2,
+                                                comm);
+        end = clock();
 
-    
-    MPI_Allreduce(&time_taken, &dur_max, 1, MPI_DOUBLE, MPI_MAX, comm);
-    if(world_rank == 0)
-    {
-        cout << "Time taken to execute repartioning tetrahedera is : " << fixed 
-        << dur_max << setprecision(16); 
-        cout << " sec " << endl;
+
+
+        time_taken = ( end - start) / (double) CLOCKS_PER_SEC;
+
+        MPI_Allreduce(&time_taken, &dur_max, 1, MPI_DOUBLE, MPI_MAX, comm);
+        if(world_rank == 0)
+        {
+            cout << "Time taken to execute calculating first and second order gradients using quadratic reconstruction: " << fixed 
+            << dur_max << setprecision(16); 
+            cout << " sec " << endl;
+        }
     }
+    else if(inputs->recursive == 1)
+    {   
+        //=========================================================================================
+        start = clock();
+        tetra_repart = new RepartitionObject(meshRead, 
+                                            tetras_e2v, 
+                                            tetras_e2f,
+                                            tetras_e2e,
+                                            tetra2type,
+                                            pttrace, 
+                                            tetras_data,
+                                            1,
+                                            tetra_ifn,
+                                            comm);
 
-    
-    
-    tetras_e2v.clear();tetras_e2f.clear();tetras_e2e.clear();
+        tetras_e2v.clear();
+        tetras_e2f.clear();
+        tetras_e2e.clear();
+        tetra2type.clear();
+        tetras_data.clear();
+                                                            
+        end = clock();
+        time_taken = ( end - start) / (double) CLOCKS_PER_SEC;
 
-    tetra_repart->buildUpdatedVertexAndFaceNumbering(comm, 
-                                                    pttrace, 
-                                                    meshRead->ranges_id, 
-                                                    meshRead->ranges_ref);
+        
+        MPI_Allreduce(&time_taken, &dur_max, 1, MPI_DOUBLE, MPI_MAX, comm);
+        if(world_rank == 0)
+        {
+            cout << "Time taken to execute repartioning tetrahedera is : " << fixed 
+            << dur_max << setprecision(16); 
+            cout << " sec " << endl;
+        }
 
-    tetra_repart->buildInteriorSharedAndBoundaryFaceMaps(comm, 
-                                                         pttrace,
-                                                         meshRead->ranges_id,
-                                                         meshRead->ranges_ref);
+        tetra_repart->buildUpdatedVertexAndFaceNumbering(comm, 
+                                                        pttrace, 
+                                                        meshRead->ranges_id, 
+                                                        meshRead->ranges_ref);
 
-    // std::vector<int> face4parmmg                        = tetra_repart->getFace4ParMMG(); // checked
-    // std::map<int,int> global2tagF                       = tetra_repart->getGlobal2TagFMap();
-    // int** ifc_tria_glob                                 = tetra_repart->getParMMGCommFace2GlobalVertMap();
-    // int** ifc_tria_loc                                  = tetra_repart->getParMMGCommFace2LocalVertMap();
-    // int* color_face                                     = tetra_repart->getParMMGCommColorFace();
-    // int *ntifc                                          = tetra_repart->getParMMGCommNFacesPerColor();
-    // int ncomm                                           = tetra_repart->getParMMGNComm();
+        tetra_repart->buildInteriorSharedAndBoundaryFaceMaps(comm, 
+                                                            pttrace,
+                                                            meshRead->ranges_id,
+                                                            meshRead->ranges_ref);
 
-    // std::vector<int> Owned_Elem_t                       = tetra_repart->getLocElem();
-    // std::map<int,std::vector<int> > gE2gV_t             = tetra_repart->getElement2VertexMap();
-    // std::map<int, std::vector<double> > LocalVertsMap_t = tetra_repart->getLocalVertsMap();
 
-    //=======================================================================================
-    //=============================COMPUTE GRADIENTS/HESSIAN=================================
-    //=======================================================================================
-    // std::map<int,std::vector<double> > U                = tetra_repart->getElement2DataMap();
-    start = clock();
-    std::map<int,std::vector<double> > tetra_grad = ComputedUdx_LSQ_LS_US3D_Lite(tetra_repart,
-                                                                              pttrace,
-                                                                              meshRead->ghost,
-                                                                              meshRead->nElem,
-                                                                              1,
-                                                                              2, 
-                                                                              1,
-                                                                              comm);
-    end = clock();
-    time_taken = ( end - start) / (double) CLOCKS_PER_SEC;
+        std::map<int,std::vector<double> > Ue = tetra_repart->getElement2DataMap();
+        tetra_repart->AddStateVecForAdjacentElements(Ue,2,comm);
 
-    MPI_Allreduce(&time_taken, &dur_max, 1, MPI_DOUBLE, MPI_MAX, comm);
-    if(world_rank == 0)
-    {
-        cout << "Time taken to execute calculating first and second order gradients : " << fixed 
-        << dur_max << setprecision(16); 
-        cout << " sec " << endl;
+        start = clock();
+        std::map<int,std::vector<double> > tetra_grad_v2 = ComputedUdx_LSQ_US3D_Lite(tetra_repart,
+                                                                                    pttrace,
+                                                                                    Ue,
+                                                                                    meshRead->ghost,
+                                                                                    meshRead->nElem,
+                                                                                    1,
+                                                                                    2,
+                                                                                    comm);
+
+        std::map<int,std::vector<double> >::iterator iti;
+        std::map<int,std::vector<double> > dudx_map;
+        std::map<int,std::vector<double> > dudy_map;
+        std::map<int,std::vector<double> > dudz_map;
+        for(iti=tetra_grad_v2.begin();iti!=tetra_grad_v2.end();iti++)
+        {
+            int elid = iti->first;
+            dudx_map[elid].push_back(iti->second[0]);
+            dudy_map[elid].push_back(iti->second[1]);
+            dudz_map[elid].push_back(iti->second[2]);
+        }
+
+        tetra_repart->AddStateVecForAdjacentElements(dudx_map,1,comm);
+        tetra_repart->AddStateVecForAdjacentElements(dudy_map,1,comm);
+        tetra_repart->AddStateVecForAdjacentElements(dudz_map,1,comm);
+
+        std::map<int,std::vector<double> > dU2dx2 = ComputedUdx_LSQ_US3D_Lite(tetra_repart,
+                                                                                    pttrace,
+                                                                                    dudx_map,
+                                                                                    meshRead->ghost,
+                                                                                    meshRead->nElem,
+                                                                                    0,
+                                                                                    1,
+                                                                                    comm);
+            
+        std::map<int,std::vector<double> > dU2dy2 = ComputedUdx_LSQ_US3D_Lite(tetra_repart,
+                                                                                    pttrace,
+                                                                                    dudy_map,
+                                                                                    meshRead->ghost,
+                                                                                    meshRead->nElem,
+                                                                                    0,
+                                                                                    1,
+                                                                                    comm);
+
+        std::map<int,std::vector<double> > dU2dz2 = ComputedUdx_LSQ_US3D_Lite(tetra_repart,
+                                                                                    pttrace,
+                                                                                    dudz_map,
+                                                                                    meshRead->ghost,
+                                                                                    meshRead->nElem,
+                                                                                    0,
+                                                                                    1,
+                                                                                    comm);
+
+        for(iti=dU2dx2.begin();iti!=dU2dx2.end();iti++)
+        {
+            int elid = iti->first;
+            std::vector<double> row(9,0.0);
+            row[0] = dudx_map[elid][0];
+            row[1] = dudy_map[elid][0];
+            row[2] = dudz_map[elid][0];
+            row[3] = dU2dx2[elid][0];
+            row[4] = dU2dx2[elid][1];
+            row[5] = dU2dx2[elid][2];
+            row[6] = dU2dy2[elid][1];
+            row[7] = dU2dy2[elid][2];
+            row[8] = dU2dz2[elid][2];
+            tetra_grad[elid] = row;
+        }
+
+        dudx_map.clear();
+        dudy_map.clear();
+        dudz_map.clear();
+
+        dU2dx2.clear();
+        dU2dy2.clear();
+        dU2dz2.clear();
+        Ue.clear();
+        end = clock();
+
+
+
+        time_taken = ( end - start) / (double) CLOCKS_PER_SEC;
+
+        MPI_Allreduce(&time_taken, &dur_max, 1, MPI_DOUBLE, MPI_MAX, comm);
+        if(world_rank == 0)
+        {
+            cout << "Time taken to execute calculating first and second order gradients using linear reconstruction iteratively: " << fixed 
+            << dur_max << setprecision(16); 
+            cout << " sec " << endl;
+        }
+
     }
+    
+
+
+    // Ue.clear();
+    // tetra_grad_v2.clear();
+    
+    //=========================================================================================
+    
+    
+    
 
     //==============================================
 

@@ -12,7 +12,6 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D_Lite(RepartitionObjec
                                                            int Nel,
                                                            int variable,
                                                            int nvariables,
-                                                           int approxOrder,
                                                            MPI_Comm comm);
 
 std::map<int,std::vector<double> > ComputedUdx_LSQ_US3D_Lite(RepartitionObject* RePa,
@@ -22,7 +21,5 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_US3D_Lite(RepartitionObject* 
                                                              int Nel,
                                                              int variable,
                                                              int nvariables,
-                                                             int approxOrder,
-                                                             MPI_Comm comm,
-                                                             int print);
+                                                             MPI_Comm comm);
 #endif

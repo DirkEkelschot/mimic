@@ -7,7 +7,6 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D_Lite(RepartitionObjec
                                                            int Nel,
                                                            int variable,
                                                            int nvariables,
-                                                           int approxOrder,
                                                            MPI_Comm comm)
 {
    int world_size;
@@ -801,9 +800,7 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_US3D_Lite(RepartitionObject* 
                                                              int Nel,
                                                              int variable,
                                                              int nvariable,
-                                                             int approxOrder,
-                                                             MPI_Comm comm,
-                                                             int print)
+                                                             MPI_Comm comm)
 {
 
     int world_size;
@@ -894,15 +891,15 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_US3D_Lite(RepartitionObject* 
         for(int j=0;j<nadj;j++)
         {
             int adjID       = Element2ElementMap[elID][j];
-            int faceID      = -1;
-            if(Element2FacesMap.find(elID)!=Element2FacesMap.end())
-            {
-                faceID  = Element2FacesMap[elID][j];
-            }
-            else
-            {
-                std::cout << "not here "<< std::endl;
-            }
+            int faceID      = Element2FacesMap[elID][j];
+            // if(Element2FacesMap.find(elID)!=Element2FacesMap.end())
+            // {
+            //     faceID  = Element2FacesMap[elID][j];
+            // }
+            // else
+            // {
+            //     std::cout << "not here "<< std::endl;
+            // }
 
             // if(treated.find(faceID)==treated.end())
             // {
@@ -913,52 +910,45 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_US3D_Lite(RepartitionObject* 
             //     }
             // }
         
-            if(adjID<Nel)
+            if(Element2VertexMap.find(adjID)!=Element2VertexMap.end()
+                    && ghosts.find(adjID)==ghosts.end())
             {
                 int nvpf        = Face2VertexMap[faceID].size();
                 int nvpf_real   = Face2VertexMap[faceID].size();
+                int nVadj       = Element2VertexMap[adjID].size();
+                std::vector<double> Padj(nVadj*3,0.0);
 
-                if(Element2VertexMap.find(adjID)!=Element2VertexMap.end())
+                for(int k=0;k<nVadj;k++)
                 {
-                    int nVadj = Element2VertexMap[adjID].size();
-                    std::vector<double> Padj(nVadj*3,0.0);
+                    int global_vid   = Element2VertexMap[adjID][k];
 
-                    for(int k=0;k<nVadj;k++)
-                    {
-                       int global_vid   = Element2VertexMap[adjID][k];
-
-                       Padj[k*3+0] = LocalVs[global_vid][0];
-                       Padj[k*3+1] = LocalVs[global_vid][1];
-                       Padj[k*3+2] = LocalVs[global_vid][2];
-                    }
-                   
-                    Vadj = ComputeCentroidCoord(Padj,Element2VertexMap[adjID].size());
-                   
-                    d    = sqrt((Vadj[0]-Vijk[0])*(Vadj[0]-Vijk[0])+
-                                (Vadj[1]-Vijk[1])*(Vadj[1]-Vijk[1])+
-                                (Vadj[2]-Vijk[2])*(Vadj[2]-Vijk[2]));
-
-
-                    for(int s=0;s<3;s++)
-                    {
-                        A_cm[s*nadj+t] = (1.0/d)*(Vadj[s]-Vijk[s]);
-                        
-                    }
-
-                    u_po = Uval[adjID][variable];
-
-                    b[t] = (1.0/d)*(u_po-u_ijk);
-                    dist.push_back(d);
-                    t++;
+                    Padj[k*3+0] = LocalVs[global_vid][0];
+                    Padj[k*3+1] = LocalVs[global_vid][1];
+                    Padj[k*3+2] = LocalVs[global_vid][2];
                 }
-                else // Its on the trace between prisms and tets, The face is still internal but has a different element type on each side.
-                {
-                    traceelem++;
-                }                
-            }
-            else if(approxOrder == 0)
-            {    
+                
+                Vadj = ComputeCentroidCoord(Padj,Element2VertexMap[adjID].size());
+                
+                d    = sqrt((Vadj[0]-Vijk[0])*(Vadj[0]-Vijk[0])+
+                            (Vadj[1]-Vijk[1])*(Vadj[1]-Vijk[1])+
+                            (Vadj[2]-Vijk[2])*(Vadj[2]-Vijk[2]));
 
+
+                for(int s=0;s<3;s++)
+                {
+                    A_cm[s*nadj+t] = (1.0/d)*(Vadj[s]-Vijk[s]);
+                    
+                }
+
+                u_po = Uval[adjID][variable];
+
+                b[t] = (1.0/d)*(u_po-u_ijk);
+                dist.push_back(d);
+                t++;
+                            
+            }
+            else
+            {    
                 int ghost_id    = adjID;
                 int nvpf_real   = Face2VertexMap[faceID].size();
 
@@ -1049,48 +1039,13 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_US3D_Lite(RepartitionObject* 
                 
                 face.clear();
             }    
-            else if(approxOrder == 1)
-            {    
-
-                int ghost_id    = adjID;
-                //int nvpf        = Face2VertexMap[faceID].size();
-                int nvpf_real   = Face2VertexMap[faceID].size();
-
-                std::vector<double> Vface(3,0.0);
-
-                for(int u=0;u<nvpf_real;u++)
-                {
-                    int global_vid = Face2VertexMap[faceID][u];
-                    Vface[0] = Vface[0]+LocalVs[global_vid][0];
-                    Vface[1] = Vface[1]+LocalVs[global_vid][1];
-                    Vface[2] = Vface[2]+LocalVs[global_vid][2];
-                }
-
-                Vface[0] = Vface[0]/nvpf_real;
-                Vface[1] = Vface[1]/nvpf_real;
-                Vface[2] = Vface[2]/nvpf_real;
-
-                u_po = u_ijk;//ghosts[ghost_id][variable];
-
-
-                d = sqrt((Vface[0]-Vijk[0])*(Vface[0]-Vijk[0])+
-                        (Vface[1]-Vijk[1])*(Vface[1]-Vijk[1])+
-                        (Vface[2]-Vijk[2])*(Vface[2]-Vijk[2]));
-               
-                for(int s=0;s<3;s++)
-                {
-                    A_cm[s*nadj+t] = (1.0/d)*(Vface[s]-Vijk[s]);
-                }
-
-
-                b[t] = (1.0/d)*(u_po-u_ijk);
-
-                t++;
-            }    
         }
 
+        // if(t!=4)
+        // {
+        //     std::cout << "t = " << t << " :: " << elID << ", " << nadj  << " " << Nel << std::endl;
+        // }
         
-
 
     
         x = SolveQR_Lite(A_cm,nadj,3,b);

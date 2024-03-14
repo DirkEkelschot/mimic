@@ -455,8 +455,16 @@ int main(int argc, char** argv)
     std::map<int,std::vector<const char*> > grids;
     grids[10].push_back("inputs/grid101010.h5");
     grids[10].push_back("inputs/conn101010.h5");
+    grids[15].push_back("inputs/grid151515.h5");
+    grids[15].push_back("inputs/conn151515.h5");
+    grids[20].push_back("inputs/grid202020.h5");
+    grids[20].push_back("inputs/conn202020.h5");
     grids[25].push_back("inputs/grid252525.h5");
     grids[25].push_back("inputs/conn252525.h5");
+    grids[30].push_back("inputs/grid303030.h5");
+    grids[30].push_back("inputs/conn303030.h5");
+    grids[40].push_back("inputs/grid404040.h5");
+    grids[40].push_back("inputs/conn404040.h5");
     grids[50].push_back("inputs/grid505050.h5");
     grids[50].push_back("inputs/conn505050.h5");
     // Read in the inputs from metric.xml
@@ -717,7 +725,6 @@ int main(int argc, char** argv)
                                                                                 gbMap,
                                                                                 meshRead->nElem,
                                                                                 0,
-                                                                                1, 
                                                                                 1,
                                                                                 comm);
 
@@ -727,10 +734,8 @@ int main(int argc, char** argv)
                                                                                 gbMap,
                                                                                 meshRead->nElem,
                                                                                 0,
-                                                                                1, 
-                                                                                0,
-                                                                                comm,
-                                                                                0);
+                                                                                1,
+                                                                                comm);
         
         std::map<int,std::vector<double> >::iterator iti;
         std::map<int,std::vector<double> > dudx_map;
@@ -750,10 +755,8 @@ int main(int argc, char** argv)
                                                                                 gbMap,
                                                                                 meshRead->nElem,
                                                                                 0,
-                                                                                1, 
-                                                                                0,
-                                                                                comm,
-                                                                                0);
+                                                                                1,
+                                                                                comm);
         
         // std::map<int,std::vector<double> > dU2dy2 = ComputedUdx_LSQ_US3D_Lite(tetra_repart,
         //                                                                         pttrace,
@@ -802,7 +805,6 @@ int main(int argc, char** argv)
 
         }
 
-        std::cout << "double grad_sum " << grad_sum0 << " " << grad_sum1 << " " << grad_sum2 << std::endl;
 
         end = clock();
         time_taken = ( end - start) / (double) CLOCKS_PER_SEC;
@@ -870,8 +872,8 @@ int main(int argc, char** argv)
             {
                 
                 exact             = U_map[elid][i];
-                rec               = itmivd->second[i-1];
-                //rec             = tetra_grad_final[elid][i-1];
+                //rec               = itmivd->second[i-1];
+                rec             = tetra_grad_final[elid][i-1];
                 row[i-1]          = (rec-exact)*(rec-exact);
             }
             //std::cout << std::endl;
@@ -890,7 +892,6 @@ int main(int argc, char** argv)
         MPI_Allreduce(&el, &el_sum, 1, MPI_INT, MPI_SUM, comm);
         double volume_tot_sum = 0.0;
         MPI_Allreduce(&volume_tot, &volume_tot_sum, 1, MPI_DOUBLE, MPI_SUM, comm);
-        std::cout << "volume_tot " << volume_tot << " " << volume_tot_sum << std::endl;
 
 
         std::vector<double>L2errors(6,0.0);
@@ -911,26 +912,31 @@ int main(int argc, char** argv)
         vnames[3]     = "dU2dx2";
         vnames[4]     = "dU2dxy";
         vnames[5]     = "dU2dxz";
+        for(int i=0;i<6;i++)
+        {           
+            MPI_Allreduce(&L2errors[i], &L2errors_reduce[i], 1, MPI_DOUBLE, MPI_SUM, comm);
+            L2errors_reduce[i] = sqrt(L2errors_reduce[i]);
+        }
+          
         if(world_rank == 0)
         {
-            std::cout << "[";
-            for(int i=0;i<6;i++)
-            {           
-                MPI_Allreduce(&L2errors[i], &L2errors_reduce[i], 1, MPI_DOUBLE, MPI_SUM, comm);
-                L2errors_reduce[i] = sqrt(L2errors_reduce[i]);
+            string filename_error = "errors"+std::to_string(itg->first)+".dat";
+            ofstream myfile;
+            myfile.open(filename_error);
 
-    
+            for(int i=0;i<6;i++)
+            {               
                 if(world_rank == 0 && i < 5)
                 {
-                    std::cout << L2errors_reduce[i]/el_sum << ", ";
+                    myfile << L2errors_reduce[i]/el_sum << " ";
                 }
             
                 if(world_rank == 0 && i == 5)
                 {
-                    std::cout << L2errors_reduce[i]/el_sum;
+                    myfile << L2errors_reduce[i]/el_sum;
                 }
             }
-            std::cout << "]" << std::endl;
+            myfile.close();
         }
         
 
