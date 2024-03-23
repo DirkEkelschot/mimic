@@ -4,9 +4,9 @@
 
 void WritePrismsUS3DFormat(MPI_Comm comm, 
                            RepartitionObject* prism_repart,
-                           PrismTetraTrace* pttrace,
                            std::map<int,int> tracerefV2globalV,
                            std::vector<int> &ifn_P,
+                           std::map<int,int> vertref_trace_bl,
                            std::map<int,std::vector<int> > ranges_id)
 {
     int world_size;
@@ -62,12 +62,13 @@ void WritePrismsUS3DFormat(MPI_Comm comm,
 
     std::vector<double> VcF(3,0);
 
-    std::map<int,int> unique_trace_verts2refmap     = pttrace->GetUniqueTraceVerts2RefMap();
+    //std::map<int,int> unique_trace_verts2refmap = pttrace->GetUniqueTraceVerts2RefMap();
     int nLocFace_P = InternalFaces_P.size()+SharedFaces_P.size();
     ifn_P.resize(nLocFace_P*8);
     std::fill(ifn_P.begin(), ifn_P.end(), 0);
 
     int fptot = 0;
+    std::set<int> catchy;
     for( itmiv=InternalFaces_P.begin();itmiv!=InternalFaces_P.end();itmiv++)
     {
         int gfid    = itmiv->first;
@@ -95,22 +96,41 @@ void WritePrismsUS3DFormat(MPI_Comm comm,
             VcF[1] = VcF[1] + Vf[1];
             VcF[2] = VcF[2] + Vf[2];
             
+            // if(tag2globvID_P.find(tagV)!=tag2globvID_P.end() &&
+            //     unique_trace_verts2refmap.find(tagV)==unique_trace_verts2refmap.end())
+            // {
+            //     int globid  = tag2globvID_P[tagV];
+            //     fce[g]      = globid;
+            // }
+            // else if(SharedVertsNotOwned.find(tagV)!=SharedVertsNotOwned.end() &&
+            //         unique_trace_verts2refmap.find(tagV)==unique_trace_verts2refmap.end())
+            // {
+            //     int globid    = SharedVertsNotOwned[tagV];
+            //     //int globid  = tag2globvID_P[tagV];
+            //     fce[g]        = globid;   
+            // }
+            // else if(unique_trace_verts2refmap.find(tagV)!=unique_trace_verts2refmap.end())
+            // {
+            //     int ref     = unique_trace_verts2refmap[tagV];
+            //     int globid  = tracerefV2globalV[ref];
+            //     fce[g]      = globid;
+            // }
             if(tag2globvID_P.find(tagV)!=tag2globvID_P.end() &&
-                unique_trace_verts2refmap.find(tagV)==unique_trace_verts2refmap.end())
+                vertref_trace_bl.find(tagV)==vertref_trace_bl.end())
             {
                 int globid  = tag2globvID_P[tagV];
                 fce[g]      = globid;
             }
             else if(SharedVertsNotOwned.find(tagV)!=SharedVertsNotOwned.end() &&
-                    unique_trace_verts2refmap.find(tagV)==unique_trace_verts2refmap.end())
+                    vertref_trace_bl.find(tagV)==vertref_trace_bl.end())
             {
                 int globid    = SharedVertsNotOwned[tagV];
                 //int globid  = tag2globvID_P[tagV];
                 fce[g]        = globid;   
             }
-            else if(unique_trace_verts2refmap.find(tagV)!=unique_trace_verts2refmap.end())
+            else if(vertref_trace_bl.find(tagV)!=vertref_trace_bl.end())
             {
-                int ref     = unique_trace_verts2refmap[tagV];
+                int ref     = vertref_trace_bl[tagV];
                 int globid  = tracerefV2globalV[ref];
                 fce[g]      = globid;
             }
@@ -216,22 +236,41 @@ void WritePrismsUS3DFormat(MPI_Comm comm,
             VcF[1] = VcF[1] + Vf[1];
             VcF[2] = VcF[2] + Vf[2];
             
+            // if(tag2globvID_P.find(tagV)!=tag2globvID_P.end() &&
+            //     unique_trace_verts2refmap.find(tagV)==unique_trace_verts2refmap.end())
+            // {
+            //     int globid  = tag2globvID_P[tagV];
+            //     fce[g]      = globid;
+            
+            // }
+            // else if(SharedVertsNotOwned.find(tagV)!=SharedVertsNotOwned.end() &&
+            //         unique_trace_verts2refmap.find(tagV)==unique_trace_verts2refmap.end())
+            // {
+            //     int globid  = SharedVertsNotOwned[tagV];
+            //     fce[g]      = globid;   
+            // }
+            // else if(unique_trace_verts2refmap.find(tagV)!=unique_trace_verts2refmap.end())
+            // {
+            //     int ref     = unique_trace_verts2refmap[tagV];
+            //     int globid  = tracerefV2globalV[ref];
+            //     fce[g]      = globid;
+            // }
             if(tag2globvID_P.find(tagV)!=tag2globvID_P.end() &&
-                unique_trace_verts2refmap.find(tagV)==unique_trace_verts2refmap.end())
+                vertref_trace_bl.find(tagV)==vertref_trace_bl.end())
             {
                 int globid  = tag2globvID_P[tagV];
                 fce[g]      = globid;
-            
             }
             else if(SharedVertsNotOwned.find(tagV)!=SharedVertsNotOwned.end() &&
-                    unique_trace_verts2refmap.find(tagV)==unique_trace_verts2refmap.end())
+                    vertref_trace_bl.find(tagV)==vertref_trace_bl.end())
             {
-                int globid  = SharedVertsNotOwned[tagV];
-                fce[g]      = globid;   
+                int globid    = SharedVertsNotOwned[tagV];
+                //int globid  = tag2globvID_P[tagV];
+                fce[g]        = globid;   
             }
-            else if(unique_trace_verts2refmap.find(tagV)!=unique_trace_verts2refmap.end())
+            else if(vertref_trace_bl.find(tagV)!=vertref_trace_bl.end())
             {
-                int ref     = unique_trace_verts2refmap[tagV];
+                int ref     = vertref_trace_bl[tagV];
                 int globid  = tracerefV2globalV[ref];
                 fce[g]      = globid;
             }
@@ -307,6 +346,7 @@ void WritePrismsUS3DFormat(MPI_Comm comm,
 
         fptot++;
     }
+
 }
 
 

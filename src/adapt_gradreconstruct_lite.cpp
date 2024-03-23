@@ -2,7 +2,6 @@
 
 
 std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D_Lite(RepartitionObject* RePa,
-                                                           PrismTetraTrace* trace,
                                                            std::map<int,std::vector<double> > ghosts,
                                                            int Nel,
                                                            int variable,
@@ -26,12 +25,9 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D_Lite(RepartitionObjec
    int nLoc_Elem                                        = Loc_Elem.size();
    std::map<int, std::vector<int> > Face2VertexMap      = RePa->getFace2VertexMap();
    std::map<int, std::vector<int> > Element2FaceMap     = RePa->getElement2FacesMap();
-   std::map<int, std::map<int,int> > trace2elements     = trace->GetTrace();
    std::map<int, std::vector<int> > Element2FacesMap    = RePa->getElement2FacesMap();
    std::map<int, std::vector<int> > Element2VertexMap   = RePa->getElement2VertexMap();
    std::map<int, std::vector<int> > Element2ElementMap  = RePa->getElement2ElementMap();
-   std::map<int, std::vector<int> > trace_verts         = trace->GetTraceVerts();
-   std::map<int, std::vector<int> > traceLeftRightElem  = trace->GetLeftRightElements();
 
 //    std::cout << "before Usize " << Ue.size() << " " << Element2VertexMap.size() << " " << world_rank << std::endl;
 //    RePa->AddStateVecForAdjacentElements(Ue,1,comm);
@@ -39,10 +35,7 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D_Lite(RepartitionObjec
 
    std::map<int, std::vector<int> >::iterator itmii;
 
-   for(itmii=traceLeftRightElem.begin();itmii!=traceLeftRightElem.end();itmii++)
-   {
-        int prismID = itmii->second[1];
-   }
+
      
 
    std::map<int,std::vector<double> > dudx_map;
@@ -794,7 +787,6 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D_Lite(RepartitionObjec
 
 
 std::map<int,std::vector<double> > ComputedUdx_LSQ_US3D_Lite(RepartitionObject* RePa,
-                                                             PrismTetraTrace* trace,
                                                              std::map<int,std::vector<double> > Uval,
                                                              std::map<int,std::vector<double> > ghosts,
                                                              int Nel,
@@ -819,7 +811,6 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_US3D_Lite(RepartitionObject* 
     std::map<int, std::vector<int> > Face2VertexMap     = RePa->getFace2VertexMap();
     std::vector<int> Owned_Elem                         = RePa->getLocElem();
     int nLoc_Elem                                       = Owned_Elem.size();
-    std::map<int,std::map<int,int> > trace2elements     = trace->GetTrace();
 
     // std::map<int,std::vector<double> > ghostvrts = meshTopo->getGhostVerts();
     // std::map<int,std::vector<std::vector<double> > > vfvec = meshTopo->getVfacevector();

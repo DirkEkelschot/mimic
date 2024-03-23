@@ -21,7 +21,6 @@ class RepartitionObject{
                                   std::map<int,std::vector<int> > elements2faces,
                                   std::map<int,std::vector<int> > elements2elements,
                                   std::map<int,int> element2type,
-                                  PrismTetraTrace* trace,
                                   std::map<int,std::vector<double> > data,
                                   int nAdjLayer,
                                   bool reconstruct_ifn,
@@ -142,7 +141,6 @@ class RepartitionObject{
                 std::vector<int> getLocElem();
                 
                 void buildUpdatedVertexAndFaceNumbering(MPI_Comm comm, 
-                                                             PrismTetraTrace* trace,
                                                              std::map<int,std::vector<int> > ranges_id,
                                                              std::map<int,std::vector<int> > ranges_ref);
 
@@ -174,7 +172,6 @@ class RepartitionObject{
                 std::vector<int> getFace4ParMMG();
                 std::map<int,int> getGlobal2TagFMap();
                 void buildInteriorSharedAndBoundaryFaceMaps(MPI_Comm comm, 
-                                                            PrismTetraTrace* trace, 
                                                             std::map<int,std::vector<int> > ranges_id,
                                                             std::map<int,std::vector<int> > ranges_ref);
                 
@@ -193,6 +190,10 @@ class RepartitionObject{
                 std::map<int,std::vector<int> > getZone2boundaryFaceID();
                 void buildParMMGCommunicationMaps(MPI_Comm comm);
 
+                std::set<int> GetLocalTraceFacesSet();
+                std::set<int> GetLocalTraceVertSet();
+                std::map<int,std::vector<int> > GetLocalTraceFace2VertMap();
+                std::map<int,std::vector<int> > GetLocalTraceFace2LeftRight();
 
                 void ReconstructFace2ElementMap(std::map<int,std::vector<int> > ief,
                                                 std::map<int,std::vector<int> > ife_read,
@@ -213,7 +214,6 @@ class RepartitionObject{
                 std::map<int,std::vector<int> > getAdjacentElementLayer(std::map<int,std::vector<int> > element2verts,
                                              std::map<int,std::vector<int> > element2faces,
                                              std::map<int,std::vector<int> > element2element,
-                                             PrismTetraTrace* trace,
                                              std::map<int,std::vector<double> > xcn, 
                                              std::map<int,std::vector<double> > U, 
                                              int Ne_glob,
@@ -244,6 +244,12 @@ class RepartitionObject{
                 int Ne_glob;
                 int Nf_glob;
                 int Nv_glob;
+
+
+                std::set<int> m_loc_trace_faces;
+                std::set<int> m_loc_trace_verts;
+                std::map<int,std::vector<int> > m_loc_trace_face2leftright;
+                std::map<int,std::vector<int> > m_loc_trace_face2vertmap;
 
                 std::map<int,std::set<int> > node2elem_map;
 
