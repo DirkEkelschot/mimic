@@ -85,6 +85,69 @@ std::map<int,T> AllGatherMap_T(std::map<int,T> mappie, MPI_Comm mpi_comm)
     return mappie_glob;
 }
 
+
+template <typename T>
+std::set<T> AllGatherSet(std::set<T> set_tmp, MPI_Comm mpi_comm)
+{
+    int world_size;
+    MPI_Comm_size(mpi_comm, &world_size);
+    // Get the rank of the process
+    int world_rank;
+    MPI_Comm_rank(mpi_comm, &world_rank);
+
+    MPI_Datatype mpi_type = MPI_DATATYPE_NULL;
+    if constexpr (std::is_same_v<T, int>) 
+    {
+        mpi_type = MPI_INT;
+    }
+    if constexpr (std::is_same_v<T, double>) 
+    {
+        mpi_type = MPI_DOUBLE;
+    }
+
+    int mapSizeLoc = set_tmp.size();
+    DistributedParallelState* distrimap = new DistributedParallelState(mapSizeLoc,mpi_comm);
+    int mapSizeTot = distrimap->getNel();
+    
+    // T* key_loc    = new int[mapSizeLoc];
+    // T* key_tot    = new int[mapSizeTot];
+    int i = 0;
+    
+    std::vector<T> key_loc(mapSizeLoc);
+    std::vector<T> key_tot(mapSizeTot);
+
+    typename std::set<T>::iterator itred;
+    for(itred=set_tmp.begin();itred!=set_tmp.end();itred++)
+    {
+        key_loc[i] = *itred;
+        i++;
+    }
+    
+    int* offsets = distrimap->getOffsets();
+    int* nlocs   = distrimap->getNlocs();
+    
+    MPI_Allgatherv(&key_loc.data()[0],
+                   mapSizeLoc,
+                   mpi_type,
+                   &key_tot.data()[0],
+                   nlocs,
+                   offsets,
+                   mpi_type, mpi_comm);
+    
+    T key;
+    std::set<T> set_glob;
+    for(int i=0;i<mapSizeTot;i++)
+    {
+        key = key_tot[i];
+        if(set_glob.find(key)==set_glob.end())
+        {
+        	set_glob.insert(key);
+        }
+    }
+    
+    return set_glob;
+}
+
 std::map<int,int> AllGatherMap_I(std::map<int,int> mappie, MPI_Comm mpi_comm);
 std::map<int,double> AllGatherMap_D(std::map<int,double> mappie, MPI_Comm mpi_comm);
 

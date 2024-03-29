@@ -12,7 +12,6 @@ void RunParMMGandWriteTetraUS3Dformat(MPI_Comm comm,
                 PMMG_pParMesh &parmesh,
                 std::map<int,int> part_global_bl,
                 int bndIDmax,
-                std::map<int,int> unique_trace_verts2refmap,
                 Inputs* inputs, 
                 int nElemsGlob_P, int nVertsGlob_P, 
                 std::map<int,int>& tracerefV2globalV, 
@@ -32,7 +31,6 @@ void RunParMMGandWriteTetraUS3Dformat(MPI_Comm comm,
 
 PMMG_pParMesh InitializeParMMGmesh(MPI_Comm comm, 
                                    RepartitionObject* tetra_repart,
-                                   std::map<int,int> unique_trace_verts2refmap, 
                                    std::map<int,std::vector<int> > ranges_id,
                                    int bndIDmax,
                                    std::map<int, std::vector<std::vector<double> > > metric_vmap);
@@ -40,7 +38,6 @@ PMMG_pParMesh InitializeParMMGmesh(MPI_Comm comm,
 void RunParMMGAndTestPartitioning(MPI_Comm comm, 
                                   PMMG_pParMesh parmesh, 
                                   RepartitionObject* tetra_repart,
-                                  std::map<int,int> unique_trace_verts2refmap,
                                   std::map<int,std::vector<int> > ranges_id,
                                   Inputs* inputs);
 

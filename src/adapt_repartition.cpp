@@ -250,6 +250,15 @@ RepartitionObject::RepartitionObject(mesh* meshInput,
                 leftright[0] = elid;
                 leftright[1] = elemid;
                 m_loc_trace_face2leftright[faceid] = leftright;
+                int nv = face2verts_update[faceid].size();
+                for(int p=0;p<nv;p++)
+                {
+                    int vid = face2verts_update[faceid][p];
+                    if(m_loc_trace_verts_set.find(vid)==m_loc_trace_verts_set.end())
+                    {
+                        m_loc_trace_verts_set.insert(vid);
+                    }
+                }
             }
         }
     }
@@ -4942,7 +4951,6 @@ void RepartitionObject::buildCommunicationMaps(MPI_Comm comm)
 
 
 void RepartitionObject::buildUpdatedVertexAndFaceNumbering(MPI_Comm comm, 
-                                                           std::map<int,int> uniqure_trace_verts2ref,
                                                            std::map<int,std::vector<int> > ranges_id,
                                                            std::map<int,std::vector<int> > ranges_ref)
 {
@@ -4977,6 +4985,8 @@ void RepartitionObject::buildUpdatedVertexAndFaceNumbering(MPI_Comm comm,
     std::set<int>::iterator its;
     int ntrace = 0;
 
+    std::set<int> unique_trace_verts = AllGatherSet(m_loc_trace_verts_set,comm);
+
     for(its=Loc_Elem_Set.begin();its!=Loc_Elem_Set.end();its++)
     {
         int elid = *its;
@@ -5008,7 +5018,7 @@ void RepartitionObject::buildUpdatedVertexAndFaceNumbering(MPI_Comm comm,
                         face[k] = vid;
 
                         if(unique_vertex_set_on_rank.find(vid)==unique_vertex_set_on_rank.end() &&
-                        uniqure_trace_verts2ref.find(vid)==uniqure_trace_verts2ref.end())
+                        unique_trace_verts.find(vid)==unique_trace_verts.end())
                         {
                             unique_vertex_set_on_rank.insert(vid);
                         }
@@ -5054,7 +5064,7 @@ void RepartitionObject::buildUpdatedVertexAndFaceNumbering(MPI_Comm comm,
             int vid = face2verts_update[gfid][q];
             //std::cout << vid << " ";
             if(UniqueSharedVertsOnRank_set.find(vid)==UniqueSharedVertsOnRank_set.end() &&
-                   uniqure_trace_verts2ref.find(vid)==uniqure_trace_verts2ref.end()
+                   unique_trace_verts.find(vid)==unique_trace_verts.end()
             )
             {
                 UniqueSharedVertsOnRank_set.insert(vid);
@@ -5072,7 +5082,6 @@ void RepartitionObject::buildUpdatedVertexAndFaceNumbering(MPI_Comm comm,
                   nLocalVertsTot_red_test.data(), 
                   size, MPI_INT, MPI_SUM, comm);
 
-    int N_un_traceV = uniqure_trace_verts2ref.size();
     int N_un_shareV = UniqueSharedVertsOnRank_set.size();
     int summednLocalVertsTot = 0;
 
@@ -5271,7 +5280,7 @@ void RepartitionObject::buildUpdatedVertexAndFaceNumbering(MPI_Comm comm,
         o_sharedVertexMapUpdatedGlobalID[itmm->first] = globid;
         
         if(itmm->second==rank &&
-           uniqure_trace_verts2ref.find(itmm->first)==uniqure_trace_verts2ref.end())
+           unique_trace_verts.find(itmm->first)==unique_trace_verts.end())
         {
             o_SharedVertsOwned[itmm->first] = globid;
         }
@@ -5459,6 +5468,8 @@ void RepartitionObject::buildUpdatedVertexAndFaceNumbering(MPI_Comm comm,
             }
         }
     }
+
+    unique_trace_verts.clear();
     /**/
 }
 
@@ -5471,7 +5482,6 @@ void RepartitionObject::buildUpdatedVertexAndFaceNumbering(MPI_Comm comm,
 
 
 void RepartitionObject::buildInteriorSharedAndBoundaryFaceMaps(MPI_Comm comm, 
-                                                               std::map<int,int> uniqure_trace_verts2ref,
                                                                std::map<int,std::vector<int> > ranges_id,
                                                                std::map<int,std::vector<int> > ranges_ref)
 {
@@ -5492,6 +5502,9 @@ void RepartitionObject::buildInteriorSharedAndBoundaryFaceMaps(MPI_Comm comm,
     //std::map<int,std::vector<int> > trace_verts     = trace->GetTraceVerts();
     //std::map<int,int> uniqure_trace_verts2ref       = trace->GetUniqueTraceVerts2RefMap();
     
+    std::set<int> unique_trace_verts = AllGatherSet(m_loc_trace_verts_set,comm);
+
+
     DistributedParallelState* ElementDistr = new DistributedParallelState(Loc_Elem_Set.size(),comm);
 
 
@@ -5606,7 +5619,7 @@ void RepartitionObject::buildInteriorSharedAndBoundaryFaceMaps(MPI_Comm comm,
                                     fn_tag[n] = face2verts_update[gfid][n];
 
                                     if(o_SharedVertsOwned.find(fn_tag[n])==o_SharedVertsOwned.end() 
-                                            && uniqure_trace_verts2ref.find(fn_tag[n])==uniqure_trace_verts2ref.end())
+                                            && unique_trace_verts.find(fn_tag[n])==unique_trace_verts.end())
                                     {
                                         if(o_SharedVertsNotOwned.find(fn_tag[n])==o_SharedVertsNotOwned.end())
                                         {
@@ -5636,7 +5649,7 @@ void RepartitionObject::buildInteriorSharedAndBoundaryFaceMaps(MPI_Comm comm,
                                     if(o_sharedVertex2RankMap.find(fn_tag[n])!=o_sharedVertex2RankMap.end())
                                     {
                                         if(o_SharedVertsOwned.find(fn_tag[n])==o_SharedVertsOwned.end() 
-                                                && uniqure_trace_verts2ref.find(fn_tag[n])==uniqure_trace_verts2ref.end())
+                                                && unique_trace_verts.find(fn_tag[n])==unique_trace_verts.end())
                                         {
                                             if(o_SharedVertsNotOwned.find(fn_tag[n])==o_SharedVertsNotOwned.end())
                                             {
@@ -5647,7 +5660,7 @@ void RepartitionObject::buildInteriorSharedAndBoundaryFaceMaps(MPI_Comm comm,
                                     else
                                     {
                                         if(o_NonSharedVertsOwned.find(fn_tag[n])==o_NonSharedVertsOwned.end() 
-                                        && uniqure_trace_verts2ref.find(fn_tag[n])==uniqure_trace_verts2ref.end())
+                                        && unique_trace_verts.find(fn_tag[n])==unique_trace_verts.end())
                                         {
                                             o_NonSharedVertsOwned[fn_tag[n]]  = gvidd;
                                             gvidd++;
@@ -5674,7 +5687,7 @@ void RepartitionObject::buildInteriorSharedAndBoundaryFaceMaps(MPI_Comm comm,
                                     if(o_sharedVertex2RankMap.find(fn_tag[n])!=o_sharedVertex2RankMap.end())
                                     {
                                         if(o_SharedVertsOwned.find(fn_tag[n])==o_SharedVertsOwned.end() 
-                                                && uniqure_trace_verts2ref.find(fn_tag[n])==uniqure_trace_verts2ref.end())
+                                                && unique_trace_verts.find(fn_tag[n])==unique_trace_verts.end())
                                         {
                                             if(o_SharedVertsNotOwned.find(fn_tag[n])==o_SharedVertsNotOwned.end())
                                             {
@@ -5685,7 +5698,7 @@ void RepartitionObject::buildInteriorSharedAndBoundaryFaceMaps(MPI_Comm comm,
                                     else
                                     {
                                         if(o_NonSharedVertsOwned.find(fn_tag[n])==o_NonSharedVertsOwned.end() 
-                                        && uniqure_trace_verts2ref.find(fn_tag[n])==uniqure_trace_verts2ref.end())
+                                        && unique_trace_verts.find(fn_tag[n])==unique_trace_verts.end())
                                         {
                                             o_NonSharedVertsOwned[fn_tag[n]]  = gvidd;
                                             gvidd++;
@@ -5899,7 +5912,7 @@ void RepartitionObject::buildInteriorSharedAndBoundaryFaceMaps(MPI_Comm comm,
     DistributedParallelState* distnLocShVrts  = new DistributedParallelState(nLocShVrts,comm);
 
     //std::cout << "nLocShVrts " << nLocShVrts << std::endl;
-
+    unique_trace_verts.clear();
 }
 
 
@@ -5987,6 +6000,12 @@ std::map<int,std::set<int> > RepartitionObject::GetNode2ElementMap()
 
     return node2elem_map;
 
+}
+
+
+std::set<int> RepartitionObject::GetUniqueTraceVertsOnRank()
+{
+    return m_loc_trace_verts_set;
 }
 
 std::map<int,std::vector<int> > RepartitionObject::GetLocalTraceFaces()

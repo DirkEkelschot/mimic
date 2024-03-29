@@ -141,7 +141,6 @@ class RepartitionObject{
                 std::vector<int> getLocElem();
                 
                 void buildUpdatedVertexAndFaceNumbering(MPI_Comm comm, 
-                                                             std::map<int,int> uniqure_trace_verts2ref,
                                                              std::map<int,std::vector<int> > ranges_id,
                                                              std::map<int,std::vector<int> > ranges_ref);
 
@@ -170,10 +169,11 @@ class RepartitionObject{
                 int* getParMMGCommNFacesPerColor();
                 int getParMMGNComm();
                 
+                std::set<int> GetUniqueTraceVertsOnRank();
+
                 std::vector<int> getFace4ParMMG();
                 std::map<int,int> getGlobal2TagFMap();
                 void buildInteriorSharedAndBoundaryFaceMaps(MPI_Comm comm, 
-                                                            std::map<int,int> uniqure_trace_verts2ref,
                                                             std::map<int,std::vector<int> > ranges_id,
                                                             std::map<int,std::vector<int> > ranges_ref);
                 
@@ -326,6 +326,7 @@ class RepartitionObject{
                 std::map<int,std::vector<int> > zone2bcface;                
                 
                 //std::set<int> m_loc_trace_faces;
+                std::set<int> m_loc_trace_verts_set;
                 std::map<int,std::vector<int> > m_loc_trace_face2leftright;
                 //buildInteriorSharedAndBoundaryFaceMaps()
                 std::map<int,int> o_lhp;

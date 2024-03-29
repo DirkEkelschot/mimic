@@ -7,7 +7,6 @@
 
 PMMG_pParMesh InitializeParMMGmesh(MPI_Comm comm, 
                                    RepartitionObject* tetra_repart,
-                                   std::map<int,int> unique_trace_verts2refmap, 
                                    std::map<int,std::vector<int> > ranges_id,
                                    int bndIDmax,
                                    std::map<int, std::vector<std::vector<double> > > metric_vmap)
@@ -47,7 +46,12 @@ PMMG_pParMesh InitializeParMMGmesh(MPI_Comm comm,
     int *ntifc                                          = tetra_repart->getParMMGCommNFacesPerColor();
     int ncomm                                           = tetra_repart->getParMMGNComm();
 
-    
+    std::set<int> unique_trace_verts_on_rank            = tetra_repart->GetUniqueTraceVertsOnRank();
+    std::set<int> unique_trace_verts_global = AllGatherSet(unique_trace_verts_on_rank,comm);
+    unique_trace_verts_on_rank.clear();
+    std::vector<int> unique_trace_verts_global_vec(unique_trace_verts_global.begin(), unique_trace_verts_global.end());
+
+
     int nVertices   = locv2tagvID.size();
     int nTetrahedra = Owned_Elem_t.size();
     int nEdges      = 0;
@@ -107,6 +111,7 @@ PMMG_pParMesh InitializeParMMGmesh(MPI_Comm comm,
     //double* c0 = new double[3];
     int iref;
     int vertref = 86;
+    int vertref2 = 86;
     
     int locs = 0;
     
@@ -128,7 +133,7 @@ PMMG_pParMesh InitializeParMMGmesh(MPI_Comm comm,
         
         int faceID      = face4parmmg[k];
         int tagFaceID   = global2tagF[faceID];
-        // int ref         = f2refmap[tagFaceID][0];
+        // int ref      = f2refmap[tagFaceID][0];
         int ref = -1;
         
         if(ref==3)
@@ -163,15 +168,38 @@ PMMG_pParMesh InitializeParMMGmesh(MPI_Comm comm,
                 double vz    = LocalVertsMap_t[tagvid][2];
                 int glovid   = tag2globalV[tagvid];
                 int locvid   = globalv2localvID[glovid];
-            
-                if(unique_trace_verts2refmap.find(tagvid)!=unique_trace_verts2refmap.end())
-                {
-                    vertref = unique_trace_verts2refmap[tagvid];
-                }
+
+                auto it = find(unique_trace_verts_global_vec.begin(), unique_trace_verts_global_vec.end(), tagvid); 
+  
+                if (it != unique_trace_verts_global_vec.end())  
+                { 
+                    int index = it - unique_trace_verts_global_vec.begin(); 
+                    // vertref = 100+index;
+                    vertref = tagvid;
+                } 
                 else
                 {
                     std::cout << "Warning:: reference value on trace vertID " << tagvid << " is wrong!" << std::endl;
                 }
+                // if(unique_trace_verts2refmap.find(tagvid)!=unique_trace_verts2refmap.end())
+                // {
+                //     vertref2 = unique_trace_verts2refmap[tagvid];
+                // }
+                // else
+                // {
+                //     std::cout << "Warning:: reference value on trace vertID " << tagvid << " is wrong!" << std::endl;
+                // }
+
+                // std::cout << "vertrefs " << vertref << " " << vertref2 << std::endl;
+
+                // if(unique_trace_verts2refmap.find(tagvid)!=unique_trace_verts2refmap.end())
+                // {
+                //     vertref = unique_trace_verts2refmap[tagvid];
+                // }
+                // else
+                // {
+                //     std::cout << "Warning:: reference value on trace vertID " << tagvid << " is wrong!" << std::endl;
+                // }
 
                 if ( PMMG_Set_vertex(parmesh, vx, vy, vz, vertref, locvid+1) != 1 )
                 {
@@ -227,6 +255,8 @@ PMMG_pParMesh InitializeParMMGmesh(MPI_Comm comm,
         }
         // std::cout << "face ref " << ref << std::endl;        
     }
+
+    unique_trace_verts_global_vec.clear();
 
     
     int outflowbc_sum   = 0;
@@ -343,7 +373,6 @@ void RunParMMGandWriteTetraUS3Dformat(MPI_Comm comm,
                 PMMG_pParMesh &parmesh,
                 std::map<int,int> part_global_bl,
                 int bndIDmax,
-                std::map<int,int> unique_trace_verts2refmap,
                 Inputs* inputs, 
                 int nElemsGlob_P, int nVertsGlob_P, 
                 std::map<int,int>& tracerefV2globalV, 
@@ -1805,7 +1834,6 @@ void RunParMMGandWriteTetraUS3Dformat(MPI_Comm comm,
 void RunParMMGAndTestPartitioning(MPI_Comm comm,
                                   PMMG_pParMesh parmesh, 
                                   RepartitionObject* tetra_repart,
-                                  std::map<int,int> unique_trace_verts2refmap,
                                   std::map<int,std::vector<int> > ranges_id,
                                   Inputs* inputs)
 {

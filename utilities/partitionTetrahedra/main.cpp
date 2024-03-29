@@ -74,14 +74,14 @@ int main(int argc, char** argv)
 
     start1 = clock();
 
-    PrismTetraTrace* pttrace = new PrismTetraTrace(comm, 
-                                                   meshRead->element2rank, 
-                                                   meshRead->ife,
-                                                   meshRead->ifn,
-                                                   meshRead->iet, 
-                                                   meshRead->nElem, 
-                                                   meshRead->nFace, 
-                                                   meshRead->nVert);
+    // PrismTetraTrace* pttrace = new PrismTetraTrace(comm, 
+    //                                                meshRead->element2rank, 
+    //                                                meshRead->ife,
+    //                                                meshRead->ifn,
+    //                                                meshRead->iet, 
+    //                                                meshRead->nElem, 
+    //                                                meshRead->nFace, 
+    //                                                meshRead->nVert);
 
     
     end1 = clock();
@@ -94,8 +94,6 @@ int main(int argc, char** argv)
         cout << " sec " << endl;
     }
 
-    std::map<int,int> unique_trace_verts2refmap     = pttrace->GetUniqueTraceVerts2RefMap();
-    delete pttrace;
     //Filter out the tetrahedra and prisms into seperate maps from the IO data structures (meshRead).
     //=====================================================================================
     std::map<int,std::vector<int> > tetras_e2v,tetras_e2f,tetras_e2e;
@@ -248,12 +246,10 @@ int main(int argc, char** argv)
         }
 
         tetra_repart->buildUpdatedVertexAndFaceNumbering(comm, 
-                                                        unique_trace_verts2refmap, 
                                                         meshRead->ranges_id, 
                                                         meshRead->ranges_ref);
         
         tetra_repart->buildInteriorSharedAndBoundaryFaceMaps(comm, 
-                                                            unique_trace_verts2refmap,
                                                             meshRead->ranges_id,
                                                             meshRead->ranges_ref);
         start = clock();
@@ -310,12 +306,10 @@ int main(int argc, char** argv)
         }
 
         tetra_repart->buildUpdatedVertexAndFaceNumbering(comm, 
-                                                        unique_trace_verts2refmap, 
                                                         meshRead->ranges_id, 
                                                         meshRead->ranges_ref);
         
         tetra_repart->buildInteriorSharedAndBoundaryFaceMaps(comm, 
-                                                            unique_trace_verts2refmap,
                                                             meshRead->ranges_id,
                                                             meshRead->ranges_ref);
 
@@ -452,9 +446,18 @@ int main(int argc, char** argv)
             metric_vmap[gvid] = metric;
         }
         // ====================== Done generating dummy metric =====================
-        PMMG_pParMesh parmesh = InitializeParMMGmesh(comm, tetra_repart, unique_trace_verts2refmap, meshRead->ranges_id, bndIDmax, metric_vmap);
+        PMMG_pParMesh parmesh = InitializeParMMGmesh(comm, 
+                                                    tetra_repart, 
+                                                    meshRead->ranges_id, 
+                                                    bndIDmax, 
+                                                    metric_vmap);
 
-        RunParMMGAndTestPartitioning(comm, parmesh, tetra_repart, unique_trace_verts2refmap,  meshRead->ranges_id, inputs);
+        RunParMMGAndTestPartitioning(comm,
+                                    parmesh, 
+                                    tetra_repart,  
+                                    meshRead->ranges_id, 
+                                    inputs);
+                                    
         delete tetra_repart;
     }
     else
@@ -469,7 +472,7 @@ int main(int argc, char** argv)
 
         
 
-        PMMG_pParMesh parmesh = InitializeParMMGmesh(comm, tetra_repart, unique_trace_verts2refmap, meshRead->ranges_id, bndIDmax, metric_vmap);
+        PMMG_pParMesh parmesh = InitializeParMMGmesh(comm, tetra_repart, meshRead->ranges_id, bndIDmax, metric_vmap);
         delete tetra_repart;
 
         metric_vmap.clear();
@@ -515,8 +518,8 @@ int main(int argc, char** argv)
         meshRead->interior.clear();
         meshRead->ghost.clear();
 
-        prism_repart->buildUpdatedVertexAndFaceNumbering(comm,unique_trace_verts2refmap, meshRead->ranges_id, meshRead->ranges_ref);
-        prism_repart->buildInteriorSharedAndBoundaryFaceMaps(comm,unique_trace_verts2refmap, meshRead->ranges_id, meshRead->ranges_ref);
+        prism_repart->buildUpdatedVertexAndFaceNumbering(comm, meshRead->ranges_id, meshRead->ranges_ref);
+        prism_repart->buildInteriorSharedAndBoundaryFaceMaps(comm, meshRead->ranges_id, meshRead->ranges_ref);
 
         std::map<int,int> NonSharedVertsOwned_P       = prism_repart->getNonSharedVertsOwned();
         std::map<int,int> SharedVertsOwned_P          = prism_repart->getSharedVertsOwned();
@@ -557,7 +560,6 @@ int main(int argc, char** argv)
                                         parmesh, 
                                         prism_repart->getGlobalElement2Rank(),
                                         bndIDmax,
-                                        unique_trace_verts2refmap, 
                                         inputs, 
                                         nElemsGlob_P, 
                                         nVertsGlob_P, 
@@ -588,7 +590,7 @@ int main(int argc, char** argv)
             std::cout << "writing prism data..." << std::endl;
         }
 
-        WritePrismsUS3DFormat(comm,prism_repart,unique_trace_verts2refmap,tracerefV2globalVidInTotalMesh,ifn_P,meshRead->ranges_id);
+        WritePrismsUS3DFormat(comm,prism_repart,tracerefV2globalVidInTotalMesh,ifn_P,meshRead->ranges_id);
      
 
         
@@ -614,7 +616,6 @@ int main(int argc, char** argv)
                                     ifn_adaptedTetra,
                                     ifn_P,
                                     bcref2bcface_adaptedTetra,
-                                    unique_trace_verts2refmap,
                                     tracerefV2globalVidInTotalMesh,
                                     BoundaryFaces_adaptedTetra,
                                     glob2locVid_adaptedTetra,

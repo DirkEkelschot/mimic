@@ -118,14 +118,14 @@ PrismTetraTrace::PrismTetraTrace(MPI_Comm comm,
         if(trace_elems.find(trace_fid)==trace_elems.end())
         {
             trace_elems.insert(trace_fid);
-            
+
             for(int k=0;k<3;k++)
             {
                 int vid = trace_fv_glob[i*3+k];
 
                 if(unique_trace_verts.find(vid)==unique_trace_verts.end())
                 {  
-                    unique_trace_verts[vid] = vref;
+                    unique_trace_verts[vid] = vid;
 
                     vref = vref + 1;
                 }
