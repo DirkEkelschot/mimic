@@ -7,7 +7,7 @@
 
 PMMG_pParMesh InitializeParMMGmesh(MPI_Comm comm, 
                                    RepartitionObject* tetra_repart,
-                                   std::map<int,int> loc_trace2ref,
+                                   std::map<int,int> unique_trace_verts2refmap, 
                                    std::map<int,std::vector<int> > ranges_id,
                                    int bndIDmax,
                                    std::map<int, std::vector<std::vector<double> > > metric_vmap)
@@ -34,23 +34,18 @@ PMMG_pParMesh InitializeParMMGmesh(MPI_Comm comm,
     std::map<int,int> locv2tagvID                       = tetra_repart->getLocalVert2VertTag();
     // std::map<int,int> le2tagID                       = tetra_repart->getLocalElement2ElementTag();
     std::map<int,std::vector<int> > face2vertsMap       = tetra_repart->getFace2VertexMap();
-
     std::map<int,int> globalv2localvID                  = tetra_repart->getUpdatedGlobal2LocalVMap();
     std::map<int,int> tag2globalV                       = tetra_repart->getUpdatedTag2GlobalVMap();
     std::vector<int> face4parmmg                        = tetra_repart->getFace4ParMMG(); // checked
     std::map<int, std::vector<double> > LocalVertsMap_t = tetra_repart->getLocalVertsMap();
     std::map<int,int> global2tagF                       = tetra_repart->getGlobal2TagFMap();
-    //std::map<int,std::vector<int> > trace_verts         = pttrace->GetTraceVerts();
-    //std::map<int,int> unique_trace_verts2refmap         = pttrace->GetUniqueTraceVerts2RefMap();
+    std::map<int,std::vector<int> > loc_trace_face2leftright     = tetra_repart->GetLocalTraceFaces();
+
     int** ifc_tria_glob                                 = tetra_repart->getParMMGCommFace2GlobalVertMap();
     int** ifc_tria_loc                                  = tetra_repart->getParMMGCommFace2LocalVertMap();
     int* color_face                                     = tetra_repart->getParMMGCommColorFace();
     int *ntifc                                          = tetra_repart->getParMMGCommNFacesPerColor();
     int ncomm                                           = tetra_repart->getParMMGNComm();
-    std::set<int> loc_trace_verts                       = tetra_repart->GetLocalTraceVertSet();
-    std::set<int> loc_trace_faces                               = tetra_repart->GetLocalTraceFacesSet();
-    std::map<int,std::vector<int> > loc_trace_face2vertmap      = tetra_repart->GetLocalTraceFace2VertMap();
-    std::map<int,std::vector<int> > loc_trace_face2leftright    = tetra_repart->GetLocalTraceFace2LeftRight();
 
     
     int nVertices   = locv2tagvID.size();
@@ -112,7 +107,7 @@ PMMG_pParMesh InitializeParMMGmesh(MPI_Comm comm,
     //double* c0 = new double[3];
     int iref;
     int vertref = 86;
-    int vertref2 = 86;
+    
     int locs = 0;
     
     std::map<int,int> shell_g2l;
@@ -127,27 +122,13 @@ PMMG_pParMesh InitializeParMMGmesh(MPI_Comm comm,
 
     std::map<int,std::vector<int> > f2vmap = tetra_repart->getFace2VertexMap();
     std::map<int,std::vector<int> > f2refmap = tetra_repart->getFace2RefMap();
-    //std::map<int,std::vector<int> > leftright_trace     = pttrace->GetLeftRightElements();
-    int fff = 0;
 
-
-    std::vector<int> bndid_vec;
-    std::map<int,std::vector<int> >::iterator itr;
-    for(itr=ranges_id.begin();itr!=ranges_id.end();itr++)
-    {
-        bndid_vec.push_back(itr->first);
-    }
-
-    //bndIDmax = *std::max_element(bndid_vec.begin(), bndid_vec.end());
-    //std::cout << "bndIDmax " << bndIDmax << " -- " << bndid_vec.size() << std::endl;
-    int found1 = 0;
-    int found2 = 0;
     for ( k=0; k<nTriangles; ++k )
     {
         
         int faceID      = face4parmmg[k];
         int tagFaceID   = global2tagF[faceID];
-        // int ref      = f2refmap[tagFaceID][0];
+        // int ref         = f2refmap[tagFaceID][0];
         int ref = -1;
         
         if(ref==3)
@@ -167,52 +148,30 @@ PMMG_pParMesh InitializeParMMGmesh(MPI_Comm comm,
             outflowbc++;
         }
 
-        if(loc_trace_faces.find(tagFaceID)!=loc_trace_faces.end())
+        if(loc_trace_face2leftright.find(tagFaceID)!=loc_trace_face2leftright.end())
         {
-            
-            // ref = 13;//-(leftright_trace[tagFaceID][1]+1);
-            //ref = 1.0e09+(leftright_trace[tagFaceID][1]);
             ref = (bndIDmax+1)+(loc_trace_face2leftright[tagFaceID][1]);
-            // if(leftright_trace.find(tagFaceID)!=leftright_trace.end())
-            // {
-            //     ref = -(leftright_trace[tagFaceID][1]+1);
-            //     fff++;
-            // }
-            // else
-            // {
-            //     ref = -13;
-            // }
             for(int s=0;s<3;s++)
             {
-                //int ref   = 13;
+                int ref   = 13;
+                int tagvid  = face2vertsMap[tagFaceID][s];
 
-                int tagvid      = face2vertsMap[tagFaceID][s];
-                double vx       = LocalVertsMap_t[tagvid][0];
-                double vy       = LocalVertsMap_t[tagvid][1];
-                double vz       = LocalVertsMap_t[tagvid][2];
-                int glovid      = tag2globalV[tagvid];
-                int locvid      = globalv2localvID[glovid];
+                // int globalVid = global2tagV[gvid];
 
-                if(loc_trace2ref.find(tagvid)!=loc_trace2ref.end())
+                double vx    = LocalVertsMap_t[tagvid][0];
+                double vy    = LocalVertsMap_t[tagvid][1];
+                double vz    = LocalVertsMap_t[tagvid][2];
+                int glovid   = tag2globalV[tagvid];
+                int locvid   = globalv2localvID[glovid];
+            
+                if(unique_trace_verts2refmap.find(tagvid)!=unique_trace_verts2refmap.end())
                 {
-                    vertref = loc_trace2ref[tagvid];
-                    found1++;
+                    vertref = unique_trace_verts2refmap[tagvid];
                 }
                 else
                 {
-                    std::cout << "NOT HERE " << tagvid << std::endl;
+                    std::cout << "Warning:: reference value on trace vertID " << tagvid << " is wrong!" << std::endl;
                 }
-                // if(unique_trace_verts2refmap.find(tagvid)!=unique_trace_verts2refmap.end())
-                // {
-                //     vertref2 = unique_trace_verts2refmap[tagvid];
-                //     found2++;
-                // }
-                // else
-                // {
-                //     std::cout << "Warning:: reference value on trace vertID " << tagvid << " is wrong!" << std::endl;
-                // }
-
-                //std::cout << "vertref " << vertref << " " << vertref2 << std::endl;
 
                 if ( PMMG_Set_vertex(parmesh, vx, vy, vz, vertref, locvid+1) != 1 )
                 {
@@ -221,10 +180,6 @@ PMMG_pParMesh InitializeParMMGmesh(MPI_Comm comm,
                 }
             }
             
-            // int tagvid0   = trace_verts[tagFaceID][0];
-            // int tagvid1   = trace_verts[tagFaceID][1];
-            // int tagvid2   = trace_verts[tagFaceID][2];
-
             int tagvid0   = face2vertsMap[tagFaceID][0];
             int tagvid1   = face2vertsMap[tagFaceID][1];
             int tagvid2   = face2vertsMap[tagFaceID][2];
@@ -273,8 +228,6 @@ PMMG_pParMesh InitializeParMMGmesh(MPI_Comm comm,
         // std::cout << "face ref " << ref << std::endl;        
     }
 
-    std::cout << "found1 found2 " << found1 << " " << found2 << std::endl;
-    //std::cout << "fff " << fff << std::endl; 
     
     int outflowbc_sum   = 0;
     int inflowbc_sum    = 0;
@@ -390,6 +343,7 @@ void RunParMMGandWriteTetraUS3Dformat(MPI_Comm comm,
                 PMMG_pParMesh &parmesh,
                 std::map<int,int> part_global_bl,
                 int bndIDmax,
+                std::map<int,int> unique_trace_verts2refmap,
                 Inputs* inputs, 
                 int nElemsGlob_P, int nVertsGlob_P, 
                 std::map<int,int>& tracerefV2globalV, 
@@ -472,10 +426,9 @@ void RunParMMGandWriteTetraUS3Dformat(MPI_Comm comm,
         std::cout << "FAILED to adapt the mesh in parallel! "<< std::endl;
     }
     FaceSetPointer::iterator ftit;
-    // std::map<int,std::vector<int> > leftright_trace     = pttrace->GetLeftRightElements();
     // FaceSetPointer FaceTraceRefs                        = pttrace->GetRefTraceFaceSet();
 
-    // 
+    // FaceSetPointer::iterator ftit;
     // std::vector<int> ownedTracePrisms;
     // int lr=0;
     // int found = 0;
@@ -503,7 +456,7 @@ void RunParMMGandWriteTetraUS3Dformat(MPI_Comm comm,
     //     }
     // }
 
-    // //std::cout << "ownedTracePrisms " << lr << " " << unique_prisms.size() << " " << ownedTracePrisms.size() << " " << world_rank << " " << FaceTraceRefs.size() << std::endl;
+    //std::cout << "ownedTracePrisms " << lr << " " << unique_prisms.size() << " " << ownedTracePrisms.size() << " " << world_rank << " " << FaceTraceRefs.size() << std::endl;
     // std::map<int,int> glob2tag_prisms_on_trace_glob = AllGatherMap_T(glob2tag_prisms_on_trace,comm);
     // std::map<int,int> tag2glob_prisms_on_trace_glob = AllGatherMap_T(tag2glob_prisms_on_trace,comm);
 
@@ -615,8 +568,6 @@ void RunParMMGandWriteTetraUS3Dformat(MPI_Comm comm,
     int pf      = 0;
     int pftot   = 0;
     int pfn     = 0;
-    int fount   = 0;
-    int found1  = 0;
     std::map<int,std::vector<int> > rank2req_prism;
     for ( k=0; k<nTrianglesOUT; k++ )
     {
@@ -634,10 +585,9 @@ void RunParMMGandWriteTetraUS3Dformat(MPI_Comm comm,
         face[0] = loc2globVid[face[0]];
         face[1] = loc2globVid[face[1]];
         face[2] = loc2globVid[face[2]];
+
         if(faceRefs[k]!=0 && faceRefs[k]<(bndIDmax+1))
         {
-            //std::cout << "faceRefs[k] " << faceRefs[k] << std::endl;
-
             FaceSharedPtr Face2RefPointer = std::shared_ptr<NekFace>(new NekFace(face));
             std::pair<FaceSetPointer::iterator, bool> testFace2RefPointer;
             testFace2RefPointer = m_PMMG_Face2RefPointer.insert(Face2RefPointer);
@@ -645,7 +595,6 @@ void RunParMMGandWriteTetraUS3Dformat(MPI_Comm comm,
             {
                 (*testFace2RefPointer.first)->SetFaceRef(faceRefs[k]);
             }
-            found1++;
         }
         if(faceRefs[k] >= (bndIDmax+1))
         {
@@ -707,13 +656,13 @@ void RunParMMGandWriteTetraUS3Dformat(MPI_Comm comm,
             //         (*Trace2PrismPointer.first)->SetFaceRightElement(PrismID);
             //     }
             // }
-            //found++;
         }
 
         newFaces[k] = face;
 
         if ( required2 && required2[k] )  nreq2++;
     }
+
 
     std::map<int,std::vector<int> >::iterator itje;
     ScheduleObj* part_schedule = DoScheduling(rank2req_prism,comm);
@@ -806,7 +755,7 @@ void RunParMMGandWriteTetraUS3Dformat(MPI_Comm comm,
         std::pair<FaceSetPointer::iterator, bool> Trace2PrismPointer;
         Trace2PrismPointer = m_PMMG_TraceFace2PrismPointer.insert(facenew);        
     }
-    
+
     int **out_tria_loc, **out_node_loc;
     int *nitem_face_comm,*nitem_node_comm;
     int next_face_comm, next_node_comm;
@@ -1219,8 +1168,6 @@ void RunParMMGandWriteTetraUS3Dformat(MPI_Comm comm,
                         {
                             int traceVertRef = refOUT[vertids[tetra_faces[u][y]]-1];
                             int vtag         = face[y];
-
-                            //std::cout << "traceVertRef " << traceVertRef << std::endl;
                             
                             if(tagV2traceVref.find(vtag)==tagV2traceVref.end())
                             {
@@ -1858,6 +1805,7 @@ void RunParMMGandWriteTetraUS3Dformat(MPI_Comm comm,
 void RunParMMGAndTestPartitioning(MPI_Comm comm,
                                   PMMG_pParMesh parmesh, 
                                   RepartitionObject* tetra_repart,
+                                  std::map<int,int> unique_trace_verts2refmap,
                                   std::map<int,std::vector<int> > ranges_id,
                                   Inputs* inputs)
 {

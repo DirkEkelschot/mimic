@@ -33,8 +33,6 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D_Lite(RepartitionObjec
 //    RePa->AddStateVecForAdjacentElements(Ue,1,comm);
 //    std::cout << "after Usize " << Ue.size() << " " << Element2VertexMap.size() << " " << world_rank << std::endl;
 
-   std::map<int, std::vector<int> >::iterator itmii;
-
 
      
 
