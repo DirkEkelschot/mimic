@@ -37,10 +37,6 @@ PrismTetraTrace::PrismTetraTrace(MPI_Comm comm,
     //Change this so that it reduces to root and it scatters the result of trace
     
     int trace_loc = 0;
-    std::vector<int> rank_l;
-    std::vector<int> rank_r;
-    std::vector<int> elem_l;
-    std::vector<int> elem_r;
     std::vector<int> face_vf;
     std::vector<int> trace_f;
 
@@ -62,12 +58,6 @@ PrismTetraTrace::PrismTetraTrace(MPI_Comm comm,
             {
                 if(type_0==2 && type_1!=2)
                 {
-                    rank_l.push_back(rank_0);
-                    rank_r.push_back(rank_1);
-
-                    elem_l.push_back(elem_0);
-                    elem_r.push_back(elem_1);
-
                     trace_f.push_back(face_id);
 
                     for(int q=0;q<3;q++)
@@ -78,19 +68,12 @@ PrismTetraTrace::PrismTetraTrace(MPI_Comm comm,
                 }
                 if(type_0!=2 && type_1==2)
                 {
-                    rank_l.push_back(rank_1);
-                    rank_r.push_back(rank_0);
-
-                    elem_l.push_back(elem_1);
-                    elem_r.push_back(elem_0);
-
                     trace_f.push_back(face_id);
 
                     for(int q=0;q<3;q++)
                     {
                         face_vf.push_back(ifn[face_id][q]);
                     }
-
                     trace_loc++;
                 }
             }  
@@ -104,45 +87,8 @@ PrismTetraTrace::PrismTetraTrace(MPI_Comm comm,
 
     int nTraceF_glob = trace_comm->getNel();
     int nTraceFV_glob = traceV_comm->getNel();
-
-    std::vector<int> rank_l_glob(nTraceF_glob,0);
-    std::vector<int> rank_r_glob(nTraceF_glob,0);
-    std::vector<int> elem_l_glob(nTraceF_glob,0);
-    std::vector<int> elem_r_glob(nTraceF_glob,0);
     std::vector<int> trace_f_glob(nTraceF_glob,0);
     std::vector<int> trace_fv_glob(nTraceFV_glob,0);
-    
-    MPI_Allgatherv(rank_l.data(),
-                   nTraceF,
-                   MPI_INT,
-                   rank_l_glob.data(),
-                   trace_comm->getNlocs(),
-                   trace_comm->getOffsets(),
-                   MPI_INT,comm);
-    
-    MPI_Allgatherv(rank_r.data(),
-                   nTraceF,
-                   MPI_INT,
-                   rank_r_glob.data(),
-                   trace_comm->getNlocs(),
-                   trace_comm->getOffsets(),
-                   MPI_INT,comm);
-
-    MPI_Allgatherv(elem_l.data(),
-                   nTraceF,
-                   MPI_INT,
-                   elem_l_glob.data(),
-                   trace_comm->getNlocs(),
-                   trace_comm->getOffsets(),
-                   MPI_INT,comm);
-    
-    MPI_Allgatherv(elem_r.data(),
-                   nTraceF,
-                   MPI_INT,
-                   elem_r_glob.data(),
-                   trace_comm->getNlocs(),
-                   trace_comm->getOffsets(),
-                   MPI_INT,comm);
 
     MPI_Allgatherv(trace_f.data(),
                    nTraceF,
@@ -171,85 +117,36 @@ PrismTetraTrace::PrismTetraTrace(MPI_Comm comm,
         
         if(trace_elems.find(trace_fid)==trace_elems.end())
         {
-            std::map<int,int> tr;
-            tr[elem_l_glob[i]] = rank_l_glob[i];
-            tr[elem_r_glob[i]] = rank_r_glob[i];
-            std::vector<int> LeftRight(2,0);
-            LeftRight[0] = elem_l_glob[i];
-            LeftRight[1] = elem_r_glob[i];
-            std::vector<int> fvs(3,0);
-            std::vector<int> refs(3,0);
             for(int k=0;k<3;k++)
             {
-                fvs[k] = trace_fv_glob[i*3+k];
+                int vid = trace_fv_glob[i*3+k];
 
-                if(unique_trace_verts.find(fvs[k])==unique_trace_verts.end())
+                if(unique_trace_verts.find(vid)==unique_trace_verts.end())
                 {  
-                    unique_trace_verts[fvs[k]] = vref;
-                    refs[k]=vref;
+                    unique_trace_verts[vid] = vref;
 
                     vref = vref + 1;
                 }
                 else
                 {
-                    int vreff = unique_trace_verts[fvs[k]];
-                    refs[k] = vreff;
+                    int vreff = unique_trace_verts[vid];
                 }
-
-
             }
-
-            FaceSharedPtr RefTraceFacePointer = std::shared_ptr<NekFace>(new NekFace(refs));
-            RefTraceFacePointer->SetFaceID(trace_fid);
-            RefTraceFacePointer->SetFaceLeftElement(LeftRight[0]);
-            RefTraceFacePointer->SetFaceRightElement(LeftRight[1]);
-            m_RefTraceFaces.insert(RefTraceFacePointer);
-            
-
-            trace_LR_elem[trace_fid]    = LeftRight;
-            trace_elems[trace_fid]      = tr;
-            trace_verts[trace_fid]      = fvs;
-            trace_ref[trace_fid]        = ref;
-            ref++;
         }
     }
-    
-    //std::cout << "trace_ref " << trace_verts.size() << std::endl;
+
+    trace_elems.clear();
+    trace_fv_glob.clear();
+    trace_f_glob.clear();
 
 }
 
-// void PrismTetraTrace::GetRequiredPrisms()
-// {
-// }
-FaceSetPointer PrismTetraTrace::GetRefTraceFaceSet()
-{
-    return m_RefTraceFaces;
-}
 
 std::map<int,int> PrismTetraTrace::GetUniqueTraceVerts2RefMap()
 {
     return unique_trace_verts;
 }
 
-std::map<int,std::map<int,int> > PrismTetraTrace::GetTrace()
-{
-    return trace_elems;
-}
-
-std::map<int,std::vector<int> > PrismTetraTrace::GetTraceVerts()
-{
-    return trace_verts;
-}
-
-std::map<int,std::vector<int> > PrismTetraTrace::GetLeftRightElements()
-{
-    return trace_LR_elem;
-}
-
-std::map<int,int > PrismTetraTrace::GetTraceRef()
-{
-    return trace_ref;
-}
 
 PrismTetraTrace::~PrismTetraTrace()
 {
