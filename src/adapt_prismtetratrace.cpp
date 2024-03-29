@@ -109,7 +109,7 @@ PrismTetraTrace::PrismTetraTrace(MPI_Comm comm,
     int ref  = 100;
     int vref = 100;
 
-   
+    std::set<int> trace_elems;
     
     for(int i=0;i<nTraceF_glob;i++)
     {
@@ -117,6 +117,8 @@ PrismTetraTrace::PrismTetraTrace(MPI_Comm comm,
         
         if(trace_elems.find(trace_fid)==trace_elems.end())
         {
+            trace_elems.insert(trace_fid);
+            
             for(int k=0;k<3;k++)
             {
                 int vid = trace_fv_glob[i*3+k];
@@ -133,6 +135,7 @@ PrismTetraTrace::PrismTetraTrace(MPI_Comm comm,
                 }
             }
         }
+        
     }
 
     trace_elems.clear();
@@ -150,10 +153,5 @@ std::map<int,int> PrismTetraTrace::GetUniqueTraceVerts2RefMap()
 
 PrismTetraTrace::~PrismTetraTrace()
 {
-    m_RefTraceFaces.clear();
     unique_trace_verts.clear();
-    trace_elems.clear();
-    trace_verts.clear();
-    trace_LR_elem.clear();
-    trace_ref.clear();
 }
