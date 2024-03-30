@@ -168,23 +168,23 @@ int main(int argc, char** argv)
     }
     
     //I am adding the prism elements and their data to the ghost map so that that data is in the boundaries data structures.
-    std::map<int,double> tracePrismData_glob = AllGatherMap_T(tracePrismData,comm);
+    // std::map<int,double> tracePrismData_glob = AllGatherMap_T(tracePrismData,comm);
     
-    std::map<int,double>::iterator itr;
-    for(itr=tracePrismData_glob.begin();itr!=tracePrismData_glob.end();itr++)
-    {
-        int elid    = itr->first;
-        double data = itr->second;
+    // std::map<int,double>::iterator itr;
+    // for(itr=tracePrismData_glob.begin();itr!=tracePrismData_glob.end();itr++)
+    // {
+    //     int elid    = itr->first;
+    //     double data = itr->second;
 
-        std::vector<double> rowghost(2,0.0);
-        rowghost[0] = 0.0;
-        rowghost[1] = data;
+    //     std::vector<double> rowghost(2,0.0);
+    //     rowghost[0] = 0.0;
+    //     rowghost[1] = data;
 
-        if(meshRead->ghost.find(elid)==meshRead->ghost.end())
-        {
-            meshRead->ghost[elid] = rowghost;
-        }
-    }
+    //     if(meshRead->ghost.find(elid)==meshRead->ghost.end())
+    //     {
+    //         meshRead->ghost[elid] = rowghost;
+    //     }
+    // }
     int nLocTetra  = tetras_e2v.size();
     int nLocPrism  = prisms_e2v.size();
     int nElemsGlob_T = 0;
@@ -292,6 +292,7 @@ int main(int argc, char** argv)
         tetras_e2e.clear();
         tetra2type.clear();
         tetras_data.clear();
+        //tetra_ifn.clear();
                                                             
         end = clock();
         time_taken = ( end - start) / (double) CLOCKS_PER_SEC;
@@ -470,8 +471,6 @@ int main(int argc, char** argv)
 
         tetra_grad.clear();
 
-        
-
         PMMG_pParMesh parmesh = InitializeParMMGmesh(comm, tetra_repart, meshRead->ranges_id, bndIDmax, metric_vmap);
         delete tetra_repart;
 
@@ -556,6 +555,11 @@ int main(int argc, char** argv)
         int nLocSharedVerts_adaptedTetra = 0;
         int nLocInteriorVerts_adaptedTetra = 0;
 
+        // std::map<int,int> tmap = tetra_repart->getGlobalElement2Rank();
+        // std::cout << "size  " << world_rank << "  " << tmap.size() << std::endl;
+        // std::map<int,int> pmap = prism_repart->getGlobalElement2Rank();
+        // delete prism_repart;
+         
         RunParMMGandWriteTetraUS3Dformat(comm, 
                                         parmesh, 
                                         prism_repart->getGlobalElement2Rank(),
@@ -577,7 +581,7 @@ int main(int argc, char** argv)
                                         nLocInteriorVerts_adaptedTetra,
                                         nLocSharedVerts_adaptedTetra,
                                         tagE2gE_P);
-        
+       
         int nLocTotVrts_T                           = nLocInteriorVerts_adaptedTetra+nLocSharedVerts_adaptedTetra;
         DistributedParallelState* distnLocTotVrts_T = new DistributedParallelState(nLocTotVrts_T,comm);
         int* TotVrts_offsets_T                      = distnLocTotVrts_T->getOffsets();
@@ -592,8 +596,6 @@ int main(int argc, char** argv)
 
         WritePrismsUS3DFormat(comm,prism_repart,tracerefV2globalVidInTotalMesh,ifn_P,meshRead->ranges_id);
      
-
-        
         int ftott = (int)ifn_adaptedTetra.size()/8;
         int ftotp = (int)ifn_P.size()/8;
 
@@ -638,7 +640,6 @@ int main(int argc, char** argv)
                                     bcid,
                                     bci_offsets,
                                     zdefs_new);
-        
         
         std::vector<double> interiorverts_prism(NonSharedVertsOwned_P.size()*3,0);
         std::vector<double> sharedverts_prism(SharedVertsOwned_P.size()*3,0);

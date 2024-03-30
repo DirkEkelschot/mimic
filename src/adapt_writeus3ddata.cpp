@@ -32,11 +32,11 @@ void WritePrismsUS3DFormat(MPI_Comm comm,
     std::map<int,int> SharedVertsOwned_P                    = prism_repart->getSharedVertsOwned();
 
 
-    std::set<int> unique_trace_verts_on_rank            = prism_repart->GetUniqueTraceVertsOnRank();
-    std::set<int> unique_trace_verts_global = AllGatherSet(unique_trace_verts_on_rank,comm);
+    std::set<int> unique_trace_verts_on_rank                = prism_repart->GetUniqueTraceVertsOnRank();
+    std::set<int> unique_trace_verts_global                 = AllGatherSet(unique_trace_verts_on_rank,comm);
     unique_trace_verts_on_rank.clear();
     std::vector<int> unique_trace_verts_global_vec(unique_trace_verts_global.begin(), unique_trace_verts_global.end());
-
+    unique_trace_verts_global.clear();
 
 
 
@@ -323,6 +323,7 @@ void WritePrismsUS3DFormat(MPI_Comm comm,
         fptot++;
     }
     unique_trace_verts_global_vec.clear();
+    
     /**/
 }
 
@@ -379,7 +380,7 @@ void WriteBoundaryDataUS3DFormat(MPI_Comm comm,
     std::set<int> unique_trace_verts_global             = AllGatherSet(unique_trace_verts_on_rank,comm);
     unique_trace_verts_on_rank.clear();
     std::vector<int> unique_trace_verts_global_vec(unique_trace_verts_global.begin(), unique_trace_verts_global.end());
-
+    unique_trace_verts_global.clear();
 
 
     int nLocIntVrts         = NonSharedVertsOwned_P.size();

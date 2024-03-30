@@ -444,6 +444,7 @@ void RunParMMGandWriteTetraUS3Dformat(MPI_Comm comm,
       exit(EXIT_FAILURE);
     };
 
+    std::cout << "Starting to adapt the tetrahedra..." << std::endl;
     int ierlib = PMMG_parmmglib_distributed( parmesh );
     
     if(ierlib==0 && world_rank == 0)

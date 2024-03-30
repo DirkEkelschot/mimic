@@ -5912,7 +5912,9 @@ void RepartitionObject::buildInteriorSharedAndBoundaryFaceMaps(MPI_Comm comm,
     DistributedParallelState* distnLocShVrts  = new DistributedParallelState(nLocShVrts,comm);
 
     //std::cout << "nLocShVrts " << nLocShVrts << std::endl;
+    //std::cout << "unique_trace_verts before "<< unique_trace_verts.size() << " " << rank << std::endl; 
     unique_trace_verts.clear();
+    //std::cout << "unique_trace_verts after "<< unique_trace_verts.size() << " " << rank << std::endl; 
 }
 
 
