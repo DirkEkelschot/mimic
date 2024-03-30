@@ -24,7 +24,8 @@ class RepartitionObject{
                                   std::map<int,std::vector<double> > data,
                                   int nAdjLayer,
                                   bool reconstruct_ifn,
-                                  MPI_Comm comm);
+                                  MPI_Comm comm,
+                                  std::map<int,int> unique_tracevert2ref);
                 ~RepartitionObject();
 
                 void GetSharedTraces(std::map<int,std::vector<int> > elements,
@@ -169,8 +170,6 @@ class RepartitionObject{
                 int* getParMMGCommNFacesPerColor();
                 int getParMMGNComm();
                 
-                std::set<int> GetUniqueTraceVertsOnRank();
-
                 std::vector<int> getFace4ParMMG();
                 std::map<int,int> getGlobal2TagFMap();
                 void buildInteriorSharedAndBoundaryFaceMaps(MPI_Comm comm, 
@@ -192,6 +191,10 @@ class RepartitionObject{
                 std::map<int,std::vector<int> > getZone2boundaryFaceID();
                 void buildParMMGCommunicationMaps(MPI_Comm comm);
 
+                std::set<int> GetLocalTraceFacesSet();
+                std::set<int> GetLocalTraceVertSet();
+                std::map<int,std::vector<int> > GetLocalTraceFace2VertMap();
+                std::map<int,std::vector<int> > GetLocalTraceFace2LeftRight();
 
                 void ReconstructFace2ElementMap(std::map<int,std::vector<int> > ief,
                                                 std::map<int,std::vector<int> > ife_read,
@@ -225,8 +228,7 @@ class RepartitionObject{
                 
                 
                 std::map<int,std::set<int> > GetNode2ElementMap();
-                
-                std::map<int,std::vector<int> > GetLocalTraceFaces();
+
 
                 void AddStateVecForAdjacentElements(std::map<int,std::vector<double> > &U, int nvar, MPI_Comm comm);
                 void SetStateVec(std::map<int,std::vector<double> > U, int nvar);
@@ -244,6 +246,12 @@ class RepartitionObject{
                 int Nf_glob;
                 int Nv_glob;
 
+                std::map<int,int> m_unique_trace_verts_ref;
+                std::set<int> m_loc_trace_faces;
+                std::set<int> m_loc_trace_verts;
+                std::map<int,std::vector<int> > m_loc_trace_face2leftright;
+                std::map<int,std::vector<int> > m_loc_trace_face2vertmap;
+
                 std::map<int,std::set<int> > node2elem_map;
 
                 std::map<int, std::vector<int> > globElem2globVerts;
@@ -253,7 +261,7 @@ class RepartitionObject{
 
                 std::map<int,int> lface2gface;
                 std::map<int,int> gface2lface;
-
+                std::map<int,int> m_loc_trace_verts_map_glob;
                 std::set<int> unique_vertIDs_on_rank_set;
                 std::vector<int> unique_verts_on_rank_vec;
                 std::set<int> unique_faceIDs_on_rank_set;
@@ -324,10 +332,7 @@ class RepartitionObject{
                 std::map<int,int> tag2element_trace;
                 std::map<int,std::vector<int> > ref2bcface;
                 std::map<int,std::vector<int> > zone2bcface;                
-                
-                //std::set<int> m_loc_trace_faces;
-                std::set<int> m_loc_trace_verts_set;
-                std::map<int,std::vector<int> > m_loc_trace_face2leftright;
+
                 //buildInteriorSharedAndBoundaryFaceMaps()
                 std::map<int,int> o_lhp;
                 std::map<int,int> o_rhp;

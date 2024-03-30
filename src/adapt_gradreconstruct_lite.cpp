@@ -33,6 +33,8 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D_Lite(RepartitionObjec
 //    RePa->AddStateVecForAdjacentElements(Ue,1,comm);
 //    std::cout << "after Usize " << Ue.size() << " " << Element2VertexMap.size() << " " << world_rank << std::endl;
 
+   std::map<int, std::vector<int> >::iterator itmii;
+
 
      
 
@@ -855,7 +857,7 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_US3D_Lite(RepartitionObject* 
    
         std::vector<double> A_cm(nadj*3,0.0);
         std::vector<double> b(nadj,0.0);
-        //Array<double>* bvec     = new Array<double>(nadj,1);
+        Array<double>* bvec     = new Array<double>(nadj,1);
         std::vector<double> Pijk(NvPEl*3);
         for(int k=0;k<Element2VertexMap[elID].size();k++)
         {
@@ -1038,7 +1040,7 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_US3D_Lite(RepartitionObject* 
 
     
         x = SolveQR_Lite(A_cm,nadj,3,b);
-        //Array<double>* xold = SolveQR(A_cm.data(),nadj,3,bvec);
+        Array<double>* xold = SolveQR(A_cm.data(),nadj,3,bvec);
         dudx_map[elID] = x;
 
         

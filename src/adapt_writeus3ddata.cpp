@@ -6,6 +6,7 @@ void WritePrismsUS3DFormat(MPI_Comm comm,
                            RepartitionObject* prism_repart,
                            std::map<int,int> tracerefV2globalV,
                            std::vector<int> &ifn_P,
+                           std::map<int,int> vertref_trace_bl,
                            std::map<int,std::vector<int> > ranges_id)
 {
     int world_size;
@@ -30,14 +31,6 @@ void WritePrismsUS3DFormat(MPI_Comm comm,
     
     std::map<int,int> NonSharedVertsOwned_P                 = prism_repart->getNonSharedVertsOwned();
     std::map<int,int> SharedVertsOwned_P                    = prism_repart->getSharedVertsOwned();
-
-
-    std::set<int> unique_trace_verts_on_rank                = prism_repart->GetUniqueTraceVertsOnRank();
-    std::set<int> unique_trace_verts_global                 = AllGatherSet(unique_trace_verts_on_rank,comm);
-    unique_trace_verts_on_rank.clear();
-    std::vector<int> unique_trace_verts_global_vec(unique_trace_verts_global.begin(), unique_trace_verts_global.end());
-    unique_trace_verts_global.clear();
-
 
 
     std::map<int,int>::iterator itmii;
@@ -69,11 +62,13 @@ void WritePrismsUS3DFormat(MPI_Comm comm,
 
     std::vector<double> VcF(3,0);
 
+    //std::map<int,int> unique_trace_verts2refmap = pttrace->GetUniqueTraceVerts2RefMap();
     int nLocFace_P = InternalFaces_P.size()+SharedFaces_P.size();
     ifn_P.resize(nLocFace_P*8);
     std::fill(ifn_P.begin(), ifn_P.end(), 0);
-    
+
     int fptot = 0;
+    std::set<int> catchy;
     for( itmiv=InternalFaces_P.begin();itmiv!=InternalFaces_P.end();itmiv++)
     {
         int gfid    = itmiv->first;
@@ -100,33 +95,49 @@ void WritePrismsUS3DFormat(MPI_Comm comm,
             VcF[0] = VcF[0] + Vf[0];
             VcF[1] = VcF[1] + Vf[1];
             VcF[2] = VcF[2] + Vf[2];
-            auto it = std::find(unique_trace_verts_global_vec.begin(), unique_trace_verts_global_vec.end(), tagV); 
-
-            // if (it != unique_trace_verts_global_vec.end())  
-            // { 
-            //     int index = it - unique_trace_verts_global_vec.begin(); 
-            //     // vertref = 100+index;
-            //     vertref = tagvid;
-            // } 
+            
+            // if(tag2globvID_P.find(tagV)!=tag2globvID_P.end() &&
+            //     unique_trace_verts2refmap.find(tagV)==unique_trace_verts2refmap.end())
+            // {
+            //     int globid  = tag2globvID_P[tagV];
+            //     fce[g]      = globid;
+            // }
+            // else if(SharedVertsNotOwned.find(tagV)!=SharedVertsNotOwned.end() &&
+            //         unique_trace_verts2refmap.find(tagV)==unique_trace_verts2refmap.end())
+            // {
+            //     int globid    = SharedVertsNotOwned[tagV];
+            //     //int globid  = tag2globvID_P[tagV];
+            //     fce[g]        = globid;   
+            // }
+            // else if(unique_trace_verts2refmap.find(tagV)!=unique_trace_verts2refmap.end())
+            // {
+            //     int ref     = unique_trace_verts2refmap[tagV];
+            //     int globid  = tracerefV2globalV[ref];
+            //     fce[g]      = globid;
+            // }
             if(tag2globvID_P.find(tagV)!=tag2globvID_P.end() &&
-                it == unique_trace_verts_global_vec.end())
+                vertref_trace_bl.find(tagV)==vertref_trace_bl.end())
             {
                 int globid  = tag2globvID_P[tagV];
                 fce[g]      = globid;
             }
             else if(SharedVertsNotOwned.find(tagV)!=SharedVertsNotOwned.end() &&
-                    it == unique_trace_verts_global_vec.end())
+                    vertref_trace_bl.find(tagV)==vertref_trace_bl.end())
             {
                 int globid    = SharedVertsNotOwned[tagV];
                 //int globid  = tag2globvID_P[tagV];
                 fce[g]        = globid;   
             }
-            else if(it != unique_trace_verts_global_vec.end())
+            else if(vertref_trace_bl.find(tagV)!=vertref_trace_bl.end())
             {
                 int ref     = tagV;
                 int globid  = tracerefV2globalV[ref];
                 fce[g]      = globid;
             }
+            // if(fce[g]==0)
+            // {
+            //     std::cout << "Interior Face in Prisms with ID " << fptot << " has a zero ID at " << g << std::endl;
+            // }
         }
 
         VcF[0] = VcF[0]/npf;
@@ -229,27 +240,49 @@ void WritePrismsUS3DFormat(MPI_Comm comm,
             VcF[1] = VcF[1] + Vf[1];
             VcF[2] = VcF[2] + Vf[2];
             
-            auto it = std::find(unique_trace_verts_global_vec.begin(), unique_trace_verts_global_vec.end(), tagV); 
-
+            // if(tag2globvID_P.find(tagV)!=tag2globvID_P.end() &&
+            //     unique_trace_verts2refmap.find(tagV)==unique_trace_verts2refmap.end())
+            // {
+            //     int globid  = tag2globvID_P[tagV];
+            //     fce[g]      = globid;
+            
+            // }
+            // else if(SharedVertsNotOwned.find(tagV)!=SharedVertsNotOwned.end() &&
+            //         unique_trace_verts2refmap.find(tagV)==unique_trace_verts2refmap.end())
+            // {
+            //     int globid  = SharedVertsNotOwned[tagV];
+            //     fce[g]      = globid;   
+            // }
+            // else if(unique_trace_verts2refmap.find(tagV)!=unique_trace_verts2refmap.end())
+            // {
+            //     int ref     = unique_trace_verts2refmap[tagV];
+            //     int globid  = tracerefV2globalV[ref];
+            //     fce[g]      = globid;
+            // }
             if(tag2globvID_P.find(tagV)!=tag2globvID_P.end() &&
-                it == unique_trace_verts_global_vec.end())
+                vertref_trace_bl.find(tagV)==vertref_trace_bl.end())
             {
                 int globid  = tag2globvID_P[tagV];
                 fce[g]      = globid;
-            
             }
             else if(SharedVertsNotOwned.find(tagV)!=SharedVertsNotOwned.end() &&
-                    it == unique_trace_verts_global_vec.end())
+                    vertref_trace_bl.find(tagV)==vertref_trace_bl.end())
             {
-                int globid  = SharedVertsNotOwned[tagV];
-                fce[g]      = globid;   
+                int globid    = SharedVertsNotOwned[tagV];
+                //int globid  = tag2globvID_P[tagV];
+                fce[g]        = globid;   
             }
-            else if(it != unique_trace_verts_global_vec.end())
+            else if(vertref_trace_bl.find(tagV)!=vertref_trace_bl.end())
             {
                 int ref     = tagV;
                 int globid  = tracerefV2globalV[ref];
                 fce[g]      = globid;
             }
+
+            // if(fce[g]==0)
+            // {
+            //     std::cout << "Shared Face in Prisms with ID " << fptot << " has a zero ID at " << g << std::endl;
+            // }
         }
 
         VcF[0] = VcF[0]/npf;
@@ -322,9 +355,7 @@ void WritePrismsUS3DFormat(MPI_Comm comm,
 
         fptot++;
     }
-    unique_trace_verts_global_vec.clear();
-    
-    /**/
+
 }
 
 
@@ -333,6 +364,7 @@ void WriteBoundaryDataUS3DFormat(MPI_Comm comm,
                                 std::vector<int> ifn_T,
                                 std::vector<int> ifn_P,
                                 std::map<int,std::vector<int> > bcref2bcface_T,
+                                std::map<int,int> unique_trace_verts2refmap,
                                 std::map<int,int> tracerefV2globalV,
                                 std::map<int,std::vector<int> > BoundaryFaces_T,
                                 std::map<int,int> glob2locVid_T,
@@ -374,14 +406,6 @@ void WriteBoundaryDataUS3DFormat(MPI_Comm comm,
     std::map<int,int> tag2globvID_P;
     std::map<int,int> NonSharedVertsOwned_P                 = prism_repart->getNonSharedVertsOwned();
     std::map<int,int> SharedVertsOwned_P                    = prism_repart->getSharedVertsOwned();
-
-
-    std::set<int> unique_trace_verts_on_rank            = prism_repart->GetUniqueTraceVertsOnRank();
-    std::set<int> unique_trace_verts_global             = AllGatherSet(unique_trace_verts_on_rank,comm);
-    unique_trace_verts_on_rank.clear();
-    std::vector<int> unique_trace_verts_global_vec(unique_trace_verts_global.begin(), unique_trace_verts_global.end());
-    unique_trace_verts_global.clear();
-
 
     int nLocIntVrts         = NonSharedVertsOwned_P.size();
     int nLocShVrts          = SharedVertsOwned_P.size();
@@ -581,21 +605,19 @@ void WriteBoundaryDataUS3DFormat(MPI_Comm comm,
                     VcF[1] = VcF[1] + Vf[1];
                     VcF[2] = VcF[2] + Vf[2];
                     
-                    auto it = std::find(unique_trace_verts_global_vec.begin(), unique_trace_verts_global_vec.end(), tagV); 
-          
                     if(tag2globvID_P.find(tagV)!=tag2globvID_P.end() &&
-                        it == unique_trace_verts_global_vec.end())
+                        unique_trace_verts2refmap.find(tagV)==unique_trace_verts2refmap.end())
                     {
                         int globid = tag2globvID_P[tagV];
                         fce[g]     = globid;
                     }
                     else if(SharedVertsNotOwned.find(tagV)!=SharedVertsNotOwned.end() &&
-                            it == unique_trace_verts_global_vec.end())
+                            unique_trace_verts2refmap.find(tagV)==unique_trace_verts2refmap.end())
                     {
                         int globid = SharedVertsNotOwned[tagV];
                         fce[g]     = globid;
                     }
-                    else if(it != unique_trace_verts_global_vec.end())
+                    else if(unique_trace_verts2refmap.find(tagV)!=unique_trace_verts2refmap.end())
                     {
                         int ref     = tagV;
                         int globid  = tracerefV2globalV[ref];

@@ -8,9 +8,10 @@ RepartitionObject::RepartitionObject(mesh* meshInput,
                         std::map<int,std::vector<double> > data,
                         int nAdjLayer,
                         bool reconstruct_ifn,
-                        MPI_Comm comm)
+                        MPI_Comm comm,
+                        std::map<int,int> unique_tracevert2ref)
 {
-    
+    int faceidtrace = 2353748;
     int size;
     MPI_Comm_size(comm, &size);
     // Get the rank of the process
@@ -191,7 +192,7 @@ RepartitionObject::RepartitionObject(mesh* meshInput,
     }
    
     
-     end1 = clock();
+    end1 = clock();
     time_taken1 = ( end1 - start1) / (double) CLOCKS_PER_SEC;
     MPI_Allreduce(&time_taken1, &dur_max1, 1, MPI_DOUBLE, MPI_MAX, comm);
     if(rank == 0)
@@ -200,7 +201,90 @@ RepartitionObject::RepartitionObject(mesh* meshInput,
         << dur_max1 << std::setprecision(16);
         std::cout << " sec " << std::endl;
     }
-    
+
+
+    std::map<int,std::vector<int> >::iterator itm;
+    int cnt = 0;
+    std::map<int,int> m_loc_trace_verts_map;
+    for(itm=elements2elements_update.begin();itm!=elements2elements_update.end();itm++)
+    {
+        int elid = itm->first;
+        int ne = itm->second.size();
+
+        for(int q=0;q<ne;q++)
+        {
+            int elemid = itm->second[q];
+            int faceid = elements2faces_update[elid][q];
+            std::vector<int> leftright(2,0);
+            
+            if(part_global.find(elemid)==part_global.end() && elemid < Ne_glob)
+            {
+                m_loc_trace_faces.insert(faceid);
+
+                int nv = face2verts_update[faceid].size();
+                for(int n=0;n<nv;n++)
+                {
+                    int vid = face2verts_update[faceid][n];
+
+                    if(m_loc_trace_verts.find(vid)==m_loc_trace_verts.end())
+                    {
+                        m_loc_trace_verts.insert(vid);
+                        m_loc_trace_verts_map[vid] = cnt;
+                        cnt++;
+                    }
+                    m_loc_trace_face2vertmap[faceid]    = face2verts_update[faceid];
+                    leftright[0] = elid;
+                    leftright[1] = elemid;
+                    m_loc_trace_face2leftright[faceid]  = leftright;
+                }
+            }
+        }
+    }
+
+    if(m_loc_trace_faces.find(faceidtrace)!=m_loc_trace_faces.end())
+    {
+        std::cout << "faceidtrace is here " << rank << std::endl;
+    }
+    if(face2verts_update.find(faceidtrace)!=face2verts_update.end())
+    {
+        std::cout << "face2verts_update is here " << rank << std::endl;
+    }
+
+    // if(m_loc_trace_verts.find(807212)!=m_loc_trace_verts.end())
+    // {
+    //     std::cout << "807212 found in m_loc_trace_verts " << rank << std::endl;
+    // }
+    // if(unique_tracevert2ref.find(807212)!=unique_tracevert2ref.end())
+    // {
+    //     std::cout << "807212 found in unique_tracevert2ref " << rank << std::endl;
+    // }
+    // m_loc_trace_verts.clear();
+    // std::map<int,int>::iterator itim;
+    // for(itim=unique_tracevert2ref.begin();itim!=unique_tracevert2ref.end();itim++)
+    // {
+    //     m_loc_trace_verts.insert(itim->first);
+    // }
+
+
+    m_loc_trace_verts_map_glob  = AllGatherMap_T(m_loc_trace_verts_map,comm);
+
+    // m_loc_trace_verts.clear();
+    // std::map<int,int>::iterator itim;
+    // for(itim=m_loc_trace_verts_map_glob.begin();itim!=m_loc_trace_verts_map_glob.end();itim++)
+    // {
+    //     m_loc_trace_verts.insert(itim->first);
+    // }
+        
+    int tracefoundRed = 0;
+    int nfacetrace      = m_loc_trace_faces.size();
+    //MPI_Allreduce(&nfacetrace, &tracefoundRed, 1, MPI_INT, MPI_SUM, comm);
+    MPI_Allreduce(&nfacetrace, &tracefoundRed, 1, MPI_INT, MPI_SUM, comm);
+    if(rank == 0)
+    {
+        std::cout << "tracefoundRed  " << tracefoundRed << std::endl;
+    }
+
+    m_unique_trace_verts_ref = unique_tracevert2ref;
 
     // getFace2EntityPerPartition(elements2faces_update, 
     //                            meshInput->ife, 
@@ -231,37 +315,7 @@ RepartitionObject::RepartitionObject(mesh* meshInput,
     //                            comm);
 
 
-    std::map<int,std::vector<int> >::iterator itm;
-    int cnt = 0;
-    for(itm=elements2elements_update.begin();itm!=elements2elements_update.end();itm++)
-    {
-        int elid = itm->first;
-        int ne = itm->second.size();
 
-        for(int q=0;q<ne;q++)
-        {
-            int elemid = itm->second[q];
-            int faceid = elements2faces_update[elid][q];
-            
-            if(part_global.find(elemid)==part_global.end() && elemid < Ne_glob)
-            {
-                //m_loc_trace_face2leftright.insert(faceid);
-                std::vector<int> leftright(2,0);
-                leftright[0] = elid;
-                leftright[1] = elemid;
-                m_loc_trace_face2leftright[faceid] = leftright;
-                int nv = face2verts_update[faceid].size();
-                for(int p=0;p<nv;p++)
-                {
-                    int vid = face2verts_update[faceid][p];
-                    if(m_loc_trace_verts_set.find(vid)==m_loc_trace_verts_set.end())
-                    {
-                        m_loc_trace_verts_set.insert(vid);
-                    }
-                }
-            }
-        }
-    }
 
     // vloc = LocalVertsMap.size();
 
@@ -3842,6 +3896,7 @@ std::map<int, std::vector<int> > RepartitionObject::getAdjacentElementLayer(std:
 
     std::map<int,std::vector<int> > adj_elements;
 
+    //std::map<int,std::map<int,int> > trace2elements = trace->GetTrace();
 
     //adj_elements.clear();
     int floc_tmp = 0;
@@ -3877,6 +3932,8 @@ std::map<int, std::vector<int> > RepartitionObject::getAdjacentElementLayer(std:
     }
         
     std::map<int,std::vector<int> > req_elem;
+    std::map<int,std::vector<int> > req_trace_elem;
+    std::map<int,std::vector<int> > on_trace_elem;
 
     int itel = 0;
     std::map<int,std::vector<int> >::iterator itmiv;
@@ -3921,7 +3978,24 @@ std::map<int, std::vector<int> > RepartitionObject::getAdjacentElementLayer(std:
                             itel++;
                         }
                     }
-                }         
+                }
+
+                // if(trace2elements.find(faceid)!=trace2elements.end())
+                // {
+                //     p_id = trace2elements[faceid][adjEl_id];
+                //     //std::cout << "trace2element pid = " << p_id << " rank " << rank  << std::endl;
+                //     if(p_id != rank)
+                //     {
+                //         req_trace_elem[p_id].push_back(adjEl_id);
+                //     }
+                //     else
+                //     {
+                //         on_trace_elem[p_id].push_back(adjEl_id);
+                //     }
+                     
+                //     ff++;
+                // }
+                          
             }
                 
             // This condition essentially means a prism is required adjEl_id<Nel && adjEl_id<part_global.size()
@@ -4960,7 +5034,7 @@ void RepartitionObject::buildUpdatedVertexAndFaceNumbering(MPI_Comm comm,
     int rank;
     MPI_Comm_rank(comm, &rank);
 
-    //std::map<int,std::map<int,int> > trace_elem       = trace->GetTrace();
+    //std::map<int,std::map<int,int> > trace_elem     = trace->GetTrace();
     //std::map<int,std::vector<int> > trace_verts     = trace->GetTraceVerts();
     //std::map<int,int> uniqure_trace_verts2ref       = trace->GetUniqueTraceVerts2RefMap();
 
@@ -4985,8 +5059,6 @@ void RepartitionObject::buildUpdatedVertexAndFaceNumbering(MPI_Comm comm,
     std::set<int>::iterator its;
     int ntrace = 0;
 
-    std::set<int> unique_trace_verts = AllGatherSet(m_loc_trace_verts_set,comm);
-
     for(its=Loc_Elem_Set.begin();its!=Loc_Elem_Set.end();its++)
     {
         int elid = *its;
@@ -4995,7 +5067,8 @@ void RepartitionObject::buildUpdatedVertexAndFaceNumbering(MPI_Comm comm,
         for(int j=0;j<Nf;j++)
         {
             int gfid = elements2faces_update[elid][j];
-            if(m_loc_trace_face2leftright.find(gfid)!=m_loc_trace_face2leftright.end())
+
+            if(m_loc_trace_faces.find(gfid)!=m_loc_trace_faces.end())
             {
                 ref = 13;
                 ntrace++;
@@ -5018,7 +5091,7 @@ void RepartitionObject::buildUpdatedVertexAndFaceNumbering(MPI_Comm comm,
                         face[k] = vid;
 
                         if(unique_vertex_set_on_rank.find(vid)==unique_vertex_set_on_rank.end() &&
-                        unique_trace_verts.find(vid)==unique_trace_verts.end())
+                        m_loc_trace_verts_map_glob.find(vid)==m_loc_trace_verts_map_glob.end())
                         {
                             unique_vertex_set_on_rank.insert(vid);
                         }
@@ -5051,6 +5124,10 @@ void RepartitionObject::buildUpdatedVertexAndFaceNumbering(MPI_Comm comm,
     // Take care of shared faces and vertices
     std::set<int> UniqueSharedVertsOnRank_set;
     std::vector<int> UniqueSharedVertsOnRank_RankID;
+
+    std::set<int> UniqueSharedVertsOnRank_set_ref;
+    std::vector<int> UniqueSharedVertsOnRank_RankID_ref;
+
     std::map<int,int>::iterator itmii;
     for(itmii=sharedFace2Rank.begin();itmii!=sharedFace2Rank.end();itmii++)
     {
@@ -5059,20 +5136,62 @@ void RepartitionObject::buildUpdatedVertexAndFaceNumbering(MPI_Comm comm,
         int Nv   = face2verts_update[gfid].size();
 
 
+        if(gfid==2353748)
+        {
+            std::cout << "2353748 on rank queries" << std::endl;
+        }
+
         for(int q=0;q<Nv;q++)
         {
             int vid = face2verts_update[gfid][q];
             //std::cout << vid << " ";
+
+            if(vid==807212)
+            {
+                std::cout << "found here " << gfid << " " << rank << " " << Nv << std::endl;
+            }
             if(UniqueSharedVertsOnRank_set.find(vid)==UniqueSharedVertsOnRank_set.end() &&
-                   unique_trace_verts.find(vid)==unique_trace_verts.end()
+                   m_loc_trace_verts_map_glob.find(vid)==m_loc_trace_verts_map_glob.end()
             )
             {
                 UniqueSharedVertsOnRank_set.insert(vid);
                 UniqueSharedVertsOnRank_RankID.push_back(rank);
             }
+
+            if(UniqueSharedVertsOnRank_set_ref.find(vid)==UniqueSharedVertsOnRank_set_ref.end() &&
+                   m_unique_trace_verts_ref.find(vid)==m_unique_trace_verts_ref.end()
+            )
+            {
+                UniqueSharedVertsOnRank_set_ref.insert(vid);
+                UniqueSharedVertsOnRank_RankID_ref.push_back(rank);
+            }
         }
         //std::cout << std::endl;
     }
+
+
+    // if(UniqueSharedVertsOnRank_set_ref.size()!=UniqueSharedVertsOnRank_set.size())
+    // {   
+    //     int notf    = 0;
+    //     int fo      = 0;
+    //     std::set<int>::iterator its;
+    //     for(its=UniqueSharedVertsOnRank_set.begin();its!=UniqueSharedVertsOnRank_set.end();its++)
+    //     {
+    //         int vid = *its;
+    //         if(UniqueSharedVertsOnRank_set_ref.find(vid)==UniqueSharedVertsOnRank_set_ref.end())
+    //         {
+    //             std::cout << "rank " << rank << " vid " << vid << std::endl; 
+    //             notf;
+    //         }
+    //         else
+    //         {
+    //             fo++;
+    //         }
+    //     }
+    //     std::cout << "UniqueSharedVertsOnRank_set_ref " << UniqueSharedVertsOnRank_set_ref.size() << " " << UniqueSharedVertsOnRank_set.size() << " " << notf<< " " << fo << std::endl;
+    // }
+
+
     int nLocalVertsTot = unique_vertex_set_on_rank.size();
     std::vector<int> nLocalVertsTot_loc_test(size,0);
     nLocalVertsTot_loc_test[rank] = nLocalVertsTot;
@@ -5280,7 +5399,7 @@ void RepartitionObject::buildUpdatedVertexAndFaceNumbering(MPI_Comm comm,
         o_sharedVertexMapUpdatedGlobalID[itmm->first] = globid;
         
         if(itmm->second==rank &&
-           unique_trace_verts.find(itmm->first)==unique_trace_verts.end())
+           m_loc_trace_verts_map_glob.find(itmm->first)==m_loc_trace_verts_map_glob.end())
         {
             o_SharedVertsOwned[itmm->first] = globid;
         }
@@ -5468,8 +5587,6 @@ void RepartitionObject::buildUpdatedVertexAndFaceNumbering(MPI_Comm comm,
             }
         }
     }
-
-    unique_trace_verts.clear();
     /**/
 }
 
@@ -5498,13 +5615,10 @@ void RepartitionObject::buildInteriorSharedAndBoundaryFaceMaps(MPI_Comm comm,
     //==============================
 
     // buildInteriorSharedAndBoundaryFaceMaps()
-    //std::map<int,std::map<int,int> > trace_elem     = trace->GetTrace();
-    //std::map<int,std::vector<int> > trace_verts     = trace->GetTraceVerts();
-    //std::map<int,int> uniqure_trace_verts2ref       = trace->GetUniqueTraceVerts2RefMap();
+    // std::map<int,std::map<int,int> > trace_elem     = trace->GetTrace();
+    // //std::map<int,std::vector<int> > trace_verts     = trace->GetTraceVerts();
+    // std::map<int,int> uniqure_trace_verts2ref       = trace->GetUniqueTraceVerts2RefMap();
     
-    std::set<int> unique_trace_verts = AllGatherSet(m_loc_trace_verts_set,comm);
-
-
     DistributedParallelState* ElementDistr = new DistributedParallelState(Loc_Elem_Set.size(),comm);
 
 
@@ -5575,7 +5689,7 @@ void RepartitionObject::buildInteriorSharedAndBoundaryFaceMaps(MPI_Comm comm,
             {
                 int Nv   = face2verts_update[gfid].size();
 
-                if(m_loc_trace_face2leftright.find(gfid)!=m_loc_trace_face2leftright.end())
+                if(m_loc_trace_faces.find(gfid)!=m_loc_trace_faces.end())
                 {
                     ref  = 13;
                 }
@@ -5619,7 +5733,7 @@ void RepartitionObject::buildInteriorSharedAndBoundaryFaceMaps(MPI_Comm comm,
                                     fn_tag[n] = face2verts_update[gfid][n];
 
                                     if(o_SharedVertsOwned.find(fn_tag[n])==o_SharedVertsOwned.end() 
-                                            && unique_trace_verts.find(fn_tag[n])==unique_trace_verts.end())
+                                            && m_loc_trace_verts.find(fn_tag[n])==m_loc_trace_verts.end())
                                     {
                                         if(o_SharedVertsNotOwned.find(fn_tag[n])==o_SharedVertsNotOwned.end())
                                         {
@@ -5649,7 +5763,7 @@ void RepartitionObject::buildInteriorSharedAndBoundaryFaceMaps(MPI_Comm comm,
                                     if(o_sharedVertex2RankMap.find(fn_tag[n])!=o_sharedVertex2RankMap.end())
                                     {
                                         if(o_SharedVertsOwned.find(fn_tag[n])==o_SharedVertsOwned.end() 
-                                                && unique_trace_verts.find(fn_tag[n])==unique_trace_verts.end())
+                                                && m_loc_trace_verts_map_glob.find(fn_tag[n])==m_loc_trace_verts_map_glob.end())
                                         {
                                             if(o_SharedVertsNotOwned.find(fn_tag[n])==o_SharedVertsNotOwned.end())
                                             {
@@ -5660,7 +5774,7 @@ void RepartitionObject::buildInteriorSharedAndBoundaryFaceMaps(MPI_Comm comm,
                                     else
                                     {
                                         if(o_NonSharedVertsOwned.find(fn_tag[n])==o_NonSharedVertsOwned.end() 
-                                        && unique_trace_verts.find(fn_tag[n])==unique_trace_verts.end())
+                                        && m_loc_trace_verts_map_glob.find(fn_tag[n])==m_loc_trace_verts_map_glob.end())
                                         {
                                             o_NonSharedVertsOwned[fn_tag[n]]  = gvidd;
                                             gvidd++;
@@ -5687,7 +5801,7 @@ void RepartitionObject::buildInteriorSharedAndBoundaryFaceMaps(MPI_Comm comm,
                                     if(o_sharedVertex2RankMap.find(fn_tag[n])!=o_sharedVertex2RankMap.end())
                                     {
                                         if(o_SharedVertsOwned.find(fn_tag[n])==o_SharedVertsOwned.end() 
-                                                && unique_trace_verts.find(fn_tag[n])==unique_trace_verts.end())
+                                                && m_loc_trace_verts_map_glob.find(fn_tag[n])==m_loc_trace_verts_map_glob.end())
                                         {
                                             if(o_SharedVertsNotOwned.find(fn_tag[n])==o_SharedVertsNotOwned.end())
                                             {
@@ -5698,7 +5812,7 @@ void RepartitionObject::buildInteriorSharedAndBoundaryFaceMaps(MPI_Comm comm,
                                     else
                                     {
                                         if(o_NonSharedVertsOwned.find(fn_tag[n])==o_NonSharedVertsOwned.end() 
-                                        && unique_trace_verts.find(fn_tag[n])==unique_trace_verts.end())
+                                        && m_loc_trace_verts_map_glob.find(fn_tag[n])==m_loc_trace_verts_map_glob.end())
                                         {
                                             o_NonSharedVertsOwned[fn_tag[n]]  = gvidd;
                                             gvidd++;
@@ -5894,16 +6008,16 @@ void RepartitionObject::buildInteriorSharedAndBoundaryFaceMaps(MPI_Comm comm,
     int key,val;
 
     //std::cout << "mapSizeTot " << mapSizeTot << " RANK " << rank << std::endl;
-    for(int i=0;i<mapSizeTot;i++)
-    {
-        key = tag_tot[i];
-        val = eid_tot[i];
-        if(tag2element_trace.find(key)==tag2element_trace.end())
-        {
-            //std::cout << "keyval = " << key << " " << val << std::endl;
-            tag2element_trace[key] = val;
-        }
-    }
+    // for(int i=0;i<mapSizeTot;i++)
+    // {
+    //     key = tag_tot[i];
+    //     val = eid_tot[i];
+    //     if(tag2element_trace.find(key)==tag2element_trace.end())
+    //     {
+    //         //std::cout << "keyval = " << key << " " << val << std::endl;
+    //         tag2element_trace[key] = val;
+    //     }
+    // }
     
 
     int nLocIntVrts         = o_NonSharedVertsOwned.size();
@@ -5912,9 +6026,7 @@ void RepartitionObject::buildInteriorSharedAndBoundaryFaceMaps(MPI_Comm comm,
     DistributedParallelState* distnLocShVrts  = new DistributedParallelState(nLocShVrts,comm);
 
     //std::cout << "nLocShVrts " << nLocShVrts << std::endl;
-    //std::cout << "unique_trace_verts before "<< unique_trace_verts.size() << " " << rank << std::endl; 
-    unique_trace_verts.clear();
-    //std::cout << "unique_trace_verts after "<< unique_trace_verts.size() << " " << rank << std::endl; 
+
 }
 
 
@@ -6005,15 +6117,24 @@ std::map<int,std::set<int> > RepartitionObject::GetNode2ElementMap()
 }
 
 
-std::set<int> RepartitionObject::GetUniqueTraceVertsOnRank()
-{
-    return m_loc_trace_verts_set;
-}
 
-std::map<int,std::vector<int> > RepartitionObject::GetLocalTraceFaces()
+std::map<int,std::vector<int> > RepartitionObject::GetLocalTraceFace2LeftRight()
 {
     return m_loc_trace_face2leftright;
 }
+std::map<int,std::vector<int> > RepartitionObject::GetLocalTraceFace2VertMap()
+{
+    return m_loc_trace_face2vertmap;
+}
+std::set<int> RepartitionObject::GetLocalTraceFacesSet()
+{
+    return m_loc_trace_faces;
+}
+std::set<int> RepartitionObject::GetLocalTraceVertSet()
+{
+    return m_loc_trace_verts;
+}
+
 
 void RepartitionObject::SetStateVec(std::map<int,std::vector<double> > U, int nvar)
 {
@@ -6218,10 +6339,10 @@ std::vector<int> RepartitionObject::getLocElem()
     return Loc_Elem;
 }
 
-std::map<int,int> RepartitionObject::getTag2ElementTrace()
-{
-    return tag2element_trace;
-}
+// std::map<int,int> RepartitionObject::getTag2ElementTrace()
+// {
+//     return tag2element_trace;
+// }
 
 // destructor
 RepartitionObject::~RepartitionObject()
