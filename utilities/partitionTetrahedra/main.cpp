@@ -156,16 +156,16 @@ int main(int argc, char** argv)
 
     start1 = clock();
 
-    PrismTetraTrace* pttrace = new PrismTetraTrace(comm, 
-                                                   meshRead->element2rank, 
-                                                   meshRead->ife,
-                                                   meshRead->ifn,
-                                                   meshRead->iet, 
-                                                   meshRead->nElem, 
-                                                   meshRead->nFace, 
-                                                   meshRead->nVert);
+    // PrismTetraTrace* pttrace = new PrismTetraTrace(comm, 
+    //                                                meshRead->element2rank, 
+    //                                                meshRead->ife,
+    //                                                meshRead->ifn,
+    //                                                meshRead->iet, 
+    //                                                meshRead->nElem, 
+    //                                                meshRead->nFace, 
+    //                                                meshRead->nVert);
 
-    std::map<int,int> un_tracevert2ref = pttrace->GetUniqueTraceVerts2RefMap();
+    // std::map<int,int> un_tracevert2ref = pttrace->GetUniqueTraceVerts2RefMap();
     
     end1 = clock();
     time_taken1 = ( end1 - start1) / (double) CLOCKS_PER_SEC;
@@ -330,8 +330,7 @@ int main(int argc, char** argv)
                                             tetras_data,
                                             2,
                                             tetra_ifn,
-                                            comm,
-                                            un_tracevert2ref);
+                                            comm);
 
         tetras_e2v.clear();
         tetras_e2f.clear();
@@ -391,8 +390,7 @@ int main(int argc, char** argv)
                                             tetras_data,
                                             1,
                                             tetra_ifn,
-                                            comm,
-                                            un_tracevert2ref);
+                                            comm);
 
         tetras_e2v.clear();
         tetras_e2f.clear();
@@ -670,7 +668,7 @@ int main(int argc, char** argv)
             metric_vmap[gvid] = metric;
         }
         // ====================== Done generating dummy metric =====================
-        PMMG_pParMesh parmesh = InitializeParMMGmesh(comm, tetra_repart, un_tracevert2ref, meshRead->ranges_id, bndIDmax, metric_vmap);
+        PMMG_pParMesh parmesh = InitializeParMMGmesh(comm, tetra_repart, meshRead->ranges_id, bndIDmax, metric_vmap);
 
         RunParMMGAndTestPartitioning(comm, parmesh, tetra_repart,  meshRead->ranges_id, inputs);
         delete tetra_repart;
@@ -687,7 +685,7 @@ int main(int argc, char** argv)
 
         
 
-        PMMG_pParMesh parmesh = InitializeParMMGmesh(comm, tetra_repart, un_tracevert2ref, meshRead->ranges_id, bndIDmax, metric_vmap);
+        PMMG_pParMesh parmesh = InitializeParMMGmesh(comm, tetra_repart, meshRead->ranges_id, bndIDmax, metric_vmap);
         delete tetra_repart;
 
         metric_vmap.clear();
@@ -701,8 +699,7 @@ int main(int argc, char** argv)
                                                         prisms_data,
                                                         0,
                                                         prism_ifn,
-                                                        comm,
-                                                        un_tracevert2ref);
+                                                        comm);
         prisms_e2v.clear();
         prisms_e2f.clear();
         prisms_e2e.clear();
@@ -978,7 +975,6 @@ int main(int argc, char** argv)
                                 prism_repart,
                                 tracerefV2globalVidInTotalMesh,
                                 ifn_P,
-                                un_tracevert2ref,
                                 meshRead->ranges_id);
                 
         //delete pttrace;
@@ -1014,7 +1010,6 @@ int main(int argc, char** argv)
                                     ifn_adaptedTetra,
                                     ifn_P,
                                     bcref2bcface_adaptedTetra,
-                                    un_tracevert2ref,
                                     tracerefV2globalVidInTotalMesh,
                                     BoundaryFaces_adaptedTetra,
                                     glob2locVid_adaptedTetra,

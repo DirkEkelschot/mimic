@@ -24,8 +24,7 @@ class RepartitionObject{
                                   std::map<int,std::vector<double> > data,
                                   int nAdjLayer,
                                   bool reconstruct_ifn,
-                                  MPI_Comm comm,
-                                  std::map<int,int> unique_tracevert2ref);
+                                  MPI_Comm comm);
                 ~RepartitionObject();
 
                 void GetSharedTraces(std::map<int,std::vector<int> > elements,

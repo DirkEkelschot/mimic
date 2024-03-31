@@ -31,7 +31,6 @@ void RunParMMGandWriteTetraUS3Dformat(MPI_Comm comm,
 
 PMMG_pParMesh InitializeParMMGmesh(MPI_Comm comm, 
                                    RepartitionObject* tetra_repart,
-                                   std::map<int,int> loc_trace2ref,
                                    std::map<int,std::vector<int> > ranges_id,
                                    int bndIDmax,
                                    std::map<int, std::vector<std::vector<double> > > metric_vmap);

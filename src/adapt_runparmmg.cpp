@@ -7,7 +7,6 @@
 
 PMMG_pParMesh InitializeParMMGmesh(MPI_Comm comm, 
                                    RepartitionObject* tetra_repart,
-                                   std::map<int,int> loc_trace2ref,
                                    std::map<int,std::vector<int> > ranges_id,
                                    int bndIDmax,
                                    std::map<int, std::vector<std::vector<double> > > metric_vmap)
@@ -47,11 +46,11 @@ PMMG_pParMesh InitializeParMMGmesh(MPI_Comm comm,
     int* color_face                                     = tetra_repart->getParMMGCommColorFace();
     int *ntifc                                          = tetra_repart->getParMMGCommNFacesPerColor();
     int ncomm                                           = tetra_repart->getParMMGNComm();
-    std::set<int> loc_trace_verts                       = tetra_repart->GetLocalTraceVertSet();
     std::set<int> loc_trace_faces                               = tetra_repart->GetLocalTraceFacesSet();
-    std::map<int,std::vector<int> > loc_trace_face2vertmap      = tetra_repart->GetLocalTraceFace2VertMap();
     std::map<int,std::vector<int> > loc_trace_face2leftright    = tetra_repart->GetLocalTraceFace2LeftRight();
+    std::set<int> loc_trace_verts                               = tetra_repart->GetLocalTraceVertSet();
 
+    std::set<int> glob_trace_verts = AllGatherSet(loc_trace_verts,comm);
     
     int nVertices   = locv2tagvID.size();
     int nTetrahedra = Owned_Elem_t.size();
@@ -193,7 +192,7 @@ PMMG_pParMesh InitializeParMMGmesh(MPI_Comm comm,
                 int glovid      = tag2globalV[tagvid];
                 int locvid      = globalv2localvID[glovid];
 
-                if(loc_trace2ref.find(tagvid)!=loc_trace2ref.end())
+                if(glob_trace_verts.find(tagvid)!=glob_trace_verts.end())
                 {
                     //vertref = loc_trace2ref[tagvid];
                     vertref = tagvid;
@@ -275,6 +274,7 @@ PMMG_pParMesh InitializeParMMGmesh(MPI_Comm comm,
         // std::cout << "face ref " << ref << std::endl;        
     }
 
+    glob_trace_verts.clear();
     //std::cout << "found1 found2 " << found1 << " " << found2 << std::endl;
     //std::cout << "fff " << fff << std::endl; 
     

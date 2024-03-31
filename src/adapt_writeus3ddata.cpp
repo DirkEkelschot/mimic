@@ -6,7 +6,6 @@ void WritePrismsUS3DFormat(MPI_Comm comm,
                            RepartitionObject* prism_repart,
                            std::map<int,int> tracerefV2globalV,
                            std::vector<int> &ifn_P,
-                           std::map<int,int> vertref_trace_bl,
                            std::map<int,std::vector<int> > ranges_id)
 {
     int world_size;
@@ -32,7 +31,9 @@ void WritePrismsUS3DFormat(MPI_Comm comm,
     std::map<int,int> NonSharedVertsOwned_P                 = prism_repart->getNonSharedVertsOwned();
     std::map<int,int> SharedVertsOwned_P                    = prism_repart->getSharedVertsOwned();
 
-
+    std::set<int> loc_trace_verts                               = prism_repart->GetLocalTraceVertSet();
+    std::set<int> glob_trace_verts                              = AllGatherSet(loc_trace_verts,comm);
+    
     std::map<int,int>::iterator itmii;
     int vert = 0;
     std::map<int,int> tag2globvID_P;
@@ -116,19 +117,19 @@ void WritePrismsUS3DFormat(MPI_Comm comm,
             //     fce[g]      = globid;
             // }
             if(tag2globvID_P.find(tagV)!=tag2globvID_P.end() &&
-                vertref_trace_bl.find(tagV)==vertref_trace_bl.end())
+                glob_trace_verts.find(tagV)==glob_trace_verts.end())
             {
                 int globid  = tag2globvID_P[tagV];
                 fce[g]      = globid;
             }
             else if(SharedVertsNotOwned.find(tagV)!=SharedVertsNotOwned.end() &&
-                    vertref_trace_bl.find(tagV)==vertref_trace_bl.end())
+                    glob_trace_verts.find(tagV)==glob_trace_verts.end())
             {
                 int globid    = SharedVertsNotOwned[tagV];
                 //int globid  = tag2globvID_P[tagV];
                 fce[g]        = globid;   
             }
-            else if(vertref_trace_bl.find(tagV)!=vertref_trace_bl.end())
+            else if(glob_trace_verts.find(tagV)!=glob_trace_verts.end())
             {
                 int ref     = tagV;
                 int globid  = tracerefV2globalV[ref];
@@ -260,19 +261,19 @@ void WritePrismsUS3DFormat(MPI_Comm comm,
             //     fce[g]      = globid;
             // }
             if(tag2globvID_P.find(tagV)!=tag2globvID_P.end() &&
-                vertref_trace_bl.find(tagV)==vertref_trace_bl.end())
+                glob_trace_verts.find(tagV)==glob_trace_verts.end())
             {
                 int globid  = tag2globvID_P[tagV];
                 fce[g]      = globid;
             }
             else if(SharedVertsNotOwned.find(tagV)!=SharedVertsNotOwned.end() &&
-                    vertref_trace_bl.find(tagV)==vertref_trace_bl.end())
+                    glob_trace_verts.find(tagV)==glob_trace_verts.end())
             {
                 int globid    = SharedVertsNotOwned[tagV];
                 //int globid  = tag2globvID_P[tagV];
                 fce[g]        = globid;   
             }
-            else if(vertref_trace_bl.find(tagV)!=vertref_trace_bl.end())
+            else if(glob_trace_verts.find(tagV)!=glob_trace_verts.end())
             {
                 int ref     = tagV;
                 int globid  = tracerefV2globalV[ref];
@@ -356,6 +357,8 @@ void WritePrismsUS3DFormat(MPI_Comm comm,
         fptot++;
     }
 
+    glob_trace_verts.clear();
+
 }
 
 
@@ -364,7 +367,6 @@ void WriteBoundaryDataUS3DFormat(MPI_Comm comm,
                                 std::vector<int> ifn_T,
                                 std::vector<int> ifn_P,
                                 std::map<int,std::vector<int> > bcref2bcface_T,
-                                std::map<int,int> unique_trace_verts2refmap,
                                 std::map<int,int> tracerefV2globalV,
                                 std::map<int,std::vector<int> > BoundaryFaces_T,
                                 std::map<int,int> glob2locVid_T,
@@ -406,7 +408,9 @@ void WriteBoundaryDataUS3DFormat(MPI_Comm comm,
     std::map<int,int> tag2globvID_P;
     std::map<int,int> NonSharedVertsOwned_P                 = prism_repart->getNonSharedVertsOwned();
     std::map<int,int> SharedVertsOwned_P                    = prism_repart->getSharedVertsOwned();
-
+    std::set<int> loc_trace_verts                               = prism_repart->GetLocalTraceVertSet();
+    std::set<int> glob_trace_verts                              = AllGatherSet(loc_trace_verts,comm);
+    
     int nLocIntVrts         = NonSharedVertsOwned_P.size();
     int nLocShVrts          = SharedVertsOwned_P.size();
     DistributedParallelState* distnLocIntVrts = new DistributedParallelState(nLocIntVrts,comm);
@@ -606,18 +610,18 @@ void WriteBoundaryDataUS3DFormat(MPI_Comm comm,
                     VcF[2] = VcF[2] + Vf[2];
                     
                     if(tag2globvID_P.find(tagV)!=tag2globvID_P.end() &&
-                        unique_trace_verts2refmap.find(tagV)==unique_trace_verts2refmap.end())
+                        glob_trace_verts.find(tagV)==glob_trace_verts.end())
                     {
                         int globid = tag2globvID_P[tagV];
                         fce[g]     = globid;
                     }
                     else if(SharedVertsNotOwned.find(tagV)!=SharedVertsNotOwned.end() &&
-                            unique_trace_verts2refmap.find(tagV)==unique_trace_verts2refmap.end())
+                            glob_trace_verts.find(tagV)==glob_trace_verts.end())
                     {
                         int globid = SharedVertsNotOwned[tagV];
                         fce[g]     = globid;
                     }
-                    else if(unique_trace_verts2refmap.find(tagV)!=unique_trace_verts2refmap.end())
+                    else if(glob_trace_verts.find(tagV)!=glob_trace_verts.end())
                     {
                         int ref     = tagV;
                         int globid  = tracerefV2globalV[ref];
@@ -922,6 +926,7 @@ void WriteBoundaryDataUS3DFormat(MPI_Comm comm,
         std::cout << "Summary/statistics of the adapted mesh..." << std::endl;
         PlotBoundaryData_Lite(znames,zdefs_new_copy);
     }
+    glob_trace_verts.clear();
 }
 
 /*
