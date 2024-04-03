@@ -31,7 +31,6 @@ PMMG_pParMesh InitializeParMMGmesh(MPI_Comm comm,
     std::vector<int> Owned_Elem_t                       = tetra_repart->getLocElem();
     std::map<int,std::vector<int> > gE2gV_t             = tetra_repart->getElement2VertexMap();
     std::map<int,int> locv2tagvID                       = tetra_repart->getLocalVert2VertTag();
-    // std::map<int,int> le2tagID                       = tetra_repart->getLocalElement2ElementTag();
     std::map<int,std::vector<int> > face2vertsMap       = tetra_repart->getFace2VertexMap();
 
     std::map<int,int> globalv2localvID                  = tetra_repart->getUpdatedGlobal2LocalVMap();

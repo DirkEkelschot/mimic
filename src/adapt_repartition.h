@@ -134,7 +134,7 @@ class RepartitionObject{
 
                 std::map<int,std::vector<int> > getFace2RefMap();
 
-                std::map<int, std::vector<int> > getFace2NVertexMap();
+                //std::map<int, std::vector<int> > getFace2NVertexMap();
 
                 std::map<int,int> getTag2ElementTrace();
 
@@ -144,22 +144,22 @@ class RepartitionObject{
                                                              std::map<int,std::vector<int> > ranges_id,
                                                              std::map<int,std::vector<int> > ranges_ref);
 
-                std::map<int,int> getVertTag2LocalVert();
+                //std::map<int,int> getVertTag2LocalVert();
                 std::map<int,int> getLocalVert2VertTag();
 
-                std::map<int,int> getLocalElement2ElementTag();
-                std::map<int,int> getElementTag2LocalElement();
+                //std::map<int,int> getLocalElement2ElementTag();
+                //std::map<int,int> getElementTag2LocalElement();
                 std::map<int,int> getGlobalElement2ElementTag();
                 std::map<int,int> getElementTag2GlobalElement();
                 std::map<int,int> getGlob2TagElementID();
                 std::map<int,int> getBoundaryFaces();
                 std::map<int,int> getBoundaryFaces2Ref();
-                std::map<int,int> getUpdatedGlobal2LocalFMap();
-                std::map<int,int> getUpdatedLocal2GlobalFMap();
+                // std::map<int,int> getUpdatedGlobal2LocalFMap();
+                // std::map<int,int> getUpdatedLocal2GlobalFMap();
                 std::map<int,int> getUpdatedGlobal2LocalVMap();
-                std::map<int,int> getUpdatedLocal2GlobalVMap();
+                //std::map<int,int> getUpdatedLocal2GlobalVMap();
                 std::map<int,int> getUpdatedTag2GlobalVMap();
-                std::map<int,int> getUpdatedGlobal2TagVMap();
+                //std::map<int,int> getUpdatedGlobal2TagVMap();
                 
 
                 void buildCommunicationMaps(MPI_Comm comm);
