@@ -1263,7 +1263,7 @@ void RunParMMGandWriteTetraUS3Dformat(MPI_Comm comm,
 
     
     std::map<int,int> tagV2traceVref_glob  = AllGatherMap_T(tagV2traceVref,comm);
-    std::map<int,int> traceref2newtag_glob = AllGatherMap_T(traceref2newtag,comm);
+    //std::map<int,int> traceref2newtag_glob = AllGatherMap_T(traceref2newtag,comm);
 
     // std::cout << "===============================================" << std::endl;
     // std::cout << "BoundaryFaces_T " << BoundaryFaces_T.size() << " " << world_rank << std::endl;

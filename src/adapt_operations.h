@@ -145,6 +145,9 @@ std::set<T> AllGatherSet(std::set<T> set_tmp, MPI_Comm mpi_comm)
         }
     }
     
+    key_loc.clear();
+    key_tot.clear();
+
     return set_glob;
 }
 
