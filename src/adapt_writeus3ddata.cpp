@@ -31,8 +31,8 @@ void WritePrismsUS3DFormat(MPI_Comm comm,
     std::map<int,int> NonSharedVertsOwned_P                 = prism_repart->getNonSharedVertsOwned();
     std::map<int,int> SharedVertsOwned_P                    = prism_repart->getSharedVertsOwned();
 
-    std::set<int> loc_trace_verts                               = prism_repart->GetLocalTraceVertSet();
-    std::set<int> glob_trace_verts                              = AllGatherSet(loc_trace_verts,comm);
+    std::set<int> loc_trace_verts                           = prism_repart->GetLocalTraceVertSet();
+    std::set<int> glob_trace_verts                          = AllGatherSet(loc_trace_verts,comm);
     
     std::map<int,int>::iterator itmii;
     int vert = 0;
@@ -67,7 +67,10 @@ void WritePrismsUS3DFormat(MPI_Comm comm,
     int nLocFace_P = InternalFaces_P.size()+SharedFaces_P.size();
     ifn_P.resize(nLocFace_P*8);
     std::fill(ifn_P.begin(), ifn_P.end(), 0);
-
+    if(world_rank == 0)
+    {
+        std::cout << "STUDY SIZES " << glob_trace_verts.size() << " " << tracerefV2globalV.size() << std::endl;
+    }
     int fptot = 0;
     std::set<int> catchy;
     for( itmiv=InternalFaces_P.begin();itmiv!=InternalFaces_P.end();itmiv++)
@@ -121,6 +124,13 @@ void WritePrismsUS3DFormat(MPI_Comm comm,
             {
                 int globid  = tag2globvID_P[tagV];
                 fce[g]      = globid;
+                if(world_rank == 0)
+                {
+                    if(fptot == 130)
+                    {
+                        std::cout << "Internal fce["<<g<<"]="<<fce[g] << std::endl;
+                    }
+                }
             }
             else if(SharedVertsNotOwned.find(tagV)!=SharedVertsNotOwned.end() &&
                     glob_trace_verts.find(tagV)==glob_trace_verts.end())
@@ -128,12 +138,32 @@ void WritePrismsUS3DFormat(MPI_Comm comm,
                 int globid    = SharedVertsNotOwned[tagV];
                 //int globid  = tag2globvID_P[tagV];
                 fce[g]        = globid;   
+                if(world_rank == 0)
+                {
+                    if(fptot == 130)
+                    {
+                        std::cout << "Internal fce["<<g<<"]="<<fce[g] << std::endl;
+                    }
+                }
             }
             else if(glob_trace_verts.find(tagV)!=glob_trace_verts.end())
             {
-                int ref     = tagV;
+                int ref = tagV+100;
+
+                if(tracerefV2globalV.find(ref)==tracerefV2globalV.end())
+                {
+                    std::cout << "ref not Internal found " << ref << " " << world_rank << " " << fptot <<  std::endl;
+                }
+
                 int globid  = tracerefV2globalV[ref];
                 fce[g]      = globid;
+                if(world_rank == 0)
+                {
+                    if(fptot == 130)
+                    {
+                        std::cout << "Internal fce["<<g<<"]="<<fce[g] << " REF " << ref << std::endl;
+                    }
+                }
             }
             // if(fce[g]==0)
             // {
@@ -203,7 +233,15 @@ void WritePrismsUS3DFormat(MPI_Comm comm,
                 ifn_P[fptot*8+4] = fce[3];
             }
         }
-
+        
+        if(world_rank == 0)
+        {
+            if(fptot == 130)
+            {
+                std::cout << "fptot Internal " << fptot << " :: " << ifn_P[fptot*8+1] << " " << ifn_P[fptot*8+2] << " " << ifn_P[fptot*8+3] << std::endl;
+            }
+        }
+        
 
         ifn_P[fptot*8+5] = rh_P[gfid];
         ifn_P[fptot*8+6] = lh_P[gfid];
@@ -265,6 +303,13 @@ void WritePrismsUS3DFormat(MPI_Comm comm,
             {
                 int globid  = tag2globvID_P[tagV];
                 fce[g]      = globid;
+                if(world_rank == 0)
+                {
+                    if(fptot == 130)
+                    {
+                        std::cout << "Shared fce["<<g<<"]="<<fce[g] << std::endl;
+                    }
+                }
             }
             else if(SharedVertsNotOwned.find(tagV)!=SharedVertsNotOwned.end() &&
                     glob_trace_verts.find(tagV)==glob_trace_verts.end())
@@ -272,12 +317,37 @@ void WritePrismsUS3DFormat(MPI_Comm comm,
                 int globid    = SharedVertsNotOwned[tagV];
                 //int globid  = tag2globvID_P[tagV];
                 fce[g]        = globid;   
+                if(world_rank == 0)
+                {
+                    if(fptot == 130)
+                    {
+                        std::cout << "Shared fce["<<g<<"]="<<fce[g] << std::endl;
+                    }
+                }
+                
             }
             else if(glob_trace_verts.find(tagV)!=glob_trace_verts.end())
             {
-                int ref     = tagV;
+
+                int ref = tagV + 100;
+
+                // if(tracerefV2globalV.find(ref)!=tracerefV2globalV.end())
+                // {
+                //     std::cout << "ref not found " << ref << " " << world_rank << " " << fptot <<  std::endl;
+                // }
+
                 int globid  = tracerefV2globalV[ref];
                 fce[g]      = globid;
+
+                
+
+                if(world_rank == 0)
+                {
+                    if(fptot == 130)
+                    {
+                        std::cout << "Shared fce["<<g<<"]="<<fce[g] << " " << ref<< std::endl;
+                    }
+                }
             }
 
             // if(fce[g]==0)
@@ -349,6 +419,13 @@ void WritePrismsUS3DFormat(MPI_Comm comm,
             }
         }
 
+        if(world_rank == 0)
+        {
+            if(fptot == 130)
+            {
+                std::cout << "fptot Shared " << fptot << " :: " << ifn_P[fptot*8+1] << " " << ifn_P[fptot*8+2] << " " << ifn_P[fptot*8+3] << std::endl;
+            }
+        }
         
         ifn_P[fptot*8+5] = rh_P[gfid];
         ifn_P[fptot*8+6] = lh_P[gfid];
@@ -623,7 +700,7 @@ void WriteBoundaryDataUS3DFormat(MPI_Comm comm,
                     }
                     else if(glob_trace_verts.find(tagV)!=glob_trace_verts.end())
                     {
-                        int ref     = tagV;
+                        int ref     = tagV + 100;
                         int globid  = tracerefV2globalV[ref];
                         fce[g]      = globid;
                     }

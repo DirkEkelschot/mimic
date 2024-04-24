@@ -276,10 +276,10 @@ RepartitionObject::RepartitionObject(mesh* meshInput,
     int nfacetrace      = m_loc_trace_faces.size();
     //MPI_Allreduce(&nfacetrace, &tracefoundRed, 1, MPI_INT, MPI_SUM, comm);
     MPI_Allreduce(&nfacetrace, &tracefoundRed, 1, MPI_INT, MPI_SUM, comm);
-    if(rank == 0)
-    {
-        std::cout << "tracefoundRed  " << tracefoundRed << std::endl;
-    }
+    //if(rank == 0)
+    //{
+    //    std::cout << "tracefoundRed  " << tracefoundRed << std::endl;
+    //}
 
 
     // getFace2EntityPerPartition(elements2faces_update, 

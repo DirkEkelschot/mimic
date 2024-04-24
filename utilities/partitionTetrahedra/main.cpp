@@ -482,7 +482,6 @@ int main(int argc, char** argv)
             loc_trace2ref[vid] = ref;    
         }
 
-        std::cout << "nTotalUniqueSharerdTraceVerts " << nTotalUniqueSharerdTraceVerts << " " << unique_loc_trace_verts_vec_T.size() << " " << unique_duplicate_loc_trace_verts_vec_T.size() << std::endl;
 
         ScheduleObj* part_schedule = DoScheduling(sendvertref2rank,comm);
 

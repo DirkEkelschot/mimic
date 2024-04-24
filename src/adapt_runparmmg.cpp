@@ -194,7 +194,7 @@ PMMG_pParMesh InitializeParMMGmesh(MPI_Comm comm,
                 if(glob_trace_verts.find(tagvid)!=glob_trace_verts.end())
                 {
                     //vertref = loc_trace2ref[tagvid];
-                    vertref = tagvid;
+                    vertref = tagvid+100;
                     //std::cout << "vertref " << vertref << " " << tagvid << std::endl;
                     found1++;
                 }
@@ -1424,10 +1424,18 @@ void RunParMMGandWriteTetraUS3Dformat(MPI_Comm comm,
             if(LocationSharedVert_update.find(gvert)!=LocationSharedVert_update.end())
             {
                 fq[i] = LocationSharedVert_update[gvert];
+                if(fq[i] == 0)
+                {
+                    std::cout << "tracetag2glob Internal " << world_rank << " " << i << " " << std::endl;
+                }
             }
             else
             {
                 fq[i] = oldglob2newglob[gvert];
+                if(fq[i] == 0)
+                {
+                    std::cout << "tracetag2glob Internal " << world_rank << " " << i << " " << std::endl;
+                }
             }
         }
 
@@ -1651,10 +1659,19 @@ void RunParMMGandWriteTetraUS3Dformat(MPI_Comm comm,
             if(LocationSharedVert_update.find(gvert)!=LocationSharedVert_update.end())
             {
                 fq[q] = LocationSharedVert_update[gvert];
+
+                if(fq[q] == 0)
+                {
+                    std::cout << "tracetag2glob Shared " << world_rank << " " << q << " " << std::endl;
+                }
             }
             else
             {
                 fq[q] = oldglob2newglob[gvert];
+                if(fq[q] == 0)
+                {
+                    std::cout << "tracetag2glob Shared " << world_rank << " " << q << " " << std::endl;
+                }
             }
         }
         
@@ -1760,15 +1777,26 @@ void RunParMMGandWriteTetraUS3Dformat(MPI_Comm comm,
             if(LocationSharedVert_update.find(itmiv->second[q])!=LocationSharedVert_update.end())
             {
                 fq[q]           = LocationSharedVert_update[itmiv->second[q]];
+                
                 int traceRef    = tagV2traceVref_glob[itmiv->second[q]];
                 
                 if(tracetag2glob.find(traceRef)==tracetag2glob.end())
                 {
                     tracetag2glob[traceRef] = fq[q];
+                    
+                    if(fq[q] == 0)
+                    {
+                        std::cout << "tracetag2glob Trace " << world_rank << " " << q << " " << traceRef << " " << itmiv->second[q] << std::endl;
+                    }
                 }
             }
             else
             {
+                if(oldglob2newglob.find(itmiv->second[q])==oldglob2newglob.end())
+                {
+                    std::cout << "itmiv->second[q] " << q << " " << itmiv->second[q] << " " << std::endl;  
+                }
+
                 fq[q]           = oldglob2newglob[itmiv->second[q]];
 
                 int traceRef    = tagV2traceVref_glob[itmiv->second[q]];
@@ -1776,6 +1804,11 @@ void RunParMMGandWriteTetraUS3Dformat(MPI_Comm comm,
                 if(tracetag2glob.find(traceRef)==tracetag2glob.end())
                 {
                     tracetag2glob[traceRef] = fq[q];
+
+                    if(fq[q] == 0)
+                    {
+                        std::cout << "Noot in shared tracetag2glob Trace " << world_rank << " " << q << " " << traceRef << " " << itmiv->second[q] << std::endl;
+                    }
                 }
             }
         }
