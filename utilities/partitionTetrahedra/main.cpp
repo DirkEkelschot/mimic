@@ -419,123 +419,6 @@ int main(int argc, char** argv)
                                                             meshRead->ranges_ref);
 
 
-        
-
-        std::vector<int> unique_loc_trace_verts_vec_T;
-        std::vector<int> unique_duplicate_loc_trace_verts_vec_T;
-
-        GetUniqueTraceData(comm, 
-                            tetra_repart, 
-                            unique_loc_trace_verts_vec_T, 
-                            unique_duplicate_loc_trace_verts_vec_T);
-
-
-        //std::cout << "unique_loc_trace_verts_vec_T " << unique_loc_trace_verts_vec_T.size() << " " << unique_duplicate_loc_trace_verts_vec_T.size() << std::endl;
-
-        DistributedParallelState* distUniqueTraceVerts = new DistributedParallelState(unique_loc_trace_verts_vec_T.size(),comm);
-        int nTotalUniqueSharerdTraceVerts              = distUniqueTraceVerts->getNel();
-        int* offsetsUniqueTraceVerts                   = distUniqueTraceVerts->getOffsets();
-        //std::cout << "offsetsUniqueTraceVerts[world_rank] " << offsetsUniqueTraceVerts[world_rank] << std::endl;
-        
-        std::vector<int> loc_trace2ref_vec;
-        std::vector<int> loc_trace2ids_vec;
-
-
-        
-        loc_trace2ref.clear();
-        std::map<int,std::vector<int> > sendvertid2rank;
-        std::map<int,std::vector<int> > sendvertref2rank;
-        for(int i=0;i<unique_loc_trace_verts_vec_T.size();i++)
-        {
-            int vid = unique_loc_trace_verts_vec_T[i];
-            int ref = 100+offsetsUniqueTraceVerts[world_rank] + i;
-
-            int r = FindRank(new_V_offsets,world_size,vid);
-            if(r!=world_rank)
-            {
-                sendvertid2rank[r].push_back(vid);
-                sendvertref2rank[r].push_back(ref);
-            }
-            else
-            {
-                vertrefmap_pack[vid]=ref;
-            }
-            
-            loc_trace2ref[vid] = ref; 
-        }
-         for(int i=0;i<unique_duplicate_loc_trace_verts_vec_T.size();i++)
-        {
-            int vid = unique_duplicate_loc_trace_verts_vec_T[i];
-            int ref = 100+nTotalUniqueSharerdTraceVerts + i;
-
-            int r = FindRank(new_V_offsets,world_size,vid);
-            if(r!=world_rank)
-            {
-                sendvertid2rank[r].push_back(vid);
-                sendvertref2rank[r].push_back(ref);
-            }
-            else
-            {
-                vertrefmap_pack[vid]=ref;
-            }
-
-            loc_trace2ref[vid] = ref;    
-        }
-
-
-        ScheduleObj* part_schedule = DoScheduling(sendvertref2rank,comm);
-
-
-        std::map<int,std::vector<int> >  recvd_vertrefs_per_rank;
-        std::map<int,std::vector<int> > recvd_vertids_per_rank;
-        std::map<int,std::vector<int> >::iterator itje;
-
-        for(int q=0;q<world_size;q++)
-        {
-            if(world_rank==q)
-            {
-                int i=0;
-                for (itje = sendvertref2rank.begin(); itje != sendvertref2rank.end(); itje++)
-                {
-                    int n_req           = itje->second.size();
-                    int dest            = itje->first;
-                    MPI_Send(&n_req, 1, MPI_INT, dest, 9876+10*dest, comm);
-                    MPI_Send(&itje->second.data()[0], n_req, MPI_INT, dest, 9876*2+dest*2, comm);
-                    MPI_Send(&sendvertid2rank[itje->first].data()[0], n_req, MPI_INT, dest, 12876*2+dest*2, comm);
-                    
-                    i++;
-                }
-            }
-            else if (part_schedule->SendFromRank2Rank[q].find( world_rank ) != part_schedule->SendFromRank2Rank[q].end())
-            {
-                int n_reqstd_ids;
-                MPI_Recv(&n_reqstd_ids, 1, MPI_INT, q, 9876+10*world_rank, comm, MPI_STATUS_IGNORE);
-                std::vector<int> recv_reqstd_ids(n_reqstd_ids);
-                std::vector<int> recv_reqstd_refs(n_reqstd_ids);
-                MPI_Recv(&recv_reqstd_refs[0], n_reqstd_ids, MPI_INT, q, 9876*2+world_rank*2, comm, MPI_STATUS_IGNORE);
-                MPI_Recv(&recv_reqstd_ids[0], n_reqstd_ids, MPI_INT, q, 12876*2+world_rank*2, comm, MPI_STATUS_IGNORE);
-
-                recvd_vertrefs_per_rank[q] = recv_reqstd_refs;
-                recvd_vertids_per_rank[q] = recv_reqstd_ids;
-            }
-        }
-
-        // std::cout << " recvd_vertrefs_per_rank " << recvd_vertrefs_per_rank.size() << std::endl;
-        for(itje=recvd_vertrefs_per_rank.begin();itje!=recvd_vertrefs_per_rank.end();itje++)
-        {
-            int pid     = itje->first;
-            int nvref   = itje->second.size();
-
-            for(int i=0;i<nvref;i++)
-            {
-                int vid = recvd_vertids_per_rank[pid][i];
-                int ref = itje->second[i];
-                vertrefmap_pack[vid]=ref;
-            }
-        }
-
-        //std::cout << " vertrefmap_pack TETRAHEDRA " << vertrefmap_pack.size() << "  " << world_rank << std::endl;
-
         std::map<int,std::vector<double> > Ue = tetra_repart->getElement2DataMap();
         tetra_repart->AddStateVecForAdjacentElements(Ue,2,comm);
 
@@ -604,6 +487,8 @@ int main(int argc, char** argv)
             row[8] = dU2dz2[elid][2];
             tetra_grad[elid] = row;
         }
+
+        tetra_grad_v2.clear();
 
         dudx_map.clear();
         dudy_map.clear();
@@ -758,7 +643,6 @@ int main(int argc, char** argv)
         std::map<int,int> adaptedTetraVert2TotalAdaptedMeshVertMap;
         std::map<int,int> tracerefV2globalVidInTotalMesh;
 
-        
 
         if(world_rank == 0)
         {
@@ -767,12 +651,41 @@ int main(int argc, char** argv)
 
         int nLocSharedVerts_adaptedTetra = 0;
         int nLocInteriorVerts_adaptedTetra = 0;
+        std::map<int,int> part_global_P;
+        //std::map<int,int> part_global_P =  prism_repart->getGlobalElement2Rank();
+        
+        //std::cout << "part_global_P " << part_global_P.size() << std::endl; 
 
+        if(world_rank == 0)
+        {
+            part_global_P =  prism_repart->getGlobalElement2Rank();
+        }
 
+        std::map<int,std::vector<int> > InternalFaces_P          = prism_repart->getInteriorFaceMap();
+        std::map<int,std::vector<int> > BoundaryFaces_P         = prism_repart->getBoundaryFaceMap();
+        std::map<int,std::vector<int> > SharedFaces_P           = prism_repart->getSharedFaceMap();
+
+        std::map<int, std::vector<double> > LocalVertsMap_P     = prism_repart->getLocalVertsMap();
+        // std::map<int,int> tag2globvID_P                      = prism_repart->getUpdatedTag2GlobalVMap();
+        std::map<int,int> SharedVertsNotOwned_P                 = prism_repart->getSharedVertsNotOwned();
+        std::map<int,int> gE2tagE_P                             = prism_repart->getGlobalElement2ElementTag();
+        std::map<int,int>  lh_P                                 = prism_repart->GetLeftHandFaceElementMap();
+        std::map<int,int>  rh_P                                 = prism_repart->GetRightHandFaceElementMap();
+        std::map<int,std::vector<int> > ElementTag2VertexTag_P  = prism_repart->getElement2VertexMap();
+        //std::map<int,int> NonSharedVertsOwned_P                 = prism_repart->getNonSharedVertsOwned();
+        //std::map<int,int> SharedVertsOwned_P                    = prism_repart->getSharedVertsOwned();
+        std::set<int> loc_trace_verts_P                           = prism_repart->GetLocalTraceVertSet();
+        std::map<int,std::vector<int> > bcref2bcface_P          = prism_repart->getZone2boundaryFaceID();
+        int nLocElem_P                                       = prism_repart->getLocElem().size();
+        std::map<int,int> element2type_bl = prism_repart->GetElement2TypeOnRankMap();
+        std::map<int,int> new2tag = prism_repart->getGlobalElement2ElementTag();
+        
+        delete prism_repart;
+        //std::cout << "world_rank = " << world_rank << " --> " << part_global_P.size() << " " << prism_repart->getGlobalElement2Rank().size() << std::endl;
 
         RunParMMGandWriteTetraUS3Dformat(comm, 
                                         parmesh, 
-                                        prism_repart->getGlobalElement2Rank(),
+                                        part_global_P,
                                         bndIDmax,
                                         inputs, 
                                         nElemsGlob_P, 
@@ -792,8 +705,6 @@ int main(int argc, char** argv)
                                         nLocSharedVerts_adaptedTetra,
                                         tagE2gE_P);
 
-
-
         
         int nLocTotVrts_T                           = nLocInteriorVerts_adaptedTetra+nLocSharedVerts_adaptedTetra;
         DistributedParallelState* distnLocTotVrts_T = new DistributedParallelState(nLocTotVrts_T,comm);
@@ -802,180 +713,38 @@ int main(int argc, char** argv)
         int TotVrts_offset_T                        = TotVrts_offsets_T[world_rank];
         std::vector<int> ifn_P;
 
-        std::vector<int> unique_loc_trace_verts_vec_P;
-        std::vector<int> unique_duplicate_loc_trace_verts_vec_P;
-
-        GetUniqueTraceData(comm, 
-                            prism_repart, 
-                            unique_loc_trace_verts_vec_P, 
-                            unique_duplicate_loc_trace_verts_vec_P);
         
-        // Here the global map of traceverts can be cleared I think...
-
-        std::map<int,int> vertref_trace_bl;
-        std::map<int,std::vector<int> > requestvertref2rank;
-        for(int i=0;i<unique_loc_trace_verts_vec_P.size();i++)
-        {
-            int vid = unique_loc_trace_verts_vec_P[i];
-            int r   = FindRank(new_V_offsets,world_size,vid);
-
-            if(r!=world_rank)
-            {
-                requestvertref2rank[r].push_back(vid);
-            }
-            else
-            {
-                if(vertrefmap_pack.find(vid)!=vertrefmap_pack.end())
-                {
-                    vertref_trace_bl[vid] = vertrefmap_pack[vid];
-                    if(vertref_trace_bl[vid] == 0)
-                    {
-                        std::cout << "837 vertrefmap_pack[vid]  Warnin " <<std::endl;
-                    }
-                }
-            }
-        }
-        for(int i=0;i<unique_duplicate_loc_trace_verts_vec_P.size();i++)
-        {
-            int vid = unique_duplicate_loc_trace_verts_vec_P[i];
-            int r = FindRank(new_V_offsets,world_size,vid);
-
-            if(r!=world_rank)
-            {
-                requestvertref2rank[r].push_back(vid);
-            }
-            else
-            {
-                if(vertrefmap_pack.find(vid)!=vertrefmap_pack.end())
-                {
-                    vertref_trace_bl[vid] = vertrefmap_pack[vid];
-                    if(vertref_trace_bl[vid] == 0)
-                    {
-                        std::cout << "858 vertrefmap_pack[vid]  Warnin " <<std::endl;
-                    }
-                }
-            }  
-        }
-
-        //std::cout << "vertref_trace_bl before " << vertref_trace_bl.size() << " " << world_rank << std::endl;
-
-        ScheduleObj* part_schedule = DoScheduling(requestvertref2rank,comm);
-
-        std::map<int,std::vector<int> >  recvd_vertrefs_per_rank_v2;
-        std::map<int,std::vector<int> >::iterator itje;
-        for(int q=0;q<world_size;q++)
-        {
-            if(world_rank==q)
-            {
-                int i=0;
-                for (itje = requestvertref2rank.begin(); itje != requestvertref2rank.end(); itje++)
-                {
-                    int n_req           = itje->second.size();
-                    int dest            = itje->first;
-                    MPI_Send(&n_req, 1, MPI_INT, dest, 9876+10*dest, comm);
-                    MPI_Send(&itje->second.data()[0], n_req, MPI_INT, dest, 9876*2+dest*2, comm);
-                    
-                    i++;
-                }
-            }
-            else if (part_schedule->SendFromRank2Rank[q].find( world_rank ) != part_schedule->SendFromRank2Rank[q].end())
-            {
-                int n_reqstd_ids;
-                MPI_Recv(&n_reqstd_ids, 1, MPI_INT, q, 9876+10*world_rank, comm, MPI_STATUS_IGNORE);
-                std::vector<int> recv_reqstd_ids(n_reqstd_ids);
-                MPI_Recv(&recv_reqstd_ids[0], n_reqstd_ids, MPI_INT, q, 9876*2+world_rank*2, comm, MPI_STATUS_IGNORE);
-                recvd_vertrefs_per_rank_v2[q] = recv_reqstd_ids;
-            }
-        }
-
-        //std::cout << "recvd_vertrefs_per_rank_v2 " << recvd_vertrefs_per_rank_v2.size() << " " << world_rank << std::endl;
-        
-        
-        std::map<int,std::vector<int> > recv_back_vertrefs;
-        int te = 0;
-        for(int q=0;q<world_size;q++)
-        {
-            if(world_rank == q)
-            {
-                for (itje = recvd_vertrefs_per_rank_v2.begin(); itje != recvd_vertrefs_per_rank_v2.end(); itje++)
-                {
-                    int nv_send = itje->second.size();
-                    int dest    = itje->first;
-                    std::vector<int> vertrefs_sendback(nv_send,0);
-                    //std::cout << "nv_send " << nv_send << " " << world_rank << " -> " << dest << std::endl;
-                    for(int u=0;u<itje->second.size();u++)
-                    {
-                        if(vertrefmap_pack.find(itje->second[u])!=vertrefmap_pack.end())
-                        {
-                            vertrefs_sendback[u] = vertrefmap_pack[itje->second[u]];
-                        }
-                        else
-                        {
-                            std::cout << "dest " << dest << std::endl;
-                            te++;
-                            ///std::cout << "not here itje->second[u] " << std::endl;
-                        }
-                        
-                    }
-                    
-                    MPI_Send(&nv_send, 1, MPI_INT, dest, 9876+1000*dest, comm);
-                    // MPI_Send(&vert_send[0], nv_send, MPI_DOUBLE, dest, 9876+dest*888, comm);
-                
-                    MPI_Send(&vertrefs_sendback.data()[0], nv_send, MPI_INT, dest, 9876+dest*8888, comm);
-                    //MPI_Send(&it->second.data()[0], it->second.size(), MPI_INT, dest, 8888*9876+dest*8888,comm);
-                    
-                    //delete[] vert_send;
-                }
-            }
-            if(part_schedule->RecvRankFromRank[q].find( world_rank ) != part_schedule->RecvRankFromRank[q].end())
-            {
-                int n_recv_back;
-                MPI_Recv(&n_recv_back, 1, MPI_INT, q, 9876+1000*world_rank, comm, MPI_STATUS_IGNORE);
-                
-                std::vector<int> recv_back_arr(n_recv_back);
-                MPI_Recv(&recv_back_arr.data()[0], n_recv_back, MPI_INT, q, 9876+world_rank*8888, comm, MPI_STATUS_IGNORE);
-
-                recv_back_vertrefs[q] = recv_back_arr;
-            }
-        }        
-
-        std::map<int,std::vector<int> >::iterator itmm;
-        for(itmm=recv_back_vertrefs.begin();itmm!=recv_back_vertrefs.end();itmm++)
-        {
-            int pid = itmm->first;
-
-            for(int q=0;q<itmm->second.size();q++)
-            {
-                int vid = requestvertref2rank[pid][q];
-                int vref = itmm->second[q];
-                vertref_trace_bl[vid] = vref;
-                if(vertref_trace_bl[vid] == 0)
-                    {
-                        std::cout << "958 vertrefmap_pack[vid]  Warnin " <<std::endl;
-                    }
-                //std::cout << "(" << vid << ", " << vref << ") ";
-            }
-            //std::cout << std::endl;
-        }
-
-
-        //std::cout << "vertref_trace_bl after  "<< vertref_trace_bl.size() << " wr " << world_rank << " " << vertrefmap_pack.size() << std::endl;
-
-
-
-
-
         if(world_rank == 0)
         {
             std::cout << "writing prism data..." << std::endl;
         }
 
-        WritePrismsUS3DFormat(comm,
-                                prism_repart,
-                                tracerefV2globalVidInTotalMesh,
-                                ifn_P,
-                                meshRead->ranges_id);
-                
+        // WritePrismsUS3DFormat(comm,
+        //                         prism_repart,
+        //                         tracerefV2globalVidInTotalMesh,
+        //                         ifn_P,
+        //                         meshRead->ranges_id);
+
+        WritePrismsUS3DFormat_V2(comm, 
+                                    InternalFaces_P,
+                                    SharedFaces_P, 
+                                    LocalVertsMap_P,
+                                    SharedVertsNotOwned_P,
+                                    NonSharedVertsOwned_P, 
+                                    SharedVertsOwned_P,
+                                    ElementTag2VertexTag_P,
+                                    lh_P,
+                                    rh_P,
+                                    gE2tagE_P,
+                                    NonSharedVertsOwned_P,
+                                    SharedVertsOwned_P,
+                                    loc_trace_verts_P,
+                                    tracerefV2globalVidInTotalMesh,
+                                    ifn_P,
+                                    meshRead->ranges_id);
+
+
+            
         //delete pttrace;
 
         int ftott = (int)ifn_adaptedTetra.size()/8;
@@ -986,13 +755,6 @@ int main(int argc, char** argv)
             std::cout << "writing boundary data..." << std::endl;
         }
 
-
-
-
-
-
-
-
         std::vector<std::vector<int> > bcArrays;
         std::map<int,int> bcsizing;
         std::vector<int> bciTot_offsets;
@@ -1002,10 +764,49 @@ int main(int argc, char** argv)
         std::vector<int> bcid;
         std::vector<int> bci_offsets;
         std::vector<int> zdefs_new;
+        
 
+        // WriteBoundaryDataUS3DFormat(comm,
+        //                             prism_repart,
+        //                             ifn_adaptedTetra,
+        //                             ifn_P,
+        //                             bcref2bcface_adaptedTetra,
+        //                             tracerefV2globalVidInTotalMesh,
+        //                             BoundaryFaces_adaptedTetra,
+        //                             glob2locVid_adaptedTetra,
+        //                             elements_AdaptedTetra,
+        //                             vertices_AdaptedTetra,
+        //                             LocationSharedVert_adaptedTetra,
+        //                             adaptedTetraVert2TotalAdaptedMeshVertMap,
+        //                             lh_bc_adaptedTetra,
+        //                             new_globE2locE_adaptedTetra,
+        //                             bcArrays,
+        //                             bcsizing,
+        //                             meshRead->zdefs,
+        //                             meshRead->zone2bcref,
+        //                             meshRead->zone2name,
+        //                             meshRead->znames,
+        //                             bciTot_offsets,
+        //                             nTotBCFaces,
+        //                             bcsToT,
+        //                             nlbc,
+        //                             bcid,
+        //                             bci_offsets,
+        //                             zdefs_new);
 
-        WriteBoundaryDataUS3DFormat(comm,
-                                    prism_repart,
+        WriteBoundaryDataUS3DFormat_V2(comm,
+                                    BoundaryFaces_P,
+                                    LocalVertsMap_P,
+                                    SharedVertsNotOwned_P,
+                                    gE2tagE_P,
+                                    lh_P,
+                                    rh_P,
+                                    ElementTag2VertexTag_P,
+                                    NonSharedVertsOwned_P,
+                                    SharedVertsOwned_P,
+                                    loc_trace_verts_P,
+                                    bcref2bcface_P,
+                                    nLocElem_P,
                                     ifn_adaptedTetra,
                                     ifn_P,
                                     bcref2bcface_adaptedTetra,
@@ -1036,7 +837,7 @@ int main(int argc, char** argv)
         std::vector<double> interiorverts_prism(NonSharedVertsOwned_P.size()*3,0);
         std::vector<double> sharedverts_prism(SharedVertsOwned_P.size()*3,0);
         int ivi = 0;
-        std::map<int, std::vector<double> > LocalVertsMap_P = prism_repart->getLocalVertsMap();
+        //std::map<int, std::vector<double> > LocalVertsMap_P = prism_repart->getLocalVertsMap();
         std::map<int,int>::iterator itmii;
         for(itmii=NonSharedVertsOwned_P.begin();itmii!=NonSharedVertsOwned_P.end();itmii++)
         {
@@ -1071,12 +872,11 @@ int main(int argc, char** argv)
         //===================================================================================
         
         int nTetraLoc = elements_AdaptedTetra.size();
-        int nPrismLoc = prism_repart->getLocElem().size();
+        int nPrismLoc = nLocElem_P;//prism_repart->getLocElem().size();
 
         std::vector<int> prisms_type(nPrismLoc,0);
         DistributedParallelState* PrismElementDistr = new DistributedParallelState(nPrismLoc,comm);
-        std::map<int,int> element2type_bl = prism_repart->GetElement2TypeOnRankMap();
-        std::map<int,int> new2tag = prism_repart->getGlobalElement2ElementTag();
+
 
         for(int i=0;i<nPrismLoc;i++)
         {
@@ -1095,7 +895,7 @@ int main(int argc, char** argv)
         DistributedParallelState* distTetra         = new DistributedParallelState(elements_AdaptedTetra.size(),comm);
         int ToTElements_offset_tetra                = distTetra->getOffsets()[world_rank];
 
-        DistributedParallelState* distPrism         = new DistributedParallelState(prism_repart->getLocElem().size(),comm);
+        DistributedParallelState* distPrism         = new DistributedParallelState(nPrismLoc,comm);
         int ToTElements_offset_prism                = distPrism->getOffsets()[world_rank];
 
         DistributedParallelState* distFaceTetra     = new DistributedParallelState(ftott,comm);
@@ -1122,6 +922,10 @@ int main(int argc, char** argv)
         int TotPrismVerts_offset_sha                = distPrismShaVerts->getOffsets()[world_rank];
 
 
+
+
+        //std::cout << "Does it still excitst " << element2type_bl.size() << " " << prism_repart->getLocElem().size() << " " << prism_repart->GetElement2TypeOnRankMap().size() << std::endl;
+        
         if(world_rank == 0)
         {    
             std::cout << "nTotVertsPrismTetra " << nTotVertsPrismTetra << " = " << nTotTetraVerts << " + " << nTotPrismVerts << std::endl;
@@ -1470,7 +1274,7 @@ int main(int argc, char** argv)
         //     std::cout << std::setprecision(16) << "Writing out the grid takes " << dur_max << " seconds using " << world_size << "procs. " << std::endl;
         //     std::cout << "Finalizing process" << std::endl;     
         // }
-       /**/
+      /*    */
     }
     
     clock_t end_total = clock();

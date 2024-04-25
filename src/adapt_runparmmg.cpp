@@ -124,7 +124,7 @@ PMMG_pParMesh InitializeParMMGmesh(MPI_Comm comm,
     int nothere = 0;
 
     std::map<int,std::vector<int> > f2vmap = tetra_repart->getFace2VertexMap();
-    std::map<int,std::vector<int> > f2refmap = tetra_repart->getFace2RefMap();
+    //std::map<int,std::vector<int> > f2refmap = tetra_repart->getFace2RefMap();
     //std::map<int,std::vector<int> > leftright_trace     = pttrace->GetLeftRightElements();
     int fff = 0;
 
@@ -619,6 +619,7 @@ void RunParMMGandWriteTetraUS3Dformat(MPI_Comm comm,
     int fount   = 0;
     int found1  = 0;
     std::map<int,std::vector<int> > rank2req_prism;
+    std::set<int> collect_prism_ids_toberequested;
     for ( k=0; k<nTrianglesOUT; k++ )
     {
         std::vector<int> face(3,0);
@@ -685,8 +686,13 @@ void RunParMMGandWriteTetraUS3Dformat(MPI_Comm comm,
             }
             else
             {
-                int pid = part_global_bl[PrismID_tmp];
-                rank2req_prism[pid].push_back(PrismID_tmp);
+                collect_prism_ids_toberequested.insert(PrismID_tmp);
+                if(world_rank == 0)
+                {
+                    int pid = part_global_bl[PrismID_tmp];
+                    rank2req_prism[pid].push_back(PrismID_tmp);
+                }
+                
                 TraceFacePointer->SetFaceRightElement(PrismID_tmp);
 
                 std::pair<FaceSetPointer::iterator, bool> Trace2PrismPointer;
@@ -719,6 +725,70 @@ void RunParMMGandWriteTetraUS3Dformat(MPI_Comm comm,
 
         if ( required2 && required2[k] )  nreq2++;
     }
+
+    int nreq;
+    if(world_rank != 0)
+    {
+        std::vector<int> collect_prism_ids_toberequested_vec(collect_prism_ids_toberequested.size(),0);
+        //std::cout << "collect_prism_ids_toberequested " << collect_prism_ids_toberequested.size() << " " << world_rank << std::endl;
+        std::copy(collect_prism_ids_toberequested.begin(), 
+                    collect_prism_ids_toberequested.end(), 
+                    collect_prism_ids_toberequested_vec.begin());
+
+        nreq = collect_prism_ids_toberequested_vec.size();
+        MPI_Send(&nreq, 1, MPI_INT, 0, world_rank*1000, comm);
+        MPI_Send(&collect_prism_ids_toberequested_vec.data()[0], nreq, MPI_INT, 0, world_rank*10000, comm);
+
+        std::vector<int> pid_2recvback(nreq,0);
+        MPI_Recv(&pid_2recvback[0], nreq, MPI_INT, 0, world_rank*20000, comm, MPI_STATUS_IGNORE);
+
+        for(int j=0;j<nreq;j++)
+        {
+            rank2req_prism[pid_2recvback[j]].push_back(collect_prism_ids_toberequested_vec[j]);
+        }
+
+        // std::map<int,std::vector<int> >::iterator itmmm;
+        // for(itmmm=rank2req_prism.begin();itmmm!=rank2req_prism.end();itmmm++)
+        // {
+        //     std::cout << world_rank << " " <<  itmmm->first << " " << itmmm->second.size() << std::endl;
+        // }
+
+        
+    }
+    if(world_rank == 0)
+    {
+        
+        std::vector<int> nrecv(world_size-1,0);
+        int accul = 0;
+        for(int i=1;i<world_size;i++)
+        {
+            int dest = i*1000;
+            int n_reqstd_ids;
+            MPI_Recv(&n_reqstd_ids, 1, MPI_INT, i, dest, comm, MPI_STATUS_IGNORE);
+            nrecv[i-1] = n_reqstd_ids;
+            accul = accul + n_reqstd_ids;
+        }
+
+        for(int i=1;i<world_size;i++)
+        {
+            int n_reqstd_ids = nrecv[i-1];
+            std::vector<int> nreq_prismids(n_reqstd_ids,0);
+            std::vector<int> pid_2sendback(n_reqstd_ids,0);
+            MPI_Recv(&nreq_prismids[0], n_reqstd_ids, MPI_INT, i, i*10000, comm, MPI_STATUS_IGNORE);
+
+            for(int j=0;j<n_reqstd_ids;j++)
+            {
+                pid_2sendback[j] = part_global_bl[nreq_prismids[j]];
+            }
+
+            MPI_Send(&pid_2sendback.data()[0], n_reqstd_ids, MPI_INT, i, i*20000, comm);
+
+        }        
+    }
+    
+    
+    
+
 
     std::map<int,std::vector<int> >::iterator itje;
     ScheduleObj* part_schedule = DoScheduling(rank2req_prism,comm);
@@ -1889,7 +1959,6 @@ void RunParMMGandWriteTetraUS3Dformat(MPI_Comm comm,
     }  
     
     tracerefV2globalV = AllGatherMap_T(tracetag2glob,comm);
-
     
 }
 

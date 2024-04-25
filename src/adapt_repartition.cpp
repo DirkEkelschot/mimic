@@ -4854,7 +4854,6 @@ void RepartitionObject::buildCommunicationMaps(MPI_Comm comm)
     int world_rank;
     MPI_Comm_rank(comm, &world_rank);
 
-    std::map<int,int*>::iterator itst;
     int element, fid;
     int Nel_loc = Loc_Elem.size();
     DistributedParallelState* newElemDist = new DistributedParallelState(Nel_loc,comm);
@@ -6217,10 +6216,6 @@ std::map<int, std::vector<int> > RepartitionObject::getFace2VertexMap()
 {
     return face2verts_update;
 }
-std::map<int, std::vector<int> > RepartitionObject::getFace2RefMap()
-{
-    return face2reference_update;
-}
 
 // std::map<int, std::vector<int> > RepartitionObject::getFace2NVertexMap()
 // {
@@ -6279,6 +6274,37 @@ std::vector<int> RepartitionObject::getLocElem()
 // destructor
 RepartitionObject::~RepartitionObject()
 {
-    LocalVertsMap.clear();
+    // LocalVertsMap.clear();
+    // Loc_Elem.clear();
+    // part_global.clear();
+    // globElem2locVerts.clear();
+    // elements2data_update.clear();
+    // elements2faces_update.clear();
+    // elements2elements_update.clear();
+    // elements2verts_update.clear();
+    // face2reference_update.clear();
+    // face2verts_update.clear();
+
+    // o_boundaryFace2Nodes.clear();
+    // o_sharedFace2Nodes.clear();
+    // o_interiorFace2Nodes.clear();
+    // o_tagE2gE.clear();
+    // o_gE2tagE.clear();
+    // o_lvertex2gvertex_part.clear();
+    // o_face2verts_global.clear();
+    // o_glob2locV.clear();
+    // o_tag2globV.clear();
+    // o_SharedVertsOwned.clear();
+    // o_NonSharedVertsOwned.clear();
+    // o_SharedVertsNotOwned.clear();
+    // o_locShF2globShF.clear();
+    // o_rhp.clear();
+    // o_lhp.clear();
+    // o_zone2bcface.clear();
+    // elem2type_on_rank.clear();
+    // face2elements_update.clear();
+    // m_loc_trace_face2leftright.clear();
+    // m_loc_trace_faces.clear();
+    // m_loc_trace_verts.clear();
 }
 
