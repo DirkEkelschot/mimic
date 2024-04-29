@@ -420,8 +420,12 @@ int main(int argc, char** argv)
 
 
         std::map<int,std::vector<double> > Ue = tetra_repart->getElement2DataMap();
+
+
+        
         tetra_repart->AddStateVecForAdjacentElements(Ue,2,comm);
 
+        
 
         start = clock();
         std::map<int,std::vector<double> > tetra_grad_v2 = ComputedUdx_LSQ_US3D_Lite(tetra_repart,
@@ -511,10 +515,11 @@ int main(int argc, char** argv)
             << dur_max << setprecision(16); 
             cout << " sec " << endl;
         }
-
+        /**/
     }
     
-
+    
+    
 
     // Ue.clear();
     // tetra_grad_v2.clear();
@@ -674,11 +679,11 @@ int main(int argc, char** argv)
         std::map<int,std::vector<int> > ElementTag2VertexTag_P  = prism_repart->getElement2VertexMap();
         //std::map<int,int> NonSharedVertsOwned_P                 = prism_repart->getNonSharedVertsOwned();
         //std::map<int,int> SharedVertsOwned_P                    = prism_repart->getSharedVertsOwned();
-        std::set<int> loc_trace_verts_P                           = prism_repart->GetLocalTraceVertSet();
+        std::set<int> loc_trace_verts_P                         = prism_repart->GetLocalTraceVertSet();
         std::map<int,std::vector<int> > bcref2bcface_P          = prism_repart->getZone2boundaryFaceID();
-        int nLocElem_P                                       = prism_repart->getLocElem().size();
-        std::map<int,int> element2type_bl = prism_repart->GetElement2TypeOnRankMap();
-        std::map<int,int> new2tag = prism_repart->getGlobalElement2ElementTag();
+        int nLocElem_P                                          = prism_repart->getLocElem().size();
+        std::map<int,int> element2type_bl                       = prism_repart->GetElement2TypeOnRankMap();
+        std::map<int,int> new2tag                               = prism_repart->getGlobalElement2ElementTag();
         
         delete prism_repart;
         //std::cout << "world_rank = " << world_rank << " --> " << part_global_P.size() << " " << prism_repart->getGlobalElement2Rank().size() << std::endl;
@@ -1274,9 +1279,10 @@ int main(int argc, char** argv)
         //     std::cout << std::setprecision(16) << "Writing out the grid takes " << dur_max << " seconds using " << world_size << "procs. " << std::endl;
         //     std::cout << "Finalizing process" << std::endl;     
         // }
-      /*    */
+      
     }
     
+    /**/
     clock_t end_total = clock();
 
     end1 = clock();

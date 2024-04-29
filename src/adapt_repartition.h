@@ -62,6 +62,8 @@ class RepartitionObject{
                                                  std::map<int,std::vector<int> >& elements2elements_update,
                                                  std::map<int,std::vector<double> >& elements2data_update);
 
+                void CommunicateAdjacencyInfo(MPI_Comm comm, std::map<int,std::vector<int> > element2elements, int Nel_glob);
+
                 void getFace2EntityPerPartition(std::map<int,std::vector<int> > ief,
                                                 std::map<int,std::vector<int> > ife,  
                                                 int Nf_glob,
@@ -236,7 +238,8 @@ class RepartitionObject{
                 std::vector<int> part;
                 std::map<int,int> part_global;
                 std::map<int,int> part_map;
-
+                std::map<int,int> adjacent2pid;
+                
                 int eloc;
                 int vloc;
                 int floc;
@@ -244,6 +247,8 @@ class RepartitionObject{
                 int Ne_glob;
                 int Nf_glob;
                 int Nv_glob;
+
+                int glob_elem_size;
 
                 std::map<int,int> m_unique_trace_verts_ref;
                 std::set<int> m_loc_trace_faces;
