@@ -4032,7 +4032,7 @@ std::map<int, std::vector<int> > RepartitionObject::getAdjacentElementLayer(std:
     }
 
 
-    std::cout << "rank = " << rank << " " << t << " " <<  adjacent2pid.size() << std::endl;
+    //std::cout << "rank = " << rank << " " << t << " " <<  adjacent2pid.size() << std::endl;
     
 
     ScheduleObj* adj_schedule = DoScheduling(req_elem, comm);
