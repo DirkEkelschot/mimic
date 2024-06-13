@@ -39,7 +39,7 @@ IF (THIRDPARTY_BUILD_PARMMG)
                 -DCMAKE_C_COMPILER:FILEPATH=${CMAKE_C_COMPILER}
                 -DCMAKE_CXX_COMPILER:FILEPATH=${CMAKE_CXX_COMPILER}
                 -DCMAKE_INSTALL_PREFIX:PATH=${TPDIST}
-		-DDOWNLOAD_MMG=OFF -DMMG_DIR=${TPSRC}/mmg -DMMG_BUILDDIR=/Users/dekelsch/mimic_lite_push/utilities/newcmakebuild/build/ThirdParty/mmg
+		-DDOWNLOAD_MMG=OFF -DMMG_DIR=${TPSRC}/mmg -DMMG_BUILDDIR=${TPBUILD}/mmg
                 -DDOWNLOAD_METIS=OFF -DMETIS_DIR=${DEFAULT_METIS_ROOT}
                 ${TPSRC}/ParMmg
                 )
