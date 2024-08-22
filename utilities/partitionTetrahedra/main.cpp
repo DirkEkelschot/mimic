@@ -18,6 +18,9 @@
 #include "../../src/adapt_inputs.h"
 #include "../../src/adapt_writeus3ddata.h"
 #include "../../src/adapt_operations.h"
+//#include "/Users/dekelsch/mimic_libmesh/utilities/partitionTetrahedra/build/ThirdParty/dist/include/libmeshb7.h"
+
+
 #include <iomanip>
 
 #define MAX2(a,b)      (((a) > (b)) ? (a) : (b))
@@ -130,6 +133,22 @@ int main(int argc, char** argv)
 
     int ier,opt;
     int debug = 1;
+
+
+    int64_t LibIdx;
+    int ver, dim, NmbVer, NmbTri, (*Nodes)[4], *Domains;
+    float (*Coords)[3];
+
+    // Open the mesh file for reading
+    LibIdx = GmfOpenMesh( "triangles.meshb", GmfRead, &ver, &dim );
+
+    // Read the egads tree stored as a raw byte flow
+    // cad = GmfReadByteFlow(InpMsh, &NmbBytes);
+
+
+
+
+
     
     const char* fn_grid="inputs/grid.h5";
     const char* fn_conn="inputs/conn.h5";

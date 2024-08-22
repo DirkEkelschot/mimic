@@ -7,6 +7,99 @@
 #ifndef ADAPT_OPERATIONS_H
 #define ADAPT_OPERATIONS_H
 
+
+template <typename T>
+std::map<int,std::vector<T> > GatherGlobalMapOnRoot_T(std::map<int,std::vector<T> > mappie, MPI_Comm mpi_comm)
+{
+    int world_size;
+    MPI_Comm_size(mpi_comm, &world_size);
+    // Get the rank of the process
+    int world_rank;
+    MPI_Comm_rank(mpi_comm, &world_rank);
+
+    MPI_Datatype mpi_type = MPI_DATATYPE_NULL;
+    if constexpr (std::is_same_v<T, int>) 
+    {
+        mpi_type = MPI_INT;
+    }
+    if constexpr (std::is_same_v<T, double>) 
+    {
+        mpi_type = MPI_DOUBLE;
+    }
+
+    int mapSizeLoc = mappie.size();
+    int rowsize = mappie[0].size();
+    DistributedParallelState* distrimap = new DistributedParallelState(mapSizeLoc,mpi_comm);
+    int mapSizeTot = distrimap->getNel();
+
+    std::vector<int> key_loc(mapSizeLoc,0);
+    std::vector<T> val_loc(mapSizeLoc*rowsize,0);
+    std::vector<int> key_tot;
+    std::vector<T> val_tot;
+    if(world_rank == 0)
+    {
+        key_tot.resize(mapSizeLoc*rowsize);
+        val_tot.resize(mapSizeLoc*rowsize);
+    }
+
+    int i = 0;
+    
+    typename std::map<int,std::vector<T> >::iterator itred;
+    for(itred=mappie.begin();itred!=mappie.end();itred++)
+    {
+        key_loc[i] = itred->first;
+
+        for(int q=0;q<rowsize;q++)
+        {
+            val_loc[i*rowsize+q] = itred->second[q];
+        }
+        i++;
+    }
+
+    DistributedParallelState* distMapKey = new DistributedParallelState(mapSizeLoc,mpi_comm);
+    DistributedParallelState* distMapVal = new DistributedParallelState(mapSizeLoc*rowsize,mpi_comm);
+    MPI_Gatherv(&key_loc.data()[0],
+            mapSizeLoc,
+            MPI_INT,
+            &key_tot.data()[0],
+            distMapKey->getNlocs(),
+            distMapKey->getOffsets(),
+            MPI_INT, 0, mpi_comm);
+
+    MPI_Gatherv(&val_loc.data()[0],
+            mapSizeLoc*rowsize,
+            mpi_type,
+            &val_tot.data()[0],
+            distMapVal->getNlocs(),
+            distMapVal->getOffsets(),
+            mpi_type, 0, mpi_comm);
+
+    std::map<int,std::vector<T> > mappie_glob;
+
+    if(world_rank == 0)
+    {
+        int key;
+        T val;
+        for(int i=0;i<mapSizeTot;i++)
+        {
+            key = key_tot[i];
+            std::vector<T> valrow(rowsize);
+            for(int q=0;q<rowsize;q++)
+            {
+                valrow[q] = val_tot[i*rowsize+q];
+            }
+            
+            if(mappie_glob.find(key)==mappie_glob.end())
+            {
+                mappie_glob[key] = valrow;
+            }
+        }
+    }
+
+
+    return mappie_glob;
+}
+
 template <typename T>
 std::map<int,T> AllGatherMap_T(std::map<int,T> mappie, MPI_Comm mpi_comm)
 {

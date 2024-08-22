@@ -1,6 +1,162 @@
 #include "adapt_output_vtk.h"
+#include "adapt_distri_parstate.h"
+#include "adapt_operations.h"
+
+void OutputTetraMeshOnRootVTK(MPI_Comm comm,
+                                string filename, 
+                                std::vector<int> OwnedElem,
+                                std::map<int,std::vector<int> > gE2lV,
+                                std::map<int,std::vector<double> > loc_data,
+                                std::map<int,std::string > varnames,
+                                std::map<int, std::vector<double> > LocalVerts)
+{
+    //==================================================================================
+    //==================================================================================
+    //==================================================================================
+    
+    int world_size;
+    MPI_Comm_size(comm, &world_size);
+    // Get the rank of the process
+    int world_rank;
+    MPI_Comm_rank(comm, &world_rank);
+
+    const int length = filename.length();
+    char* filename_char = new char[length + 1];
+    strcpy(filename_char, filename.c_str());
+
+    std::map<int,char *> varnames_new;
+    std::map<int,std::string>::iterator itis;
+
+    for(itis=varnames.begin();itis!=varnames.end();itis++)
+    {
+        const int length = itis->second.length();
+        char* varname_char = new char[length + 1];
+        strcpy(varname_char, itis->second.c_str());
+        varnames_new[itis->first]=varname_char;
+    }
 
 
+    //===============================================================================
+    // Pack data;
+
+    int nlocelem = OwnedElem.size();
+    DistributedParallelState* distElem = new DistributedParallelState(nlocelem,comm);
+    int nElem    = distElem->getNel();
+    std::vector<int> ElemOnRoot;
+    if(world_rank == 0)
+    {
+        ElemOnRoot.resize(nElem,0);
+    }
+    MPI_Gatherv(&OwnedElem.data()[0],
+            nlocelem,
+            MPI_INT,
+            &ElemOnRoot.data()[0],
+            distElem->getNlocs(),
+            distElem->getOffsets(),
+            MPI_INT, 0, comm);
+
+    std::map<int,std::vector<int> > gE2lVOnRoot = GatherGlobalMapOnRoot_T(gE2lV,comm);
+    std::map<int,std::vector<double> > VertsOnRoot = GatherGlobalMapOnRoot_T(LocalVerts,comm);
+    
+    //===============================================================================
+
+    if(world_rank == 0)
+    {
+        vtkSmartPointer<vtkUnstructuredGrid> vtkmesh =
+        vtkSmartPointer<vtkUnstructuredGrid>::New();
+        vtkSmartPointer<vtkCellArray> cellArray =
+                vtkSmartPointer<vtkCellArray>::New();
+        vtkNew<vtkPoints> points;
+
+        std::map<int,int> g2lv;
+        int lvid = 0;
+        int numberOfTetrahedra = gE2lV.size();
+
+        if(loc_data.begin()->second.size() != varnames.size())
+        {
+            std::cout << "Warning :: the length of the variable name map does not correspond with the data size." << std::endl;
+        }
+
+        std::map<int,vtkDoubleArray*> mapVars;
+        for(itis=varnames.begin();itis!=varnames.end();itis++)
+        {
+            vtkDoubleArray* VArray = vtkDoubleArray::New();    
+            VArray->SetNumberOfComponents(1);
+            VArray->SetName(varnames_new[itis->first]);
+            varnames_new[itis->first];
+            mapVars[itis->first] = VArray;
+        }
+
+        // vtkDoubleArray* TArray = vtkDoubleArray::New();    
+        // TArray->SetNumberOfComponents(1);
+        // TArray->SetName("Temperature");
+        // vtkDoubleArray* TKEArray = vtkDoubleArray::New();    
+        // TKEArray->SetNumberOfComponents(0);
+        // TKEArray->SetName("TKE");
+
+        vtkIdType ielement = 0;
+        std::map<int,std::vector<int> >::iterator itmiv;
+
+        for(int k=0;k<ElemOnRoot.size();k++)
+        {
+            int elid   = ElemOnRoot[k];
+
+            vtkNew<vtkTetra> tetra;
+            
+            for(int q=0;q<gE2lVOnRoot[elid].size();q++)
+            {
+                int gvid = gE2lVOnRoot[elid][q];
+                tetra->GetPointIds()->SetId(q, gvid);
+                
+                if(g2lv.find(gvid)==g2lv.end())
+                {
+                    g2lv[gvid]=lvid;
+                    points->InsertNextPoint(VertsOnRoot[gvid][0],
+                                            VertsOnRoot[gvid][1],
+                                            VertsOnRoot[gvid][2]);
+
+                    tetra->GetPointIds()->SetId(q, lvid);
+
+                    lvid++;
+                }
+                else
+                {
+                    int lvidn = g2lv[gvid];
+                    tetra->GetPointIds()->SetId(q, lvidn);
+                }
+
+            }
+            cellArray->InsertNextCell(tetra);
+            
+            // TKEArray->InsertNextTuple(&loc_data[elid][0]);
+            // TArray->InsertNextTuple(&loc_data[elid][1]);
+
+            for(itis=varnames.begin();itis!=varnames.end();itis++)
+            {
+                mapVars[itis->first]->InsertNextTuple(&loc_data[elid][itis->first]);
+            }
+
+            ielement++;
+        }
+
+        for(itis=varnames.begin();itis!=varnames.end();itis++)
+        {
+            vtkmesh->GetCellData()->AddArray(mapVars[itis->first]);
+        }
+
+        vtkmesh->SetPoints(points);
+        vtkmesh->SetCells(VTK_TETRA, cellArray);
+        vtkSmartPointer<vtkXMLUnstructuredGridWriter> writer =
+                vtkSmartPointer<vtkXMLUnstructuredGridWriter>::New();
+        writer->SetFileName(filename_char);
+        writer->SetHeaderTypeToUInt64();  // Use UInt64 header format
+        writer->SetDataModeToBinary();      // Write in ASCII mode
+        writer->SetInputData(vtkmesh);
+        writer->Write();
+    }
+    
+
+}
 
 void OutputTetraMeshPartitionVTK(MPI_Comm comm,
                             string filename, 

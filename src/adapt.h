@@ -34,4 +34,6 @@
 #include "mmg/mmgs/libmmgs.h"
 #include "mmg/mmg3d/libmmg3d.h"
 #include "parmmg/libparmmg.h"
+#include "libmeshb7.h"
+
 #endif

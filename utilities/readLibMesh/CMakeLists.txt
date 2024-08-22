@@ -3,7 +3,7 @@
 cmake_minimum_required(VERSION 3.1...3.16)
 
 # set the project name and version
-project(MIMIC VERSION 1.0)
+project(readLibMeshb VERSION 1.0)
 # specify the C++ standard
 include(../../platforms_cmake/MacOSX_Dirk_work.cmake)
 include(ExternalProject)
@@ -11,7 +11,7 @@ INCLUDE(CMakeDependentOption)
 
 
 find_package(LAPACK)
-MESSAGE("${MPI_CXX_LIBRARIES} annnad ${MPI_CXX_INCLUDE_PATH}")
+#MESSAGE("${MPI_CXX_LIBRARIES} annnad ${MPI_CXX_INCLUDE_PATH}")
 find_package(VTK 
 	COMPONENTS 
 	CommonCore
@@ -48,7 +48,7 @@ INCLUDE (cmake/ThirdPartyParMMG.cmake)
 
 file(GLOB SRC CONFIGURE_DEPENDS "../../src/*.cpp" "main.cpp")
 set(CMAKE_CXX_FLAGS "-Wl,-no_compact_unwind")
-add_executable(partTetra ${SRC})
+add_executable(readLibMeshb ${SRC})
 
 
 
@@ -104,20 +104,20 @@ link_directories(${Boost_LIBRARY_DIR})
 
 #list(APPEND EXTERNAL_LIB ${PARMETIS_LIBRARIES})
 #list(APPEND EXTERNAL_LIB ${HDF5_LIBRARY})
-target_link_libraries(partTetra ${VTK_LIBRARIES})
+target_link_libraries(readLibMeshb ${VTK_LIBRARIES})
 #target_link_libraries(partTetra ${TETGEN_LIBRARY})
-target_link_libraries(partTetra ${MMG_LIBRARY})
+target_link_libraries(readLibMeshb ${MMG_LIBRARY})
 #target_link_libraries(partTetra ${CMAKE_SOURCE_DIR}/build/ThirdParty/ParMmg/Mmg-prefix/src/Mmg-build/lib)
 #target_link_libraries(partTetra ${CGAL_LIBRARY})
-target_link_libraries(partTetra ${LIBMESHB_LIBRARY})
-target_link_libraries(partTetra ${PARMMG_LIBRARY})
-target_link_libraries(partTetra ${HDF5_LIBRARIES})
-target_link_libraries(partTetra ${ZLIB_LIBRARY})
+target_link_libraries(readLibMeshb ${LIBMESHB_LIBRARY})
+target_link_libraries(readLibMeshb ${PARMMG_LIBRARY})
+target_link_libraries(readLibMeshb ${HDF5_LIBRARIES})
+target_link_libraries(readLibMeshb ${ZLIB_LIBRARY})
 #target_link_libraries(partTetra ${HDF5_LIBRARIES_SHARED})
 #target_link_libraries(partTetra ${HDF5_LIBRARIES_STATIC})
-target_link_libraries(partTetra ${PARMETIS_LIBRARIES})
-target_link_libraries(partTetra ${MPI_CXX_LIBRARIES})
-#target_link_libraries(partTetra ${CGNS_LIBRARY})
-target_link_libraries(partTetra ${LAPACK_LIBRARIES})
-target_link_libraries(partTetra ${Boost_LIBRARIES} )
+target_link_libraries(readLibMeshb ${PARMETIS_LIBRARIES})
+target_link_libraries(readLibMeshb ${MPI_CXX_LIBRARIES})
+#target_link_libraries(readLibMeshb ${CGNS_LIBRARY})
+target_link_libraries(readLibMeshb ${LAPACK_LIBRARIES})
+target_link_libraries(readLibMeshb ${Boost_LIBRARIES} )
 #====== Adding the external libraries here ======
