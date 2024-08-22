@@ -1240,7 +1240,6 @@ std::map<int,std::vector<std::vector<double> > > ComputeMetric_Lite(MPI_Comm com
                 row[0]=row_tmp[0];  row[1]=row_tmp[1];  row[2]=row_tmp[2];
                 row[3]=row_tmp[1];  row[4]=row_tmp[3];  row[5]=row_tmp[4];
                 row[6]=row_tmp[2];  row[7]=row_tmp[4];  row[8]=row_tmp[5];
-
                 
                 Eig* eig = ComputeEigenDecomp(3, row.data());
                 eignval[0] =  std::min(std::max(Scale*fabs(eig->Dre[0]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
@@ -1558,6 +1557,107 @@ void ComputeMetricWithWake(Partition* Pa,
 
     delete[] Hmet;
 }
+
+
+
+
+
+
+
+
+
+
+std::map<int,std::vector<std::vector<double> > > ComputeElementMetric_Lite(MPI_Comm comm, 
+                        RepartitionObject* tetra_repart,
+                        std::map<int,std::vector<double> > tetra_grad, 
+                        Inputs* inputs)
+{
+    // Preparing the metric tensor field.
+    std::vector<double> eignval(3,0.0);
+    double po = 6.0;
+
+    int rec         = inputs->recursive;
+    int ext         = inputs->extended;
+    double hmin     = inputs->hmin;
+    double hmax     = inputs->hmax;
+    double Scale    = inputs->MetScale;
+    std::map<int,std::vector<std::vector<double> > > metric_vmap;
+
+    std::map<int,std::vector<double> >::iterator itmidv;
+    int yep = 0;
+    std::vector<int> Owned_Elem_t                       = tetra_repart->getLocElem();
+    std::map<int,std::vector<int> > gE2gV_t             = tetra_repart->getElement2VertexMap();
+    std::map<int,std::set<int> > node2element_map       = tetra_repart->GetNode2ElementMap();
+
+    for(int i=0;i<Owned_Elem_t.size();i++)
+    {
+        int elid = Owned_Elem_t[i];
+
+        std::vector<double> row(9,0.0);
+
+        row[0]=tetra_grad[elid][3];  row[1]=tetra_grad[elid][4];  row[2]=tetra_grad[elid][5];
+        row[3]=tetra_grad[elid][5];  row[4]=tetra_grad[elid][6];  row[5]=tetra_grad[elid][7];
+        row[6]=tetra_grad[elid][5];  row[7]=tetra_grad[elid][7];  row[8]=tetra_grad[elid][8];
+        
+        Eig* eig = ComputeEigenDecomp(3, row.data());
+        eignval[0] =  std::min(std::max(Scale*fabs(eig->Dre[0]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
+        eignval[1] =  std::min(std::max(Scale*fabs(eig->Dre[1]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
+        eignval[2] =  std::min(std::max(Scale*fabs(eig->Dre[2]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
+        
+        double Lambdamax = *std::max_element(eignval.begin(),eignval.end());
+        double Lambdamin = *std::min_element(eignval.begin(),eignval.end());
+        //std::cout << "eign " << eignval[0] << " " << eignval[1] << " " << eignval[2] << " --> " << eig->Dre[0] << " " << eig->Dre[1] << " " << eig->Dre[2] << std::endl;
+        std::vector<std::vector<double> > Diag(3);
+        std::vector<std::vector<double> > EigVec(3);
+        
+        for(int k=0;k<3;k++)
+        {
+            std::vector<double> rowDiag(3,0.0);
+            rowDiag[k]      = eignval[k];
+            std::vector<double> rowEigVec(3,0.0);
+            Diag[k]         = rowDiag;
+            EigVec[k]       = rowEigVec;
+        }
+    
+        EigVec[0][0] = eig->V[0];   EigVec[0][1] = eig->V[1];   EigVec[0][2] = eig->V[2];
+        EigVec[1][0] = eig->V[3];   EigVec[1][1] = eig->V[4];   EigVec[1][2] = eig->V[5];
+        EigVec[2][0] = eig->V[6];   EigVec[2][1] = eig->V[7];   EigVec[2][2] = eig->V[8];
+
+        std::vector<std::vector<double> > iVR       = MatInv_Lite(EigVec);
+        std::vector<std::vector<double> > Rs        = MatMul_Lite(EigVec,Diag);  
+        std::vector<std::vector<double> > metric    = MatMul_Lite(Rs,iVR);
+
+        double detMetric        = metric[0][0]*(metric[1][1]*metric[2][2]-metric[2][1]*metric[1][2])
+                                - metric[0][1]*(metric[1][0]*metric[2][2]-metric[2][0]*metric[1][2])
+                                + metric[0][2]*(metric[1][0]*metric[2][1]-metric[2][0]*metric[1][1]);
+        
+        double pow              = -1.0/(2.0*po+3.0);
+        double eigRat           = Lambdamin/Lambdamax;
+        detMetric               = std::pow(detMetric,pow);
+
+        for(int i=0;i<3;i++)
+        {
+            for(int j=0;j<3;j++)
+            {
+                metric[i][j] = detMetric*metric[i][j];
+            }
+        }
+
+        metric_vmap[elid] = metric;
+
+        delete[] eig->Dre;
+        delete[] eig->Dim;
+        delete[] eig->V;
+        delete[] eig->iV;
+    }
+
+    return metric_vmap;
+}
+
+
+
+
+
 
 
 

@@ -28,7 +28,7 @@ std::map<int,std::vector<T> > GatherGlobalMapOnRoot_T(std::map<int,std::vector<T
     }
 
     int mapSizeLoc = mappie.size();
-    int rowsize = mappie[0].size();
+    int rowsize = mappie.begin()->second.size();
     DistributedParallelState* distrimap = new DistributedParallelState(mapSizeLoc,mpi_comm);
     int mapSizeTot = distrimap->getNel();
 
@@ -38,8 +38,8 @@ std::map<int,std::vector<T> > GatherGlobalMapOnRoot_T(std::map<int,std::vector<T
     std::vector<T> val_tot;
     if(world_rank == 0)
     {
-        key_tot.resize(mapSizeLoc*rowsize);
-        val_tot.resize(mapSizeLoc*rowsize);
+        key_tot.resize(mapSizeTot);
+        val_tot.resize(mapSizeTot*rowsize);
     }
 
     int i = 0;
@@ -67,7 +67,7 @@ std::map<int,std::vector<T> > GatherGlobalMapOnRoot_T(std::map<int,std::vector<T
             MPI_INT, 0, mpi_comm);
 
     MPI_Gatherv(&val_loc.data()[0],
-            mapSizeLoc*rowsize,
+            val_loc.size(),
             mpi_type,
             &val_tot.data()[0],
             distMapVal->getNlocs(),

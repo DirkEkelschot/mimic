@@ -76,6 +76,11 @@ std::map<int,std::vector<std::vector<double> > > ComputeMetric_Lite(MPI_Comm com
                         RepartitionObject* tetra_repart,
                         std::map<int,std::vector<double> > tetra_grad,
                         Inputs* inputs);
+        
+std::map<int,std::vector<std::vector<double> > > ComputeElementMetric_Lite(MPI_Comm comm, 
+                        RepartitionObject* tetra_repart,
+                        std::map<int,std::vector<double> > tetra_grad, 
+                        Inputs* inputs);
 
 
 void ComputeMetricWithWake(Partition* Pa,

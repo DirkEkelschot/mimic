@@ -26,7 +26,7 @@ void OutputTetraMeshOnRootVTK(MPI_Comm comm,
 
     std::map<int,char *> varnames_new;
     std::map<int,std::string>::iterator itis;
-
+    
     for(itis=varnames.begin();itis!=varnames.end();itis++)
     {
         const int length = itis->second.length();
@@ -34,6 +34,18 @@ void OutputTetraMeshOnRootVTK(MPI_Comm comm,
         strcpy(varname_char, itis->second.c_str());
         varnames_new[itis->first]=varname_char;
     }
+
+    std::map<int,std::vector<int> > gE2lV_tmp;
+    for(int i=0;i<OwnedElem.size();i++)
+    {
+        int elid = OwnedElem[i];
+        if(gE2lV.find(elid)!=gE2lV_tmp.end() && gE2lV_tmp.find(elid)==gE2lV_tmp.end())
+        {
+            gE2lV_tmp[elid] = gE2lV[elid];
+        }
+    }
+
+    
 
 
     //===============================================================================
@@ -54,14 +66,16 @@ void OutputTetraMeshOnRootVTK(MPI_Comm comm,
             distElem->getNlocs(),
             distElem->getOffsets(),
             MPI_INT, 0, comm);
-
-    std::map<int,std::vector<int> > gE2lVOnRoot = GatherGlobalMapOnRoot_T(gE2lV,comm);
-    std::map<int,std::vector<double> > VertsOnRoot = GatherGlobalMapOnRoot_T(LocalVerts,comm);
+    
+    std::map<int,std::vector<int> > gE2lVOnRoot     = GatherGlobalMapOnRoot_T(gE2lV_tmp,comm);
+    std::map<int,std::vector<double> > glob_data  = GatherGlobalMapOnRoot_T(loc_data,comm);
+    std::map<int,std::vector<double> > VertsOnRoot  = GatherGlobalMapOnRoot_T(LocalVerts,comm);
     
     //===============================================================================
 
     if(world_rank == 0)
     {
+
         vtkSmartPointer<vtkUnstructuredGrid> vtkmesh =
         vtkSmartPointer<vtkUnstructuredGrid>::New();
         vtkSmartPointer<vtkCellArray> cellArray =
@@ -76,7 +90,7 @@ void OutputTetraMeshOnRootVTK(MPI_Comm comm,
         {
             std::cout << "Warning :: the length of the variable name map does not correspond with the data size." << std::endl;
         }
-
+        
         std::map<int,vtkDoubleArray*> mapVars;
         for(itis=varnames.begin();itis!=varnames.end();itis++)
         {
@@ -96,15 +110,20 @@ void OutputTetraMeshOnRootVTK(MPI_Comm comm,
 
         vtkIdType ielement = 0;
         std::map<int,std::vector<int> >::iterator itmiv;
+        
+        //for(int k=0;k<ElemOnRoot.size();k++)
+        std::map<int,std::vector<int> >::iterator iter;
 
-        for(int k=0;k<ElemOnRoot.size();k++)
+        for(iter=gE2lVOnRoot.begin();iter!=gE2lVOnRoot.end();iter++)
         {
-            int elid   = ElemOnRoot[k];
+            //int elid   = ElemOnRoot[k];
+            int elid = iter->first;
 
             vtkNew<vtkTetra> tetra;
             
             for(int q=0;q<gE2lVOnRoot[elid].size();q++)
             {
+                
                 int gvid = gE2lVOnRoot[elid][q];
                 tetra->GetPointIds()->SetId(q, gvid);
                 
@@ -124,8 +143,10 @@ void OutputTetraMeshOnRootVTK(MPI_Comm comm,
                     int lvidn = g2lv[gvid];
                     tetra->GetPointIds()->SetId(q, lvidn);
                 }
+                
 
             }
+            /**/
             cellArray->InsertNextCell(tetra);
             
             // TKEArray->InsertNextTuple(&loc_data[elid][0]);
@@ -133,9 +154,9 @@ void OutputTetraMeshOnRootVTK(MPI_Comm comm,
 
             for(itis=varnames.begin();itis!=varnames.end();itis++)
             {
-                mapVars[itis->first]->InsertNextTuple(&loc_data[elid][itis->first]);
+                mapVars[itis->first]->InsertNextTuple(&glob_data[elid][itis->first]);
             }
-
+            
             ielement++;
         }
 
@@ -143,7 +164,7 @@ void OutputTetraMeshOnRootVTK(MPI_Comm comm,
         {
             vtkmesh->GetCellData()->AddArray(mapVars[itis->first]);
         }
-
+        
         vtkmesh->SetPoints(points);
         vtkmesh->SetCells(VTK_TETRA, cellArray);
         vtkSmartPointer<vtkXMLUnstructuredGridWriter> writer =
@@ -153,7 +174,10 @@ void OutputTetraMeshOnRootVTK(MPI_Comm comm,
         writer->SetDataModeToBinary();      // Write in ASCII mode
         writer->SetInputData(vtkmesh);
         writer->Write();
+        
     }
+
+    /**/
     
 
 }

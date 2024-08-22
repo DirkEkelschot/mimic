@@ -3,7 +3,7 @@
 cmake_minimum_required(VERSION 3.1...3.16)
 
 # set the project name and version
-project(readSU2 VERSION 1.0)
+project(outputMetric VERSION 1.0)
 # specify the C++ standard
 include(../../platforms_cmake/MacOSX_Dirk_work.cmake)
 include(ExternalProject)
@@ -48,7 +48,7 @@ INCLUDE (cmake/ThirdPartyParMMG.cmake)
 
 file(GLOB SRC CONFIGURE_DEPENDS "../../src/*.cpp" "main.cpp")
 set(CMAKE_CXX_FLAGS "-Wl,-no_compact_unwind")
-add_executable(readSU2 ${SRC})
+add_executable(outputMetric ${SRC})
 
 
 
@@ -104,20 +104,20 @@ link_directories(${Boost_LIBRARY_DIR})
 
 #list(APPEND EXTERNAL_LIB ${PARMETIS_LIBRARIES})
 #list(APPEND EXTERNAL_LIB ${HDF5_LIBRARY})
-target_link_libraries(readSU2 ${VTK_LIBRARIES})
+target_link_libraries(outputMetric ${VTK_LIBRARIES})
 #target_link_libraries(partTetra ${TETGEN_LIBRARY})
-target_link_libraries(readSU2 ${MMG_LIBRARY})
+target_link_libraries(outputMetric ${MMG_LIBRARY})
 #target_link_libraries(partTetra ${CMAKE_SOURCE_DIR}/build/ThirdParty/ParMmg/Mmg-prefix/src/Mmg-build/lib)
 #target_link_libraries(partTetra ${CGAL_LIBRARY})
-target_link_libraries(readSU2 ${LIBMESHB_LIBRARY})
-target_link_libraries(readSU2 ${PARMMG_LIBRARY})
-target_link_libraries(readSU2 ${HDF5_LIBRARIES})
-target_link_libraries(readSU2 ${ZLIB_LIBRARY})
+target_link_libraries(outputMetric ${LIBMESHB_LIBRARY})
+target_link_libraries(outputMetric ${PARMMG_LIBRARY})
+target_link_libraries(outputMetric ${HDF5_LIBRARIES})
+target_link_libraries(outputMetric ${ZLIB_LIBRARY})
 #target_link_libraries(partTetra ${HDF5_LIBRARIES_SHARED})
 #target_link_libraries(partTetra ${HDF5_LIBRARIES_STATIC})
-target_link_libraries(readSU2 ${PARMETIS_LIBRARIES})
-target_link_libraries(readSU2 ${MPI_CXX_LIBRARIES})
+target_link_libraries(outputMetric ${PARMETIS_LIBRARIES})
+target_link_libraries(outputMetric ${MPI_CXX_LIBRARIES})
 #target_link_libraries(readLibMeshb ${CGNS_LIBRARY})
-target_link_libraries(readSU2 ${LAPACK_LIBRARIES})
-target_link_libraries(readSU2 ${Boost_LIBRARIES} )
+target_link_libraries(outputMetric ${LAPACK_LIBRARIES})
+target_link_libraries(outputMetric ${Boost_LIBRARIES} )
 #====== Adding the external libraries here ======
