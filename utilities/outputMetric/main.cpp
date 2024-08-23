@@ -377,6 +377,77 @@ int main(int argc, char** argv)
             << dur_max << setprecision(16); 
             cout << " sec " << endl;
         }
+
+        std::map<int,std::string > varnamesGrad;
+
+        varnamesGrad[0]     = "dUdx";
+        varnamesGrad[1]     = "dUdy";
+        varnamesGrad[2]     = "dUdz";
+        varnamesGrad[3]     = "dU2dx2";
+        varnamesGrad[4]     = "dU2dxy";
+        varnamesGrad[5]     = "dU2dxz";
+        varnamesGrad[6]     = "dU2dy2";
+        varnamesGrad[7]     = "dU2dyz";
+        varnamesGrad[8]     = "dU2dz2";
+
+        string filename_tg = "mimic_hessian.vtu";
+        std::vector<int> Owned_Elem_t                       = tetra_repart->getLocElem();
+        std::map<int,std::vector<int> > gE2gV_t             = tetra_repart->getElement2VertexMap();
+        std::map<int, std::vector<double> > LocalVertsMap_t = tetra_repart->getLocalVertsMap();
+        std::cout << "Starting to write mimic_hessian " << std::endl;
+        OutputTetraMeshOnRootVTK(comm,
+                                filename_tg, 
+                                Owned_Elem_t, 
+                                gE2gV_t, 
+                                tetra_grad, 
+                                varnamesGrad, 
+                                LocalVertsMap_t);
+        
+        std::map<int,std::vector<std::vector<double> > > metric_vmap = ComputeElementMetric_Lite(comm, 
+                                                                    tetra_repart,
+                                                                    tetra_grad, 
+                                                                    inputs);
+        
+        std::map<int,std::vector<std::vector<double> > >::iterator itmm;
+
+        std::map<int,std::vector<double> > metric_vmap_new;
+
+        for(itmm=metric_vmap.begin();itmm!=metric_vmap.end();itmm++)
+        {
+            int tagvid = itmm->first;
+
+            std::vector<double> tensor(6,0);
+            tensor[0] = metric_vmap[tagvid][0][0];
+            tensor[1] = metric_vmap[tagvid][0][1];
+            tensor[2] = metric_vmap[tagvid][0][2];
+            tensor[3] = metric_vmap[tagvid][1][1];
+            tensor[4] = metric_vmap[tagvid][1][2];
+            tensor[5] = metric_vmap[tagvid][2][2];
+
+            metric_vmap_new[tagvid] = tensor;
+
+        }
+        std::map<int,std::string > varnamesGrad_met;
+
+        varnamesGrad_met[0]     = "M00";
+        varnamesGrad_met[1]     = "M01";
+        varnamesGrad_met[2]     = "M02";
+        varnamesGrad_met[3]     = "M11";
+        varnamesGrad_met[4]     = "M12";
+        varnamesGrad_met[5]     = "M22";
+    
+        string filename_met = "mimic_metric.vtu";
+
+        OutputTetraMeshOnRootVTK(comm,
+                        filename_met, 
+                        Owned_Elem_t, 
+                        gE2gV_t, 
+                        metric_vmap_new, 
+                        varnamesGrad_met, 
+                        LocalVertsMap_t);    
+
+
+
     }
     else if(inputs->recursive == 1)
     {   
