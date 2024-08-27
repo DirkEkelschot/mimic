@@ -88,7 +88,7 @@ void OutputTetraMeshOnRootVTK(MPI_Comm comm,
 
         if(loc_data.begin()->second.size() != varnames.size())
         {
-            std::cout << "Warning :: the length of the variable name map does not correspond with the data size." << std::endl;
+            std::cout << "Warning :: the length of the variable name map does not correspond with the data size. ---> " << filename << " " << loc_data.begin()->second.size() << " " << varnames.size() << std::endl;
         }
         
         std::map<int,vtkDoubleArray*> mapVars;
@@ -229,7 +229,7 @@ void OutputTetraMeshPartitionVTK(MPI_Comm comm,
 
     if(loc_data.begin()->second.size() != varnames.size())
     {
-        std::cout << "Warning :: the length of the variable name map does not correspond with the data size." << std::endl;
+        std::cout << "Warning :: the length of the variable name map does not correspond with the data size ---> " << filename << " " << loc_data.begin()->second.size() << " " << varnames.size() << std::endl;
     }
 
     std::map<int,vtkDoubleArray*> mapVars;
@@ -355,7 +355,7 @@ void OutputPrismMeshPartitionVTK(string filename,
     if(loc_data.begin()->second.size() != varnames.size())
     {
         std::cout << "loc_data.begin()->second.size()  " << loc_data.begin()->second.size()  << std::endl;
-        std::cout << "Warning :: the length of the variable name map does not correspond with the data size." << std::endl;
+        std::cout << "Warning :: the length of the variable name map does not correspond with the data size ---> " << filename << " " << loc_data.begin()->second.size() << " " << varnames.size() << std::endl;
     }
 
     std::map<int,vtkDoubleArray*> mapVars;

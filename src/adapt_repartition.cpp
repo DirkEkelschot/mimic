@@ -1,5 +1,5 @@
 #include "adapt_repartition.h"
-
+#include "adapt_compute.h"
 RepartitionObject::RepartitionObject(mesh* meshInput,
                         std::map<int,std::vector<int> > elements2verts,
                         std::map<int,std::vector<int> > elements2faces,
@@ -403,7 +403,7 @@ RepartitionObject::RepartitionObject(mesh* meshInput,
     for(int i=0;i<nAdjLayer;i++)
     {
         
-        
+        std::cout << rank << " BEFORE elements2verts_update " << i << " " << elements2verts_update.size() << std::endl;
         start1 = clock();
         std::map<int,std::vector<int> > adjEl2Face = getAdjacentElementLayer(elements2verts_update,
                                                                         elements2faces_update,
@@ -419,7 +419,8 @@ RepartitionObject::RepartitionObject(mesh* meshInput,
                                                                         elements2elements_update,
                                                                         elements2data_update);
         
-        
+        std::cout << rank << " AFTER elements2verts_update " << i << " " << elements2verts_update.size() << std::endl;
+
         end1 = clock();
         time_taken1 = ( end1 - start1) / (double) CLOCKS_PER_SEC;
         MPI_Allreduce(&time_taken1, &dur_max1, 1, MPI_DOUBLE, MPI_MAX, comm);
@@ -4682,6 +4683,7 @@ std::map<int, std::vector<int> > RepartitionObject::getAdjacentElementLayer(std:
 
 void RepartitionObject::AddStateVecForAdjacentElements(std::map<int,std::vector<double> > &U, int nvar, MPI_Comm comm)
 {
+    
     int nanhere =0;
     int nothere = 0;
     int floc_tmp = 0;
@@ -4779,7 +4781,7 @@ void RepartitionObject::AddStateVecForAdjacentElements(std::map<int,std::vector<
             reqstd_E_IDs_per_rank[q] = recv_reqstd_ids;
         }
     }
-    
+        
     std::map<int,std::vector<int> >::iterator ite;
     std::map<int,std::vector<int> > send_IEE_Elem_IDs;
     std::vector<int> TotIEE_El_IDs;
@@ -4879,7 +4881,7 @@ void RepartitionObject::AddStateVecForAdjacentElements(std::map<int,std::vector<
             U[el_id] = StateVec;
         }
     }
-
+    /**/
 }
 
 
@@ -6054,6 +6056,7 @@ void RepartitionObject::buildInteriorSharedAndBoundaryFaceMaps(MPI_Comm comm,
 }
 
 
+
 std::map<int,std::set<int> > RepartitionObject::GetNode2ElementMap()
 {
     std::map<int,std::set<int> > node2elem_map;
@@ -6139,6 +6142,168 @@ std::map<int,std::set<int> > RepartitionObject::GetNode2ElementMap()
     return node2elem_map;
 
 }
+
+
+
+std::map<int,std::map<int,double> > RepartitionObject::GetNode2ElementMapV2()
+{
+    std::map<int,std::map<int,double> > node2elem_map;
+
+    for(int i=0;i<LocAndAdj_Elem.size();i++)
+    {
+        int elid = LocAndAdj_Elem[i];
+        int Nv   = elements2verts_update[elid].size();
+        int nadj = elements2elements_update[elid].size();
+
+        std::vector<double> Pijk(Nv*3);
+        for(int k=0;k<Nv;k++)
+        {
+            int gvid     = elements2verts_update[elid][k];
+            Pijk[k*3+0]  = LocalVertsMap[gvid][0];
+            Pijk[k*3+1]  = LocalVertsMap[gvid][1];
+            Pijk[k*3+2]  = LocalVertsMap[gvid][2];
+        }
+        std::vector<double> Vijk     = ComputeCentroidCoord(Pijk,Nv);
+
+        for(int j=0;j<Nv;j++)
+        {
+            int gvid = elements2verts_update[elid][j];
+
+            if(LocalVertsMap.find(gvid)!=LocalVertsMap.end()
+                    && node2elem_map[gvid].find(elid)==node2elem_map[gvid].end())
+            {
+                double dx = Vijk[0]-LocalVertsMap[gvid][0];
+                double dy = Vijk[1]-LocalVertsMap[gvid][1];
+                double dz = Vijk[2]-LocalVertsMap[gvid][2];
+                double d  = sqrt(dx*dx+dy*dy+dz*dz);
+                node2elem_map[gvid].insert(std::pair<int,double>(elid,d));
+            }
+        } 
+    }
+
+    return node2elem_map;
+}
+
+
+
+
+
+
+
+std::map<int,std::map<int, double> > RepartitionObject::GetElement2NodeMap()
+{
+    std::map<int,std::map<int, double> > elem2nodemap;
+
+    for(int i=0;i<Loc_Elem.size();i++)
+    {
+        int elid = Loc_Elem[i];
+        int Ne   = elements2elements_update[elid].size();
+        int Nv   = elements2verts_update[elid].size();
+        int nadj = elements2elements_update[elid].size();
+
+        std::vector<double> Pijk(Nv*3);
+
+        for(int k=0;k<Nv;k++)
+        {
+            int gvid     = elements2verts_update[elid][k];
+            Pijk[k*3+0]  = LocalVertsMap[gvid][0];
+            Pijk[k*3+1]  = LocalVertsMap[gvid][1];
+            Pijk[k*3+2]  = LocalVertsMap[gvid][2];
+        }
+        std::vector<double> Vijk     = ComputeCentroidCoord(Pijk,Nv);
+
+        for(int k=0;k<Nv;k++)
+        {
+            int gvid = elements2verts_update[elid][k];
+            if(LocalVertsMap.find(gvid)!=LocalVertsMap.end()
+                    && elem2nodemap[elid].find(gvid)==elem2nodemap[elid].end())
+            {
+                double dx = Vijk[0]-LocalVertsMap[gvid][0];
+                double dy = Vijk[1]-LocalVertsMap[gvid][1];
+                double dz = Vijk[2]-LocalVertsMap[gvid][2];
+                double d  = sqrt(dx*dx+dy*dy+dz*dz);
+                elem2nodemap[elid].insert(std::pair<int,double>(gvid,d));
+            }
+        }
+
+        for(int s=0;s<Ne;s++)
+        {
+            int adjid = elements2elements_update[elid][s];
+            int Nvadj = elements2verts_update[adjid].size();
+
+            std::map<int, double> vrt2dist;
+
+            for(int j=0;j<Nvadj;j++)
+            {
+                int gvid = elements2verts_update[adjid][j];
+                if(LocalVertsMap.find(gvid)!=LocalVertsMap.end()
+                    && elem2nodemap[elid].find(gvid)==elem2nodemap[elid].end())
+                {
+                    double dx = Vijk[0]-LocalVertsMap[gvid][0];
+                    double dy = Vijk[1]-LocalVertsMap[gvid][1];
+                    double dz = Vijk[2]-LocalVertsMap[gvid][2];
+                    double d  = sqrt(dx*dx+dy*dy+dz*dz);
+                    elem2nodemap[elid].insert(std::pair<int,double>(gvid,d));
+                }
+            }
+        }
+    }
+
+    return elem2nodemap;
+
+}
+
+
+
+
+
+
+
+std::map<int,std::vector<double> > RepartitionObject::ReduceStateVecToVertices(std::map<int,std::map<int,double> > node2elem_map,
+                                                                                std::map<int,std::vector<double> > Umap,
+                                                                                int nvar)
+{
+    std::map<int,std::map<int,double> >::iterator n2eit;
+    std::map<int,std::vector<double> > nodevals;
+    
+    for(n2eit=node2elem_map.begin();n2eit!=node2elem_map.end();n2eit++)
+    {
+        int gvid                        = n2eit->first;
+        std::map<int,double> elidsdist  = n2eit->second;
+        double distsum                  = 0.0;
+
+        std::map<int,double>::iterator its;
+        std::vector<double> uval(nvar,0.0);
+        
+        for(its=elidsdist.begin();its!=elidsdist.end();its++)
+        {
+            int elid        = its->first;
+            double dist     = its->second;
+
+            for(int q=0;q<nvar;q++)
+            {
+                uval[q] = uval[q] + Umap[elid][q]*dist;
+            }
+            
+            distsum  = distsum+dist;
+        }
+        for(int q=0;q<nvar;q++)
+        {
+            uval[q] = uval[q] / distsum;
+            //std::cout << "uval[q] " << uval[q] << " " << q << std::endl;
+        }
+
+        nodevals[gvid] = uval;
+        
+    }
+
+    
+    return nodevals;
+}
+
+
+
+
 
 
 

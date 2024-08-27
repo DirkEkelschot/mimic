@@ -227,9 +227,14 @@ class RepartitionObject{
                                              std::map<int,std::vector<int> >& elements2elements_update,
                                              std::map<int,std::vector<double> >& elements2data_update);
                 
-                
                 std::map<int,std::set<int> > GetNode2ElementMap();
+                std::map<int,std::map<int,double> > GetNode2ElementMapV2();
+                std::map<int,std::map<int, double> > GetElement2NodeMap();
+                // std::map<int,std::map<int,double> > GetNode2ElementMapV2();
 
+                std::map<int,std::vector<double> > ReduceStateVecToVertices(std::map<int,std::map<int,double> > node2elem_map,
+                                                                                std::map<int,std::vector<double> > Umap,
+                                                                                int nvar);
 
                 void AddStateVecForAdjacentElements(std::map<int,std::vector<double> > &U, int nvar, MPI_Comm comm);
                 void SetStateVec(std::map<int,std::vector<double> > U, int nvar);

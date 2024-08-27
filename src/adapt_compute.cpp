@@ -1196,9 +1196,9 @@ std::map<int,std::vector<std::vector<double> > > ComputeMetric_Lite(MPI_Comm com
 
     std::map<int,std::vector<double> >::iterator itmidv;
     int yep = 0;
-    std::vector<int> Owned_Elem_t                       = tetra_repart->getLocElem();
-    std::map<int,std::vector<int> > gE2gV_t             = tetra_repart->getElement2VertexMap();
-    std::map<int,std::set<int> > node2element_map       = tetra_repart->GetNode2ElementMap();
+    std::vector<int> Owned_Elem_t                           = tetra_repart->getLocElem();
+    std::map<int,std::vector<int> > gE2gV_t                 = tetra_repart->getElement2VertexMap();
+    std::map<int,std::set<int> > node2element_map    = tetra_repart->GetNode2ElementMap();
 
     for(int i=0;i<Owned_Elem_t.size();i++)
     {
