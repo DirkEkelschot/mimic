@@ -4,8 +4,8 @@ import sys
 
 
 s = 0;
-conv = np.loadtxt('errors'+str(10)+'.dat')
-dh = [10,15,20,25,30,40,50]
+conv = np.loadtxt('errors_or_'+str(10)+'.dat')
+dh = [10,15,20,25,30]
 # dh = [10,15,20]
 dudx_error = []
 dudy_error = []
@@ -14,17 +14,25 @@ du2dx2_error = []
 du2dxy_error = []
 du2dxz_error = []
 
-dudx_error_old = []
-dudy_error_old = []
-dudz_error_old = []
-du2dx2_error_old = []
-du2dxy_error_old = []
-du2dxz_error_old = []
+dudx_error_or_plus_vrt = []
+dudy_error_or_plus_vrt = []
+dudz_error_or_plus_vrt = []
+du2dx2_error_or_plus_vrt = []
+du2dxy_error_or_plus_vrt = []
+du2dxz_error_or_plus_vrt = []
+
+dudx_error_extended = []
+dudy_error_extended = []
+dudz_error_extended = []
+du2dx2_error_extended = []
+du2dxy_error_extended = []
+du2dxz_error_extended = []
 
 for i in dh:
     print('errors'+str(i)+'.dat')
-    errors = np.loadtxt('errors'+str(i)+'.dat');
-    errors_old = np.loadtxt('errors_old'+str(i)+'.dat');
+    errors = np.loadtxt('errors_or_'+str(i)+'.dat');
+    errors_or_plus_vrt = np.loadtxt('errors_or_plus_vrt_'+str(i)+'.dat');
+    errors_extended = np.loadtxt('errors_extended_'+str(i)+'.dat');
 
     dudx_error.append(errors[0]);
     dudy_error.append(errors[1]);
@@ -33,22 +41,33 @@ for i in dh:
     du2dxy_error.append(errors[4]);
     du2dxz_error.append(errors[5]);
 
-    dudx_error_old.append(errors_old[0]);
-    dudy_error_old.append(errors_old[1]);
-    dudz_error_old.append(errors_old[2]);
-    du2dx2_error_old.append(errors_old[3]);
-    du2dxy_error_old.append(errors_old[4]);
-    du2dxz_error_old.append(errors_old[5]);
-    print(errors)
+    dudx_error_or_plus_vrt.append(errors_or_plus_vrt[0]);
+    dudy_error_or_plus_vrt.append(errors_or_plus_vrt[1]);
+    dudz_error_or_plus_vrt.append(errors_or_plus_vrt[2]);
+    du2dx2_error_or_plus_vrt.append(errors_or_plus_vrt[3]);
+    du2dxy_error_or_plus_vrt.append(errors_or_plus_vrt[4]);
+    du2dxz_error_or_plus_vrt.append(errors_or_plus_vrt[5]);
+
+
+    dudx_error_extended.append(errors_extended[0]);
+    dudy_error_extended.append(errors_extended[1]);
+    dudz_error_extended.append(errors_extended[2]);
+    du2dx2_error_extended.append(errors_extended[3]);
+    du2dxy_error_extended.append(errors_extended[4]);
+    du2dxz_error_extended.append(errors_extended[5]);
+
     s = s + 1
 
 plt.figure(1)
 plt.loglog(dh,dudx_error,'-o',label='dudx_error');
 plt.loglog(dh,dudy_error,'-o',label='dudy_error');
 plt.loglog(dh,dudz_error,'-o',label='dudz_error');
-plt.loglog(dh,dudx_error_old,'-o',label='dudx_error_old');
-plt.loglog(dh,dudy_error_old,'-o',label='dudy_error_old');
-plt.loglog(dh,dudz_error_old,'-o',label='dudz_error_old');
+plt.loglog(dh,dudx_error_or_plus_vrt,'-o',label='dudx_error_or_plus_vrt');
+plt.loglog(dh,dudy_error_or_plus_vrt,'-o',label='dudy_error_or_plus_vrt');
+plt.loglog(dh,dudz_error_or_plus_vrt,'-o',label='dudz_error_or_plus_vrt');
+plt.loglog(dh,dudx_error_extended,'-o',label='dudx_error_extended');
+plt.loglog(dh,dudy_error_extended,'-o',label='dudy_error_extended');
+plt.loglog(dh,dudz_error_extended,'-o',label='dudz_error_extended');
 plt.legend()
 plt.grid()
 
@@ -58,9 +77,12 @@ plt.figure(2)
 plt.loglog(dh,du2dx2_error,'-o',label='du2dx2_error');
 plt.loglog(dh,du2dxy_error,'-o',label='du2dxy_error');
 plt.loglog(dh,du2dxz_error,'-o',label='du2dxz_error');
-plt.loglog(dh,du2dx2_error_old,'-o',label='du2dx2_error_old');
-plt.loglog(dh,du2dxy_error_old,'-o',label='du2dxy_error_old');
-plt.loglog(dh,du2dxz_error_old,'-o',label='du2dxz_error_old');
+plt.loglog(dh,du2dx2_error_or_plus_vrt,'-o',label='du2dx2_error_or_plus_vrt');
+plt.loglog(dh,du2dxy_error_or_plus_vrt,'-o',label='du2dxy_error_or_plus_vrt');
+plt.loglog(dh,du2dxz_error_or_plus_vrt,'-o',label='du2dxz_error_or_plus_vrt');
+plt.loglog(dh,du2dx2_error_extended,'-o',label='du2dx2_error_extended');
+plt.loglog(dh,du2dxy_error_extended,'-o',label='du2dxy_error_extended');
+plt.loglog(dh,du2dxz_error_extended,'-o',label='du2dxz_error_extended');
 plt.legend()
 plt.grid()
 plt.show()

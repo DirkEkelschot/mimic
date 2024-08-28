@@ -403,7 +403,7 @@ RepartitionObject::RepartitionObject(mesh* meshInput,
     for(int i=0;i<nAdjLayer;i++)
     {
         
-        std::cout << rank << " BEFORE elements2verts_update " << i << " " << elements2verts_update.size() << std::endl;
+        //std::cout << rank << " BEFORE elements2verts_update " << i << " " << elements2verts_update.size() << std::endl;
         start1 = clock();
         std::map<int,std::vector<int> > adjEl2Face = getAdjacentElementLayer(elements2verts_update,
                                                                         elements2faces_update,
@@ -419,7 +419,7 @@ RepartitionObject::RepartitionObject(mesh* meshInput,
                                                                         elements2elements_update,
                                                                         elements2data_update);
         
-        std::cout << rank << " AFTER elements2verts_update " << i << " " << elements2verts_update.size() << std::endl;
+        //std::cout << rank << " AFTER elements2verts_update " << i << " " << elements2verts_update.size() << std::endl;
 
         end1 = clock();
         time_taken1 = ( end1 - start1) / (double) CLOCKS_PER_SEC;
@@ -6163,7 +6163,8 @@ std::map<int,std::map<int,double> > RepartitionObject::GetNode2ElementMapV2()
             Pijk[k*3+1]  = LocalVertsMap[gvid][1];
             Pijk[k*3+2]  = LocalVertsMap[gvid][2];
         }
-        std::vector<double> Vijk     = ComputeCentroidCoord(Pijk,Nv);
+
+        std::vector<double> Vijk = ComputeCentroidCoord(Pijk,Nv);
 
         for(int j=0;j<Nv;j++)
         {
@@ -6282,14 +6283,14 @@ std::map<int,std::vector<double> > RepartitionObject::ReduceStateVecToVertices(s
 
             for(int q=0;q<nvar;q++)
             {
-                uval[q] = uval[q] + Umap[elid][q]*dist;
+                uval[q] = uval[q] + Umap[elid][q];//*dist;
             }
             
             distsum  = distsum+dist;
         }
         for(int q=0;q<nvar;q++)
         {
-            uval[q] = uval[q] / distsum;
+            uval[q] = uval[q]/elidsdist.size();// / distsum;
             //std::cout << "uval[q] " << uval[q] << " " << q << std::endl;
         }
 
@@ -6323,6 +6324,7 @@ std::set<int> RepartitionObject::GetLocalTraceVertSet()
 
 void RepartitionObject::SetStateVec(std::map<int,std::vector<double> > U, int nvar)
 {
+    elements2data_update.clear();
     elements2data_update = U;
 }
 
