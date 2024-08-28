@@ -87,9 +87,9 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D_Lite(RepartitionObjec
         {
             int adjid  = Element2ElementMap[elID][j];
             int Faceid = Element2FaceMap[elID][j];
-                        
+                       
             if(Element2VertexMap.find(adjid)!=Element2VertexMap.end() 
-                        && ghosts.find(adjid)!=ghosts.end())
+                        && ghosts.find(adjid)==ghosts.end())
             {
                 int NvPEladj = Element2VertexMap[adjid].size();
 
@@ -107,7 +107,6 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D_Lite(RepartitionObjec
                 vrt_collect[adjid]  = Vadj;
                 sol_collect[adjid]  = Ue[adjid][variable];
             }
-            
             else if(ghosts.find(adjid)!=ghosts.end())
             {
                 ghostelem++;
@@ -183,7 +182,7 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D_Lite(RepartitionObjec
             }
 
 
-
+            
             if(Element2ElementMap.find(adjid)!=Element2ElementMap.end())
             {
                 int n_adjid         = Element2ElementMap[adjid].size();
@@ -415,7 +414,6 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D_Lite(RepartitionObjec
             }
         }
 
-    
         if(vrt_collect.size() > 9)
         {
             int Ndata = vrt_collect.size();
@@ -480,6 +478,7 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D_Lite(RepartitionObjec
             x = SolveQR_Lite(A_cm,Ndata,9,bvec);
 
             dudx_map[elID] = x;
+            
             
         }
         else
@@ -549,6 +548,8 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D_Lite(RepartitionObjec
             // delete Vrt;
             // delete bvec;
         }
+
+        
         //
         
         vrt_collect.clear();

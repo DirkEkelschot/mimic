@@ -727,17 +727,21 @@ int main(int argc, char** argv)
                             gbMap, gbMap_dUdx, gbMap_dUdy, gbMap_dUdz, gbMap_dUdXi, gbMap_dU2dx2, gbMap_dU2dxy, gbMap_dU2dxz);
         // 0,1,2,3,4,5
         //std::cout << "compare size " << U_map.size() << " " << tetra_repart->getElement2VertexMap().size() << std::endl;
-        //tetra_repart->SetStateVec(U_map,7);
+        tetra_repart->AddStateVecForAdjacentElements(U_map,7,comm);
+        
+       
+        tetra_repart->SetStateVec(U_map,7);
 
         start = clock();
         tetra_repart->AddStateVecForAdjacentElements(Usol,1,comm);
+        
         //std::map<int,std::vector<double> > tetra_grad    = ComputedUdx_LSQ_US3D_Lite(tetra_repart, Usol, gbMap, meshRead->nElem,1,2,comm);
 
 
         std::map<int,std::vector<double> > tetra_grad_v2 = ComputedUdx_LSQ_US3D_Vrt_Lite(tetra_repart, Usol, gbMap, meshRead->nElem,0,1,comm);
 
-        std::map<int,std::vector<double> > tetra_grad_v3 = ComputedUdx_LSQ_US3D_Lite(tetra_repart, Usol, gbMap, meshRead->nElem,0,1,comm);
-
+        std::map<int,std::vector<double> > tetra_grad_v3 = ComputedUdx_LSQ_LS_US3D_Lite(tetra_repart, gbMap, meshRead->nElem,0,1,comm);
+         
 
         // std::map<int,std::map<int, double> > n2el_dist       = tetra_repart->GetNode2ElementMapV2();
         // std::map<int,std::vector<double> > node_val          = tetra_repart->ReduceStateVecToVertices(n2el_dist,Usol,1);
@@ -792,8 +796,9 @@ int main(int argc, char** argv)
                                                                             1,
                                                                             comm);
 
-        std::map<int,std::vector<double> > dU2dx2_old = ComputedUdx_LSQ_US3D_Vrt_Lite(tetra_repart,
-                                                                            dudx_map_old,
+        tetra_repart->AddStateVecForAdjacentElements(dudx_map_old,1,comm);
+        tetra_repart->SetStateVec(dudx_map_old,1);
+        std::map<int,std::vector<double> > dU2dx2_old = ComputedUdx_LSQ_LS_US3D_Lite(tetra_repart,
                                                                             gbMap_dUdx,
                                                                             meshRead->nElem,
                                                                             0,
@@ -825,11 +830,11 @@ int main(int argc, char** argv)
             row_old[1] = dudy_map_old[elid][0];
             row_old[2] = dudz_map_old[elid][0];
 
-            row[3] = dU2dx2_old[elid][0];
-            row[4] = dU2dx2_old[elid][1];
-            row[5] = dU2dx2_old[elid][2];
+            row_old[3] = dU2dx2_old[elid][0];
+            row_old[4] = dU2dx2_old[elid][1];
+            row_old[5] = dU2dx2_old[elid][2];
 
-            tetra_grad_final_old[elid] = row;
+            tetra_grad_final_old[elid] = row_old;
         }
 
         
@@ -850,6 +855,7 @@ int main(int argc, char** argv)
         double rec=0.0, rec_old=0.0, exact=0.0;
         std::map<int,std::vector<double> > error_c;
         std::map<int,std::vector<double> > error_c_old;
+        std::map<int,std::vector<double> > error_c_diff;
         std::map<int,std::vector<double> > error_c_nobnd;
         int el = 0;
         std::set<int> el2consider;
@@ -897,20 +903,20 @@ int main(int argc, char** argv)
             int nvar = U_map[elid].size();
             std::vector<double> row(nvar-1,0.0);
             std::vector<double> row_old(nvar-1,0.0);
-
+            std::vector<double> row_diff(nvar-1,0.0);
             for(int i=1;i<nvar;i++)
             {
-                
                 exact             = U_map[elid][i];
                 rec               = tetra_grad_final[elid][i-1];
                 rec_old           = tetra_grad_final_old[elid][i-1];
                 row[i-1]          = (rec-exact)*(rec-exact);
-                row_old[i-1]          = (rec_old-exact)*(rec_old-exact);
+                row_old[i-1]      = (rec_old-exact)*(rec_old-exact);
+                row_diff[i-1]     = (rec-rec_old)*(rec-rec_old);
             }
             //std::cout << std::endl;
             error_c[elid]         = row;
             error_c_old[elid]     = row_old;
-
+            error_c_diff[elid]    = row_diff;
             if(bnd == 0)
             {
                 error_c_nobnd[elid] = row;
@@ -1020,6 +1026,17 @@ int main(int argc, char** argv)
                                 varnamesGrad, 
                                 LocalVertsMap_t);
 
+
+        string filename_tg_old = "tetraReconOld"+std::to_string(itg->first)+"_" + std::to_string(world_rank) + ".vtu";
+        //std::cout << "Writing reconstructed" << std::endl;
+        OutputTetraMeshOnRootVTK(comm,
+                                filename_tg_old, 
+                                Owned_Elem_t, 
+                                gE2gV_t, 
+                                tetra_grad_final_old, 
+                                varnamesGrad, 
+                                LocalVertsMap_t);
+
         string filename_te = "tetraExact"+std::to_string(itg->first)+"_" + std::to_string(world_rank) + ".vtu";
 
         std::map<int,std::string > varnamesGraExact;
@@ -1057,6 +1074,18 @@ int main(int argc, char** argv)
                                 Owned_Elem_t, 
                                 gE2gV_t, 
                                 error_c, 
+                                varnamesGrad_error, 
+                                LocalVertsMap_t);
+
+        
+        string filename_terror_diff = "tetraErrorDiff"+std::to_string(itg->first)+"_" + std::to_string(world_rank) + ".vtu";
+
+        //std::cout << "Writing errors" << std::endl;
+        OutputTetraMeshOnRootVTK(comm,
+                                filename_terror_diff, 
+                                Owned_Elem_t, 
+                                gE2gV_t, 
+                                error_c_diff, 
                                 varnamesGrad_error, 
                                 LocalVertsMap_t);
 
