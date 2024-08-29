@@ -453,7 +453,24 @@ int main(int argc, char** argv)
                         gE2gV_t, 
                         metric_vmap_new, 
                         varnamesGrad_met, 
-                        LocalVertsMap_t);    
+                        LocalVertsMap_t);
+
+        std::map<int,std::string > varnamesGrad_diag;
+
+        varnamesGrad_diag[0]     = "D0";
+        varnamesGrad_diag[1]     = "D1";
+        varnamesGrad_diag[2]     = "D2";
+
+    
+        string filename_eig = "mimic_eigvalues.vtu";
+
+        OutputTetraMeshOnRootVTK(comm,
+                        filename_eig, 
+                        Owned_Elem_t, 
+                        gE2gV_t, 
+                        eigvalues, 
+                        varnamesGrad_diag, 
+                        LocalVertsMap_t); 
 
 
 
@@ -696,7 +713,27 @@ int main(int argc, char** argv)
                         gE2gV_t, 
                         metric_vmap_new, 
                         varnamesGrad_met, 
-                        LocalVertsMap_t);    
+                        LocalVertsMap_t);
+
+
+        std::map<int,std::string > varnamesGrad_diag;
+
+        varnamesGrad_diag[0]     = "D0";
+        varnamesGrad_diag[1]     = "D1";
+        varnamesGrad_diag[2]     = "D2";
+
+    
+        string filename_eig = "mimic_eigvalues.vtu";
+
+        OutputTetraMeshOnRootVTK(comm,
+                        filename_eig, 
+                        Owned_Elem_t, 
+                        gE2gV_t, 
+                        eigvalues, 
+                        varnamesGrad_diag, 
+                        LocalVertsMap_t);
+
+    
     }
     
     clock_t end_total = clock();
