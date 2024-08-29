@@ -135,12 +135,12 @@ int main(int argc, char** argv)
     int debug = 1;
 
 
-    int64_t LibIdx;
-    int ver, dim, NmbVer, NmbTri, (*Nodes)[4], *Domains;
-    float (*Coords)[3];
+    //int64_t LibIdx;
+    //int ver, dim, NmbVer, NmbTri, (*Nodes)[4], *Domains;
+    //float (*Coords)[3];
 
     // Open the mesh file for reading
-    LibIdx = GmfOpenMesh( "triangles.meshb", GmfRead, &ver, &dim );
+    //LibIdx = GmfOpenMesh( "triangles.meshb", GmfRead, &ver, &dim );
 
     // Read the egads tree stored as a raw byte flow
     // cad = GmfReadByteFlow(InpMsh, &NmbBytes);
@@ -379,6 +379,10 @@ int main(int argc, char** argv)
         start = clock();
 
 
+        std::map<int,std::vector<double> > Ue = tetra_repart->getElement2DataMap();
+        tetra_repart->AddStateVecForAdjacentElements(Ue,2,comm);
+        tetra_repart->SetStateVec(Ue,2);
+
 
         tetra_grad = ComputedUdx_LSQ_LS_US3D_Lite(tetra_repart,
                                                 meshRead->ghost,
@@ -443,9 +447,6 @@ int main(int argc, char** argv)
 
 
         std::map<int,std::vector<double> > Ue = tetra_repart->getElement2DataMap();
-
-
-        
         tetra_repart->AddStateVecForAdjacentElements(Ue,2,comm);
         tetra_repart->SetStateVec(Ue,2);
     
