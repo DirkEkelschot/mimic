@@ -75,11 +75,13 @@ void UnitTestJacobian();
 std::map<int,std::vector<std::vector<double> > > ComputeMetric_Lite(MPI_Comm comm, 
                         RepartitionObject* tetra_repart,
                         std::map<int,std::vector<double> > tetra_grad,
+                        std::map<int,std::vector<double> > &eigvalues, 
                         Inputs* inputs);
         
 std::map<int,std::vector<std::vector<double> > > ComputeElementMetric_Lite(MPI_Comm comm, 
                         RepartitionObject* tetra_repart,
                         std::map<int,std::vector<double> > tetra_grad, 
+                        std::map<int,std::vector<double> > &eigvalues, 
                         Inputs* inputs);
 
 

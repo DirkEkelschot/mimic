@@ -1179,6 +1179,7 @@ void UnitTestJacobian()
 std::map<int,std::vector<std::vector<double> > > ComputeMetric_Lite(MPI_Comm comm, 
                         RepartitionObject* tetra_repart,
                         std::map<int,std::vector<double> > tetra_grad, 
+                        std::map<int,std::vector<double> > &eigvalues, 
                         Inputs* inputs)
 {
     // Preparing the metric tensor field.
@@ -1242,6 +1243,12 @@ std::map<int,std::vector<std::vector<double> > > ComputeMetric_Lite(MPI_Comm com
                 row[6]=row_tmp[2];  row[7]=row_tmp[4];  row[8]=row_tmp[5];
                 
                 Eig* eig = ComputeEigenDecomp(3, row.data());
+                std::vector<double> Dre(3,0.0);
+                Dre[0] = eig->Dre[0];
+                Dre[1] = eig->Dre[1];
+                Dre[2] = eig->Dre[2];
+                eigvalues[elid] = Dre;
+
                 eignval[0] =  std::min(std::max(Scale*fabs(eig->Dre[0]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
                 eignval[1] =  std::min(std::max(Scale*fabs(eig->Dre[1]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
                 eignval[2] =  std::min(std::max(Scale*fabs(eig->Dre[2]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
@@ -1260,7 +1267,7 @@ std::map<int,std::vector<std::vector<double> > > ComputeMetric_Lite(MPI_Comm com
                     Diag[k]         = rowDiag;
                     EigVec[k]       = rowEigVec;
                 }
-            
+
                 EigVec[0][0] = eig->V[0];   EigVec[0][1] = eig->V[1];   EigVec[0][2] = eig->V[2];
                 EigVec[1][0] = eig->V[3];   EigVec[1][1] = eig->V[4];   EigVec[1][2] = eig->V[5];
                 EigVec[2][0] = eig->V[6];   EigVec[2][1] = eig->V[7];   EigVec[2][2] = eig->V[8];
@@ -1569,7 +1576,8 @@ void ComputeMetricWithWake(Partition* Pa,
 
 std::map<int,std::vector<std::vector<double> > > ComputeElementMetric_Lite(MPI_Comm comm, 
                         RepartitionObject* tetra_repart,
-                        std::map<int,std::vector<double> > tetra_grad, 
+                        std::map<int,std::vector<double> > tetra_grad,
+                        std::map<int,std::vector<double> > &eigvalues, 
                         Inputs* inputs)
 {
     // Preparing the metric tensor field.
@@ -1600,6 +1608,13 @@ std::map<int,std::vector<std::vector<double> > > ComputeElementMetric_Lite(MPI_C
         row[6]=tetra_grad[elid][5];  row[7]=tetra_grad[elid][7];  row[8]=tetra_grad[elid][8];
         
         Eig* eig = ComputeEigenDecomp(3, row.data());
+
+        std::vector<double> Dre(3,0.0);
+        Dre[0] = eig->Dre[0];
+        Dre[1] = eig->Dre[1];
+        Dre[2] = eig->Dre[2];
+        eigvalues[elid] = Dre;
+
         eignval[0] =  std::min(std::max(Scale*fabs(eig->Dre[0]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
         eignval[1] =  std::min(std::max(Scale*fabs(eig->Dre[1]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
         eignval[2] =  std::min(std::max(Scale*fabs(eig->Dre[2]),1.0/(hmax*hmax)),1.0/(hmin*hmin));

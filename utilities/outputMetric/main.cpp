@@ -408,10 +408,13 @@ int main(int argc, char** argv)
                                 tetra_grad, 
                                 varnamesGrad, 
                                 LocalVertsMap_t);
-        
+
+        std::map<int,std::vector<double> > eigvalues;
+
         std::map<int,std::vector<std::vector<double> > > metric_vmap = ComputeElementMetric_Lite(comm, 
                                                                     tetra_repart,
-                                                                    tetra_grad, 
+                                                                    tetra_grad,
+                                                                    eigvalues, 
                                                                     inputs);
         
         std::map<int,std::vector<std::vector<double> > >::iterator itmm;
@@ -649,9 +652,12 @@ int main(int argc, char** argv)
                                 varnamesGrad, 
                                 LocalVertsMap_t);
 
+        std::map<int,std::vector<double> > eigvalues;
+
         std::map<int,std::vector<std::vector<double> > > metric_vmap = ComputeElementMetric_Lite(comm, 
                                                                     tetra_repart,
-                                                                    tetra_grad, 
+                                                                    tetra_grad,
+                                                                    eigvalues, 
                                                                     inputs);
         
         std::map<int,std::vector<std::vector<double> > >::iterator itmm;

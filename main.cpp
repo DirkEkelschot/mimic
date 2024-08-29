@@ -613,10 +613,11 @@ int main(int argc, char** argv)
     }
     else
     {   
-        
+        std::map<int,std::vector<double> > eigvalues;
         std::map<int,std::vector<std::vector<double> > > metric_vmap = ComputeMetric_Lite(comm, 
                                                                             tetra_repart,
-                                                                            tetra_grad, 
+                                                                            tetra_grad,
+                                                                            eigvalues,
                                                                             inputs);
 
         tetra_grad.clear();
