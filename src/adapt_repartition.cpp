@@ -6283,14 +6283,14 @@ std::map<int,std::vector<double> > RepartitionObject::ReduceStateVecToVertices(s
 
             for(int q=0;q<nvar;q++)
             {
-                uval[q] = uval[q] + Umap[elid][q];//*dist;
+                uval[q] = uval[q] + Umap[elid][q]*fabs(dist);
             }
             
-            distsum  = distsum+dist;
+            distsum  = distsum+fabs(dist);
         }
         for(int q=0;q<nvar;q++)
         {
-            uval[q] = uval[q]/elidsdist.size();// / distsum;
+            uval[q] = uval[q]/distsum;
             //std::cout << "uval[q] " << uval[q] << " " << q << std::endl;
         }
 

@@ -5,7 +5,8 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D_Lite_V2(RepartitionOb
                                                            int Nel,
                                                            int variable,
                                                            int nvariables,
-                                                           MPI_Comm comm)
+                                                           MPI_Comm comm,
+                                                           int extrap)
 {
    int world_size;
    MPI_Comm_size(comm, &world_size);
@@ -17,7 +18,10 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D_Lite_V2(RepartitionOb
 
    std::map<int,std::vector<double> > Ue             = RePa->getElement2DataMap();
    RePa->AddStateVecForAdjacentElements(Ue,nvariables,comm);
-
+    if(world_rank == 0)
+    {
+        std::cout << "Running ComputedUdx_LSQ_LS_US3D_Lite_V2 " << std::endl;
+    }
 
    std::map<int,std::vector<double> > LocalVs           = RePa->getLocalVertsMap();
    std::vector<int> Loc_Elem                            = RePa->getLocElem();
@@ -48,6 +52,7 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D_Lite_V2(RepartitionOb
    int lid = 0;
    double u_ijk, u_po;
     
+   
    std::map<int,std::vector<double> > vrt_collect;
    std::map<int,double> sol_collect;
    std::vector<std::vector<double> > face;
@@ -63,6 +68,7 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D_Lite_V2(RepartitionOb
    
    for(int i=0;i<nLoc_Elem;i++)
    {
+
         int ghostelem = 0;
         std::vector<double> x;
         int elID     = Loc_Elem[i];
@@ -181,7 +187,7 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D_Lite_V2(RepartitionOb
         }
 
         int Ndata = vrt_collect.size();
-
+        //std::cout << "vrt_collect " << Ndata << std::endl;
         std::vector<std::vector<double> > Vrt(Ndata);
         std::vector<double> bvec(Ndata,0);
         
@@ -242,6 +248,9 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D_Lite_V2(RepartitionOb
         x = SolveQR_Lite(A_cm,Ndata,3,bvec);
 
         dudx_map[elID] = x;
+
+        vrt_collect.clear();
+        sol_collect.clear();
    }
     
    return dudx_map;

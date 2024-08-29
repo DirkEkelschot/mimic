@@ -19,7 +19,8 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D_Lite_V2(RepartitionOb
                                                            int Nel,
                                                            int variable,
                                                            int nvariables,
-                                                           MPI_Comm comm);
+                                                           MPI_Comm comm,
+                                                           int extrap);
 
 std::map<int,std::vector<double> > ComputedUdx_LSQ_US3D_Lite(RepartitionObject* RePa,
                                                              std::map<int,std::vector<double> > ghosts,

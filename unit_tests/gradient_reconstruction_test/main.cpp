@@ -665,7 +665,7 @@ int main(int argc, char** argv)
                                                             tetras_e2e,
                                                             tetra2type,
                                                             tetras_data,
-                                                            2,
+                                                            3,
                                                             tetra_ifn,
                                                             comm);
 
@@ -730,7 +730,7 @@ int main(int argc, char** argv)
         tetra_repart->AddStateVecForAdjacentElements(U_map,7,comm);
         tetra_repart->SetStateVec(U_map,7);
 
-        std::map<int,std::vector<double> > tetra_grad_or = ComputedUdx_LSQ_US3D_Lite(tetra_repart, gbMap, meshRead->nElem,0,1,comm,0);
+        std::map<int,std::vector<double> > tetra_grad_or = ComputedUdx_LSQ_LS_US3D_Lite_V2(tetra_repart, gbMap, meshRead->nElem,0,1,comm,0);
 
         std::map<int,std::vector<double> > tetra_grad_or_plus_vrt = ComputedUdx_LSQ_US3D_Vrt_Lite(tetra_repart, Usol, gbMap, meshRead->nElem,0,1,comm,0);
 
@@ -738,7 +738,7 @@ int main(int argc, char** argv)
         tetra_repart->SetStateVec(Usol,1);
         std::map<int,std::vector<double> > tetra_grad_extended = ComputedUdx_LSQ_LS_US3D_Lite(tetra_repart, gbMap, meshRead->nElem,0,1,comm,0);
          
-        
+        tetra_repart->AddStateVecForAdjacentElements(tetra_grad_extended,9,comm);
         // std::map<int,std::map<int, double> > n2el_dist       = tetra_repart->GetNode2ElementMapV2();
         // std::map<int,std::vector<double> > node_val          = tetra_repart->ReduceStateVecToVertices(n2el_dist,Usol,1);
         // std::map<int,std::vector<double> > LocalVs           = tetra_repart->getLocalVertsMap();
@@ -758,6 +758,11 @@ int main(int argc, char** argv)
         std::map<int,std::vector<double> > dudx_map_extended;
         std::map<int,std::vector<double> > dudy_map_extended;
         std::map<int,std::vector<double> > dudz_map_extended;
+
+        std::map<int,std::vector<double> > du2dx2_map_extended_quad;
+        std::map<int,std::vector<double> > du2dxy_map_extended_quad;
+        std::map<int,std::vector<double> > du2dxz_map_extended_quad;
+
         for(iti=tetra_grad_or.begin();iti!=tetra_grad_or.end();iti++)
         {
             int elid = iti->first;
@@ -772,6 +777,11 @@ int main(int argc, char** argv)
             dudx_map_extended[elid].push_back(tetra_grad_extended[elid][0]);
             dudy_map_extended[elid].push_back(tetra_grad_extended[elid][1]);
             dudz_map_extended[elid].push_back(tetra_grad_extended[elid][2]);
+
+            du2dx2_map_extended_quad[elid].push_back(tetra_grad_extended[elid][3]);
+            du2dxy_map_extended_quad[elid].push_back(tetra_grad_extended[elid][4]);
+            du2dxz_map_extended_quad[elid].push_back(tetra_grad_extended[elid][5]);
+
         }
 
         tetra_repart->AddStateVecForAdjacentElements(dudx_map_or,1,comm);
@@ -786,8 +796,12 @@ int main(int argc, char** argv)
         tetra_repart->AddStateVecForAdjacentElements(dudy_map_extended,1,comm);
         tetra_repart->AddStateVecForAdjacentElements(dudz_map_extended,1,comm);
 
+        tetra_repart->AddStateVecForAdjacentElements(du2dx2_map_extended_quad,1,comm);
+        tetra_repart->AddStateVecForAdjacentElements(du2dxy_map_extended_quad,1,comm);
+        tetra_repart->AddStateVecForAdjacentElements(du2dxz_map_extended_quad,1,comm);
+
         tetra_repart->SetStateVec(dudx_map_or,1);
-        std::map<int,std::vector<double> > dU2dx2_or = ComputedUdx_LSQ_US3D_Lite(tetra_repart,
+        std::map<int,std::vector<double> > dU2dx2_or = ComputedUdx_LSQ_LS_US3D_Lite_V2(tetra_repart,
                                                                                     gbMap_dUdx,
                                                                                     meshRead->nElem,
                                                                                     0,
@@ -824,7 +838,7 @@ int main(int argc, char** argv)
         std::map<int,std::vector<double> > tetra_grad_final_or;
         std::map<int,std::vector<double> > tetra_grad_final_or_plus_vrt;
         std::map<int,std::vector<double> > tetra_grad_final_extended;
-
+        std::map<int,std::vector<double> > tetra_grad_final_extended_quad;
         for(iti=dudx_map_or.begin();iti!=dudx_map_or.end();iti++)
         {
             int elid = iti->first;
@@ -862,6 +876,18 @@ int main(int argc, char** argv)
             row_extended[5] = dU2dx2_extended[elid][2];
 
             tetra_grad_final_extended[elid] = row_extended;
+
+            std::vector<double> row_extended_quad(6,0.0);
+
+            row_extended_quad[0] = dudx_map_extended[elid][0];
+            row_extended_quad[1] = dudy_map_extended[elid][0];
+            row_extended_quad[2] = dudz_map_extended[elid][0];
+
+            row_extended_quad[3] = du2dx2_map_extended_quad[elid][0];
+            row_extended_quad[4] = du2dxy_map_extended_quad[elid][0];
+            row_extended_quad[5] = du2dxz_map_extended_quad[elid][0];
+
+            tetra_grad_final_extended_quad[elid] = row_extended_quad;
             
         }
 
@@ -883,6 +909,7 @@ int main(int argc, char** argv)
         std::map<int,std::vector<double> > error_or;
         std::map<int,std::vector<double> > error_or_plus_vrt;
         std::map<int,std::vector<double> > error_extended;
+        std::map<int,std::vector<double> > error_extended_quad;
         std::map<int,std::vector<double> > error_c_nobnd;
         int el = 0;
         std::set<int> el2consider;
@@ -896,7 +923,7 @@ int main(int argc, char** argv)
       
         double dUdx_error_cul   = 0.0;
         double volume_tot       = 0.0;
-        double rec_or=0.0, rec_or_plus_vrt=0.0, rec_extended=0.0, exact=0.0;
+        double rec_or=0.0, rec_or_plus_vrt=0.0, rec_extended=0.0, exact=0.0, rec_extended_quad=0.0;
 
         for(itmivd=tetra_grad_or.begin();itmivd!=tetra_grad_or.end();itmivd++)
         {
@@ -933,20 +960,25 @@ int main(int argc, char** argv)
             std::vector<double> row_or(nvar-1,0.0);
             std::vector<double> row_or_plus_vrt(nvar-1,0.0);
             std::vector<double> row_extended(nvar-1,0.0);
+            std::vector<double> row_extended_quad(nvar-1,0.0);
             for(int i=1;i<nvar;i++)
             {
                 exact                   = U_map[elid][i];
                 rec_or                  = tetra_grad_final_or[elid][i-1];
                 rec_or_plus_vrt         = tetra_grad_final_or_plus_vrt[elid][i-1];
                 rec_extended            = tetra_grad_final_extended[elid][i-1];
+                rec_extended_quad       = tetra_grad_final_extended_quad[elid][i-1];
                 row_or[i-1]             = (rec_or-exact)*(rec_or-exact);
                 row_or_plus_vrt[i-1]    = (rec_or_plus_vrt-exact)*(rec_or_plus_vrt-exact);
                 row_extended[i-1]       = (rec_extended-exact)*(rec_extended-exact);
+                row_extended_quad[i-1]  = (rec_extended_quad-exact)*(rec_extended_quad-exact);
+                // std::cout << "rec_extended " << i << " "  << rec_extended << " " << rec_extended_quad << " " << rec_extended-rec_extended_quad << std::endl; 
             }
             //std::cout << std::endl;
             error_or[elid]              = row_or;
             error_or_plus_vrt[elid]     = row_or_plus_vrt;
             error_extended[elid]        = row_extended;
+            error_extended_quad[elid]   = row_extended_quad;
             if(bnd == 0)
             {
                 error_c_nobnd[elid] = row_extended;
@@ -964,21 +996,25 @@ int main(int argc, char** argv)
         std::vector<double>L2errors_or(6,0.0);
         std::vector<double>L2errors_or_plus_vrt(6,0.0);
         std::vector<double>L2errors_extended(6,0.0);
+        std::vector<double>L2errors_extended_quad(6,0.0);
 
         for(itmivd=error_or.begin();itmivd!=error_or.end();itmivd++)
         {
             int elid = itmivd->first;
             for(int i=0;i<6;i++)
             {
-                L2errors_or[i]          = L2errors_or[i] + error_or[elid][i];
-                L2errors_or_plus_vrt[i] = L2errors_or_plus_vrt[i] + error_or_plus_vrt[elid][i];
-                L2errors_extended[i]    = L2errors_extended[i] + error_extended[elid][i];
+                L2errors_or[i]              = L2errors_or[i] + error_or[elid][i];
+                L2errors_or_plus_vrt[i]     = L2errors_or_plus_vrt[i] + error_or_plus_vrt[elid][i];
+                L2errors_extended[i]        = L2errors_extended[i] + error_extended[elid][i];
+                L2errors_extended_quad[i]   = L2errors_extended_quad[i] + error_extended_quad[elid][i];
             }
         }
 
         std::vector<double> L2errors_or_reduce(6,0.0);
         std::vector<double> L2errors_or_plus_vrt_reduce(6,0.0);
         std::vector<double> L2errors_extended_reduce(6,0.0);
+        std::vector<double> L2errors_extended_quad_reduce(6,0.0);
+
         std::map<int,std::string > vnames;
         vnames[0]     = "dUdx";
         vnames[1]     = "dUdy";
@@ -991,10 +1027,12 @@ int main(int argc, char** argv)
             MPI_Allreduce(&L2errors_or[i], &L2errors_or_reduce[i], 1, MPI_DOUBLE, MPI_SUM, comm);
             MPI_Allreduce(&L2errors_or_plus_vrt[i], &L2errors_or_plus_vrt_reduce[i], 1, MPI_DOUBLE, MPI_SUM, comm);
             MPI_Allreduce(&L2errors_extended[i], &L2errors_extended_reduce[i], 1, MPI_DOUBLE, MPI_SUM, comm);
+            MPI_Allreduce(&L2errors_extended_quad[i], &L2errors_extended_quad_reduce[i], 1, MPI_DOUBLE, MPI_SUM, comm);
 
-            L2errors_or_reduce[i]           = sqrt(L2errors_or_reduce[i]);
-            L2errors_or_plus_vrt_reduce[i]  = sqrt(L2errors_or_plus_vrt_reduce[i]);
-            L2errors_extended_reduce[i]     = sqrt(L2errors_extended_reduce[i]);
+            L2errors_or_reduce[i]               = sqrt(L2errors_or_reduce[i]);
+            L2errors_or_plus_vrt_reduce[i]      = sqrt(L2errors_or_plus_vrt_reduce[i]);
+            L2errors_extended_reduce[i]         = sqrt(L2errors_extended_reduce[i]);
+            L2errors_extended_quad_reduce[i]    = sqrt(L2errors_extended_quad_reduce[i]);
         }
           
         if(world_rank == 0)
@@ -1054,7 +1092,27 @@ int main(int argc, char** argv)
                     myfile_extended << L2errors_extended_reduce[i]/el_sum;
                 }
             }
-            myfile_or_plus_vrt.close();
+            myfile_extended.close();
+
+
+
+            string filename_error_extended_quad = "errors_extended_quad_"+std::to_string(itg->first)+".dat";
+            ofstream myfile_extended_quad;
+            myfile_extended_quad.open(filename_error_extended_quad);
+
+            for(int i=0;i<6;i++)
+            {               
+                if(world_rank == 0 && i < 5)
+                {
+                    myfile_extended_quad << L2errors_extended_quad_reduce[i]/el_sum << " ";
+                }
+            
+                if(world_rank == 0 && i == 5)
+                {
+                    myfile_extended_quad << L2errors_extended_quad_reduce[i]/el_sum;
+                }
+            }
+            myfile_extended_quad.close();
         }
         
 
@@ -1099,6 +1157,15 @@ int main(int argc, char** argv)
                                 Owned_Elem_t, 
                                 gE2gV_t, 
                                 tetra_grad_final_extended, 
+                                varnamesGrad, 
+                                LocalVertsMap_t);
+
+        string filename_tg_extended_quad = "tetraReconExtendedQuad"+std::to_string(itg->first)+"_" + std::to_string(world_rank) + ".vtu";
+        OutputTetraMeshOnRootVTK(comm,
+                                filename_tg_extended_quad, 
+                                Owned_Elem_t, 
+                                gE2gV_t, 
+                                tetra_grad_final_extended_quad, 
                                 varnamesGrad, 
                                 LocalVertsMap_t);
 

@@ -377,12 +377,16 @@ int main(int argc, char** argv)
                                                             meshRead->ranges_id,
                                                             meshRead->ranges_ref);
         start = clock();
+
+
+
         tetra_grad = ComputedUdx_LSQ_LS_US3D_Lite(tetra_repart,
                                                 meshRead->ghost,
                                                 meshRead->nElem,
                                                 1,
                                                 2,
-                                                comm);
+                                                comm,
+                                                0);
         end = clock();
 
 
@@ -443,17 +447,24 @@ int main(int argc, char** argv)
 
         
         tetra_repart->AddStateVecForAdjacentElements(Ue,2,comm);
-
-        
-
+        tetra_repart->SetStateVec(Ue,2);
+    
         start = clock();
-        std::map<int,std::vector<double> > tetra_grad_v2 = ComputedUdx_LSQ_US3D_Lite(tetra_repart,
-                                                                                    Ue,
-                                                                                    meshRead->ghost,
-                                                                                    meshRead->nElem,
-                                                                                    1,
-                                                                                    2,
-                                                                                    comm);
+        // std::map<int,std::vector<double> > tetra_grad_v2 = ComputedUdx_LSQ_US3D_Lite(tetra_repart,
+        //                                                                             Ue,
+        //                                                                             meshRead->ghost,
+        //                                                                             meshRead->nElem,
+        //                                                                             1,
+        //                                                                             2,
+        //                                                                             comm);
+        
+        std::map<int,std::vector<double> > tetra_grad_v2 = ComputedUdx_LSQ_LS_US3D_Lite(tetra_repart, 
+                                                                                        meshRead->ghost, 
+                                                                                        meshRead->nElem,
+                                                                                        1,2,
+                                                                                        comm,
+                                                                                        0);
+
 
         std::map<int,std::vector<double> >::iterator iti;
         std::map<int,std::vector<double> > dudx_map;
@@ -468,32 +479,50 @@ int main(int argc, char** argv)
         }
 
         tetra_repart->AddStateVecForAdjacentElements(dudx_map,1,comm);
+        tetra_repart->SetStateVec(dudx_map,1);
+        // std::map<int,std::vector<double> > dU2dx2 = ComputedUdx_LSQ_US3D_Lite(tetra_repart,
+        //                                                                             dudx_map,
+        //                                                                             meshRead->ghost,
+        //                                                                             meshRead->nElem,
+        //                                                                             0,
+        //                                                                             1,
+        //                                                                             comm);
+        std::map<int,std::vector<double> > dU2dx2 = ComputedUdx_LSQ_LS_US3D_Lite(tetra_repart, 
+                                                                                meshRead->ghost, 
+                                                                                meshRead->nElem,
+                                                                                0,1,
+                                                                                comm,
+                                                                                0);
         tetra_repart->AddStateVecForAdjacentElements(dudy_map,1,comm);
+        tetra_repart->SetStateVec(dudy_map,1);
+        // std::map<int,std::vector<double> > dU2dy2 = ComputedUdx_LSQ_US3D_Lite(tetra_repart,
+        //                                                                             dudy_map,
+        //                                                                             meshRead->ghost,
+        //                                                                             meshRead->nElem,
+        //                                                                             0,
+        //                                                                             1,
+        //                                                                             comm);
+        std::map<int,std::vector<double> > dU2dy2 = ComputedUdx_LSQ_LS_US3D_Lite(tetra_repart, 
+                                                                        meshRead->ghost, 
+                                                                        meshRead->nElem,
+                                                                        0,1,
+                                                                        comm,
+                                                                        0);
         tetra_repart->AddStateVecForAdjacentElements(dudz_map,1,comm);
-
-        std::map<int,std::vector<double> > dU2dx2 = ComputedUdx_LSQ_US3D_Lite(tetra_repart,
-                                                                                    dudx_map,
-                                                                                    meshRead->ghost,
-                                                                                    meshRead->nElem,
-                                                                                    0,
-                                                                                    1,
-                                                                                    comm);
-            
-        std::map<int,std::vector<double> > dU2dy2 = ComputedUdx_LSQ_US3D_Lite(tetra_repart,
-                                                                                    dudy_map,
-                                                                                    meshRead->ghost,
-                                                                                    meshRead->nElem,
-                                                                                    0,
-                                                                                    1,
-                                                                                    comm);
-
-        std::map<int,std::vector<double> > dU2dz2 = ComputedUdx_LSQ_US3D_Lite(tetra_repart,
-                                                                                    dudz_map,
-                                                                                    meshRead->ghost,
-                                                                                    meshRead->nElem,
-                                                                                    0,
-                                                                                    1,
-                                                                                    comm);
+        tetra_repart->SetStateVec(dudz_map,1);
+        // std::map<int,std::vector<double> > dU2dz2 = ComputedUdx_LSQ_US3D_Lite(tetra_repart,
+        //                                                                             dudz_map,
+        //                                                                             meshRead->ghost,
+        //                                                                             meshRead->nElem,
+        //                                                                             0,
+        //                                                                             1,
+        //                                                                             comm);
+        std::map<int,std::vector<double> > dU2dz2 = ComputedUdx_LSQ_LS_US3D_Lite(tetra_repart, 
+                                                                meshRead->ghost, 
+                                                                meshRead->nElem,
+                                                                0,1,
+                                                                comm,
+                                                                0);
 
         for(iti=dU2dx2.begin();iti!=dU2dx2.end();iti++)
         {
