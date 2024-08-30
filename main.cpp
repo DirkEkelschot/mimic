@@ -191,7 +191,7 @@ int main(int argc, char** argv)
     MPI_Allreduce(&time_taken1, &dur_max1, 1, MPI_DOUBLE, MPI_MAX, comm);
     if(world_rank == 0)
     {
-        cout << "Time taken to broadcast boundary layer/tetra trace data is : " << fixed
+        cout << setprecision(16) << "Time taken to broadcast boundary layer/tetra trace data is :          " << fixed
         << dur_max1 << setprecision(16);
         cout << " sec " << endl;
     }
@@ -364,7 +364,8 @@ int main(int argc, char** argv)
         MPI_Allreduce(&time_taken, &dur_max, 1, MPI_DOUBLE, MPI_MAX, comm);
         if(world_rank == 0)
         {
-            cout << "Time taken to execute repartioning tetrahedera is : " << fixed 
+            cout << "-------------------------------------------------------------------------------------------- +" << std::endl;
+            cout << "Time taken to execute repartioning tetrahedera is :                   " << fixed 
             << dur_max << setprecision(16); 
             cout << " sec " << endl;
         }
@@ -398,9 +399,9 @@ int main(int argc, char** argv)
         time_taken = ( end - start) / (double) CLOCKS_PER_SEC;
 
         MPI_Allreduce(&time_taken, &dur_max, 1, MPI_DOUBLE, MPI_MAX, comm);
-        if(world_rank == 0)
+         if(world_rank == 0)
         {
-            cout << "Time taken to execute calculating first and second order gradients using quadratic reconstruction: " << fixed 
+            cout << "Time taken to execute calculating first and second order gradients :  " << fixed 
             << dur_max << setprecision(16); 
             cout << " sec " << endl;
         }
@@ -558,9 +559,9 @@ int main(int argc, char** argv)
         time_taken = ( end - start) / (double) CLOCKS_PER_SEC;
 
         MPI_Allreduce(&time_taken, &dur_max, 1, MPI_DOUBLE, MPI_MAX, comm);
-        if(world_rank == 0)
+         if(world_rank == 0)
         {
-            cout << "Time taken to execute calculating first and second order gradients using linear reconstruction iteratively: " << fixed 
+            cout << "Time taken to execute calculating first and second order gradients :  " << fixed 
             << dur_max << setprecision(16); 
             cout << " sec " << endl;
         }
@@ -651,7 +652,7 @@ int main(int argc, char** argv)
         MPI_Allreduce(&time_taken, &dur_max, 1, MPI_DOUBLE, MPI_MAX, comm);
         if(world_rank == 0)
         {
-            cout << "Time taken to execute repartioning the boundary layer mesh is : " << fixed 
+            cout << "Time taken to execute repartioning the boundary layer mesh is :                " << fixed 
             << dur_max << setprecision(16); 
             cout << " sec " << endl;
         }
