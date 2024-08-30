@@ -486,6 +486,11 @@ int main(int argc, char** argv)
         const char* fn_grid = itg->second[0];
         const char* fn_conn = itg->second[1];
 
+        if(world_rank == 0)
+        {
+            std::cout << "Running the test for " << fn_grid << " and " << fn_conn << std::endl;
+        }
+
         //===========================================================================
         // Read in the data from grid.h5/conn.h5/data.h5 in parallel using HDF5.
         // the outputted data in meshRead contains uniformly distributed data structures that will have to be partitioned.

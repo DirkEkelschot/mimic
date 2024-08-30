@@ -18,10 +18,10 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D_Lite_V2(RepartitionOb
 
    std::map<int,std::vector<double> > Ue             = RePa->getElement2DataMap();
    RePa->AddStateVecForAdjacentElements(Ue,nvariables,comm);
-    if(world_rank == 0)
-    {
-        std::cout << "Running ComputedUdx_LSQ_LS_US3D_Lite_V2 " << std::endl;
-    }
+    // if(world_rank == 0)
+    // {
+    //     std::cout << "Running ComputedUdx_LSQ_LS_US3D_Lite_V2 " << std::endl;
+    // }
 
    std::map<int,std::vector<double> > LocalVs           = RePa->getLocalVertsMap();
    std::vector<int> Loc_Elem                            = RePa->getLocElem();
