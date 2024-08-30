@@ -4,8 +4,10 @@ import sys
 
 
 s = 0;
-conv = np.loadtxt('errors_or_'+str(10)+'.dat')
-dh = [10,15,20,25,30]
+conv1 = np.loadtxt('errors_or_'+str(10)+'.dat')
+conv2 = np.loadtxt('errors_extended_quad_'+str(30)+'.dat')
+dh = [1/10,1/15,1/20,1/25,1/30]
+dhp = [10,15,20,25,30]
 # dh = [10,15,20]
 dudx_error = []
 dudy_error = []
@@ -39,8 +41,8 @@ dhq1=[];
 dhn2=[];
 dhq2=[];
 dhn=[];
-print(conv)
-for i in dh:
+
+for i in dhp:
     print('errors'+str(i)+'.dat')
     errors = np.loadtxt('errors_or_'+str(i)+'.dat');
     errors_or_plus_vrt = np.loadtxt('errors_or_plus_vrt_'+str(i)+'.dat');
@@ -76,10 +78,14 @@ for i in dh:
     du2dxy_error_extended_quad.append(errors_extended_quad[4]);
     du2dxz_error_extended_quad.append(errors_extended_quad[5]);
 
-    dhq1.append(conv[0]/((i/10)*(i/10)))
-    dhq2.append(conv[4]/((i/10)*(i/10)))
-    dhn1.append(conv[0]/((i/10)))
-    dhn2.append(conv[4]/((i/10)))
+    dhn1.append(conv1[-1]*(dh[s]/dh[-1])**1)
+    dhq1.append(conv2[-1]*(dh[s]/dh[-1])**2)
+
+    dhn2.append(conv1[-1]*(dh[s]/dh[-1])**1)
+    dhq2.append(conv2[-1]*(dh[s]/dh[-1])**2)
+
+    
+    
 
     s = s + 1
 

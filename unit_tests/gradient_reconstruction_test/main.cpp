@@ -470,10 +470,10 @@ int main(int argc, char** argv)
     grids[25].push_back("inputs/conn252525.h5");
     grids[30].push_back("inputs/grid303030.h5");
     grids[30].push_back("inputs/conn303030.h5");
-    // grids[40].push_back("inputs/grid404040.h5");
-    // grids[40].push_back("inputs/conn404040.h5");
-    // grids[50].push_back("inputs/grid505050.h5");
-    // grids[50].push_back("inputs/conn505050.h5");
+    grids[40].push_back("inputs/grid404040.h5");
+    grids[40].push_back("inputs/conn404040.h5");
+    grids[50].push_back("inputs/grid505050.h5");
+    grids[50].push_back("inputs/conn505050.h5");
     
 
     // Read in the inputs from metric.xml
