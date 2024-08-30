@@ -60,7 +60,7 @@ RepartitionObject::RepartitionObject(mesh* meshInput,
     MPI_Allreduce(&time_taken1, &dur_max1, 1, MPI_DOUBLE, MPI_MAX, comm);
     if(rank == 0)
     {
-        std::cout << "Time taken to execute GetOptimalDistributionSchedule : " << std::fixed
+        std::cout << "Time taken to execute GetOptimalDistributionSchedule :                " << std::fixed
         << dur_max1 << std::setprecision(16);
         std::cout << " sec " << std::endl;
     }
@@ -78,7 +78,7 @@ RepartitionObject::RepartitionObject(mesh* meshInput,
     MPI_Allreduce(&time_taken1, &dur_max1, 1, MPI_DOUBLE, MPI_MAX, comm);
     if(rank == 0)
     {
-        std::cout << "Time taken to execute DeterminePartitionLayout : " << std::fixed
+        std::cout << "Time taken to execute DeterminePartitionLayout :                      " << std::fixed
         << dur_max1 << std::setprecision(16);
         std::cout << " sec " << std::endl;
     }
@@ -104,7 +104,7 @@ RepartitionObject::RepartitionObject(mesh* meshInput,
     MPI_Allreduce(&time_taken1, &dur_max1, 1, MPI_DOUBLE, MPI_MAX, comm);
     if(rank == 0)
     {
-        std::cout << "Time taken to execute DetermineElement2ProcMap : " << std ::fixed
+        std::cout << "Time taken to execute DetermineElement2ProcMap :                      " << std ::fixed
         << dur_max1 << std::setprecision(16);
         std::cout << " sec " << std::endl;
     }
@@ -162,7 +162,7 @@ RepartitionObject::RepartitionObject(mesh* meshInput,
     MPI_Allreduce(&time_taken1, &dur_max1, 1, MPI_DOUBLE, MPI_MAX, comm);
     if(rank == 0)
     {
-        std::cout << "Time taken to execute ReconstructFace2ElementMap : " << std::fixed
+        std::cout << "Time taken to execute ReconstructFace2ElementMap :                    " << std::fixed
         << dur_max1 << std::setprecision(16);
         std::cout << " sec " << std::endl;
     }
@@ -201,7 +201,7 @@ RepartitionObject::RepartitionObject(mesh* meshInput,
     MPI_Allreduce(&time_taken1, &dur_max1, 1, MPI_DOUBLE, MPI_MAX, comm);
     if(rank == 0)
     {
-        std::cout << "Time taken to execute getFace2EntityPerPartitionMap : " << std::fixed
+        std::cout << "Time taken to execute getFace2EntityPerPartitionMap :                 " << std::fixed
         << dur_max1 << std::setprecision(16);
         std::cout << " sec " << std::endl;
     }
@@ -426,7 +426,7 @@ RepartitionObject::RepartitionObject(mesh* meshInput,
         MPI_Allreduce(&time_taken1, &dur_max1, 1, MPI_DOUBLE, MPI_MAX, comm);
         if(rank == 0)
         {
-            std::cout << "Time taken to execute getAdjacentElementLayer : " << std::fixed
+            std::cout << "Time taken to execute getAdjacentElementLayer :                       " << std::fixed
             << dur_max1 << std::setprecision(16);
             std::cout << " sec " << std::endl;
         }
@@ -446,7 +446,7 @@ RepartitionObject::RepartitionObject(mesh* meshInput,
         MPI_Allreduce(&time_taken1, &dur_max1, 1, MPI_DOUBLE, MPI_MAX, comm);
         if(rank == 0)
         {
-            std::cout << "Time taken to execute updateFace2EntityPerPartition : " << std::fixed
+            std::cout << "Time taken to execute updateFace2EntityPerPartition :                 " << std::fixed
             << dur_max1 << std::setprecision(16);
             std::cout << " sec " << std::endl;
         }

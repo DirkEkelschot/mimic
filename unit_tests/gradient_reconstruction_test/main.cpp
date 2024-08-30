@@ -488,7 +488,9 @@ int main(int argc, char** argv)
 
         if(world_rank == 0)
         {
+            std::cout << "======================================================================"<<std::endl;
             std::cout << "Running the test for " << fn_grid << " and " << fn_conn << std::endl;
+            std::cout << "======================================================================"<<std::endl;
         }
 
         //===========================================================================
@@ -525,7 +527,7 @@ int main(int argc, char** argv)
         MPI_Allreduce(&time_taken1, &dur_max1, 1, MPI_DOUBLE, MPI_MAX, comm);
         if(world_rank == 0)
         {
-            cout << "Time taken to broadcast boundary layer/tetra trace data is : " << fixed
+            cout << setprecision(16) << "Time taken to broadcast boundary layer/tetra trace data is :          " << fixed
             << dur_max1 << setprecision(16);
             cout << " sec " << endl;
         }
@@ -560,10 +562,10 @@ int main(int argc, char** argv)
         std::map<int,int> tetra2type;
         std::map<int,int> prism2type;   
 
-        if(world_rank == 0)
-        {
-            std::cout << "Start filtering the element types..." << std::endl; 
-        }
+        // if(world_rank == 0)
+        // {
+        //     std::cout << "Start filtering the element types..." << std::endl; 
+        // }
 
         for(itmiv=meshRead->ien.begin();itmiv!=meshRead->ien.end();itmiv++)
         {
@@ -614,10 +616,10 @@ int main(int argc, char** argv)
             prism_ifn = false;
         }
 
-        if(world_rank == 0)
-        {
-            std::cout << "Done filtering the element types..." << std::endl; 
-        }
+        // if(world_rank == 0)
+        // {
+        //     std::cout << "Done filtering the element types..." << std::endl; 
+        // }
         
         //I am adding the prism elements and their data to the ghost map so that that data is in the boundaries data structures.
         std::map<int,double> tracePrismData_glob = AllGatherMap_T(tracePrismData,comm);
@@ -646,10 +648,10 @@ int main(int argc, char** argv)
 
         
 
-        if(world_rank == 0)
-        {
-            std::cout << "Done trace operation..." << std::endl; 
-        }
+        // if(world_rank == 0)
+        // {
+        //     std::cout << "Done trace operation..." << std::endl; 
+        // }
 
         //=========END FILTERING OUT TETRA AND PRISMS FROM IO DATA STRUCTURES===============
 
@@ -689,7 +691,8 @@ int main(int argc, char** argv)
         MPI_Allreduce(&time_taken, &dur_max, 1, MPI_DOUBLE, MPI_MAX, comm);
         if(world_rank == 0)
         {
-            cout << "Time taken to execute repartioning tetrahedera is : " << fixed 
+            cout << "-------------------------------------------------------------------------------------------- +" << std::endl;
+            cout << "Time taken to execute repartioning tetrahedera is :                   " << fixed 
             << dur_max << setprecision(16); 
             cout << " sec " << endl;
         }
@@ -903,7 +906,7 @@ int main(int argc, char** argv)
         MPI_Allreduce(&time_taken, &dur_max, 1, MPI_DOUBLE, MPI_MAX, comm);
         if(world_rank == 0)
         {
-            cout << "Time taken to execute calculating first and second order gradients : " << fixed 
+            cout << "Time taken to execute calculating first and second order gradients :  " << fixed 
             << dur_max << setprecision(16); 
             cout << " sec " << endl;
         }

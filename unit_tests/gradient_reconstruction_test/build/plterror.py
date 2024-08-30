@@ -6,8 +6,8 @@ import sys
 s = 0;
 conv1 = np.loadtxt('errors_or_'+str(10)+'.dat')
 conv2 = np.loadtxt('errors_extended_quad_'+str(30)+'.dat')
-dh = [1/10,1/15,1/20,1/25,1/30]
-dhp = [10,15,20,25,30]
+dh = [1/10,1/15,1/20,1/25,1/30,1/40]
+dhp = [10,15,20,25,30,40]
 # dh = [10,15,20]
 dudx_error = []
 dudy_error = []

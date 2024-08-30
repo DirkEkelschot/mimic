@@ -856,6 +856,7 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D_Lite(RepartitionObjec
 
     if(dudx_map2update.size()!=0)
     {
+        std::cout << "We are not updating " << std::endl;
         int inhere = 0;
         int inhere2 = 0;
         std::map<int, std::vector<int> > new_map;
