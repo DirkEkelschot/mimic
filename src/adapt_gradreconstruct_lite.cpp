@@ -703,7 +703,7 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D_Lite(RepartitionObjec
             }
         }
 
-        if(vrt_collect.size() > 9)
+        if(vrt_collect.size() >= 9)
         {
             int Ndata = vrt_collect.size();
 
@@ -777,7 +777,7 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D_Lite(RepartitionObjec
             std::cout << "Warning:: not enough data points to reconstruct the gradient! Number of neigboring points is " << Ndata << " number of ghost elements -> " << ghostelem << " for element ID " << elID << std::endl;
             
             std::vector<std::vector<double> > Vrt(Ndata);
-            std::vector<double> bvec(3,0);
+            std::vector<double> bvec(Ndata,0);
            
             for(int q=0;q<Ndata;q++)
             {
@@ -817,11 +817,12 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D_Lite(RepartitionObjec
             }
 
             x = SolveQR_Lite(A_cm,Ndata,3,bvec);
+
             std::vector<double> xnew(9,0.0);
             xnew[0] = x[0];
             xnew[1] = x[1];
             xnew[2] = x[2];
-
+            
             // x.resize(9);
             // x[0] = 0.0;
             // x[1] = 0.0;
@@ -832,11 +833,11 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D_Lite(RepartitionObjec
             // x[6] = 0.0;
             // x[7] = 0.0;
             // x[8] = 0.0;
-            // dudx_map[elID] = x;
+            dudx_map[elID] = xnew;
 
 
-            dudx_map2update[elID] = xnew;
-            cc++;
+            // dudx_map2update[elID] = xnew;
+            // cc++;
             // delete[] A_cm;
             // ////delete[] Pijk;
             // delete Vrt_T;
