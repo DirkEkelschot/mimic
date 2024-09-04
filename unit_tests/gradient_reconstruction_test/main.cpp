@@ -470,10 +470,10 @@ int main(int argc, char** argv)
     grids[25].push_back("inputs/conn252525.h5");
     grids[30].push_back("inputs/grid303030.h5");
     grids[30].push_back("inputs/conn303030.h5");
-    grids[40].push_back("inputs/grid404040.h5");
-    grids[40].push_back("inputs/conn404040.h5");
-    grids[50].push_back("inputs/grid505050.h5");
-    grids[50].push_back("inputs/conn505050.h5");
+    // grids[40].push_back("inputs/grid404040.h5");
+    // grids[40].push_back("inputs/conn404040.h5");
+    // grids[50].push_back("inputs/grid505050.h5");
+    // grids[50].push_back("inputs/conn505050.h5");
     
 
     // Read in the inputs from metric.xml
@@ -709,6 +709,9 @@ int main(int argc, char** argv)
                                                             meshRead->ranges_id,
                                                             meshRead->ranges_ref);
 
+
+        
+
         int nGlob = meshRead->nElem;
         std::map<int,std::vector<double> > Usol;
         std::map<int,std::vector<double> > U_map;
@@ -733,6 +736,10 @@ int main(int argc, char** argv)
                             gbMap, gbMap_dUdx, gbMap_dUdy, gbMap_dUdz, gbMap_dUdXi, gbMap_dU2dx2, gbMap_dU2dxy, gbMap_dU2dxz);
         // 0,1,2,3,4,5
 
+
+        std::map<int,std::vector<double> > ghostface_vrt;
+        std::map<int,std::set<int> > extended_adj = tetra_repart->getExtendedAdjacencyData(ghostface_vrt, gbMap);
+
         start = clock();
         tetra_repart->AddStateVecForAdjacentElements(Usol,1,comm);
         tetra_repart->AddStateVecForAdjacentElements(U_map,7,comm);
@@ -744,8 +751,9 @@ int main(int argc, char** argv)
 
         tetra_repart->AddStateVecForAdjacentElements(Usol,1,comm);
         tetra_repart->SetStateVec(Usol,1);
-        std::map<int,std::vector<double> > tetra_grad_extended = ComputedUdx_LSQ_LS_US3D_Lite(tetra_repart, gbMap, meshRead->nElem,0,1,comm,0);
-         
+        std::map<int,std::vector<double> > tetra_grad_extended = ComputedUdx_LSQ_LS_US3D_Lite_Update(tetra_repart, gbMap, meshRead->nElem,0,1,comm,0);
+        //std::map<int,std::vector<double> > tetra_grad_extended = ComputedUdx_LSQ_LS_US3D_Lite(tetra_repart, gbMap, meshRead->nElem,0,1,comm,0);
+
         tetra_repart->AddStateVecForAdjacentElements(tetra_grad_extended,9,comm);
         // std::map<int,std::map<int, double> > n2el_dist       = tetra_repart->GetNode2ElementMapV2();
         // std::map<int,std::vector<double> > node_val          = tetra_repart->ReduceStateVecToVertices(n2el_dist,Usol,1);
@@ -828,15 +836,23 @@ int main(int argc, char** argv)
 
         tetra_repart->AddStateVecForAdjacentElements(dudx_map_extended,1,comm);
         tetra_repart->SetStateVec(dudx_map_extended,1);
-        std::map<int,std::vector<double> > dU2dx2_extended = ComputedUdx_LSQ_LS_US3D_Lite(tetra_repart,
+        std::map<int,std::vector<double> > dU2dx2_extended = ComputedUdx_LSQ_LS_US3D_Lite_Update(tetra_repart,
                                                                             gbMap_dUdx,
                                                                             meshRead->nElem,
                                                                             0,
                                                                             1,
                                                                             comm,
                                                                             0);
+        
+        // std::map<int,std::vector<double> > dU2dx2_extended = ComputedUdx_LSQ_LS_US3D_Lite(tetra_repart,
+        //                                                             gbMap_dUdx,
+        //                                                             meshRead->nElem,
+        //                                                             0,
+        //                                                             1,
+        //                                                             comm,
+        //                                                             0);
 
-
+        
         
 
         tetra_repart->AddStateVecForAdjacentElements(dU2dx2_or,3,comm);
@@ -1227,7 +1243,7 @@ int main(int argc, char** argv)
         //                         error_c_diff, 
         //                         varnamesGrad_error, 
         //                         LocalVertsMap_t);
-
+        /**/
            
     }
 

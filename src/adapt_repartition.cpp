@@ -1,5 +1,6 @@
 #include "adapt_repartition.h"
 #include "adapt_compute.h"
+#include "adapt_geometry.h"
 RepartitionObject::RepartitionObject(mesh* meshInput,
                         std::map<int,std::vector<int> > elements2verts,
                         std::map<int,std::vector<int> > elements2faces,
@@ -1932,6 +1933,7 @@ void RepartitionObject::DetermineElement2ProcMap(std::map<int,std::vector<int> >
         std::vector<int> tmp_globf;
         std::vector<int> tmp_globe;
         std::vector<int> tmp_loce;
+        std::vector<double> Pijk(nvPerEl*3);
 
         for(int p=0;p<nvPerEl;p++)
         {
@@ -1943,6 +1945,10 @@ void RepartitionObject::DetermineElement2ProcMap(std::map<int,std::vector<int> >
             {
                 std::cout << "Nel On error " << glob_v << std::endl;
             }
+
+            Pijk[p*3+0] = LocalVertsMap[glob_v][0];
+            Pijk[p*3+1] = LocalVertsMap[glob_v][1];
+            Pijk[p*3+2] = LocalVertsMap[glob_v][2];
             
             loc_v  = o_gvertex2lvertex[glob_v];
             tmp_globv.push_back(glob_v);
@@ -1956,6 +1962,10 @@ void RepartitionObject::DetermineElement2ProcMap(std::map<int,std::vector<int> >
             globVerts2globElem[glob_v].push_back(el_id);
             globElem2locVerts[el_id].push_back(loc_v);
         }
+
+        std::vector<double> Vijk = ComputeCentroidCoord(Pijk,nvPerEl);
+
+        m_element2centroid[el_id] = Vijk;
 
         // if(rank==0)
         // {
@@ -2032,6 +2042,7 @@ void RepartitionObject::DetermineElement2ProcMap(std::map<int,std::vector<int> >
         }
         loc_data[el_id] = rowdata;
         cnt_data = cnt_data + ndatas;
+        std::vector<double> Pijk(nvPerEl*3);
         for(int p=0;p<nvPerEl;p++)
         {
             glob_v = TotRecvVerts_IDs[cnv+p];
@@ -2044,10 +2055,20 @@ void RepartitionObject::DetermineElement2ProcMap(std::map<int,std::vector<int> >
             globElem2locVerts[el_id].push_back(loc_v);
             globVerts2globElem[glob_v].push_back(el_id);
 
+
+            Pijk[p*3+0] = LocalVertsMap[glob_v][0];
+            Pijk[p*3+1] = LocalVertsMap[glob_v][1];
+            Pijk[p*3+2] = LocalVertsMap[glob_v][2];
+
             tmp_globv.push_back(glob_v);
             tmp_locv.push_back(loc_v);
             
         }
+
+        std::vector<double> Vijk = ComputeCentroidCoord(Pijk,nvPerEl);
+
+        m_element2centroid[el_id] = Vijk;
+
         for(int p=0;p<nfPerEl;p++)
         {
             glob_f = TotRecvFaces_IDs[cnf+p];
@@ -4610,11 +4631,14 @@ std::map<int, std::vector<int> > RepartitionObject::getAdjacentElementLayer(std:
         //LocAndAdj_Elem_Varia.push_back(varia_v);
 //      U0Elem->setVal(m+o,0,rho_v);
 //      ElemPart->setVal(m+o,0,el_id);
-
+        std::vector<double> Padj(Nv*3);
         for(int p=0;p<Nv;p++)
         {
             glob_v = adj_verts[offvv+p];
             loc_v  = o_gvertex2lvertex[glob_v];
+            Padj[p*3+0] = LocalVertsMap[glob_v][0];
+            Padj[p*3+1] = LocalVertsMap[glob_v][1];
+            Padj[p*3+2] = LocalVertsMap[glob_v][2];
             //LocalElem2GlobalVert->setVal(m+o,p,glob_v);
             //lelement2lvertex->setVal(m+o,p,loc_v);
             tmp_globv[p] = glob_v;
@@ -4627,6 +4651,9 @@ std::map<int, std::vector<int> > RepartitionObject::getAdjacentElementLayer(std:
             cnv++;
             
         }
+        std::vector<double> Vadj  = ComputeCentroidCoord(Padj,Nv);
+        m_element2centroid[el_id] = Vadj;
+
         for(int p=0;p<Nf;p++)
         {
             glob_f = adj_faces[cnf];
@@ -5663,6 +5690,570 @@ void RepartitionObject::buildUpdatedVertexAndFaceNumbering(MPI_Comm comm,
 
 
 
+
+
+
+
+std::map<int,std::set<int> > RepartitionObject::getExtendedAdjacencyDataV2(std::map<int,std::vector<double> > &ghostface_vrt)
+{
+
+    int nLoc_Elem  = Loc_Elem.size();
+    std::map<int,std::set<int> > extended_adj;
+    std::vector<std::vector<double> > face;
+
+    std::vector<double> n0(3);
+    std::vector<double> v0(3);
+    std::vector<double> v1(3);
+    for(int i=0;i<nLoc_Elem;i++)
+    {
+        int elid        = Loc_Elem[i];
+        int NvPEl       = elements2verts_update[elid].size();
+        int nadj        = elements2elements_update[elid].size();
+
+        std::set<int> adjacency_row;
+
+        std::vector<double> Vijk = m_element2centroid[elid];
+        for(int j=0;j<nadj;j++)
+        {
+            int adjid  = elements2elements_update[elid][j];
+            int fadj   = elements2faces_update[elid][j];
+
+            if(elements2elements_update.find(adjid)!=elements2elements_update.end()
+                && (adjid<Ne_glob)
+                && adjid!=elid)
+            {
+
+                adjacency_row.insert(adjid);
+
+                int n_adjid         = elements2elements_update[adjid].size();
+                int NvPElnew        = elements2verts_update[adjid].size();
+
+                for(int k=0;k<n_adjid;k++)
+                {
+                    int adjadj      = elements2elements_update[adjid][k];
+                    int fadjadj     = elements2faces_update[adjid][k];
+                    
+
+                    if(elements2verts_update.find(adjadj)!=elements2verts_update.end()
+                        && (adjadj<Ne_glob)
+                        && adjadj!=elid)
+                    {
+                        adjacency_row.insert(adjadj);
+                        int n_adjadj        = elements2elements_update[adjadj].size();
+                        int NvPElnewnew     = elements2verts_update[adjadj].size();
+
+                        for(int k=0;k<n_adjadj;k++)
+                        {
+                            int adjadjadj  = elements2elements_update[adjadj][k];
+                            int fadjadjadj = elements2faces_update[adjadj][k];
+
+                            if(elements2verts_update.find(adjadjadj)!=elements2verts_update.end()
+                        && (adjadjadj<Ne_glob)
+                        && adjadjadj!=elid)
+                            {
+                                adjacency_row.insert(adjadjadj);
+                            }
+                            else if((adjadjadj>Ne_glob))
+                            {  
+                                int NvPerF = face2verts_update[fadjadjadj].size();
+                                std::vector<double> Vc(3);
+                                Vc[0] = 0.0;
+                                Vc[1] = 0.0;
+                                Vc[2] = 0.0;
+                                for(int s=0;s<NvPerF;s++)
+                                {
+                                    int gvid    = face2verts_update[fadjadjadj][s];
+                                    
+                                    Vc[0]       = Vc[0]+LocalVertsMap[gvid][0];
+                                    Vc[1]       = Vc[1]+LocalVertsMap[gvid][1];
+                                    Vc[2]       = Vc[2]+LocalVertsMap[gvid][2];
+                                    
+                                    std::vector<double> V(3,0.0);
+                                    V[0]        = LocalVertsMap[gvid][0];
+                                    V[1]        = LocalVertsMap[gvid][1];
+                                    V[2]        = LocalVertsMap[gvid][2];
+
+                                    face.push_back(V);    
+                                }
+                                
+                                Vc[0] = Vc[0]/NvPerF;
+                                Vc[1] = Vc[1]/NvPerF;
+                                Vc[2] = Vc[2]/NvPerF;
+                            
+                                std::vector<double> r0(3);
+                                r0[0] = (Vc[0]-Vijk[0]);
+                                r0[1] = (Vc[1]-Vijk[1]);
+                                r0[2] = (Vc[2]-Vijk[2]);
+                                
+
+                                v0[0] = face[1][0]-face[0][0];
+                                v0[1] = face[1][1]-face[0][1];
+                                v0[2] = face[1][2]-face[0][2];
+                                
+                                v1[0] = face[2][0]-face[0][0];
+                                v1[1] = face[2][1]-face[0][1];
+                                v1[2] = face[2][2]-face[0][2];
+                            
+                                std::vector<double> n0 = ComputeSurfaceNormal(v0,v1);
+                                double orient0   = DotVec3D(r0,n0);
+                                
+                                if(orient0<0.0)
+                                {
+                                    NegateVec3D(n0);
+                                }
+                                
+                                double rdotn = DotVec3D(r0,n0);
+                                
+                                std::vector<double> reflect(3);
+                                
+                                reflect[0] = r0[0]-2.0*(rdotn)*n0[0];
+                                reflect[1] = r0[1]-2.0*(rdotn)*n0[1];
+                                reflect[2] = r0[2]-2.0*(rdotn)*n0[2];
+                                
+                                Vc[0] = Vc[0] - reflect[0];
+                                Vc[1] = Vc[1] - reflect[1];
+                                Vc[2] = Vc[2] - reflect[2];
+
+
+                                ghostface_vrt[adjadj] = Vc;
+
+                                face.clear();
+                            }
+                            
+                        }
+                    }
+                    else
+                    {  
+                        int NvPerF = face2verts_update[fadjadj].size();
+                        std::vector<double> Vc(3);
+                        Vc[0] = 0.0;
+                        Vc[1] = 0.0;
+                        Vc[2] = 0.0;
+                        for(int s=0;s<NvPerF;s++)
+                        {
+                            int gvid    = face2verts_update[fadjadj][s];
+                            
+                            Vc[0]       = Vc[0]+LocalVertsMap[gvid][0];
+                            Vc[1]       = Vc[1]+LocalVertsMap[gvid][1];
+                            Vc[2]       = Vc[2]+LocalVertsMap[gvid][2];
+                            
+                            std::vector<double> V(3,0.0);
+                            V[0]        = LocalVertsMap[gvid][0];
+                            V[1]        = LocalVertsMap[gvid][1];
+                            V[2]        = LocalVertsMap[gvid][2];
+
+                            face.push_back(V);    
+                        }
+                        
+                        Vc[0] = Vc[0]/NvPerF;
+                        Vc[1] = Vc[1]/NvPerF;
+                        Vc[2] = Vc[2]/NvPerF;
+                    
+                        std::vector<double> r0(3);
+                        r0[0] = (Vc[0]-Vijk[0]);
+                        r0[1] = (Vc[1]-Vijk[1]);
+                        r0[2] = (Vc[2]-Vijk[2]);
+                        
+
+                        v0[0] = face[1][0]-face[0][0];
+                        v0[1] = face[1][1]-face[0][1];
+                        v0[2] = face[1][2]-face[0][2];
+                        
+                        v1[0] = face[2][0]-face[0][0];
+                        v1[1] = face[2][1]-face[0][1];
+                        v1[2] = face[2][2]-face[0][2];
+                    
+                        std::vector<double> n0 = ComputeSurfaceNormal(v0,v1);
+                        double orient0   = DotVec3D(r0,n0);
+                        
+                        if(orient0<0.0)
+                        {
+                            NegateVec3D(n0);
+                        }
+                        
+                        double rdotn = DotVec3D(r0,n0);
+                        
+                        std::vector<double> reflect(3);
+                        
+                        reflect[0] = r0[0]-2.0*(rdotn)*n0[0];
+                        reflect[1] = r0[1]-2.0*(rdotn)*n0[1];
+                        reflect[2] = r0[2]-2.0*(rdotn)*n0[2];
+                        
+                        Vc[0] = Vc[0] - reflect[0];
+                        Vc[1] = Vc[1] - reflect[1];
+                        Vc[2] = Vc[2] - reflect[2];
+
+
+                        ghostface_vrt[adjadj] = Vc;
+
+                        face.clear();
+                    }
+                }
+            }
+            else
+            {   
+                int NvPerF = face2verts_update[fadj].size();
+                std::vector<double> Vc(3);
+                Vc[0] = 0.0;
+                Vc[1] = 0.0;
+                Vc[2] = 0.0;
+                for(int s=0;s<NvPerF;s++)
+                {
+                    int gvid    = face2verts_update[fadj][s];
+                    
+                    Vc[0]       = Vc[0]+LocalVertsMap[gvid][0];
+                    Vc[1]       = Vc[1]+LocalVertsMap[gvid][1];
+                    Vc[2]       = Vc[2]+LocalVertsMap[gvid][2];
+                    
+                    std::vector<double> V(3,0.0);
+                    V[0]        = LocalVertsMap[gvid][0];
+                    V[1]        = LocalVertsMap[gvid][1];
+                    V[2]        = LocalVertsMap[gvid][2];
+
+                    face.push_back(V);    
+                }
+                
+                Vc[0] = Vc[0]/NvPerF;
+                Vc[1] = Vc[1]/NvPerF;
+                Vc[2] = Vc[2]/NvPerF;
+            
+                std::vector<double> r0(3);
+                r0[0] = (Vc[0]-Vijk[0]);
+                r0[1] = (Vc[1]-Vijk[1]);
+                r0[2] = (Vc[2]-Vijk[2]);
+                
+
+                v0[0] = face[1][0]-face[0][0];
+                v0[1] = face[1][1]-face[0][1];
+                v0[2] = face[1][2]-face[0][2];
+                
+                v1[0] = face[2][0]-face[0][0];
+                v1[1] = face[2][1]-face[0][1];
+                v1[2] = face[2][2]-face[0][2];
+            
+                std::vector<double> n0 = ComputeSurfaceNormal(v0,v1);
+                double orient0   = DotVec3D(r0,n0);
+                
+                if(orient0<0.0)
+                {
+                    NegateVec3D(n0);
+                }
+                
+                double rdotn = DotVec3D(r0,n0);
+                
+                std::vector<double> reflect(3);
+                
+                reflect[0] = r0[0]-2.0*(rdotn)*n0[0];
+                reflect[1] = r0[1]-2.0*(rdotn)*n0[1];
+                reflect[2] = r0[2]-2.0*(rdotn)*n0[2];
+                
+                Vc[0] = Vc[0] - reflect[0];
+                Vc[1] = Vc[1] - reflect[1];
+                Vc[2] = Vc[2] - reflect[2];
+
+
+                ghostface_vrt[adjid] = Vc;
+
+                face.clear();
+            }
+        }
+
+        extended_adj[elid] = adjacency_row;
+    }
+
+    return extended_adj;
+}
+
+
+
+
+
+
+
+
+
+
+std::map<int,std::set<int> > RepartitionObject::getExtendedAdjacencyData(std::map<int,std::vector<double> > &ghostface_vrt, std::map<int,std::vector<double> > ghosts)
+{
+
+    int nLoc_Elem  = Loc_Elem.size();
+    std::map<int,std::set<int> > extended_adj;
+    std::vector<std::vector<double> > face;
+
+    std::vector<double> n0(3);
+    std::vector<double> v0(3);
+    std::vector<double> v1(3);
+    for(int i=0;i<nLoc_Elem;i++)
+    {
+        int elid        = Loc_Elem[i];
+        int NvPEl       = elements2verts_update[elid].size();
+        int nadj        = elements2elements_update[elid].size();
+
+        std::set<int> adjacency_row;
+
+        std::vector<double> Vijk = m_element2centroid[elid];
+        for(int j=0;j<nadj;j++)
+        {
+            int adjid  = elements2elements_update[elid][j];
+            int fadj   = elements2faces_update[elid][j];
+
+            if(elements2verts_update.find(adjid)!=elements2verts_update.end()
+                && ghosts.find(adjid)==ghosts.end())
+            {
+                adjacency_row.insert(adjid);
+            }
+            else if(ghosts.find(adjid)!=ghosts.end())
+            {   
+                int NvPerF = face2verts_update[fadj].size();
+                std::vector<double> Vc(3);
+                Vc[0] = 0.0;
+                Vc[1] = 0.0;
+                Vc[2] = 0.0;
+                for(int s=0;s<NvPerF;s++)
+                {
+                    int gvid    = face2verts_update[fadj][s];
+                    
+                    Vc[0]       = Vc[0]+LocalVertsMap[gvid][0];
+                    Vc[1]       = Vc[1]+LocalVertsMap[gvid][1];
+                    Vc[2]       = Vc[2]+LocalVertsMap[gvid][2];
+                    
+                    std::vector<double> V(3,0.0);
+                    V[0]        = LocalVertsMap[gvid][0];
+                    V[1]        = LocalVertsMap[gvid][1];
+                    V[2]        = LocalVertsMap[gvid][2];
+
+                    face.push_back(V);    
+                }
+                
+                Vc[0] = Vc[0]/NvPerF;
+                Vc[1] = Vc[1]/NvPerF;
+                Vc[2] = Vc[2]/NvPerF;
+            
+                std::vector<double> r0(3);
+                r0[0] = (Vc[0]-Vijk[0]);
+                r0[1] = (Vc[1]-Vijk[1]);
+                r0[2] = (Vc[2]-Vijk[2]);
+                
+
+                v0[0] = face[1][0]-face[0][0];
+                v0[1] = face[1][1]-face[0][1];
+                v0[2] = face[1][2]-face[0][2];
+                
+                v1[0] = face[2][0]-face[0][0];
+                v1[1] = face[2][1]-face[0][1];
+                v1[2] = face[2][2]-face[0][2];
+            
+                std::vector<double> n0 = ComputeSurfaceNormal(v0,v1);
+                double orient0   = DotVec3D(r0,n0);
+                
+                if(orient0<0.0)
+                {
+                    NegateVec3D(n0);
+                }
+                
+                double rdotn = DotVec3D(r0,n0);
+                
+                std::vector<double> reflect(3);
+                
+                reflect[0] = r0[0]-2.0*(rdotn)*n0[0];
+                reflect[1] = r0[1]-2.0*(rdotn)*n0[1];
+                reflect[2] = r0[2]-2.0*(rdotn)*n0[2];
+                
+                Vc[0] = Vc[0] - reflect[0];
+                Vc[1] = Vc[1] - reflect[1];
+                Vc[2] = Vc[2] - reflect[2];
+
+
+                ghostface_vrt[adjid] = Vc;
+
+                face.clear();
+            }
+
+            if(elements2elements_update.find(adjid)!=elements2elements_update.end()
+                && ghosts.find(adjid)==ghosts.end())
+            {
+                int n_adjid         = elements2elements_update[adjid].size();
+                int NvPElnew        = elements2verts_update[adjid].size();
+
+                for(int k=0;k<n_adjid;k++)
+                {
+                    int adjadj      = elements2elements_update[adjid][k];
+                    int fadjadj     = elements2faces_update[adjid][k];
+
+                    if(elements2verts_update.find(adjadj)!=elements2verts_update.end() 
+                            && ghosts.find(adjadj)==ghosts.end() && adjadj!=elid)
+                    {
+                        adjacency_row.insert(adjadj);
+                    }
+                    else if(ghosts.find(adjadj)!=ghosts.end())
+                    {
+                        adjacency_row.insert(adjadj);
+
+                        int NvPerF = face2verts_update[fadjadj].size();
+                                    
+                        std::vector<double> Vc(3);
+                        Vc[0]       = 0.0;
+                        Vc[1]       = 0.0;
+                        Vc[2]       = 0.0;
+                        
+                        for(int s=0;s<NvPerF;s++)
+                        {
+                            int gvid = face2verts_update[fadjadj][s];
+
+                            Vc[0] = Vc[0]+LocalVertsMap[gvid][0];
+                            Vc[1] = Vc[1]+LocalVertsMap[gvid][1];
+                            Vc[2] = Vc[2]+LocalVertsMap[gvid][2];
+                            
+                            std::vector<double> V(3);
+                            V[0]    = LocalVertsMap[gvid][0];
+                            V[1]    = LocalVertsMap[gvid][1];
+                            V[2]    = LocalVertsMap[gvid][2];
+                            face.push_back(V);
+                        }
+
+                        Vc[0] = Vc[0]/NvPerF;
+                        Vc[1] = Vc[1]/NvPerF;
+                        Vc[2] = Vc[2]/NvPerF;
+                        
+                        
+                        std::vector<double> r0(3);
+                        r0[0] = (Vc[0]-Vijk[0]);
+                        r0[1] = (Vc[1]-Vijk[1]);
+                        r0[2] = (Vc[2]-Vijk[2]);
+                        
+                        v0[0] = face[1][0]-face[0][0];
+                        v0[1] = face[1][1]-face[0][1];
+                        v0[2] = face[1][2]-face[0][2];
+
+                        v1[0] = face[2][0]-face[0][0];
+                        v1[1] = face[2][1]-face[0][1];
+                        v1[2] = face[2][2]-face[0][2];
+                        
+                        std::vector<double> n0 = ComputeSurfaceNormal(v0,v1);
+                        double orient0   = DotVec3D(r0,n0);
+                        
+                        if(orient0<0.0)
+                        {
+                            NegateVec3D(n0);
+                        }
+                        
+                        double rdotn = DotVec3D(r0,n0);
+                        
+                        std::vector<double> reflect(3);
+                        
+                        reflect[0] = r0[0]-2.0*(rdotn)*n0[0];
+                        reflect[1] = r0[1]-2.0*(rdotn)*n0[1];
+                        reflect[2] = r0[2]-2.0*(rdotn)*n0[2];
+                        
+                        Vc[0] = Vc[0] - reflect[0];
+                        Vc[1] = Vc[1] - reflect[1];
+                        Vc[2] = Vc[2] - reflect[2];
+                        
+                        face.clear();
+                        
+                    }
+
+                    if(elements2elements_update.find(adjadj)!=elements2elements_update.end()
+                && ghosts.find(adjadj)==ghosts.end())
+                    {
+                        int n_adjadj        = elements2elements_update[adjadj].size();
+                        int NvPElnewnew     = elements2verts_update[adjadj].size();
+                        for(int k=0;k<n_adjadj;k++)
+                        {
+                            int adjadjadj  = elements2elements_update[adjadj][k];
+                            int fadjadjadj = elements2faces_update[adjadj][k];
+
+                            if(elements2verts_update.find(adjadjadj)!=elements2verts_update.end() 
+                                && ghosts.find(adjadjadj)==ghosts.end() && adjadjadj!=elid)
+                            {
+                                adjacency_row.insert(adjadjadj);
+                            }
+                            else if(ghosts.find(adjadjadj)!=ghosts.end())
+                            {
+                                adjacency_row.insert(adjadjadj);
+
+                                int NvPerF = face2verts_update[fadjadjadj].size();
+                                            
+                                std::vector<double> Vc(3);
+                                Vc[0]       = 0.0;
+                                Vc[1]       = 0.0;
+                                Vc[2]       = 0.0;
+                                
+                                for(int s=0;s<NvPerF;s++)
+                                {
+                                    int gvid = face2verts_update[fadjadj][s];
+
+                                    Vc[0] = Vc[0]+LocalVertsMap[gvid][0];
+                                    Vc[1] = Vc[1]+LocalVertsMap[gvid][1];
+                                    Vc[2] = Vc[2]+LocalVertsMap[gvid][2];
+                                    
+                                    std::vector<double> V(3);
+                                    V[0]    = LocalVertsMap[gvid][0];
+                                    V[1]    = LocalVertsMap[gvid][1];
+                                    V[2]    = LocalVertsMap[gvid][2];
+                                    face.push_back(V);
+                                }
+
+                                Vc[0] = Vc[0]/NvPerF;
+                                Vc[1] = Vc[1]/NvPerF;
+                                Vc[2] = Vc[2]/NvPerF;
+                                
+                                
+                                std::vector<double> r0(3);
+                                r0[0] = (Vc[0]-Vijk[0]);
+                                r0[1] = (Vc[1]-Vijk[1]);
+                                r0[2] = (Vc[2]-Vijk[2]);
+                                
+                                v0[0] = face[1][0]-face[0][0];
+                                v0[1] = face[1][1]-face[0][1];
+                                v0[2] = face[1][2]-face[0][2];
+
+                                v1[0] = face[2][0]-face[0][0];
+                                v1[1] = face[2][1]-face[0][1];
+                                v1[2] = face[2][2]-face[0][2];
+                                
+                                std::vector<double> n0 = ComputeSurfaceNormal(v0,v1);
+                                double orient0   = DotVec3D(r0,n0);
+                                
+                                if(orient0<0.0)
+                                {
+                                    NegateVec3D(n0);
+                                }
+                                
+                                double rdotn = DotVec3D(r0,n0);
+                                
+                                std::vector<double> reflect(3);
+                                
+                                reflect[0] = r0[0]-2.0*(rdotn)*n0[0];
+                                reflect[1] = r0[1]-2.0*(rdotn)*n0[1];
+                                reflect[2] = r0[2]-2.0*(rdotn)*n0[2];
+                                
+                                Vc[0] = Vc[0] - reflect[0];
+                                Vc[1] = Vc[1] - reflect[1];
+                                Vc[2] = Vc[2] - reflect[2];
+                                
+                                face.clear();
+                                
+                            }
+                        }   
+                    }
+                }
+            }
+        }
+
+
+        extended_adj[elid] = adjacency_row;
+    }
+
+    return extended_adj;
+}
+
+
+
+
+
+
+
 void RepartitionObject::buildInteriorSharedAndBoundaryFaceMaps(MPI_Comm comm, 
                                                                std::map<int,std::vector<int> > ranges_id,
                                                                std::map<int,std::vector<int> > ranges_ref)
@@ -6306,6 +6897,10 @@ std::map<int,std::vector<double> > RepartitionObject::ReduceStateVecToVertices(s
 
 
 
+std::map<int,std::vector<double> > RepartitionObject::GetElement2CentroidData()
+{
+    return m_element2centroid;
+}
 
 
 std::map<int,std::vector<int> > RepartitionObject::GetLocalTraceFace2LeftRight()

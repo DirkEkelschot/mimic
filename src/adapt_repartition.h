@@ -206,6 +206,9 @@ class RepartitionObject{
                                   std::map<int,std::vector<int> > &face2verts_update_new,
                                   MPI_Comm comm);
 
+                std::map<int,std::vector<double> > GetElement2CentroidData();
+                std::map<int,std::set<int> > getExtendedAdjacencyData(std::map<int,std::vector<double> > &ghostface_vrt, std::map<int,std::vector<double> > ghost);
+                std::map<int,std::set<int> > getExtendedAdjacencyDataV2(std::map<int,std::vector<double> > &ghostface_vrt);
 
                 std::map<int,int> GetLocalSharedFace2GlobalSharedFace();
                 // std::map<int,int> GetGlobalSharedFace2LocalSharedFace();
@@ -322,7 +325,7 @@ class RepartitionObject{
                 std::map<int,int> o_gvertex2lvertex_part;
                 std::map<int,int> o_lvertex2gvertex;
                 std::map<int,int> o_gvertex2lvertex;
-
+                std::map<int, std::vector<double> > m_element2centroid;
                 //buildInteriorSharedAndBoundaryFacesMaps()
                 std::map<int, std::vector<int> > o_sharedFace2Nodes;
                 std::map<int, std::vector<int> > o_boundaryFace2Nodes;
@@ -357,6 +360,7 @@ class RepartitionObject{
                 std::map<int,std::vector<int> > o_colorFh;
                 std::map<int,int> o_tagF2locFID;
 
+                std::map<int,std::vector<double> > m_element2cetroid;
                 //buildParMMGCommunicationMaps()
                 int** o_ifc_tria_glo;
                 int** o_ifc_tria_loc;
