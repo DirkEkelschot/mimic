@@ -1119,8 +1119,10 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D_Lite_Update(Repartiti
    std::map<int, std::vector<int> > Element2VertexMap   = RePa->getElement2VertexMap();
    std::map<int, std::vector<int> > Element2ElementMap  = RePa->getElement2ElementMap();
 
-   std::map<int,std::vector<double> > ghostface_vrt;
-   std::map<int, std::set<int> > element2adj            = RePa->getExtendedAdjacencyData(ghostface_vrt,ghosts);
+   std::map<int,std::vector<double> > ghostface_vrt     = RePa->getGhostFaceData();
+   std::map<int, std::set<int> > element2adj       = RePa->getExtendedAdjacencyData();
+//    std::map<int, std::set<int> > element2adj            = RePa->getExtendedAdjacencyData(ghostface_vrt);
+   
    std::map<int, std::vector<double> > element2centroid = RePa->GetElement2CentroidData();
    std::map<int, std::vector<int> >::iterator itmii;
    std::map<int,std::vector<double> > dudx_map;
@@ -1181,8 +1183,7 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D_Lite_Update(Repartiti
                     a                           = (Vadj[0] - Vijk[0]);
                     b                           = (Vadj[1] - Vijk[1]);
                     c                           = (Vadj[2] - Vijk[2]);
-                    di                          = sqrt(a*a+b*b+c*c);
-                    
+                    di                          = sqrt(a*a+b*b+c*c);    
                 }
                 else
                 {

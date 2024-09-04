@@ -5966,23 +5966,26 @@ std::map<int,std::set<int> > RepartitionObject::getExtendedAdjacencyDataV2(std::
 
 
 
+// void ComputeGhostFaceData()
+// {
+//     for(int i=0;i<nLoc_Elem;i++)
+//     {
+        
+//     }
+// }
 
 
 
 
 
-
-
-std::map<int,std::set<int> > RepartitionObject::getExtendedAdjacencyData(std::map<int,std::vector<double> > &ghostface_vrt, std::map<int,std::vector<double> > ghosts)
+// build std::map<int,std::vector<double> > &ghostface_vrt
+// build std::map<int,std::set<int> > extended_adj
+void RepartitionObject::buildExtendedAdjacencyData(std::map<int,std::vector<double> > ghosts)
 {
 
     int nLoc_Elem  = Loc_Elem.size();
-    std::map<int,std::set<int> > extended_adj;
     std::vector<std::vector<double> > face;
 
-    std::vector<double> n0(3);
-    std::vector<double> v0(3);
-    std::vector<double> v1(3);
     for(int i=0;i<nLoc_Elem;i++)
     {
         int elid        = Loc_Elem[i];
@@ -5998,79 +6001,21 @@ std::map<int,std::set<int> > RepartitionObject::getExtendedAdjacencyData(std::ma
             int fadj   = elements2faces_update[elid][j];
 
             if(elements2verts_update.find(adjid)!=elements2verts_update.end()
-                && ghosts.find(adjid)==ghosts.end())
+                && adjid<Ne_glob)
             {
                 adjacency_row.insert(adjid);
             }
-            else if(ghosts.find(adjid)!=ghosts.end())
+            else if(adjid>=Ne_glob)
             {   
-                int NvPerF = face2verts_update[fadj].size();
-                std::vector<double> Vc(3);
-                Vc[0] = 0.0;
-                Vc[1] = 0.0;
-                Vc[2] = 0.0;
-                for(int s=0;s<NvPerF;s++)
-                {
-                    int gvid    = face2verts_update[fadj][s];
-                    
-                    Vc[0]       = Vc[0]+LocalVertsMap[gvid][0];
-                    Vc[1]       = Vc[1]+LocalVertsMap[gvid][1];
-                    Vc[2]       = Vc[2]+LocalVertsMap[gvid][2];
-                    
-                    std::vector<double> V(3,0.0);
-                    V[0]        = LocalVertsMap[gvid][0];
-                    V[1]        = LocalVertsMap[gvid][1];
-                    V[2]        = LocalVertsMap[gvid][2];
-
-                    face.push_back(V);    
+                if(m_ghostface_vrt.find(adjid)==m_ghostface_vrt.end())
+                {    
+                    std::vector<double> Vc = ComputeGhostCentroid(face2verts_update[fadj],LocalVertsMap,Vijk);
+                    m_ghostface_vrt[adjid] = Vc;            
                 }
                 
-                Vc[0] = Vc[0]/NvPerF;
-                Vc[1] = Vc[1]/NvPerF;
-                Vc[2] = Vc[2]/NvPerF;
-            
-                std::vector<double> r0(3);
-                r0[0] = (Vc[0]-Vijk[0]);
-                r0[1] = (Vc[1]-Vijk[1]);
-                r0[2] = (Vc[2]-Vijk[2]);
-                
-
-                v0[0] = face[1][0]-face[0][0];
-                v0[1] = face[1][1]-face[0][1];
-                v0[2] = face[1][2]-face[0][2];
-                
-                v1[0] = face[2][0]-face[0][0];
-                v1[1] = face[2][1]-face[0][1];
-                v1[2] = face[2][2]-face[0][2];
-            
-                std::vector<double> n0 = ComputeSurfaceNormal(v0,v1);
-                double orient0   = DotVec3D(r0,n0);
-                
-                if(orient0<0.0)
-                {
-                    NegateVec3D(n0);
-                }
-                
-                double rdotn = DotVec3D(r0,n0);
-                
-                std::vector<double> reflect(3);
-                
-                reflect[0] = r0[0]-2.0*(rdotn)*n0[0];
-                reflect[1] = r0[1]-2.0*(rdotn)*n0[1];
-                reflect[2] = r0[2]-2.0*(rdotn)*n0[2];
-                
-                Vc[0] = Vc[0] - reflect[0];
-                Vc[1] = Vc[1] - reflect[1];
-                Vc[2] = Vc[2] - reflect[2];
-
-
-                ghostface_vrt[adjid] = Vc;
-
-                face.clear();
             }
-
             if(elements2elements_update.find(adjid)!=elements2elements_update.end()
-                && ghosts.find(adjid)==ghosts.end())
+                && adjid < Ne_glob)
             {
                 int n_adjid         = elements2elements_update[adjid].size();
                 int NvPElnew        = elements2verts_update[adjid].size();
@@ -6081,80 +6026,28 @@ std::map<int,std::set<int> > RepartitionObject::getExtendedAdjacencyData(std::ma
                     int fadjadj     = elements2faces_update[adjid][k];
 
                     if(elements2verts_update.find(adjadj)!=elements2verts_update.end() 
-                            && ghosts.find(adjadj)==ghosts.end() && adjadj!=elid)
+                    && adjadj<Ne_glob && adjadj!=elid)
                     {
                         adjacency_row.insert(adjadj);
                     }
-                    else if(ghosts.find(adjadj)!=ghosts.end())
+                    else if(adjadj>=Ne_glob)
                     {
-                        adjacency_row.insert(adjadj);
+                        std::vector<double> Vadjadj = m_element2centroid[adjid];
 
-                        int NvPerF = face2verts_update[fadjadj].size();
-                                    
-                        std::vector<double> Vc(3);
-                        Vc[0]       = 0.0;
-                        Vc[1]       = 0.0;
-                        Vc[2]       = 0.0;
-                        
-                        for(int s=0;s<NvPerF;s++)
+                        if(adjacency_row.find(adjadj)==adjacency_row.end())
                         {
-                            int gvid = face2verts_update[fadjadj][s];
-
-                            Vc[0] = Vc[0]+LocalVertsMap[gvid][0];
-                            Vc[1] = Vc[1]+LocalVertsMap[gvid][1];
-                            Vc[2] = Vc[2]+LocalVertsMap[gvid][2];
-                            
-                            std::vector<double> V(3);
-                            V[0]    = LocalVertsMap[gvid][0];
-                            V[1]    = LocalVertsMap[gvid][1];
-                            V[2]    = LocalVertsMap[gvid][2];
-                            face.push_back(V);
-                        }
-
-                        Vc[0] = Vc[0]/NvPerF;
-                        Vc[1] = Vc[1]/NvPerF;
-                        Vc[2] = Vc[2]/NvPerF;
-                        
-                        
-                        std::vector<double> r0(3);
-                        r0[0] = (Vc[0]-Vijk[0]);
-                        r0[1] = (Vc[1]-Vijk[1]);
-                        r0[2] = (Vc[2]-Vijk[2]);
-                        
-                        v0[0] = face[1][0]-face[0][0];
-                        v0[1] = face[1][1]-face[0][1];
-                        v0[2] = face[1][2]-face[0][2];
-
-                        v1[0] = face[2][0]-face[0][0];
-                        v1[1] = face[2][1]-face[0][1];
-                        v1[2] = face[2][2]-face[0][2];
-                        
-                        std::vector<double> n0 = ComputeSurfaceNormal(v0,v1);
-                        double orient0   = DotVec3D(r0,n0);
-                        
-                        if(orient0<0.0)
-                        {
-                            NegateVec3D(n0);
+                            adjacency_row.insert(adjadj);
                         }
                         
-                        double rdotn = DotVec3D(r0,n0);
-                        
-                        std::vector<double> reflect(3);
-                        
-                        reflect[0] = r0[0]-2.0*(rdotn)*n0[0];
-                        reflect[1] = r0[1]-2.0*(rdotn)*n0[1];
-                        reflect[2] = r0[2]-2.0*(rdotn)*n0[2];
-                        
-                        Vc[0] = Vc[0] - reflect[0];
-                        Vc[1] = Vc[1] - reflect[1];
-                        Vc[2] = Vc[2] - reflect[2];
-                        
-                        face.clear();
-                        
+                        if(m_ghostface_vrt.find(adjadj)==m_ghostface_vrt.end())
+                        {
+                            std::vector<double> Vc = ComputeGhostCentroid(face2verts_update[fadjadj],LocalVertsMap,Vadjadj);
+                            m_ghostface_vrt[adjadj] = Vc;
+                        }
                     }
-
+                    
                     if(elements2elements_update.find(adjadj)!=elements2elements_update.end()
-                && ghosts.find(adjadj)==ghosts.end())
+                    && adjadj < Ne_glob)
                     {
                         int n_adjadj        = elements2elements_update[adjadj].size();
                         int NvPElnewnew     = elements2verts_update[adjadj].size();
@@ -6164,88 +6057,33 @@ std::map<int,std::set<int> > RepartitionObject::getExtendedAdjacencyData(std::ma
                             int fadjadjadj = elements2faces_update[adjadj][k];
 
                             if(elements2verts_update.find(adjadjadj)!=elements2verts_update.end() 
-                                && ghosts.find(adjadjadj)==ghosts.end() && adjadjadj!=elid)
+                                && adjadjadj < Ne_glob && adjadjadj!=elid)
                             {
                                 adjacency_row.insert(adjadjadj);
                             }
-                            else if(ghosts.find(adjadjadj)!=ghosts.end())
+                            else if(adjadjadj>=Ne_glob)
                             {
-                                adjacency_row.insert(adjadjadj);
-
-                                int NvPerF = face2verts_update[fadjadjadj].size();
-                                            
-                                std::vector<double> Vc(3);
-                                Vc[0]       = 0.0;
-                                Vc[1]       = 0.0;
-                                Vc[2]       = 0.0;
-                                
-                                for(int s=0;s<NvPerF;s++)
+                                std::vector<double> Vadjadjadj = m_element2centroid[adjadj];
+                                if(adjacency_row.find(adjadjadj)==adjacency_row.end())
                                 {
-                                    int gvid = face2verts_update[fadjadj][s];
-
-                                    Vc[0] = Vc[0]+LocalVertsMap[gvid][0];
-                                    Vc[1] = Vc[1]+LocalVertsMap[gvid][1];
-                                    Vc[2] = Vc[2]+LocalVertsMap[gvid][2];
-                                    
-                                    std::vector<double> V(3);
-                                    V[0]    = LocalVertsMap[gvid][0];
-                                    V[1]    = LocalVertsMap[gvid][1];
-                                    V[2]    = LocalVertsMap[gvid][2];
-                                    face.push_back(V);
-                                }
-
-                                Vc[0] = Vc[0]/NvPerF;
-                                Vc[1] = Vc[1]/NvPerF;
-                                Vc[2] = Vc[2]/NvPerF;
-                                
-                                
-                                std::vector<double> r0(3);
-                                r0[0] = (Vc[0]-Vijk[0]);
-                                r0[1] = (Vc[1]-Vijk[1]);
-                                r0[2] = (Vc[2]-Vijk[2]);
-                                
-                                v0[0] = face[1][0]-face[0][0];
-                                v0[1] = face[1][1]-face[0][1];
-                                v0[2] = face[1][2]-face[0][2];
-
-                                v1[0] = face[2][0]-face[0][0];
-                                v1[1] = face[2][1]-face[0][1];
-                                v1[2] = face[2][2]-face[0][2];
-                                
-                                std::vector<double> n0 = ComputeSurfaceNormal(v0,v1);
-                                double orient0   = DotVec3D(r0,n0);
-                                
-                                if(orient0<0.0)
-                                {
-                                    NegateVec3D(n0);
+                                    adjacency_row.insert(adjadjadj);
                                 }
                                 
-                                double rdotn = DotVec3D(r0,n0);
-                                
-                                std::vector<double> reflect(3);
-                                
-                                reflect[0] = r0[0]-2.0*(rdotn)*n0[0];
-                                reflect[1] = r0[1]-2.0*(rdotn)*n0[1];
-                                reflect[2] = r0[2]-2.0*(rdotn)*n0[2];
-                                
-                                Vc[0] = Vc[0] - reflect[0];
-                                Vc[1] = Vc[1] - reflect[1];
-                                Vc[2] = Vc[2] - reflect[2];
-                                
-                                face.clear();
-                                
+
+                                if(m_ghostface_vrt.find(adjadjadj)==m_ghostface_vrt.end())
+                                {
+                                    std::vector<double> Vc = ComputeGhostCentroid(face2verts_update[fadjadjadj],LocalVertsMap,Vadjadjadj);
+                                    m_ghostface_vrt[adjadjadj] = Vc;
+                                }
                             }
                         }   
                     }
                 }
             }
         }
-
-
-        extended_adj[elid] = adjacency_row;
+        m_extended_adj[elid] = adjacency_row;
     }
 
-    return extended_adj;
 }
 
 
@@ -6895,7 +6733,15 @@ std::map<int,std::vector<double> > RepartitionObject::ReduceStateVecToVertices(s
 
 
 
+std::map<int,std::vector<double> > RepartitionObject::getGhostFaceData()
+{
+    return m_ghostface_vrt;
+}
 
+std::map<int,std::set<int> > RepartitionObject::getExtendedAdjacencyData()
+{
+    return m_extended_adj;
+}
 
 std::map<int,std::vector<double> > RepartitionObject::GetElement2CentroidData()
 {

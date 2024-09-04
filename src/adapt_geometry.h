@@ -3,6 +3,9 @@
 #ifndef ADAPT_GEOMETRY_H
 #define ADAPT_GEOMETRY_H
 
+
+std::vector<double> ComputeGhostCentroid(std::vector<int> faceverts, std::map<int,std::vector<double> > LocalVertsMap, std::vector<double> Vijk);
+
 double CheckFaceOrientation(std::vector<double> VcF,
                             std::vector<std::vector<double> > Vfaces,
                             std::vector<double> Vijk);

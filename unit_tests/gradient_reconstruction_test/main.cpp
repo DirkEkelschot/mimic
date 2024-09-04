@@ -470,10 +470,10 @@ int main(int argc, char** argv)
     grids[25].push_back("inputs/conn252525.h5");
     grids[30].push_back("inputs/grid303030.h5");
     grids[30].push_back("inputs/conn303030.h5");
-    // grids[40].push_back("inputs/grid404040.h5");
-    // grids[40].push_back("inputs/conn404040.h5");
-    // grids[50].push_back("inputs/grid505050.h5");
-    // grids[50].push_back("inputs/conn505050.h5");
+    grids[40].push_back("inputs/grid404040.h5");
+    grids[40].push_back("inputs/conn404040.h5");
+    grids[50].push_back("inputs/grid505050.h5");
+    grids[50].push_back("inputs/conn505050.h5");
     
 
     // Read in the inputs from metric.xml
@@ -709,7 +709,7 @@ int main(int argc, char** argv)
                                                             meshRead->ranges_id,
                                                             meshRead->ranges_ref);
 
-
+        
         
 
         int nGlob = meshRead->nElem;
@@ -736,10 +736,8 @@ int main(int argc, char** argv)
                             gbMap, gbMap_dUdx, gbMap_dUdy, gbMap_dUdz, gbMap_dUdXi, gbMap_dU2dx2, gbMap_dU2dxy, gbMap_dU2dxz);
         // 0,1,2,3,4,5
 
-
-        std::map<int,std::vector<double> > ghostface_vrt;
-        std::map<int,std::set<int> > extended_adj = tetra_repart->getExtendedAdjacencyData(ghostface_vrt, gbMap);
-
+        tetra_repart->buildExtendedAdjacencyData(gbMap);
+        
         start = clock();
         tetra_repart->AddStateVecForAdjacentElements(Usol,1,comm);
         tetra_repart->AddStateVecForAdjacentElements(U_map,7,comm);

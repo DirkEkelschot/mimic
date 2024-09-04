@@ -3,6 +3,77 @@
 #include "adapt_compute.h"
 #include <math.h>
 
+
+std::vector<double> ComputeGhostCentroid(std::vector<int> faceverts, std::map<int,std::vector<double> > LocalVertsMap, std::vector<double> Vijk)
+{
+
+    std::vector<double> v0(3);
+    std::vector<double> v1(3);
+    std::vector<std::vector<double> > face;
+    int NvPerF = faceverts.size();
+    std::vector<double> Vc(3,0.0);
+
+    for(int s=0;s<NvPerF;s++)
+    {
+        int gvid    = faceverts[s];
+        
+        Vc[0]       = Vc[0]+LocalVertsMap[gvid][0];
+        Vc[1]       = Vc[1]+LocalVertsMap[gvid][1];
+        Vc[2]       = Vc[2]+LocalVertsMap[gvid][2];
+        
+        std::vector<double> V(3,0.0);
+        V[0]        = LocalVertsMap[gvid][0];
+        V[1]        = LocalVertsMap[gvid][1];
+        V[2]        = LocalVertsMap[gvid][2];
+
+        face.push_back(V);    
+    }
+    
+    Vc[0] = Vc[0]/NvPerF;
+    Vc[1] = Vc[1]/NvPerF;
+    Vc[2] = Vc[2]/NvPerF;
+
+    std::vector<double> r0(3);
+    r0[0] = (Vc[0]-Vijk[0]);
+    r0[1] = (Vc[1]-Vijk[1]);
+    r0[2] = (Vc[2]-Vijk[2]);
+    
+
+    v0[0] = face[1][0]-face[0][0];
+    v0[1] = face[1][1]-face[0][1];
+    v0[2] = face[1][2]-face[0][2];
+    
+    v1[0] = face[2][0]-face[0][0];
+    v1[1] = face[2][1]-face[0][1];
+    v1[2] = face[2][2]-face[0][2];
+
+    std::vector<double> n0 = ComputeSurfaceNormal(v0,v1);
+    double orient0   = DotVec3D(r0,n0);
+    
+    if(orient0<0.0)
+    {
+        NegateVec3D(n0);
+    }
+    
+    double rdotn = DotVec3D(r0,n0);
+    
+    std::vector<double> reflect(3);
+    
+    reflect[0] = r0[0]-2.0*(rdotn)*n0[0];
+    reflect[1] = r0[1]-2.0*(rdotn)*n0[1];
+    reflect[2] = r0[2]-2.0*(rdotn)*n0[2];
+    
+    Vc[0] = Vc[0] - reflect[0];
+    Vc[1] = Vc[1] - reflect[1];
+    Vc[2] = Vc[2] - reflect[2];
+
+
+    //m_ghostface_vrt[adjadjadj] = Vc;
+
+    face.clear();
+    return Vc;
+}
+
 double CheckFaceOrientation(std::vector<double> VcF, std::vector<std::vector<double> > Vfaces, std::vector<double> Vijk)
 {
     std::vector<double> vnul(3);

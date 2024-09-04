@@ -207,7 +207,7 @@ class RepartitionObject{
                                   MPI_Comm comm);
 
                 std::map<int,std::vector<double> > GetElement2CentroidData();
-                std::map<int,std::set<int> > getExtendedAdjacencyData(std::map<int,std::vector<double> > &ghostface_vrt, std::map<int,std::vector<double> > ghost);
+                void buildExtendedAdjacencyData(std::map<int,std::vector<double> > ghosts);
                 std::map<int,std::set<int> > getExtendedAdjacencyDataV2(std::map<int,std::vector<double> > &ghostface_vrt);
 
                 std::map<int,int> GetLocalSharedFace2GlobalSharedFace();
@@ -241,6 +241,12 @@ class RepartitionObject{
 
                 void AddStateVecForAdjacentElements(std::map<int,std::vector<double> > &U, int nvar, MPI_Comm comm);
                 void SetStateVec(std::map<int,std::vector<double> > U, int nvar);
+
+                // std::map<int,std::set<int> > m_extended_adj;
+                // std::map<int,std::vector<double> > m_ghostface_vrt;
+                std::map<int,std::vector<double> > getGhostFaceData();
+                std::map<int,std::set<int> > getExtendedAdjacencyData();
+                
 
         private:
                 std::vector<int> part;
@@ -384,6 +390,9 @@ class RepartitionObject{
                 std::vector<int> o_faces4parmmg;
 
                 std::map<int,int> o_locShF2globShF;
+
+                std::map<int,std::set<int> > m_extended_adj;
+                std::map<int,std::vector<double> > m_ghostface_vrt;
 
                 
 
