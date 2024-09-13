@@ -207,7 +207,8 @@ class RepartitionObject{
                                   MPI_Comm comm);
 
                 std::map<int,std::vector<double> > GetElement2CentroidData();
-                void buildExtendedAdjacencyData(std::map<int,std::vector<double> > ghosts);
+                void buildExtendedAdjacencyData(MPI_Comm comm, std::map<int,std::vector<double> > ghosts);
+                void buildExtendedAdjacencyDataV2(MPI_Comm comm, std::map<int,std::vector<double> > ghosts);
                 std::map<int,std::set<int> > getExtendedAdjacencyDataV2(std::map<int,std::vector<double> > &ghostface_vrt);
 
                 std::map<int,int> GetLocalSharedFace2GlobalSharedFace();

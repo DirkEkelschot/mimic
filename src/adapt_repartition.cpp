@@ -5980,12 +5980,150 @@ std::map<int,std::set<int> > RepartitionObject::getExtendedAdjacencyDataV2(std::
 
 // build std::map<int,std::vector<double> > &ghostface_vrt
 // build std::map<int,std::set<int> > extended_adj
-void RepartitionObject::buildExtendedAdjacencyData(std::map<int,std::vector<double> > ghosts)
+
+
+// build std::map<int,std::vector<double> > &ghostface_vrt
+// build std::map<int,std::set<int> > extended_adj
+void RepartitionObject::buildExtendedAdjacencyDataV2(MPI_Comm comm, std::map<int,std::vector<double> > ghosts)
 {
+
+    //int faceidtrace = 2353748;
+    int size;
+    MPI_Comm_size(comm, &size);
+    // Get the rank of the process
+    int rank;
+    MPI_Comm_rank(comm, &rank);
 
     int nLoc_Elem  = Loc_Elem.size();
     std::vector<std::vector<double> > face;
+    // std::cout << " elements2verts_update  " << elements2verts_update.size() << " " << elements2data_update.size() << std::endl;
+    int tel = 0;
+    for(int i=0;i<nLoc_Elem;i++)
+    {
+        int elid        = Loc_Elem[i];
+        int NvPEl       = elements2verts_update[elid].size();
+        int nadj        = elements2elements_update[elid].size();
 
+        std::set<int> adjacency_row;
+
+        std::vector<double> Vijk = m_element2centroid[elid];
+        for(int j=0;j<nadj;j++)
+        {
+            int adjid  = elements2elements_update[elid][j];
+            int fadj   = elements2faces_update[elid][j];
+
+            if(elements2verts_update.find(adjid)!=elements2verts_update.end()
+                && ghosts.find(adjid)==ghosts.end())
+            {
+                adjacency_row.insert(adjid);
+            }
+            else if(ghosts.find(adjid)!=ghosts.end())
+            {   
+                if(m_ghostface_vrt.find(adjid)==m_ghostface_vrt.end())
+                {    
+                    std::vector<double> Vc = ComputeGhostCentroid(face2verts_update[fadj],LocalVertsMap,Vijk);
+                    m_ghostface_vrt[adjid] = Vc;            
+                }
+                tel++;
+            }
+            if(elements2elements_update.find(adjid)!=elements2elements_update.end()
+                && ghosts.find(adjid)==ghosts.end())
+            {
+                
+                int n_adjid         = elements2elements_update[adjid].size();
+                int NvPElnew        = elements2verts_update[adjid].size();
+
+                for(int k=0;k<n_adjid;k++)
+                {
+                    int adjadj      = elements2elements_update[adjid][k];
+                    int fadjadj     = elements2faces_update[adjid][k];
+
+                    if(elements2verts_update.find(adjadj)!=elements2verts_update.end() 
+                    && ghosts.find(adjadj)==ghosts.end() && adjadj!=elid)
+                    {
+                        adjacency_row.insert(adjadj);
+                    }
+                    else if(ghosts.find(adjadj)!=ghosts.end())
+                    {
+                        std::vector<double> Vadjadj = m_element2centroid[adjid];
+
+                        if(adjacency_row.find(adjadj)==adjacency_row.end())
+                        {
+                            adjacency_row.insert(adjadj);
+                        }
+                        
+                        if(m_ghostface_vrt.find(adjadj)==m_ghostface_vrt.end())
+                        {
+                            std::vector<double> Vc = ComputeGhostCentroid(face2verts_update[fadjadj],LocalVertsMap,Vadjadj);
+                            m_ghostface_vrt[adjadj] = Vc;
+                        }
+
+                        tel++;
+
+                    }
+                    
+                    if(elements2elements_update.find(adjadj)!=elements2elements_update.end()
+                    && ghosts.find(adjadj)==ghosts.end())
+                    {
+                        int n_adjadj        = elements2elements_update[adjadj].size();
+                        int NvPElnewnew     = elements2verts_update[adjadj].size();
+                        for(int k=0;k<n_adjadj;k++)
+                        {
+                            int adjadjadj  = elements2elements_update[adjadj][k];
+                            int fadjadjadj = elements2faces_update[adjadj][k];
+
+                            if(elements2verts_update.find(adjadjadj)!=elements2verts_update.end() 
+                                && ghosts.find(adjadjadj)==ghosts.end() && adjadjadj!=elid)
+                            {
+                                adjacency_row.insert(adjadjadj);
+                            }
+                            else if(ghosts.find(adjadjadj)!=ghosts.end())
+                            {
+                                std::vector<double> Vadjadjadj = m_element2centroid[adjadj];
+                                if(adjacency_row.find(adjadjadj)==adjacency_row.end())
+                                {
+                                    adjacency_row.insert(adjadjadj);
+                                }
+                                
+
+                                if(m_ghostface_vrt.find(adjadjadj)==m_ghostface_vrt.end())
+                                {
+                                    std::vector<double> Vc = ComputeGhostCentroid(face2verts_update[fadjadjadj],LocalVertsMap,Vadjadjadj);
+                                    m_ghostface_vrt[adjadjadj] = Vc;
+                                }
+
+                                tel++;
+                            }
+                        }   
+                    }
+                }
+            }
+        }
+
+        m_extended_adj[elid] = adjacency_row;
+        
+    }
+
+   //std::cout << "tel V2 " << rank << " " << tel << " " << m_ghostface_vrt.size() << " " << Ne_glob << " " << ghosts.size() << std::endl;
+
+}
+
+
+
+void RepartitionObject::buildExtendedAdjacencyData(MPI_Comm comm, std::map<int,std::vector<double> > ghosts)
+{
+
+    //int faceidtrace = 2353748;
+    int size;
+    MPI_Comm_size(comm, &size);
+    // Get the rank of the process
+    int rank;
+    MPI_Comm_rank(comm, &rank);
+
+    int nLoc_Elem  = Loc_Elem.size();
+    std::vector<std::vector<double> > face;
+    //std::cout << " elements2verts_update  " << elements2verts_update.size() << " " << elements2data_update.size() << std::endl;
+    int tel = 0;
     for(int i=0;i<nLoc_Elem;i++)
     {
         int elid        = Loc_Elem[i];
@@ -6012,11 +6150,14 @@ void RepartitionObject::buildExtendedAdjacencyData(std::map<int,std::vector<doub
                     std::vector<double> Vc = ComputeGhostCentroid(face2verts_update[fadj],LocalVertsMap,Vijk);
                     m_ghostface_vrt[adjid] = Vc;            
                 }
-                
+
+                tel++;
+
             }
             if(elements2elements_update.find(adjid)!=elements2elements_update.end()
                 && adjid < Ne_glob)
             {
+                
                 int n_adjid         = elements2elements_update[adjid].size();
                 int NvPElnew        = elements2verts_update[adjid].size();
 
@@ -6044,6 +6185,8 @@ void RepartitionObject::buildExtendedAdjacencyData(std::map<int,std::vector<doub
                             std::vector<double> Vc = ComputeGhostCentroid(face2verts_update[fadjadj],LocalVertsMap,Vadjadj);
                             m_ghostface_vrt[adjadj] = Vc;
                         }
+
+                        tel++;
                     }
                     
                     if(elements2elements_update.find(adjadj)!=elements2elements_update.end()
@@ -6069,12 +6212,14 @@ void RepartitionObject::buildExtendedAdjacencyData(std::map<int,std::vector<doub
                                     adjacency_row.insert(adjadjadj);
                                 }
                                 
-
                                 if(m_ghostface_vrt.find(adjadjadj)==m_ghostface_vrt.end())
                                 {
                                     std::vector<double> Vc = ComputeGhostCentroid(face2verts_update[fadjadjadj],LocalVertsMap,Vadjadjadj);
                                     m_ghostface_vrt[adjadjadj] = Vc;
                                 }
+
+                                tel++;
+
                             }
                         }   
                     }
@@ -6083,6 +6228,8 @@ void RepartitionObject::buildExtendedAdjacencyData(std::map<int,std::vector<doub
         }
         m_extended_adj[elid] = adjacency_row;
     }
+
+    //std::cout << "tel " << rank << " " << tel << " " << m_ghostface_vrt.size() << " " << Ne_glob << " " << ghosts.size() << std::endl;
 
 }
 
@@ -6208,8 +6355,8 @@ void RepartitionObject::buildInteriorSharedAndBoundaryFaceMaps(MPI_Comm comm,
                                 int e0   = face2elements_update[gfid][0];
                                 int e1   = face2elements_update[gfid][1];
                                 
-                                int r0;// = part_global[e0]; // rank of first adjacent element.
-                                int r1;// = part_global[e1]; // rank of second adjacent element.
+                                int r0 = rank;// = part_global[e0]; // rank of first adjacent element.
+                                int r1 = rank;// = part_global[e1]; // rank of second adjacent element.
                                 // int r0 = part_global[e0];
                                 // int r1 = part_global[e1];
                                 if(part_map.find(e0)!=part_map.end())
