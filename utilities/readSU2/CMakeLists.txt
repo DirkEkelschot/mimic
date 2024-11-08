@@ -1,7 +1,7 @@
 # Configuration file for MacOSX
 
 cmake_minimum_required(VERSION 3.1...3.16)
-
+set(CMAKE_CXX_STANDARD 17)
 # set the project name and version
 project(readSU2 VERSION 1.0)
 # specify the C++ standard
@@ -11,7 +11,7 @@ INCLUDE(CMakeDependentOption)
 
 
 find_package(LAPACK)
-#MESSAGE("${MPI_CXX_LIBRARIES} annnad ${MPI_CXX_INCLUDE_PATH}")
+MESSAGE("${MPI_CXX_LIBRARIES} annnad ${MPI_CXX_INCLUDE_PATH}")
 find_package(VTK 
 	COMPONENTS 
 	CommonCore
@@ -32,6 +32,7 @@ find_package(MPI REQUIRED)
 
 INCLUDE (cmake/adaptCommon.cmake)
 #INCLUDE (cmake/ThirdPartyTetGen.cmake)
+INCLUDE (cmake/ThirdPartyGSL.cmake)
 INCLUDE (cmake/ThirdPartyLibMeshb.cmake)
 INCLUDE (cmake/ThirdPartyZLIB.cmake)
 INCLUDE (cmake/ThirdPartyHDF5.cmake)
@@ -93,7 +94,7 @@ set(PARMETIS_LIBRARIES ${PARMETIS_LIBRARY} ${METIS_LIBRARY})
 set(PARMETIS_INCLUDE_DIRS ${PARMETIS_INCLUDE_DIR} ${METIS_INCLUDE_DIR})
 include_directories(${PARMETIS_INCLUDE_DIRS})
 include_directories(${HDF5_INCLUDE_DIRS})
-include_directories(${MMGS_INCLUDE_DIR})
+#include_directories(${MMGS_INCLUDE_DIR})
 include_directories(${MMG3D_INCLUDE_DIR})
 #include_directories(${TETGEN_INCLUDE_DIRS})
 include_directories(${PARMMG_INCLUDE_DIR})
@@ -101,12 +102,14 @@ include_directories(${MPI_CXX_INCLUDE_PATH})
 #include_directories(${CGNS_INCLUDE_DIR})
 include_directories(${Boost_INCLUDE_DIR})
 link_directories(${Boost_LIBRARY_DIR})
+include_directories(${GSL_INCLUDE_DIRS})
 
 #list(APPEND EXTERNAL_LIB ${PARMETIS_LIBRARIES})
 #list(APPEND EXTERNAL_LIB ${HDF5_LIBRARY})
 target_link_libraries(readSU2 ${VTK_LIBRARIES})
 #target_link_libraries(partTetra ${TETGEN_LIBRARY})
 target_link_libraries(readSU2 ${MMG_LIBRARY})
+target_link_libraries(readSU2 ${GSL_LIBRARY})
 #target_link_libraries(partTetra ${CMAKE_SOURCE_DIR}/build/ThirdParty/ParMmg/Mmg-prefix/src/Mmg-build/lib)
 #target_link_libraries(partTetra ${CGAL_LIBRARY})
 target_link_libraries(readSU2 ${LIBMESHB_LIBRARY})
