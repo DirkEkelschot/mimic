@@ -20,6 +20,8 @@ struct Inputs{
     int recursive;
     int extended;
     int StateVar;
+    int RunNumber;
+    int MetricProvided;
 };
 
 

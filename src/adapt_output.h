@@ -4,7 +4,7 @@
 #include "adapt.h"
 #include "adapt_array.h"
 #include "adapt_topology.h"
-#include "mmg/mmgs/libmmgs.h"
+//#include "mmg/mmgs/libmmgs.h"
 #include "mmg/mmg3d/libmmg3d.h"
 #include "adapt_boundary.h"
 

@@ -188,22 +188,42 @@ Inputs* ReadXmlFile(MPI_Comm comm, const char* filename)
     {
         std::cout << "Error: StateVariable is not defined in metric.xml." << std::endl;
     }
+    if(param_map.find("MetricProvided")!=param_map.end())
+    {
+        inp->MetricProvided = param_map["MetricProvided"];
+    }
+    else
+    {
+        std::cout << "Error: MetricProvided is not defined in metric.xml." << std::endl;
+    }
+    if(param_map.find("RunNumber")!=param_map.end())
+    {
+        inp->RunNumber = param_map["RunNumber"];
+    }
+    else
+    {
+        std::cout << "Error: RunNumber is not defined in metric.xml." << std::endl;
+    }
 
 
 
 
-        if(world_rank == 0)
+    if(world_rank == 0)
     {
         std::cout << "===================================================" << std::endl;
         std::cout << "============== Metric parameters ==================" << std::endl;
         std::cout << "===================================================" << std::endl;
-        std::cout << "Nproc     = " << world_size << std::endl;
-        std::cout << "hgrad     = " << inp->hgrad << std::endl;
-        std::cout << "hmin      = " << inp->hmin << std::endl;
-        std::cout << "hmax      = " << inp->hmax << std::endl;
-        std::cout << "MetScale  = " << inp->MetScale << std::endl;
-        std::cout << "Hausdorff = " << inp->hausd << std::endl;
-        std::cout << "NiterPart = " << inp->niter << std::endl;
+        std::cout << "Nproc             = " << world_size << std::endl;
+        std::cout << "hgrad             = " << inp->hgrad << std::endl;
+        std::cout << "hmin              = " << inp->hmin << std::endl;
+        std::cout << "hmax              = " << inp->hmax << std::endl;
+        std::cout << "MetScale          = " << inp->MetScale << std::endl;
+        std::cout << "Hausdorff         = " << inp->hausd << std::endl;
+        std::cout << "NiterPart         = " << inp->niter << std::endl;
+        std::cout << "MetricProvided    = " << inp->MetricProvided << std::endl;
+        std::cout << "RunNumber         = " << inp->RunNumber << std::endl;
+
+
         if(inp->ReadFromStats == 0)
         {
             std::cout << "Reading statistics? -> NO (5th entry in the metric.inp file is set to 0.)" << std::endl;
