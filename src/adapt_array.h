@@ -271,8 +271,8 @@ template <typename T> class JagArray {
         int* getDim()
         {
             int* dim = new int[2];
-            dim[0] = nrow;
-            dim[1] = ncol;
+            // dim[0] = nrow;
+            // dim[1] = ncol;
             return  dim;
         }
     
