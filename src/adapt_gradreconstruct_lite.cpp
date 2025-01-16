@@ -1120,8 +1120,8 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D_Lite_Update(Repartiti
    std::map<int, std::vector<int> > Element2ElementMap  = RePa->getElement2ElementMap();
 
    std::map<int,std::vector<double> > ghostface_vrt     = RePa->getGhostFaceData();
-   std::map<int, std::set<int> > element2adj       = RePa->getExtendedAdjacencyData();
-//    std::map<int, std::set<int> > element2adj            = RePa->getExtendedAdjacencyData(ghostface_vrt);
+   std::map<int, std::set<int> > element2adj            = RePa->getExtendedAdjacencyData();
+//    std::map<int, std::set<int> > element2adj         = RePa->getExtendedAdjacencyData(ghostface_vrt);
    
    std::map<int, std::vector<double> > element2centroid = RePa->GetElement2CentroidData();
    std::map<int, std::vector<int> >::iterator itmii;
@@ -1158,7 +1158,6 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D_Lite_Update(Repartiti
         int g                       = 0;
         std::vector<double> Vijk    = element2centroid[elID];
         double uijk                 = Ue[elID][variable];
-        //std::cout << "nadj " << nadj << std::endl;
         if(nadj>=9)
         {
             std::vector<double> bvec(nadj,0.0);

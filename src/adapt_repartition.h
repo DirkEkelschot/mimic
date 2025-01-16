@@ -63,6 +63,7 @@ class RepartitionObject{
                                                  std::map<int,std::vector<double> >& elements2data_update);
 
                 void CommunicateAdjacencyInfo(MPI_Comm comm, std::map<int,std::vector<int> > element2elements, int Nel_glob);
+                std::map<int, std::vector<int> > CommunicateAdjacencyInfoV2(MPI_Comm comm, std::map<int,std::vector<int> > element2elements, int Nel_glob);
 
                 void getFace2EntityPerPartition(std::map<int,std::vector<int> > ief,
                                                 std::map<int,std::vector<int> > ife,  
@@ -216,6 +217,20 @@ class RepartitionObject{
 
                 std::map<int,std::vector<int> > getFaceTag2VertTagMap();
                 void buildSharedVertexMap(MPI_Comm comm, PrismTetraTrace* trace);
+
+                std::map<int, std::vector<int> > getAdjacentElementLayerV2(std::map<int,std::vector<int> > element2verts,
+                                             std::map<int,std::vector<int> > element2faces,
+                                             std::map<int,std::vector<int> > element2element,
+                                             std::map<int,std::vector<double> > xcn, 
+                                             std::map<int,std::vector<double> > data, 
+                                             int Ne_glob,
+                                             int Nf_glob,
+                                             int Nv_glob, 
+                                             MPI_Comm comm,
+                                             std::map<int,std::vector<int> >& elements2verts_update_output,
+                                             std::map<int,std::vector<int> >& elements2faces_update_output,
+                                             std::map<int,std::vector<int> >& elements2elements_update_output,
+                                             std::map<int,std::vector<double> >& elements2data_update_output);
 
                 std::map<int,std::vector<int> > getAdjacentElementLayer(std::map<int,std::vector<int> > element2verts,
                                              std::map<int,std::vector<int> > element2faces,

@@ -75,25 +75,43 @@ void SetAnalyticalSolution(RepartitionObject* tetra_repart,
         
         std::vector<double> Vijk = ComputeCentroidCoord(Pv,nvrts);
 
-        double vmx = Vijk[0];
-        double vmy = Vijk[1];
-        double vmz = Vijk[2];
+        double x = Vijk[0];
+        double y = Vijk[1];
+        double z = Vijk[2];
 
         
         double S = 50.0;
         std::vector<double> Uvec(7,0.0);
         std::vector<double> Uvec2(1,0.0);
-        Uvec2[0] = sin(S*(vmx-0.4)*(vmy-0.4)*(vmz-0.4));
-        Uvec[0] = sin(S*(vmx-0.4)*(vmy-0.4)*(vmz-0.4));
-        Uvec[1] = S*(vmy-0.4)*(vmz-0.4)*cos(S*(vmx-0.4)*(vmy-0.4)*(vmz-0.4));
-        Uvec[2] = S*(vmx-0.4)*(vmz-0.4)*cos(S*(vmx-0.4)*(vmy-0.4)*(vmz-0.4));
-        Uvec[3] = S*(vmx-0.4)*(vmy-0.4)*cos(S*(vmx-0.4)*(vmy-0.4)*(vmz-0.4));
+        Uvec2[0] = sin(S*(x-0.4)*(y-0.4)*(z-0.4));
+        Uvec[0] = sin(S*(x-0.4)*(y-0.4)*(z-0.4));
+        Uvec[1] = S*(y-0.4)*(z-0.4)*cos(S*(x-0.4)*(y-0.4)*(z-0.4));
+        Uvec[2] = S*(x-0.4)*(z-0.4)*cos(S*(x-0.4)*(y-0.4)*(z-0.4));
+        Uvec[3] = S*(x-0.4)*(y-0.4)*cos(S*(x-0.4)*(y-0.4)*(z-0.4));
 
-        Uvec[4] = -(S*S)*(vmy-0.4)*(vmy-0.4)*(vmz-0.4)*(vmz-0.4)*sin(S*(vmx-0.4)*(vmy-0.4)*(vmz-0.4));
-        Uvec[5] = S*(vmz-0.4)*(cos(S*(vmx-0.4)*(vmy-0.4)*(vmz-0.4))-S*(vmx-0.4)*(vmy-0.4)*(vmz-0.4)*sin(S*(vmx-0.4)*(vmy-0.4)*(vmz-0.4)));
-        Uvec[6] = S*(vmy-0.4)*(cos(S*(vmx-0.4)*(vmy-0.4)*(vmz-0.4))-S*(vmx-0.4)*(vmy-0.4)*(vmz-0.4)*sin(S*(vmx-0.4)*(vmy-0.4)*(vmz-0.4)));
-        U_map[gid] = Uvec;
-        Usol[gid]  = Uvec2;
+        Uvec[4] = -(S*S)*(y-0.4)*(y-0.4)*(z-0.4)*(z-0.4)*sin(S*(x-0.4)*(y-0.4)*(z-0.4));
+        Uvec[5] = S*(z-0.4)*(cos(S*(x-0.4)*(y-0.4)*(z-0.4))-S*(x-0.4)*(y-0.4)*(z-0.4)*sin(S*(x-0.4)*(y-0.4)*(z-0.4)));
+        Uvec[6] = S*(y-0.4)*(cos(S*(x-0.4)*(y-0.4)*(z-0.4))-S*(x-0.4)*(y-0.4)*(z-0.4)*sin(S*(x-0.4)*(y-0.4)*(z-0.4)));
+
+       Uvec2[0]    = x*x*x*x*sin(4.0*M_PI*y)*exp(-z);
+        Uvec[0]     = x*x*x*x*sin(4.0*M_PI*y)*exp(-z);
+        Uvec[1]     = 4.0*x*x*x*sin(4.0*M_PI*y)*exp(-z);
+        Uvec[2]     = 4.0*M_PI*x*x*x*x*cos(4.0*M_PI*y)*exp(-z);
+        Uvec[3]     = -x*x*x*x*sin(4.0*M_PI*y)*exp(-z);
+        Uvec[4]     = 3.0*4.0*x*x*sin(4.0*M_PI*y)*exp(-z);
+        Uvec[5]     = 4.0*M_PI*4.0*x*x*x*cos(4.0*M_PI*y)*exp(-z);
+        Uvec[6]     = -4.0*x*x*x*sin(4.0*M_PI*y)*exp(-z);
+
+        // U          = x*x*x*x*z*z*y*y*y+sin(4.0*M_PI*y)+exp(-z);
+        // dUdx       = 4.0*x*x*x*z*z*y*y*y;
+        // dUdy       = x*x*x*x*z*z*3.0*y*y+4.0*M_PI*cos(4.0*M_PI*y);
+        // dUdz       = x*x*x*x*2.0*z*y*y*y-exp(-z);
+        // dU2dx2     = 12.0*x*x*z*z*y*y*y;
+        // dU2dxy     = 3.0*y*y*4.0*x*x*x*z*z;
+        // dU2dxz     = 2.0*z*y*y*y*4.0*x*x*x;
+
+        U_map[gid]  = Uvec;
+        Usol[gid]   = Uvec2;
         int nadj = element2element_map[gid].size();
 
         for(int j=0;j<nadj;j++)
@@ -161,14 +179,40 @@ void SetAnalyticalSolution(RepartitionObject* tetra_repart,
                 double vgy = vface[1] - reflect[1];
                 double vgz = vface[2] - reflect[2];
                 
+                // U          = vgx*vgx*vgx*vgx*vgz*vgz*vgy*vgy*vgy+sin(4.0*M_PI*vgy)+exp(-vgz);
+                // dUdx       = 4.0*vgx*vgx*vgx*vgz*vgz*vgy*vgy*vgy;
+                // dUdy       = vgx*vgx*vgx*vgx*vgz*vgz*3.0*vgy*vgy+4.0*M_PI*cos(4.0*M_PI*vgy);
+                // dUdz       = vgx*vgx*vgx*vgx*2.0*vgz*vgy*vgy*vgy-exp(-vgz);
+                // dU2dx2     = 12.0*vgx*vgx*vgz*vgz*vgy*vgy*vgy;
+                // dU2dxy     = 3.0*vgy*vgy*4.0*vgx*vgx*vgx*vgz*vgz;
+                // dU2dxz     = 2.0*vgz*vgy*vgy*vgy*4.0*vgx*vgx*vgx;
+
+
+
+                U    = vgx*vgx*vgx*vgx*sin(4.0*M_PI*vgy)*exp(-vgz);
+                dUdx     = 4.0*vgx*vgx*vgx*sin(4.0*M_PI*vgy)*exp(-vgz);
+                dUdy     = 4.0*M_PI*vgx*vgx*vgx*vgx*cos(4.0*M_PI*vgy)*exp(-vgz);
+                dUdz     = -vgx*vgx*vgx*vgx*sin(4.0*M_PI*vgy)*exp(-vgz);
+                dU2dx2     = 3.0*4.0*vgx*vgx*sin(4.0*M_PI*vgy)*exp(-vgz);
+                dU2dxy      = 4.0*M_PI*4.0*vgx*vgx*vgx*cos(4.0*M_PI*vgy)*exp(-vgz);
+                dU2dxz    = -4.0*vgx*vgx*vgx*sin(4.0*M_PI*vgy)*exp(-vgz);
                 
-                U      = sin(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4));
-                dUdx   = S*(vgy-0.4)*(vgz-0.4)*cos(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4));
-                dUdy   = S*(vgx-0.4)*(vgz-0.4)*cos(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4));
-                dUdz   = S*(vgx-0.4)*(vgy-0.4)*cos(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4));
-                dU2dx2 = -(S*S)*(vgy-0.4)*(vgy-0.4)*(vgz-0.4)*(vgz-0.4)*sin(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4));
-                dU2dxy = S*(vgz-0.4)*(cos(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4))-S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4)*sin(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4)));
-                dU2dxz = S*(vgy-0.4)*(cos(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4))-S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4)*sin(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4)));
+
+                // Uvec[0]     = x*x*x*x*sin(4.0*M_PI*y)*exp(-z);
+                // Uvec[1]     = 4.0*x*x*x*sin(4.0*M_PI*y)*exp(-z);
+                // Uvec[2]     = 4.0*M_PI*x*x*x*x*cos(4.0*M_PI*y)*exp(-z);
+                // Uvec[3]     = -x*x*x*x*sin(4.0*M_PI*y)*exp(-z);
+                // Uvec[4]     = 3.0*4.0*x*x*sin(4.0*M_PI*y)*exp(-z);
+                // Uvec[5]     = 4.0*M_PI*4.0*x*x*x*cos(4.0*M_PI*y)*exp(-z);
+                // Uvec[6]     = -4.0*x*x*x*sin(4.0*M_PI*y)*exp(-z);
+
+                // U      = sin(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4));
+                // dUdx   = S*(vgy-0.4)*(vgz-0.4)*cos(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4));
+                // dUdy   = S*(vgx-0.4)*(vgz-0.4)*cos(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4));
+                // dUdz   = S*(vgx-0.4)*(vgy-0.4)*cos(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4));
+                // dU2dx2 = -(S*S)*(vgy-0.4)*(vgy-0.4)*(vgz-0.4)*(vgz-0.4)*sin(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4));
+                // dU2dxy = S*(vgz-0.4)*(cos(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4))-S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4)*sin(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4)));
+                // dU2dxz = S*(vgy-0.4)*(cos(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4))-S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4)*sin(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4)));
                 
                 std::vector<double> gbMap_vec(1,0.0);
                 gbMap_vec[0] = U;
@@ -280,15 +324,22 @@ void SetAnalyticalSolution(RepartitionObject* tetra_repart,
                         double vgy = vface[1] - reflect[1];
                         double vgz = vface[2] - reflect[2];
                         
-                        U = sin(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4));
-                        dUdx   = S*(vgy-0.4)*(vgz-0.4)*cos(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4));
-                        dUdy   = S*(vgx-0.4)*(vgz-0.4)*cos(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4));
-                        dUdz   = S*(vgx-0.4)*(vgy-0.4)*cos(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4));
-                        dU2dx2 = -(S*S)*(vgy-0.4)*(vgy-0.4)*(vgz-0.4)*(vgz-0.4)*sin(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4));
-                        dU2dxy = S*(vgz-0.4)*(cos(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4))-S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4)*sin(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4)));
-                        dU2dxz = S*(vgy-0.4)*(cos(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4))-S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4)*sin(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4)));
+                        // U = sin(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4));
+                        // dUdx   = S*(vgy-0.4)*(vgz-0.4)*cos(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4));
+                        // dUdy   = S*(vgx-0.4)*(vgz-0.4)*cos(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4));
+                        // dUdz   = S*(vgx-0.4)*(vgy-0.4)*cos(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4));
+                        // dU2dx2 = -(S*S)*(vgy-0.4)*(vgy-0.4)*(vgz-0.4)*(vgz-0.4)*sin(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4));
+                        // dU2dxy = S*(vgz-0.4)*(cos(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4))-S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4)*sin(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4)));
+                        // dU2dxz = S*(vgy-0.4)*(cos(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4))-S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4)*sin(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4)));
                         
-                        
+                U    = vgx*vgx*vgx*vgx*sin(4.0*M_PI*vgy)*exp(-vgz);
+                dUdx     = 4.0*vgx*vgx*vgx*sin(4.0*M_PI*vgy)*exp(-vgz);
+                dUdy     = 4.0*M_PI*vgx*vgx*vgx*vgx*cos(4.0*M_PI*vgy)*exp(-vgz);
+                dUdz     = -vgx*vgx*vgx*vgx*sin(4.0*M_PI*vgy)*exp(-vgz);
+                dU2dx2     = 3.0*4.0*vgx*vgx*sin(4.0*M_PI*vgy)*exp(-vgz);
+                dU2dxy      = 4.0*M_PI*4.0*vgx*vgx*vgx*cos(4.0*M_PI*vgy)*exp(-vgz);
+                dU2dxz    = -4.0*vgx*vgx*vgx*sin(4.0*M_PI*vgy)*exp(-vgz);
+
                         std::vector<double> gbMap_vec(1,0.0);
                         gbMap_vec[0] = U;
                         gbMap[adjadjID]=gbMap_vec;
@@ -396,13 +447,23 @@ void SetAnalyticalSolution(RepartitionObject* tetra_repart,
                                 double vgz = vface[2] - reflect[2];
 
                                 
-                                U = sin(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4));
-                                dUdx   = S*(vgy-0.4)*(vgz-0.4)*cos(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4));
-                                dUdy   = S*(vgx-0.4)*(vgz-0.4)*cos(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4));
-                                dUdz   = S*(vgx-0.4)*(vgy-0.4)*cos(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4));
-                                dU2dx2 = -(S*S)*(vgy-0.4)*(vgy-0.4)*(vgz-0.4)*(vgz-0.4)*sin(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4));
-                                dU2dxy = S*(vgz-0.4)*(cos(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4))-S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4)*sin(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4)));
-                                dU2dxz = S*(vgy-0.4)*(cos(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4))-S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4)*sin(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4)));
+                                // U = sin(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4));
+                                // dUdx   = S*(vgy-0.4)*(vgz-0.4)*cos(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4));
+                                // dUdy   = S*(vgx-0.4)*(vgz-0.4)*cos(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4));
+                                // dUdz   = S*(vgx-0.4)*(vgy-0.4)*cos(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4));
+                                // dU2dx2 = -(S*S)*(vgy-0.4)*(vgy-0.4)*(vgz-0.4)*(vgz-0.4)*sin(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4));
+                                // dU2dxy = S*(vgz-0.4)*(cos(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4))-S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4)*sin(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4)));
+                                // dU2dxz = S*(vgy-0.4)*(cos(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4))-S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4)*sin(S*(vgx-0.4)*(vgy-0.4)*(vgz-0.4)));
+                                
+                                
+                U    = vgx*vgx*vgx*vgx*sin(4.0*M_PI*vgy)*exp(-vgz);
+                dUdx     = 4.0*vgx*vgx*vgx*sin(4.0*M_PI*vgy)*exp(-vgz);
+                dUdy     = 4.0*M_PI*vgx*vgx*vgx*vgx*cos(4.0*M_PI*vgy)*exp(-vgz);
+                dUdz     = -vgx*vgx*vgx*vgx*sin(4.0*M_PI*vgy)*exp(-vgz);
+                dU2dx2     = 3.0*4.0*vgx*vgx*sin(4.0*M_PI*vgy)*exp(-vgz);
+                dU2dxy      = 4.0*M_PI*4.0*vgx*vgx*vgx*cos(4.0*M_PI*vgy)*exp(-vgz);
+                dU2dxz    = -4.0*vgx*vgx*vgx*sin(4.0*M_PI*vgy)*exp(-vgz);
+
 
                                 std::vector<double> gbMap_vec(1,0.0);
                                 gbMap_vec[0] = U;

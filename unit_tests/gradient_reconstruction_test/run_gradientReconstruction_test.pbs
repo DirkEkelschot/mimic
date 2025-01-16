@@ -1,7 +1,7 @@
 #PBS -S /bin/bash
 #PBS -N run_partition_test 
 #PBS -q devel
-#PBS -l select=10:ncpus=28:model=bro
+#PBS -l select=1:ncpus=28:model=bro
 #PBS -l walltime=1:20:00
 #PBS -j oe
 #PBS -W group_list=e1305
@@ -17,5 +17,5 @@ export MPI_SHEPHERD=true
 OMP_NUM_THREADS=1
 export OMP_NUM_THREADS
 
-make
-mpiexec -np 28 ../bin/gradientReconstruction_test > gradientReconstruction_test.log
+ln -s /nobackupp19/dekeklsch/mimic_gradienttest_suite inputs
+mpiexec -np 28 gradientReconstruction_test > gradientReconstruction_test.log
