@@ -112,8 +112,8 @@ RepartitionObject::RepartitionObject(mesh* meshInput,
     
 
 
-     CommunicateAdjacencyInfo(comm, elements2elements_update, Ne_glob);
-
+    CommunicateAdjacencyInfo(comm, elements2elements_update, Ne_glob);
+    //CommunicateAdjacencyInfoV3(comm, elements2elements_update, Ne_glob);
 
 
 
@@ -406,7 +406,6 @@ RepartitionObject::RepartitionObject(mesh* meshInput,
         
         //std::cout << rank << " BEFORE elements2verts_update " << i << " " << elements2verts_update.size() << std::endl;
         start1 = clock();
-
         std::map<int,std::vector<int> > adjEl2Face = getAdjacentElementLayerV2(elements2verts_update,
                                                                         elements2faces_update,
                                                                         elements2elements_update,
@@ -420,20 +419,7 @@ RepartitionObject::RepartitionObject(mesh* meshInput,
                                                                         elements2faces_update, 
                                                                         elements2elements_update,
                                                                         elements2data_update);
-
-        // std::map<int,std::vector<int> > adjEl2Face = getAdjacentElementLayer(elements2verts_update,
-        //                                                                 elements2faces_update,
-        //                                                                 elements2elements_update,
-        //                                                                 meshInput->xcn, 
-        //                                                                 elements2data_update,
-        //                                                                 Ne_glob,
-        //                                                                 Nf_glob,
-        //                                                                 Nv_glob, 
-        //                                                                 comm,
-        //                                                                 elements2verts_update, 
-        //                                                                 elements2faces_update, 
-        //                                                                 elements2elements_update,
-        //                                                                 elements2data_update);
+        
         
         //std::cout << rank << " AFTER elements2verts_update " << i << " " << elements2verts_update.size() << std::endl;
 
@@ -2131,6 +2117,128 @@ void RepartitionObject::DetermineElement2ProcMap(std::map<int,std::vector<int> >
 }
 
 
+void RepartitionObject::CommunicateAdjacencyInfoV3(MPI_Comm comm, std::map<int,std::vector<int> > element2elements, int Nel_glob)
+{
+        std::map<int,std::vector<int> > adjacent2pid_map;
+    std::map<int,int> adjacent2pid_map_inv;
+
+    int size;
+    MPI_Comm_size(comm, &size);
+    // Get the rank of the process
+    int rank;
+    MPI_Comm_rank(comm, &rank);
+
+    std::map<int,std::vector<int> >::iterator itm;
+    int nreq;
+
+    std::set<int> toquery_elids;
+    
+    for(itm=element2elements.begin();itm!=element2elements.end();itm++)
+    {
+        int elid = itm->first;
+
+        for(int q=0;q<itm->second.size();q++)
+        {
+            int adjeid = itm->second[q];
+            //std::cout << adjeid << " ";
+            if(element2elements.find(adjeid)==element2elements.end() && adjeid<Nel_glob)
+            {
+                if(toquery_elids.find(adjeid)==toquery_elids.end())
+                {
+                    toquery_elids.insert(adjeid);
+                }
+            }
+        }
+    }
+
+    std::vector<int> toquery_elids_vec(toquery_elids.size(),0);
+    //std::cout << "collect_prism_ids_toberequested " << collect_prism_ids_toberequested.size() << " " << world_rank << std::endl;
+    std::copy(toquery_elids.begin(), 
+              toquery_elids.end(), 
+              toquery_elids_vec.begin());
+
+
+    if(rank != 0)
+    {
+        nreq = toquery_elids_vec.size();
+        //std::cout << "nreq " << nreq << std::endl;
+        MPI_Send(&nreq, 1, MPI_INT, 0, rank*100000, comm);
+        MPI_Send(&toquery_elids_vec.data()[0], nreq, MPI_INT, 0, rank*1000000, comm);
+        
+        int nrec_b;
+        MPI_Recv(&nrec_b, 1, MPI_INT, 0, rank*250000, comm, MPI_STATUS_IGNORE);
+        std::vector<int> pid_2recvback(nrec_b,0);
+        std::vector<int> el_2recvback(nrec_b,0);
+        MPI_Recv(&el_2recvback[0], nrec_b,  MPI_INT, 0, rank*225000, comm, MPI_STATUS_IGNORE);
+        MPI_Recv(&pid_2recvback[0], nrec_b, MPI_INT, 0, rank*20000,  comm, MPI_STATUS_IGNORE);
+
+        for(int i=0;i<nrec_b;i++)
+        {
+            int el_id   = el_2recvback[i];
+            int p_id    = pid_2recvback[i];
+
+            adjacent2pid_map[p_id].push_back(el_id);
+            adjacent2pid[el_id]         = p_id;
+        }
+
+        //std::cout << "adjacent2pid " << adjacent2pid.size() << " " << rank << std::endl;
+    }
+    else if(rank == 0)
+    {
+        std::vector<int> nrecv_toquery_elids(size-1,0);
+        int accul = 0;
+        for(int i=1;i<size;i++)
+        {
+            int dest = i*100000;
+            int n_reqstd_ids;
+            MPI_Recv(&n_reqstd_ids, 1, MPI_INT, i, dest, comm, MPI_STATUS_IGNORE);
+            nrecv_toquery_elids[i-1] = n_reqstd_ids;
+            accul = accul + n_reqstd_ids;
+        }
+
+        for(int i=1;i<size;i++)
+        {
+            int n_reqstd_ids = nrecv_toquery_elids[i-1];
+            std::vector<int> QueryOnRoot(n_reqstd_ids,0);
+            std::vector<int> pid_2sendback;
+            std::vector<int> el_2sendback;
+            MPI_Recv(&QueryOnRoot[0], n_reqstd_ids, MPI_INT, i, i*1000000, comm, MPI_STATUS_IGNORE);
+            for(int j=0;j<n_reqstd_ids;j++)
+            {
+                
+                if(part_global.find(QueryOnRoot[j])!=part_global.end())
+                {
+                    // pid_2sendback[j] = part_global[QueryOnRoot[j]];
+                    pid_2sendback.push_back(part_global[QueryOnRoot[j]]);
+                    el_2sendback.push_back(QueryOnRoot[j]);
+                }
+                // else
+                // {                    
+                //     pid_2sendback[j] = -1;
+                // }
+            }
+            int send_b = pid_2sendback.size();
+            MPI_Send(&send_b, 1, MPI_INT, i, i*250000, comm);
+            MPI_Send(&el_2sendback.data()[0], el_2sendback.size(), MPI_INT, i, i*225000, comm);
+            MPI_Send(&pid_2sendback.data()[0], pid_2sendback.size(), MPI_INT, i, i*20000, comm);
+        }
+
+
+        for(int i=0;i<toquery_elids_vec.size();i++)
+        {
+            int el_id   = toquery_elids_vec[i];
+            int p_id    = -1;
+            if(part_global.find(el_id)!=part_global.end())
+            {
+                p_id = part_global[el_id];
+            }         
+            adjacent2pid[el_id] = p_id;
+            adjacent2pid_map[p_id].push_back(el_id);   
+        }
+    }
+}
+
+
 
 std::map<int,std::vector<int> > RepartitionObject::CommunicateAdjacencyInfoV2(MPI_Comm comm, std::map<int,std::vector<int> > element2elements, int Nel_glob)
 {
@@ -2163,9 +2271,7 @@ std::map<int,std::vector<int> > RepartitionObject::CommunicateAdjacencyInfoV2(MP
                     toquery_elids.insert(adjeid);
                 }
             }
-
         }
-        //std::cout << std::endl;
     }
 
     std::vector<int> toquery_elids_vec(toquery_elids.size(),0);
@@ -2182,16 +2288,20 @@ std::map<int,std::vector<int> > RepartitionObject::CommunicateAdjacencyInfoV2(MP
         MPI_Send(&nreq, 1, MPI_INT, 0, rank*100000, comm);
         MPI_Send(&toquery_elids_vec.data()[0], nreq, MPI_INT, 0, rank*1000000, comm);
         
-        std::vector<int> pid_2recvback(nreq,0);
-        MPI_Recv(&pid_2recvback[0], nreq, MPI_INT, 0, rank*20000, comm, MPI_STATUS_IGNORE);
+        int nrec_b;
+        MPI_Recv(&nrec_b, 1, MPI_INT, 0, rank*250000, comm, MPI_STATUS_IGNORE);
+        std::vector<int> pid_2recvback(nrec_b,0);
+        std::vector<int> el_2recvback(nrec_b,0);
+        MPI_Recv(&el_2recvback[0], nrec_b,  MPI_INT, 0, rank*225000, comm, MPI_STATUS_IGNORE);
+        MPI_Recv(&pid_2recvback[0], nrec_b, MPI_INT, 0, rank*20000,  comm, MPI_STATUS_IGNORE);
 
-        for(int i=0;i<toquery_elids_vec.size();i++)
+        for(int i=0;i<nrec_b;i++)
         {
-            int el_id   = toquery_elids_vec[i];
+            int el_id   = el_2recvback[i];
             int p_id    = pid_2recvback[i];
 
             adjacent2pid_map[p_id].push_back(el_id);
-            adjacent2pid[el_id]         = p_id;
+            adjacent2pid_map_inv[el_id]         = p_id;
         }
 
         //std::cout << "adjacent2pid " << adjacent2pid.size() << " " << rank << std::endl;
@@ -2213,36 +2323,40 @@ std::map<int,std::vector<int> > RepartitionObject::CommunicateAdjacencyInfoV2(MP
         {
             int n_reqstd_ids = nrecv_toquery_elids[i-1];
             std::vector<int> QueryOnRoot(n_reqstd_ids,0);
-            std::vector<int> pid_2sendback(n_reqstd_ids,0);
+            std::vector<int> pid_2sendback;
+            std::vector<int> el_2sendback;
             MPI_Recv(&QueryOnRoot[0], n_reqstd_ids, MPI_INT, i, i*1000000, comm, MPI_STATUS_IGNORE);
             for(int j=0;j<n_reqstd_ids;j++)
             {
                 
                 if(part_global.find(QueryOnRoot[j])!=part_global.end())
                 {
-                    pid_2sendback[j] = part_global[QueryOnRoot[j]];
+                    // pid_2sendback[j] = part_global[QueryOnRoot[j]];
+                    pid_2sendback.push_back(part_global[QueryOnRoot[j]]);
+                    el_2sendback.push_back(QueryOnRoot[j]);
                 }
-                else
-                {                    
-                    pid_2sendback[j] = -1;
-                }
+                // else
+                // {                    
+                //     pid_2sendback[j] = -1;
+                // }
             }
-
-            MPI_Send(&pid_2sendback.data()[0], n_reqstd_ids, MPI_INT, i, i*20000, comm);
+            int send_b = pid_2sendback.size();
+            MPI_Send(&send_b, 1, MPI_INT, i, i*250000, comm);
+            MPI_Send(&el_2sendback.data()[0], el_2sendback.size(), MPI_INT, i, i*225000, comm);
+            MPI_Send(&pid_2sendback.data()[0], pid_2sendback.size(), MPI_INT, i, i*20000, comm);
         }
 
 
         for(int i=0;i<toquery_elids_vec.size();i++)
         {
             int el_id   = toquery_elids_vec[i];
-            int p_id = -1;
+            int p_id    = -1;
             if(part_global.find(el_id)!=part_global.end())
             {
                 p_id = part_global[el_id];
-            }
-
-            adjacent2pid[el_id] = p_id;
-            adjacent2pid_map[p_id].push_back(el_id);
+                adjacent2pid_map_inv[el_id] = p_id;
+                adjacent2pid_map[p_id].push_back(el_id);
+            }            
         }
     }
 
@@ -2250,6 +2364,7 @@ std::map<int,std::vector<int> > RepartitionObject::CommunicateAdjacencyInfoV2(MP
 
     return adjacent2pid_map;
 }
+
 
 
 void RepartitionObject::CommunicateAdjacencyInfo(MPI_Comm comm, std::map<int,std::vector<int> > element2elements, int Nel_glob)
@@ -4036,6 +4151,8 @@ void RepartitionObject::getFace2EntityPerPartitionVector(std::map<int,std::vecto
 
 
 
+
+
 std::map<int, std::vector<int> > RepartitionObject::getAdjacentElementLayerV2(std::map<int,std::vector<int> > element2verts,
                                              std::map<int,std::vector<int> > element2faces,
                                              std::map<int,std::vector<int> > element2element,
@@ -4061,12 +4178,8 @@ std::map<int, std::vector<int> > RepartitionObject::getAdjacentElementLayerV2(st
     for(int i=0;i<size;i++)
     {
         new_V_offsets[i] = xcn_pstate->getOffsets()[i]-1;
-        //new_F_offsets[i] = ife_pstate->getOffsets()[i]-1;
     }
     std::map<int, std::vector<int> > adjEl2Face;
-
-    //std::cout << "before " << rank << " :: " << elements2verts_update_output.size() << " " << elements2faces_update_output.size() << " " << elements2elements_update_output.size() << " " << elements2data_update_output.size() << std::endl;  
-
 
     int floc_tmp = 0;
     int vloc_tmp = 0;
@@ -4089,6 +4202,30 @@ std::map<int, std::vector<int> > RepartitionObject::getAdjacentElementLayerV2(st
     std::map<int, std::vector<int> > adj_el;
 
     std::map<int,std::vector<int> > adj_elements = CommunicateAdjacencyInfoV2(comm, element2element,  Ne_glob);
+    std::map<int,std::vector<int> >::iterator iter;
+    for(iter = adj_elements.begin();iter != adj_elements.end(); iter++)
+    {
+        int ra = iter->first;
+        
+        if(m_rank2_reqElIDs.find(ra)==m_rank2_reqElIDs.end())
+        {
+            std::set<int> el_list;
+            for(int q=0;q<iter->second.size();q++)
+            {
+                el_list.insert(iter->second[q]);
+            }
+            m_rank2_reqElIDs[ra] = el_list;
+        }
+        if(m_rank2_reqElIDs.find(ra)!=m_rank2_reqElIDs.end())
+        {
+            for(int q=0;q<iter->second.size();q++)
+            {
+                m_rank2_reqElIDs[ra].insert(iter->second[q]);
+            }
+        }
+    }
+
+    //std::cout << "Funished " << adj_elements.size() << std::endl;
     // adj_elements = adjid2rank;
     // std::cout << "rank " << rank << " adjid2rank " << adjid2rank.size() << std::endl;
 
@@ -4117,6 +4254,7 @@ std::map<int, std::vector<int> > RepartitionObject::getAdjacentElementLayerV2(st
             {
                 int n_req_adj_el           = it->second.size();
                 int dest                   = it->first;
+                //std::cout << dest << " " << adj_elements.size() << std::endl;
                 //MPI_Send(&dest, 1, MPI_INT, dest, 9876+10*dest, comm);
                 MPI_Send(&n_req_adj_el, 1, MPI_INT, dest, 9876000+10*dest, comm);
                 //MPI_Send(&it->second.data()[0], n_req, MPI_INT, dest, 9876+dest*2, comm);
@@ -4305,7 +4443,7 @@ std::map<int, std::vector<int> > RepartitionObject::getAdjacentElementLayerV2(st
             recv_adj_NVarPel[q] = NnVar_RB;
         }
     }
-    
+     
     int TotNvert_adj_recv = 0;
     int TotNface_adj_recv = 0;
     int TotNrho_adj_recv  = 0;
@@ -4341,7 +4479,7 @@ std::map<int, std::vector<int> > RepartitionObject::getAdjacentElementLayerV2(st
     std::vector<double> NVarPEl_rb;
     std::map<int,std::vector<int> >::iterator itm_el;
     int offvvv = 0;
-
+   
     for(itm_el=adj_elements.begin();itm_el!=adj_elements.end();itm_el++)
     {
         //std::cout << "recv_adj_NvPel " << recv_adj_NvPel[itm_el->first].size() << " " <<  recv_adj_NvPel[itm_el->first].size() << " " << recv_adj_NfPel[itm_el->first].size() << " " << recv_adj_NVarPel[itm_el->first].size() << std::endl;
@@ -4742,7 +4880,7 @@ std::map<int, std::vector<int> > RepartitionObject::getAdjacentElementLayerV2(st
         //LocalElem2GlobalVert.push_back(tmp_globv);
         lelement2lvertex.push_back(tmp_locv);
         //tmp_globv.clear();
-        tmp_locv.clear();/**/
+        tmp_locv.clear();
     }
 
     // if(rank == 18)
@@ -4757,7 +4895,7 @@ std::map<int, std::vector<int> > RepartitionObject::getAdjacentElementLayerV2(st
 
     //std::cout << "after " << rank << " :: " << elements2verts_update_output.size() << " " << elements2faces_update_output.size() << " " << elements2elements_update_output.size() << " " << elements2data_update_output.size() << std::endl;  
     //std::cout << rank << " :: before vs after " << before << "  " << elements2elements_update_output.size() << std::endl;
-    /*
+    
     delete[] new_V_offsets;
     //delete[] new_F_offsets;
 
@@ -4773,14 +4911,12 @@ std::map<int, std::vector<int> > RepartitionObject::getAdjacentElementLayerV2(st
     recv_back_Nverts.clear();
     recv_back_verts.clear();
     recv_back_verts_ids.clear();
-    std::cout << "  adj_elements_vec " << rank << " " << adj_elements_vec.size() << std::endl;
+    //std::cout << "  adj_elements_vec " << rank << " " << adj_elements_vec.size() << std::endl;
 
-    */
+    /**/
     return adjEl2Face;
 
 }
-
-
 
 
 std::map<int, std::vector<int> > RepartitionObject::getAdjacentElementLayer(std::map<int,std::vector<int> > element2verts,
@@ -5657,6 +5793,227 @@ void RepartitionObject::AddStateVecForAdjacentElements(std::map<int,std::vector<
 //            U_loc[el_req] = StateVec;
 //        }
     }
+    
+    ScheduleObj* iee_schedule = DoScheduling(rank2req_Elems,comm);
+
+    std::map<int,std::vector<int> >::iterator it;
+    std::map<int,std::vector<int> >  reqstd_E_IDs_per_rank;
+
+    for(q=0;q<size;q++)
+    {
+        if(rank==q)
+        {
+            int i=0;
+            for (it = rank2req_Elems.begin(); it != rank2req_Elems.end(); it++)
+            {
+                int n_req           = it->second.size();
+                int dest            = it->first;
+
+                
+                MPI_Send(&n_req, 1, MPI_INT, dest, 9876*7654+20*dest, comm);
+                MPI_Send(&it->second.data()[0], n_req, MPI_INT, dest, 9876*2*7654+dest*40, comm);
+
+                i++;
+            }
+        }
+        else if (iee_schedule->SendFromRank2Rank[q].find( rank ) != iee_schedule->SendFromRank2Rank[q].end())
+        {
+            int n_reqstd_ids;
+            MPI_Recv(&n_reqstd_ids, 1, MPI_INT, q, 9876*7654+20*rank, comm, MPI_STATUS_IGNORE);
+
+            std::vector<int> recv_reqstd_ids(n_reqstd_ids);
+            
+            MPI_Recv(&recv_reqstd_ids[0], n_reqstd_ids, MPI_INT, q, 9876*2*7654+rank*40, comm, MPI_STATUS_IGNORE);
+            
+            reqstd_E_IDs_per_rank[q] = recv_reqstd_ids;
+        }
+    }
+        
+    std::map<int,std::vector<int> >::iterator ite;
+    std::map<int,std::vector<int> > send_IEE_Elem_IDs;
+    std::vector<int> TotIEE_El_IDs;
+
+    int TotNelem_IEE_recv   = 0;
+    int eIEE_id             = 0;
+    
+    int offset_xcn = 0;
+    int nloc_xcn = 0;
+    std::map<int,int > recv_back_Niee;
+    std::map<int,std::vector<int> > recv_back_el_ids;
+    std::map<int,std::vector<double> > recv_back_iee;
+    int n_recv_back;
+
+    for(q=0;q<size;q++)
+    {
+        if(rank == q)
+        {
+            for (it = reqstd_E_IDs_per_rank.begin(); it != reqstd_E_IDs_per_rank.end(); it++)
+            {
+                int ne_send             = it->second.size();
+                //double* iee_send      = new double[ne_send*nvar];
+                std::vector<double> iee_send(ne_send*nvar);
+                //int offset_iee        = ien_pstate->getOffset(rank);
+                
+                for(int u=0;u<ne_send;u++)
+                {
+                    
+                    for(int s=0;s<nvar;s++)
+                    {
+                        if(U.find(it->second[u])==U.end())
+                        {
+                            nothere++;
+                        }
+                        
+                        iee_send[u*nvar+s]=U[it->second[u]][s];
+                        //std::cout << "it->second.size(); " << iee_send[u*nvar+s] << std::endl;
+                        if(std::isnan(U[it->second[u]][s]))
+                        {
+                            nanhere++;
+                        }
+                        
+                        
+                    }
+                }
+
+                int dest = it->first;
+                MPI_Send(&ne_send, 1, MPI_INT, dest, 9876*6666+1000*dest, comm);
+                
+                MPI_Send(&it->second.data()[0], ne_send, MPI_INT, dest, 9876*7777+dest*888, comm);
+
+                MPI_Send(&iee_send.data()[0], ne_send*nvar, MPI_DOUBLE, dest, 9876*6666+dest*8888, comm);
+
+                //delete[] iee_send;
+            }
+        }
+        if(iee_schedule->RecvRankFromRank[q].find( rank ) != iee_schedule->RecvRankFromRank[q].end())
+         {
+            MPI_Recv(&n_recv_back, 1, MPI_INT, q, 9876*6666+1000*rank, comm, MPI_STATUS_IGNORE);
+             
+//          int*    recv_back_ids_arr   = new int[n_recv_back];
+//          double* recv_back_iee_arr   = new double[n_recv_back*nvar];
+             
+            std::vector<int> recv_back_ids_arr(n_recv_back,0.0);
+            std::vector<double> recv_back_iee_arr(n_recv_back*nvar,0.0);
+             
+            MPI_Recv(&recv_back_ids_arr.data()[0], n_recv_back, MPI_INT, q, 9876*7777+rank*888, comm, MPI_STATUS_IGNORE);
+            MPI_Recv(&recv_back_iee_arr.data()[0], n_recv_back*nvar, MPI_DOUBLE, q, 9876*6666+rank*8888, comm, MPI_STATUS_IGNORE);
+
+            recv_back_Niee[q]     = n_recv_back;
+            recv_back_el_ids[q]   = recv_back_ids_arr;
+            recv_back_iee[q]      = recv_back_iee_arr;
+
+         }
+    }
+    
+    
+//
+    std::map<int,int >::iterator iter;
+    int ntotal=0;
+    ee.clear();
+    for(iter=recv_back_Niee.begin();iter!=recv_back_Niee.end();iter++)
+    {
+        int L = iter->second;
+        
+        for(int s=0;s<L;s++)
+        {
+            el_id = recv_back_el_ids[iter->first][s];
+            std::vector<double> StateVec(nvar,0.0);
+            for(int p=0;p<nvar;p++)
+            {
+                StateVec[p]=recv_back_iee[iter->first][s*nvar+p];
+                //std::cout << "receive " << recv_back_iee[iter->first][s*nvar+p] << " ";
+            }
+            //std::cout << std::endl;
+            
+            U[el_id] = StateVec;
+        }
+    }
+    /**/
+}
+
+
+
+
+
+
+
+void RepartitionObject::AddStateVecForAdjacentElementsV2(std::map<int,std::vector<double> > &U, int nvar, MPI_Comm comm)
+{
+    
+    int nanhere =0;
+    int nothere = 0;
+    int floc_tmp = 0;
+    int vloc_tmp = 0;
+    int q=0;
+    int i=0;
+    int size;
+    MPI_Comm_size(comm, &size);
+    // Get the rank of the process
+    int rank;
+    MPI_Comm_rank(comm, &rank);
+    //std::cout << xcn->getOffset(rank) << " " << xcn_pstate->getOffset(rank) << std::endl;
+    
+    //int ien_o = ien_pstate->getOffset(rank);
+
+    int el_id;
+    int p_id;
+    int v_id;
+    int f_id;
+    int r;
+    std::vector<int> faceIDs_on_rank;
+    std::vector<int> vertIDs_on_rank;
+    std::map<int,std::vector<int> > rank2req_Elems;
+    std::map<int,std::vector<double> > U_loc;
+    
+    
+    std::map<int,std::vector<int> > req_elem;
+    int itel = 0;
+    
+    std::vector<int> ee;
+
+    std::map<int,std::set<int> >::iterator its;
+    for(its=m_rank2_reqElIDs.begin();its!=m_rank2_reqElIDs.end();its++)
+    {
+        std::vector<int> elids(its->second.size(),0);
+        std::copy(its->second.begin(), 
+            its->second.end(), 
+            elids.begin());
+
+        rank2req_Elems[its->first] = elids;
+    }
+
+
+//     for(int i=0;i<LocAndAdj_Elem.size();i++)
+//     {
+//         int el_req = LocAndAdj_Elem[i];
+
+//         if(part_map.find(el_req)!=part_map.end())
+//         {
+//             r = part_map[el_req];
+//         }
+
+//         if(adjacent2pid.find(el_req)!=adjacent2pid.end())
+//         {
+//             if(adjacent2pid[el_req]!=-1)
+//             {
+//                 r = adjacent2pid[el_req];
+//             }
+//         }
+
+//         if(r != rank)
+//         {
+//             rank2req_Elems[r].push_back(el_req);
+//         }
+// //        else
+// //        {
+// //            Array<double>* StateVec = new Array<double>(nvar,1);
+// //            for(int q=0;q<nvar;q++)
+// //            {
+// //                StateVec->setVal(q,0,U[el_req]->getVal(q,0));
+// //            }
+// //            U_loc[el_req] = StateVec;
+// //        }
+//     }
     
     ScheduleObj* iee_schedule = DoScheduling(rank2req_Elems,comm);
 

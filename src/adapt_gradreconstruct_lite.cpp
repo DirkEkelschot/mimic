@@ -1154,6 +1154,7 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D_Lite_Update(Repartiti
         int ghostelem               = 0;
         int elID                    = Loc_Elem[i];
         int nadj                    = element2adj[elID].size();
+        //std::cout << " nadj " <<  nadj << std::endl;
         std::set<int> adjel         = element2adj[elID];
         int g                       = 0;
         std::vector<double> Vijk    = element2centroid[elID];
@@ -1230,6 +1231,12 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D_Lite_Update(Repartiti
             
 
             x = SolveQR_Lite(A_cm,nadj,9,bvec);
+
+            // for(int u=0;u<9;u++)
+            // {
+            //     std::cout << x[u] << " ";
+            // }
+            // std::cout << std::endl;
 
             dudx_map[elID] = x;
             

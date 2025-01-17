@@ -140,10 +140,12 @@ int main(int argc, char** argv)
     //===========================================================================
     // Read in the data from grid.h5/conn.h5/data.h5 in parallel using HDF5.
     // the outputted data in meshRead contains uniformly distributed data structures that will have to be partitioned.
+
     mesh* meshRead = ReadUS3DMeshData(fn_conn,fn_grid,fn_data,
-                                      inputs->ReadFromStats,
-                                      inputs->StateVar,
-                                      comm,info);
+                                        inputs->ReadFromStats,
+                                        inputs->StateVar,
+                                        inputs->RunNumber,
+                                        comm,info);
 
     int Nel_loc = meshRead->ien.size();
     //Start building the trace object that contains the information regarding the prism-tetra interfaces.
@@ -359,11 +361,13 @@ int main(int argc, char** argv)
                                                             meshRead->ranges_ref);
         start = clock();
 
+        tetra_repart->buildExtendedAdjacencyDataV2(comm,meshRead->ghost);
+
         std::map<int,std::vector<double> > Ue = tetra_repart->getElement2DataMap();
-        tetra_repart->AddStateVecForAdjacentElements(Ue,2,comm);
+        tetra_repart->AddStateVecForAdjacentElementsV2(Ue,2,comm);
         tetra_repart->SetStateVec(Ue,2);
 
-        tetra_grad = ComputedUdx_LSQ_LS_US3D_Lite(tetra_repart,
+        tetra_grad = ComputedUdx_LSQ_LS_US3D_Lite_Update(tetra_repart,
                                                 meshRead->ghost,
                                                 meshRead->nElem,
                                                 1,
@@ -410,7 +414,7 @@ int main(int argc, char** argv)
                                 LocalVertsMap_t);
 
         std::map<int,std::vector<double> > eigvalues;
-
+    
         std::map<int,std::vector<std::vector<double> > > metric_vmap = ComputeElementMetric_Lite(comm, 
                                                                     tetra_repart,
                                                                     tetra_grad,
@@ -420,7 +424,7 @@ int main(int argc, char** argv)
         std::map<int,std::vector<std::vector<double> > >::iterator itmm;
 
         std::map<int,std::vector<double> > metric_vmap_new;
-
+        std::cout << "metric_vmap.size  " << metric_vmap.size() << std::endl;
         for(itmm=metric_vmap.begin();itmm!=metric_vmap.end();itmm++)
         {
             int tagvid = itmm->first;
@@ -433,6 +437,7 @@ int main(int argc, char** argv)
             tensor[4] = metric_vmap[tagvid][1][2];
             tensor[5] = metric_vmap[tagvid][2][2];
 
+            std::cout << metric_vmap[tagvid][0][0] << " " << metric_vmap[tagvid][0][1] << " " << metric_vmap[tagvid][0][2] << " " << metric_vmap[tagvid][1][1] << " " << metric_vmap[tagvid][1][2] << " " << metric_vmap[tagvid][2][2] << std::endl;  
             metric_vmap_new[tagvid] = tensor;
 
         }
@@ -485,7 +490,7 @@ int main(int argc, char** argv)
                                             tetras_e2e,
                                             tetra2type,
                                             tetras_data,
-                                            1,
+                                            2,
                                             tetra_ifn,
                                             comm);
 
@@ -517,9 +522,10 @@ int main(int argc, char** argv)
                                                             meshRead->ranges_id,
                                                             meshRead->ranges_ref);
 
-
+        tetra_repart->buildExtendedAdjacencyDataV2(comm,meshRead->ghost);
+        
         std::map<int,std::vector<double> > Ue = tetra_repart->getElement2DataMap();
-        tetra_repart->AddStateVecForAdjacentElements(Ue,2,comm);
+        tetra_repart->AddStateVecForAdjacentElementsV2(Ue,2,comm);
         tetra_repart->SetStateVec(Ue,2);
         
 
@@ -529,16 +535,17 @@ int main(int argc, char** argv)
         //                                                                             meshRead->nElem,
         //                                                                             1,
         //                                                                             2,
-        //                                                                             comm);
-
-        std::map<int,std::vector<double> > tetra_grad_v2 = ComputedUdx_LSQ_LS_US3D_Lite(tetra_repart,
+        //                                                                             comm,
+        //                                                                             0);
+        
+        std::map<int,std::vector<double> > tetra_grad_v2 = ComputedUdx_LSQ_LS_US3D_Lite_Update(tetra_repart,
                                                                                         meshRead->ghost,
                                                                                         meshRead->nElem,
                                                                                         1,
                                                                                         2,
                                                                                         comm,
                                                                                         0);                                                                           
-
+        
         std::map<int,std::vector<double> >::iterator iti;
         std::map<int,std::vector<double> > dudx_map;
         std::map<int,std::vector<double> > dudy_map;
@@ -551,11 +558,11 @@ int main(int argc, char** argv)
             dudz_map[elid].push_back(iti->second[2]);
         }
 
-        // tetra_repart->AddStateVecForAdjacentElements(dudx_map,1,comm);
-        // tetra_repart->AddStateVecForAdjacentElements(dudy_map,1,comm);
-        // tetra_repart->AddStateVecForAdjacentElements(dudz_map,1,comm);
+        // tetra_repart->AddStateVecForAdjacentElementsV2(dudx_map,1,comm);
+        // tetra_repart->AddStateVecForAdjacentElementsV2(dudy_map,1,comm);
+        // tetra_repart->AddStateVecForAdjacentElementsV2(dudz_map,1,comm);
 
-        tetra_repart->AddStateVecForAdjacentElements(dudx_map,1,comm);
+        tetra_repart->AddStateVecForAdjacentElementsV2(dudx_map,1,comm);
         tetra_repart->SetStateVec(dudx_map,1);
 
         // std::map<int,std::vector<double> > dU2dx2 = ComputedUdx_LSQ_LS_US3D_Lite(tetra_repart,
@@ -564,14 +571,14 @@ int main(int argc, char** argv)
         //                                                                             0,
         //                                                                             1,
         //                                                                             comm);
-        std::map<int,std::vector<double> > dU2dx2 = ComputedUdx_LSQ_LS_US3D_Lite(tetra_repart, 
+        std::map<int,std::vector<double> > dU2dx2 = ComputedUdx_LSQ_LS_US3D_Lite_Update(tetra_repart, 
                                                                         meshRead->ghost, 
                                                                         meshRead->nElem,
                                                                         0,1,
                                                                         comm,
                                                                         0);
 
-        tetra_repart->AddStateVecForAdjacentElements(dudy_map,1,comm);
+        tetra_repart->AddStateVecForAdjacentElementsV2(dudy_map,1,comm);
         tetra_repart->SetStateVec(dudy_map,1);
         // std::map<int,std::vector<double> > dU2dy2 = ComputedUdx_LSQ_LS_US3D_Lite(tetra_repart,
         //                                                                             meshRead->ghost,
@@ -580,14 +587,14 @@ int main(int argc, char** argv)
         //                                                                             1,
         //                                                                             comm);
 
-        std::map<int,std::vector<double> > dU2dy2 = ComputedUdx_LSQ_LS_US3D_Lite(tetra_repart, 
+        std::map<int,std::vector<double> > dU2dy2 = ComputedUdx_LSQ_LS_US3D_Lite_Update(tetra_repart, 
                                                                         meshRead->ghost, 
                                                                         meshRead->nElem,
                                                                         0,1,
                                                                         comm,
                                                                         0);
 
-        tetra_repart->AddStateVecForAdjacentElements(dudz_map,1,comm);
+        tetra_repart->AddStateVecForAdjacentElementsV2(dudz_map,1,comm);
         tetra_repart->SetStateVec(dudz_map,1);
         // std::map<int,std::vector<double> > dU2dz2 = ComputedUdx_LSQ_LS_US3D_Lite(tetra_repart,
         //                                                                             meshRead->ghost,
@@ -595,7 +602,7 @@ int main(int argc, char** argv)
         //                                                                             0,
         //                                                                             1,
         //                                                                             comm);
-        std::map<int,std::vector<double> > dU2dz2 = ComputedUdx_LSQ_LS_US3D_Lite(tetra_repart, 
+        std::map<int,std::vector<double> > dU2dz2 = ComputedUdx_LSQ_LS_US3D_Lite_Update(tetra_repart, 
                                                                 meshRead->ghost, 
                                                                 meshRead->nElem,
                                                                 0,1,
@@ -692,6 +699,16 @@ int main(int argc, char** argv)
             tensor[3] = metric_vmap[tagvid][1][1];
             tensor[4] = metric_vmap[tagvid][1][2];
             tensor[5] = metric_vmap[tagvid][2][2];
+            if(std::isnan(metric_vmap[tagvid][0][0]) || 
+                std::isnan(metric_vmap[tagvid][0][1]) ||
+                std::isnan(metric_vmap[tagvid][0][2]) ||
+                std::isnan(metric_vmap[tagvid][1][1]) ||
+                std::isnan(metric_vmap[tagvid][1][2]) ||
+                std::isnan(metric_vmap[tagvid][2][2]))
+                {
+                    std::cout << "Is NAN" << std::endl;
+                }
+            //std::cout << metric_vmap[tagvid][0][0] << " " << metric_vmap[tagvid][0][1] << " " << metric_vmap[tagvid][0][2] << " " << metric_vmap[tagvid][1][1] << " " << metric_vmap[tagvid][1][2] << " " << metric_vmap[tagvid][2][2] << std::endl;  
 
             metric_vmap_new[tagvid] = tensor;
 
@@ -733,7 +750,7 @@ int main(int argc, char** argv)
                         varnamesGrad_diag, 
                         LocalVertsMap_t);
 
-    
+        /**/
     }
     
     clock_t end_total = clock();

@@ -709,7 +709,7 @@ int main(int argc, char** argv)
         tetra_repart->buildInteriorSharedAndBoundaryFaceMaps(comm, 
                                                             meshRead->ranges_id,
                                                             meshRead->ranges_ref);
-
+        
         int nGlob = meshRead->nElem;
         std::map<int,std::vector<double> > Usol;
         std::map<int,std::vector<double> > U_map;
@@ -737,20 +737,21 @@ int main(int argc, char** argv)
         tetra_repart->buildExtendedAdjacencyDataV2(comm,gbMap);
         
         start = clock();
-        tetra_repart->AddStateVecForAdjacentElements(Usol,1,comm);
-        tetra_repart->AddStateVecForAdjacentElements(U_map,7,comm);
+        tetra_repart->AddStateVecForAdjacentElementsV2(Usol,1,comm);
+        
+        tetra_repart->AddStateVecForAdjacentElementsV2(U_map,7,comm);
         tetra_repart->SetStateVec(U_map,7);
-
-        std::map<int,std::vector<double> > tetra_grad_or = ComputedUdx_LSQ_LS_US3D_Lite_V2(tetra_repart, gbMap, meshRead->nElem,0,1,comm,0);
-
+        
+        std::map<int,std::vector<double> > tetra_grad_or = ComputedUdx_LSQ_US3D_Lite(tetra_repart, gbMap, meshRead->nElem,0,1,comm,0);
+        
         std::map<int,std::vector<double> > tetra_grad_or_plus_vrt = ComputedUdx_LSQ_US3D_Vrt_Lite(tetra_repart, Usol, gbMap, meshRead->nElem,0,1,comm,0);
 
-        tetra_repart->AddStateVecForAdjacentElements(Usol,1,comm);
+        tetra_repart->AddStateVecForAdjacentElementsV2(Usol,1,comm);
         tetra_repart->SetStateVec(Usol,1);
         std::map<int,std::vector<double> > tetra_grad_extended = ComputedUdx_LSQ_LS_US3D_Lite_Update(tetra_repart, gbMap, meshRead->nElem,0,1,comm,0);
         //std::map<int,std::vector<double> > tetra_grad_extended = ComputedUdx_LSQ_LS_US3D_Lite(tetra_repart, gbMap, meshRead->nElem,0,1,comm,0);
 
-        tetra_repart->AddStateVecForAdjacentElements(tetra_grad_extended,9,comm);
+        tetra_repart->AddStateVecForAdjacentElementsV2(tetra_grad_extended,9,comm);
         // std::map<int,std::map<int, double> > n2el_dist       = tetra_repart->GetNode2ElementMapV2();
         // std::map<int,std::vector<double> > node_val          = tetra_repart->ReduceStateVecToVertices(n2el_dist,Usol,1);
         // std::map<int,std::vector<double> > LocalVs           = tetra_repart->getLocalVertsMap();
@@ -798,27 +799,27 @@ int main(int argc, char** argv)
             du2dxz_map_extended_quad[elid].push_back(tetra_grad_extended[elid][5]);
 
         }
+        
+        tetra_repart->AddStateVecForAdjacentElementsV2(dudx_map_or,1,comm);
+        tetra_repart->AddStateVecForAdjacentElementsV2(dudy_map_or,1,comm);
+        tetra_repart->AddStateVecForAdjacentElementsV2(dudz_map_or,1,comm);
 
-        tetra_repart->AddStateVecForAdjacentElements(dudx_map_or,1,comm);
-        tetra_repart->AddStateVecForAdjacentElements(dudy_map_or,1,comm);
-        tetra_repart->AddStateVecForAdjacentElements(dudz_map_or,1,comm);
-
-        tetra_repart->AddStateVecForAdjacentElements(dudx_map_or_plus_vrt,1,comm);
-        tetra_repart->AddStateVecForAdjacentElements(dudy_map_or_plus_vrt,1,comm);
-        tetra_repart->AddStateVecForAdjacentElements(dudz_map_or_plus_vrt,1,comm);
+        tetra_repart->AddStateVecForAdjacentElementsV2(dudx_map_or_plus_vrt,1,comm);
+        tetra_repart->AddStateVecForAdjacentElementsV2(dudy_map_or_plus_vrt,1,comm);
+        tetra_repart->AddStateVecForAdjacentElementsV2(dudz_map_or_plus_vrt,1,comm);
 
         // Quadratic versions
 
-        tetra_repart->AddStateVecForAdjacentElements(dudx_map_extended,1,comm);
-        tetra_repart->AddStateVecForAdjacentElements(dudy_map_extended,1,comm);
-        tetra_repart->AddStateVecForAdjacentElements(dudz_map_extended,1,comm);
+        tetra_repart->AddStateVecForAdjacentElementsV2(dudx_map_extended,1,comm);
+        tetra_repart->AddStateVecForAdjacentElementsV2(dudy_map_extended,1,comm);
+        tetra_repart->AddStateVecForAdjacentElementsV2(dudz_map_extended,1,comm);
 
-        tetra_repart->AddStateVecForAdjacentElements(du2dx2_map_extended_quad,1,comm);
-        tetra_repart->AddStateVecForAdjacentElements(du2dxy_map_extended_quad,1,comm);
-        tetra_repart->AddStateVecForAdjacentElements(du2dxz_map_extended_quad,1,comm);
+        tetra_repart->AddStateVecForAdjacentElementsV2(du2dx2_map_extended_quad,1,comm);
+        tetra_repart->AddStateVecForAdjacentElementsV2(du2dxy_map_extended_quad,1,comm);
+        tetra_repart->AddStateVecForAdjacentElementsV2(du2dxz_map_extended_quad,1,comm);
 
         tetra_repart->SetStateVec(dudx_map_or,1);
-        std::map<int,std::vector<double> > dU2dx2_or = ComputedUdx_LSQ_LS_US3D_Lite_V2(tetra_repart,
+        std::map<int,std::vector<double> > dU2dx2_or = ComputedUdx_LSQ_US3D_Lite(tetra_repart,
                                                                                     gbMap_dUdx,
                                                                                     meshRead->nElem,
                                                                                     0,
@@ -835,7 +836,7 @@ int main(int argc, char** argv)
                                                                             comm,
                                                                             0);
 
-        tetra_repart->AddStateVecForAdjacentElements(dudx_map_extended,1,comm);
+        tetra_repart->AddStateVecForAdjacentElementsV2(dudx_map_extended,1,comm);
         tetra_repart->SetStateVec(dudx_map_extended,1);
         std::map<int,std::vector<double> > dU2dx2_extended = ComputedUdx_LSQ_LS_US3D_Lite_Update(tetra_repart,
                                                                             gbMap_dUdx,
@@ -856,9 +857,9 @@ int main(int argc, char** argv)
         
         
 
-        tetra_repart->AddStateVecForAdjacentElements(dU2dx2_or,3,comm);
-        tetra_repart->AddStateVecForAdjacentElements(dU2dx2_or_plus_vrt,3,comm);
-        tetra_repart->AddStateVecForAdjacentElements(dU2dx2_extended,3,comm);    
+        tetra_repart->AddStateVecForAdjacentElementsV2(dU2dx2_or,3,comm);
+        tetra_repart->AddStateVecForAdjacentElementsV2(dU2dx2_or_plus_vrt,3,comm);
+        tetra_repart->AddStateVecForAdjacentElementsV2(dU2dx2_extended,3,comm);    
 
         std::map<int,std::vector<double> > tetra_grad_final_or;
         std::map<int,std::vector<double> > tetra_grad_final_or_plus_vrt;
@@ -977,7 +978,6 @@ int main(int argc, char** argv)
 
                 if(el0>nGlob || el1 >nGlob)
                 {
-
                     bnd = 1;
                 }
             }

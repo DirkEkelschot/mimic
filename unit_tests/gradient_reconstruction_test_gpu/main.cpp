@@ -18,8 +18,8 @@
 #include "../../src/adapt_inputs.h"
 #include "../../src/adapt_writeus3ddata.h"
 #include <Kokkos_Core.hpp>
-// #include <KokkosBatched_QR_Decl.hpp>
-// #include <KokkosBatched_QR_Impl.hpp>
+#include <KokkosBatched_QR_Decl.hpp>
+//#include <KokkosBatched_QR_Impl.hpp>
 #include <iomanip>
 
 #define MAX2(a,b)      (((a) > (b)) ? (a) : (b))

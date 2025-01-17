@@ -64,6 +64,7 @@ class RepartitionObject{
 
                 void CommunicateAdjacencyInfo(MPI_Comm comm, std::map<int,std::vector<int> > element2elements, int Nel_glob);
                 std::map<int, std::vector<int> > CommunicateAdjacencyInfoV2(MPI_Comm comm, std::map<int,std::vector<int> > element2elements, int Nel_glob);
+                void CommunicateAdjacencyInfoV3(MPI_Comm comm, std::map<int,std::vector<int> > element2elements, int Nel_glob);
 
                 void getFace2EntityPerPartition(std::map<int,std::vector<int> > ief,
                                                 std::map<int,std::vector<int> > ife,  
@@ -218,6 +219,20 @@ class RepartitionObject{
                 std::map<int,std::vector<int> > getFaceTag2VertTagMap();
                 void buildSharedVertexMap(MPI_Comm comm, PrismTetraTrace* trace);
 
+                std::map<int,std::vector<int> > getAdjacentElementLayer(std::map<int,std::vector<int> > element2verts,
+                                             std::map<int,std::vector<int> > element2faces,
+                                             std::map<int,std::vector<int> > element2element,
+                                             std::map<int,std::vector<double> > xcn, 
+                                             std::map<int,std::vector<double> > U, 
+                                             int Ne_glob,
+                                             int Nf_glob,
+                                             int Nv_glob, 
+                                             MPI_Comm comm,
+                                             std::map<int,std::vector<int> >& elements2verts_update,
+                                             std::map<int,std::vector<int> >& elements2faces_update,
+                                             std::map<int,std::vector<int> >& elements2elements_update,
+                                             std::map<int,std::vector<double> >& elements2data_update);
+
                 std::map<int, std::vector<int> > getAdjacentElementLayerV2(std::map<int,std::vector<int> > element2verts,
                                              std::map<int,std::vector<int> > element2faces,
                                              std::map<int,std::vector<int> > element2element,
@@ -232,19 +247,6 @@ class RepartitionObject{
                                              std::map<int,std::vector<int> >& elements2elements_update_output,
                                              std::map<int,std::vector<double> >& elements2data_update_output);
 
-                std::map<int,std::vector<int> > getAdjacentElementLayer(std::map<int,std::vector<int> > element2verts,
-                                             std::map<int,std::vector<int> > element2faces,
-                                             std::map<int,std::vector<int> > element2element,
-                                             std::map<int,std::vector<double> > xcn, 
-                                             std::map<int,std::vector<double> > U, 
-                                             int Ne_glob,
-                                             int Nf_glob,
-                                             int Nv_glob, 
-                                             MPI_Comm comm,
-                                             std::map<int,std::vector<int> >& elements2verts_update,
-                                             std::map<int,std::vector<int> >& elements2faces_update,
-                                             std::map<int,std::vector<int> >& elements2elements_update,
-                                             std::map<int,std::vector<double> >& elements2data_update);
                 
                 std::map<int,std::set<int> > GetNode2ElementMap();
                 std::map<int,std::map<int,double> > GetNode2ElementMapV2();
@@ -256,6 +258,8 @@ class RepartitionObject{
                                                                                 int nvar);
 
                 void AddStateVecForAdjacentElements(std::map<int,std::vector<double> > &U, int nvar, MPI_Comm comm);
+                void AddStateVecForAdjacentElementsV2(std::map<int,std::vector<double> > &U, int nvar, MPI_Comm comm);
+
                 void SetStateVec(std::map<int,std::vector<double> > U, int nvar);
 
                 // std::map<int,std::set<int> > m_extended_adj;
@@ -279,7 +283,7 @@ class RepartitionObject{
                 int Nv_glob;
 
                 int glob_elem_size;
-
+                std::map<int,std::set<int> > m_rank2_reqElIDs;
                 std::map<int,int> m_unique_trace_verts_ref;
                 std::set<int> m_loc_trace_faces;
                 std::set<int> m_loc_trace_verts;
