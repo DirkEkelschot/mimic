@@ -437,7 +437,7 @@ int main(int argc, char** argv)
             tensor[4] = metric_vmap[tagvid][1][2];
             tensor[5] = metric_vmap[tagvid][2][2];
 
-            std::cout << metric_vmap[tagvid][0][0] << " " << metric_vmap[tagvid][0][1] << " " << metric_vmap[tagvid][0][2] << " " << metric_vmap[tagvid][1][1] << " " << metric_vmap[tagvid][1][2] << " " << metric_vmap[tagvid][2][2] << std::endl;  
+            //std::cout << metric_vmap[tagvid][0][0] << " " << metric_vmap[tagvid][0][1] << " " << metric_vmap[tagvid][0][2] << " " << metric_vmap[tagvid][1][1] << " " << metric_vmap[tagvid][1][2] << " " << metric_vmap[tagvid][2][2] << std::endl;  
             metric_vmap_new[tagvid] = tensor;
 
         }
@@ -523,7 +523,7 @@ int main(int argc, char** argv)
                                                             meshRead->ranges_ref);
 
         tetra_repart->buildExtendedAdjacencyDataV2(comm,meshRead->ghost);
-        
+
         std::map<int,std::vector<double> > Ue = tetra_repart->getElement2DataMap();
         tetra_repart->AddStateVecForAdjacentElementsV2(Ue,2,comm);
         tetra_repart->SetStateVec(Ue,2);
@@ -699,15 +699,15 @@ int main(int argc, char** argv)
             tensor[3] = metric_vmap[tagvid][1][1];
             tensor[4] = metric_vmap[tagvid][1][2];
             tensor[5] = metric_vmap[tagvid][2][2];
-            if(std::isnan(metric_vmap[tagvid][0][0]) || 
-                std::isnan(metric_vmap[tagvid][0][1]) ||
-                std::isnan(metric_vmap[tagvid][0][2]) ||
-                std::isnan(metric_vmap[tagvid][1][1]) ||
-                std::isnan(metric_vmap[tagvid][1][2]) ||
-                std::isnan(metric_vmap[tagvid][2][2]))
-                {
-                    std::cout << "Is NAN" << std::endl;
-                }
+            // if(std::isnan(metric_vmap[tagvid][0][0]) || 
+            //     std::isnan(metric_vmap[tagvid][0][1]) ||
+            //     std::isnan(metric_vmap[tagvid][0][2]) ||
+            //     std::isnan(metric_vmap[tagvid][1][1]) ||
+            //     std::isnan(metric_vmap[tagvid][1][2]) ||
+            //     std::isnan(metric_vmap[tagvid][2][2]))
+            //     {
+            //         std::cout << "Is NAN" << std::endl;
+            //     }
             //std::cout << metric_vmap[tagvid][0][0] << " " << metric_vmap[tagvid][0][1] << " " << metric_vmap[tagvid][0][2] << " " << metric_vmap[tagvid][1][1] << " " << metric_vmap[tagvid][1][2] << " " << metric_vmap[tagvid][2][2] << std::endl;  
 
             metric_vmap_new[tagvid] = tensor;

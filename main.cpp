@@ -383,7 +383,7 @@ int main(int argc, char** argv)
         tetra_repart->buildExtendedAdjacencyDataV2(comm,meshRead->ghost);
 
         std::map<int,std::vector<double> > Ue = tetra_repart->getElement2DataMap();
-        tetra_repart->AddStateVecForAdjacentElements(Ue,2,comm);
+        tetra_repart->AddStateVecForAdjacentElementsV2(Ue,2,comm);
         tetra_repart->SetStateVec(Ue,2);
 
 
@@ -451,7 +451,7 @@ int main(int argc, char** argv)
         tetra_repart->buildExtendedAdjacencyDataV2(comm,meshRead->ghost);
 
         std::map<int,std::vector<double> > Ue = tetra_repart->getElement2DataMap();
-        tetra_repart->AddStateVecForAdjacentElements(Ue,2,comm);
+        tetra_repart->AddStateVecForAdjacentElementsV2(Ue,2,comm);
         tetra_repart->SetStateVec(Ue,2);
     
         start = clock();
@@ -483,7 +483,7 @@ int main(int argc, char** argv)
             dudz_map[elid].push_back(iti->second[2]);
         }
 
-        tetra_repart->AddStateVecForAdjacentElements(dudx_map,1,comm);
+        tetra_repart->AddStateVecForAdjacentElementsV2(dudx_map,1,comm);
         tetra_repart->SetStateVec(dudx_map,1);
         // std::map<int,std::vector<double> > dU2dx2 = ComputedUdx_LSQ_US3D_Lite(tetra_repart,
         //                                                                             dudx_map,
@@ -498,7 +498,7 @@ int main(int argc, char** argv)
                                                                                 0,1,
                                                                                 comm,
                                                                                 0);
-        tetra_repart->AddStateVecForAdjacentElements(dudy_map,1,comm);
+        tetra_repart->AddStateVecForAdjacentElementsV2(dudy_map,1,comm);
         tetra_repart->SetStateVec(dudy_map,1);
         // std::map<int,std::vector<double> > dU2dy2 = ComputedUdx_LSQ_US3D_Lite(tetra_repart,
         //                                                                             dudy_map,
@@ -513,7 +513,7 @@ int main(int argc, char** argv)
                                                                         0,1,
                                                                         comm,
                                                                         0);
-        tetra_repart->AddStateVecForAdjacentElements(dudz_map,1,comm);
+        tetra_repart->AddStateVecForAdjacentElementsV2(dudz_map,1,comm);
         tetra_repart->SetStateVec(dudz_map,1);
         // std::map<int,std::vector<double> > dU2dz2 = ComputedUdx_LSQ_US3D_Lite(tetra_repart,
         //                                                                             dudz_map,

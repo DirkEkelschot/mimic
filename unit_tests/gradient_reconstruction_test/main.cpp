@@ -748,7 +748,7 @@ int main(int argc, char** argv)
 
         tetra_repart->AddStateVecForAdjacentElementsV2(Usol,1,comm);
         tetra_repart->SetStateVec(Usol,1);
-        std::map<int,std::vector<double> > tetra_grad_extended = ComputedUdx_LSQ_LS_US3D_Lite_Update(tetra_repart, gbMap, meshRead->nElem,0,1,comm,0);
+        std::map<int,std::vector<double> > tetra_grad_extended = ComputedUdx_LSQ_LS_US3D_Lite_Update_Test(tetra_repart, gbMap, meshRead->nElem,0,1,comm,0);
         //std::map<int,std::vector<double> > tetra_grad_extended = ComputedUdx_LSQ_LS_US3D_Lite(tetra_repart, gbMap, meshRead->nElem,0,1,comm,0);
 
         tetra_repart->AddStateVecForAdjacentElementsV2(tetra_grad_extended,9,comm);
@@ -838,7 +838,7 @@ int main(int argc, char** argv)
 
         tetra_repart->AddStateVecForAdjacentElementsV2(dudx_map_extended,1,comm);
         tetra_repart->SetStateVec(dudx_map_extended,1);
-        std::map<int,std::vector<double> > dU2dx2_extended = ComputedUdx_LSQ_LS_US3D_Lite_Update(tetra_repart,
+        std::map<int,std::vector<double> > dU2dx2_extended = ComputedUdx_LSQ_LS_US3D_Lite_Update_Test(tetra_repart,
                                                                             gbMap_dUdx,
                                                                             meshRead->nElem,
                                                                             0,
