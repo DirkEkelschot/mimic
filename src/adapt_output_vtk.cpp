@@ -4,7 +4,7 @@
 
 void OutputTetraMeshOnRootVTK(MPI_Comm comm,
                                 string filename, 
-                                std::vector<int> OwnedElem,
+                                std::set<int> OwnedElem,
                                 std::map<int,std::vector<int> > gE2lV,
                                 std::map<int,std::vector<double> > loc_data,
                                 std::map<int,std::string > varnames,
@@ -36,22 +36,22 @@ void OutputTetraMeshOnRootVTK(MPI_Comm comm,
     }
 
     std::map<int,std::vector<int> > gE2lV_tmp;
-    for(int i=0;i<OwnedElem.size();i++)
+    std::set<int>::iterator its;
+    for(its=OwnedElem.begin();its!=OwnedElem.end();its++)
     {
-        int elid = OwnedElem[i];
+        int elid = *its;//OwnedElem[i];
         if(gE2lV.find(elid)!=gE2lV_tmp.end() && gE2lV_tmp.find(elid)==gE2lV_tmp.end())
         {
             gE2lV_tmp[elid] = gE2lV[elid];
         }
     }
-
     
-
-
     //===============================================================================
     // Pack data;
 
     int nlocelem = OwnedElem.size();
+    std::vector<int> OwnedElem_vec(OwnedElem.begin(), OwnedElem.end());
+   \
     DistributedParallelState* distElem = new DistributedParallelState(nlocelem,comm);
     int nElem    = distElem->getNel();
     std::vector<int> ElemOnRoot;
@@ -59,7 +59,7 @@ void OutputTetraMeshOnRootVTK(MPI_Comm comm,
     {
         ElemOnRoot.resize(nElem,0);
     }
-    MPI_Gatherv(&OwnedElem.data()[0],
+    MPI_Gatherv(&OwnedElem_vec.data()[0],
             nlocelem,
             MPI_INT,
             &ElemOnRoot.data()[0],
@@ -68,11 +68,11 @@ void OutputTetraMeshOnRootVTK(MPI_Comm comm,
             MPI_INT, 0, comm);
     
     std::map<int,std::vector<int> > gE2lVOnRoot     = GatherGlobalMapOnRoot_T(gE2lV_tmp,comm);
-    std::map<int,std::vector<double> > glob_data  = GatherGlobalMapOnRoot_T(loc_data,comm);
+    std::map<int,std::vector<double> > glob_data    = GatherGlobalMapOnRoot_T(loc_data,comm);
     std::map<int,std::vector<double> > VertsOnRoot  = GatherGlobalMapOnRoot_T(LocalVerts,comm);
     
     //===============================================================================
-
+    
     if(world_rank == 0)
     {
 
@@ -113,13 +113,14 @@ void OutputTetraMeshOnRootVTK(MPI_Comm comm,
         
         //for(int k=0;k<ElemOnRoot.size();k++)
         std::map<int,std::vector<int> >::iterator iter;
-
+        
         for(iter=gE2lVOnRoot.begin();iter!=gE2lVOnRoot.end();iter++)
         {
             //int elid   = ElemOnRoot[k];
             int elid = iter->first;
 
             vtkNew<vtkTetra> tetra;
+            
             
             for(int q=0;q<gE2lVOnRoot[elid].size();q++)
             {
@@ -133,6 +134,7 @@ void OutputTetraMeshOnRootVTK(MPI_Comm comm,
                     points->InsertNextPoint(VertsOnRoot[gvid][0],
                                             VertsOnRoot[gvid][1],
                                             VertsOnRoot[gvid][2]);
+                    
 
                     tetra->GetPointIds()->SetId(q, lvid);
 
@@ -143,10 +145,8 @@ void OutputTetraMeshOnRootVTK(MPI_Comm comm,
                     int lvidn = g2lv[gvid];
                     tetra->GetPointIds()->SetId(q, lvidn);
                 }
-                
-
             }
-            /**/
+            
             cellArray->InsertNextCell(tetra);
             
             // TKEArray->InsertNextTuple(&loc_data[elid][0]);
@@ -159,7 +159,7 @@ void OutputTetraMeshOnRootVTK(MPI_Comm comm,
             
             ielement++;
         }
-
+        
         for(itis=varnames.begin();itis!=varnames.end();itis++)
         {
             vtkmesh->GetCellData()->AddArray(mapVars[itis->first]);
