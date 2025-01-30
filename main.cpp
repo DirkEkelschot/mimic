@@ -13,11 +13,15 @@
 #include "src/adapt_repartition.h"
 #include "src/adapt_output_vtk.h"
 #include "src/adapt_meshtopology_lite.h"
-#include "src/adapt_gradreconstruct_lite.h"
-#include "src/adapt_runparmmg.h"
 #include "src/adapt_inputs.h"
+#include "src/adapt_gradientReconstruction.h"
+#include "src/adapt_runparmmg.h"
+
 #include "src/adapt_writeus3ddata.h"
 #include "src/adapt_operations.h"
+#include "src/adapt_partobject.h"
+#include "src/adapt_prepareadaption.h"
+
 //#include "/Users/dekelsch/mimic_libmesh/utilities/partitionTetrahedra/build/ThirdParty/dist/include/libmeshb7.h"
 
 
@@ -32,7 +36,7 @@
 
 
 
-
+/*
 void GetUniqueTraceData(MPI_Comm comm, 
                         RepartitionObject* partition,
                         std::vector<int> &unique_loc_trace_verts_vec,
@@ -116,6 +120,8 @@ void GetUniqueTraceData(MPI_Comm comm,
 
 }
 
+*/
+
 int main(int argc, char** argv)
 {
     clock_t start_total = clock();
@@ -155,7 +161,7 @@ int main(int argc, char** argv)
     const char* fn_data="inputs/data.h5";
     // Read in the inputs from metric.xml
     Inputs* inputs = ReadXmlFile(comm, "inputs/metric.xml");
-
+    
     //===========================================================================
     // Read in the data from grid.h5/conn.h5/data.h5 in parallel using HDF5.
     // the outputted data in meshRead contains uniformly distributed data structures that will have to be partitioned.
@@ -322,7 +328,9 @@ int main(int argc, char** argv)
 
     double dur_max,time_taken;
 
-    RepartitionObject* tetra_repart;
+    PartObject* tetra_repart;
+    PrepareAdaption* adaptionObject;
+
     std::map<int,std::vector<double> > tetra_grad;
     std::map<int,int> loc_trace2ref;
 
@@ -342,85 +350,102 @@ int main(int argc, char** argv)
     if(inputs->recursive == 0)
     {
         start = clock();
-        tetra_repart = new RepartitionObject(meshRead, 
-                                            tetras_e2v, 
-                                            tetras_e2f,
-                                            tetras_e2e,
-                                            tetra2type,
-                                            tetras_data,
-                                            2,
-                                            tetra_ifn,
-                                            comm);
+        tetra_repart = new PartObject(meshRead, 
+                                    tetras_e2v, 
+                                    tetras_e2f,
+                                    tetras_e2e,
+                                    tetras_data,
+                                    tetra2type,
+                                    3,
+                                    tetra_ifn,
+                                    comm);
 
         tetras_e2v.clear();
         tetras_e2f.clear();
         tetras_e2e.clear();
         tetra2type.clear();
         tetras_data.clear();
+
+        tetra_repart->buildExtendedAdjacencyData(comm,meshRead->ghost);
                                                             
         end = clock();
         time_taken = ( end - start) / (double) CLOCKS_PER_SEC;
-
-        
         MPI_Allreduce(&time_taken, &dur_max, 1, MPI_DOUBLE, MPI_MAX, comm);
         if(world_rank == 0)
-        {
+        {   
             cout << "-------------------------------------------------------------------------------------------- +" << std::endl;
-            cout << "Time taken to execute repartioning tetrahedera is :                   " << fixed 
+            cout << "Time taken to execute repartioning tetrahedera is :                        " << fixed 
             << dur_max << setprecision(16); 
             cout << " sec " << endl;
         }
 
-        tetra_repart->buildUpdatedVertexAndFaceNumbering(comm, 
-                                                        meshRead->ranges_id, 
-                                                        meshRead->ranges_ref);
-
-        tetra_repart->buildInteriorSharedAndBoundaryFaceMaps(comm, 
-                                                            meshRead->ranges_id,
-                                                            meshRead->ranges_ref);
         start = clock();
 
-        tetra_repart->buildExtendedAdjacencyDataV2(comm,meshRead->ghost);
-
-        std::map<int,std::vector<double> > Ue = tetra_repart->getElement2DataMap();
-        tetra_repart->AddStateVecForAdjacentElementsV2(Ue,2,comm);
+        std::map<int,std::vector<double> > Ue = tetra_repart->getElem2DataMap();
+        tetra_repart->AddStateVecForAdjacentElements(Ue,2,comm);
         tetra_repart->SetStateVec(Ue,2);
 
-
-        tetra_grad = ComputedUdx_LSQ_LS_US3D_Lite_Update(tetra_repart,
-                                                meshRead->ghost,
-                                                meshRead->nElem,
-                                                1,
-                                                2,
-                                                comm,
-                                                0);
+        tetra_grad = ComputedUdx_LSQ_LS_US3D(tetra_repart,
+                                            meshRead->ghost,
+                                            meshRead->nElem,
+                                            1,
+                                            2,
+                                            comm,
+                                            0);
         end = clock();
-
-
 
         time_taken = ( end - start) / (double) CLOCKS_PER_SEC;
 
         MPI_Allreduce(&time_taken, &dur_max, 1, MPI_DOUBLE, MPI_MAX, comm);
          if(world_rank == 0)
         {
-            cout << "Time taken to execute calculating first and second order gradients :  " << fixed 
+            cout << "Time taken to execute calculating first and second order gradients :           " << fixed 
             << dur_max << setprecision(16); 
             cout << " sec " << endl;
         }
+
+        std::map<int,std::vector<int> > m_Elem2Vert         = tetra_repart->getElem2VertMap();
+        std::map<int,std::vector<int> > m_Elem2Face         = tetra_repart->getElem2FaceMap();
+        std::map<int,std::vector<int> > m_Face2Vert         = tetra_repart->getFace2VertMap();
+        std::map<int,std::vector<int> > m_Face2Elem         = tetra_repart->getFace2ElemMap();
+        std::map<int,int> m_partMap                         = tetra_repart->getPartMap();
+        std::map<int,int> m_Elem2Rank                       = tetra_repart->getElem2RankMap();
+        std::set<int> m_TraceVertsOnRank                    = tetra_repart->getTraceVertsOnRankMap();
+        std::set<int> m_TraceFacesOnRank                    = tetra_repart->getTraceFacesOnRankMap();
+        std::set<int> m_ElemSet                             = tetra_repart->getLocalElemSet();
+        std::map<int,int> localV2globalV                    = tetra_repart->getLocalVert2GlobalVert();
+        std::map<int,std::vector<double> > LocalVertsMap    = tetra_repart->getLocalVertsMap();
+        
+        adaptionObject = new PrepareAdaption(tetra_repart, 
+                                            comm,
+                                            std::move(LocalVertsMap),
+                                            std::move(localV2globalV),
+                                            std::move(m_Elem2Face),
+                                            std::move(m_Elem2Vert),
+                                            std::move(m_Face2Vert),
+                                            std::move(m_Face2Elem),
+                                            m_partMap,
+                                            std::move(m_Elem2Rank),
+                                            m_TraceVertsOnRank,
+                                            m_TraceFacesOnRank,
+                                            std::move(m_ElemSet),
+                                            meshRead->ranges_id, 
+                                            meshRead->ranges_ref);
+
     }
     else if(inputs->recursive == 1)
     {   
         //=========================================================================================
         start = clock();
-        tetra_repart = new RepartitionObject(meshRead, 
-                                            tetras_e2v, 
-                                            tetras_e2f,
-                                            tetras_e2e,
-                                            tetra2type,
-                                            tetras_data,
-                                            1,
-                                            tetra_ifn,
-                                            comm);
+        tetra_repart = new PartObject(meshRead, 
+                                    tetras_e2v, 
+                                    tetras_e2f,
+                                    tetras_e2e,
+                                    tetras_data,
+                                    tetra2type,
+                                    3,
+                                    tetra_ifn,
+                                    comm);
 
         tetras_e2v.clear();
         tetras_e2f.clear();
@@ -440,35 +465,66 @@ int main(int argc, char** argv)
             cout << " sec " << endl;
         }
 
-        tetra_repart->buildUpdatedVertexAndFaceNumbering(comm, 
-                                                        meshRead->ranges_id, 
-                                                        meshRead->ranges_ref);
 
-        tetra_repart->buildInteriorSharedAndBoundaryFaceMaps(comm, 
-                                                            meshRead->ranges_id,
-                                                            meshRead->ranges_ref);
+        std::map<int,std::vector<int> > m_Elem2Vert         = tetra_repart->getElem2VertMap();
+        std::map<int,std::vector<int> > m_Elem2Face         = tetra_repart->getElem2FaceMap();
+        std::map<int,std::vector<int> > m_Face2Vert         = tetra_repart->getFace2VertMap();
+        std::map<int,std::vector<int> > m_Face2Elem         = tetra_repart->getFace2ElemMap();
+        std::map<int,int> m_partMap                         = tetra_repart->getPartMap();
+        std::map<int,int> m_Elem2Rank                       = tetra_repart->getElem2RankMap();
+        std::set<int> m_TraceVertsOnRank                    = tetra_repart->getTraceVertsOnRankMap();
+        std::set<int> m_TraceFacesOnRank                    = tetra_repart->getTraceFacesOnRankMap();
+        std::set<int> m_ElemSet                             = tetra_repart->getLocalElemSet();
+        std::map<int,int> localV2globalV                    = tetra_repart->getLocalVert2GlobalVert();
+        std::map<int,std::vector<double> > LocalVertsMap    = tetra_repart->getLocalVertsMap();
+        
 
-        tetra_repart->buildExtendedAdjacencyDataV2(comm,meshRead->ghost);
+        start = clock();
+        adaptionObject = new PrepareAdaption(tetra_repart, 
+                                            comm,
+                                            std::move(LocalVertsMap),
+                                            std::move(localV2globalV),
+                                            std::move(m_Elem2Face),
+                                            std::move(m_Elem2Vert),
+                                            std::move(m_Face2Vert),
+                                            std::move(m_Face2Elem),
+                                            m_partMap,
+                                            std::move(m_Elem2Rank),
+                                            m_TraceVertsOnRank,
+                                            m_TraceFacesOnRank,
+                                            std::move(m_ElemSet),
+                                            meshRead->ranges_id, 
+                                            meshRead->ranges_ref);
 
-        std::map<int,std::vector<double> > Ue = tetra_repart->getElement2DataMap();
-        tetra_repart->AddStateVecForAdjacentElementsV2(Ue,2,comm);
+        end = clock();
+        time_taken = ( end - start) / (double) CLOCKS_PER_SEC;
+
+        
+        MPI_Allreduce(&time_taken, &dur_max, 1, MPI_DOUBLE, MPI_MAX, comm);
+        if(world_rank == 0)
+        {
+            cout << "Time taken to prepare for adaptation : " << fixed 
+            << dur_max << setprecision(16); 
+            cout << " sec " << endl;
+        }
+
+
+        tetra_repart->buildExtendedAdjacencyData(comm,meshRead->ghost);
+
+        std::map<int,std::vector<double> > Ue = tetra_repart->getElem2DataMap();
+        tetra_repart->AddStateVecForAdjacentElements(Ue,2,comm);
         tetra_repart->SetStateVec(Ue,2);
     
+
+
+
         start = clock();
-        // std::map<int,std::vector<double> > tetra_grad_v2 = ComputedUdx_LSQ_US3D_Lite(tetra_repart,
-        //                                                                             Ue,
-        //                                                                             meshRead->ghost,
-        //                                                                             meshRead->nElem,
-        //                                                                             1,
-        //                                                                             2,
-        //                                                                             comm);
-        
-        std::map<int,std::vector<double> > tetra_grad_v2 = ComputedUdx_LSQ_LS_US3D_Lite_Update(tetra_repart, 
-                                                                                        meshRead->ghost, 
-                                                                                        meshRead->nElem,
-                                                                                        1,2,
-                                                                                        comm,
-                                                                                        0);
+        std::map<int,std::vector<double> > tetra_grad_v2 = ComputedUdx_LSQ_LS_US3D(tetra_repart, 
+                                                                                    meshRead->ghost, 
+                                                                                    meshRead->nElem,
+                                                                                    1,2,
+                                                                                    comm,
+                                                                                    0);
 
 
         std::map<int,std::vector<double> >::iterator iti;
@@ -483,51 +539,33 @@ int main(int argc, char** argv)
             dudz_map[elid].push_back(iti->second[2]);
         }
 
-        tetra_repart->AddStateVecForAdjacentElementsV2(dudx_map,1,comm);
+        tetra_repart->AddStateVecForAdjacentElements(dudx_map,1,comm);
         tetra_repart->SetStateVec(dudx_map,1);
-        // std::map<int,std::vector<double> > dU2dx2 = ComputedUdx_LSQ_US3D_Lite(tetra_repart,
-        //                                                                             dudx_map,
-        //                                                                             meshRead->ghost,
-        //                                                                             meshRead->nElem,
-        //                                                                             0,
-        //                                                                             1,
-        //                                                                             comm);
-        std::map<int,std::vector<double> > dU2dx2 = ComputedUdx_LSQ_LS_US3D_Lite_Update(tetra_repart, 
-                                                                                meshRead->ghost, 
-                                                                                meshRead->nElem,
-                                                                                0,1,
-                                                                                comm,
-                                                                                0);
-        tetra_repart->AddStateVecForAdjacentElementsV2(dudy_map,1,comm);
+
+        std::map<int,std::vector<double> > dU2dx2 = ComputedUdx_LSQ_LS_US3D(tetra_repart, 
+                                                                            meshRead->ghost, 
+                                                                            meshRead->nElem,
+                                                                            0,1,
+                                                                            comm,
+                                                                            0);
+        tetra_repart->AddStateVecForAdjacentElements(dudy_map,1,comm);
         tetra_repart->SetStateVec(dudy_map,1);
-        // std::map<int,std::vector<double> > dU2dy2 = ComputedUdx_LSQ_US3D_Lite(tetra_repart,
-        //                                                                             dudy_map,
-        //                                                                             meshRead->ghost,
-        //                                                                             meshRead->nElem,
-        //                                                                             0,
-        //                                                                             1,
-        //                                                                             comm);
-        std::map<int,std::vector<double> > dU2dy2 = ComputedUdx_LSQ_LS_US3D_Lite_Update(tetra_repart, 
-                                                                        meshRead->ghost, 
-                                                                        meshRead->nElem,
-                                                                        0,1,
-                                                                        comm,
-                                                                        0);
-        tetra_repart->AddStateVecForAdjacentElementsV2(dudz_map,1,comm);
+
+        std::map<int,std::vector<double> > dU2dy2 = ComputedUdx_LSQ_LS_US3D(tetra_repart, 
+                                                                            meshRead->ghost, 
+                                                                            meshRead->nElem,
+                                                                            0,1,
+                                                                            comm,
+                                                                            0);
+        tetra_repart->AddStateVecForAdjacentElements(dudz_map,1,comm);
         tetra_repart->SetStateVec(dudz_map,1);
-        // std::map<int,std::vector<double> > dU2dz2 = ComputedUdx_LSQ_US3D_Lite(tetra_repart,
-        //                                                                             dudz_map,
-        //                                                                             meshRead->ghost,
-        //                                                                             meshRead->nElem,
-        //                                                                             0,
-        //                                                                             1,
-        //                                                                             comm);
-        std::map<int,std::vector<double> > dU2dz2 = ComputedUdx_LSQ_LS_US3D_Lite_Update(tetra_repart, 
-                                                                meshRead->ghost, 
-                                                                meshRead->nElem,
-                                                                0,1,
-                                                                comm,
-                                                                0);
+
+        std::map<int,std::vector<double> > dU2dz2 = ComputedUdx_LSQ_LS_US3D(tetra_repart, 
+                                                                            meshRead->ghost, 
+                                                                            meshRead->nElem,
+                                                                            0,1,
+                                                                            comm,
+                                                                            0);
 
         for(iti=dU2dx2.begin();iti!=dU2dx2.end();iti++)
         {
@@ -564,16 +602,16 @@ int main(int argc, char** argv)
         MPI_Allreduce(&time_taken, &dur_max, 1, MPI_DOUBLE, MPI_MAX, comm);
          if(world_rank == 0)
         {
-            cout << "Time taken to execute calculating first and second order gradients :  " << fixed 
+            cout << "Time taken to execute calculating first and second order gradients :           " << fixed 
             << dur_max << setprecision(16); 
             cout << " sec " << endl;
         }
-        /**/
+    
     }
     
     
     
-
+    
     // Ue.clear();
     // tetra_grad_v2.clear();
     
@@ -588,13 +626,16 @@ int main(int argc, char** argv)
     int bndIDmax = *std::max_element(bndid_vec.begin(), bndid_vec.end());
 
     //==============================================
-    std::map<int,std::set<int> >::iterator itmis;
-
-    if (inputs->niter == -1)
+    std::map<int,std::map<int,double> >::iterator itmis;
+    
+    if (inputs->niter == 0)
     {
-        std::map<int,std::set<int> > node2element_map = tetra_repart->GetNode2ElementMap();
+        
+        //std::map<int,std::set<int> > node2element_map = tetra_repart->GetNode2ElementMap();
+        std::map<int,std::map<int,double> > node2element_map = tetra_repart->GetNode2ElementMap();
         std::map<int,std::vector<std::vector<double> > > metric_vmap;
         // ====================== Generating dummy metric ==========================
+        
         for(itmis=node2element_map.begin();itmis!=node2element_map.end();itmis++)
         {
             int gvid = itmis->first;
@@ -610,11 +651,19 @@ int main(int argc, char** argv)
             metric_vmap[gvid] = metric;
         }
         // ====================== Done generating dummy metric =====================
-        PMMG_pParMesh parmesh = InitializeParMMGmesh(comm, tetra_repart, meshRead->ranges_id, bndIDmax, metric_vmap);
+        std::set<int> loc_trace_faces                               = tetra_repart->GetLocalTraceFacesSet();
+        std::set<int> loc_trace_verts                               = tetra_repart->GetLocalTraceVertsSet();
+        std::map<int,std::vector<int> > loc_trace_face2leftright    = tetra_repart->GetLocalTraceFace2LeftRight();
 
-        RunParMMGAndTestPartitioning(comm, parmesh, tetra_repart,  meshRead->ranges_id, inputs);
+        PMMG_pParMesh parmesh = InitializeParMMGmesh(comm, 
+                                                    loc_trace_faces, loc_trace_verts, loc_trace_face2leftright, 
+                                                    adaptionObject, meshRead->ranges_id, bndIDmax, metric_vmap);
+
+        RunParMMGAndTestPartitioning(comm, parmesh, adaptionObject,  meshRead->ranges_id, inputs);
+        
         delete tetra_repart;
     }
+    /*
     else
     {   
         std::map<int,std::vector<double> > eigvalues;
@@ -1335,7 +1384,7 @@ int main(int argc, char** argv)
       
     }
     
-    /**/
+    
     clock_t end_total = clock();
 
     end1 = clock();
@@ -1347,6 +1396,8 @@ int main(int argc, char** argv)
         << dur_max1 << setprecision(16);
         cout << " sec " << endl;
     }
+
+    */
     
     MPI_Finalize();
         

@@ -6,7 +6,10 @@
 #define MAX4(a,b,c,d)  (((MAX2(a,b)) > (MAX2(c,d))) ? (MAX2(a,b)) : (MAX2(c,d)))
 
 PMMG_pParMesh InitializeParMMGmesh(MPI_Comm comm, 
-                                   RepartitionObject* tetra_repart,
+                                   std::set<int> loc_trace_faces,
+                                   std::set<int> loc_trace_verts,
+                                   std::map<int,std::vector<int> > loc_trace_face2leftright,
+                                   PrepareAdaption* prepare,
                                    std::map<int,std::vector<int> > ranges_id,
                                    int bndIDmax,
                                    std::map<int, std::vector<std::vector<double> > > metric_vmap)
@@ -25,29 +28,31 @@ PMMG_pParMesh InitializeParMMGmesh(MPI_Comm comm,
     // tetra_repart->buildInteriorSharedAndBoundaryFacesMaps(comm,pttrace, ranges_id);
     // tetra_repart->buildTag2GlobalElementMapsAndFace2LeftRightElementMap(comm,pttrace, ranges_id);
 
-    tetra_repart->buildCommunicationMaps(comm);
+    // tetra_repart->buildCommunicationMaps(comm);
 
+    // std::map<int,std::vector<int> > face2vertsMap               = tetra_repart->getFace2VertMap();
+    // std::set<int> loc_trace_faces                               = tetra_repart->GetLocalTraceFacesSet();
+    // std::map<int,std::vector<int> > loc_trace_face2leftright    = tetra_repart->GetLocalTraceFace2LeftRight();
+    // std::set<int> loc_trace_verts                               = tetra_repart->GetLocalTraceVertsSet();
+
+    std::map<int,std::vector<int> > gE2gV_t                     = prepare->getElem2VertMap();
+    std::map<int,std::vector<int> > face2vertsMap               = prepare->getFace2VertMap();
+    std::map<int,int> locv2tagvID                               = prepare->getLocalVert2GlobalVert();
+    std::set<int> Owned_Elem_t                                  = prepare->getElemSet();
+    std::cout << " gE2gV_t " << gE2gV_t.size() << std::endl;
+    std::map<int,int> globalv2localvID                          = prepare->getNewGlobalVert2LocalVertMap();
+    std::map<int,int> tag2globalV                               = prepare->getTagVert2GlobalVertMap();
     
-    std::vector<int> Owned_Elem_t                       = tetra_repart->getLocElem();
-    std::map<int,std::vector<int> > gE2gV_t             = tetra_repart->getElement2VertexMap();
-    std::map<int,int> locv2tagvID                       = tetra_repart->getLocalVert2VertTag();
-    std::map<int,std::vector<int> > face2vertsMap       = tetra_repart->getFace2VertexMap();
+    std::vector<int> face4parmmg                                = prepare->getFace4ParMMG(); // checked
+    std::map<int, std::vector<double> > LocalVertsMap_t         = prepare->getLocalVertsMap();
+    std::map<int,int> global2tagF                               = prepare->getGlobal2TagFMap();
+    
+    int** ifc_tria_glob                                         = prepare->getParMMGCommFace2GlobalVertMap();
+    int** ifc_tria_loc                                          = prepare->getParMMGCommFace2LocalVertMap();
+    int* color_face                                             = prepare->getParMMGCommColorFace();
+    int *ntifc                                                  = prepare->getParMMGCommNFacesPerColor();
+    int ncomm                                                   = prepare->getParMMGNComm();
 
-    std::map<int,int> globalv2localvID                  = tetra_repart->getUpdatedGlobal2LocalVMap();
-    std::map<int,int> tag2globalV                       = tetra_repart->getUpdatedTag2GlobalVMap();
-    std::vector<int> face4parmmg                        = tetra_repart->getFace4ParMMG(); // checked
-    std::map<int, std::vector<double> > LocalVertsMap_t = tetra_repart->getLocalVertsMap();
-    std::map<int,int> global2tagF                       = tetra_repart->getGlobal2TagFMap();
-    //std::map<int,std::vector<int> > trace_verts         = pttrace->GetTraceVerts();
-    //std::map<int,int> unique_trace_verts2refmap         = pttrace->GetUniqueTraceVerts2RefMap();
-    int** ifc_tria_glob                                 = tetra_repart->getParMMGCommFace2GlobalVertMap();
-    int** ifc_tria_loc                                  = tetra_repart->getParMMGCommFace2LocalVertMap();
-    int* color_face                                     = tetra_repart->getParMMGCommColorFace();
-    int *ntifc                                          = tetra_repart->getParMMGCommNFacesPerColor();
-    int ncomm                                           = tetra_repart->getParMMGNComm();
-    std::set<int> loc_trace_faces                               = tetra_repart->GetLocalTraceFacesSet();
-    std::map<int,std::vector<int> > loc_trace_face2leftright    = tetra_repart->GetLocalTraceFace2LeftRight();
-    std::set<int> loc_trace_verts                               = tetra_repart->GetLocalTraceVertSet();
 
     std::set<int> glob_trace_verts = AllGatherSet(loc_trace_verts,comm);
     
@@ -68,7 +73,7 @@ PMMG_pParMesh InitializeParMMGmesh(MPI_Comm comm,
       MPI_Finalize();
       exit(EXIT_FAILURE);
     }
-
+    
     //PMMG_Set_metSize(PMMG_pParMesh parmesh,int typEntity,int np,int typSol)
     if ( PMMG_Set_metSize(parmesh,MMG5_Vertex,nVertices,MMG5_Tensor) != 1 ) exit(EXIT_FAILURE);
 
@@ -77,11 +82,13 @@ PMMG_pParMesh InitializeParMMGmesh(MPI_Comm comm,
         int tagvid  = locv2tagvID[k];
         int glovid  = tag2globalV[tagvid];
         int locvid  = globalv2localvID[glovid];
-        
+        //std::cout << "locvid = " << locvid << " --- " << glovid << std::endl;
         double vx = LocalVertsMap_t[tagvid][0];
         double vy = LocalVertsMap_t[tagvid][1];
         double vz = LocalVertsMap_t[tagvid][2];
 
+        //std::cout <<"coords = "<< vx << " " << vy << " " << vz << std::endl;
+        
         int vref = 86;
 
         if ( PMMG_Set_vertex(parmesh,vx,vy,vz, vref, locvid+1) != 1 )
@@ -123,7 +130,7 @@ PMMG_pParMesh InitializeParMMGmesh(MPI_Comm comm,
     int wallbc = 0;
     int nothere = 0;
 
-    std::map<int,std::vector<int> > f2vmap = tetra_repart->getFace2VertexMap();
+    
     //std::map<int,std::vector<int> > f2refmap = tetra_repart->getFace2RefMap();
     //std::map<int,std::vector<int> > leftright_trace     = pttrace->GetLeftRightElements();
     int fff = 0;
@@ -252,9 +259,9 @@ PMMG_pParMesh InitializeParMMGmesh(MPI_Comm comm,
             ref 		  = ProvideBoundaryID(tagFaceID,ranges_id);
             
 
-            int tagvid0   = f2vmap[tagFaceID][0];
-            int tagvid1   = f2vmap[tagFaceID][1];
-            int tagvid2   = f2vmap[tagFaceID][2];
+            int tagvid0   = face2vertsMap[tagFaceID][0];
+            int tagvid1   = face2vertsMap[tagFaceID][1];
+            int tagvid2   = face2vertsMap[tagFaceID][2];
 
             int glovid0   = tag2globalV[tagvid0];
             int glovid1   = tag2globalV[tagvid1];
@@ -338,12 +345,14 @@ PMMG_pParMesh InitializeParMMGmesh(MPI_Comm comm,
     int vloc0,vloc1,vloc2,vloc3;
     int vglo0,vglo1,vglo2,vglo3;
     int vtag0,vtag1,vtag2,vtag3;
-    for ( int t = 0;t < nTetrahedra; t++  )
+    // for ( int t = 0;t < nTetrahedra; t++  )
+    std::set<int>::iterator its;
+    int t = 0;
+    
+    for(its=Owned_Elem_t.begin();its!=Owned_Elem_t.end();its++)
     {
         //From local element ID get the tag ID (initial global ID).
-
-        int gEid = Owned_Elem_t[t];
-
+        int gEid = *its; //Owned_Elem_t[t];
         //Using the tag Element ID, get the tag Vertex ID.
         vtag0 = gE2gV_t[gEid][0];
         vtag1 = gE2gV_t[gEid][1];
@@ -369,6 +378,9 @@ PMMG_pParMesh InitializeParMMGmesh(MPI_Comm comm,
         P[3*3+0]=LocalVertsMap_t[vtag3][0];   P[3*3+1]=LocalVertsMap_t[vtag3][1];    P[3*3+2]=LocalVertsMap_t[vtag3][2];
 
         double Vtet = GetQualityTetrahedra(P);
+
+        //std::cout << "Vtet " << Vtet << "  " << vloc1+1 << " " << vloc2+1 << " " << vloc3+1 << std::endl;
+        
         if(Vtet<0.0)
         {
             std::cout << " negative volume in Element " << t << " on rank " << world_rank  <<std::endl;
@@ -378,6 +390,7 @@ PMMG_pParMesh InitializeParMMGmesh(MPI_Comm comm,
             MPI_Finalize();
             exit(EXIT_FAILURE);
         }
+        t++;
     }
     /**/
     
@@ -1964,7 +1977,7 @@ void RunParMMGandWriteTetraUS3Dformat(MPI_Comm comm,
 
 void RunParMMGAndTestPartitioning(MPI_Comm comm,
                                   PMMG_pParMesh parmesh, 
-                                  RepartitionObject* tetra_repart,
+                                  PrepareAdaption* prepare,
                                   std::map<int,std::vector<int> > ranges_id,
                                   Inputs* inputs)
 {
@@ -1978,27 +1991,34 @@ void RunParMMGAndTestPartitioning(MPI_Comm comm,
     MPI_Comm_rank(comm, &world_rank);
 
     int ier, opt;
-    std::map<int,std::vector<double> > loc_data_t       = tetra_repart->getElement2DataMap();
-    std::map<int, std::vector<double> > LocalVertsMap_t = tetra_repart->getLocalVertsMap();
-    std::vector<int> Owned_Elem_t                       = tetra_repart->getLocElem();
+
+    
+
+
+    std::set<int> Owned_Elem_t                          = prepare->getElemSet();
 
     // This test assumes that the following two build requests on the tetra_repart object have been called before entering this routine
     // tetra_repart->buildInteriorSharedAndBoundaryFacesMaps(comm,pttrace, ranges_id);
     // tetra_repart->buildTag2GlobalElementMapsAndFace2LeftRightElementMap(comm,pttrace, ranges_id);
 
-    std::map<int,int> locv2tagvID                       = tetra_repart->getLocalVert2VertTag();
-    std::map<int,int> globalv2localvID                  = tetra_repart->getUpdatedGlobal2LocalVMap();
+    //std::map<int,int> locv2tagvID                       = tetra_repart->getLocalVert2VertTag();
+    std::map<int,int> locv2tagvID                       = prepare->getLocalVert2GlobalVert();
+    //std::map<int,int> globalv2localvID                  = prepare->getUpdatedGlobal2LocalVMap();
+    std::map<int,int> globalv2localvID                  = prepare->getNewGlobalVert2LocalVertMap();
     //std::map<int,int> tag2globalV                     = tetra_repart->getUpdatedTag2GlobalVMap();
 
     // This test assumes that the following two build requests on the tetra_repart object have been called before entering this routine
     // tetra_repart->buildCommunicationMaps(comm);
-    std::vector<int> face4parmmg                        = tetra_repart->getFace4ParMMG(); // checked
-    std::map<int,int> global2tagF                       = tetra_repart->getGlobal2TagFMap();
-    int** ifc_tria_glob                                 = tetra_repart->getParMMGCommFace2GlobalVertMap();
-    int** ifc_tria_loc                                  = tetra_repart->getParMMGCommFace2LocalVertMap();
-    int* color_face                                     = tetra_repart->getParMMGCommColorFace();
-    int *ntifc                                          = tetra_repart->getParMMGCommNFacesPerColor();
-    int ncomm                                           = tetra_repart->getParMMGNComm();
+    std::vector<int> face4parmmg                        = prepare->getFace4ParMMG(); // checked
+    std::map<int,int> global2tagF                       = prepare->getGlobal2TagFMap();
+    int** ifc_tria_glob                                 = prepare->getParMMGCommFace2GlobalVertMap();
+    int** ifc_tria_loc                                  = prepare->getParMMGCommFace2LocalVertMap();
+    int* color_face                                     = prepare->getParMMGCommColorFace();
+    int *ntifc                                          = prepare->getParMMGCommNFacesPerColor();
+    int ncomm                                           = prepare->getParMMGNComm();
+
+    std::map<int,int> locShF2globShF                    = prepare->getLocalSharedFace2GlobalSharedFace();
+    std::map<int,std::vector<int> > face2node           = prepare->getFace2VertNewMap();
 
     int nVertices   = locv2tagvID.size();
     int nTetrahedra = Owned_Elem_t.size();
@@ -2118,8 +2138,9 @@ void RunParMMGAndTestPartitioning(MPI_Comm comm,
     }
 
     // RUN TEST TO SEE WHETHER ADAPTATION WAS SUCCESFULL
-    std::map<int,int> locShF2globShF                = tetra_repart->GetLocalSharedFace2GlobalSharedFace();
-    std::map<int,std::vector<int> > face2node       = tetra_repart->getFaceTag2VertTagMap();
+
+
+
     if(inputs->niter==0)
     {
         std::cout << "Check the input and outputted shared faces." << std::endl;
@@ -2284,5 +2305,10 @@ void RunParMMGAndTestPartitioning(MPI_Comm comm,
             }
         }
     }
+
+
+    /**/
+
+
 }
 

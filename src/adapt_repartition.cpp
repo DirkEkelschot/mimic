@@ -6234,6 +6234,7 @@ void RepartitionObject::buildCommunicationMaps(MPI_Comm comm)
         face2rank[key].push_back(val);
     }
     
+    std::cout << "face2rank " << face2rank.size() << " Nt_shFaces " << Nt_shFaces << std::endl;
     //delete[] TotalSharedFaces;
     //delete[] TotalSharedFaces_RankID;
     delete[] shFace_offsets;
@@ -6295,7 +6296,7 @@ void RepartitionObject::buildCommunicationMaps(MPI_Comm comm)
             
         }
     }
-    
+    std::cout << "face2rank vs o_ncomm " << face2rank.size() << " " << o_ncomm << std::endl;
     o_ncomm           = o_ColorsFaces.size();
     o_color_face = (int *) malloc(o_ncomm*sizeof(int));
     o_ntifc = (int *) malloc(o_ncomm*sizeof(int));
