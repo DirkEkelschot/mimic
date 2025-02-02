@@ -68,7 +68,8 @@ class PartObject{
                                                int Nf_glob, 
                                                MPI_Comm comm);
 
-                std::map<int, std::vector<int> > CommunicateAdjacencyInfo(MPI_Comm comm);
+                std::map<int, std::vector<int> > CommunicateAdjacencyInfoLocalPartition(MPI_Comm comm);
+                std::map<int, std::vector<int> > CommunicateAdjacencyInfoExtendedPartition(MPI_Comm comm);
 
                 void GenerateTraceMap();
 
@@ -119,7 +120,8 @@ class PartObject{
                 std::set<int> GetLocalTraceFacesSet();
                 std::set<int> GetLocalTraceVertsSet();
                 std::map<int,std::vector<int> > GetLocalTraceFace2LeftRight();
-
+                std::map<int,int> getGlobalElement2Rank();
+                std::map<int,int> GetElement2TypeOnRankMap();
         private:
 
                 int nElemGlobalPart;

@@ -34,94 +34,6 @@
 // typedef Kernel::Point_2 Point_2;
 // typedef Kernel::Segment_2 Segment_2;
 
-
-
-/*
-void GetUniqueTraceData(MPI_Comm comm, 
-                        RepartitionObject* partition,
-                        std::vector<int> &unique_loc_trace_verts_vec,
-                        std::vector<int> &unique_duplicate_loc_trace_verts_vec)
-{
-
-    int world_size;
-    MPI_Comm_size(comm, &world_size);
-    // Get the rank of the process
-    int world_rank;
-    MPI_Comm_rank(comm, &world_rank);
-
-    std::map<int,int> NonSharedVertsOwned_T                 = partition->getNonSharedVertsOwned();
-    std::map<int,int> SharedVertsOwned_T                    = partition->getSharedVertsOwned();
-    std::set<int> loc_trace_verts                           = partition->GetLocalTraceVertSet();
-    std::map<int,std::vector<int> > shF2vert                = partition->getSharedFaceMap();
-    std::map<int,std::vector<int> >::iterator its;
-    std::vector<int> shared_trace_verts;
-    std::vector<int> shared_trace_verts_rank;
-
-    std::map<int,int> unique_trace_vert_map;
-    //std::cout << "loc_trace_verts " << loc_trace_verts.size() << std::endl;
-    for(its=shF2vert.begin();its!=shF2vert.end();its++)
-    {
-        int fid = its->first;
-        int nv  = its->second.size();
-
-        for(int i=0;i<nv;i++)
-        {
-            int vid = its->second[i];
-
-            if(loc_trace_verts.find(vid)!=loc_trace_verts.end())
-            {
-                shared_trace_verts.push_back(vid);
-                shared_trace_verts_rank.push_back(world_rank);
-            }
-        }
-    }
-
-    DistributedParallelState* distSharedTraceVerts = new DistributedParallelState(shared_trace_verts.size(),comm);
-    int Ntotal_shared_trace_verts = distSharedTraceVerts->getNel();
-    std::vector<int> tot_shared_trace_vert(Ntotal_shared_trace_verts,0);
-    // Communicate face map to all ranks.
-
-    MPI_Allgatherv(&shared_trace_verts.data()[0],
-                    shared_trace_verts.size(),
-                    MPI_INT,
-                    &tot_shared_trace_vert.data()[0],
-                    distSharedTraceVerts->getNlocs(),
-                    distSharedTraceVerts->getOffsets(),
-                    MPI_INT, comm);
-
-
-    std::set<int> o_tracevert;
-    for(int i=0;i<Ntotal_shared_trace_verts;i++)
-    {
-        int key = tot_shared_trace_vert[i];
-        if(o_tracevert.find(key)==o_tracevert.end())
-        {
-            o_tracevert.insert(key);
-            unique_duplicate_loc_trace_verts_vec.push_back(key);
-        }
-    }
-
-
-    std::vector<int> loc_trace_verts_vec;
-    int found = 0;
-    std::set<int>::iterator itss;
-    for(itss=loc_trace_verts.begin();itss!=loc_trace_verts.end();itss++)
-    {
-        int vid = *itss;
-
-        if(o_tracevert.find(vid)==o_tracevert.end())
-        {
-            unique_loc_trace_verts_vec.push_back(vid);
-        }
-        loc_trace_verts_vec.push_back(vid);
-    }
-
-    std::set<int> global_set = AllGatherSet(loc_trace_verts,comm);
-
-}
-
-*/
-
 int main(int argc, char** argv)
 {
     clock_t start_total = clock();
@@ -140,7 +52,6 @@ int main(int argc, char** argv)
     int ier,opt;
     int debug = 1;
 
-
     //int64_t LibIdx;
     //int ver, dim, NmbVer, NmbTri, (*Nodes)[4], *Domains;
     //float (*Coords)[3];
@@ -152,10 +63,6 @@ int main(int argc, char** argv)
     // cad = GmfReadByteFlow(InpMsh, &NmbBytes);
 
 
-
-
-
-    
     const char* fn_grid="inputs/grid.h5";
     const char* fn_conn="inputs/conn.h5";
     const char* fn_data="inputs/data.h5";
@@ -329,7 +236,10 @@ int main(int argc, char** argv)
     double dur_max,time_taken;
 
     PartObject* tetra_repart;
+    PartObject* prism_repart;
     PrepareAdaption* adaptionObject;
+    PrepareAdaption* PrismPrepare;
+
 
     std::map<int,std::vector<double> > tetra_grad;
     std::map<int,int> loc_trace2ref;
@@ -343,9 +253,6 @@ int main(int argc, char** argv)
     }
 
     std::map<int,int> vertrefmap_pack;
-
-
-
 
     if(inputs->recursive == 0)
     {
@@ -366,19 +273,62 @@ int main(int argc, char** argv)
         tetra2type.clear();
         tetras_data.clear();
 
-        tetra_repart->buildExtendedAdjacencyData(comm,meshRead->ghost);
-                                                            
         end = clock();
         time_taken = ( end - start) / (double) CLOCKS_PER_SEC;
         MPI_Allreduce(&time_taken, &dur_max, 1, MPI_DOUBLE, MPI_MAX, comm);
         if(world_rank == 0)
         {   
             cout << "-------------------------------------------------------------------------------------------- +" << std::endl;
-            cout << "Time taken to execute repartioning tetrahedera is :                        " << fixed 
+            cout << "Time taken to execute repartioning tetrahedera is :                                  " << fixed 
             << dur_max << setprecision(16); 
             cout << " sec " << endl;
         }
 
+        std::map<int,std::vector<int> > m_Elem2Vert         = tetra_repart->getElem2VertMap();
+        std::map<int,std::vector<int> > m_Elem2Face         = tetra_repart->getElem2FaceMap();
+        std::map<int,std::vector<int> > m_Face2Vert         = tetra_repart->getFace2VertMap();
+        std::map<int,std::vector<int> > m_Face2Elem         = tetra_repart->getFace2ElemMap();
+        std::map<int,int> m_partMap                         = tetra_repart->getPartMap();
+        std::map<int,int> m_Elem2Rank                       = tetra_repart->getElem2RankMap();
+        std::set<int> m_TraceVertsOnRank                    = tetra_repart->getTraceVertsOnRankMap();
+        std::set<int> m_TraceFacesOnRank                    = tetra_repart->getTraceFacesOnRankMap();
+        std::set<int> m_ElemSet                             = tetra_repart->getLocalElemSet();
+        std::map<int,int> localV2globalV                    = tetra_repart->getLocalVert2GlobalVert();
+        std::map<int,std::vector<double> > LocalVertsMap    = tetra_repart->getLocalVertsMap();
+        
+
+        start = clock();
+
+        adaptionObject = new PrepareAdaption(tetra_repart, 
+                                            comm,
+                                            meshRead->nElem,
+                                            std::move(LocalVertsMap),
+                                            std::move(localV2globalV),
+                                            std::move(m_Elem2Face),
+                                            std::move(m_Elem2Vert),
+                                            std::move(m_Face2Vert),
+                                            std::move(m_Face2Elem),
+                                            m_partMap,
+                                            std::move(m_Elem2Rank),
+                                            m_TraceVertsOnRank,
+                                            m_TraceFacesOnRank,
+                                            std::move(m_ElemSet),
+                                            meshRead->ranges_id, 
+                                            meshRead->ranges_ref);
+        
+        end = clock();
+        time_taken = ( end - start) / (double) CLOCKS_PER_SEC;
+        MPI_Allreduce(&time_taken, &dur_max, 1, MPI_DOUBLE, MPI_MAX, comm);
+        if(world_rank == 0)
+        {   
+            cout << "-------------------------------------------------------------------------------------------- +" << std::endl;
+            cout << "Time taken to execute repartioning PrepareAdaption is :                            " << fixed 
+            << dur_max << setprecision(16); 
+            cout << " sec " << endl;
+        }
+        
+        tetra_repart->buildExtendedAdjacencyData(comm,meshRead->ghost);
+                                                            
         start = clock();
 
         std::map<int,std::vector<double> > Ue = tetra_repart->getElem2DataMap();
@@ -399,39 +349,10 @@ int main(int argc, char** argv)
         MPI_Allreduce(&time_taken, &dur_max, 1, MPI_DOUBLE, MPI_MAX, comm);
          if(world_rank == 0)
         {
-            cout << "Time taken to execute calculating first and second order gradients :           " << fixed 
+            cout << "Time taken to execute calculating first and second order gradients :                 " << fixed 
             << dur_max << setprecision(16); 
             cout << " sec " << endl;
         }
-
-        std::map<int,std::vector<int> > m_Elem2Vert         = tetra_repart->getElem2VertMap();
-        std::map<int,std::vector<int> > m_Elem2Face         = tetra_repart->getElem2FaceMap();
-        std::map<int,std::vector<int> > m_Face2Vert         = tetra_repart->getFace2VertMap();
-        std::map<int,std::vector<int> > m_Face2Elem         = tetra_repart->getFace2ElemMap();
-        std::map<int,int> m_partMap                         = tetra_repart->getPartMap();
-        std::map<int,int> m_Elem2Rank                       = tetra_repart->getElem2RankMap();
-        std::set<int> m_TraceVertsOnRank                    = tetra_repart->getTraceVertsOnRankMap();
-        std::set<int> m_TraceFacesOnRank                    = tetra_repart->getTraceFacesOnRankMap();
-        std::set<int> m_ElemSet                             = tetra_repart->getLocalElemSet();
-        std::map<int,int> localV2globalV                    = tetra_repart->getLocalVert2GlobalVert();
-        std::map<int,std::vector<double> > LocalVertsMap    = tetra_repart->getLocalVertsMap();
-        
-        adaptionObject = new PrepareAdaption(tetra_repart, 
-                                            comm,
-                                            std::move(LocalVertsMap),
-                                            std::move(localV2globalV),
-                                            std::move(m_Elem2Face),
-                                            std::move(m_Elem2Vert),
-                                            std::move(m_Face2Vert),
-                                            std::move(m_Face2Elem),
-                                            m_partMap,
-                                            std::move(m_Elem2Rank),
-                                            m_TraceVertsOnRank,
-                                            m_TraceFacesOnRank,
-                                            std::move(m_ElemSet),
-                                            meshRead->ranges_id, 
-                                            meshRead->ranges_ref);
-
     }
     else if(inputs->recursive == 1)
     {   
@@ -482,6 +403,7 @@ int main(int argc, char** argv)
         start = clock();
         adaptionObject = new PrepareAdaption(tetra_repart, 
                                             comm,
+                                            meshRead->nElem,
                                             std::move(LocalVertsMap),
                                             std::move(localV2globalV),
                                             std::move(m_Elem2Face),
@@ -508,16 +430,12 @@ int main(int argc, char** argv)
             cout << " sec " << endl;
         }
 
-
         tetra_repart->buildExtendedAdjacencyData(comm,meshRead->ghost);
 
         std::map<int,std::vector<double> > Ue = tetra_repart->getElem2DataMap();
         tetra_repart->AddStateVecForAdjacentElements(Ue,2,comm);
         tetra_repart->SetStateVec(Ue,2);
     
-
-
-
         start = clock();
         std::map<int,std::vector<double> > tetra_grad_v2 = ComputedUdx_LSQ_LS_US3D(tetra_repart, 
                                                                                     meshRead->ghost, 
@@ -525,7 +443,6 @@ int main(int argc, char** argv)
                                                                                     1,2,
                                                                                     comm,
                                                                                     0);
-
 
         std::map<int,std::vector<double> >::iterator iti;
         std::map<int,std::vector<double> > dudx_map;
@@ -606,8 +523,10 @@ int main(int argc, char** argv)
             << dur_max << setprecision(16); 
             cout << " sec " << endl;
         }
-    
+        
     }
+    
+
     
     
     
@@ -663,35 +582,41 @@ int main(int argc, char** argv)
         
         delete tetra_repart;
     }
-    /*
     else
     {   
+        
         std::map<int,std::vector<double> > eigvalues;
         std::map<int,std::vector<std::vector<double> > > metric_vmap = ComputeMetric_Lite(comm, 
                                                                             tetra_repart,
                                                                             tetra_grad,
                                                                             eigvalues,
                                                                             inputs);
-
+        
+        
         tetra_grad.clear();
 
         
+        std::set<int> loc_trace_faces                               = tetra_repart->GetLocalTraceFacesSet();
+        std::set<int> loc_trace_verts                               = tetra_repart->GetLocalTraceVertsSet();
+        std::map<int,std::vector<int> > loc_trace_face2leftright    = tetra_repart->GetLocalTraceFace2LeftRight();
 
-        PMMG_pParMesh parmesh = InitializeParMMGmesh(comm, tetra_repart, meshRead->ranges_id, bndIDmax, metric_vmap);
+        PMMG_pParMesh parmesh = InitializeParMMGmesh(comm, 
+                                                    loc_trace_faces, loc_trace_verts, loc_trace_face2leftright, 
+                                                    adaptionObject, meshRead->ranges_id, bndIDmax, metric_vmap);
         delete tetra_repart;
-
+        
         metric_vmap.clear();
-
+        
         start = clock();
-        RepartitionObject* prism_repart = new RepartitionObject(meshRead, 
-                                                        prisms_e2v, 
-                                                        prisms_e2f,
-                                                        prisms_e2e,
-                                                        prism2type,
-                                                        prisms_data,
-                                                        0,
-                                                        prism_ifn,
-                                                        comm);
+        PartObject* prism_repart = new PartObject(meshRead, 
+                                                    prisms_e2v, 
+                                                    prisms_e2f,
+                                                    prisms_e2e,
+                                                    prisms_data,
+                                                    prism2type,
+                                                    0,
+                                                    prism_ifn,
+                                                    comm);
         prisms_e2v.clear();
         prisms_e2f.clear();
         prisms_e2e.clear();
@@ -723,11 +648,42 @@ int main(int argc, char** argv)
         meshRead->interior.clear();
         meshRead->ghost.clear();
 
-        prism_repart->buildUpdatedVertexAndFaceNumbering(comm, meshRead->ranges_id, meshRead->ranges_ref);
-        prism_repart->buildInteriorSharedAndBoundaryFaceMaps(comm, meshRead->ranges_id, meshRead->ranges_ref);
+        // prism_repart->buildUpdatedVertexAndFaceNumbering(comm, meshRead->ranges_id, meshRead->ranges_ref);
+        // prism_repart->buildInteriorSharedAndBoundaryFaceMaps(comm, meshRead->ranges_id, meshRead->ranges_ref);
+        std::map<int,std::vector<int> > m_Elem2VertP         = prism_repart->getElem2VertMap();
+        std::map<int,std::vector<int> > m_Elem2FaceP         = prism_repart->getElem2FaceMap();
+        std::map<int,std::vector<int> > m_Face2VertP         = prism_repart->getFace2VertMap();
+        std::map<int,std::vector<int> > m_Face2ElemP         = prism_repart->getFace2ElemMap();
+        std::map<int,int> m_partMapP                         = prism_repart->getPartMap();
+        std::map<int,int> m_Elem2RankP                       = prism_repart->getElem2RankMap();
+        std::set<int> m_TraceVertsOnRankP                    = prism_repart->getTraceVertsOnRankMap();
+        std::set<int> m_TraceFacesOnRankP                    = prism_repart->getTraceFacesOnRankMap();
+        std::set<int> m_ElemSetP                             = prism_repart->getLocalElemSet();
+        std::map<int,int> localV2globalVP                    = prism_repart->getLocalVert2GlobalVert();
+        std::map<int,std::vector<double> > LocalVertsMapP    = prism_repart->getLocalVertsMap();
+        
 
-        std::map<int,int> NonSharedVertsOwned_P       = prism_repart->getNonSharedVertsOwned();
-        std::map<int,int> SharedVertsOwned_P          = prism_repart->getSharedVertsOwned();
+        start = clock();
+        PrismPrepare = new PrepareAdaption(prism_repart, 
+                                            comm,
+                                            meshRead->nElem,
+                                            std::move(LocalVertsMapP),
+                                            std::move(localV2globalVP),
+                                            std::move(m_Elem2FaceP),
+                                            std::move(m_Elem2VertP),
+                                            std::move(m_Face2VertP),
+                                            std::move(m_Face2ElemP),
+                                            m_partMapP,
+                                            std::move(m_Elem2RankP),
+                                            m_TraceVertsOnRankP,
+                                            m_TraceFacesOnRankP,
+                                            std::move(m_ElemSetP),
+                                            meshRead->ranges_id, 
+                                            meshRead->ranges_ref);
+
+
+        std::map<int,int> NonSharedVertsOwned_P       = PrismPrepare->getNonSharedVertsOwned();
+        std::map<int,int> SharedVertsOwned_P          = PrismPrepare->getSharedVertsOwned();
         int nNonSharedVertsOwned_P                    = NonSharedVertsOwned_P.size();
         int nSharedVertsOwned_P                       = SharedVertsOwned_P.size();
         DistributedParallelState* distPrismIntVerts   = new DistributedParallelState(nNonSharedVertsOwned_P,comm);
@@ -736,7 +692,7 @@ int main(int argc, char** argv)
         
         // Next to all the output data structures for us3d like xcn and ifn we also need to build the tracerefV2globalVidInTotalMesh map 
         // since this is defined by the tetrahedra ordering.
-        std::map<int,int> tagE2gE_P = prism_repart->getElementTag2GlobalElement();
+        std::map<int,int> tagE2gE_P = PrismPrepare->getElementTag2GlobalElement();
 
         std::vector<int> ifn_adaptedTetra;
         std::map<int,std::vector<int> > bcref2bcface_adaptedTetra;
@@ -769,24 +725,23 @@ int main(int argc, char** argv)
             part_global_P =  prism_repart->getGlobalElement2Rank();
         }
 
-        std::map<int,std::vector<int> > InternalFaces_P          = prism_repart->getInteriorFaceMap();
-        std::map<int,std::vector<int> > BoundaryFaces_P         = prism_repart->getBoundaryFaceMap();
-        std::map<int,std::vector<int> > SharedFaces_P           = prism_repart->getSharedFaceMap();
+        std::map<int,std::vector<int> > InternalFaces_P         = PrismPrepare->getInteriorFaceMap();
+        std::map<int,std::vector<int> > BoundaryFaces_P         = PrismPrepare->getBoundaryFaceMap();
+        std::map<int,std::vector<int> > SharedFaces_P           = PrismPrepare->getSharedFaceMap();
 
-        std::map<int, std::vector<double> > LocalVertsMap_P     = prism_repart->getLocalVertsMap();
+        std::map<int, std::vector<double> > LocalVertsMap_P     = PrismPrepare->getLocalVertsMap();
         // std::map<int,int> tag2globvID_P                      = prism_repart->getUpdatedTag2GlobalVMap();
-        std::map<int,int> SharedVertsNotOwned_P                 = prism_repart->getSharedVertsNotOwned();
-        std::map<int,int> gE2tagE_P                             = prism_repart->getGlobalElement2ElementTag();
-        std::map<int,int>  lh_P                                 = prism_repart->GetLeftHandFaceElementMap();
-        std::map<int,int>  rh_P                                 = prism_repart->GetRightHandFaceElementMap();
-        std::map<int,std::vector<int> > ElementTag2VertexTag_P  = prism_repart->getElement2VertexMap();
+        std::map<int,int> SharedVertsNotOwned_P                 = PrismPrepare->getSharedVertsNotOwned();
+        std::map<int,int> gE2tagE_P                             = PrismPrepare->getGlobalElement2ElementTag();
+        std::map<int,int>  lh_P                                 = PrismPrepare->GetLeftHandFaceElementMap();
+        std::map<int,int>  rh_P                                 = PrismPrepare->GetRightHandFaceElementMap();
+        std::map<int,std::vector<int> > ElementTag2VertexTag_P  = PrismPrepare->getElem2VertMap();
         //std::map<int,int> NonSharedVertsOwned_P                 = prism_repart->getNonSharedVertsOwned();
         //std::map<int,int> SharedVertsOwned_P                    = prism_repart->getSharedVertsOwned();
-        std::set<int> loc_trace_verts_P                         = prism_repart->GetLocalTraceVertSet();
-        std::map<int,std::vector<int> > bcref2bcface_P          = prism_repart->getZone2boundaryFaceID();
-        int nLocElem_P                                          = prism_repart->getLocElem().size();
-        std::map<int,int> element2type_bl                       = prism_repart->GetElement2TypeOnRankMap();
-        std::map<int,int> new2tag                               = prism_repart->getGlobalElement2ElementTag();
+        //std::set<int> loc_trace_verts_P                         = PrismPrepare->GetLocalTraceVertSet();
+        std::map<int,std::vector<int> > bcref2bcface_P          = PrismPrepare->getZone2boundaryFaceID();
+        int nLocElem_P                                          = prism_repart->getLocalElemSet().size();
+        std::map<int,int> new2tag                               = PrismPrepare->getGlobalElement2ElementTag();
         
         delete prism_repart;
 
@@ -845,7 +800,7 @@ int main(int argc, char** argv)
                                     gE2tagE_P,
                                     NonSharedVertsOwned_P,
                                     SharedVertsOwned_P,
-                                    loc_trace_verts_P,
+                                    m_TraceVertsOnRankP,
                                     tracerefV2globalVidInTotalMesh,
                                     ifn_P,
                                     meshRead->ranges_id);
@@ -902,43 +857,43 @@ int main(int argc, char** argv)
         //                             zdefs_new);
 
         WriteBoundaryDataUS3DFormat_V2(comm,
-                                    BoundaryFaces_P,
-                                    LocalVertsMap_P,
-                                    SharedVertsNotOwned_P,
-                                    gE2tagE_P,
-                                    lh_P,
-                                    rh_P,
-                                    ElementTag2VertexTag_P,
-                                    NonSharedVertsOwned_P,
-                                    SharedVertsOwned_P,
-                                    loc_trace_verts_P,
-                                    bcref2bcface_P,
-                                    nLocElem_P,
-                                    ifn_adaptedTetra,
-                                    ifn_P,
-                                    bcref2bcface_adaptedTetra,
-                                    tracerefV2globalVidInTotalMesh,
-                                    BoundaryFaces_adaptedTetra,
-                                    glob2locVid_adaptedTetra,
-                                    elements_AdaptedTetra,
-                                    vertices_AdaptedTetra,
-                                    LocationSharedVert_adaptedTetra,
-                                    adaptedTetraVert2TotalAdaptedMeshVertMap,
-                                    lh_bc_adaptedTetra,
-                                    new_globE2locE_adaptedTetra,
-                                    bcArrays,
-                                    bcsizing,
-                                    meshRead->zdefs,
-                                    meshRead->zone2bcref,
-                                    meshRead->zone2name,
-                                    meshRead->znames,
-                                    bciTot_offsets,
-                                    nTotBCFaces,
-                                    bcsToT,
-                                    nlbc,
-                                    bcid,
-                                    bci_offsets,
-                                    zdefs_new);
+                                        BoundaryFaces_P,
+                                        LocalVertsMap_P,
+                                        SharedVertsNotOwned_P,
+                                        gE2tagE_P,
+                                        lh_P,
+                                        rh_P,
+                                        ElementTag2VertexTag_P,
+                                        NonSharedVertsOwned_P,
+                                        SharedVertsOwned_P,
+                                        m_TraceVertsOnRankP,
+                                        bcref2bcface_P,
+                                        nLocElem_P,
+                                        ifn_adaptedTetra,
+                                        ifn_P,
+                                        bcref2bcface_adaptedTetra,
+                                        tracerefV2globalVidInTotalMesh,
+                                        BoundaryFaces_adaptedTetra,
+                                        glob2locVid_adaptedTetra,
+                                        elements_AdaptedTetra,
+                                        vertices_AdaptedTetra,
+                                        LocationSharedVert_adaptedTetra,
+                                        adaptedTetraVert2TotalAdaptedMeshVertMap,
+                                        lh_bc_adaptedTetra,
+                                        new_globE2locE_adaptedTetra,
+                                        bcArrays,
+                                        bcsizing,
+                                        meshRead->zdefs,
+                                        meshRead->zone2bcref,
+                                        meshRead->zone2name,
+                                        meshRead->znames,
+                                        bciTot_offsets,
+                                        nTotBCFaces,
+                                        bcsToT,
+                                        nlbc,
+                                        bcid,
+                                        bci_offsets,
+                                        zdefs_new);
         
         
         std::vector<double> interiorverts_prism(NonSharedVertsOwned_P.size()*3,0);
@@ -984,6 +939,7 @@ int main(int argc, char** argv)
         std::vector<int> prisms_type(nPrismLoc,0);
         DistributedParallelState* PrismElementDistr = new DistributedParallelState(nPrismLoc,comm);
 
+        std::map<int,int> element2type_bl                       = prism_repart->GetElement2TypeOnRankMap();
 
         for(int i=0;i<nPrismLoc;i++)
         {
@@ -1381,7 +1337,7 @@ int main(int argc, char** argv)
         //     std::cout << std::setprecision(16) << "Writing out the grid takes " << dur_max << " seconds using " << world_size << "procs. " << std::endl;
         //     std::cout << "Finalizing process" << std::endl;     
         // }
-      
+        /**/
     }
     
     
@@ -1397,7 +1353,7 @@ int main(int argc, char** argv)
         cout << " sec " << endl;
     }
 
-    */
+    
     
     MPI_Finalize();
         

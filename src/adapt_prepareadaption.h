@@ -23,6 +23,7 @@ class PrepareAdaption{
 
             PrepareAdaption(PartObject* part, 
                             MPI_Comm comm,
+                            int                                    neglob,
                             std::map<int,std::vector<double> >&&   LocalVertsMap,
                             std::map<int,int>&&                    localV2globalV,
                             std::map<int,std::vector<int> >&&      Elem2Face,
@@ -70,6 +71,19 @@ class PrepareAdaption{
                 std::map<int,std::vector<int> > getFace2VertMap();
                 std::map<int,std::vector<int> > getFace2VertNewMap();
                 std::map<int,int> getLocalSharedFace2GlobalSharedFace();
+                std::map<int,int> getElementTag2GlobalElement();
+                std::map<int, std::vector<int> > getSharedFaceMap();
+                std::map<int, std::vector<int> > getInteriorFaceMap();
+                std::map<int, std::vector<int> > getBoundaryFaceMap();
+                std::map<int,int> getTagF2LocFID();
+                std::map<int,int> getNonSharedVertsOwned();
+                std::map<int,int> getSharedVertsOwned();
+                std::map<int,int> getSharedVertsNotOwned();
+                std::map<int,int> GetLeftHandFaceElementMap();
+                std::map<int,int> GetRightHandFaceElementMap();
+                std::map<int,int> GetElement2TypeOnRankMap();
+                std::map<int,std::vector<int> > getZone2boundaryFaceID();
+                std::map<int,int> getGlobalElement2ElementTag();
 
         private:
             // Data structures that are required for ParMMG.

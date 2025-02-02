@@ -553,10 +553,12 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D(PartObject* RePa,
             int ghostelem               = 0;
             int elID                    = *its;
             int nadj                    = Elem2AdjElem[elID].size();
-            std::set<int> adjel        = Elem2AdjElem[elID];
+            std::set<int> adjel         = Elem2AdjElem[elID];
             int g                       = 0;
             std::vector<double> Vijk    = Elem2Centroid[elID];
             double uijk                 = Ue[elID][variable];
+
+            /* */  
             if(nadj>=9)
             {
                 std::vector<double> bvec(nadj,0.0);
@@ -614,6 +616,7 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D(PartObject* RePa,
                     g++;
                 }
 
+
                 x = SolveQR_Lite(A_cm,nadj,9,bvec);
 
                 dudx_map[elID] = x;
@@ -621,54 +624,55 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D(PartObject* RePa,
             }
             else
             {
-                std::vector<double> bvec(nadj,0.0);
-                std::vector<double> A_cm(nadj*3,0.0);
-                std::set<int>::iterator its;
-                for(its=adjel.begin();its!=adjel.end();its++)
-                {
-                    int adjid = *its;
-                    double h00=0.0,h01=0.0,h02=0.0;
-                    double h11=0.0,h12=0.0,h22=0.0;
-                    double a=0.0,b=0.0,c=0.0,di=0.0;
-                    double uadj=0.0;
+                // std::vector<double> bvec(nadj,0.0);
+                // std::vector<double> A_cm(nadj*3,0.0);
+                // std::set<int>::iterator its;
+                // for(its=adjel.begin();its!=adjel.end();its++)
+                // {
+                //     int adjid = *its;
+                //     double h00=0.0,h01=0.0,h02=0.0;
+                //     double h11=0.0,h12=0.0,h22=0.0;
+                //     double a=0.0,b=0.0,c=0.0,di=0.0;
+                //     double uadj=0.0;
 
-                    if(adjid>Nel)
-                    {  
-                        std::vector<double> Vadj    = GhostFaceVert[adjid];
-                        double uadj                 = ghosts[adjid][variable];
-                        a                           = (Vadj[0] - Vijk[0]);
-                        b                           = (Vadj[1] - Vijk[1]);
-                        c                           = (Vadj[2] - Vijk[2]);
-                    }
-                    else
-                    {
-                        std::vector<double> Vadj    = Elem2Centroid[adjid];
-                        double uadj                 = Ue[adjid][variable];
-                        a                           = (Vadj[0] - Vijk[0]);
-                        b                           = (Vadj[1] - Vijk[1]);
-                        c                           = (Vadj[2] - Vijk[2]);
+                //     if(adjid>Nel)
+                //     {  
+                //         std::vector<double> Vadj    = GhostFaceVert[adjid];
+                //         double uadj                 = ghosts[adjid][variable];
+                //         a                           = (Vadj[0] - Vijk[0]);
+                //         b                           = (Vadj[1] - Vijk[1]);
+                //         c                           = (Vadj[2] - Vijk[2]);
+                //     }
+                //     else
+                //     {
+                //         std::vector<double> Vadj    = Elem2Centroid[adjid];
+                //         double uadj                 = Ue[adjid][variable];
+                //         a                           = (Vadj[0] - Vijk[0]);
+                //         b                           = (Vadj[1] - Vijk[1]);
+                //         c                           = (Vadj[2] - Vijk[2]);
                         
-                    }
+                //     }
 
-                    di                              = sqrt(a*a+b*b+c*c);
-                    bvec[g]                         = 1.0/di*(uadj-uijk);
-                    A_cm[0*nadj+g]                  = (1.0/di)*a;
-                    A_cm[1*nadj+g]                  = (1.0/di)*b;
-                    A_cm[2*nadj+g]                  = (1.0/di)*c;
+                //     di                              = sqrt(a*a+b*b+c*c);
+                //     bvec[g]                         = 1.0/di*(uadj-uijk);
+                //     A_cm[0*nadj+g]                  = (1.0/di)*a;
+                //     A_cm[1*nadj+g]                  = (1.0/di)*b;
+                //     A_cm[2*nadj+g]                  = (1.0/di)*c;
                     
-                    g++;
-                }
+                //     g++;
+                // }
 
-                x = SolveQR_Lite(A_cm,nadj,3,bvec);
+                // x = SolveQR_Lite(A_cm,nadj,3,bvec);
 
-                std::vector<double> xnew(9,0.0);
-                xnew[0] = x[0];
-                xnew[1] = x[1];
-                xnew[2] = x[2];
+                // std::vector<double> xnew(9,0.0);
+                // xnew[0] = x[0];
+                // xnew[1] = x[1];
+                // xnew[2] = x[2];
 
-                dudx_map[elID] = xnew;
+                // dudx_map[elID] = xnew;
 
-            }        
+            } 
+                
     }
    /**/
     return dudx_map;

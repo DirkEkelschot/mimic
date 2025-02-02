@@ -4,6 +4,7 @@
 #include "adapt.h"
 #include "adapt_inputs.h"
 #include "adapt_repartition.h"
+#include "adapt_partobject.h"
 #ifndef ADAPT_COMPUTE_H
 #define ADAPT_COMPUTE_H
 
@@ -73,7 +74,7 @@ double* ComputeVolumeCellsReducedToVerts(Array<double>* xcn, Array<int>* ien);
 void UnitTestJacobian();
 
 std::map<int,std::vector<std::vector<double> > > ComputeMetric_Lite(MPI_Comm comm, 
-                        RepartitionObject* tetra_repart,
+                        PartObject* tetra_repart,
                         std::map<int,std::vector<double> > tetra_grad,
                         std::map<int,std::vector<double> > &eigvalues, 
                         Inputs* inputs);

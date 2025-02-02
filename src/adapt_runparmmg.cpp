@@ -39,7 +39,6 @@ PMMG_pParMesh InitializeParMMGmesh(MPI_Comm comm,
     std::map<int,std::vector<int> > face2vertsMap               = prepare->getFace2VertMap();
     std::map<int,int> locv2tagvID                               = prepare->getLocalVert2GlobalVert();
     std::set<int> Owned_Elem_t                                  = prepare->getElemSet();
-    std::cout << " gE2gV_t " << gE2gV_t.size() << std::endl;
     std::map<int,int> globalv2localvID                          = prepare->getNewGlobalVert2LocalVertMap();
     std::map<int,int> tag2globalV                               = prepare->getTagVert2GlobalVertMap();
     
@@ -74,6 +73,8 @@ PMMG_pParMesh InitializeParMMGmesh(MPI_Comm comm,
       exit(EXIT_FAILURE);
     }
     
+    
+    std::cout << "nVertices " << nVertices << " " << world_rank << std::endl;
     //PMMG_Set_metSize(PMMG_pParMesh parmesh,int typEntity,int np,int typSol)
     if ( PMMG_Set_metSize(parmesh,MMG5_Vertex,nVertices,MMG5_Tensor) != 1 ) exit(EXIT_FAILURE);
 
@@ -96,7 +97,6 @@ PMMG_pParMesh InitializeParMMGmesh(MPI_Comm comm,
         MPI_Finalize();
         exit(EXIT_FAILURE);
         }
-
         std::vector<double> tensor(6,0);
         tensor[0] = metric_vmap[tagvid][0][0];
         tensor[1] = metric_vmap[tagvid][0][1];
@@ -111,7 +111,7 @@ PMMG_pParMesh InitializeParMMGmesh(MPI_Comm comm,
          exit(EXIT_FAILURE);
         }
     }
-
+    
 
     int refer  = 0;
     //double* c0 = new double[3];
@@ -392,7 +392,7 @@ PMMG_pParMesh InitializeParMMGmesh(MPI_Comm comm,
         }
         t++;
     }
-    /**/
+    
     
 
     return parmesh;

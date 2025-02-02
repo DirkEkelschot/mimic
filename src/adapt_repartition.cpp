@@ -2331,14 +2331,10 @@ std::map<int,std::vector<int> > RepartitionObject::CommunicateAdjacencyInfoV2(MP
                 
                 if(part_global.find(QueryOnRoot[j])!=part_global.end())
                 {
-                    // pid_2sendback[j] = part_global[QueryOnRoot[j]];
                     pid_2sendback.push_back(part_global[QueryOnRoot[j]]);
                     el_2sendback.push_back(QueryOnRoot[j]);
                 }
-                // else
-                // {                    
-                //     pid_2sendback[j] = -1;
-                // }
+
             }
             int send_b = pid_2sendback.size();
             MPI_Send(&send_b, 1, MPI_INT, i, i*250000, comm);

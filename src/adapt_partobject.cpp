@@ -95,7 +95,7 @@ PartObject::PartObject(mesh* meshInput,
     }
     //===============================================================================================================
     start = clock();
-    std::map<int,std::vector<int> > Rank2Elem = CommunicateAdjacencyInfo(comm);
+    std::map<int,std::vector<int> > Rank2Elem = CommunicateAdjacencyInfoLocalPartition(comm);
     end = clock();
     time_taken = ( end - start) / (double) CLOCKS_PER_SEC;
     MPI_Allreduce(&time_taken, &dur_max, 1, MPI_DOUBLE, MPI_MAX, comm);
@@ -2204,7 +2204,7 @@ void PartObject::getFace2VertexPerPartitionMap(std::map<int,std::vector<int> > i
 }
 
 
-std::map<int,std::vector<int> >  PartObject::CommunicateAdjacencyInfo(MPI_Comm comm)
+std::map<int,std::vector<int> >  PartObject::CommunicateAdjacencyInfoLocalPartition(MPI_Comm comm)
 {
     int size;
     MPI_Comm_size(comm, &size);
@@ -2225,7 +2225,7 @@ std::map<int,std::vector<int> >  PartObject::CommunicateAdjacencyInfo(MPI_Comm c
         {
             int adjeid = itm->second[q];
 
-            if(m_Elem2Elem.find(adjeid)==m_Elem2Elem.end() && adjeid<Ne_glob)
+            if(m_ElemSet.find(adjeid)!=m_ElemSet.end() && adjeid<Ne_glob)
             {
                 if(toquery_elids.find(adjeid)==toquery_elids.end())
                 {
@@ -2334,6 +2334,138 @@ std::map<int,std::vector<int> >  PartObject::CommunicateAdjacencyInfo(MPI_Comm c
 }
 
 
+
+
+
+
+std::map<int,std::vector<int> >  PartObject::CommunicateAdjacencyInfoExtendedPartition(MPI_Comm comm)
+{
+    int size;
+    MPI_Comm_size(comm, &size);
+    // Get the rank of the process
+    int rank;
+    MPI_Comm_rank(comm, &rank);
+    std::map<int,std::vector<int> > Rank2Elem;
+    std::map<int,std::vector<int> >::iterator itm;
+    int nreq;
+
+    std::set<int> toquery_elids;
+    int here = 0;
+    for(itm=m_Elem2Elem.begin();itm!=m_Elem2Elem.end();itm++)
+    {
+        int elid = itm->first;
+
+        for(int q=0;q<itm->second.size();q++)
+        {
+            int adjeid = itm->second[q];
+
+            if(m_Elem2Elem.find(adjeid)==m_Elem2Elem.end() && adjeid<Ne_glob)
+            {
+                if(toquery_elids.find(adjeid)==toquery_elids.end())
+                {
+                    toquery_elids.insert(adjeid);
+                }
+            }
+            // else
+            // {
+            //     m_Elem2Rank[adjeid] = rank;
+            // }
+        }
+    }
+
+    
+    std::vector<int> toquery_elids_vec(toquery_elids.size(),0);
+    std::copy(toquery_elids.begin(), 
+                toquery_elids.end(), 
+                toquery_elids_vec.begin());
+
+
+    if(rank != 0)
+    {
+        nreq = toquery_elids_vec.size();
+        MPI_Send(&nreq, 1, MPI_INT, 0, rank*100000, comm);
+        MPI_Send(&toquery_elids_vec.data()[0], nreq, MPI_INT, 0, rank*1000000, comm);
+        
+        int nrec_b;
+        MPI_Recv(&nrec_b, 1, MPI_INT, 0, rank*250000, comm, MPI_STATUS_IGNORE);
+        std::vector<int> pid_2recvback(nrec_b,0);
+        std::vector<int> el_2recvback(nrec_b,0);
+        MPI_Recv(&el_2recvback[0], nrec_b,  MPI_INT, 0, rank*225000, comm, MPI_STATUS_IGNORE);
+        MPI_Recv(&pid_2recvback[0], nrec_b, MPI_INT, 0, rank*20000, comm, MPI_STATUS_IGNORE);
+
+        for(int i=0;i<nrec_b;i++)
+        {
+            int el_id   = toquery_elids_vec[i];
+            int p_id    = pid_2recvback[i];
+
+            if(p_id != -1)
+            {
+                Rank2Elem[p_id].push_back(el_id);
+            }
+            //Rank2Elem[p_id].push_back(el_id);
+        }
+    }
+    else if(rank == 0)
+    {
+        std::vector<int> nrecv_toquery_elids(size-1,0);
+        int accul = 0;
+        for(int i=1;i<size;i++)
+        {
+            int dest = i*100000;
+            int n_reqstd_ids;
+            MPI_Recv(&n_reqstd_ids, 1, MPI_INT, i, dest, comm, MPI_STATUS_IGNORE);
+            nrecv_toquery_elids[i-1] = n_reqstd_ids;
+            accul = accul + n_reqstd_ids;
+        }
+
+        for(int i=1;i<size;i++)
+        {
+            int n_reqstd_ids = nrecv_toquery_elids[i-1];
+            std::vector<int> QueryOnRoot(n_reqstd_ids,0);
+            std::vector<int> pid_2sendback;
+            std::vector<int> el_2sendback;
+            MPI_Recv(&QueryOnRoot[0], n_reqstd_ids, MPI_INT, i, i*1000000, comm, MPI_STATUS_IGNORE);
+            for(int j=0;j<n_reqstd_ids;j++)
+            {
+                
+                if(m_partGlobalRoot.find(QueryOnRoot[j])!=m_partGlobalRoot.end())
+                {
+                    pid_2sendback.push_back(m_partGlobalRoot[QueryOnRoot[j]]);
+                    el_2sendback.push_back(QueryOnRoot[j]);
+                }
+                else
+                {                    
+                    pid_2sendback.push_back(-1);
+                    el_2sendback.push_back(QueryOnRoot[j]);
+                }
+            }
+            int send_b = pid_2sendback.size();
+            MPI_Send(&send_b, 1, MPI_INT, i, i*250000, comm);
+            MPI_Send(&el_2sendback.data()[0], el_2sendback.size(), MPI_INT, i, i*225000, comm);
+            MPI_Send(&pid_2sendback.data()[0], pid_2sendback.size(), MPI_INT, i, i*20000, comm);
+        }
+
+
+        for(int i=0;i<toquery_elids_vec.size();i++)
+        {
+            int el_id   = toquery_elids_vec[i];
+            int p_id    = -1;
+            
+            if(m_partGlobalRoot.find(el_id)!=m_partGlobalRoot.end())
+            {
+                p_id = m_partGlobalRoot[el_id];
+                Rank2Elem[p_id].push_back(el_id);
+            }      
+        }
+    }
+
+    return Rank2Elem;  
+}
+
+
+
+
+
 void PartObject::GenerateTraceMap()
 {
     std::map<int,std::vector<int> >::iterator itm;
@@ -2373,8 +2505,15 @@ void PartObject::GenerateTraceMap()
             }
         }
     }  
-
 }
+
+
+
+
+
+
+
+
 
 
 
@@ -2418,7 +2557,7 @@ std::map<int, std::vector<int> > PartObject::getAdjacentElementLayer(std::map<in
     std::map<int,std::vector<int> > rank2req_face;
     std::map<int, std::vector<int> > adj_el;
 
-    std::map<int,std::vector<int> > Rank2Elem = CommunicateAdjacencyInfo(comm);
+    std::map<int,std::vector<int> > Rank2Elem = CommunicateAdjacencyInfoExtendedPartition(comm);
     std::map<int,std::vector<int> >::iterator iter;
 
 
@@ -3838,3 +3977,12 @@ std::map<int,std::vector<int> > PartObject::GetLocalTraceFace2LeftRight()
 {
     return m_TraceFace2Elem;
 }
+std::map<int,int> PartObject::getGlobalElement2Rank()
+{
+    return m_partGlobalRoot;
+}
+std::map<int,int> PartObject::GetElement2TypeOnRankMap()
+{
+    return m_elem2type_on_rank;
+}
+

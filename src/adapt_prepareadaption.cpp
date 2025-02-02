@@ -4,6 +4,7 @@
 
 PrepareAdaption::PrepareAdaption(PartObject* part, 
                                 MPI_Comm comm,
+                                int                                             neglob,
                                 std::map<int,std::vector<double> >&&            LocalVertsMap,
                                 std::map<int,int>&&                             localV2globalV,
                                 std::map<int,std::vector<int> >&&               Elem2Face,
@@ -33,7 +34,8 @@ PrepareAdaption::PrepareAdaption(PartObject* part,
     int rank;
     MPI_Comm_rank(comm, &rank);
 
-    std::cout << "ElemSet " << ElemSet.size() << " " << m_ElemSet.size() << std::endl; 
+    Ne_glob = neglob;
+
 
     buildUpdatedVertexAndFaceNumbering(comm,
                                         partMap,
@@ -88,8 +90,8 @@ void PrepareAdaption::buildUpdatedVertexAndFaceNumbering(MPI_Comm               
 
     std::set<int>::iterator its;
     int ntrace = 0;
-
-    std::cout << "m_Elem2Rank " << m_Elem2Rank.size() << "  " << partMap.size() << " " << rank << std::endl;
+    int teller = 0;
+    int teller2 = 0;
     for(its=m_ElemSet.begin();its!=m_ElemSet.end();its++)
     {
         int elid = *its;
@@ -109,11 +111,10 @@ void PrepareAdaption::buildUpdatedVertexAndFaceNumbering(MPI_Comm               
                 
                 if(m_Face2Vert.find(gfid)!=m_Face2Vert.end())
                 {
-                    ref      = ProvideBoundaryRef(gfid,ranges_ref);
+                    ref         = ProvideBoundaryRef(gfid,ranges_ref);
                     
                     int e0      = m_Face2Elem[gfid][0];
                     int e1      = m_Face2Elem[gfid][1];
-                    
                     int Nv      = m_Face2Vert[gfid].size();
                     
                     // copy the correct amount of nodes into a new face vector.
@@ -131,7 +132,7 @@ void PrepareAdaption::buildUpdatedVertexAndFaceNumbering(MPI_Comm               
                     }
                     if(e0<Ne_glob && e1<Ne_glob)
                     {
-
+                        
                         int r0; // = part_global[e0]; // rank of first adjacent element.
                         int r1; // = part_global[e1]; // rank of second adjacent element.
 
@@ -153,10 +154,8 @@ void PrepareAdaption::buildUpdatedVertexAndFaceNumbering(MPI_Comm               
                             r1 = m_Elem2Rank[e1];
                         }
 
-
                         // int r0 = part_global[e0]; // rank of first adjacent element.
                         // int r1 = part_global[e1]; // rank of second adjacent element.
-
 
                         if(ref==2)// Internal and Shared faces are here.
                         {
@@ -169,6 +168,11 @@ void PrepareAdaption::buildUpdatedVertexAndFaceNumbering(MPI_Comm               
                             {
                                 sharedFace2Rank[gfid] = r1;
                             }
+                            teller2++;
+                        }
+                        else
+                        {
+                            teller++;
                         }
                     }
 
@@ -178,10 +182,8 @@ void PrepareAdaption::buildUpdatedVertexAndFaceNumbering(MPI_Comm               
         }
     }
 
-    std::cout << "sharedFace2RanksharedFace2RanksharedFace2Rank " << rank << " " << sharedFace2Rank.size() << std::endl; 
+    // std::cout << "TraceFacesOnRank " << TraceFacesOnRank.size() << " " << rank << " " << sharedFace2Rank.size() << " " << teller << " " << teller2 << " " << m_Face2Elem.size()<< std::endl; 
 
-    
-    
     // Take care of shared faces and vertices
     std::set<int> UniqueSharedVertsOnRank_set;
     std::vector<int> UniqueSharedVertsOnRank_RankID;
@@ -295,7 +297,10 @@ void PrepareAdaption::buildUpdatedVertexAndFaceNumbering(MPI_Comm               
             }
         }
     }
-    std::cout << "m_sharedFace2RankMap " << rank << " " << m_sharedFace2RankMap.size() << " " << Nt_shFaces << std::endl;
+
+    
+    //std::cout << "m_sharedFace2RankMap " << m_sharedFace2RankMap.size() << " " << rank << std::endl;   
+
 
     std::map<int,int> sharedFmap;
     int iFshared = distLocalFaces->getNel()-m_sharedFace2RankMap.size();
@@ -418,7 +423,10 @@ void PrepareAdaption::buildUpdatedVertexAndFaceNumbering(MPI_Comm               
     {
         m_sharedFaceMapUpdatedGlobalID[itii->first] = Fid_shared;
         Fid_shared++;
-    }    
+    } 
+    
+    
+    //std::cout << "m_sharedFace2RankMap " << m_sharedFace2RankMap.size() << " " << rank << std::endl;   
 
 
     DistributedParallelState* ElementDistr  = new DistributedParallelState(partMap.size(),comm);
@@ -544,6 +552,8 @@ void PrepareAdaption::buildUpdatedVertexAndFaceNumbering(MPI_Comm               
         u = u + 1;
 
     }
+
+    // std::cout << "m_sharedVertexMapUpdatedGlobalID " << m_sharedVertexMapUpdatedGlobalID.size() << " " << rank << std::endl;
     
     for(itmiv=m_Elem2Face_New.begin();itmiv!=m_Elem2Face_New.end();itmiv++)
     {
@@ -580,7 +590,6 @@ void PrepareAdaption::buildUpdatedVertexAndFaceNumbering(MPI_Comm               
     std::vector<int> sharedFonRank;
     std::vector<int> interiorFonRank;
 
-    std::cout << "rank has m_Face2Elem_New " << m_Face2Elem_New.size() << " " << rank << " " << m_sharedFaceMapUpdatedGlobalID.size() << " " << m_sharedFace2RankMap.size() << std::endl;
     for(itf=m_Face2Elem_New.begin();itf!=m_Face2Elem_New.end();itf++)
     {
         if(itf->second.size()==1)
@@ -608,7 +617,6 @@ void PrepareAdaption::buildUpdatedVertexAndFaceNumbering(MPI_Comm               
         shFaces_RankIDs[i] = rank;
     }
 
-    std::cout << shFacesIDs.size() << " shFacesIDs " << rank << std::endl;
     
     std::vector<int> TotalSharedFacesNew(Nt_shFaces_New,0);
     std::vector<int> TotalSharedFacesNew_RankID(Nt_shFaces_New,0);
@@ -636,8 +644,11 @@ void PrepareAdaption::buildUpdatedVertexAndFaceNumbering(MPI_Comm               
     {
         int key = TotalSharedFacesNew[i];
         int val = TotalSharedFacesNew_RankID[i];
+        
         face2rank[key].push_back(val);
     }
+    
+    // std::cout << "face2rank " << face2rank.size() << " Nt_shFaces_New " << Nt_shFaces_New << " " << rank << " " << nSharedFonRank << " " << m_Face2Elem.size() << " " << m_tag2globF.size() << std::endl;
     
     //delete[] TotalSharedFaces;
     //delete[] TotalSharedFaces_RankID;
@@ -646,7 +657,6 @@ void PrepareAdaption::buildUpdatedVertexAndFaceNumbering(MPI_Comm               
     //delete[] shFacesIDs;
     //delete[] shFaces_RankIDs;
     //delete distSharedFaces;
-    std::cout << "face2rank  " << m_Elem2Face_New.size() << " face2rank " << face2rank.size() << " " << Nt_shFaces_New << " " << nSharedFonRank << std::endl;
     std::map<int,std::vector<int> >::iterator itff;
     shf = 0;
     int bf  = 0;
@@ -709,7 +719,6 @@ void PrepareAdaption::buildUpdatedVertexAndFaceNumbering(MPI_Comm               
     m_ifc_tria_loc      = (int **)malloc(m_ncomm*sizeof(int *));
     m_ifc_tria_glo      = (int **)malloc(m_ncomm*sizeof(int *));
     
-    std::cout << "face2rank  " << face2rank.size() << " " << m_ncomm << " " << m_faces4parmmg.size() << " once " << once << " " << twice << std::endl;
 
     int icomm=0;
     std::map<int,std::vector<int> >::iterator itc;
@@ -727,7 +736,6 @@ void PrepareAdaption::buildUpdatedVertexAndFaceNumbering(MPI_Comm               
             m_ifc_tria_glo[icomm][q] = itc->second[q]+1;
             m_ifc_tria_loc[icomm][q]  = m_globShF2locShF[itc->second[q]]+1;
 
-            std::cout << "m_ifc_tria_glo " << itc->second[q]+1 << " " << itc->second.size() << std::endl;
         }
 
         icomm++;
@@ -1195,8 +1203,51 @@ std::map<int,std::vector<int> > PrepareAdaption::getFace2VertNewMap()
 {
     return m_Face2Vert_New;
 }
-
+std::map<int,int> PrepareAdaption::getNonSharedVertsOwned()
+{
+    return m_NonSharedVertsOwned;
+}
+std::map<int,int> PrepareAdaption::getSharedVertsOwned()
+{
+    return m_SharedVertsOwned;
+}
+std::map<int,std::vector<int> > PrepareAdaption::getInteriorFaceMap()
+{
+    return m_interiorFace2Nodes;
+}
+std::map<int,std::vector<int> > PrepareAdaption::getBoundaryFaceMap()
+{
+    return m_boundaryFace2Nodes;
+}
+std::map<int,std::vector<int> > PrepareAdaption::getSharedFaceMap()
+{
+    return m_sharedFace2Nodes;
+}
+std::map<int,std::vector<int> > PrepareAdaption::getZone2boundaryFaceID()
+{
+    return m_zone2bcface;
+}
+std::map<int,int> PrepareAdaption::GetLeftHandFaceElementMap()
+{
+    return m_lhp;
+}
+std::map<int,int> PrepareAdaption::GetRightHandFaceElementMap()
+{
+    return m_rhp;
+}
 std::map<int,int> PrepareAdaption::getLocalSharedFace2GlobalSharedFace()
 {
     return m_locShF2globShF;
+}
+std::map<int,int> PrepareAdaption::getSharedVertsNotOwned()
+{
+    return m_SharedVertsNotOwned;
+}
+std::map<int,int> PrepareAdaption::getGlobalElement2ElementTag()
+{
+    return m_gE2tagE;
+}
+std::map<int,int> PrepareAdaption::getElementTag2GlobalElement()
+{
+    return m_tagE2gE;
 }

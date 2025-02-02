@@ -1177,11 +1177,16 @@ void UnitTestJacobian()
 
 
 std::map<int,std::vector<std::vector<double> > > ComputeMetric_Lite(MPI_Comm comm, 
-                        RepartitionObject* tetra_repart,
+                        PartObject* tetra_repart,
                         std::map<int,std::vector<double> > tetra_grad, 
                         std::map<int,std::vector<double> > &eigvalues, 
                         Inputs* inputs)
 {
+    int size;
+    MPI_Comm_size(comm, &size);
+    // Get the rank of the process
+    int rank;
+    MPI_Comm_rank(comm, &rank);
     // Preparing the metric tensor field.
     std::vector<double> eignval(3,0.0);
     double po = 6.0;
@@ -1197,13 +1202,17 @@ std::map<int,std::vector<std::vector<double> > > ComputeMetric_Lite(MPI_Comm com
 
     std::map<int,std::vector<double> >::iterator itmidv;
     int yep = 0;
-    std::vector<int> Owned_Elem_t                           = tetra_repart->getLocElem();
-    std::map<int,std::vector<int> > gE2gV_t                 = tetra_repart->getElement2VertexMap();
-    std::map<int,std::set<int> > node2element_map    = tetra_repart->GetNode2ElementMap();
+    std::set<int> Owned_Elem_t                           = tetra_repart->getLocalElemSet();
+    std::map<int,std::vector<int> > gE2gV_t              = tetra_repart->getElem2VertMap();
+    std::map<int,std::map<int,double> > node2element_map = tetra_repart->GetNode2ElementMap();
 
-    for(int i=0;i<Owned_Elem_t.size();i++)
+
+    // for(int i=0;i<Owned_Elem_t.size();i++)
+    std::set<int>::iterator ites;
+    // std::cout << "rank  " << rank << " node2element_map " << node2element_map.size() << std::endl;  
+    for(ites=Owned_Elem_t.begin();ites!=Owned_Elem_t.end();ites++)
     {
-        int elid = Owned_Elem_t[i];
+        int elid = *ites;//Owned_Elem_t[i];
         int nv   = gE2gV_t[elid].size();
         for(int j=0;j<nv;j++)
         {
@@ -1211,22 +1220,34 @@ std::map<int,std::vector<std::vector<double> > > ComputeMetric_Lite(MPI_Comm com
 
             if(node2element_map.find(gvid)!=node2element_map.end())
             {
-                std::set<int>::iterator its;
-                std::set<int> elems = node2element_map[gvid];
+                
+                std::map<int,double>::iterator its;
+                std::map<int,double> elems = node2element_map[gvid];
                 double gval         = 0.0;
                 int nc              = 0;
                 std::vector<double> row_tmp(6,0.0);
 
                 for(its=elems.begin();its!=elems.end();its++)
                 {
-                    int elid = *its;
-
+                    int elid = its->first;
+                    //std::cout << "elid " << elid << " " << tetra_grad.size() << std::endl;
                     if(tetra_grad.find(elid)!=tetra_grad.end())
                     {
+                        //std::cout << "Found in " << std::endl;
                         for(int k=0;k<6;k++)
                         {
                             row_tmp[k]=row_tmp[k]+tetra_grad[elid][3+k];
+                            // if(rank == 0)
+                            // {
+                            //     std::cout << tetra_grad[elid][3+k] << " ";
+                            // }
+                            
                         }
+                        // if(rank == 0)
+                        // {
+                        //     std::cout << std::endl;
+                        // }
+                        
                         nc++;
                     }   
                 }
@@ -1279,6 +1300,14 @@ std::map<int,std::vector<std::vector<double> > > ComputeMetric_Lite(MPI_Comm com
                 double detMetric        = metric[0][0]*(metric[1][1]*metric[2][2]-metric[2][1]*metric[1][2])
                                         - metric[0][1]*(metric[1][0]*metric[2][2]-metric[2][0]*metric[1][2])
                                         + metric[0][2]*(metric[1][0]*metric[2][1]-metric[2][0]*metric[1][1]);
+                // if(rank == 0)
+                // {
+                //     std::cout << std::endl;
+                //     std::cout << metric[0][0] << " " << metric[0][1] << " " << metric[0][2] << std::endl;
+                //     std::cout << metric[1][0] << " " << metric[1][1] << " " << metric[1][2] << std::endl;
+                //     std::cout << metric[2][0] << " " << metric[2][1] << " " << metric[2][2] << std::endl;
+                //     std::cout << std::endl;
+                // }
                 
                 double pow              = -1.0/(2.0*po+3.0);
                 double eigRat           = Lambdamin/Lambdamax;
@@ -1580,6 +1609,11 @@ std::map<int,std::vector<std::vector<double> > > ComputeElementMetric_Lite(MPI_C
                         std::map<int,std::vector<double> > &eigvalues, 
                         Inputs* inputs)
 {
+    int size;
+    MPI_Comm_size(comm, &size);
+    // Get the rank of the process
+    int rank;
+    MPI_Comm_rank(comm, &rank);
     // Preparing the metric tensor field.
     std::vector<double> eignval(3,0.0);
     double po = 6.0;
