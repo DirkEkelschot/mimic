@@ -105,8 +105,8 @@ int main(int argc, char** argv)
     MPI_Allreduce(&time_taken1, &dur_max1, 1, MPI_DOUBLE, MPI_MAX, comm);
     if(world_rank == 0)
     {
-        cout << setprecision(16) << "Time taken to broadcast boundary layer/tetra trace data is :          " << fixed
-        << dur_max1 << setprecision(16);
+        cout << setprecision(3) << "Time taken to broadcast boundary layer/tetra trace data is :          " << fixed
+        << dur_max1 << setprecision(3);
         cout << " sec " << endl;
     }
 
@@ -280,7 +280,7 @@ int main(int argc, char** argv)
         {   
             cout << "-------------------------------------------------------------------------------------------- +" << std::endl;
             cout << "Time taken to execute repartioning tetrahedera is :                                  " << fixed 
-            << dur_max << setprecision(16); 
+            << dur_max << setprecision(3); 
             cout << " sec " << endl;
         }
 
@@ -322,8 +322,8 @@ int main(int argc, char** argv)
         if(world_rank == 0)
         {   
             cout << "-------------------------------------------------------------------------------------------- +" << std::endl;
-            cout << "Time taken to execute repartioning PrepareAdaption is :                            " << fixed 
-            << dur_max << setprecision(16); 
+            cout << "Time taken to execute repartioning PrepareAdaption is :                              " << fixed 
+            << dur_max << setprecision(3); 
             cout << " sec " << endl;
         }
         
@@ -350,7 +350,7 @@ int main(int argc, char** argv)
          if(world_rank == 0)
         {
             cout << "Time taken to execute calculating first and second order gradients :                 " << fixed 
-            << dur_max << setprecision(16); 
+            << dur_max << setprecision(3); 
             cout << " sec " << endl;
         }
     }
@@ -382,7 +382,7 @@ int main(int argc, char** argv)
         if(world_rank == 0)
         {
             cout << "Time taken to execute repartioning tetrahedera is : " << fixed 
-            << dur_max << setprecision(16); 
+            << dur_max << setprecision(3); 
             cout << " sec " << endl;
         }
 
@@ -398,7 +398,7 @@ int main(int argc, char** argv)
         std::set<int> m_ElemSet                             = tetra_repart->getLocalElemSet();
         std::map<int,int> localV2globalV                    = tetra_repart->getLocalVert2GlobalVert();
         std::map<int,std::vector<double> > LocalVertsMap    = tetra_repart->getLocalVertsMap();
-        
+        std::cout << "m_TraceFacesOnRank " << m_TraceVertsOnRank.size() << " " << m_TraceFacesOnRank.size() << std::endl;
 
         start = clock();
         adaptionObject = new PrepareAdaption(tetra_repart, 
@@ -426,7 +426,7 @@ int main(int argc, char** argv)
         if(world_rank == 0)
         {
             cout << "Time taken to prepare for adaptation : " << fixed 
-            << dur_max << setprecision(16); 
+            << dur_max << setprecision(3); 
             cout << " sec " << endl;
         }
 
@@ -519,8 +519,8 @@ int main(int argc, char** argv)
         MPI_Allreduce(&time_taken, &dur_max, 1, MPI_DOUBLE, MPI_MAX, comm);
          if(world_rank == 0)
         {
-            cout << "Time taken to execute calculating first and second order gradients :           " << fixed 
-            << dur_max << setprecision(16); 
+            cout << "Time taken to execute calculating first and second order gradients :          " << fixed 
+            << dur_max << setprecision(3); 
             cout << " sec " << endl;
         }
         
@@ -573,7 +573,7 @@ int main(int argc, char** argv)
         std::set<int> loc_trace_faces                               = tetra_repart->GetLocalTraceFacesSet();
         std::set<int> loc_trace_verts                               = tetra_repart->GetLocalTraceVertsSet();
         std::map<int,std::vector<int> > loc_trace_face2leftright    = tetra_repart->GetLocalTraceFace2LeftRight();
-
+        
         PMMG_pParMesh parmesh = InitializeParMMGmesh(comm, 
                                                     loc_trace_faces, loc_trace_verts, loc_trace_face2leftright, 
                                                     adaptionObject, meshRead->ranges_id, bndIDmax, metric_vmap);
@@ -629,8 +629,9 @@ int main(int argc, char** argv)
         MPI_Allreduce(&time_taken, &dur_max, 1, MPI_DOUBLE, MPI_MAX, comm);
         if(world_rank == 0)
         {
-            cout << "Time taken to execute repartioning the boundary layer mesh is :                " << fixed 
-            << dur_max << setprecision(16); 
+            cout << "-------------------------------------------------------------------------------------------- +" << std::endl;
+            cout << "Time taken to execute repartioning the boundary layer mesh is :                      " << fixed 
+            << dur_max << setprecision(3); 
             cout << " sec " << endl;
         }
         
@@ -661,8 +662,7 @@ int main(int argc, char** argv)
         std::set<int> m_ElemSetP                             = prism_repart->getLocalElemSet();
         std::map<int,int> localV2globalVP                    = prism_repart->getLocalVert2GlobalVert();
         std::map<int,std::vector<double> > LocalVertsMapP    = prism_repart->getLocalVertsMap();
-        
-
+                
         start = clock();
         PrismPrepare = new PrepareAdaption(prism_repart, 
                                             comm,
@@ -742,7 +742,8 @@ int main(int argc, char** argv)
         std::map<int,std::vector<int> > bcref2bcface_P          = PrismPrepare->getZone2boundaryFaceID();
         int nLocElem_P                                          = prism_repart->getLocalElemSet().size();
         std::map<int,int> new2tag                               = PrismPrepare->getGlobalElement2ElementTag();
-        
+        std::map<int,int> element2type_bl           = prism_repart->GetElement2TypeOnRankMap();
+
         delete prism_repart;
 
         RunParMMGandWriteTetraUS3Dformat(comm, 
@@ -933,14 +934,15 @@ int main(int argc, char** argv)
         //===================================================================================
         //===================================================================================
         
+
         int nTetraLoc = elements_AdaptedTetra.size();
         int nPrismLoc = nLocElem_P;//prism_repart->getLocElem().size();
 
         std::vector<int> prisms_type(nPrismLoc,0);
         DistributedParallelState* PrismElementDistr = new DistributedParallelState(nPrismLoc,comm);
 
-        std::map<int,int> element2type_bl                       = prism_repart->GetElement2TypeOnRankMap();
-
+        
+        
         for(int i=0;i<nPrismLoc;i++)
         {
             int newid = PrismElementDistr->getOffsets()[world_rank] + i + 1;
@@ -1331,10 +1333,10 @@ int main(int argc, char** argv)
         
         // if(world_rank==0)
         // {
-        //     //std::cout << std::setprecision(16) << "Computing the metric takes " << dur_max_met << " seconds using " << world_size << " procs. " << std::endl;
-        //     std::cout << std::setprecision(16) << "Redistributing the tetrahedra takes " << dur_max_redis << " seconds using " << world_size << " procs. " << std::endl;
-        //     std::cout << std::setprecision(16) << "Adapting the tetrahedra takes " << dur_max_adapt << " seconds using " << world_size << " procs. " << std::endl;
-        //     std::cout << std::setprecision(16) << "Writing out the grid takes " << dur_max << " seconds using " << world_size << "procs. " << std::endl;
+        //     //std::cout << std::setprecision(3) << "Computing the metric takes " << dur_max_met << " seconds using " << world_size << " procs. " << std::endl;
+        //     std::cout << std::setprecision(3) << "Redistributing the tetrahedra takes " << dur_max_redis << " seconds using " << world_size << " procs. " << std::endl;
+        //     std::cout << std::setprecision(3) << "Adapting the tetrahedra takes " << dur_max_adapt << " seconds using " << world_size << " procs. " << std::endl;
+        //     std::cout << std::setprecision(3) << "Writing out the grid takes " << dur_max << " seconds using " << world_size << "procs. " << std::endl;
         //     std::cout << "Finalizing process" << std::endl;     
         // }
         /**/
@@ -1349,7 +1351,7 @@ int main(int argc, char** argv)
     if(world_rank == 0)
     {
         cout << "Time taken to execute MIMIC : " << fixed
-        << dur_max1 << setprecision(16);
+        << dur_max1 << setprecision(3);
         cout << " sec " << endl;
     }
 

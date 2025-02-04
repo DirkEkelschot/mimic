@@ -74,7 +74,7 @@ PMMG_pParMesh InitializeParMMGmesh(MPI_Comm comm,
     }
     
     
-    std::cout << "nVertices " << nVertices << " " << world_rank << std::endl;
+    // std::cout << "nVertices " << nVertices << " " << world_rank << std::endl;
     //PMMG_Set_metSize(PMMG_pParMesh parmesh,int typEntity,int np,int typSol)
     if ( PMMG_Set_metSize(parmesh,MMG5_Vertex,nVertices,MMG5_Tensor) != 1 ) exit(EXIT_FAILURE);
 

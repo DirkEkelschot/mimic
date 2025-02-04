@@ -81,7 +81,7 @@ class PrepareAdaption{
                 std::map<int,int> getSharedVertsNotOwned();
                 std::map<int,int> GetLeftHandFaceElementMap();
                 std::map<int,int> GetRightHandFaceElementMap();
-                std::map<int,int> GetElement2TypeOnRankMap();
+                // std::map<int,int> GetElement2TypeOnRankMap();
                 std::map<int,std::vector<int> > getZone2boundaryFaceID();
                 std::map<int,int> getGlobalElement2ElementTag();
 

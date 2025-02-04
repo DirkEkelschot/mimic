@@ -465,7 +465,7 @@ void WritePrismsUS3DFormat_V2(MPI_Comm comm,
     std::fill(ifn_P.begin(), ifn_P.end(), 0);
     if(world_rank == 0)
     {
-        std::cout << "STUDY SIZES " << glob_trace_verts.size() << " " << tracerefV2globalV.size() << std::endl;
+        std::cout << "STUDY SIZES " << glob_trace_verts.size() << " " << tracerefV2globalV.size() << "  " << loc_trace_verts.size() << std::endl;
     }
     int fptot = 0;
     std::set<int> catchy;
