@@ -96,7 +96,7 @@ PartObject::PartObject(mesh* meshInput,
     //===============================================================================================================
     start = clock();
     // std::map<int,std::vector<int> > Rank2Elem = CommunicateAdjacencyInfoLocalPartition(comm);
-    CommunicateAdjacencyInfo(comm);
+    std::map<int,std::vector<int> > Rank2Elem = CommunicateAdjacencyInfoLocalPartition(comm);
     end = clock();
     time_taken = ( end - start) / (double) CLOCKS_PER_SEC;
     MPI_Allreduce(&time_taken, &dur_max, 1, MPI_DOUBLE, MPI_MAX, comm);
@@ -114,7 +114,7 @@ PartObject::PartObject(mesh* meshInput,
     MPI_Allreduce(&time_taken, &dur_max, 1, MPI_DOUBLE, MPI_MAX, comm);
     if(rank == 0)
     {
-        std::cout << std::setprecision(3) << "The Face2Element map is genereatged based on the Element2Entity data:                " << std::fixed
+        std::cout << std::setprecision(3) << "The Face2Element map is generated based on the Element2Entity data:                  " << std::fixed
         << dur_max;
         std::cout << " sec " << std::endl;
     }
@@ -139,7 +139,7 @@ PartObject::PartObject(mesh* meshInput,
     MPI_Allreduce(&time_taken, &dur_max, 1, MPI_DOUBLE, MPI_MAX, comm);
     if(rank == 0)
     {
-        std::cout << std::setprecision(3) << "The Face2Vertex map is genereatged based on the Element2Entity data:                 " << std::fixed
+        std::cout << std::setprecision(3) << "The Face2Vertex map is generated based on the Element2Entity data:                   " << std::fixed
         << dur_max;
         std::cout << " sec " << std::endl;
     }
@@ -2241,11 +2241,10 @@ void PartObject::CommunicateAdjacencyInfo(MPI_Comm comm)
     }
 
     std::vector<int> toquery_elids_vec(toquery_elids.size(),0);
-    //std::cout << "collect_prism_ids_toberequested " << collect_prism_ids_toberequested.size() << " " << world_rank << std::endl;
+
     std::copy(toquery_elids.begin(), 
                 toquery_elids.end(), 
                 toquery_elids_vec.begin());
-
 
     if(rank != 0)
     {
@@ -2322,8 +2321,7 @@ void PartObject::CommunicateAdjacencyInfo(MPI_Comm comm)
 
 std::map<int,std::vector<int> >  PartObject::CommunicateAdjacencyInfoLocalPartition(MPI_Comm comm)
 {
-    int nothere = 0;
-    int nothere2 = 0;
+
     int size;
     MPI_Comm_size(comm, &size);
     // Get the rank of the process
@@ -2334,7 +2332,7 @@ std::map<int,std::vector<int> >  PartObject::CommunicateAdjacencyInfoLocalPartit
     int nreq;
 
     std::set<int> toquery_elids;
-    int here = 0;
+
     for(itm=m_Elem2Elem.begin();itm!=m_Elem2Elem.end();itm++)
     {
         int elid = itm->first;
@@ -2343,19 +2341,16 @@ std::map<int,std::vector<int> >  PartObject::CommunicateAdjacencyInfoLocalPartit
         {
             int adjeid = itm->second[q];
 
-            if(m_partMap.find(adjeid)!=m_partMap.end() && adjeid<Ne_glob)
+            if(m_ElemSet.find(adjeid)==m_ElemSet.end() && adjeid<Ne_glob)
             {
                 if(toquery_elids.find(adjeid)==toquery_elids.end())
                 {
                     toquery_elids.insert(adjeid);
                 }
-
-                here++;
             }
             else
             {
-                // m_Elem2Rank[adjeid] = rank;
-                nothere2++;
+                m_Elem2Rank[adjeid] = rank;
             }
         }
     }
@@ -2444,21 +2439,10 @@ std::map<int,std::vector<int> >  PartObject::CommunicateAdjacencyInfoLocalPartit
                 p_id = m_partGlobalRoot[el_id];
                 Rank2Elem[p_id].push_back(el_id);
             }
-            else
-            {
-                nothere++;
-            }
-            if(p_id == -1)
-            {
-                std::cout << "Sending  " << std::endl;
-            }
             m_Elem2Rank[el_id] = p_id;
       
         }
     }
-
-    std::cout << "m_partGlobalRoot m_partMap " << m_partGlobalRoot.size() << " " << nothere << " " << m_partMap.size() << " " << nothere2 << std::endl;
-
     return Rank2Elem;  
 }
 
