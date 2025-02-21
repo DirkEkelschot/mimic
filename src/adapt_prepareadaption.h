@@ -30,7 +30,6 @@ class PrepareAdaption{
                             std::map<int,std::vector<int> >&&      Elem2Vert,
                             std::map<int,std::vector<int> >&&      Face2Vert,
                             std::map<int,std::vector<int> >&&      Face2Elem,
-                            std::map<int,int>                      partMap,
                             std::map<int,int>&&                    Elem2Rank,
                             std::set<int>                          TraceVertsOnRank,
                             std::set<int>                          TraceFacesOnRank,
@@ -40,7 +39,6 @@ class PrepareAdaption{
 
 
             void buildUpdatedVertexAndFaceNumbering(MPI_Comm comm, 
-                                                    std::map<int,int>               partMap,
                                                     std::set<int>                   TraceVertsOnRank,
                                                     std::set<int>                   TraceFacesOnRank,
                                                     std::map<int,std::vector<int> > ranges_id,
@@ -49,7 +47,6 @@ class PrepareAdaption{
 
 
             void buildInteriorSharedAndBoundaryFaceMaps(MPI_Comm                    comm, 
-                                                    std::map<int,int>               partMap,
                                                     std::set<int>                   TraceVertsOnRank,
                                                     std::set<int>                   TraceFacesOnRank,
                                                     std::map<int,std::vector<int> > ranges_id,

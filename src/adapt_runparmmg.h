@@ -36,7 +36,7 @@ PMMG_pParMesh InitializeParMMGmesh(MPI_Comm comm,
                                    PrepareAdaption* prepare,
                                    std::map<int,std::vector<int> > ranges_id,
                                    int bndIDmax,
-                                   std::map<int, std::vector<std::vector<double> > > metric_vmap);
+                                   std::map<int, std::vector<double> > metric_vmap);
 
 void RunParMMGAndTestPartitioning(MPI_Comm comm, 
                                   PMMG_pParMesh parmesh, 

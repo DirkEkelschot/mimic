@@ -11,7 +11,6 @@ PrepareAdaption::PrepareAdaption(PartObject* part,
                                 std::map<int,std::vector<int> >&&               Elem2Vert,
                                 std::map<int,std::vector<int> >&&               Face2Vert,
                                 std::map<int,std::vector<int> >&&               Face2Elem,
-                                std::map<int,int>                               partMap,
                                 std::map<int,int>&&                             Elem2Rank,
                                 std::set<int>                                   TraceVertsOnRank,
                                 std::set<int>                                   TraceFacesOnRank,
@@ -38,14 +37,12 @@ PrepareAdaption::PrepareAdaption(PartObject* part,
 
 
     buildUpdatedVertexAndFaceNumbering(comm,
-                                        partMap,
                                         TraceVertsOnRank,
                                         TraceFacesOnRank,
                                         ranges_id,
                                         ranges_ref);
 
     buildInteriorSharedAndBoundaryFaceMaps(comm,
-                                        partMap,
                                         TraceVertsOnRank,
                                         TraceFacesOnRank,
                                         ranges_id,
@@ -56,7 +53,6 @@ PrepareAdaption::PrepareAdaption(PartObject* part,
 
 
 void PrepareAdaption::buildUpdatedVertexAndFaceNumbering(MPI_Comm                   comm, 
-                                                    std::map<int,int>               partMap,
                                                     std::set<int>                   TraceVertsOnRank,
                                                     std::set<int>                   TraceFacesOnRank,
                                                     std::map<int,std::vector<int> > ranges_id,
@@ -136,18 +132,9 @@ void PrepareAdaption::buildUpdatedVertexAndFaceNumbering(MPI_Comm               
                         int r0; // = part_global[e0]; // rank of first adjacent element.
                         int r1; // = part_global[e1]; // rank of second adjacent element.
 
-                        if(partMap.find(e0)!=partMap.end())
-                        {
-                            r0 = partMap[e0];
-                        }
                         if(m_Elem2Rank.find(e0)!=m_Elem2Rank.end())
                         {
                             r0 = m_Elem2Rank[e0];
-                        }
-
-                        if(partMap.find(e1)!=partMap.end())
-                        {
-                            r1 = partMap[e1];
                         }
                         if(m_Elem2Rank.find(e1)!=m_Elem2Rank.end())
                         {
@@ -428,8 +415,7 @@ void PrepareAdaption::buildUpdatedVertexAndFaceNumbering(MPI_Comm               
     
     //std::cout << "m_sharedFace2RankMap " << m_sharedFace2RankMap.size() << " " << rank << std::endl;   
 
-
-    DistributedParallelState* ElementDistr  = new DistributedParallelState(partMap.size(),comm);
+    DistributedParallelState* ElementDistr  = new DistributedParallelState(m_ElemSet.size(),comm);
     int u                                   = 0;
     int gvidd                               = 0;
 
@@ -747,7 +733,6 @@ void PrepareAdaption::buildUpdatedVertexAndFaceNumbering(MPI_Comm               
 
 
 void PrepareAdaption::buildInteriorSharedAndBoundaryFaceMaps(MPI_Comm               comm, 
-                                                    std::map<int,int>               partMap,
                                                     std::set<int>                   TraceVertsOnRank,
                                                     std::set<int>                   TraceFacesOnRank,
                                                     std::map<int,std::vector<int> > ranges_id,
@@ -865,18 +850,9 @@ void PrepareAdaption::buildInteriorSharedAndBoundaryFaceMaps(MPI_Comm           
                                 
                                 int r0 = rank; // = part_global[e0]; // rank of first adjacent element.
                                 int r1 = rank; // = part_global[e1]; // rank of second adjacent element.
-
-                                if(partMap.find(e0)!=partMap.end())
-                                {
-                                    r0 = partMap[e0];
-                                }
                                 if(m_Elem2Rank.find(e0)!=m_Elem2Rank.end())
                                 {
                                     r0 = m_Elem2Rank[e0];
-                                }
-                                if(partMap.find(e1)!=partMap.end())
-                                {
-                                    r1 = partMap[e1];
                                 }
                                 if(m_Elem2Rank.find(e1)!=m_Elem2Rank.end())
                                 {

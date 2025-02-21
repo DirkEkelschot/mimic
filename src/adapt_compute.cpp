@@ -1176,7 +1176,7 @@ void UnitTestJacobian()
 
 
 
-std::map<int,std::vector<std::vector<double> > > ComputeMetric_Lite(MPI_Comm comm, 
+std::map<int,std::vector<double> > ComputeMetric_Lite(MPI_Comm comm, 
                         PartObject* tetra_repart,
                         std::map<int,std::vector<double> > tetra_grad, 
                         std::map<int,std::vector<double> > &eigvalues, 
@@ -1196,12 +1196,11 @@ std::map<int,std::vector<std::vector<double> > > ComputeMetric_Lite(MPI_Comm com
     double hmin     = inputs->hmin;
     double hmax     = inputs->hmax;
     double Scale    = inputs->MetScale;
-    std::map<int,std::vector<std::vector<double> > > metric_vmap;
+    std::map<int,std::vector<double> > metric_vmap;
 
 
 
     std::map<int,std::vector<double> >::iterator itmidv;
-    int yep = 0;
     std::set<int> Owned_Elem_t                           = tetra_repart->getLocalElemSet();
     std::map<int,std::vector<int> > gE2gV_t              = tetra_repart->getElem2VertMap();
     std::map<int,std::map<int,double> > node2element_map = tetra_repart->GetNode2ElementMap();
@@ -1230,23 +1229,12 @@ std::map<int,std::vector<std::vector<double> > > ComputeMetric_Lite(MPI_Comm com
                 for(its=elems.begin();its!=elems.end();its++)
                 {
                     int elid = its->first;
-                    //std::cout << "elid " << elid << " " << tetra_grad.size() << std::endl;
                     if(tetra_grad.find(elid)!=tetra_grad.end())
                     {
-                        //std::cout << "Found in " << std::endl;
                         for(int k=0;k<6;k++)
                         {
-                            row_tmp[k]=row_tmp[k]+tetra_grad[elid][3+k];
-                            // if(rank == 0)
-                            // {
-                            //     std::cout << tetra_grad[elid][3+k] << " ";
-                            // }
-                            
+                            row_tmp[k]=row_tmp[k]+tetra_grad[elid][3+k];   
                         }
-                        // if(rank == 0)
-                        // {
-                        //     std::cout << std::endl;
-                        // }
                         
                         nc++;
                     }   
@@ -1300,6 +1288,7 @@ std::map<int,std::vector<std::vector<double> > > ComputeMetric_Lite(MPI_Comm com
                 double detMetric        = metric[0][0]*(metric[1][1]*metric[2][2]-metric[2][1]*metric[1][2])
                                         - metric[0][1]*(metric[1][0]*metric[2][2]-metric[2][0]*metric[1][2])
                                         + metric[0][2]*(metric[1][0]*metric[2][1]-metric[2][0]*metric[1][1]);
+
                 // if(rank == 0)
                 // {
                 //     std::cout << std::endl;
@@ -1311,7 +1300,7 @@ std::map<int,std::vector<std::vector<double> > > ComputeMetric_Lite(MPI_Comm com
                 
                 double pow              = -1.0/(2.0*po+3.0);
                 double eigRat           = Lambdamin/Lambdamax;
-                detMetric               = std::pow(detMetric,pow);
+                detMetric               = 1.0;//std::pow(detMetric,pow);
 
                 for(int i=0;i<3;i++)
                 {
@@ -1321,7 +1310,16 @@ std::map<int,std::vector<std::vector<double> > > ComputeMetric_Lite(MPI_Comm com
                     }
                 }
 
-                metric_vmap[gvid] = metric;
+                std::vector<double> metricVec(6,0.0);
+
+                metricVec[0] = metric[0][0];
+                metricVec[1] = metric[0][1];
+                metricVec[2] = metric[0][2];
+                metricVec[3] = metric[1][1];
+                metricVec[4] = metric[1][2];
+                metricVec[5] = metric[2][2];
+
+                metric_vmap[gvid] = metricVec;
 
                 delete[] eig->Dre;
                 delete[] eig->Dim;
@@ -1603,8 +1601,8 @@ void ComputeMetricWithWake(Partition* Pa,
 
 
 
-std::map<int,std::vector<std::vector<double> > > ComputeElementMetric_Lite(MPI_Comm comm, 
-                        RepartitionObject* tetra_repart,
+std::map<int,std::vector<double> > ComputeElementMetric_Lite(MPI_Comm comm, 
+                        PartObject* tetra_repart,
                         std::map<int,std::vector<double> > tetra_grad,
                         std::map<int,std::vector<double> > &eigvalues, 
                         Inputs* inputs)
@@ -1623,22 +1621,22 @@ std::map<int,std::vector<std::vector<double> > > ComputeElementMetric_Lite(MPI_C
     double hmin     = inputs->hmin;
     double hmax     = inputs->hmax;
     double Scale    = inputs->MetScale;
-    std::map<int,std::vector<std::vector<double> > > metric_vmap;
+    std::map<int,std::vector<double> > metric_vmap;
 
     std::map<int,std::vector<double> >::iterator itmidv;
-    int yep = 0;
-    std::vector<int> Owned_Elem_t                       = tetra_repart->getLocElem();
-    std::map<int,std::vector<int> > gE2gV_t             = tetra_repart->getElement2VertexMap();
-    std::map<int,std::set<int> > node2element_map       = tetra_repart->GetNode2ElementMap();
-
-    for(int i=0;i<Owned_Elem_t.size();i++)
+    std::set<int> Owned_Elem_t                                  = tetra_repart->getLocalElemSet();
+    std::map<int,std::vector<int> > gE2gV_t                     = tetra_repart->getElem2VertMap();
+    // std::map<int,std::map<int,double> > node2element_map     = tetra_repart->GetNode2ElementMap();
+    std::set<int>::iterator its;
+    // for(int i=0;i<Owned_Elem_t.size();i++)
+    for(its=Owned_Elem_t.begin();its!=Owned_Elem_t.end();its++)
     {
-        int elid = Owned_Elem_t[i];
+        int elid = *its;
 
         std::vector<double> row(9,0.0);
 
         row[0]=tetra_grad[elid][3];  row[1]=tetra_grad[elid][4];  row[2]=tetra_grad[elid][5];
-        row[3]=tetra_grad[elid][5];  row[4]=tetra_grad[elid][6];  row[5]=tetra_grad[elid][7];
+        row[3]=tetra_grad[elid][4];  row[4]=tetra_grad[elid][6];  row[5]=tetra_grad[elid][7];
         row[6]=tetra_grad[elid][5];  row[7]=tetra_grad[elid][7];  row[8]=tetra_grad[elid][8];
         
         Eig* eig = ComputeEigenDecomp(3, row.data());
@@ -1682,7 +1680,7 @@ std::map<int,std::vector<std::vector<double> > > ComputeElementMetric_Lite(MPI_C
         
         double pow              = -1.0/(2.0*po+3.0);
         double eigRat           = Lambdamin/Lambdamax;
-        detMetric               = std::pow(detMetric,pow);
+        detMetric               = 1.0; //std::pow(detMetric,pow);
 
         for(int i=0;i<3;i++)
         {
@@ -1691,8 +1689,20 @@ std::map<int,std::vector<std::vector<double> > > ComputeElementMetric_Lite(MPI_C
                 metric[i][j] = detMetric*metric[i][j];
             }
         }
+        
+        std::vector<double> metricVec(6,0.0);
 
-        metric_vmap[elid] = metric;
+        metricVec[0] = metric[0][0];
+        metricVec[1] = metric[0][1];
+        metricVec[2] = metric[0][2];
+        metricVec[3] = metric[1][1];
+        metricVec[4] = metric[1][2];
+        metricVec[5] = metric[2][2];
+
+        
+        
+
+        metric_vmap[elid] = metricVec;
 
         delete[] eig->Dre;
         delete[] eig->Dim;

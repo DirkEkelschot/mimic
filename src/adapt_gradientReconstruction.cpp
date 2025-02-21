@@ -1,5 +1,8 @@
 #include "adapt_gradientReconstruction.h"
 
+
+
+
 std::map<int,std::vector<double> > ComputedUdx_LSQ_US3D_Lite(PartObject* RePa,
                                                              std::map<int,std::vector<double> > ghosts,
                                                              int Nel,
@@ -21,13 +24,9 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_US3D_Lite(PartObject* RePa,
     std::map<int,std::vector<int> > m_Elem2Face     = RePa->getElem2FaceMap();
     std::map<int,std::vector<int> > m_Elem2Elem     = RePa->getElem2ElemMap();
     std::map<int,std::vector<double> > Ue           = RePa->getElem2DataMap();
-    std::map<int,int> m_Elem2Rank                   = RePa->getElem2RankMap();
     std::map<int,std::vector<double> > m_VertCoords = RePa->getLocalVertsMap();
     std::map<int,std::vector<int> > m_Face2Vert     = RePa->getFace2VertMap();
     std::map<int,std::vector<int> > m_Face2Elem     = RePa->getFace2ElemMap();
-    std::map<int,int> m_partMap                     = RePa->getPartMap();
-    std::set<int> m_TraceVertsOnRank                = RePa->getTraceVertsOnRankMap();
-    std::set<int> m_TraceFacesOnRank                = RePa->getTraceFacesOnRankMap();
     std::set<int> m_ElemSet                         = RePa->getLocalElemSet();
 
     
@@ -84,7 +83,7 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_US3D_Lite(PartObject* RePa,
         std::vector<double> Vijk     = ComputeCentroidCoord(Pijk,NvPEl);
    
         int t                        = 0;
-
+        
         if(Ue.find(elID)!=Ue.end())
         {
             u_ijk                    = Ue[elID][variable];
@@ -93,14 +92,16 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_US3D_Lite(PartObject* RePa,
         {
             notFound3++;
         }
+        
         for(int j=0;j<nadj;j++)
         {
             int adjID       = m_Elem2Elem[elID][j];
             int faceID      = m_Elem2Face[elID][j];
-        
+           
             if(m_Elem2Vert.find(adjID)!=m_Elem2Vert.end()
                     && ghosts.find(adjID)==ghosts.end())
             {
+                 
                 int nvpf        = m_Face2Vert[faceID].size();
                 int nvpf_real   = m_Face2Vert[faceID].size();
                 int nVadj       = m_Elem2Vert[adjID].size();
@@ -133,10 +134,11 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_US3D_Lite(PartObject* RePa,
                 b[t] = (1.0/d)*(u_po-u_ijk);
                 dist.push_back(d);
                 t++;
-                            
+                /**/           
             }
             else
             {    
+                
                 int ghost_id    = adjID;
                 int nvpf_real   = m_Face2Vert[faceID].size();
 
@@ -150,9 +152,9 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_US3D_Lite(PartObject* RePa,
                     Vface[2] = Vface[2]+m_VertCoords[global_vid][2];
 
                     std::vector<double> V(3,0.0);
-                    V[0] = +m_VertCoords[global_vid][0];
-                    V[1] = +m_VertCoords[global_vid][1];
-                    V[2] = +m_VertCoords[global_vid][2];
+                    V[0] = m_VertCoords[global_vid][0];
+                    V[1] = m_VertCoords[global_vid][1];
+                    V[2] = m_VertCoords[global_vid][2];
                     face.push_back(V);
                 }
 
@@ -232,7 +234,7 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_US3D_Lite(PartObject* RePa,
                 b[t] = (1.0/d)*(u_po-u_ijk);
 
                 t++;
-                
+                /**/
                 face.clear();
             }    
         }
@@ -240,10 +242,12 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_US3D_Lite(PartObject* RePa,
     
         x = SolveQR_Lite(A_cm,nadj,3,b);
         dudx_map[elID] = x;
-
         
+        /**/
 
     }   
+
+    
 
     
     return dudx_map;
@@ -275,7 +279,6 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_US3D_Vrt_Lite(PartObject* ReP
     std::map<int,std::vector<int> > Face2Vert                   = RePa->getFace2VertMap();
 
     std::map<int,std::vector<double> > Ue                       = RePa->getElem2DataMap();
-    std::map<int,int> m_Elem2Rank                               = RePa->getElem2RankMap();
     std::map<int,std::vector<double> > VertCoords               = RePa->getLocalVertsMap();
     std::set<int> m_ElemSet                                     = RePa->getLocalElemSet();
 
@@ -358,9 +361,9 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_US3D_Vrt_Lite(PartObject* ReP
                     Vface[2] = Vface[2]+VertCoords[global_vid][2];
 
                     std::vector<double> V(3,0.0);
-                    V[0] = +VertCoords[global_vid][0];
-                    V[1] = +VertCoords[global_vid][1];
-                    V[2] = +VertCoords[global_vid][2];
+                    V[0] = VertCoords[global_vid][0];
+                    V[1] = VertCoords[global_vid][1];
+                    V[2] = VertCoords[global_vid][2];
                     face.push_back(V);
                 }
 
@@ -508,7 +511,6 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D(PartObject* RePa,
     std::map<int,std::vector<int> > Face2Vert                   = RePa->getFace2VertMap();
 
     std::map<int,std::vector<double> > Ue                       = RePa->getElem2DataMap();
-    std::map<int,int> m_Elem2Rank                               = RePa->getElem2RankMap();
     std::map<int,std::vector<double> > VertCoords               = RePa->getLocalVertsMap();
     std::set<int> m_ElemSet                                     = RePa->getLocalElemSet();
 
@@ -576,10 +578,19 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D(PartObject* RePa,
                     double uadj = 0.0;
                     int adjid   = *its;
 
-                    if(ghosts.find(adjid)!=ghosts.end())
+                    if(ghosts.find(adjid)!=ghosts.end() && extrap == 0)
                     {  
                         std::vector<double> Vadj    = GhostFaceVert[adjid];
                         uadj                        = ghosts[adjid][variable];
+                        a                           = (Vadj[0] - Vijk[0]);
+                        b                           = (Vadj[1] - Vijk[1]);
+                        c                           = (Vadj[2] - Vijk[2]);
+                        di                          = sqrt(a*a+b*b+c*c);    
+                    }
+                    else if(ghosts.find(adjid)!=ghosts.end() && extrap == 1)
+                    {  
+                        std::vector<double> Vadj    = GhostFaceVert[adjid];
+                        uadj                        = Ue[elID][variable];//ghosts[adjid][variable];
                         a                           = (Vadj[0] - Vijk[0]);
                         b                           = (Vadj[1] - Vijk[1]);
                         c                           = (Vadj[2] - Vijk[2]);
@@ -624,53 +635,52 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D(PartObject* RePa,
             }
             else
             {
-                // std::vector<double> bvec(nadj,0.0);
-                // std::vector<double> A_cm(nadj*3,0.0);
-                // std::set<int>::iterator its;
-                // for(its=adjel.begin();its!=adjel.end();its++)
-                // {
-                //     int adjid = *its;
-                //     double h00=0.0,h01=0.0,h02=0.0;
-                //     double h11=0.0,h12=0.0,h22=0.0;
-                //     double a=0.0,b=0.0,c=0.0,di=0.0;
-                //     double uadj=0.0;
+                std::vector<double> bvec(nadj,0.0);
+                std::vector<double> A_cm(nadj*3,0.0);
+                std::set<int>::iterator its;
+                for(its=adjel.begin();its!=adjel.end();its++)
+                {
+                    int adjid = *its;
+                    double h00=0.0,h01=0.0,h02=0.0;
+                    double h11=0.0,h12=0.0,h22=0.0;
+                    double a=0.0,b=0.0,c=0.0,di=0.0;
+                    double uadj=0.0;
 
-                //     if(adjid>Nel)
-                //     {  
-                //         std::vector<double> Vadj    = GhostFaceVert[adjid];
-                //         double uadj                 = ghosts[adjid][variable];
-                //         a                           = (Vadj[0] - Vijk[0]);
-                //         b                           = (Vadj[1] - Vijk[1]);
-                //         c                           = (Vadj[2] - Vijk[2]);
-                //     }
-                //     else
-                //     {
-                //         std::vector<double> Vadj    = Elem2Centroid[adjid];
-                //         double uadj                 = Ue[adjid][variable];
-                //         a                           = (Vadj[0] - Vijk[0]);
-                //         b                           = (Vadj[1] - Vijk[1]);
-                //         c                           = (Vadj[2] - Vijk[2]);
+                    if(adjid>Nel && extrap == 1)
+                    {  
+                        std::vector<double> Vadj    = GhostFaceVert[adjid];
+                        double uadj                 = Ue[elID][variable];//ghosts[adjid][variable];
+                        a                           = (Vadj[0] - Vijk[0]);
+                        b                           = (Vadj[1] - Vijk[1]);
+                        c                           = (Vadj[2] - Vijk[2]);
+                    }
+                    else
+                    {
+                        std::vector<double> Vadj    = Elem2Centroid[adjid];
+                        double uadj                 = Ue[adjid][variable];
+                        a                           = (Vadj[0] - Vijk[0]);
+                        b                           = (Vadj[1] - Vijk[1]);
+                        c                           = (Vadj[2] - Vijk[2]);
                         
-                //     }
+                    }
 
-                //     di                              = sqrt(a*a+b*b+c*c);
-                //     bvec[g]                         = 1.0/di*(uadj-uijk);
-                //     A_cm[0*nadj+g]                  = (1.0/di)*a;
-                //     A_cm[1*nadj+g]                  = (1.0/di)*b;
-                //     A_cm[2*nadj+g]                  = (1.0/di)*c;
+                    di                              = sqrt(a*a+b*b+c*c);
+                    bvec[g]                         = 1.0/di*(uadj-uijk);
+                    A_cm[0*nadj+g]                  = (1.0/di)*a;
+                    A_cm[1*nadj+g]                  = (1.0/di)*b;
+                    A_cm[2*nadj+g]                  = (1.0/di)*c;
                     
-                //     g++;
-                // }
+                    g++;
+                }
 
-                // x = SolveQR_Lite(A_cm,nadj,3,bvec);
+                x = SolveQR_Lite(A_cm,nadj,3,bvec);
 
-                // std::vector<double> xnew(9,0.0);
-                // xnew[0] = x[0];
-                // xnew[1] = x[1];
-                // xnew[2] = x[2];
+                std::vector<double> xnew(9,0.0);
+                xnew[0] = x[0];
+                xnew[1] = x[1];
+                xnew[2] = x[2];
 
-                // dudx_map[elID] = xnew;
-
+                dudx_map[elID] = xnew;
             } 
                 
     }

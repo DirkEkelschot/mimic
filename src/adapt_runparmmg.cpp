@@ -12,7 +12,7 @@ PMMG_pParMesh InitializeParMMGmesh(MPI_Comm comm,
                                    PrepareAdaption* prepare,
                                    std::map<int,std::vector<int> > ranges_id,
                                    int bndIDmax,
-                                   std::map<int, std::vector<std::vector<double> > > metric_vmap)
+                                   std::map<int, std::vector<double> > metric_vmap)
 {
     
     int ier;
@@ -97,13 +97,16 @@ PMMG_pParMesh InitializeParMMGmesh(MPI_Comm comm,
         MPI_Finalize();
         exit(EXIT_FAILURE);
         }
+
         std::vector<double> tensor(6,0);
-        tensor[0] = metric_vmap[tagvid][0][0];
-        tensor[1] = metric_vmap[tagvid][0][1];
-        tensor[2] = metric_vmap[tagvid][0][2];
-        tensor[3] = metric_vmap[tagvid][1][1];
-        tensor[4] = metric_vmap[tagvid][1][2];
-        tensor[5] = metric_vmap[tagvid][2][2];
+        tensor[0] = metric_vmap[tagvid][0];
+        tensor[1] = metric_vmap[tagvid][1];
+        tensor[2] = metric_vmap[tagvid][2];
+        tensor[3] = metric_vmap[tagvid][3];
+        tensor[4] = metric_vmap[tagvid][4];
+        tensor[5] = metric_vmap[tagvid][5];
+
+        // std::cout << metric_vmap[tagvid][0] << " " << metric_vmap[tagvid][1] << " " << metric_vmap[tagvid][2] << " " << metric_vmap[tagvid][3] << " " << metric_vmap[tagvid][4] << " " << metric_vmap[tagvid][5] << std::endl;  
 
         if(PMMG_Set_tensorMet(parmesh,tensor[0],tensor[1],tensor[2],tensor[3],tensor[4],tensor[5],locvid+1)!=1)
         {

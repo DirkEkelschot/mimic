@@ -308,7 +308,6 @@ int main(int argc, char** argv)
                                             std::move(m_Elem2Vert),
                                             std::move(m_Face2Vert),
                                             std::move(m_Face2Elem),
-                                            m_partMap,
                                             std::move(m_Elem2Rank),
                                             m_TraceVertsOnRank,
                                             m_TraceFacesOnRank,
@@ -398,7 +397,6 @@ int main(int argc, char** argv)
         std::set<int> m_ElemSet                             = tetra_repart->getLocalElemSet();
         std::map<int,int> localV2globalV                    = tetra_repart->getLocalVert2GlobalVert();
         std::map<int,std::vector<double> > LocalVertsMap    = tetra_repart->getLocalVertsMap();
-        std::cout << "m_TraceFacesOnRank " << m_TraceVertsOnRank.size() << " " << m_TraceFacesOnRank.size() << std::endl;
 
         start = clock();
         adaptionObject = new PrepareAdaption(tetra_repart, 
@@ -410,7 +408,6 @@ int main(int argc, char** argv)
                                             std::move(m_Elem2Vert),
                                             std::move(m_Face2Vert),
                                             std::move(m_Face2Elem),
-                                            m_partMap,
                                             std::move(m_Elem2Rank),
                                             m_TraceVertsOnRank,
                                             m_TraceFacesOnRank,
@@ -437,12 +434,12 @@ int main(int argc, char** argv)
         tetra_repart->SetStateVec(Ue,2);
     
         start = clock();
-        std::map<int,std::vector<double> > tetra_grad_v2 = ComputedUdx_LSQ_LS_US3D(tetra_repart, 
+        std::map<int,std::vector<double> > tetra_grad_v2 = ComputedUdx_LSQ_US3D_Lite(tetra_repart, 
                                                                                     meshRead->ghost, 
                                                                                     meshRead->nElem,
                                                                                     1,2,
                                                                                     comm,
-                                                                                    0);
+                                                                                    1);
 
         std::map<int,std::vector<double> >::iterator iti;
         std::map<int,std::vector<double> > dudx_map;
@@ -459,30 +456,30 @@ int main(int argc, char** argv)
         tetra_repart->AddStateVecForAdjacentElements(dudx_map,1,comm);
         tetra_repart->SetStateVec(dudx_map,1);
 
-        std::map<int,std::vector<double> > dU2dx2 = ComputedUdx_LSQ_LS_US3D(tetra_repart, 
+        std::map<int,std::vector<double> > dU2dx2 = ComputedUdx_LSQ_US3D_Lite(tetra_repart, 
                                                                             meshRead->ghost, 
                                                                             meshRead->nElem,
                                                                             0,1,
                                                                             comm,
-                                                                            0);
+                                                                            1);
         tetra_repart->AddStateVecForAdjacentElements(dudy_map,1,comm);
         tetra_repart->SetStateVec(dudy_map,1);
 
-        std::map<int,std::vector<double> > dU2dy2 = ComputedUdx_LSQ_LS_US3D(tetra_repart, 
+        std::map<int,std::vector<double> > dU2dy2 = ComputedUdx_LSQ_US3D_Lite(tetra_repart, 
                                                                             meshRead->ghost, 
                                                                             meshRead->nElem,
                                                                             0,1,
                                                                             comm,
-                                                                            0);
+                                                                            1);
         tetra_repart->AddStateVecForAdjacentElements(dudz_map,1,comm);
         tetra_repart->SetStateVec(dudz_map,1);
 
-        std::map<int,std::vector<double> > dU2dz2 = ComputedUdx_LSQ_LS_US3D(tetra_repart, 
+        std::map<int,std::vector<double> > dU2dz2 = ComputedUdx_LSQ_US3D_Lite(tetra_repart, 
                                                                             meshRead->ghost, 
                                                                             meshRead->nElem,
                                                                             0,1,
                                                                             comm,
-                                                                            0);
+                                                                            1);
 
         for(iti=dU2dx2.begin();iti!=dU2dx2.end();iti++)
         {
@@ -552,20 +549,19 @@ int main(int argc, char** argv)
         
         //std::map<int,std::set<int> > node2element_map = tetra_repart->GetNode2ElementMap();
         std::map<int,std::map<int,double> > node2element_map = tetra_repart->GetNode2ElementMap();
-        std::map<int,std::vector<std::vector<double> > > metric_vmap;
+        std::map<int,std::vector<double> > metric_vmap;
         // ====================== Generating dummy metric ==========================
         
         for(itmis=node2element_map.begin();itmis!=node2element_map.end();itmis++)
         {
             int gvid = itmis->first;
-            std::vector<std::vector<double> > metric(3);
-            for(int i=0;i<3;i++)
-            {
-                std::vector<double> row(3,0);
-                row[i] = 1.0;
-
-                metric[i] = row;
-            }
+            std::vector<double> metric(6,0.0);
+            metric[0] = 1.0;
+            metric[1] = 0.0;
+            metric[2] = 0.0;
+            metric[3] = 1.0;
+            metric[4] = 0.0;
+            metric[5] = 1.0;
 
             metric_vmap[gvid] = metric;
         }
@@ -586,12 +582,111 @@ int main(int argc, char** argv)
     {   
         
         std::map<int,std::vector<double> > eigvalues;
-        std::map<int,std::vector<std::vector<double> > > metric_vmap = ComputeMetric_Lite(comm, 
-                                                                            tetra_repart,
-                                                                            tetra_grad,
-                                                                            eigvalues,
-                                                                            inputs);
+
+        // std::map<int,std::vector<double> > metric_vmap = ComputeMetric_Lite(comm, 
+        //                                                                     tetra_repart,
+        //                                                                     tetra_grad,
+        //                                                                     eigvalues,
+        //                                                                     inputs);
         
+        std::map<int,std::vector<double> > metric_emap = ComputeElementMetric_Lite(comm, 
+                                                                                tetra_repart,
+                                                                                tetra_grad,
+                                                                                eigvalues, 
+                                                                                 inputs);
+        // if(world_rank == 0)
+        // {
+        //     std::cout << "BEFORE " << metric_emap.size() << std::endl;
+        // }                                                                        
+        
+        tetra_repart->AddStateVecForAdjacentElements(metric_emap,6,comm);
+
+        // if(world_rank == 0)
+        // {
+        //     std::cout << "AFTER " << metric_emap.size() << std::endl;
+        // }   
+
+        std::map<int,std::vector<double> > m_Elem2Centroid  = tetra_repart->getElem2CentroidData();
+
+        std::map<int,std::vector<double> > metric_vmap;
+        std::map<int,std::vector<double> >::iterator itmd;
+        std::map<int,std::vector<int> >::iterator itm;
+        std::map<int,double> metric_nv;
+        std::map<int,std::vector<int> > m_Elem2Vert_v2      = adaptionObject->getElem2VertMap();
+        std::map<int,std::vector<double> > LocalVertsMap    = adaptionObject->getLocalVertsMap();
+
+        for(itm=m_Elem2Vert_v2.begin();itm!=m_Elem2Vert_v2.end();itm++)
+        {
+            int elid                        = itm->first;
+            int nvrt                        = m_Elem2Vert_v2[elid].size();
+            std::vector<double> Velem       = m_Elem2Centroid[elid];
+
+            for(int v=0;v<nvrt;v++)
+            {
+                int vid                     = m_Elem2Vert_v2[elid][v];
+
+                std::vector<double> Vvert   = LocalVertsMap[vid];
+
+                double dx = sqrt((Velem[0]-Vvert[0])*(Velem[0]-Vvert[0])+
+                                 (Velem[1]-Vvert[1])*(Velem[1]-Vvert[1])+
+                                 (Velem[2]-Vvert[2])*(Velem[2]-Vvert[2]));
+
+                if(metric_vmap.find(vid)==metric_vmap.end())
+                {
+                    std::vector<double> mrow(6,0.0);
+                    mrow[0]             = dx*metric_emap[elid][0];
+                    mrow[1]             = dx*metric_emap[elid][1];
+                    mrow[2]             = dx*metric_emap[elid][2];
+                    mrow[3]             = dx*metric_emap[elid][3];
+                    mrow[4]             = dx*metric_emap[elid][4];
+                    mrow[5]             = dx*metric_emap[elid][5];
+
+                    metric_vmap[vid]    = mrow;
+                    metric_nv[vid]      = dx;
+                }
+                else
+                {
+                    metric_vmap[vid][0] = metric_vmap[vid][0]+dx*metric_emap[elid][0];
+                    metric_vmap[vid][1] = metric_vmap[vid][1]+dx*metric_emap[elid][1];
+                    metric_vmap[vid][2] = metric_vmap[vid][2]+dx*metric_emap[elid][2];
+                    metric_vmap[vid][3] = metric_vmap[vid][3]+dx*metric_emap[elid][3];
+                    metric_vmap[vid][4] = metric_vmap[vid][4]+dx*metric_emap[elid][4];
+                    metric_vmap[vid][5] = metric_vmap[vid][5]+dx*metric_emap[elid][5];
+                    metric_nv[vid]      = metric_nv[vid]+dx;
+                }                
+            }
+        }
+        
+        for(itmd=metric_vmap.begin();itmd!=metric_vmap.end();itmd++)
+        {
+            int vid = itmd->first;
+
+            metric_vmap[vid][0] = metric_vmap[vid][0]/metric_nv[vid];
+            metric_vmap[vid][1] = metric_vmap[vid][1]/metric_nv[vid];
+            metric_vmap[vid][2] = metric_vmap[vid][2]/metric_nv[vid];
+            metric_vmap[vid][3] = metric_vmap[vid][3]/metric_nv[vid];
+            metric_vmap[vid][4] = metric_vmap[vid][4]/metric_nv[vid];
+            metric_vmap[vid][5] = metric_vmap[vid][5]/metric_nv[vid];
+        }
+
+        std::map<int,std::vector<double> > metric_vmap_submit;
+        std::set<int>::iterator its;
+        std::set<int> Eset = adaptionObject->getElemSet();
+        for(its=Eset.begin();its!=Eset.end();its++)
+        {
+            int elid = *its;
+            int nv   = m_Elem2Vert_v2[elid].size();
+            for(int j=0;j<nv;j++)
+            {
+                int vid = m_Elem2Vert_v2[elid][j];
+                if(metric_vmap_submit.find(vid)==metric_vmap_submit.end())
+                {
+                    metric_vmap_submit[vid] = metric_vmap[vid];
+                }
+                
+            }
+        }
+        /**/
         
         tetra_grad.clear();
 
@@ -602,7 +697,7 @@ int main(int argc, char** argv)
 
         PMMG_pParMesh parmesh = InitializeParMMGmesh(comm, 
                                                     loc_trace_faces, loc_trace_verts, loc_trace_face2leftright, 
-                                                    adaptionObject, meshRead->ranges_id, bndIDmax, metric_vmap);
+                                                    adaptionObject, meshRead->ranges_id, bndIDmax, metric_vmap_submit);
         delete tetra_repart;
         
         metric_vmap.clear();
@@ -673,7 +768,6 @@ int main(int argc, char** argv)
                                             std::move(m_Elem2VertP),
                                             std::move(m_Face2VertP),
                                             std::move(m_Face2ElemP),
-                                            m_partMapP,
                                             std::move(m_Elem2RankP),
                                             m_TraceVertsOnRankP,
                                             m_TraceFacesOnRankP,
@@ -742,7 +836,7 @@ int main(int argc, char** argv)
         std::map<int,std::vector<int> > bcref2bcface_P          = PrismPrepare->getZone2boundaryFaceID();
         int nLocElem_P                                          = prism_repart->getLocalElemSet().size();
         std::map<int,int> new2tag                               = PrismPrepare->getGlobalElement2ElementTag();
-        std::map<int,int> element2type_bl           = prism_repart->GetElement2TypeOnRankMap();
+        std::map<int,int> element2type_bl                       = prism_repart->GetElement2TypeOnRankMap();
 
         delete prism_repart;
 

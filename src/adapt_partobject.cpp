@@ -191,7 +191,6 @@ PartObject::PartObject(mesh* meshInput,
         }
     }
     //===============================================================================================================
-
 }
 
 
@@ -1607,9 +1606,9 @@ void PartObject::DetermineElement2ProcMap(std::map<int,std::vector<int> >   Elem
             m_Elem2LocalVert[el_id].push_back(loc_v); //globElem2locVerts[el_id].push_back(loc_v);
         }
 
-        std::vector<double> Vijk = ComputeCentroidCoord(Pijk,nvPerEl);
+        std::vector<double> Vijk    = ComputeCentroidCoord(Pijk,nvPerEl);
 
-        m_Elem2Centroid[el_id] = Vijk;
+        m_Elem2Centroid[el_id]      = Vijk;
 
         for(int p=0;p<nfPerEl;p++)
         {
@@ -2202,118 +2201,6 @@ void PartObject::getFace2VertexPerPartitionMap(std::map<int,std::vector<int> > i
         }
 
         ntotal=ntotal+L;
-    }
-}
-
-
-void PartObject::CommunicateAdjacencyInfo(MPI_Comm comm)
-{
-    int size;
-    MPI_Comm_size(comm, &size);
-    // Get the rank of the process
-    int rank;
-    MPI_Comm_rank(comm, &rank);
-
-    std::map<int,std::vector<int> >::iterator itm;
-    int nreq;
-
-    std::set<int> toquery_elids;
-    for(itm=m_Elem2Elem.begin();itm!=m_Elem2Elem.end();itm++)
-    {
-        int elid = itm->first;
-
-        for(int q=0;q<itm->second.size();q++)
-        {
-            int adjeid = itm->second[q];
-
-            if(m_ElemSet.find(adjeid)==m_ElemSet.end() && adjeid<Ne_glob)
-            {
-                if(toquery_elids.find(adjeid)==toquery_elids.end())
-                {
-                    toquery_elids.insert(adjeid);
-                }
-            }
-            else
-            {
-                m_Elem2Rank[adjeid] = rank;
-            }
-        }
-    }
-
-    std::vector<int> toquery_elids_vec(toquery_elids.size(),0);
-
-    std::copy(toquery_elids.begin(), 
-                toquery_elids.end(), 
-                toquery_elids_vec.begin());
-
-    if(rank != 0)
-    {
-        nreq = toquery_elids_vec.size();
-        //std::cout << "nreq " << nreq << std::endl;
-        MPI_Send(&nreq, 1, MPI_INT, 0, rank*100000, comm);
-        MPI_Send(&toquery_elids_vec.data()[0], nreq, MPI_INT, 0, rank*1000000, comm);
-        
-        std::vector<int> pid_2recvback(nreq,0);
-        MPI_Recv(&pid_2recvback[0], nreq, MPI_INT, 0, rank*20000, comm, MPI_STATUS_IGNORE);
-
-        for(int i=0;i<toquery_elids_vec.size();i++)
-        {
-            int el_id   = toquery_elids_vec[i];
-            int p_id    = pid_2recvback[i];
-
-            m_Elem2Rank[el_id] = p_id;
-        }
-
-        //std::cout << "adjacent2pid " << adjacent2pid.size() << " " << rank << std::endl;
-    }
-    else if(rank == 0)
-    {
-        std::vector<int> nrecv_toquery_elids(size-1,0);
-        int accul = 0;
-        for(int i=1;i<size;i++)
-        {
-            int dest = i*100000;
-            int n_reqstd_ids;
-            MPI_Recv(&n_reqstd_ids, 1, MPI_INT, i, dest, comm, MPI_STATUS_IGNORE);
-            nrecv_toquery_elids[i-1] = n_reqstd_ids;
-            accul = accul + n_reqstd_ids;
-        }
-
-        for(int i=1;i<size;i++)
-        {
-            int n_reqstd_ids = nrecv_toquery_elids[i-1];
-            std::vector<int> QueryOnRoot(n_reqstd_ids,0);
-            std::vector<int> pid_2sendback(n_reqstd_ids,0);
-            MPI_Recv(&QueryOnRoot[0], n_reqstd_ids, MPI_INT, i, i*1000000, comm, MPI_STATUS_IGNORE);
-            for(int j=0;j<n_reqstd_ids;j++)
-            {
-                
-                if(m_partGlobalRoot.find(QueryOnRoot[j])!=m_partGlobalRoot.end())
-                {
-                    pid_2sendback[j] = m_partGlobalRoot[QueryOnRoot[j]];
-                }
-                else
-                {                    
-                    pid_2sendback[j] = -1;
-                }
-            }
-
-            MPI_Send(&pid_2sendback.data()[0], n_reqstd_ids, MPI_INT, i, i*20000, comm);
-        }
-
-
-        for(int i=0;i<toquery_elids_vec.size();i++)
-        {
-            int el_id   = toquery_elids_vec[i];
-            int p_id = -1;
-            if(m_partGlobalRoot.find(el_id)!=m_partGlobalRoot.end())
-            {
-                p_id = m_partGlobalRoot[el_id];
-            }
-
-            m_Elem2Rank[el_id] = p_id;
-        }
-        
     }
 }
 

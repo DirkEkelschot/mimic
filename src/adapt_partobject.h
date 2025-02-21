@@ -122,7 +122,7 @@ class PartObject{
                 std::map<int,std::vector<int> > GetLocalTraceFace2LeftRight();
                 std::map<int,int> getGlobalElement2Rank();
                 std::map<int,int> GetElement2TypeOnRankMap();
-                void CommunicateAdjacencyInfo(MPI_Comm comm);
+        
 
         private:
 

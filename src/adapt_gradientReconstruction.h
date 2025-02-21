@@ -5,8 +5,15 @@
 
 #ifndef ADAPT_GRADIENTRECONSTRUCTION_H
 #define ADAPT_GRADIENTRECONSTRUCTION_H
-
-
+/*
+std::map<int,std::vector<double> > ComputedUdx_LSQ_US3D_Lite(PartObject* RePa,
+                                                            std::map<int,std::vector<double> > ghosts,
+                                                            int Nel,
+                                                            int variable,
+                                                            int nvariable,
+                                                            MPI_Comm comm,
+                                                            int extrap);
+*/
 std::map<int,std::vector<double> > ComputedUdx_LSQ_US3D_Lite(PartObject* RePa,
                                                              std::map<int,std::vector<double> > ghosts,
                                                              int Nel,
