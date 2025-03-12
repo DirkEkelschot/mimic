@@ -560,7 +560,6 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D(PartObject* RePa,
             std::vector<double> Vijk    = Elem2Centroid[elID];
             double uijk                 = Ue[elID][variable];
 
-            /* */  
             if(nadj>=9)
             {
                 std::vector<double> bvec(nadj,0.0);

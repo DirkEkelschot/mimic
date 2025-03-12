@@ -1302,6 +1302,8 @@ void PartObject::DetermineElement2ProcMap(std::map<int,std::vector<int> >   Elem
     int cnt_v = 0;
     int cnt_f = 0;
     int cnt_data = 0;
+
+    
     for(int i=0;i<TotNelem_recv;i++)
     {
         std::vector<int> elem;

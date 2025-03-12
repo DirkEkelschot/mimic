@@ -1680,7 +1680,7 @@ std::map<int,std::vector<double> > ComputeElementMetric_Lite(MPI_Comm comm,
         
         double pow              = -1.0/(2.0*po+3.0);
         double eigRat           = Lambdamin/Lambdamax;
-        detMetric               = 1.0; //std::pow(detMetric,pow);
+        detMetric               = std::pow(detMetric,pow);
 
         for(int i=0;i<3;i++)
         {

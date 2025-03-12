@@ -17,7 +17,9 @@
 #include "../../src/adapt_runparmmg.h"
 #include "../../src/adapt_inputs.h"
 #include "../../src/adapt_writeus3ddata.h"
+#include "../../src/adapt_parmetisstate_lite.h"
 #include "../../src/adapt_operations.h"
+#include "../../src/adapt_partobject_lite.h"
 #include "../../src/adapt.h"
 // #include <cstdio>
 #include <stdio.h>
@@ -53,9 +55,17 @@
 void ReadSU2Mesh(MPI_Comm comm,
                 const char* fm,
                 std::vector<std::vector<int> > &elements,
+                std::vector<std::vector<int> > &tetraElements,
+                std::vector<int> &offsetsTetra,
+                std::vector<int> &nlocsTetra,
+                std::vector<std::vector<int> > &otherElements,
+                std::vector<int> &offsetsOther,
+                std::vector<int> &NlocsOther,
                 std::vector<std::vector<int> > &element2face,
                 std::map<int,std::vector<int> > &element2face_map,
                 std::map<int,std::vector<int> > &bcfaces_map,
+                std::map<int,std::vector<int> > &tetraMesh,
+                std::map<int,std::vector<int> > &boundMesh,
                 std::map<int,int> &element_type,
                 std::vector<int> &offsets,
                 std::vector<int> &offsets_vrts,
@@ -63,11 +73,17 @@ void ReadSU2Mesh(MPI_Comm comm,
                 std::vector<int> &nlocs,
                 std::vector<int> &nlocs_vrts,
                 std::vector<int> &nlocs_faces,
-                std::map<int,std::vector<double> > &nodes,
+                std::map<int,std::vector<double> > &nodes_map,
+                std::vector< std::vector<double> > &nodes,
                 std::map<int,std::vector<std::vector<int> > > &bcFaces,
                 std::map<int,char*> &bcTags)
 {
-    
+    int world_size;
+    MPI_Comm_size(comm, &world_size);
+    // Get the rank of the process
+    int world_rank;
+    MPI_Comm_rank(comm, &world_rank);
+
     std::ifstream meshFile;
     meshFile.open(fm);
     std::string   line;
@@ -83,7 +99,6 @@ void ReadSU2Mesh(MPI_Comm comm,
     int nelem  = 0;
     int npoin  = 0;
     int c      = 0;
-
 
     //================================PROCESS ELEMENTS =====================================================
     std::map<int,std::vector<int> > elements_map;
@@ -112,13 +127,13 @@ void ReadSU2Mesh(MPI_Comm comm,
 
 
     int linesToSkip = c + 1;
-    bool processElements = true;
-    int var = 0;
+    bool processElements    = true;
+    int var                 = 0;
+    int elid                = 0;
+    int offset_count        = 0;
+    int offset_tetra_count  = 0;
+    int offset_other_count  = 0;
 
-
-
-    int elid = 0;
-    int offset_count = 0;
     while (processElements) 
     {
         std::getline(meshFile, line); 
@@ -128,23 +143,36 @@ void ReadSU2Mesh(MPI_Comm comm,
         }
         else
         {
-            // std::getline(meshFile, line);    // consider: while (getline(inputfile, line).good())
             std::istringstream iss(line);
             std::vector<int> row;
             int num;
-           // std::cout << "elid " << elid << " :: ";
             while (iss >> num) {
                 row.push_back(num);
-                //std::cout << num << " ";
             }
-
-            element_type[elid]  = row[0];
-            //std::cout << std::endl;
+            //std::cout << "row size should be 6 " << row.size() << std::endl;
+            element_type[elid] = row[0];
             offsets.push_back(offset_count);
-            // offsets_vrts.push_back(offset_count);
-            nlocs.push_back(row.size());
+            
             elements.push_back(row);
             elements_map[elid] = row;
+            // if(row.size()!=6)
+            // {
+            //     std::cout << row.size() << " " << world_rank << " " << row[0] << std::endl;
+            // }
+            if(row[0] == 10)
+            {
+                tetraElements.push_back(row);
+                offsetsTetra.push_back(offset_tetra_count);
+                offset_tetra_count = offset_tetra_count + row.size();
+                nlocsTetra.push_back(row.size());
+            }
+            else
+            {
+                otherElements.push_back(row);
+                offsetsOther.push_back(offset_other_count);
+                offset_other_count = offset_other_count + row.size();
+                NlocsOther.push_back(row.size());
+            }
 
             elid = elid + 1;
             offset_count=offset_count+row.size();
@@ -193,7 +221,8 @@ void ReadSU2Mesh(MPI_Comm comm,
             nlocs_vrts.push_back(row.size());
             offset_vrts_count=offset_vrts_count+row.size();
 
-            nodes[nid] = row;
+            nodes_map[nid] = row;
+            nodes.push_back(row);
             nid = nid + 1;
         }
     }
@@ -243,7 +272,6 @@ void ReadSU2Mesh(MPI_Comm comm,
                     std::string key;
                     iss >> key >> tag;
                     bcTags[m+1]=tag;
-                    std::cout << " " << m << " tag " << tag  << " end tag "<< std::endl;
             }
 
             else if (line.find("MARKER_ELEMS=") != std::string::npos)
@@ -252,9 +280,7 @@ void ReadSU2Mesh(MPI_Comm comm,
                     std::istringstream iss(line);
                     std::string key;
                     iss >> key >> mark_elem;
-                    
-                    std::cout << "bc " << m << " mark_elem " << mark_elem << std::endl;
-                    
+                                        
                     cnt = 0;
                     
             }
@@ -280,7 +306,7 @@ void ReadSU2Mesh(MPI_Comm comm,
                 FaceSetPointer::iterator testInsPointer2 = allbcFaces.find(facePointer);
                 if(testInsPointer2==allbcFaces.end())
                 {
-                    // std::cout << "tag = " << tag << std::endl;
+
                     std::pair<FaceSetPointer::iterator, bool> testInsPointer;
                     testInsPointer = allbcFaces.insert(facePointer);
                     int fref = m;
@@ -289,11 +315,9 @@ void ReadSU2Mesh(MPI_Comm comm,
                     bcFaces[m].push_back(face);
                     bcfaces_map[fid] = face;
                     fid++;
-                    
                 }
                 
                 nid = nid + 1;
-
 
                 if((m == (nmark)) && (cnt == mark_elem-1))
                 {
@@ -304,7 +328,7 @@ void ReadSU2Mesh(MPI_Comm comm,
         }
     }
 
-    std::cout << "allbcFaces " << allbcFaces.size() << std::endl;
+    //std::cout << "allbcFaces " << allbcFaces.size() << std::endl;
 
     std::vector<std::vector<int> > e2f_map;
     FaceSetPointer m_FaceSetPointer;
@@ -319,6 +343,8 @@ void ReadSU2Mesh(MPI_Comm comm,
     int offset_fcount   = 0;
     int fo = 0;
     int fint = 0;
+
+
     for(ite=elements_map.begin();ite!=elements_map.end();ite++)
     {
         int elid                = ite->first;
@@ -336,20 +362,20 @@ void ReadSU2Mesh(MPI_Comm comm,
 
         switch (eltype) {
         case 10:
-            e2f_map = tetra_faces;
-    
+            e2f_map         = tetra_faces;
+            tetraMesh[elid] = e2v_row;
             break;
         case 12:
             e2f_map = hex_faces;
-       
+            boundMesh[elid] = e2v_row;
             break;
         case 13:
             e2f_map = prism_faces;
-          
+            boundMesh[elid] = e2v_row;
             break;
         case 14:    
             e2f_map = pyramid_faces;
-           
+            boundMesh[elid] = e2v_row;
             break;
         }
         
@@ -372,8 +398,6 @@ void ReadSU2Mesh(MPI_Comm comm,
             FaceSetPointer::iterator testInsPointer2 = m_FaceSetPointer.find(facePointer);
             if(testInsPointer2==m_FaceSetPointer.end())
             {
-
-
                 // (*testInsPointer.first)->SetFaceID(fintid);
                 FaceSetPointer::iterator testInsPointer3 = allbcFaces.find(facePointer);
                 if(testInsPointer3!=allbcFaces.end())
@@ -398,12 +422,13 @@ void ReadSU2Mesh(MPI_Comm comm,
                 fintid++;
             }
         }
-        //std::cout << "elid " << elid << std::endl;
+
         element2face_map[elid] = faceids;
         element2face.push_back(faceids);
         nlocs_faces.push_back(faceids.size());
         offsets_faces.push_back(offset_fcount);
         offset_fcount = offset_fcount + faceids.size();
+        
     }
 
     std::map<int,std::vector<int> >::iterator itr;
@@ -467,6 +492,7 @@ void ReadSU2Mesh(MPI_Comm comm,
     // {
     //     std::cout << "bc tags " << itmbb->first << " " << itmbb->second << std::endl;
     // }
+    std::cout << "nodes_map in function " << nodes_map.size() << " " << nodes.size()  << std::endl;
 }
 
 
@@ -496,18 +522,27 @@ int main(int argc, char** argv)
     const char* fm = "hemihyb.su2";
     
     std::vector<std::vector<int> > elements;
+    std::vector<std::vector<int> > tetraElements;
+    std::vector<std::vector<int> > otherElements;
     std::vector<std::vector<int> > element2face;
     std::vector<int> offsets;
     std::vector<int> offsets_vrts;
     std::vector<int> offsets_faces;
     std::vector<int> nlocs;
+    std::vector<int> nlocsTetra;
+    std::vector<int> nlocsOther;
     std::vector<int> nlocs_vrts;
     std::vector<int> nlocs_faces_vec;
-    std::map<int,std::vector<double> > nodes;
+    std::map<int,std::vector<double> > nodes_map;
+    std::vector<std::vector<double> > nodes;
     std::map<int,std::vector<std::vector<int> > > bcFaces;
     std::map<int,char*> bcTags;
     std::vector<int> elements_root_flatten;
+    std::vector<int> tetraElements_root_flatten;
+    std::vector<int> otherElements_root_flatten;
     std::vector<int> element2face_root_flatten;
+    std::vector<double> vertices_root_flatten;
+    std::map<int,std::vector<double> > vertices;
     std::map<int,int> element_type;
     int nelem = 0;
     int nvrts = 0;
@@ -516,15 +551,29 @@ int main(int argc, char** argv)
     start1 = clock();
     FaceSetPointer allbcFaces;
     std::map<int,std::vector<int> > bcfaces_map;
+    std::map<int,std::vector<int> > tetraMesh;
+    std::map<int,std::vector<int> > boundMesh;
+    std::vector<int> offsetsTetra;
+    std::vector<int> offsetsOther;
+    int ntetraElem = 0;
+    int notherElem = 0;
     if(world_rank == 0)
     {
         std::cout << "Starting to read the file on root..." << std::endl;
 
-        ReadSU2Mesh(comm, fm, 
-                    elements, 
+        ReadSU2Mesh(comm,fm, 
+                    elements,
+                    tetraElements,
+                    offsetsTetra,
+                    nlocsTetra,
+                    otherElements,
+                    offsetsOther,
+                    nlocsOther,
                     element2face, 
                     element2face_map, 
                     bcfaces_map,
+                    tetraMesh,
+                    boundMesh,
                     element_type,
                     offsets, 
                     offsets_vrts, 
@@ -532,7 +581,28 @@ int main(int argc, char** argv)
                     nlocs, 
                     nlocs_vrts, 
                     nlocs_faces_vec,
-                    nodes, bcFaces, bcTags);
+                    nodes_map, nodes, bcFaces, bcTags);
+
+        for (const auto& row : nodes) 
+        {
+            vertices_root_flatten.insert(vertices_root_flatten.end(), row.begin(), row.end());
+        }
+        int nVertices = nodes.size();
+
+        for (const auto& row : tetraElements) 
+        {
+                tetraElements_root_flatten.insert(tetraElements_root_flatten.end(), row.begin(), row.end());
+        }
+        ntetraElem = tetraElements.size();
+        
+        // tetraElements.clear();
+        for (const auto& row : otherElements) 
+        {
+                // std::cout << "row " << row.size() << std::endl;
+                otherElements_root_flatten.insert(otherElements_root_flatten.end(), row.begin(), row.end());
+        }
+        notherElem = otherElements.size();
+        otherElements.clear();
 
         for (const auto& row : elements) 
         {
@@ -546,10 +616,9 @@ int main(int argc, char** argv)
                 element2face_root_flatten.insert(element2face_root_flatten.end(), row.begin(), row.end());
         }
         element2face.clear();
-        
         nvrts = nodes.size();
-
     }
+
     end1 = clock();
     time_taken1 = ( end1 - start1) / (double) CLOCKS_PER_SEC;
     if(world_rank == 0)
@@ -561,72 +630,130 @@ int main(int argc, char** argv)
 
     MPI_Bcast(&nelem, 1, MPI_INT, 0, MPI_COMM_WORLD);
     MPI_Bcast(&nvrts, 1, MPI_INT, 0, MPI_COMM_WORLD);
-
-    ParallelState* pstate_elem = new ParallelState(nelem,comm);
-    ParallelState* pstate_vert = new ParallelState(nvrts,comm);
+    MPI_Bcast(&ntetraElem, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&notherElem, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    ParallelState* pstate_tetraElem = new ParallelState(ntetraElem,comm);
+    ParallelState* pstate_otherElem = new ParallelState(notherElem,comm);
+    ParallelState* pstate_Vert      = new ParallelState(nvrts,comm);
 
     std::vector<int> sendcounts(world_size,0);
     std::vector<int> displs(world_size,0);
 
-    std::vector<int> sendcounts_vrts(world_size,0);
-    std::vector<int> displs_vrts(world_size,0);
+    std::vector<int> sendcountsV(world_size,0);
+    std::vector<int> displsV(world_size,0);
 
     std::vector<int> sendcounts_faces(world_size,0);
     std::vector<int> displs_faces(world_size,0);
-
-    // std::cout << nlocs_faces_vec.size() << " WR " << std::endl;
+    std::vector<int> nlocals(world_size,0);
+    std::vector<int> noffsets(world_size,0);
+    std::vector<int> nlocalsv(world_size,0);
+    std::vector<int> noffsetsv(world_size,0);
     if(world_rank == 0)
     {
         int end,start,index;
         int end_vrts,start_vrts,start_faces,end_faces;
+        int cnt      = 0;
+        int nlocal   = 0;
+        int nlocalv  = 0;
+        int stp      = pstate_tetraElem->getNlocs()[cnt];
+        int stpv     = pstate_Vert->getNlocs()[cnt];
+
+        int noffset  = 0;
+        int noffsetv = 0;
+        for(int i=0;i<ntetraElem;i++)
+        {
+            nlocal  = nlocal  + tetraElements[i].size();
+            // nlocalv = nlocalv + nodes[i].size();
+            // std::cout << nodes[i].size() << std::endl;
+            if(i==(stp-1))
+            {
+                nlocals[cnt]    = nlocal; 
+                noffsets[cnt]   = noffset;
+                cnt             = cnt + 1;
+                stp             = stp + pstate_tetraElem->getNlocs()[cnt];
+                noffset         = noffset + nlocal;
+                nlocal          = 0;
+            }
+        }
+        std::cout << "nvrts " << nvrts << "  " << nvrts*4 << " " << stpv << std::endl;
+        std::cout << "ntetraElem " << ntetraElem << std::endl;
+        cnt = 0;
+        for(int i=0;i<nvrts;i++)
+        {
+            nlocalv = nlocalv + nodes[i].size();
+            if(i==(stpv-1))
+            {
+                nlocalsv[cnt]  = nlocalv; 
+                noffsetsv[cnt] = noffsetv;
+                cnt      = cnt + 1;
+                stpv     = stpv + pstate_Vert->getNlocs()[cnt];
+                noffsetv = noffsetv + nlocalv;
+                nlocalv  = 0;
+
+            }
+        }
+    }
+    
+    // std::vector<int> nlocals_red(world_size,0);
+    // MPI_Allreduce(nlocals.data(), 
+    //             nlocals_red.data(), 
+    //             world_size, MPI_INT, MPI_SUM, comm);
+
+    // std::vector<int> nlocalsV_red(world_size,0);
+    // MPI_Allreduce(nlocalsV.data(), 
+    //             nlocalsV_red.data(), 
+    //             world_size, MPI_INT, MPI_SUM, comm);      
+
+    if(world_rank == 0)
+    {
+        //std::cout << "wr " << world_rank << " "  << nlocal << " " << tetraElements_root_flatten.size() << std::endl;
+        int end,start,index,startV,endV;
+        int end_vrts,start_vrts,start_faces,end_faces;
         for(int i=0;i<world_size;i++)
         {
-            int offset          = pstate_elem->getOffsets()[i];
-            int nloc            = pstate_elem->getNlocs()[i];
-            start               = offsets[offset];
-            end                 = offsets[offset+nloc-1]+nlocs[offset+nloc-1];
+            int offset          = pstate_tetraElem->getOffsets()[i];
+            int nloc            = pstate_tetraElem->getNlocs()[i];
+            start               = noffsets[i];
+            end                 = noffsets[i]+nlocals[i];
             sendcounts[i]       = end-start;
             displs[i]           = start;
 
-            int offset_vrts     = pstate_elem->getOffsets()[i];
-            int nloc_vrts       = pstate_elem->getNlocs()[i];
-            start_vrts          = offsets_vrts[offset];
-            end_vrts            = offsets_vrts[offset+nloc-1]+nlocs_vrts[offset_vrts+nloc_vrts-1];
-            // std::cout << world_rank << " offsets_vrts  "<< offsets_vrts[offset] << " " << offsets_vrts[offset+nloc+1] << std::endl;
-            sendcounts_vrts[i]  = end_vrts-start_vrts;
-            displs_vrts[i]      = start_vrts;
 
-            int offset_faces    = pstate_elem->getOffsets()[i];
-            int nloc_faces      = pstate_elem->getNlocs()[i];
-            start_faces         = offsets_faces[offset];
-            end_faces           = offsets_faces[offset+nloc-1]+nlocs_faces_vec[offset_faces+nloc_faces-1];
-            //std::cout << "offsets_faces  "<< offsets_faces[offset] << " " << offsets_faces[offset+nloc] << " " << start_faces << " " << end_faces << std::endl;
-            sendcounts_faces[i]  = end_faces-start_faces;
-            displs_faces[i]      = start_faces;
+            int offsetV          = pstate_Vert->getOffsets()[i];
+            int nlocV            = pstate_Vert->getNlocs()[i];
+            startV               = noffsetsv[i];
+            endV                 = noffsetsv[i]+nlocalsv[i];
+            sendcountsV[i]       = endV-startV;
+            displsV[i]           = startV;
+            std::cout << endV-startV << " " << i << " " << end-start << std::endl;
+            
         }
     }
+  
     std::vector<int> sendcounts_red(world_size,0);
     MPI_Allreduce(sendcounts.data(), 
                   sendcounts_red.data(), 
-                  world_size, MPI_INT, MPI_SUM, comm);
-
-    std::vector<int> sendcounts_faces_red(world_size,0);
-    MPI_Allreduce(sendcounts_faces.data(), 
-                  sendcounts_faces_red.data(), 
                   world_size, MPI_INT, MPI_SUM, comm);
 
     std::vector<int> displs_red(world_size,0);
     MPI_Allreduce(displs.data(), 
                   displs_red.data(), 
                   world_size, MPI_INT, MPI_SUM, comm);
+  
+    std::vector<int> sendcountsV_red(world_size,0);
+    MPI_Allreduce(sendcountsV.data(), 
+                    sendcountsV_red.data(), 
+                    world_size, MPI_INT, MPI_SUM, comm);
 
-    std::vector<int> displs_faces_red(world_size,0);
-    MPI_Allreduce(displs_faces.data(), 
-                  displs_faces_red.data(), 
-                  world_size, MPI_INT, MPI_SUM, comm);
+    std::vector<int> displsV_red(world_size,0);
+    MPI_Allreduce(displsV.data(), 
+                    displsV_red.data(), 
+                    world_size, MPI_INT, MPI_SUM, comm);
+
+    std::cout << world_rank << " :: " << sendcounts_red[world_rank] << " " << sendcountsV_red[world_rank] << std::endl;
     
     std::vector<int> elements_on_rank(sendcounts_red[world_rank],0);
-    std::vector<int> element2faces_on_rank(sendcounts_faces_red[world_rank],0);
+    std::vector<double> verts_on_rank(sendcountsV_red[world_rank],0);
 
     if(world_rank == 0)
     {
@@ -635,27 +762,29 @@ int main(int argc, char** argv)
     start1 = clock();
 
 
-    MPI_Scatterv(elements_root_flatten.data(), 
-                sendcounts_red.data(), displs_red.data(), MPI_INT, 
-                elements_on_rank.data(), sendcounts_red[world_rank], MPI_INT,
+    MPI_Scatterv(tetraElements_root_flatten.data(), 
+                 sendcounts_red.data(), displs_red.data(), MPI_INT, 
+                 elements_on_rank.data(), sendcounts_red[world_rank], MPI_INT,
                  0, MPI_COMM_WORLD);
 
-    MPI_Scatterv(element2face_root_flatten.data(), 
-                sendcounts_faces_red.data(), displs_faces_red.data(), MPI_INT, 
-                element2faces_on_rank.data(), sendcounts_faces_red[world_rank], MPI_INT,
-                 0, MPI_COMM_WORLD);
+    MPI_Scatterv(vertices_root_flatten.data(), 
+                sendcountsV_red.data(), displsV_red.data(), MPI_DOUBLE, 
+                verts_on_rank.data(), sendcountsV_red[world_rank], MPI_DOUBLE,
+                0, MPI_COMM_WORLD);
+
     
-    std::vector<int>e2v_loc(pstate_elem->getNlocs()[world_rank],0);
-    std::vector<int>e2f_loc(pstate_elem->getNlocs()[world_rank],0);
+    std::vector<int>e2v_loc(pstate_tetraElem->getNlocs()[world_rank],0);
 
-    MPI_Scatterv(nlocs.data(), 
-                 pstate_elem->getNlocs(), pstate_elem->getOffsets(), MPI_INT, 
-                 e2v_loc.data(), pstate_elem->getNlocs()[world_rank], MPI_INT,
+    std::vector<int>v_loc(pstate_Vert->getNlocs()[world_rank],0);
+    
+    MPI_Scatterv(nlocsTetra.data(), 
+                 pstate_tetraElem->getNlocs(), pstate_tetraElem->getOffsets(), MPI_INT, 
+                 e2v_loc.data(), pstate_tetraElem->getNlocs()[world_rank], MPI_INT,
                  0, MPI_COMM_WORLD);
 
-    MPI_Scatterv(nlocs_faces_vec.data(), 
-                 pstate_elem->getNlocs(), pstate_elem->getOffsets(), MPI_INT, 
-                 e2f_loc.data(), pstate_elem->getNlocs()[world_rank], MPI_INT,
+    MPI_Scatterv(nlocs_vrts.data(), 
+                 pstate_Vert->getNlocs(), pstate_Vert->getOffsets(), MPI_INT, 
+                 v_loc.data(), pstate_Vert->getNlocs()[world_rank], MPI_INT,
                  0, MPI_COMM_WORLD);
 
     end1 = clock();
@@ -667,48 +796,244 @@ int main(int argc, char** argv)
         cout << " sec " << endl;
     }
 
-    
-    elements_root_flatten.resize(0);
+    // std::cout << e2v_loc.size() << "--> " << world_rank << std::endl;
+    tetraElements_root_flatten.resize(0);
 
     std::map<int,int> eltype_map;
     std::map<int,std::vector<int> > e2v;
-    std::map<int,std::vector<int> > e2f;
-
-    // FaceSharedPtr Face2RefPointer = std::shared_ptr<NekFace>(new NekFace(face));
     
     int off = 0;
+    std::vector<int> eltype_vec;
     for(int i = 0;i<e2v_loc.size();i++)
     {
         int nloc   = e2v_loc[i];
+        
         int elid   = elements_on_rank[off+nloc-1];
         int eltype = elements_on_rank[off];
-        eltype_map[elid] = eltype;
 
+        eltype_map[elid] = eltype;
+        eltype_vec.push_back(2);
         std::vector<int>e2v_row(nloc-2,0);
         int c = 0;
         for(int j=1;j<nloc-1;j++)
         {
             e2v_row[c] = elements_on_rank[off+j];
+            //std::cout << e2v_row[c] << " ";
             c++;
         }
-
+        //std::cout << std::endl;
+       
         e2v[elid] = e2v_row;
-
-
-        int nlocf = e2f_loc[i];
-        std::vector<int>e2f_row(nlocf,0);
-        for(int j=0;j<nlocf;j++)
-        {
-            e2f_row[j] = element2faces_on_rank[off+j];
-        }
-        e2f[elid] = e2f_row;
         off = off+nloc;
 
     }
 
 
+    std::map<int,std::vector<double> > vert_local;
+    int vid = pstate_Vert->getOffsets()[world_rank];
+    off = 0;
+    std::map<int,int> lv2gv;
+    std::map<int,int> gv2lv;
+    int lvid = 0;
+    int fnd = 0;
+    for(int i = 0;i<v_loc.size();i++)
+    {   
+        int nloc   = v_loc[i];
+        int gvid   = verts_on_rank[off+nloc-1];
+        std::vector<double>v_row(3,0);
+        if(nloc != 4)
+        {   
+            std::cout << i << " nloc " << nloc << std::endl;
+        }
+        
+
+        for(int j=0;j<3;j++)
+        {
+            v_row[j] = verts_on_rank[off+j];
+        }
+
+        lv2gv[lvid] = gvid; 
+        gv2lv[gvid] = lvid; 
+
+        if(vid!=gvid)
+        {
+            std::cout << vid << " compare ids " << gvid << " " << off+nloc-1 << std::endl;
+            fnd++;
+        }
+        
+
+        vert_local[vid] = v_row;
+        vid = vid + 1;
+        lvid = lvid + 1;
+        off = off + nloc;
+    }
+    std::cout << "fnd = " << fnd << std::endl;
+
+    //renumber
+    std::map<int,std::vector<int> >::iterator re;
+    std::vector<int> new_V_offsets(world_size,0);
+
+    for(i=0;i<world_size;i++)
+    {
+        new_V_offsets[i] = pstate_Vert->getOffsets()[i]-1;
+    }
+
+    std::map<int,std::vector<int> > e2v2r;
+    std::map<int,std::set<int> > request_vid;
+    for(re=e2v.begin();re!=e2v.end();re++)
+    {
+        std::vector<int> row_v2r(re->second.size(),0);
+
+
+        for(int q=0;q<re->second.size();q++)
+        {
+            int vid         = re->second[q];
+            int r           = FindRank(new_V_offsets.data(),world_size,vid);
+
+            if(r!=world_rank)
+            {
+                request_vid[r].insert(vid);
+            }
+
+
+            row_v2r[q]      = r;
+        }
+        //std::cout << std::endl;
+        e2v2r[re->first]    = row_v2r;
+    }
+
+    int Ne = nelem;
+    int Nv = nvrts;
+    // std::cout << nodes_map.size() << " nodes_map.size()" << " " << lv2gv.size() << " <--lv2gv nvrts --> " << nvrts << " " << vert_local.size() << " " << v_loc.size() << " " << e2v_loc.size() << std::endl;
+    PartObjectLite* partition = new PartObjectLite(e2v, vert_local, eltype_map, eltype_vec, Ne, Nv, comm);
+    /**/
+    /*
+    int root = 0;
+    
+    int nrow    = e2v.size();
+    int nvpEL   = e2v.begin()->second.size();
+    int nloc    = nrow;
+    ParallelState_Parmetis_Lite* pstate_parmetis = new ParallelState_Parmetis_Lite(e2v,  eltype_vec, comm);
+
+    //=================================================================
+    //=================================================================
+    //=================================================================
+    
+    //ParallelState_Parmetis* pstate_parmetis2 = new ParallelState_Parmetis(ien,comm,8);
+//
+    idx_t numflag_[]        = {0};
+    idx_t *numflag          = numflag_;
+    idx_t ncommonnodes_[]   = {pstate_parmetis->getNcommonNodes()};
+    idx_t *ncommonnodes     = ncommonnodes_;
+    int edgecut             = 0;
+    idx_t *xadj_par         = NULL;
+    idx_t *adjncy_par       = NULL;
+    idx_t options_[]        = {0, 0, 0};
+    idx_t *options          = options_;
+    idx_t wgtflag_[]        = {2};
+    idx_t *wgtflag          = wgtflag_;
+    real_t ubvec_[]         = {1.1};
+    real_t *ubvec           = ubvec_;
+
+    std::vector<int> elmwgt = pstate_parmetis->getElmWgt();
+    
+    int np                  = world_size;
+    idx_t ncon_[]           = {1};
+    idx_t *ncon             = ncon_;
+    real_t *tpwgts          = new real_t[np*ncon[0]];
+
+    for(int i=0; i<np*ncon[0]; i++)
+    {
+        tpwgts[i] = 1.0/np;
+    }
+
+    idx_t nparts_[]         = {np};
+    idx_t *nparts           = nparts_;
+    std::vector<int> part_arr(nloc,0);
+    real_t itr_[]           = {1.05};
+    real_t *itr             = itr_;
+
+    idx_t *vsize = NULL;
+    idx_t *adjwgt = NULL;
+    
+    ParMETIS_V3_Mesh2Dual(pstate_parmetis->getElmdist().data(),
+                          pstate_parmetis->getEptr().data(),
+                          pstate_parmetis->getEind().data(),
+                          numflag,ncommonnodes,
+                          &xadj_par,&adjncy_par,&comm);
+    
+    ParMETIS_V3_PartKway(pstate_parmetis->getElmdist().data(),
+                         xadj_par,
+                         adjncy_par,
+                         pstate_parmetis->getElmWgt().data(), NULL, wgtflag, numflag,
+                         ncon, nparts,
+                         tpwgts, ubvec, options,
+                         &edgecut, part_arr.data(), &comm);
+
+    std::vector<int> m_part(e2v.size(),0);
+    int nElemTotal = pstate_parmetis->getNtotalElem();
+    
+
+    std::vector<int> part_arr_ell_id(nloc,0);
+    std::vector<int> part_arr_ell_Rid(nloc,0);
+
+    std::map<int,std::vector<int> >::iterator itmiv;
+    std::map<int,int> m_partMap;
+    std::map<int,int> m_partGlobalRoot;
+    i = 0;
+
+    for(itmiv=e2v.begin();itmiv!=e2v.end();itmiv++)
+    {
+        int gid                 = itmiv->first;
+        part_arr_ell_id[i]      = gid;
+        part_arr_ell_Rid[i]     = part_arr[i];
+        m_partMap[gid]          = part_arr[i];
+        i++;
+    }
+
+    std::vector<int> m_partGlobalRoot_vec;
+    std::vector<int> m_partGlobalRoot_Rid_vec;
+    if ( world_rank == root) 
+    {
+        m_partGlobalRoot_vec.resize(nElemTotal,0);
+        m_partGlobalRoot_Rid_vec.resize(nElemTotal,0);
+    } 
+    
+    
+
+    MPI_Gatherv(&part_arr_ell_id.data()[0],
+                    nloc, MPI_INT,
+                    &m_partGlobalRoot_vec.data()[0],
+                    pstate_parmetis->getNlocs().data(),
+                    pstate_parmetis->getElmdist().data(),
+                    MPI_INT,root,comm);
+
+    MPI_Gatherv(&part_arr_ell_Rid.data()[0],
+                    nloc, MPI_INT,
+                    &m_partGlobalRoot_Rid_vec.data()[0],
+                    pstate_parmetis->getNlocs().data(),
+                    pstate_parmetis->getElmdist().data(),
+                    MPI_INT,root,comm);
+
+    for(int i=0;i<m_partGlobalRoot_vec.size();i++)
+    {
+        int eid = m_partGlobalRoot_vec[i];
+        int rid = m_partGlobalRoot_Rid_vec[i];
+
+        m_partGlobalRoot[eid] = rid;
+    }
+
+    std::map<int,int>::iterator itmm;
+    
+
+    int nElemGlobalPart = m_partGlobalRoot.size();
+    MPI_Bcast(&nElemGlobalPart, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    delete[] xadj_par;
+    delete[] adjncy_par;
+    */
 
     /*
+    
     std::map<int,std::vector<int> >::iterator ite;
     std::vector<std::vector<int> > tetra_faces   = getTetraFaceMap(); 
     std::vector<std::vector<int> > prism_faces   = getPrismFaceMap(); 
