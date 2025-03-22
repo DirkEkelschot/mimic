@@ -37,6 +37,16 @@ class PartObjectLite{
                 std::map<int,int>                   Elem2Type_uniform, 
                 MPI_Comm comm);
 
+        std::set<int> getLocalElemSet();
+       
+        std::map<int,std::vector<int> > getElem2VertMap();
+        
+        std::map<int,std::vector<double> > getLocalVertsMap();
+
+        void AddStateVecForAdjacentElements(std::map<int,std::vector<double> > &U, int nvar, MPI_Comm comm);
+
+        std::map<int, std::vector<int> > getAdjacentElementLayer(std::map<int,std::vector<double> > xcn, MPI_Comm comm);
+
         private:
 
 
