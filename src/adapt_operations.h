@@ -9,6 +9,132 @@
 
 
 template <typename T>
+std::map<int,std::vector<T> > GatherJaggedGlobalMapOnRoot_T(std::map<int,std::vector<T> > mappie, MPI_Comm mpi_comm)
+{
+    std::map<int,std::vector<T> > mappie_glob;
+    int world_size;
+    MPI_Comm_size(mpi_comm, &world_size);
+    // Get the rank of the process
+    int world_rank;
+    MPI_Comm_rank(mpi_comm, &world_rank);
+
+    MPI_Datatype mpi_type = MPI_DATATYPE_NULL;
+    if constexpr (std::is_same_v<T, int>) 
+    {
+        mpi_type = MPI_INT;
+    }
+    if constexpr (std::is_same_v<T, double>) 
+    {
+        mpi_type = MPI_DOUBLE;
+    }
+
+    int mapSizeLoc                      = mappie.size();
+
+    typename std::map<int,std::vector<T> >::iterator itt;
+    int mapvec_size = 0;
+    for(itt=mappie.begin();itt!=mappie.end();itt++)
+    {
+        mapvec_size = mapvec_size + itt->second.size();
+    }
+
+    // int rowsize                         = mappie.begin()->second.size();
+    DistributedParallelState* distrimap     = new DistributedParallelState(mapSizeLoc,mpi_comm);
+    int mapSizeTot                          = distrimap->getNel();
+    DistributedParallelState* distrEntrymap = new DistributedParallelState(mapvec_size,mpi_comm);
+    int mapEntrySizeTot                     = distrEntrymap->getNel();
+
+    std::vector<int> key_loc(mapSizeLoc,0);
+    std::vector<int> size_loc(mapSizeLoc,0);
+    std::vector<T> val_loc(mapvec_size,0);
+    std::vector<int> key_tot;
+    std::vector<int> size_tot;
+    std::vector<T> val_tot;
+
+    if(world_rank == 0)
+    {
+        key_tot.resize(mapSizeTot);
+        size_tot.resize(mapSizeTot);
+        val_tot.resize(mapEntrySizeTot);
+    }
+
+    int i = 0;
+    
+    typename std::map<int,std::vector<T> >::iterator itred;
+    int offset = 0;
+    for(itred=mappie.begin();itred!=mappie.end();itred++)
+    {
+        key_loc[i]  = itred->first;
+        size_loc[i] = itred->second.size();
+        int rowsize = itred->second.size();
+
+        for(int q=0;q<rowsize;q++)
+        {
+            val_loc[offset+q] = itred->second[q];
+        }
+        
+        offset = offset + rowsize;
+        i++;
+    }
+
+    DistributedParallelState* distMapKey = new DistributedParallelState(mapSizeLoc,mpi_comm);
+    DistributedParallelState* distMapVal = new DistributedParallelState(mapvec_size,mpi_comm);
+    
+    MPI_Gatherv(&key_loc.data()[0],
+            mapSizeLoc,
+            MPI_INT,
+            &key_tot.data()[0],
+            distMapKey->getNlocs(),
+            distMapKey->getOffsets(),
+            MPI_INT, 0, mpi_comm);
+    
+    MPI_Gatherv(&size_loc.data()[0],
+            mapSizeLoc,
+            MPI_INT,
+            &size_tot.data()[0],
+            distMapKey->getNlocs(),
+            distMapKey->getOffsets(),
+            MPI_INT, 0, mpi_comm);
+    
+    MPI_Gatherv(&val_loc.data()[0],
+            val_loc.size(),
+            mpi_type,
+            &val_tot.data()[0],
+            distMapVal->getNlocs(),
+            distMapVal->getOffsets(),
+            mpi_type, 0, mpi_comm);
+
+
+    if(world_rank == 0)
+    {
+        int key;
+        T val;
+        int offset = 0;
+        for(int i=0;i<mapSizeTot;i++)
+        {
+            key         = key_tot[i];
+            int rowsize = size_tot[i];
+            std::vector<T> valrow(rowsize);
+            for(int q=0;q<rowsize;q++)
+            {
+                valrow[q] = val_tot[offset+q];
+            }
+            
+            if(mappie_glob.find(key)==mappie_glob.end())
+            {
+                mappie_glob[key] = valrow;
+            }
+            offset = offset + rowsize;
+        }
+    }
+
+    /**/
+    return mappie_glob;
+}
+
+
+
+
+template <typename T>
 std::map<int,std::vector<T> > GatherGlobalMapOnRoot_T(std::map<int,std::vector<T> > mappie, MPI_Comm mpi_comm)
 {
     int world_size;

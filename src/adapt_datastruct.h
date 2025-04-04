@@ -5,7 +5,11 @@
 #ifndef ADAPT_DATASTRUCT_H
 #define ADAPT_DATASTRUCT_H
 
-
+struct QRdata{
+    std::map<int,std::vector<double> > Amat;
+    std::map<int,std::vector<double> > bvec;
+    int Nentries;
+};
 
 struct Inputs{
     double hgrad;

@@ -1,0 +1,41 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2761
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+{\*\expandedcolortbl;;}
+\margl1440\margr1440\vieww11520\viewh8400\viewkind0
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural\partightenfactor0
+
+\f0\fs24 \cf0 Dependencies\
+\
+\
+Building openblas\
+git clone https://github.com/OpenMathLib/OpenBLAS.git\
+make SHARED=1 USE_THREAD=1 DYNAMIC_ARCH=1 PREFIX=/nobackupp19/dekelsch/Software/OpenBLAS/openblas-install\
+ \
+Install magma-2.9.0\
+make OPENBLASDIR=/nobackupp19/dekelsch/Software/OpenBLAS/openblas-install CUDADIR=/nasa/cuda/12.2.2 BACKEND=cuda\
+\
+\
+Kokkos kernels is required and configured using:\
+ \
+cmake .. -DKokkos_ROOT=/nobackupp19/dekelsch/Software/kokkos-4.5.01/build -DKokkos_ARCH_AMPERE80=ON -DKokkos_ENABLE_CUDA=ON -DCMAKE_INSTALL_PREFIX=/nobackupp19/dekelsch/Software/kokkos-kernels/build\
+\
+To install kokkos for the nvidia a100 nodes:\
+\
+cmake .. -DKokkos_ARCH_AMPERE80=ON -DKokkos_ENABLE_CUDA=ON\
+\
+\
+Dowload voro++-0.4.6 separately and install.\
+ \
+Additional header files (data/regular.hpp and diy/pick.hpp) need to be included in VoronoiKD.hpp in order for it to compile with MIMIC\
+\
+\
+parvoro++\
+ \
+cmake .. -DHDF5_ROOT=/nasa/hdf5/1.8.18_mpt -DHDF5_INCLUDE_DIR=/nasa/hdf5/1.8.18_mpt/include -DHDF5_LIBRARY=/nasa/hdf5/1.8.18_mpt/lib -Dsilo_LIBRARIES_siloh5=/nobackupp19/dekelsch/Software/Silo_new/SiloInstall/lib/libsiloh5.so -Dsilo_INCLUDES=/nobackupp19/dekelsch/Software/Silo_new/SiloInstall/include\
+ \
+ \
+Silo\
+ \
+./configure --with-pic --prefix=/nobackupp19/dekelsch/Software/Silo/silo-install/ --with-hdf5=/nasa/hdf5/1.8.18_mpt/include,/nasa/hdf5/1.8.18_mpt/lib CFLAGS="-fPIC" CXXFLAGS="-fPIC" --enable-shared\
+ }

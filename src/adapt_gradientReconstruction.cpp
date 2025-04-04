@@ -239,6 +239,8 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_US3D_Lite(PartObject* RePa,
             }    
         }
 
+
+
     
         x = SolveQR_Lite(A_cm,nadj,3,b);
         dudx_map[elID] = x;
@@ -489,6 +491,13 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_US3D_Vrt_Lite(PartObject* ReP
 
 
 
+
+
+
+
+
+
+
 std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D(PartObject* RePa,
                                                            std::map<int,std::vector<double> > ghosts,
                                                            int Nel,
@@ -685,4 +694,202 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D(PartObject* RePa,
     }
    /**/
     return dudx_map;
+}
+
+
+QRdata* Collect_QR_Data(PartObject* RePa,
+                        std::map<int,std::vector<double> > ghosts,
+                        int Nel,
+                        int variable,
+                        int nvariables,
+                        MPI_Comm comm,
+                        int extrap)
+{
+
+    std::map<int,std::vector<double> > Amats;
+    std::map<int,std::vector<double> > bvecs;
+    std::map<int,std::vector<double> > dudx_map;
+    int world_size;
+    MPI_Comm_size(comm, &world_size);
+    // Get the rank of the process
+    int world_rank;
+    MPI_Comm_rank(comm, &world_rank);
+
+    std::map<int,std::vector<int> > Elem2Vert                   = RePa->getElem2VertMap();
+    std::map<int,std::vector<int> > Elem2Face                   = RePa->getElem2FaceMap();
+    std::map<int,std::vector<int> > Elem2Elem                   = RePa->getElem2ElemMap();
+    std::map<int,std::vector<int> > Face2Vert                   = RePa->getFace2VertMap();
+
+    std::map<int,std::vector<double> > Ue                       = RePa->getElem2DataMap();
+    std::map<int,std::vector<double> > VertCoords               = RePa->getLocalVertsMap();
+    std::set<int> m_ElemSet                                     = RePa->getLocalElemSet();
+
+    std::map<int,std::map<int, double> > Vert2Elem              = RePa->GetNode2ElementMap();
+    std::map<int,std::vector<double> > GhostFaceVert            = RePa->getGhostFaceVert();
+
+    std::map<int,std::map<int, double> > Elem2ConnectedVertDist = RePa->getElem2ConnectedVertMap();
+    std::map<int,std::vector<double> > Elem2Centroid            = RePa->getElem2CentroidData();
+    std::map<int,std::set<int> > Elem2AdjElem                   = RePa->getExtendedAdjacencyData();
+
+
+    std::map<int, std::vector<int> >::iterator itmii;
+
+
+
+    double d;
+    int loc_vid,adjID,elID;
+    int cou = 0;
+
+    std::vector<double> Vc(3);
+    std::vector<double> Vadj(3);
+    int lid = 0;
+    double u_ijk, u_po;
+
+    std::map<int,std::vector<double> > vrt_collect;
+    std::map<int,double> sol_collect;
+    std::vector<std::vector<double> > face;
+    double rdotn;
+
+    std::vector<double> n0(3);
+    std::vector<double> v0(3);
+    std::vector<double> v1(3);
+
+    int rr = 0;
+    std::set<int> vert_scheme;
+    int cc = 0;
+    QRdata* qrd = new QRdata();
+    std::set<int>::iterator its;
+    int nAccum = 0;
+
+    for(its=m_ElemSet.begin();its!=m_ElemSet.end();its++)
+    {
+        std::vector<double> x(9,0.0);
+        int ghostelem               = 0;
+        int elID                    = *its;
+        int nadj                    = Elem2AdjElem[elID].size();
+        std::set<int> adjel         = Elem2AdjElem[elID];
+        int g                       = 0;
+        std::vector<double> Vijk    = Elem2Centroid[elID];
+        double uijk                 = Ue[elID][variable];
+
+        if(nadj>=9)
+        {
+            std::vector<double> bvec(nadj,0.0);
+            std::vector<double> A_cm(nadj*9,0.0);
+
+            std::set<int>::iterator its;
+
+            for(its=adjel.begin();its!=adjel.end();its++)
+            {
+                double h00=0.0,h01=0.0,h02=0.0;
+                double h11=0.0,h12=0.0,h22=0.0;
+                double a=0.0,b=0.0,c=0.0,di=0.0;
+
+                double uadj = 0.0;
+                int adjid   = *its;
+
+                if(ghosts.find(adjid)!=ghosts.end() && extrap == 0)
+                {  
+                    std::vector<double> Vadj    = GhostFaceVert[adjid];
+                    uadj                        = ghosts[adjid][variable];
+                    a                           = (Vadj[0] - Vijk[0]);
+                    b                           = (Vadj[1] - Vijk[1]);
+                    c                           = (Vadj[2] - Vijk[2]);
+                    di                          = sqrt(a*a+b*b+c*c);    
+                }
+                else if(ghosts.find(adjid)!=ghosts.end() && extrap == 1)
+                {  
+                    std::vector<double> Vadj    = GhostFaceVert[adjid];
+                    uadj                        = Ue[elID][variable];//ghosts[adjid][variable];
+                    a                           = (Vadj[0] - Vijk[0]);
+                    b                           = (Vadj[1] - Vijk[1]);
+                    c                           = (Vadj[2] - Vijk[2]);
+                    di                          = sqrt(a*a+b*b+c*c);    
+                }
+                else
+                {
+                    std::vector<double> Vadj    = Elem2Centroid[adjid]; 
+                    uadj                        = Ue[adjid][variable];                   
+                    a                           = (Vadj[0] - Vijk[0]);
+                    b                           = (Vadj[1] - Vijk[1]);
+                    c                           = (Vadj[2] - Vijk[2]);
+                    di                          = sqrt(a*a+b*b+c*c);
+                }
+
+                h00 = 0.5*a*a; h01 = 1.0*a*b; h02 = 1.0*a*c;
+                h11 = 0.5*b*b; h12 = 1.0*b*c;
+                h22 = 0.5*c*c;
+
+                A_cm[0*nadj+g] = (1.0/di)*a;
+                A_cm[1*nadj+g] = (1.0/di)*b;
+                A_cm[2*nadj+g] = (1.0/di)*c;
+
+                A_cm[3*nadj+g] = (1.0/di)*h00;
+                A_cm[4*nadj+g] = (1.0/di)*h01;
+                A_cm[5*nadj+g] = (1.0/di)*h02;
+                A_cm[6*nadj+g] = (1.0/di)*h11;
+                A_cm[7*nadj+g] = (1.0/di)*h12;
+                A_cm[8*nadj+g] = (1.0/di)*h22;
+
+                bvec[g]        = 1.0/di*(uadj-uijk);
+
+                g++;
+            }
+
+            qrd->Amat[elID] = A_cm;
+            qrd->bvec[elID] = bvec;
+        
+            nAccum = nAccum + nadj;
+            //x = SolveQR_Lite(A_cm,nadj,9,bvec);
+            // dudx_map[elID] = x;
+
+        }
+        else
+        {
+            std::vector<double> bvec(nadj,0.0);
+            std::vector<double> A_cm(nadj*3,0.0);
+            std::set<int>::iterator its;
+            for(its=adjel.begin();its!=adjel.end();its++)
+            {
+                int adjid = *its;
+                double h00=0.0,h01=0.0,h02=0.0;
+                double h11=0.0,h12=0.0,h22=0.0;
+                double a=0.0,b=0.0,c=0.0,di=0.0;
+                double uadj=0.0;
+
+                if(adjid>Nel && extrap == 1)
+                {  
+                    std::vector<double> Vadj    = GhostFaceVert[adjid];
+                    double uadj                 = Ue[elID][variable];//ghosts[adjid][variable];
+                    a                           = (Vadj[0] - Vijk[0]);
+                    b                           = (Vadj[1] - Vijk[1]);
+                    c                           = (Vadj[2] - Vijk[2]);
+                }
+                else
+                {
+                    std::vector<double> Vadj    = Elem2Centroid[adjid];
+                    double uadj                 = Ue[adjid][variable];
+                    a                           = (Vadj[0] - Vijk[0]);
+                    b                           = (Vadj[1] - Vijk[1]);
+                    c                           = (Vadj[2] - Vijk[2]);
+                }
+
+                di                              = sqrt(a*a+b*b+c*c);
+                bvec[g]                         = 1.0/di*(uadj-uijk);
+                A_cm[0*nadj+g]                  = (1.0/di)*a;
+                A_cm[1*nadj+g]                  = (1.0/di)*b;
+                A_cm[2*nadj+g]                  = (1.0/di)*c;
+
+                g++;
+            }
+
+            qrd->Amat[elID] = A_cm;
+            qrd->bvec[elID] = bvec;
+        
+            nAccum = nAccum + nadj;
+        }   
+    }
+    qrd->Nentries   = nAccum;
+    /**/
+    return qrd;
 }

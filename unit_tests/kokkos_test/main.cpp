@@ -1,93 +1,85 @@
-
-#include <chrono>
-#include <iostream>
-#include "../../src/adapt_recongrad.h"
-#include "../../src/adapt_io.h"
-#include "../../src/adapt_parops.h"
-#include "../../src/adapt_output.h"
-#include "../../src/adapt_boundary.h"
-#include "../../src/adapt_distri_parstate.h"
-#include "../../src/adapt_redistribute.h"
-#include "../../src/adapt_DefinePrismMesh.h"
-#include "../../src/adapt_prismaticlayer.h"
-#include "../../src/adapt_prismtetratrace.h"
-#include "../../src/adapt_repartition.h"
-#include "../../src/adapt_output_vtk.h"
-#include "../../src/adapt_meshtopology_lite.h"
-#include "../../src/adapt_gradreconstruct_lite.h"
-#include "../../src/adapt_runparmmg.h"
-#include "../../src/adapt_inputs.h"
-#include "../../src/adapt_writeus3ddata.h"
-//#include "Kokkos_Core.hpp"
 #include <Kokkos_Core.hpp>
-//#include <KokkosBatched_QR_Decl.hpp>
-//#include <KokkosBatched_QR_Impl.hpp>
-#include <iomanip>
-
-#define MAX2(a,b)      (((a) > (b)) ? (a) : (b))
-#define MAX4(a,b,c,d)  (((MAX2(a,b)) > (MAX2(c,d))) ? (MAX2(a,b)) : (MAX2(c,d)))
-
-// typedef CGAL::Simple_cartesian<double> Kernel;
-// typedef Kernel::Point_2 Point_2;
-// typedef Kernel::Segment_2 Segment_2;
-
-
-
+#include <KokkosBatched_QR_Decl.hpp>
 
 int main() {
-    // Initialize Kokkos
+    Kokkos::initialize();
+    {
+        constexpr int numMatrices = 3;
+        constexpr int rows = 4;
+        constexpr int cols = 3;
 
-  //  MPI_Init(NULL, NULL);
-    FILE            *inm;
-  //  MPI_Comm comm = MPI_COMM_WORLD;
-  //  MPI_Info info = MPI_INFO_NULL;
-    int world_size;
-   // MPI_Comm_size(comm, &world_size);
-    // Get the rank of the process
-    int world_rank;
-   // MPI_Comm_rank(comm, &world_rank);
+        using execution_space = Kokkos::DefaultExecutionSpace;
+        using memory_space = execution_space::memory_space;
 
+        // Use LayoutRight for column-major storage
+        using matrix_view_type = Kokkos::View<double***, Kokkos::LayoutRight, 
+            Kokkos::Device<execution_space, memory_space>>;
 
-//    Kokkos::initialize();
-//    {
-        // Define a simple 3x3 matrix A
-        Kokkos::View<double**, Kokkos::LayoutLeft, Kokkos::HostSpace> A("Matrix A", 3, 3);
-/*        
-        // Initialize matrix A with some values
-        A(0,0) = 1; A(0,1) = 2; A(0,2) = 3;
-        A(1,0) = 4; A(1,1) = 5; A(1,2) = 6;
-        A(2,0) = 7; A(2,1) = 8; A(2,2) = 9;
-        
-        // Perform QR decomposition using KokkosBatched
-        // This step involves using the functions from KokkosBatched_QR_Decl.hpp
-        // For demonstration, assume we have a function performQR that takes A and returns Q and R
-        Kokkos::View<double**, Kokkos::LayoutLeft, Kokkos::HostSpace> Q("Matrix Q", 3, 3);
-        Kokkos::View<double**, Kokkos::LayoutLeft, Kokkos::HostSpace> R("Matrix R", 3, 3);
-        
-        // Example call to perform QR decomposition
-        // performQR(A, Q, R); // Implement this function using KokkosBatched_QR_Decl.hpp
-        
-        // Print Q and R to verify the decomposition
-        std::cout << "Matrix Q:\n";
-        for (int i = 0; i < 3; ++i) {
-            for (int j = 0; j < 3; ++j) {
-                std::cout << Q(i,j) << " ";
+        matrix_view_type A("A", numMatrices, rows, cols);
+        matrix_view_type Q("Q", numMatrices, rows, rows);
+        matrix_view_type R("R", numMatrices, rows, cols);
+
+        // Initialize matrices
+        auto h_A = Kokkos::create_mirror_view(A);
+        for (int m = 0; m < numMatrices; ++m) {
+            for (int i = 0; i < rows; ++i) {
+                for (int j = 0; j < cols; ++j) {
+                    h_A(m, i, j) = (i + j + m + 1.0);
+                }
             }
-            std::cout << "\n";
         }
-        
-        std::cout << "Matrix R:\n";
-        for (int i = 0; i < 3; ++i) {
-            for (int j = 0; j < 3; ++j) {
-                std::cout << R(i,j) << " ";
-            }
-            std::cout << "\n";
-        }
-  //  }
-  */  
-    //Kokkos::finalize();
+        Kokkos::deep_copy(A, h_A);
 
-//    MPI_Finalize();
+        // Team policy for batched execution
+        Kokkos::TeamPolicy<execution_space> policy(numMatrices, Kokkos::AUTO);
+        Kokkos::parallel_for(
+            "BatchedQR", policy,
+            KOKKOS_LAMBDA(const Kokkos::TeamPolicy<execution_space>::member_type& member) {
+                const int m = member.league_rank();
+                
+                auto A_sub = Kokkos::subview(A, m, Kokkos::ALL(), Kokkos::ALL());
+                auto Q_sub = Kokkos::subview(Q, m, Kokkos::ALL(), Kokkos::ALL());
+                auto R_sub = Kokkos::subview(R, m, Kokkos::ALL(), Kokkos::ALL());
+
+                KokkosBatched::QR<
+                    Kokkos::TeamPolicy<execution_space>::member_type,  // MemberType
+                    KokkosBatched::Mode::Team,                         // Execution mode
+                    KokkosBatched::Algo::QR::Unblocked                 // Algorithm
+                >::invoke(
+                    member,  // Team member handle
+                    A_sub,   // Input matrix (overwritten with Q)
+                    R_sub,   // R output (upper triangular)
+                    Q_sub    // Q output (orthogonal matrix)
+                );
+            }
+        );
+
+        // Verify results
+        auto h_Q = Kokkos::create_mirror_view(Q);
+        auto h_R = Kokkos::create_mirror_view(R);
+        Kokkos::deep_copy(h_Q, Q);
+        Kokkos::deep_copy(h_R, R);
+
+        for (int m = 0; m < numMatrices; ++m) {
+            printf("\nMatrix %d:\n", m);
+            
+            printf("Q:\n");
+            for (int i = 0; i < rows; ++i) {
+                for (int j = 0; j < rows; ++j) {
+                    printf("%8.4f ", h_Q(m, i, j));
+                }
+                printf("\n");
+            }
+            
+            printf("R:\n");
+            for (int i = 0; i < rows; ++i) {
+                for (int j = 0; j < cols; ++j) {
+                    printf("%8.4f ", h_R(m, i, j));
+                }
+                printf("\n");
+            }
+        }
+    }
+    Kokkos::finalize();
     return 0;
 }
-
