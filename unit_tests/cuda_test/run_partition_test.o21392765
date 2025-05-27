@@ -1,0 +1,243 @@
+Job 21392765.pbspl1.nas.nasa.gov started on Mon Jan 13 18:19:56 PST 2025
+The job requested the following resources:
+    ncpus=280
+    place=scatter:excl
+    walltime=01:20:00
+
+PBS set the following environment variables:
+        FORT_BUFFERED = 1
+                   TZ = PST8PDT
+
+On r631i1n4:
+Loading us3d/1.2-dev
+  Loading requirement: comp-intel/2020.4.304 mpi-hpe/mpt.2.28_25Apr23_rhel87
+    szip/2.1.1 hdf5/1.8.18_mpt parmetis/4.0.3
+mkdir -p ../bin
+icpc -std=c++17 -g -DMPI_NO_CPPBIND -I/home1/dekelsch/Software/mmg_new/build/include -I/home1/dekelsch/Software/parmmg_1.4_toss4/build/include -I/nobackupp19/dekelsch/parmetis-4.0.3/parmetis-install/include -I/nobackupp19/dekelsch/parmetis-4.0.3/metis/metis-install/include -I/home1/dekelsch/Software/boost_1_71_0 -I/home1/dekelsch/Software/tinyxml -I/nobackupp19/dekelsch/CGNS-3.3.0/src/install/include ../../src/*.cpp main.cpp -o ../bin/gradientReconstruction_test -L/home1/dekelsch/Software/mmg_new/build/lib -L/home1/dekelsch/Software/parmmg_1.4_toss4/build/lib -L/nobackupp19/dekelsch/parmetis-4.0.3/parmetis-install/lib -L/nobackupp19/dekelsch/parmetis-4.0.3/metis/metis-install/lib -L/home1/dekelsch/Software/boost_1_71_0/stage/lib -L/home1/dekelsch/Software/tinyxml -L/nobackupp19/dekelsch/CGNS-3.3.0/src/install/lib -lmpi -lparmetis -lmetis -lhdf5 -mkl -lparmmg -lmmg -lcgns
+In file included from ../../src/NekFace.h(4),
+                 from ../../src/adapt_prismtetratrace.h(3),
+                 from ../../src/adapt_repartition.h(9),
+                 from ../../src/adapt_compute.h(6),
+                 from ../../src/adapt_bltopology.h(4),
+                 from ../../src/adapt_bltopology.cpp(1):
+../../src/adapt_hashutils.h(1): catastrophic error: cannot open source file "boost/core/ignore_unused.hpp"
+  #include <boost/core/ignore_unused.hpp>
+                                         ^
+
+compilation aborted for ../../src/adapt_bltopology.cpp (code 4)
+In file included from ../../src/NekFace.h(4),
+                 from ../../src/adapt_prismtetratrace.h(3),
+                 from ../../src/adapt_repartition.h(9),
+                 from ../../src/adapt_compute.h(6),
+                 from ../../src/adapt_compute.cpp(1):
+../../src/adapt_hashutils.h(1): catastrophic error: cannot open source file "boost/core/ignore_unused.hpp"
+  #include <boost/core/ignore_unused.hpp>
+                                         ^
+
+compilation aborted for ../../src/adapt_compute.cpp (code 4)
+In file included from ../../src/NekFace.h(4),
+                 from ../../src/adapt_prismtetratrace.h(3),
+                 from ../../src/adapt_repartition.h(9),
+                 from ../../src/adapt_compute.h(6),
+                 from ../../src/adapt_recongrad.h(3),
+                 from ../../src/adapt_DefinePrismMesh.h(1),
+                 from ../../src/adapt_DefinePrismMesh.cpp(1):
+../../src/adapt_hashutils.h(1): catastrophic error: cannot open source file "boost/core/ignore_unused.hpp"
+  #include <boost/core/ignore_unused.hpp>
+                                         ^
+
+compilation aborted for ../../src/adapt_DefinePrismMesh.cpp (code 4)
+In file included from ../../src/NekFace.h(4),
+                 from ../../src/adapt_prismtetratrace.h(3),
+                 from ../../src/adapt_repartition.h(9),
+                 from ../../src/adapt_compute.h(6),
+                 from ../../src/adapt_geometry.cpp(3):
+../../src/adapt_hashutils.h(1): catastrophic error: cannot open source file "boost/core/ignore_unused.hpp"
+  #include <boost/core/ignore_unused.hpp>
+                                         ^
+
+compilation aborted for ../../src/adapt_geometry.cpp (code 4)
+In file included from ../../src/NekFace.h(4),
+                 from ../../src/adapt_prismtetratrace.h(3),
+                 from ../../src/adapt_repartition.h(9),
+                 from ../../src/adapt_gradreconstruct_lite.h(1),
+                 from ../../src/adapt_gradreconstruct_lite.cpp(1):
+../../src/adapt_hashutils.h(1): catastrophic error: cannot open source file "boost/core/ignore_unused.hpp"
+  #include <boost/core/ignore_unused.hpp>
+                                         ^
+
+compilation aborted for ../../src/adapt_gradreconstruct_lite.cpp (code 4)
+In file included from ../../src/NekFace.h(4),
+                 from ../../src/adapt_prismtetratrace.h(3),
+                 from ../../src/adapt_repartition.h(9),
+                 from ../../src/adapt_compute.h(6),
+                 from ../../src/adapt_topology.h(4),
+                 from ../../src/adapt_output.h(6),
+                 from ../../src/adapt_io.cpp(2):
+../../src/adapt_hashutils.h(1): catastrophic error: cannot open source file "boost/core/ignore_unused.hpp"
+  #include <boost/core/ignore_unused.hpp>
+                                         ^
+
+compilation aborted for ../../src/adapt_io.cpp (code 4)
+In file included from ../../src/NekFace.h(4),
+                 from ../../src/adapt_prismtetratrace.h(3),
+                 from ../../src/adapt_repartition.h(9),
+                 from ../../src/adapt_compute.h(6),
+                 from ../../src/adapt_meshtopology_lite.h(4),
+                 from ../../src/adapt_meshtopology_lite.cpp(1):
+../../src/adapt_hashutils.h(1): catastrophic error: cannot open source file "boost/core/ignore_unused.hpp"
+  #include <boost/core/ignore_unused.hpp>
+                                         ^
+
+compilation aborted for ../../src/adapt_meshtopology_lite.cpp (code 4)
+In file included from ../../src/NekFace.h(4),
+                 from ../../src/adapt_prismtetratrace.h(3),
+                 from ../../src/adapt_repartition.h(9),
+                 from ../../src/adapt_compute.h(6),
+                 from ../../src/adapt_topology.h(4),
+                 from ../../src/adapt_output.h(6),
+                 from ../../src/adapt_output.cpp(1):
+../../src/adapt_hashutils.h(1): catastrophic error: cannot open source file "boost/core/ignore_unused.hpp"
+  #include <boost/core/ignore_unused.hpp>
+                                         ^
+
+compilation aborted for ../../src/adapt_output.cpp (code 4)
+In file included from ../../src/adapt_output_vtk.cpp(1):
+../../src/adapt_output_vtk.h(1): catastrophic error: cannot open source file "vtkPointData.h"
+  #include <vtkPointData.h>
+                           ^
+
+compilation aborted for ../../src/adapt_output_vtk.cpp (code 4)
+In file included from ../../src/NekFace.h(4),
+                 from ../../src/adapt_prismtetratrace.h(3),
+                 from ../../src/adapt_repartition.h(9),
+                 from ../../src/adapt_compute.h(6),
+                 from ../../src/adapt_partition.cpp(2):
+../../src/adapt_hashutils.h(1): catastrophic error: cannot open source file "boost/core/ignore_unused.hpp"
+  #include <boost/core/ignore_unused.hpp>
+                                         ^
+
+compilation aborted for ../../src/adapt_partition.cpp (code 4)
+In file included from ../../src/NekFace.h(4),
+                 from ../../src/adapt_prismtetratrace.h(3),
+                 from ../../src/adapt_prismtetratrace.cpp(1):
+../../src/adapt_hashutils.h(1): catastrophic error: cannot open source file "boost/core/ignore_unused.hpp"
+  #include <boost/core/ignore_unused.hpp>
+                                         ^
+
+compilation aborted for ../../src/adapt_prismtetratrace.cpp (code 4)
+In file included from ../../src/NekFace.h(4),
+                 from ../../src/adapt_prismtetratrace.h(3),
+                 from ../../src/adapt_repartition.h(9),
+                 from ../../src/adapt_compute.h(6),
+                 from ../../src/adapt_recongrad.h(3),
+                 from ../../src/adapt_recongrad.cpp(1):
+../../src/adapt_hashutils.h(1): catastrophic error: cannot open source file "boost/core/ignore_unused.hpp"
+  #include <boost/core/ignore_unused.hpp>
+                                         ^
+
+compilation aborted for ../../src/adapt_recongrad.cpp (code 4)
+In file included from ../../src/NekFace.h(4),
+                 from ../../src/adapt_prismtetratrace.h(3),
+                 from ../../src/adapt_repartition.h(9),
+                 from ../../src/adapt_repartition.cpp(1):
+../../src/adapt_hashutils.h(1): catastrophic error: cannot open source file "boost/core/ignore_unused.hpp"
+  #include <boost/core/ignore_unused.hpp>
+                                         ^
+
+compilation aborted for ../../src/adapt_repartition.cpp (code 4)
+In file included from ../../src/NekFace.h(4),
+                 from ../../src/adapt_prismtetratrace.h(3),
+                 from ../../src/adapt_repartition.h(9),
+                 from ../../src/adapt_runparmmg.h(2),
+                 from ../../src/adapt_runparmmg.cpp(1):
+../../src/adapt_hashutils.h(1): catastrophic error: cannot open source file "boost/core/ignore_unused.hpp"
+  #include <boost/core/ignore_unused.hpp>
+                                         ^
+
+compilation aborted for ../../src/adapt_runparmmg.cpp (code 4)
+In file included from ../../src/NekFace.h(4),
+                 from ../../src/adapt_prismtetratrace.h(3),
+                 from ../../src/adapt_repartition.h(9),
+                 from ../../src/adapt_compute.h(6),
+                 from ../../src/adapt_topology.h(4),
+                 from ../../src/adapt_topology.cpp(1):
+../../src/adapt_hashutils.h(1): catastrophic error: cannot open source file "boost/core/ignore_unused.hpp"
+  #include <boost/core/ignore_unused.hpp>
+                                         ^
+
+compilation aborted for ../../src/adapt_topology.cpp (code 4)
+In file included from ../../src/NekFace.h(4),
+                 from ../../src/adapt_prismtetratrace.h(3),
+                 from ../../src/adapt_repartition.h(9),
+                 from ../../src/adapt_writeus3ddata.h(2),
+                 from ../../src/adapt_writeus3ddata.cpp(1):
+../../src/adapt_hashutils.h(1): catastrophic error: cannot open source file "boost/core/ignore_unused.hpp"
+  #include <boost/core/ignore_unused.hpp>
+                                         ^
+
+compilation aborted for ../../src/adapt_writeus3ddata.cpp (code 4)
+In file included from ../../src/NekFace.h(4),
+                 from ../../src/NekFace.cpp(1):
+../../src/adapt_hashutils.h(1): catastrophic error: cannot open source file "boost/core/ignore_unused.hpp"
+  #include <boost/core/ignore_unused.hpp>
+                                         ^
+
+compilation aborted for ../../src/NekFace.cpp (code 4)
+In file included from ../../src/NekFace.h(4),
+                 from ../../src/adapt_prismtetratrace.h(3),
+                 from ../../src/adapt_repartition.h(9),
+                 from ../../src/adapt_compute.h(6),
+                 from ../../src/adapt_recongrad.h(3),
+                 from main.cpp(3):
+../../src/adapt_hashutils.h(1): catastrophic error: cannot open source file "boost/core/ignore_unused.hpp"
+  #include <boost/core/ignore_unused.hpp>
+                                         ^
+
+compilation aborted for main.cpp (code 4)
+make: *** [makefile:10: test] Error 4
+MPT ERROR: Failed to execute ../bin/gradientReconstruction_test on host r631i1n4 (errno:2)
+MPT ERROR: Failed to execute ../bin/gradientReconstruction_test on host r631i1n4 (errno:2)
+MPT ERROR: Failed to execute ../bin/gradientReconstruction_test on host r631i1n4 (errno:2)
+MPT ERROR: Failed to execute ../bin/gradientReconstruction_test on host r631i1n4 (errno:2)
+MPT ERROR: Failed to execute ../bin/gradientReconstruction_test on host r631i1n4 (errno:2)
+MPT ERROR: Failed to execute ../bin/gradientReconstruction_test on host r631i1n4 (errno:2)
+MPT ERROR: Failed to execute ../bin/gradientReconstruction_test on host r631i1n4 (errno:2)
+MPT ERROR: Failed to execute ../bin/gradientReconstruction_test on host r631i1n4 (errno:2)
+MPT ERROR: Failed to execute ../bin/gradientReconstruction_test on host r631i1n4 (errno:2)
+MPT ERROR: Failed to execute ../bin/gradientReconstruction_test on host r631i1n4 (errno:2)
+MPT ERROR: Failed to execute ../bin/gradientReconstruction_test on host r631i1n4 (errno:2)
+MPT ERROR: Failed to execute ../bin/gradientReconstruction_test on host r631i1n4 (errno:2)
+MPT ERROR: Failed to execute ../bin/gradientReconstruction_test on host r631i1n4 (errno:2)
+MPT ERROR: Failed to execute ../bin/gradientReconstruction_test on host r631i1n4 (errno:2)
+MPT ERROR: Failed to execute ../bin/gradientReconstruction_test on host r631i1n4 (errno:2)
+MPT ERROR: Failed to execute ../bin/gradientReconstruction_test on host r631i1n4 (errno:2)
+MPT ERROR: Failed to execute ../bin/gradientReconstruction_test on host r631i1n4 (errno:2)
+MPT ERROR: Failed to execute ../bin/gradientReconstruction_test on host r631i1n4 (errno:2)
+MPT ERROR: Failed to execute ../bin/gradientReconstruction_test on host r631i1n4 (errno:2)
+MPT ERROR: Failed to execute ../bin/gradientReconstruction_test on host r631i1n4 (errno:2)
+MPT ERROR: Failed to execute ../bin/gradientReconstruction_test on host r631i1n4 (errno:2)
+MPT ERROR: Failed to execute ../bin/gradientReconstruction_test on host r631i1n4 (errno:2)
+MPT ERROR: Failed to execute ../bin/gradientReconstruction_test on host r631i1n4 (errno:2)
+MPT ERROR: Failed to execute ../bin/gradientReconstruction_test on host r631i1n4 (errno:2)
+MPT ERROR: Failed to execute ../bin/gradientReconstruction_test on host r631i1n4 (errno:2)
+MPT ERROR: Failed to execute ../bin/gradientReconstruction_test on host r631i1n4 (errno:2)
+MPT ERROR: Failed to execute ../bin/gradientReconstruction_test on host r631i1n4 (errno:2)
+MPT ERROR: Failed to execute ../bin/gradientReconstruction_test on host r631i1n4 (errno:2)
+
+____________________________________________________________________
+Job Resource Usage Summary for 21392765.pbspl1.nas.nasa.gov
+
+    CPU Time Used            : 00:00:25
+    Real Memory Used         : 151076kb
+    Walltime Used            : 00:00:29
+    Exit Status              : 1
+
+    Number of CPUs Requested : 280
+    Walltime Requested       : 01:20:00
+
+    Execution Queue          : devel
+    Charged To               : e1305
+
+    Job Stopped              : Mon Jan 13 18:21:29 2025
+____________________________________________________________________

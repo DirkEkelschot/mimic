@@ -1,0 +1,33 @@
+.PHONY: default
+default: build test clean
+
+PYTHON = python3
+#PYTHON_CONFIG = ${PYTHON} python-config
+MPI4PY_INCLUDE = ${shell ${PYTHON} -c 'import mpi4py; print( mpi4py.get_include() )'}
+NUMPY_INCLUDE  = ${shell ${PYTHON} -c 'import numpy; print( numpy.get_include() )'}
+
+PYTHON_INCLUDE = /nasa/pkgsrc/sles12/2016Q4/views/python/3.5.2/include/python3.5 
+
+MPICC    = icc
+CFLAGS  += -fPIC -lm -lpthread -ldl -lutil -L/nasa/pkgsrc/sles12/2016Q4/views/python/3.5.2/lib/ -O2 -Wall -axAVX,CORE-AVX2,CORE-AVX512 -qopt-report-phase=vec -qopt-report=5 
+LDFLAGS += -shared -lm -lpthread -ldl -lutil -L/nasa/pkgsrc/sles12/2016Q4/views/python/3.5.2/lib/
+LDLIBS  += -lmpi
+#LDFLAGS += ${shell ${PYTHON_CONFIG} --libs}
+#SO = ${shell ${PYTHON_CONFIG} --extension-suffix}
+.PHONY: build
+build: Py2C.so
+Py2C.so: Py2C.c
+	${MPICC} ${CFLAGS} -I${NUMPY_INCLUDE} -I${MPI4PY_INCLUDE} -I${PYTHON_INCLUDE} -o $@ $< ${LDFLAGS} ${LDLIBS}
+
+
+MPIEXEC = mpiexec
+NP_FLAG = -n
+NP = 1
+.PHONY: spawn_test
+test: build
+	${MPIEXEC} -spawn ${NP_FLAG} ${NP} ${PYTHON} spawn_test.py
+
+
+.PHONY: clean
+clean:
+	${RM} Py2C.so

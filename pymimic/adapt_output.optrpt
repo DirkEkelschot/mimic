@@ -1,0 +1,1999 @@
+Intel(R) Advisor can now assist with vectorization and show optimization
+  report messages with your source code.
+See "https://software.intel.com/en-us/intel-advisor-xe" for details.
+
+Intel(R) C Intel(R) 64 Compiler for applications running on Intel(R) 64, Version 19.1.3.304 Build 20200925_000000
+
+Compiler options: -I/nobackupp19/dekelsch/Software/ParMmg/build/Mmg-prefix/src/Mmg-build/include -I/nobackupp19/dekelsch/Software/ParMmg/build/include -I/nobackupp19/dekelsch/parmetis-4.0.3/parmetis-install/include -I/nobackupp19/dekelsch/parmetis-4.0.3/metis/metis-install/include -I/nobackupp19/dekelsch/boost_1_71_0/boost-install/include -I/home1/dekelsch/Software/tinyxml -I/nobackupp19/dekelsch/CGNS-3.3.0/src/install/include -I/home1/dekelsch/local/lib/python3.12/site-packages/numpy/_core/include -I/home1/dekelsch/local/lib/python3.12/site-packages/mpi4py/include -I/home1/dekelsch/local/include/python3.12/ -std=c++17 -g -DMPI_NO_CPPBIND -fPIC -lm -lpthread -ldl -lutil -L/home1/dekelsch/local/lib/python3.12/ -O2 -Wall -axAVX,CORE-AVX2,CORE-AVX512 -qopt-report-phase=vec -qopt-report=5 -o PartiClass.so -L/nobackupp19/dekelsch/Software/ParMmg/build/Mmg-prefix/src/Mmg-build/lib -L/nobackupp19/dekelsch/Software/ParMmg/build/lib -L/nobackupp19/dekelsch/parmetis-4.0.3/parmetis-install/lib -L/nobackupp19/dekelsch/parmetis-4.0.3/metis/metis-install/lib -L/nobackupp19/dekelsch/boost_1_71_0/boost-install/stage/lib -L/home1/dekelsch/Software/tinyxml -L/nobackupp19/dekelsch/CGNS-3.3.0/src/install/lib -shared -lm -lpthread -ldl -lutil -L/home1/dekelsch/local/lib/python3.12/ -lmpi -lparmetis -lmetis -lhdf5 -mkl -lparmmg -lmmg -lcgns -lmpi
+
+Begin optimization report for: OutputBoundaryLayerPrisms(Array<double> *, Mesh_Topology_BL *, MPI_Comm, std::__cxx11::string *)
+
+    Report from: Vector optimizations [vec]
+
+
+LOOP BEGIN at ../src/adapt_output.cpp(220,9)
+   remark #26015: Exception can be thrown by the call to std::_Rb_tree<std::set<int, std::less<int>, std::allocator<int>>::key_type, std::set<int, std::less<int>, std::allocator<int>>::value_type, std::_Identity<std::set<int, std::less<int>, std::allocator<int>>::value_type>, std::set<int, std::less<int>, std::allocator<int>>::key_compare, std::set<int, std::less<int>, std::allocator<int>>::_Key_alloc_type>::find(std::_Rb_tree<std::set<int, std::less<int>, std::allocator<int>>::key_type, std::set<int, std::less<int>, std::allocator<int>>::value_type, std::_Identity<std::set<int, std::less<int>, std::allocator<int>>::value_type>, std::set<int, std::less<int>, std::allocator<int>>::key_compare, std::set<int, std::less<int>, std::allocator<int>>::_Key_alloc_type> *, const std::_Rb_tree<std::set<int, std::less<int>, std::allocator<int>>::key_type, std::set<int, std::less<int>, std::allocator<int>>::value_type, std::_Identity<std::set<int, std::less<int>, std::allocator<int>>::value_type>, std::set<int, std::less<int>, std::allocator<int>>::key_compare, std::set<int, std::less<int>, std::allocator<int>>::_Key_alloc_type>::key_type &)   [ /usr/include/c++/8/bits/stl_set.h(776,26) ]
+   remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ /usr/include/c++/8/bits/stl_set.h(776,26) ]
+LOOP END
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at ../src/adapt_output.cpp(31,51)
+   remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ ../src/adapt_output.cpp(37,50) ]
+
+   LOOP BEGIN at ../src/adapt_output.cpp(35,9)
+      remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ ../src/adapt_output.cpp(37,50) ]
+
+      LOOP BEGIN at ../src/adapt_output.cpp(40,33)
+         remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ /usr/include/c++/8/bits/stl_set.h(776,26) ]
+      LOOP END
+
+      LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(1851,6) inlined into ../src/adapt_output.cpp(55,65)
+         remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ /usr/include/c++/8/ext/new_allocator.h(111,27) ]
+      LOOP END
+
+      LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(114,7) inlined into ../src/adapt_output.cpp(55,65)
+         remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+      LOOP END
+
+      LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(128,7) inlined into ../src/adapt_output.cpp(55,65)
+         remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+      LOOP END
+
+      LOOP BEGIN at ../src/adapt_output.cpp(58,38)
+         remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ /usr/include/c++/8/bits/stl_set.h(512,26) ]
+
+         LOOP BEGIN at ../src/adapt_output.cpp(61,43)
+            remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ /usr/include/c++/8/bits/stl_set.h(512,26) ]
+         LOOP END
+
+         LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(1894,7) inlined into ../src/adapt_output.cpp(67,38)
+            remark #15536: loop was not vectorized: inner loop throttling prevents vectorization of this outer loop. Refer to inner loop message for more details.   [ /usr/include/c++/8/bits/stl_algobase.h(880,23) ]
+
+            LOOP BEGIN at /usr/include/c++/8/bits/stl_algobase.h(880,23) inlined into ../src/adapt_output.cpp(67,38)
+               remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+            LOOP END
+         LOOP END
+
+         LOOP BEGIN at /usr/include/c++/8/bits/stl_algobase.h(880,23) inlined into ../src/adapt_output.cpp(67,38)
+            remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+         LOOP END
+
+         LOOP BEGIN at ../src/adapt_output.cpp(73,47)
+            remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ ../src/adapt_output.cpp(75,52) ]
+         LOOP END
+
+         LOOP BEGIN at /usr/include/c++/8/bits/stl_uninitialized.h(82,23) inlined into ../src/adapt_output.cpp(79,28)
+            remark #15523: loop was not vectorized: loop control variable __cur was found, but loop iteration count cannot be computed before executing the loop
+         LOOP END
+
+         LOOP BEGIN at /usr/include/c++/8/bits/stl_uninitialized.h(82,23) inlined into ../src/adapt_output.cpp(79,28)
+            remark #15523: loop was not vectorized: loop control variable __cur was found, but loop iteration count cannot be computed before executing the loop
+         LOOP END
+
+         LOOP BEGIN at /usr/include/c++/8/bits/stl_construct.h(107,4) inlined into ../src/adapt_output.cpp(79,28)
+            remark #15543: loop was not vectorized: loop with function call not considered an optimization candidate.
+         LOOP END
+      LOOP END
+   LOOP END
+LOOP END
+
+LOOP BEGIN at ../src/adapt_output.cpp(97,35)
+   remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ ../src/adapt_output.cpp(101,19) ]
+
+   LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(1894,7) inlined into ../src/adapt_output.cpp(99,29)
+      remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+   LOOP END
+LOOP END
+
+LOOP BEGIN at ../src/adapt_output.cpp(122,29)
+   remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ ../src/adapt_output.cpp(124,33) ]
+LOOP END
+
+LOOP BEGIN at ../src/adapt_output.cpp(133,29)
+   remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ ../src/adapt_output.cpp(136,33) ]
+LOOP END
+
+LOOP BEGIN at ../src/adapt_output.cpp(146,29)
+   remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ ../src/adapt_output.cpp(148,33) ]
+LOOP END
+
+LOOP BEGIN at ../src/adapt_output.cpp(158,26)
+   remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ ../src/adapt_output.cpp(160,16) ]
+LOOP END
+
+LOOP BEGIN at ../src/adapt_output.cpp(169,26)
+   remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ ../src/adapt_output.cpp(173,20) ]
+
+   LOOP BEGIN at ../src/adapt_output.cpp(171,33)
+      remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ ../src/adapt_output.cpp(173,20) ]
+   LOOP END
+LOOP END
+
+LOOP BEGIN at ../src/adapt_output.cpp(181,35)
+   remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ ../src/adapt_output.cpp(184,16) ]
+LOOP END
+
+LOOP BEGIN at ../src/adapt_output.cpp(196,35)
+   remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ ../src/adapt_output.cpp(198,16) ]
+LOOP END
+
+LOOP BEGIN at ../src/adapt_output.cpp(218,36)
+   remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ /usr/include/c++/8/bits/stl_set.h(776,26) ]
+LOOP END
+
+LOOP BEGIN at ../src/adapt_output.cpp(246,34)
+   remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ ../src/adapt_output.cpp(248,15) ]
+LOOP END
+
+LOOP BEGIN at ../src/adapt_output.cpp(253,36)
+   remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ ../src/adapt_output.cpp(255,15) ]
+LOOP END
+===========================================================================
+
+Begin optimization report for: std::_Rb_tree<std::set<int, std::less<int>, std::allocator<int>>::key_type, std::set<int, std::less<int>, std::allocator<int>>::value_type, std::_Identity<std::set<int, std::less<int>, std::allocator<int>>::value_type>, std::set<int, std::less<int>, std::allocator<int>>::key_compare, std::set<int, std::less<int>, std::allocator<int>>::_Key_alloc_type>::find(std::_Rb_tree<std::set<int, std::less<int>, std::allocator<int>>::key_type, std::set<int, std::less<int>, std::allocator<int>>::value_type, std::_Identity<std::set<int, std::less<int>, std::allocator<int>>::value_type>, std::set<int, std::less<int>, std::allocator<int>>::key_compare, std::set<int, std::less<int>, std::allocator<int>>::_Key_alloc_type> *, const std::_Rb_tree<std::set<int, std::less<int>, std::allocator<int>>::key_type, std::set<int, std::less<int>, std::allocator<int>>::value_type, std::_Identity<std::set<int, std::less<int>, std::allocator<int>>::value_type>, std::set<int, std::less<int>, std::allocator<int>>::key_compare, std::set<int, std::less<int>, std::allocator<int>>::_Key_alloc_type>::key_type &)
+
+    Report from: Vector optimizations [vec]
+
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(1894,7) inlined into /usr/include/c++/8/bits/stl_tree.h(2547,59)
+   remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+LOOP END
+===========================================================================
+
+Begin optimization report for: std::_Rb_tree<std::map<int, std::vector<int, std::allocator<int>>, std::less<int>, std::allocator<std::pair<const int, std::vector<int, std::allocator<int>>>>>::key_type, std::map<int, std::vector<int, std::allocator<int>>, std::less<int>, std::allocator<std::pair<const int, std::vector<int, std::allocator<int>>>>>::value_type, std::_Select1st<std::map<int, std::vector<int, std::allocator<int>>, std::less<int>, std::allocator<std::pair<const int, std::vector<int, std::allocator<int>>>>>::value_type>, std::map<int, std::vector<int, std::allocator<int>>, std::less<int>, std::allocator<std::pair<const int, std::vector<int, std::allocator<int>>>>>::key_compare, std::map<int, std::vector<int, std::allocator<int>>, std::less<int>, std::allocator<std::pair<const int, std::vector<int, std::allocator<int>>>>>::_Pair_alloc_type>::_M_copy<std::_Rb_tree<std::map<int, std::vector<int, std::allocator<int>>, std::less<int>, std::allocator<std::pair<const int, std::vector<int, std::allocator<int>>>>>::key_type, std::map<int, std::vector<int, std::allocator<int>>, std::less<int>, std::allocator<std::pair<const int, std::vector<int, std::allocator<int>>>>>::value_type, std::_Select1st<std::map<int, std::vector<int, std::allocator<int>>, std::less<int>, std::allocator<std::pair<const int, std::vector<int, std::allocator<int>>>>>::value_type>, std::map<int, std::vector<int, std::allocator<int>>, std::less<int>, std::allocator<std::pair<const int, std::vector<int, std::allocator<int>>>>>::key_compare, std::map<int, std::vector<int, std::allocator<int>>, std::less<int>, std::allocator<std::pair<const int, std::vector<int, std::allocator<int>>>>>::_Pair_alloc_type>::_Alloc_node>(std::_Rb_tree<std::map<int, std::vector<int, std::allocator<int>>, std::less<int>, std::allocator<std::pair<const int, std::vector<int, std::allocator<int>>>>>::key_type, std::map<int, std::vector<int, std::allocator<int>>, std::less<int>, std::allocator<std::pair<const int, std::vector<int, std::allocator<int>>>>>::value_type, std::_Select1st<std::map<int, std::vector<int, std::allocator<int>>, std::less<int>, std::allocator<std::pair<const int, std::vector<int, std::allocator<int>>>>>::value_type>, std::map<int, std::vector<int, std::allocator<int>>, std::less<int>, std::allocator<std::pair<const int, std::vector<int, std::allocator<int>>>>>::key_compare, std::map<int, std::vector<int, std::allocator<int>>, std::less<int>, std::allocator<std::pair<const int, std::vector<int, std::allocator<int>>>>>::_Pair_alloc_type> *, std::_Rb_tree<std::map<int, std::vector<int, std::allocator<int>>, std::less<int>, std::allocator<std::pair<const int, std::vector<int, std::allocator<int>>>>>::key_type, std::map<int, std::vector<int, std::allocator<int>>, std::less<int>, std::allocator<std::pair<const int, std::vector<int, std::allocator<int>>>>>::value_type, std::_Select1st<std::map<int, std::vector<int, std::allocator<int>>, std::less<int>, std::allocator<std::pair<const int, std::vector<int, std::allocator<int>>>>>::value_type>, std::map<int, std::vector<int, std::allocator<int>>, std::less<int>, std::allocator<std::pair<const int, std::vector<int, std::allocator<int>>>>>::key_compare, std::map<int, std::vector<int, std::allocator<int>>, std::less<int>, std::allocator<std::pair<const int, std::vector<int, std::allocator<int>>>>>::_Pair_alloc_type>::_Const_Link_type, std::_Rb_tree<std::map<int, std::vector<int, std::allocator<int>>, std::less<int>, std::allocator<std::pair<const int, std::vector<int, std::allocator<int>>>>>::key_type, std::map<int, std::vector<int, std::allocator<int>>, std::less<int>, std::allocator<std::pair<const int, std::vector<int, std::allocator<int>>>>>::value_type, std::_Select1st<std::map<int, std::vector<int, std::allocator<int>>, std::less<int>, std::allocator<std::pair<const int, std::vector<int, std::allocator<int>>>>>::value_type>, std::map<int, std::vector<int, std::allocator<int>>, std::less<int>, std::allocator<std::pair<const int, std::vector<int, std::allocator<int>>>>>::key_compare, std::map<int, std::vector<int, std::allocator<int>>, std::less<int>, std::allocator<std::pair<const int, std::vector<int, std::allocator<int>>>>>::_Pair_alloc_type>::_Base_ptr, std::_Rb_tree<std::map<int, std::vector<int, std::allocator<int>>, std::less<int>, std::allocator<std::pair<const int, std::vector<int, std::allocator<int>>>>>::key_type, std::map<int, std::vector<int, std::allocator<int>>, std::less<int>, std::allocator<std::pair<const int, std::vector<int, std::allocator<int>>>>>::value_type, std::_Select1st<std::map<int, std::vector<int, std::allocator<int>>, std::less<int>, std::allocator<std::pair<const int, std::vector<int, std::allocator<int>>>>>::value_type>, std::map<int, std::vector<int, std::allocator<int>>, std::less<int>, std::allocator<std::pair<const int, std::vector<int, std::allocator<int>>>>>::key_compare, std::map<int, std::vector<int, std::allocator<int>>, std::less<int>, std::allocator<std::pair<const int, std::vector<int, std::allocator<int>>>>>::_Pair_alloc_type>::_Alloc_node &)
+
+    Report from: Vector optimizations [vec]
+
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(1851,6)
+   remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ /usr/include/c++/8/ext/new_allocator.h(111,27) ]
+LOOP END
+===========================================================================
+
+Begin optimization report for: std::_Rb_tree<std::map<int, std::vector<int, std::allocator<int>>, std::less<int>, std::allocator<std::pair<const int, std::vector<int, std::allocator<int>>>>>::key_type, std::map<int, std::vector<int, std::allocator<int>>, std::less<int>, std::allocator<std::pair<const int, std::vector<int, std::allocator<int>>>>>::value_type, std::_Select1st<std::map<int, std::vector<int, std::allocator<int>>, std::less<int>, std::allocator<std::pair<const int, std::vector<int, std::allocator<int>>>>>::value_type>, std::map<int, std::vector<int, std::allocator<int>>, std::less<int>, std::allocator<std::pair<const int, std::vector<int, std::allocator<int>>>>>::key_compare, std::map<int, std::vector<int, std::allocator<int>>, std::less<int>, std::allocator<std::pair<const int, std::vector<int, std::allocator<int>>>>>::_Pair_alloc_type>::_M_erase(std::_Rb_tree<std::map<int, std::vector<int, std::allocator<int>>, std::less<int>, std::allocator<std::pair<const int, std::vector<int, std::allocator<int>>>>>::key_type, std::map<int, std::vector<int, std::allocator<int>>, std::less<int>, std::allocator<std::pair<const int, std::vector<int, std::allocator<int>>>>>::value_type, std::_Select1st<std::map<int, std::vector<int, std::allocator<int>>, std::less<int>, std::allocator<std::pair<const int, std::vector<int, std::allocator<int>>>>>::value_type>, std::map<int, std::vector<int, std::allocator<int>>, std::less<int>, std::allocator<std::pair<const int, std::vector<int, std::allocator<int>>>>>::key_compare, std::map<int, std::vector<int, std::allocator<int>>, std::less<int>, std::allocator<std::pair<const int, std::vector<int, std::allocator<int>>>>>::_Pair_alloc_type> *, std::_Rb_tree<std::map<int, std::vector<int, std::allocator<int>>, std::less<int>, std::allocator<std::pair<const int, std::vector<int, std::allocator<int>>>>>::key_type, std::map<int, std::vector<int, std::allocator<int>>, std::less<int>, std::allocator<std::pair<const int, std::vector<int, std::allocator<int>>>>>::value_type, std::_Select1st<std::map<int, std::vector<int, std::allocator<int>>, std::less<int>, std::allocator<std::pair<const int, std::vector<int, std::allocator<int>>>>>::value_type>, std::map<int, std::vector<int, std::allocator<int>>, std::less<int>, std::allocator<std::pair<const int, std::vector<int, std::allocator<int>>>>>::key_compare, std::map<int, std::vector<int, std::allocator<int>>, std::less<int>, std::allocator<std::pair<const int, std::vector<int, std::allocator<int>>>>>::_Pair_alloc_type>::_Link_type)
+
+    Report from: Vector optimizations [vec]
+
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(1877,7)
+   remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+LOOP END
+===========================================================================
+
+Begin optimization report for: std::_Rb_tree<std::set<std::set<int, std::less<int>, std::allocator<int>>, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::set<int, std::less<int>, std::allocator<int>>>>::key_type, std::set<std::set<int, std::less<int>, std::allocator<int>>, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::set<int, std::less<int>, std::allocator<int>>>>::value_type, std::_Identity<std::set<std::set<int, std::less<int>, std::allocator<int>>, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::set<int, std::less<int>, std::allocator<int>>>>::value_type>, std::set<std::set<int, std::less<int>, std::allocator<int>>, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::set<int, std::less<int>, std::allocator<int>>>>::key_compare, std::set<std::set<int, std::less<int>, std::allocator<int>>, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::set<int, std::less<int>, std::allocator<int>>>>::_Key_alloc_type>::_M_insert_unique<const std::set<std::set<int, std::less<int>, std::allocator<int>>, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::set<int, std::less<int>, std::allocator<int>>>>::value_type &>(std::_Rb_tree<std::set<std::set<int, std::less<int>, std::allocator<int>>, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::set<int, std::less<int>, std::allocator<int>>>>::key_type, std::set<std::set<int, std::less<int>, std::allocator<int>>, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::set<int, std::less<int>, std::allocator<int>>>>::value_type, std::_Identity<std::set<std::set<int, std::less<int>, std::allocator<int>>, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::set<int, std::less<int>, std::allocator<int>>>>::value_type>, std::set<std::set<int, std::less<int>, std::allocator<int>>, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::set<int, std::less<int>, std::allocator<int>>>>::key_compare, std::set<std::set<int, std::less<int>, std::allocator<int>>, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::set<int, std::less<int>, std::allocator<int>>>>::_Key_alloc_type> *, const std::set<std::set<int, std::less<int>, std::allocator<int>>, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::set<int, std::less<int>, std::allocator<int>>>>::value_type &)
+
+    Report from: Vector optimizations [vec]
+
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(2058,7) inlined into /usr/include/c++/8/bits/stl_tree.h(2116,42)
+   remark #15532: loop was not vectorized: compile time constraints prevent loop optimization. Consider using -O3.
+
+   LOOP BEGIN at /usr/include/c++/8/bits/stl_algobase.h(880,23) inlined into /usr/include/c++/8/bits/stl_tree.h(2116,42)
+      remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+   LOOP END
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_algobase.h(880,23) inlined into /usr/include/c++/8/bits/stl_tree.h(2116,42)
+   remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_algobase.h(880,23) inlined into /usr/include/c++/8/bits/stl_tree.h(2121,35)
+   remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(1851,6) inlined into /usr/include/c++/8/bits/stl_tree.h(2121,35)
+   remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ /usr/include/c++/8/ext/new_allocator.h(111,27) ]
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(114,7) inlined into /usr/include/c++/8/bits/stl_tree.h(2121,35)
+   remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(128,7) inlined into /usr/include/c++/8/bits/stl_tree.h(2121,35)
+   remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+LOOP END
+===========================================================================
+
+Begin optimization report for: std::_Rb_tree<std::set<int, std::less<int>, std::allocator<int>>::key_type, std::set<int, std::less<int>, std::allocator<int>>::value_type, std::_Identity<std::set<int, std::less<int>, std::allocator<int>>::value_type>, std::set<int, std::less<int>, std::allocator<int>>::key_compare, std::set<int, std::less<int>, std::allocator<int>>::_Key_alloc_type>::_M_copy<std::_Rb_tree<std::set<int, std::less<int>, std::allocator<int>>::key_type, std::set<int, std::less<int>, std::allocator<int>>::value_type, std::_Identity<std::set<int, std::less<int>, std::allocator<int>>::value_type>, std::set<int, std::less<int>, std::allocator<int>>::key_compare, std::set<int, std::less<int>, std::allocator<int>>::_Key_alloc_type>::_Alloc_node>(std::_Rb_tree<std::set<int, std::less<int>, std::allocator<int>>::key_type, std::set<int, std::less<int>, std::allocator<int>>::value_type, std::_Identity<std::set<int, std::less<int>, std::allocator<int>>::value_type>, std::set<int, std::less<int>, std::allocator<int>>::key_compare, std::set<int, std::less<int>, std::allocator<int>>::_Key_alloc_type> *, std::_Rb_tree<std::set<int, std::less<int>, std::allocator<int>>::key_type, std::set<int, std::less<int>, std::allocator<int>>::value_type, std::_Identity<std::set<int, std::less<int>, std::allocator<int>>::value_type>, std::set<int, std::less<int>, std::allocator<int>>::key_compare, std::set<int, std::less<int>, std::allocator<int>>::_Key_alloc_type>::_Const_Link_type, std::_Rb_tree<std::set<int, std::less<int>, std::allocator<int>>::key_type, std::set<int, std::less<int>, std::allocator<int>>::value_type, std::_Identity<std::set<int, std::less<int>, std::allocator<int>>::value_type>, std::set<int, std::less<int>, std::allocator<int>>::key_compare, std::set<int, std::less<int>, std::allocator<int>>::_Key_alloc_type>::_Base_ptr, std::_Rb_tree<std::set<int, std::less<int>, std::allocator<int>>::key_type, std::set<int, std::less<int>, std::allocator<int>>::value_type, std::_Identity<std::set<int, std::less<int>, std::allocator<int>>::value_type>, std::set<int, std::less<int>, std::allocator<int>>::key_compare, std::set<int, std::less<int>, std::allocator<int>>::_Key_alloc_type>::_Alloc_node &)
+
+    Report from: Vector optimizations [vec]
+
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(1851,6)
+   remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ /usr/include/c++/8/ext/new_allocator.h(111,27) ]
+LOOP END
+===========================================================================
+
+Begin optimization report for: std::_Rb_tree<std::set<int, std::less<int>, std::allocator<int>>::key_type, std::set<int, std::less<int>, std::allocator<int>>::value_type, std::_Identity<std::set<int, std::less<int>, std::allocator<int>>::value_type>, std::set<int, std::less<int>, std::allocator<int>>::key_compare, std::set<int, std::less<int>, std::allocator<int>>::_Key_alloc_type>::_M_insert_unique<const std::set<int, std::less<int>, std::allocator<int>>::value_type &>(std::_Rb_tree<std::set<int, std::less<int>, std::allocator<int>>::key_type, std::set<int, std::less<int>, std::allocator<int>>::value_type, std::_Identity<std::set<int, std::less<int>, std::allocator<int>>::value_type>, std::set<int, std::less<int>, std::allocator<int>>::key_compare, std::set<int, std::less<int>, std::allocator<int>>::_Key_alloc_type> *, const std::set<int, std::less<int>, std::allocator<int>>::value_type &)
+
+    Report from: Vector optimizations [vec]
+
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(2058,7) inlined into /usr/include/c++/8/bits/stl_tree.h(2116,42)
+   remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+LOOP END
+===========================================================================
+
+Begin optimization report for: std::_Destroy_aux<false>::__destroy<std::_Vector_base<std::vector<int, std::allocator<int>>, std::allocator<std::vector<int, std::allocator<int>>>>::pointer>(std::_Vector_base<std::vector<int, std::allocator<int>>, std::allocator<std::vector<int, std::allocator<int>>>>::pointer, std::_Vector_base<std::vector<int, std::allocator<int>>, std::allocator<std::vector<int, std::allocator<int>>>>::pointer)
+
+    Report from: Vector optimizations [vec]
+
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_construct.h(107,4)
+   remark #15543: loop was not vectorized: loop with function call not considered an optimization candidate.
+LOOP END
+===========================================================================
+
+Begin optimization report for: std::_Rb_tree<std::set<int, std::less<int>, std::allocator<int>>::key_type, std::set<int, std::less<int>, std::allocator<int>>::value_type, std::_Identity<std::set<int, std::less<int>, std::allocator<int>>::value_type>, std::set<int, std::less<int>, std::allocator<int>>::key_compare, std::set<int, std::less<int>, std::allocator<int>>::_Key_alloc_type>::_M_erase(std::_Rb_tree<std::set<int, std::less<int>, std::allocator<int>>::key_type, std::set<int, std::less<int>, std::allocator<int>>::value_type, std::_Identity<std::set<int, std::less<int>, std::allocator<int>>::value_type>, std::set<int, std::less<int>, std::allocator<int>>::key_compare, std::set<int, std::less<int>, std::allocator<int>>::_Key_alloc_type> *, std::_Rb_tree<std::set<int, std::less<int>, std::allocator<int>>::key_type, std::set<int, std::less<int>, std::allocator<int>>::value_type, std::_Identity<std::set<int, std::less<int>, std::allocator<int>>::value_type>, std::set<int, std::less<int>, std::allocator<int>>::key_compare, std::set<int, std::less<int>, std::allocator<int>>::_Key_alloc_type>::_Link_type)
+
+    Report from: Vector optimizations [vec]
+
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(1877,7)
+   remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+LOOP END
+===========================================================================
+
+Begin optimization report for: std::map<int, int, std::less<int>, std::allocator<std::pair<const int, int>>>::operator[](std::map<int, int, std::less<int>, std::allocator<std::pair<const int, int>>> *, const std::map<int, int, std::less<int>, std::allocator<std::pair<const int, int>>>::key_type &)
+
+    Report from: Vector optimizations [vec]
+
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(1894,7) inlined into /usr/include/c++/8/bits/stl_map.h(496,29)
+   remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(2058,7) inlined into /usr/include/c++/8/bits/stl_map.h(502,10)
+   remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(2058,7) inlined into /usr/include/c++/8/bits/stl_map.h(502,10)
+   remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(2058,7) inlined into /usr/include/c++/8/bits/stl_map.h(502,10)
+   remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+LOOP END
+===========================================================================
+
+Begin optimization report for: std::map<std::set<int, std::less<int>, std::allocator<int>>, int, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::pair<const std::set<int, std::less<int>, std::allocator<int>>, int>>>::operator[](std::map<std::set<int, std::less<int>, std::allocator<int>>, int, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::pair<const std::set<int, std::less<int>, std::allocator<int>>, int>>> *, const std::map<std::set<int, std::less<int>, std::allocator<int>>, int, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::pair<const std::set<int, std::less<int>, std::allocator<int>>, int>>>::key_type &)
+
+    Report from: Vector optimizations [vec]
+
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(1894,7) inlined into /usr/include/c++/8/bits/stl_map.h(496,29)
+   remark #15532: loop was not vectorized: compile time constraints prevent loop optimization. Consider using -O3.
+
+   LOOP BEGIN at /usr/include/c++/8/bits/stl_algobase.h(880,23) inlined into /usr/include/c++/8/bits/stl_map.h(496,29)
+      remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+   LOOP END
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_algobase.h(880,23) inlined into /usr/include/c++/8/bits/stl_map.h(498,32)
+   remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(1851,6) inlined into /usr/include/c++/8/bits/stl_map.h(502,10)
+   remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ /usr/include/c++/8/ext/new_allocator.h(111,27) ]
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(114,7) inlined into /usr/include/c++/8/bits/stl_map.h(502,10)
+   remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(128,7) inlined into /usr/include/c++/8/bits/stl_map.h(502,10)
+   remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_algobase.h(880,23) inlined into /usr/include/c++/8/bits/stl_map.h(502,10)
+   remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(1877,7) inlined into /usr/include/c++/8/bits/stl_map.h(502,10)
+   remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ /usr/include/c++/8/bits/stl_tree.h(1879,4) ]
+LOOP END
+===========================================================================
+
+Begin optimization report for: std::_Rb_tree<std::map<std::set<int, std::less<int>, std::allocator<int>>, int, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::pair<const std::set<int, std::less<int>, std::allocator<int>>, int>>>::key_type, std::map<std::set<int, std::less<int>, std::allocator<int>>, int, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::pair<const std::set<int, std::less<int>, std::allocator<int>>, int>>>::value_type, std::_Select1st<std::map<std::set<int, std::less<int>, std::allocator<int>>, int, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::pair<const std::set<int, std::less<int>, std::allocator<int>>, int>>>::value_type>, std::map<std::set<int, std::less<int>, std::allocator<int>>, int, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::pair<const std::set<int, std::less<int>, std::allocator<int>>, int>>>::key_compare, std::map<std::set<int, std::less<int>, std::allocator<int>>, int, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::pair<const std::set<int, std::less<int>, std::allocator<int>>, int>>>::_Pair_alloc_type>::_M_drop_node(std::_Rb_tree<std::map<std::set<int, std::less<int>, std::allocator<int>>, int, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::pair<const std::set<int, std::less<int>, std::allocator<int>>, int>>>::key_type, std::map<std::set<int, std::less<int>, std::allocator<int>>, int, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::pair<const std::set<int, std::less<int>, std::allocator<int>>, int>>>::value_type, std::_Select1st<std::map<std::set<int, std::less<int>, std::allocator<int>>, int, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::pair<const std::set<int, std::less<int>, std::allocator<int>>, int>>>::value_type>, std::map<std::set<int, std::less<int>, std::allocator<int>>, int, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::pair<const std::set<int, std::less<int>, std::allocator<int>>, int>>>::key_compare, std::map<std::set<int, std::less<int>, std::allocator<int>>, int, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::pair<const std::set<int, std::less<int>, std::allocator<int>>, int>>>::_Pair_alloc_type> *, std::_Rb_tree<std::map<std::set<int, std::less<int>, std::allocator<int>>, int, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::pair<const std::set<int, std::less<int>, std::allocator<int>>, int>>>::key_type, std::map<std::set<int, std::less<int>, std::allocator<int>>, int, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::pair<const std::set<int, std::less<int>, std::allocator<int>>, int>>>::value_type, std::_Select1st<std::map<std::set<int, std::less<int>, std::allocator<int>>, int, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::pair<const std::set<int, std::less<int>, std::allocator<int>>, int>>>::value_type>, std::map<std::set<int, std::less<int>, std::allocator<int>>, int, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::pair<const std::set<int, std::less<int>, std::allocator<int>>, int>>>::key_compare, std::map<std::set<int, std::less<int>, std::allocator<int>>, int, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::pair<const std::set<int, std::less<int>, std::allocator<int>>, int>>>::_Pair_alloc_type>::_Link_type) noexcept
+
+    Report from: Vector optimizations [vec]
+
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(1877,7) inlined into /usr/include/c++/8/bits/stl_tree.h(659,2)
+   remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ /usr/include/c++/8/bits/stl_tree.h(1879,4) ]
+LOOP END
+===========================================================================
+
+Begin optimization report for: std::_Rb_tree<std::map<std::set<int, std::less<int>, std::allocator<int>>, int, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::pair<const std::set<int, std::less<int>, std::allocator<int>>, int>>>::key_type, std::map<std::set<int, std::less<int>, std::allocator<int>>, int, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::pair<const std::set<int, std::less<int>, std::allocator<int>>, int>>>::value_type, std::_Select1st<std::map<std::set<int, std::less<int>, std::allocator<int>>, int, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::pair<const std::set<int, std::less<int>, std::allocator<int>>, int>>>::value_type>, std::map<std::set<int, std::less<int>, std::allocator<int>>, int, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::pair<const std::set<int, std::less<int>, std::allocator<int>>, int>>>::key_compare, std::map<std::set<int, std::less<int>, std::allocator<int>>, int, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::pair<const std::set<int, std::less<int>, std::allocator<int>>, int>>>::_Pair_alloc_type>::_M_get_insert_hint_unique_pos(std::_Rb_tree<std::map<std::set<int, std::less<int>, std::allocator<int>>, int, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::pair<const std::set<int, std::less<int>, std::allocator<int>>, int>>>::key_type, std::map<std::set<int, std::less<int>, std::allocator<int>>, int, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::pair<const std::set<int, std::less<int>, std::allocator<int>>, int>>>::value_type, std::_Select1st<std::map<std::set<int, std::less<int>, std::allocator<int>>, int, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::pair<const std::set<int, std::less<int>, std::allocator<int>>, int>>>::value_type>, std::map<std::set<int, std::less<int>, std::allocator<int>>, int, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::pair<const std::set<int, std::less<int>, std::allocator<int>>, int>>>::key_compare, std::map<std::set<int, std::less<int>, std::allocator<int>>, int, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::pair<const std::set<int, std::less<int>, std::allocator<int>>, int>>>::_Pair_alloc_type> *, std::_Rb_tree<std::map<std::set<int, std::less<int>, std::allocator<int>>, int, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::pair<const std::set<int, std::less<int>, std::allocator<int>>, int>>>::key_type, std::map<std::set<int, std::less<int>, std::allocator<int>>, int, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::pair<const std::set<int, std::less<int>, std::allocator<int>>, int>>>::value_type, std::_Select1st<std::map<std::set<int, std::less<int>, std::allocator<int>>, int, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::pair<const std::set<int, std::less<int>, std::allocator<int>>, int>>>::value_type>, std::map<std::set<int, std::less<int>, std::allocator<int>>, int, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::pair<const std::set<int, std::less<int>, std::allocator<int>>, int>>>::key_compare, std::map<std::set<int, std::less<int>, std::allocator<int>>, int, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::pair<const std::set<int, std::less<int>, std::allocator<int>>, int>>>::_Pair_alloc_type>::const_iterator, const std::_Rb_tree<std::map<std::set<int, std::less<int>, std::allocator<int>>, int, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::pair<const std::set<int, std::less<int>, std::allocator<int>>, int>>>::key_type, std::map<std::set<int, std::less<int>, std::allocator<int>>, int, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::pair<const std::set<int, std::less<int>, std::allocator<int>>, int>>>::value_type, std::_Select1st<std::map<std::set<int, std::less<int>, std::allocator<int>>, int, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::pair<const std::set<int, std::less<int>, std::allocator<int>>, int>>>::value_type>, std::map<std::set<int, std::less<int>, std::allocator<int>>, int, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::pair<const std::set<int, std::less<int>, std::allocator<int>>, int>>>::key_compare, std::map<std::set<int, std::less<int>, std::allocator<int>>, int, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::pair<const std::set<int, std::less<int>, std::allocator<int>>, int>>>::_Pair_alloc_type>::key_type &)
+
+    Report from: Vector optimizations [vec]
+
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_algobase.h(880,23) inlined into /usr/include/c++/8/bits/stl_tree.h(2165,33)
+   remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_algobase.h(880,23) inlined into /usr/include/c++/8/bits/stl_tree.h(2170,38)
+   remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_algobase.h(880,23) inlined into /usr/include/c++/8/bits/stl_tree.h(2176,35)
+   remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_algobase.h(880,23) inlined into /usr/include/c++/8/bits/stl_tree.h(2186,38)
+   remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_algobase.h(880,23) inlined into /usr/include/c++/8/bits/stl_tree.h(2192,35)
+   remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+LOOP END
+===========================================================================
+
+Begin optimization report for: std::_Rb_tree<std::map<std::set<int, std::less<int>, std::allocator<int>>, int, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::pair<const std::set<int, std::less<int>, std::allocator<int>>, int>>>::key_type, std::map<std::set<int, std::less<int>, std::allocator<int>>, int, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::pair<const std::set<int, std::less<int>, std::allocator<int>>, int>>>::value_type, std::_Select1st<std::map<std::set<int, std::less<int>, std::allocator<int>>, int, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::pair<const std::set<int, std::less<int>, std::allocator<int>>, int>>>::value_type>, std::map<std::set<int, std::less<int>, std::allocator<int>>, int, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::pair<const std::set<int, std::less<int>, std::allocator<int>>, int>>>::key_compare, std::map<std::set<int, std::less<int>, std::allocator<int>>, int, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::pair<const std::set<int, std::less<int>, std::allocator<int>>, int>>>::_Pair_alloc_type>::_M_get_insert_unique_pos(std::_Rb_tree<std::map<std::set<int, std::less<int>, std::allocator<int>>, int, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::pair<const std::set<int, std::less<int>, std::allocator<int>>, int>>>::key_type, std::map<std::set<int, std::less<int>, std::allocator<int>>, int, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::pair<const std::set<int, std::less<int>, std::allocator<int>>, int>>>::value_type, std::_Select1st<std::map<std::set<int, std::less<int>, std::allocator<int>>, int, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::pair<const std::set<int, std::less<int>, std::allocator<int>>, int>>>::value_type>, std::map<std::set<int, std::less<int>, std::allocator<int>>, int, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::pair<const std::set<int, std::less<int>, std::allocator<int>>, int>>>::key_compare, std::map<std::set<int, std::less<int>, std::allocator<int>>, int, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::pair<const std::set<int, std::less<int>, std::allocator<int>>, int>>>::_Pair_alloc_type> *, const std::_Rb_tree<std::map<std::set<int, std::less<int>, std::allocator<int>>, int, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::pair<const std::set<int, std::less<int>, std::allocator<int>>, int>>>::key_type, std::map<std::set<int, std::less<int>, std::allocator<int>>, int, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::pair<const std::set<int, std::less<int>, std::allocator<int>>, int>>>::value_type, std::_Select1st<std::map<std::set<int, std::less<int>, std::allocator<int>>, int, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::pair<const std::set<int, std::less<int>, std::allocator<int>>, int>>>::value_type>, std::map<std::set<int, std::less<int>, std::allocator<int>>, int, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::pair<const std::set<int, std::less<int>, std::allocator<int>>, int>>>::key_compare, std::map<std::set<int, std::less<int>, std::allocator<int>>, int, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::pair<const std::set<int, std::less<int>, std::allocator<int>>, int>>>::_Pair_alloc_type>::key_type &)
+
+    Report from: Vector optimizations [vec]
+
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(2058,7)
+   remark #15532: loop was not vectorized: compile time constraints prevent loop optimization. Consider using -O3.
+
+   LOOP BEGIN at /usr/include/c++/8/bits/stl_algobase.h(880,23) inlined into /usr/include/c++/8/bits/stl_tree.h(2062,35)
+      remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+   LOOP END
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_algobase.h(880,23) inlined into /usr/include/c++/8/bits/stl_tree.h(2073,33)
+   remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+LOOP END
+===========================================================================
+
+Begin optimization report for: std::char_traits<char>::length(const std::char_traits<char>::char_type *)
+
+    Report from: Vector optimizations [vec]
+
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(233,7) inlined into /usr/include/c++/8/bits/char_traits.h(327,6)
+   remark #15523: loop was not vectorized: loop control variable __s was found, but loop iteration count cannot be computed before executing the loop
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(165,7) inlined into /usr/include/c++/8/bits/char_traits.h(328,11)
+   remark #15523: loop was not vectorized: loop control variable __i was found, but loop iteration count cannot be computed before executing the loop
+LOOP END
+===========================================================================
+
+Begin optimization report for: std::map<std::set<int, std::less<int>, std::allocator<int>>, int, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::pair<const std::set<int, std::less<int>, std::allocator<int>>, int>>>::~map(std::map<std::set<int, std::less<int>, std::allocator<int>>, int, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::pair<const std::set<int, std::less<int>, std::allocator<int>>, int>>> *) noexcept
+
+    Report from: Vector optimizations [vec]
+
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(1877,7) inlined into /usr/include/c++/8/bits/stl_map.h(301,7)
+   remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ /usr/include/c++/8/bits/stl_tree.h(1879,4) ]
+
+   LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(1877,7) inlined into /usr/include/c++/8/bits/stl_map.h(301,7)
+      remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ /usr/include/c++/8/bits/stl_tree.h(1879,4) ]
+   LOOP END
+LOOP END
+===========================================================================
+
+Begin optimization report for: std::_Rb_tree<std::map<std::set<int, std::less<int>, std::allocator<int>>, int, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::pair<const std::set<int, std::less<int>, std::allocator<int>>, int>>>::key_type, std::map<std::set<int, std::less<int>, std::allocator<int>>, int, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::pair<const std::set<int, std::less<int>, std::allocator<int>>, int>>>::value_type, std::_Select1st<std::map<std::set<int, std::less<int>, std::allocator<int>>, int, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::pair<const std::set<int, std::less<int>, std::allocator<int>>, int>>>::value_type>, std::map<std::set<int, std::less<int>, std::allocator<int>>, int, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::pair<const std::set<int, std::less<int>, std::allocator<int>>, int>>>::key_compare, std::map<std::set<int, std::less<int>, std::allocator<int>>, int, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::pair<const std::set<int, std::less<int>, std::allocator<int>>, int>>>::_Pair_alloc_type>::_M_erase(std::_Rb_tree<std::map<std::set<int, std::less<int>, std::allocator<int>>, int, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::pair<const std::set<int, std::less<int>, std::allocator<int>>, int>>>::key_type, std::map<std::set<int, std::less<int>, std::allocator<int>>, int, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::pair<const std::set<int, std::less<int>, std::allocator<int>>, int>>>::value_type, std::_Select1st<std::map<std::set<int, std::less<int>, std::allocator<int>>, int, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::pair<const std::set<int, std::less<int>, std::allocator<int>>, int>>>::value_type>, std::map<std::set<int, std::less<int>, std::allocator<int>>, int, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::pair<const std::set<int, std::less<int>, std::allocator<int>>, int>>>::key_compare, std::map<std::set<int, std::less<int>, std::allocator<int>>, int, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::pair<const std::set<int, std::less<int>, std::allocator<int>>, int>>>::_Pair_alloc_type> *, std::_Rb_tree<std::map<std::set<int, std::less<int>, std::allocator<int>>, int, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::pair<const std::set<int, std::less<int>, std::allocator<int>>, int>>>::key_type, std::map<std::set<int, std::less<int>, std::allocator<int>>, int, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::pair<const std::set<int, std::less<int>, std::allocator<int>>, int>>>::value_type, std::_Select1st<std::map<std::set<int, std::less<int>, std::allocator<int>>, int, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::pair<const std::set<int, std::less<int>, std::allocator<int>>, int>>>::value_type>, std::map<std::set<int, std::less<int>, std::allocator<int>>, int, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::pair<const std::set<int, std::less<int>, std::allocator<int>>, int>>>::key_compare, std::map<std::set<int, std::less<int>, std::allocator<int>>, int, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::pair<const std::set<int, std::less<int>, std::allocator<int>>, int>>>::_Pair_alloc_type>::_Link_type)
+
+    Report from: Vector optimizations [vec]
+
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(1877,7)
+   remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ /usr/include/c++/8/bits/stl_tree.h(1879,4) ]
+
+   LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(1877,7) inlined into /usr/include/c++/8/bits/stl_tree.h(1882,4)
+      remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ /usr/include/c++/8/bits/stl_tree.h(1879,4) ]
+   LOOP END
+LOOP END
+===========================================================================
+
+Begin optimization report for: std::_Rb_tree<std::set<std::set<int, std::less<int>, std::allocator<int>>, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::set<int, std::less<int>, std::allocator<int>>>>::key_type, std::set<std::set<int, std::less<int>, std::allocator<int>>, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::set<int, std::less<int>, std::allocator<int>>>>::value_type, std::_Identity<std::set<std::set<int, std::less<int>, std::allocator<int>>, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::set<int, std::less<int>, std::allocator<int>>>>::value_type>, std::set<std::set<int, std::less<int>, std::allocator<int>>, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::set<int, std::less<int>, std::allocator<int>>>>::key_compare, std::set<std::set<int, std::less<int>, std::allocator<int>>, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::set<int, std::less<int>, std::allocator<int>>>>::_Key_alloc_type>::_M_erase(std::_Rb_tree<std::set<std::set<int, std::less<int>, std::allocator<int>>, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::set<int, std::less<int>, std::allocator<int>>>>::key_type, std::set<std::set<int, std::less<int>, std::allocator<int>>, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::set<int, std::less<int>, std::allocator<int>>>>::value_type, std::_Identity<std::set<std::set<int, std::less<int>, std::allocator<int>>, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::set<int, std::less<int>, std::allocator<int>>>>::value_type>, std::set<std::set<int, std::less<int>, std::allocator<int>>, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::set<int, std::less<int>, std::allocator<int>>>>::key_compare, std::set<std::set<int, std::less<int>, std::allocator<int>>, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::set<int, std::less<int>, std::allocator<int>>>>::_Key_alloc_type> *, std::_Rb_tree<std::set<std::set<int, std::less<int>, std::allocator<int>>, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::set<int, std::less<int>, std::allocator<int>>>>::key_type, std::set<std::set<int, std::less<int>, std::allocator<int>>, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::set<int, std::less<int>, std::allocator<int>>>>::value_type, std::_Identity<std::set<std::set<int, std::less<int>, std::allocator<int>>, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::set<int, std::less<int>, std::allocator<int>>>>::value_type>, std::set<std::set<int, std::less<int>, std::allocator<int>>, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::set<int, std::less<int>, std::allocator<int>>>>::key_compare, std::set<std::set<int, std::less<int>, std::allocator<int>>, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::set<int, std::less<int>, std::allocator<int>>>>::_Key_alloc_type>::_Link_type)
+
+    Report from: Vector optimizations [vec]
+
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(1877,7)
+   remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ /usr/include/c++/8/bits/stl_tree.h(1879,4) ]
+
+   LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(1877,7) inlined into /usr/include/c++/8/bits/stl_tree.h(1882,4)
+      remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ /usr/include/c++/8/bits/stl_tree.h(1879,4) ]
+   LOOP END
+LOOP END
+===========================================================================
+
+Begin optimization report for: std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char>>::basic_string<std::_RequireAllocator<std::allocator<char>>>(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char>> *, const char *, const std::allocator<char> &)
+
+    Report from: Vector optimizations [vec]
+
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(233,7) inlined into /usr/include/c++/8/bits/basic_string.h(521,39)
+   remark #15523: loop was not vectorized: loop control variable __s was found, but loop iteration count cannot be computed before executing the loop
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(165,7) inlined into /usr/include/c++/8/bits/basic_string.h(521,39)
+   remark #15523: loop was not vectorized: loop control variable __i was found, but loop iteration count cannot be computed before executing the loop
+LOOP END
+===========================================================================
+
+Begin optimization report for: std::vector<std::vector<int, std::allocator<int>>, std::allocator<std::vector<int, std::allocator<int>>>>::~vector(std::vector<std::vector<int, std::allocator<int>>, std::allocator<std::vector<int, std::allocator<int>>>> *) noexcept
+
+    Report from: Vector optimizations [vec]
+
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_construct.h(107,4) inlined into /usr/include/c++/8/bits/stl_vector.h(568,2)
+   remark #15543: loop was not vectorized: loop with function call not considered an optimization candidate.
+LOOP END
+===========================================================================
+
+Begin optimization report for: std::set<std::set<int, std::less<int>, std::allocator<int>>, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::set<int, std::less<int>, std::allocator<int>>>>::~set(std::set<std::set<int, std::less<int>, std::allocator<int>>, std::less<std::set<int, std::less<int>, std::allocator<int>>>, std::allocator<std::set<int, std::less<int>, std::allocator<int>>>> *) noexcept
+
+    Report from: Vector optimizations [vec]
+
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(1877,7) inlined into /usr/include/c++/8/bits/stl_set.h(282,7)
+   remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ /usr/include/c++/8/bits/stl_tree.h(1879,4) ]
+
+   LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(1877,7) inlined into /usr/include/c++/8/bits/stl_set.h(282,7)
+      remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ /usr/include/c++/8/bits/stl_tree.h(1879,4) ]
+   LOOP END
+LOOP END
+===========================================================================
+
+Begin optimization report for: std::map<int, int, std::less<int>, std::allocator<std::pair<const int, int>>>::~map(std::map<int, int, std::less<int>, std::allocator<std::pair<const int, int>>> *) noexcept
+
+    Report from: Vector optimizations [vec]
+
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(1877,7) inlined into /usr/include/c++/8/bits/stl_map.h(301,7)
+   remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ /usr/include/c++/8/bits/stl_tree.h(1879,4) ]
+LOOP END
+===========================================================================
+
+Begin optimization report for: std::map<int, std::vector<int, std::allocator<int>>, std::less<int>, std::allocator<std::pair<const int, std::vector<int, std::allocator<int>>>>>::~map(std::map<int, std::vector<int, std::allocator<int>>, std::less<int>, std::allocator<std::pair<const int, std::vector<int, std::allocator<int>>>>> *) noexcept
+
+    Report from: Vector optimizations [vec]
+
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(1877,7) inlined into /usr/include/c++/8/bits/stl_map.h(301,7)
+   remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ /usr/include/c++/8/bits/stl_tree.h(1879,4) ]
+LOOP END
+===========================================================================
+
+Begin optimization report for: std::set<int, std::less<int>, std::allocator<int>>::~set(std::set<int, std::less<int>, std::allocator<int>> *) noexcept
+
+    Report from: Vector optimizations [vec]
+
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(1877,7) inlined into /usr/include/c++/8/bits/stl_set.h(282,7)
+   remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ /usr/include/c++/8/bits/stl_tree.h(1879,4) ]
+LOOP END
+===========================================================================
+
+Begin optimization report for: OutputMesh_MMG_Slice(MMG5_pMesh, int, int, std::__cxx11::string *)
+
+    Report from: Vector optimizations [vec]
+
+
+LOOP BEGIN at ../src/adapt_output.cpp(273,5)
+   remark #15312: loop was not vectorized: data type unsupported on given target architecture
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 24 
+   remark #15477: vector cost: 178.500 
+   remark #15478: estimated potential speedup: 0.130 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at ../src/adapt_output.cpp(293,5)
+   remark #26015: Exception can be thrown by the call to std::basic_ostream<char, std::char_traits<char>>::operator<<(std::basic_ostream<char, std::char_traits<char>> *, int)   [ ../src/adapt_output.cpp(299,20) ]
+   remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ ../src/adapt_output.cpp(299,20) ]
+LOOP END
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at ../src/adapt_output.cpp(289,5)
+   remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ ../src/adapt_output.cpp(291,16) ]
+LOOP END
+===========================================================================
+
+Begin optimization report for: OutputMesh_MMG(MMG5_pMesh, int, int, std::__cxx11::string *)
+
+    Report from: Vector optimizations [vec]
+
+
+LOOP BEGIN at ../src/adapt_output.cpp(317,5)
+   remark #26015: Exception can be thrown by the call to std::basic_ostream<char, std::char_traits<char>>::operator<<(std::basic_ostream<char, std::char_traits<char>> *, int)   [ ../src/adapt_output.cpp(319,16) ]
+   remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ ../src/adapt_output.cpp(319,16) ]
+LOOP END
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at ../src/adapt_output.cpp(313,5)
+   remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ ../src/adapt_output.cpp(315,16) ]
+LOOP END
+===========================================================================
+
+Begin optimization report for: OutputBoundaryID_MMG(MMG5_pMesh, std::map<int, std::vector<int, std::allocator<int>>, std::less<int>, std::allocator<std::pair<const int, std::vector<int, std::allocator<int>>>>> *, int)
+
+    Report from: Vector optimizations [vec]
+
+
+LOOP BEGIN at ../src/adapt_output.cpp(381,5)
+   remark #26015: Exception can be thrown by the call to std::basic_ostream<char, std::char_traits<char>>::operator<<(std::basic_ostream<char, std::char_traits<char>> *, int)   [ ../src/adapt_output.cpp(383,14) ]
+   remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ ../src/adapt_output.cpp(383,14) ]
+LOOP END
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at ../src/adapt_output.cpp(343,28)
+   remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ ../src/adapt_output.cpp(355,30) ]
+
+   LOOP BEGIN at ../src/adapt_output.cpp(346,9)
+      remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ ../src/adapt_output.cpp(355,30) ]
+
+      LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(1894,7) inlined into ../src/adapt_output.cpp(349,38)
+         remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+      LOOP END
+
+      LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(1894,7) inlined into ../src/adapt_output.cpp(360,25)
+         remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+      LOOP END
+   LOOP END
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(233,7) inlined into ../src/adapt_output.cpp(369,39)
+   remark #15523: loop was not vectorized: loop control variable __s was found, but loop iteration count cannot be computed before executing the loop
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(165,7) inlined into ../src/adapt_output.cpp(369,39)
+   remark #15523: loop was not vectorized: loop control variable __i was found, but loop iteration count cannot be computed before executing the loop
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(233,7) inlined into ../src/adapt_output.cpp(369,63)
+   remark #15523: loop was not vectorized: loop control variable __s was found, but loop iteration count cannot be computed before executing the loop
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(165,7) inlined into ../src/adapt_output.cpp(369,63)
+   remark #15523: loop was not vectorized: loop control variable __i was found, but loop iteration count cannot be computed before executing the loop
+LOOP END
+
+LOOP BEGIN at ../src/adapt_output.cpp(376,28)
+   remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ /usr/include/c++/8/bits/stl_map.h(501,10) ]
+
+   LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(1894,7) inlined into ../src/adapt_output.cpp(378,25)
+      remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+   LOOP END
+
+   LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(1894,7) inlined into ../src/adapt_output.cpp(378,53)
+      remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+   LOOP END
+
+   LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(1894,7) inlined into ../src/adapt_output.cpp(378,81)
+      remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+   LOOP END
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(1877,7) inlined into ../src/adapt_output.cpp(387,14)
+   remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ /usr/include/c++/8/bits/stl_tree.h(1879,4) ]
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(1877,7) inlined into ../src/adapt_output.cpp(387,14)
+   remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ /usr/include/c++/8/bits/stl_tree.h(1879,4) ]
+LOOP END
+===========================================================================
+
+Begin optimization report for: std::_Rb_tree<std::map<int, Vert, std::less<int>, std::allocator<std::pair<const int, Vert>>>::key_type, std::map<int, Vert, std::less<int>, std::allocator<std::pair<const int, Vert>>>::value_type, std::_Select1st<std::map<int, Vert, std::less<int>, std::allocator<std::pair<const int, Vert>>>::value_type>, std::map<int, Vert, std::less<int>, std::allocator<std::pair<const int, Vert>>>::key_compare, std::map<int, Vert, std::less<int>, std::allocator<std::pair<const int, Vert>>>::_Pair_alloc_type>::_M_emplace_hint_unique<const std::piecewise_construct_t &, std::tuple<const std::map<int, std::vector<int, std::allocator<int>>, std::less<int>, std::allocator<std::pair<const int, std::vector<int, std::allocator<int>>>>>::key_type &>, std::tuple<>>(std::_Rb_tree<std::map<int, Vert, std::less<int>, std::allocator<std::pair<const int, Vert>>>::key_type, std::map<int, Vert, std::less<int>, std::allocator<std::pair<const int, Vert>>>::value_type, std::_Select1st<std::map<int, Vert, std::less<int>, std::allocator<std::pair<const int, Vert>>>::value_type>, std::map<int, Vert, std::less<int>, std::allocator<std::pair<const int, Vert>>>::key_compare, std::map<int, Vert, std::less<int>, std::allocator<std::pair<const int, Vert>>>::_Pair_alloc_type> *, std::_Rb_tree<std::map<int, Vert, std::less<int>, std::allocator<std::pair<const int, Vert>>>::key_type, std::map<int, Vert, std::less<int>, std::allocator<std::pair<const int, Vert>>>::value_type, std::_Select1st<std::map<int, Vert, std::less<int>, std::allocator<std::pair<const int, Vert>>>::value_type>, std::map<int, Vert, std::less<int>, std::allocator<std::pair<const int, Vert>>>::key_compare, std::map<int, Vert, std::less<int>, std::allocator<std::pair<const int, Vert>>>::_Pair_alloc_type>::const_iterator, const std::piecewise_construct_t &, std::tuple<const std::map<int, std::vector<int, std::allocator<int>>, std::less<int>, std::allocator<std::pair<const int, std::vector<int, std::allocator<int>>>>>::key_type &> &&, std::tuple<> &&)
+
+    Report from: Vector optimizations [vec]
+
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(2058,7) inlined into /usr/include/c++/8/bits/stl_tree.h(2426,56)
+   remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(2058,7) inlined into /usr/include/c++/8/bits/stl_tree.h(2426,56)
+   remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(2058,7) inlined into /usr/include/c++/8/bits/stl_tree.h(2426,56)
+   remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+LOOP END
+===========================================================================
+
+Begin optimization report for: std::map<int, std::vector<int, std::allocator<int>>, std::less<int>, std::allocator<std::pair<const int, std::vector<int, std::allocator<int>>>>>::operator[](std::map<int, std::vector<int, std::allocator<int>>, std::less<int>, std::allocator<std::pair<const int, std::vector<int, std::allocator<int>>>>> *, const std::map<int, std::vector<int, std::allocator<int>>, std::less<int>, std::allocator<std::pair<const int, std::vector<int, std::allocator<int>>>>>::key_type &)
+
+    Report from: Vector optimizations [vec]
+
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(1894,7) inlined into /usr/include/c++/8/bits/stl_map.h(496,29)
+   remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(2058,7) inlined into /usr/include/c++/8/bits/stl_map.h(502,10)
+   remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(2058,7) inlined into /usr/include/c++/8/bits/stl_map.h(502,10)
+   remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(2058,7) inlined into /usr/include/c++/8/bits/stl_map.h(502,10)
+   remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+LOOP END
+===========================================================================
+
+Begin optimization report for: std::map<int, Vert, std::less<int>, std::allocator<std::pair<const int, Vert>>>::~map(std::map<int, Vert, std::less<int>, std::allocator<std::pair<const int, Vert>>> *) noexcept
+
+    Report from: Vector optimizations [vec]
+
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(1877,7) inlined into /usr/include/c++/8/bits/stl_map.h(301,7)
+   remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ /usr/include/c++/8/bits/stl_tree.h(1879,4) ]
+LOOP END
+===========================================================================
+
+Begin optimization report for: OutputBoundaryID(Partition *, int, int)
+
+    Report from: Vector optimizations [vec]
+
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at ../src/adapt_output.cpp(406,42)
+   remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ ../src/adapt_output.cpp(413,23) ]
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_construct.h(107,4) inlined into ../src/adapt_output.cpp(406,69)
+   remark #15543: loop was not vectorized: loop with function call not considered an optimization candidate.
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(1877,7) inlined into ../src/adapt_output.cpp(406,69)
+   remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ /usr/include/c++/8/bits/stl_tree.h(1879,4) ]
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(1877,7) inlined into ../src/adapt_output.cpp(406,69)
+   remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ /usr/include/c++/8/bits/stl_tree.h(1879,4) ]
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(1877,7) inlined into ../src/adapt_output.cpp(406,69)
+   remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ /usr/include/c++/8/bits/stl_tree.h(1879,4) ]
+LOOP END
+===========================================================================
+
+Begin optimization report for: std::vector<std::vector<double, std::allocator<double>>, std::allocator<std::vector<double, std::allocator<double>>>>::~vector(std::vector<std::vector<double, std::allocator<double>>, std::allocator<std::vector<double, std::allocator<double>>>> *) noexcept
+
+    Report from: Vector optimizations [vec]
+
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_construct.h(107,4) inlined into /usr/include/c++/8/bits/stl_vector.h(568,2)
+   remark #15543: loop was not vectorized: loop with function call not considered an optimization candidate.
+LOOP END
+===========================================================================
+
+Begin optimization report for: PlotBoundaryData_Lite(std::vector<std::vector<char, std::allocator<char>>, std::allocator<std::vector<char, std::allocator<char>>>> *, std::vector<std::vector<int, std::allocator<int>>, std::allocator<std::vector<int, std::allocator<int>>>> *)
+
+    Report from: Vector optimizations [vec]
+
+
+LOOP BEGIN at ../src/adapt_output.cpp(491,9)
+   remark #15382: vectorization support: call to function std::operator<<<std::char_traits<char>>(std::basic_ostream<char, std::char_traits<char>> &, char) cannot be vectorized   [ ../src/adapt_output.cpp(493,23) ]
+   remark #15382: vectorization support: call to function std::operator<<<std::char_traits<char>>(std::basic_ostream<char, std::char_traits<char>> &, const char *) cannot be vectorized   [ ../src/adapt_output.cpp(493,39) ]
+   remark #15344: loop was not vectorized: vector dependence prevents vectorization
+LOOP END
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at ../src/adapt_output.cpp(489,5)
+   remark #15536: loop was not vectorized: inner loop throttling prevents vectorization of this outer loop. Refer to inner loop message for more details.   [ ../src/adapt_output.cpp(496,32) ]
+
+   LOOP BEGIN at ../src/adapt_output.cpp(496,32)
+      remark #15523: loop was not vectorized: loop control variable j was found, but loop iteration count cannot be computed before executing the loop
+   LOOP END
+LOOP END
+===========================================================================
+
+Begin optimization report for: PlotBoundaryData(Array<char> *, Array<int> *)
+
+    Report from: Vector optimizations [vec]
+
+
+LOOP BEGIN at ../src/adapt_output.cpp(515,9)
+   remark #15382: vectorization support: call to function std::operator<<<std::char_traits<char>>(std::basic_ostream<char, std::char_traits<char>> &, char) cannot be vectorized   [ ../src/adapt_output.cpp(518,23) ]
+   remark #15382: vectorization support: call to function std::operator<<<std::char_traits<char>>(std::basic_ostream<char, std::char_traits<char>> &, const char *) cannot be vectorized   [ ../src/adapt_output.cpp(518,46) ]
+   remark #15344: loop was not vectorized: vector dependence prevents vectorization
+LOOP END
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at ../src/adapt_output.cpp(513,5)
+   remark #15536: loop was not vectorized: inner loop throttling prevents vectorization of this outer loop. Refer to inner loop message for more details.   [ ../src/adapt_output.cpp(521,30) ]
+
+   LOOP BEGIN at ../src/adapt_output.cpp(521,30)
+      remark #15523: loop was not vectorized: loop control variable j was found, but loop iteration count cannot be computed before executing the loop
+   LOOP END
+LOOP END
+===========================================================================
+
+Begin optimization report for: PlotVariableNames(std::map<std::__cxx11::string, int, std::less<std::__cxx11::string>, std::allocator<std::pair<const std::__cxx11::string, int>>> *, Array<char> *)
+
+    Report from: Vector optimizations [vec]
+
+
+LOOP BEGIN at ../src/adapt_output.cpp(560,2)
+   remark #15542: loop was not vectorized: inner loop was already vectorized
+
+   LOOP BEGIN at ../src/adapt_output.cpp(560,2)
+      remark #15389: vectorization support: reference name_new[u] has unaligned access   [ ../src/adapt_output.cpp(562,6) ]
+      remark #15389: vectorization support: reference zvnames->data[i*zvnames->ncol+u] has unaligned access   [ ../src/adapt_array.h(26,21) ]
+      remark #15381: vectorization support: unaligned access used inside loop body
+      remark #15305: vectorization support: vector length 64
+      remark #15309: vectorization support: normalized vectorization overhead 0.750
+      remark #15300: LOOP WAS VECTORIZED
+      remark #15450: unmasked unaligned unit stride loads: 1 
+      remark #15451: unmasked unaligned unit stride stores: 1 
+      remark #15475: --- begin vector cost summary ---
+      remark #15476: scalar cost: 5 
+      remark #15477: vector cost: 0.120 
+      remark #15478: estimated potential speedup: 16.000 
+      remark #15488: --- end vector cost summary ---
+   LOOP END
+
+   LOOP BEGIN at ../src/adapt_output.cpp(560,2)
+   <Remainder loop for vectorization>
+      remark #15389: vectorization support: reference name_new[u] has unaligned access   [ ../src/adapt_output.cpp(562,6) ]
+      remark #15389: vectorization support: reference zvnames->data[i*zvnames->ncol+u] has unaligned access   [ ../src/adapt_array.h(26,21) ]
+      remark #15381: vectorization support: unaligned access used inside loop body
+      remark #15305: vectorization support: vector length 32
+      remark #15309: vectorization support: normalized vectorization overhead 0.900
+      remark #15301: REMAINDER LOOP WAS VECTORIZED
+      remark #15450: unmasked unaligned unit stride loads: 1 
+      remark #15451: unmasked unaligned unit stride stores: 1 
+      remark #15475: --- begin vector cost summary ---
+      remark #15476: scalar cost: 5 
+      remark #15477: vector cost: 0.120 
+      remark #15478: estimated potential speedup: 16.000 
+      remark #15488: --- end vector cost summary ---
+   LOOP END
+LOOP END
+
+LOOP BEGIN at ../src/adapt_output.cpp(566,17)
+   remark #15541: outer loop was not auto-vectorized: consider using SIMD directive
+
+   LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(251,7) inlined into ../src/adapt_output.cpp(566,16)
+      remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ /usr/include/c++/8/bits/char_traits.h(252,2) ]
+   LOOP END
+
+   LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(251,7) inlined into ../src/adapt_output.cpp(566,16)
+      remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ /usr/include/c++/8/bits/char_traits.h(252,2) ]
+   LOOP END
+
+   LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(309,6) inlined into ../src/adapt_output.cpp(566,16)
+      remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ /usr/include/c++/8/bits/char_traits.h(312,13) ]
+   LOOP END
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(251,7) inlined into ../src/adapt_output.cpp(566,16)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ /usr/include/c++/8/bits/char_traits.h(252,2) ]
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(251,7) inlined into ../src/adapt_output.cpp(566,16)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ /usr/include/c++/8/bits/char_traits.h(252,2) ]
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(309,6) inlined into ../src/adapt_output.cpp(566,16)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ /usr/include/c++/8/bits/char_traits.h(312,13) ]
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(251,7) inlined into ../src/adapt_output.cpp(566,16)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ /usr/include/c++/8/bits/char_traits.h(252,2) ]
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(251,7) inlined into ../src/adapt_output.cpp(566,16)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ /usr/include/c++/8/bits/char_traits.h(252,2) ]
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(309,6) inlined into ../src/adapt_output.cpp(566,16)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ /usr/include/c++/8/bits/char_traits.h(312,13) ]
+LOOP END
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at ../src/adapt_output.cpp(537,5)
+   remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ ../src/adapt_output.cpp(539,31) ]
+
+   LOOP BEGIN at ../src/adapt_output.cpp(544,9)
+      remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ /usr/include/c++/8/ext/new_allocator.h(111,27) ]
+   LOOP END
+
+   LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(233,7) inlined into ../src/adapt_output.cpp(564,24)
+      remark #15523: loop was not vectorized: loop control variable __s was found, but loop iteration count cannot be computed before executing the loop
+   LOOP END
+
+   LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(165,7) inlined into ../src/adapt_output.cpp(564,24)
+      remark #15523: loop was not vectorized: loop control variable __i was found, but loop iteration count cannot be computed before executing the loop
+   LOOP END
+LOOP END
+===========================================================================
+
+Begin optimization report for: PlotVariableNames(std::map<std::__cxx11::string, int, std::less<std::__cxx11::string>, std::allocator<std::pair<const std::__cxx11::string, int>>> *, Array<char> *) [skylake_avx512]
+
+    Report from: Vector optimizations [vec]
+
+
+LOOP BEGIN at ../src/adapt_output.cpp(560,2)
+   remark #15542: loop was not vectorized: inner loop was already vectorized
+
+   LOOP BEGIN at ../src/adapt_output.cpp(560,2)
+      remark #15389: vectorization support: reference name_new[u] has unaligned access   [ ../src/adapt_output.cpp(562,6) ]
+      remark #15389: vectorization support: reference zvnames->data[i*zvnames->ncol+u] has unaligned access   [ ../src/adapt_array.h(26,21) ]
+      remark #15381: vectorization support: unaligned access used inside loop body
+      remark #15305: vectorization support: vector length 32
+      remark #15309: vectorization support: normalized vectorization overhead 1.000
+      remark #15300: LOOP WAS VECTORIZED
+      remark #26013: Compiler has chosen to target XMM/YMM vector. Try using -qopt-zmm-usage=high to override
+      remark #15450: unmasked unaligned unit stride loads: 1 
+      remark #15451: unmasked unaligned unit stride stores: 1 
+      remark #15475: --- begin vector cost summary ---
+      remark #15476: scalar cost: 5 
+      remark #15477: vector cost: 0.180 
+      remark #15478: estimated potential speedup: 20.000 
+      remark #15488: --- end vector cost summary ---
+   LOOP END
+
+   LOOP BEGIN at ../src/adapt_output.cpp(560,2)
+   <Remainder loop for vectorization>
+      remark #15389: vectorization support: reference name_new[u] has unaligned access   [ ../src/adapt_output.cpp(562,6) ]
+      remark #15389: vectorization support: reference zvnames->data[i*zvnames->ncol+u] has unaligned access   [ ../src/adapt_array.h(26,21) ]
+      remark #15381: vectorization support: unaligned access used inside loop body
+      remark #15305: vectorization support: vector length 16
+      remark #15309: vectorization support: normalized vectorization overhead 0.818
+      remark #15301: REMAINDER LOOP WAS VECTORIZED
+      remark #15450: unmasked unaligned unit stride loads: 1 
+      remark #15451: unmasked unaligned unit stride stores: 1 
+      remark #15475: --- begin vector cost summary ---
+      remark #15476: scalar cost: 5 
+      remark #15477: vector cost: 0.180 
+      remark #15478: estimated potential speedup: 20.000 
+      remark #15488: --- end vector cost summary ---
+   LOOP END
+LOOP END
+
+LOOP BEGIN at ../src/adapt_output.cpp(566,17)
+   remark #15541: outer loop was not auto-vectorized: consider using SIMD directive
+
+   LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(251,7) inlined into ../src/adapt_output.cpp(566,16)
+      remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ /usr/include/c++/8/bits/char_traits.h(252,2) ]
+   LOOP END
+
+   LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(251,7) inlined into ../src/adapt_output.cpp(566,16)
+      remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ /usr/include/c++/8/bits/char_traits.h(252,2) ]
+   LOOP END
+
+   LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(309,6) inlined into ../src/adapt_output.cpp(566,16)
+      remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ /usr/include/c++/8/bits/char_traits.h(312,13) ]
+   LOOP END
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(251,7) inlined into ../src/adapt_output.cpp(566,16)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ /usr/include/c++/8/bits/char_traits.h(252,2) ]
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(251,7) inlined into ../src/adapt_output.cpp(566,16)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ /usr/include/c++/8/bits/char_traits.h(252,2) ]
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(309,6) inlined into ../src/adapt_output.cpp(566,16)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ /usr/include/c++/8/bits/char_traits.h(312,13) ]
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(251,7) inlined into ../src/adapt_output.cpp(566,16)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ /usr/include/c++/8/bits/char_traits.h(252,2) ]
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(251,7) inlined into ../src/adapt_output.cpp(566,16)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ /usr/include/c++/8/bits/char_traits.h(252,2) ]
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(309,6) inlined into ../src/adapt_output.cpp(566,16)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ /usr/include/c++/8/bits/char_traits.h(312,13) ]
+LOOP END
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at ../src/adapt_output.cpp(537,5)
+   remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ ../src/adapt_output.cpp(539,31) ]
+
+   LOOP BEGIN at ../src/adapt_output.cpp(544,9)
+      remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ /usr/include/c++/8/ext/new_allocator.h(111,27) ]
+   LOOP END
+
+   LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(233,7) inlined into ../src/adapt_output.cpp(564,24)
+      remark #15523: loop was not vectorized: loop control variable __s was found, but loop iteration count cannot be computed before executing the loop
+   LOOP END
+
+   LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(165,7) inlined into ../src/adapt_output.cpp(564,24)
+      remark #15523: loop was not vectorized: loop control variable __i was found, but loop iteration count cannot be computed before executing the loop
+   LOOP END
+LOOP END
+===========================================================================
+
+Begin optimization report for: PlotVariableNames(std::map<std::__cxx11::string, int, std::less<std::__cxx11::string>, std::allocator<std::pair<const std::__cxx11::string, int>>> *, Array<char> *) [haswell]
+
+    Report from: Vector optimizations [vec]
+
+
+LOOP BEGIN at ../src/adapt_output.cpp(560,2)
+   remark #15542: loop was not vectorized: inner loop was already vectorized
+
+   LOOP BEGIN at ../src/adapt_output.cpp(560,2)
+      remark #15389: vectorization support: reference name_new[u] has unaligned access   [ ../src/adapt_output.cpp(562,6) ]
+      remark #15389: vectorization support: reference zvnames->data[i*zvnames->ncol+u] has unaligned access   [ ../src/adapt_array.h(26,21) ]
+      remark #15381: vectorization support: unaligned access used inside loop body
+      remark #15305: vectorization support: vector length 32
+      remark #15309: vectorization support: normalized vectorization overhead 1.000
+      remark #15300: LOOP WAS VECTORIZED
+      remark #15450: unmasked unaligned unit stride loads: 1 
+      remark #15451: unmasked unaligned unit stride stores: 1 
+      remark #15475: --- begin vector cost summary ---
+      remark #15476: scalar cost: 5 
+      remark #15477: vector cost: 0.180 
+      remark #15478: estimated potential speedup: 20.000 
+      remark #15488: --- end vector cost summary ---
+   LOOP END
+
+   LOOP BEGIN at ../src/adapt_output.cpp(560,2)
+   <Remainder loop for vectorization>
+      remark #15389: vectorization support: reference name_new[u] has unaligned access   [ ../src/adapt_output.cpp(562,6) ]
+      remark #15389: vectorization support: reference zvnames->data[i*zvnames->ncol+u] has unaligned access   [ ../src/adapt_array.h(26,21) ]
+      remark #15381: vectorization support: unaligned access used inside loop body
+      remark #15305: vectorization support: vector length 8
+      remark #15309: vectorization support: normalized vectorization overhead 2.000
+      remark #15301: REMAINDER LOOP WAS VECTORIZED
+      remark #15450: unmasked unaligned unit stride loads: 1 
+      remark #15451: unmasked unaligned unit stride stores: 1 
+      remark #15475: --- begin vector cost summary ---
+      remark #15476: scalar cost: 5 
+      remark #15477: vector cost: 0.180 
+      remark #15478: estimated potential speedup: 20.000 
+      remark #15488: --- end vector cost summary ---
+   LOOP END
+
+   LOOP BEGIN at ../src/adapt_output.cpp(560,2)
+   <Remainder loop for vectorization>
+   LOOP END
+LOOP END
+
+LOOP BEGIN at ../src/adapt_output.cpp(566,17)
+   remark #15541: outer loop was not auto-vectorized: consider using SIMD directive
+
+   LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(251,7) inlined into ../src/adapt_output.cpp(566,16)
+      remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ /usr/include/c++/8/bits/char_traits.h(252,2) ]
+   LOOP END
+
+   LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(251,7) inlined into ../src/adapt_output.cpp(566,16)
+      remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ /usr/include/c++/8/bits/char_traits.h(252,2) ]
+   LOOP END
+
+   LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(309,6) inlined into ../src/adapt_output.cpp(566,16)
+      remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ /usr/include/c++/8/bits/char_traits.h(312,13) ]
+   LOOP END
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(251,7) inlined into ../src/adapt_output.cpp(566,16)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ /usr/include/c++/8/bits/char_traits.h(252,2) ]
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(251,7) inlined into ../src/adapt_output.cpp(566,16)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ /usr/include/c++/8/bits/char_traits.h(252,2) ]
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(309,6) inlined into ../src/adapt_output.cpp(566,16)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ /usr/include/c++/8/bits/char_traits.h(312,13) ]
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(251,7) inlined into ../src/adapt_output.cpp(566,16)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ /usr/include/c++/8/bits/char_traits.h(252,2) ]
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(251,7) inlined into ../src/adapt_output.cpp(566,16)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ /usr/include/c++/8/bits/char_traits.h(252,2) ]
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(309,6) inlined into ../src/adapt_output.cpp(566,16)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ /usr/include/c++/8/bits/char_traits.h(312,13) ]
+LOOP END
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at ../src/adapt_output.cpp(537,5)
+   remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ ../src/adapt_output.cpp(539,31) ]
+
+   LOOP BEGIN at ../src/adapt_output.cpp(544,9)
+      remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ /usr/include/c++/8/ext/new_allocator.h(111,27) ]
+   LOOP END
+
+   LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(233,7) inlined into ../src/adapt_output.cpp(564,24)
+      remark #15523: loop was not vectorized: loop control variable __s was found, but loop iteration count cannot be computed before executing the loop
+   LOOP END
+
+   LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(165,7) inlined into ../src/adapt_output.cpp(564,24)
+      remark #15523: loop was not vectorized: loop control variable __i was found, but loop iteration count cannot be computed before executing the loop
+   LOOP END
+LOOP END
+===========================================================================
+
+Begin optimization report for: PlotVariableNames(std::map<std::__cxx11::string, int, std::less<std::__cxx11::string>, std::allocator<std::pair<const std::__cxx11::string, int>>> *, Array<char> *) [generic]
+
+    Report from: Vector optimizations [vec]
+
+
+LOOP BEGIN at ../src/adapt_output.cpp(560,2)
+   remark #15542: loop was not vectorized: inner loop was already vectorized
+
+   LOOP BEGIN at ../src/adapt_output.cpp(560,2)
+      remark #15389: vectorization support: reference name_new[u] has unaligned access   [ ../src/adapt_output.cpp(562,6) ]
+      remark #15389: vectorization support: reference zvnames->data[i*zvnames->ncol+u] has unaligned access   [ ../src/adapt_array.h(26,21) ]
+      remark #15381: vectorization support: unaligned access used inside loop body
+      remark #15305: vectorization support: vector length 16
+      remark #15309: vectorization support: normalized vectorization overhead 0.750
+      remark #15300: LOOP WAS VECTORIZED
+      remark #15450: unmasked unaligned unit stride loads: 1 
+      remark #15451: unmasked unaligned unit stride stores: 1 
+      remark #15475: --- begin vector cost summary ---
+      remark #15476: scalar cost: 5 
+      remark #15477: vector cost: 0.500 
+      remark #15478: estimated potential speedup: 8.880 
+      remark #15488: --- end vector cost summary ---
+   LOOP END
+
+   LOOP BEGIN at ../src/adapt_output.cpp(560,2)
+   <Remainder loop for vectorization>
+   LOOP END
+LOOP END
+
+LOOP BEGIN at ../src/adapt_output.cpp(566,17)
+   remark #15541: outer loop was not auto-vectorized: consider using SIMD directive
+
+   LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(251,7) inlined into ../src/adapt_output.cpp(566,16)
+      remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ /usr/include/c++/8/bits/char_traits.h(252,2) ]
+   LOOP END
+
+   LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(251,7) inlined into ../src/adapt_output.cpp(566,16)
+      remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ /usr/include/c++/8/bits/char_traits.h(252,2) ]
+   LOOP END
+
+   LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(309,6) inlined into ../src/adapt_output.cpp(566,16)
+      remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ /usr/include/c++/8/bits/char_traits.h(312,13) ]
+   LOOP END
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(251,7) inlined into ../src/adapt_output.cpp(566,16)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ /usr/include/c++/8/bits/char_traits.h(252,2) ]
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(251,7) inlined into ../src/adapt_output.cpp(566,16)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ /usr/include/c++/8/bits/char_traits.h(252,2) ]
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(309,6) inlined into ../src/adapt_output.cpp(566,16)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ /usr/include/c++/8/bits/char_traits.h(312,13) ]
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(251,7) inlined into ../src/adapt_output.cpp(566,16)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ /usr/include/c++/8/bits/char_traits.h(252,2) ]
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(251,7) inlined into ../src/adapt_output.cpp(566,16)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ /usr/include/c++/8/bits/char_traits.h(252,2) ]
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(309,6) inlined into ../src/adapt_output.cpp(566,16)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ /usr/include/c++/8/bits/char_traits.h(312,13) ]
+LOOP END
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at ../src/adapt_output.cpp(537,5)
+   remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ ../src/adapt_output.cpp(539,31) ]
+
+   LOOP BEGIN at ../src/adapt_output.cpp(544,9)
+      remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ /usr/include/c++/8/ext/new_allocator.h(111,27) ]
+   LOOP END
+
+   LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(233,7) inlined into ../src/adapt_output.cpp(564,24)
+      remark #15523: loop was not vectorized: loop control variable __s was found, but loop iteration count cannot be computed before executing the loop
+   LOOP END
+
+   LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(165,7) inlined into ../src/adapt_output.cpp(564,24)
+      remark #15523: loop was not vectorized: loop control variable __i was found, but loop iteration count cannot be computed before executing the loop
+   LOOP END
+LOOP END
+===========================================================================
+
+Begin optimization report for: std::_Rb_tree<std::map<std::__cxx11::string, int, std::less<std::__cxx11::string>, std::allocator<std::pair<const std::__cxx11::string, int>>>::key_type, std::map<std::__cxx11::string, int, std::less<std::__cxx11::string>, std::allocator<std::pair<const std::__cxx11::string, int>>>::value_type, std::_Select1st<std::map<std::__cxx11::string, int, std::less<std::__cxx11::string>, std::allocator<std::pair<const std::__cxx11::string, int>>>::value_type>, std::map<std::__cxx11::string, int, std::less<std::__cxx11::string>, std::allocator<std::pair<const std::__cxx11::string, int>>>::key_compare, std::map<std::__cxx11::string, int, std::less<std::__cxx11::string>, std::allocator<std::pair<const std::__cxx11::string, int>>>::_Pair_alloc_type>::_M_get_insert_hint_unique_pos(std::_Rb_tree<std::map<std::__cxx11::string, int, std::less<std::__cxx11::string>, std::allocator<std::pair<const std::__cxx11::string, int>>>::key_type, std::map<std::__cxx11::string, int, std::less<std::__cxx11::string>, std::allocator<std::pair<const std::__cxx11::string, int>>>::value_type, std::_Select1st<std::map<std::__cxx11::string, int, std::less<std::__cxx11::string>, std::allocator<std::pair<const std::__cxx11::string, int>>>::value_type>, std::map<std::__cxx11::string, int, std::less<std::__cxx11::string>, std::allocator<std::pair<const std::__cxx11::string, int>>>::key_compare, std::map<std::__cxx11::string, int, std::less<std::__cxx11::string>, std::allocator<std::pair<const std::__cxx11::string, int>>>::_Pair_alloc_type> *, std::_Rb_tree<std::map<std::__cxx11::string, int, std::less<std::__cxx11::string>, std::allocator<std::pair<const std::__cxx11::string, int>>>::key_type, std::map<std::__cxx11::string, int, std::less<std::__cxx11::string>, std::allocator<std::pair<const std::__cxx11::string, int>>>::value_type, std::_Select1st<std::map<std::__cxx11::string, int, std::less<std::__cxx11::string>, std::allocator<std::pair<const std::__cxx11::string, int>>>::value_type>, std::map<std::__cxx11::string, int, std::less<std::__cxx11::string>, std::allocator<std::pair<const std::__cxx11::string, int>>>::key_compare, std::map<std::__cxx11::string, int, std::less<std::__cxx11::string>, std::allocator<std::pair<const std::__cxx11::string, int>>>::_Pair_alloc_type>::const_iterator, const std::_Rb_tree<std::map<std::__cxx11::string, int, std::less<std::__cxx11::string>, std::allocator<std::pair<const std::__cxx11::string, int>>>::key_type, std::map<std::__cxx11::string, int, std::less<std::__cxx11::string>, std::allocator<std::pair<const std::__cxx11::string, int>>>::value_type, std::_Select1st<std::map<std::__cxx11::string, int, std::less<std::__cxx11::string>, std::allocator<std::pair<const std::__cxx11::string, int>>>::value_type>, std::map<std::__cxx11::string, int, std::less<std::__cxx11::string>, std::allocator<std::pair<const std::__cxx11::string, int>>>::key_compare, std::map<std::__cxx11::string, int, std::less<std::__cxx11::string>, std::allocator<std::pair<const std::__cxx11::string, int>>>::_Pair_alloc_type>::key_type &)
+
+    Report from: Vector optimizations [vec]
+
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(251,7) inlined into /usr/include/c++/8/bits/stl_tree.h(2165,33)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ /usr/include/c++/8/bits/char_traits.h(252,2) ]
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(251,7) inlined into /usr/include/c++/8/bits/stl_tree.h(2165,33)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ /usr/include/c++/8/bits/char_traits.h(252,2) ]
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(309,6) inlined into /usr/include/c++/8/bits/stl_tree.h(2165,33)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ /usr/include/c++/8/bits/char_traits.h(312,13) ]
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(2058,7) inlined into /usr/include/c++/8/bits/stl_tree.h(2168,38)
+   remark #15541: outer loop was not auto-vectorized: consider using SIMD directive
+
+   LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(251,7) inlined into /usr/include/c++/8/bits/stl_tree.h(2168,38)
+      remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ /usr/include/c++/8/bits/char_traits.h(252,2) ]
+   LOOP END
+
+   LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(251,7) inlined into /usr/include/c++/8/bits/stl_tree.h(2168,38)
+      remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ /usr/include/c++/8/bits/char_traits.h(252,2) ]
+   LOOP END
+
+   LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(309,6) inlined into /usr/include/c++/8/bits/stl_tree.h(2168,38)
+      remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ /usr/include/c++/8/bits/char_traits.h(312,13) ]
+   LOOP END
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(251,7) inlined into /usr/include/c++/8/bits/stl_tree.h(2168,38)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ /usr/include/c++/8/bits/char_traits.h(252,2) ]
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(251,7) inlined into /usr/include/c++/8/bits/stl_tree.h(2168,38)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ /usr/include/c++/8/bits/char_traits.h(252,2) ]
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(309,6) inlined into /usr/include/c++/8/bits/stl_tree.h(2168,38)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ /usr/include/c++/8/bits/char_traits.h(312,13) ]
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(251,7) inlined into /usr/include/c++/8/bits/stl_tree.h(2170,38)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ /usr/include/c++/8/bits/char_traits.h(252,2) ]
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(251,7) inlined into /usr/include/c++/8/bits/stl_tree.h(2170,38)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ /usr/include/c++/8/bits/char_traits.h(252,2) ]
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(309,6) inlined into /usr/include/c++/8/bits/stl_tree.h(2170,38)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ /usr/include/c++/8/bits/char_traits.h(312,13) ]
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(251,7) inlined into /usr/include/c++/8/bits/stl_tree.h(2176,35)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ /usr/include/c++/8/bits/char_traits.h(252,2) ]
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(251,7) inlined into /usr/include/c++/8/bits/stl_tree.h(2176,35)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ /usr/include/c++/8/bits/char_traits.h(252,2) ]
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(309,6) inlined into /usr/include/c++/8/bits/stl_tree.h(2176,35)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ /usr/include/c++/8/bits/char_traits.h(312,13) ]
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(2058,7) inlined into /usr/include/c++/8/bits/stl_tree.h(2184,38)
+   remark #15541: outer loop was not auto-vectorized: consider using SIMD directive
+
+   LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(251,7) inlined into /usr/include/c++/8/bits/stl_tree.h(2184,38)
+      remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ /usr/include/c++/8/bits/char_traits.h(252,2) ]
+   LOOP END
+
+   LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(251,7) inlined into /usr/include/c++/8/bits/stl_tree.h(2184,38)
+      remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ /usr/include/c++/8/bits/char_traits.h(252,2) ]
+   LOOP END
+
+   LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(309,6) inlined into /usr/include/c++/8/bits/stl_tree.h(2184,38)
+      remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ /usr/include/c++/8/bits/char_traits.h(312,13) ]
+   LOOP END
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(251,7) inlined into /usr/include/c++/8/bits/stl_tree.h(2184,38)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ /usr/include/c++/8/bits/char_traits.h(252,2) ]
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(251,7) inlined into /usr/include/c++/8/bits/stl_tree.h(2184,38)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ /usr/include/c++/8/bits/char_traits.h(252,2) ]
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(309,6) inlined into /usr/include/c++/8/bits/stl_tree.h(2184,38)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ /usr/include/c++/8/bits/char_traits.h(312,13) ]
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(251,7) inlined into /usr/include/c++/8/bits/stl_tree.h(2186,38)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ /usr/include/c++/8/bits/char_traits.h(252,2) ]
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(251,7) inlined into /usr/include/c++/8/bits/stl_tree.h(2186,38)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ /usr/include/c++/8/bits/char_traits.h(252,2) ]
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(309,6) inlined into /usr/include/c++/8/bits/stl_tree.h(2186,38)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ /usr/include/c++/8/bits/char_traits.h(312,13) ]
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(251,7) inlined into /usr/include/c++/8/bits/stl_tree.h(2192,35)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ /usr/include/c++/8/bits/char_traits.h(252,2) ]
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(251,7) inlined into /usr/include/c++/8/bits/stl_tree.h(2192,35)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ /usr/include/c++/8/bits/char_traits.h(252,2) ]
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(309,6) inlined into /usr/include/c++/8/bits/stl_tree.h(2192,35)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ /usr/include/c++/8/bits/char_traits.h(312,13) ]
+LOOP END
+===========================================================================
+
+Begin optimization report for: std::_Rb_tree<std::map<std::__cxx11::string, int, std::less<std::__cxx11::string>, std::allocator<std::pair<const std::__cxx11::string, int>>>::key_type, std::map<std::__cxx11::string, int, std::less<std::__cxx11::string>, std::allocator<std::pair<const std::__cxx11::string, int>>>::value_type, std::_Select1st<std::map<std::__cxx11::string, int, std::less<std::__cxx11::string>, std::allocator<std::pair<const std::__cxx11::string, int>>>::value_type>, std::map<std::__cxx11::string, int, std::less<std::__cxx11::string>, std::allocator<std::pair<const std::__cxx11::string, int>>>::key_compare, std::map<std::__cxx11::string, int, std::less<std::__cxx11::string>, std::allocator<std::pair<const std::__cxx11::string, int>>>::_Pair_alloc_type>::_M_get_insert_unique_pos(std::_Rb_tree<std::map<std::__cxx11::string, int, std::less<std::__cxx11::string>, std::allocator<std::pair<const std::__cxx11::string, int>>>::key_type, std::map<std::__cxx11::string, int, std::less<std::__cxx11::string>, std::allocator<std::pair<const std::__cxx11::string, int>>>::value_type, std::_Select1st<std::map<std::__cxx11::string, int, std::less<std::__cxx11::string>, std::allocator<std::pair<const std::__cxx11::string, int>>>::value_type>, std::map<std::__cxx11::string, int, std::less<std::__cxx11::string>, std::allocator<std::pair<const std::__cxx11::string, int>>>::key_compare, std::map<std::__cxx11::string, int, std::less<std::__cxx11::string>, std::allocator<std::pair<const std::__cxx11::string, int>>>::_Pair_alloc_type> *, const std::_Rb_tree<std::map<std::__cxx11::string, int, std::less<std::__cxx11::string>, std::allocator<std::pair<const std::__cxx11::string, int>>>::key_type, std::map<std::__cxx11::string, int, std::less<std::__cxx11::string>, std::allocator<std::pair<const std::__cxx11::string, int>>>::value_type, std::_Select1st<std::map<std::__cxx11::string, int, std::less<std::__cxx11::string>, std::allocator<std::pair<const std::__cxx11::string, int>>>::value_type>, std::map<std::__cxx11::string, int, std::less<std::__cxx11::string>, std::allocator<std::pair<const std::__cxx11::string, int>>>::key_compare, std::map<std::__cxx11::string, int, std::less<std::__cxx11::string>, std::allocator<std::pair<const std::__cxx11::string, int>>>::_Pair_alloc_type>::key_type &)
+
+    Report from: Vector optimizations [vec]
+
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(2058,7)
+   remark #15541: outer loop was not auto-vectorized: consider using SIMD directive
+
+   LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(251,7) inlined into /usr/include/c++/8/bits/stl_tree.h(2062,35)
+      remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ /usr/include/c++/8/bits/char_traits.h(252,2) ]
+   LOOP END
+
+   LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(251,7) inlined into /usr/include/c++/8/bits/stl_tree.h(2062,35)
+      remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ /usr/include/c++/8/bits/char_traits.h(252,2) ]
+   LOOP END
+
+   LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(309,6) inlined into /usr/include/c++/8/bits/stl_tree.h(2062,35)
+      remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ /usr/include/c++/8/bits/char_traits.h(312,13) ]
+   LOOP END
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(251,7) inlined into /usr/include/c++/8/bits/stl_tree.h(2073,33)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ /usr/include/c++/8/bits/char_traits.h(252,2) ]
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(251,7) inlined into /usr/include/c++/8/bits/stl_tree.h(2073,33)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ /usr/include/c++/8/bits/char_traits.h(252,2) ]
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(309,6) inlined into /usr/include/c++/8/bits/stl_tree.h(2073,33)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ /usr/include/c++/8/bits/char_traits.h(312,13) ]
+LOOP END
+===========================================================================
+
+Begin optimization report for: std::map<std::__cxx11::string, int, std::less<std::__cxx11::string>, std::allocator<std::pair<const std::__cxx11::string, int>>>::~map(std::map<std::__cxx11::string, int, std::less<std::__cxx11::string>, std::allocator<std::pair<const std::__cxx11::string, int>>> *) noexcept
+
+    Report from: Vector optimizations [vec]
+
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(1877,7) inlined into /usr/include/c++/8/bits/stl_map.h(301,7)
+   remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ /usr/include/c++/8/bits/stl_tree.h(1879,4) ]
+LOOP END
+===========================================================================
+
+Begin optimization report for: std::_Rb_tree<std::map<std::__cxx11::string, int, std::less<std::__cxx11::string>, std::allocator<std::pair<const std::__cxx11::string, int>>>::key_type, std::map<std::__cxx11::string, int, std::less<std::__cxx11::string>, std::allocator<std::pair<const std::__cxx11::string, int>>>::value_type, std::_Select1st<std::map<std::__cxx11::string, int, std::less<std::__cxx11::string>, std::allocator<std::pair<const std::__cxx11::string, int>>>::value_type>, std::map<std::__cxx11::string, int, std::less<std::__cxx11::string>, std::allocator<std::pair<const std::__cxx11::string, int>>>::key_compare, std::map<std::__cxx11::string, int, std::less<std::__cxx11::string>, std::allocator<std::pair<const std::__cxx11::string, int>>>::_Pair_alloc_type>::_M_erase(std::_Rb_tree<std::map<std::__cxx11::string, int, std::less<std::__cxx11::string>, std::allocator<std::pair<const std::__cxx11::string, int>>>::key_type, std::map<std::__cxx11::string, int, std::less<std::__cxx11::string>, std::allocator<std::pair<const std::__cxx11::string, int>>>::value_type, std::_Select1st<std::map<std::__cxx11::string, int, std::less<std::__cxx11::string>, std::allocator<std::pair<const std::__cxx11::string, int>>>::value_type>, std::map<std::__cxx11::string, int, std::less<std::__cxx11::string>, std::allocator<std::pair<const std::__cxx11::string, int>>>::key_compare, std::map<std::__cxx11::string, int, std::less<std::__cxx11::string>, std::allocator<std::pair<const std::__cxx11::string, int>>>::_Pair_alloc_type> *, std::_Rb_tree<std::map<std::__cxx11::string, int, std::less<std::__cxx11::string>, std::allocator<std::pair<const std::__cxx11::string, int>>>::key_type, std::map<std::__cxx11::string, int, std::less<std::__cxx11::string>, std::allocator<std::pair<const std::__cxx11::string, int>>>::value_type, std::_Select1st<std::map<std::__cxx11::string, int, std::less<std::__cxx11::string>, std::allocator<std::pair<const std::__cxx11::string, int>>>::value_type>, std::map<std::__cxx11::string, int, std::less<std::__cxx11::string>, std::allocator<std::pair<const std::__cxx11::string, int>>>::key_compare, std::map<std::__cxx11::string, int, std::less<std::__cxx11::string>, std::allocator<std::pair<const std::__cxx11::string, int>>>::_Pair_alloc_type>::_Link_type)
+
+    Report from: Vector optimizations [vec]
+
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(1877,7)
+   remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+LOOP END
+===========================================================================
+
+Begin optimization report for: OutputPartition(Partition *, ParArray<int> *, Array<double> *, MPI_Comm)
+
+    Report from: Vector optimizations [vec]
+
+
+LOOP BEGIN at ../src/adapt_output.cpp(632,5)
+   remark #26015: Exception can be thrown by the call to std::basic_ostream<char, std::char_traits<char>>::operator<<(std::basic_ostream<char, std::char_traits<char>> *, double)   [ ../src/adapt_output.cpp(634,15) ]
+   remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ ../src/adapt_output.cpp(634,15) ]
+LOOP END
+
+LOOP BEGIN at ../src/adapt_output.cpp(636,5)
+   remark #26015: Exception can be thrown by the call to std::basic_ostream<char, std::char_traits<char>>::operator<<(std::basic_ostream<char, std::char_traits<char>> *, int)   [ ../src/adapt_output.cpp(638,15) ]
+   remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ ../src/adapt_output.cpp(638,15) ]
+LOOP END
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(233,7) inlined into ../src/adapt_output.cpp(590,40)
+   remark #15523: loop was not vectorized: loop control variable __s was found, but loop iteration count cannot be computed before executing the loop
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(165,7) inlined into ../src/adapt_output.cpp(590,40)
+   remark #15523: loop was not vectorized: loop control variable __i was found, but loop iteration count cannot be computed before executing the loop
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(233,7) inlined into ../src/adapt_output.cpp(593,39)
+   remark #15523: loop was not vectorized: loop control variable __s was found, but loop iteration count cannot be computed before executing the loop
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(165,7) inlined into ../src/adapt_output.cpp(593,39)
+   remark #15523: loop was not vectorized: loop control variable __i was found, but loop iteration count cannot be computed before executing the loop
+LOOP END
+
+LOOP BEGIN at ../src/adapt_output.cpp(604,5)
+   remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ ../src/adapt_output.cpp(609,28) ]
+
+   LOOP BEGIN at ../src/adapt_output.cpp(606,9)
+      remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ ../src/adapt_output.cpp(609,28) ]
+
+      LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(1894,7) inlined into ../src/adapt_output.cpp(611,28)
+         remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+      LOOP END
+   LOOP END
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(1877,7) inlined into ../src/adapt_output.cpp(649,12)
+   remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ /usr/include/c++/8/bits/stl_tree.h(1879,4) ]
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_construct.h(107,4) inlined into ../src/adapt_output.cpp(649,12)
+   remark #15543: loop was not vectorized: loop with function call not considered an optimization candidate.
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(1877,7) inlined into ../src/adapt_output.cpp(649,12)
+   remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ /usr/include/c++/8/bits/stl_tree.h(1879,4) ]
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_construct.h(107,4) inlined into ../src/adapt_output.cpp(649,12)
+   remark #15543: loop was not vectorized: loop with function call not considered an optimization candidate.
+LOOP END
+===========================================================================
+
+Begin optimization report for: std::_Rb_tree<std::set<int, std::less<int>, std::allocator<int>>::key_type, std::set<int, std::less<int>, std::allocator<int>>::value_type, std::_Identity<std::set<int, std::less<int>, std::allocator<int>>::value_type>, std::set<int, std::less<int>, std::allocator<int>>::key_compare, std::set<int, std::less<int>, std::allocator<int>>::_Key_alloc_type>::_M_get_insert_unique_pos(std::_Rb_tree<std::set<int, std::less<int>, std::allocator<int>>::key_type, std::set<int, std::less<int>, std::allocator<int>>::value_type, std::_Identity<std::set<int, std::less<int>, std::allocator<int>>::value_type>, std::set<int, std::less<int>, std::allocator<int>>::key_compare, std::set<int, std::less<int>, std::allocator<int>>::_Key_alloc_type> *, const std::_Rb_tree<std::set<int, std::less<int>, std::allocator<int>>::key_type, std::set<int, std::less<int>, std::allocator<int>>::value_type, std::_Identity<std::set<int, std::less<int>, std::allocator<int>>::value_type>, std::set<int, std::less<int>, std::allocator<int>>::key_compare, std::set<int, std::less<int>, std::allocator<int>>::_Key_alloc_type>::key_type &)
+
+    Report from: Vector optimizations [vec]
+
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(2058,7)
+   remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+LOOP END
+===========================================================================
+
+Begin optimization report for: std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char>>::append(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char>> *, const char *)
+
+    Report from: Vector optimizations [vec]
+
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(233,7) inlined into /usr/include/c++/8/bits/basic_string.h(1271,24)
+   remark #15523: loop was not vectorized: loop control variable __s was found, but loop iteration count cannot be computed before executing the loop
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(165,7) inlined into /usr/include/c++/8/bits/basic_string.h(1271,24)
+   remark #15523: loop was not vectorized: loop control variable __i was found, but loop iteration count cannot be computed before executing the loop
+LOOP END
+===========================================================================
+
+Begin optimization report for: OutputBLElementsOnRoot(Array<double> *, Array<int> *, std::vector<int, std::allocator<int>> *, MPI_Comm, std::__cxx11::string *)
+
+    Report from: Vector optimizations [vec]
+
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at ../src/adapt_output.cpp(827,28)
+   remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ ../src/adapt_output.cpp(844,41) ]
+
+   LOOP BEGIN at ../src/adapt_output.cpp(831,9)
+      remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ ../src/adapt_output.cpp(844,41) ]
+
+      LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(1894,7) inlined into ../src/adapt_output.cpp(834,31)
+         remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+      LOOP END
+   LOOP END
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(233,7) inlined into ../src/adapt_output.cpp(849,52)
+   remark #15523: loop was not vectorized: loop control variable __s was found, but loop iteration count cannot be computed before executing the loop
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(165,7) inlined into ../src/adapt_output.cpp(849,52)
+   remark #15523: loop was not vectorized: loop control variable __i was found, but loop iteration count cannot be computed before executing the loop
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(233,7) inlined into ../src/adapt_output.cpp(852,35)
+   remark #15523: loop was not vectorized: loop control variable __s was found, but loop iteration count cannot be computed before executing the loop
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(165,7) inlined into ../src/adapt_output.cpp(852,35)
+   remark #15523: loop was not vectorized: loop control variable __i was found, but loop iteration count cannot be computed before executing the loop
+LOOP END
+
+LOOP BEGIN at ../src/adapt_output.cpp(856,29)
+   remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ ../src/adapt_output.cpp(859,16) ]
+LOOP END
+
+LOOP BEGIN at ../src/adapt_output.cpp(862,28)
+   remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ ../src/adapt_output.cpp(864,15) ]
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(1877,7) inlined into ../src/adapt_output.cpp(875,12)
+   remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ /usr/include/c++/8/bits/stl_tree.h(1879,4) ]
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(1877,7) inlined into ../src/adapt_output.cpp(875,12)
+   remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ /usr/include/c++/8/bits/stl_tree.h(1879,4) ]
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(1877,7) inlined into ../src/adapt_output.cpp(875,12)
+   remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ /usr/include/c++/8/bits/stl_tree.h(1879,4) ]
+LOOP END
+===========================================================================
+
+Begin optimization report for: OutputCompletePartition(Partition *, ParArray<int> *, Array<double> *, MPI_Comm)
+
+    Report from: Vector optimizations [vec]
+
+
+LOOP BEGIN at ../src/adapt_output.cpp(901,5)
+   remark #26015: Exception can be thrown by the call to std::basic_ostream<char, std::char_traits<char>>::operator<<(std::basic_ostream<char, std::char_traits<char>> *, double)   [ ../src/adapt_output.cpp(903,15) ]
+   remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ ../src/adapt_output.cpp(903,15) ]
+LOOP END
+
+LOOP BEGIN at ../src/adapt_output.cpp(907,5)
+   remark #26015: Exception can be thrown by the call to std::basic_ostream<char, std::char_traits<char>>::operator<<(std::basic_ostream<char, std::char_traits<char>> *, int)   [ ../src/adapt_output.cpp(909,15) ]
+   remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ ../src/adapt_output.cpp(909,15) ]
+LOOP END
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(233,7) inlined into ../src/adapt_output.cpp(891,40)
+   remark #15523: loop was not vectorized: loop control variable __s was found, but loop iteration count cannot be computed before executing the loop
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(165,7) inlined into ../src/adapt_output.cpp(891,40)
+   remark #15523: loop was not vectorized: loop control variable __i was found, but loop iteration count cannot be computed before executing the loop
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(233,7) inlined into ../src/adapt_output.cpp(891,63)
+   remark #15523: loop was not vectorized: loop control variable __s was found, but loop iteration count cannot be computed before executing the loop
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(165,7) inlined into ../src/adapt_output.cpp(891,63)
+   remark #15523: loop was not vectorized: loop control variable __i was found, but loop iteration count cannot be computed before executing the loop
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(233,7) inlined into ../src/adapt_output.cpp(894,39)
+   remark #15523: loop was not vectorized: loop control variable __s was found, but loop iteration count cannot be computed before executing the loop
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(165,7) inlined into ../src/adapt_output.cpp(894,39)
+   remark #15523: loop was not vectorized: loop control variable __i was found, but loop iteration count cannot be computed before executing the loop
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(233,7) inlined into ../src/adapt_output.cpp(894,62)
+   remark #15523: loop was not vectorized: loop control variable __s was found, but loop iteration count cannot be computed before executing the loop
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(165,7) inlined into ../src/adapt_output.cpp(894,62)
+   remark #15523: loop was not vectorized: loop control variable __i was found, but loop iteration count cannot be computed before executing the loop
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_construct.h(107,4) inlined into ../src/adapt_output.cpp(920,12)
+   remark #15543: loop was not vectorized: loop with function call not considered an optimization candidate.
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_construct.h(107,4) inlined into ../src/adapt_output.cpp(920,12)
+   remark #15543: loop was not vectorized: loop with function call not considered an optimization candidate.
+LOOP END
+===========================================================================
+
+Begin optimization report for: OutputZone(Partition *, Array<double> *, MPI_Comm)
+
+    Report from: Vector optimizations [vec]
+
+
+LOOP BEGIN at ../src/adapt_output.cpp(1016,5)
+   remark #26015: Exception can be thrown by the call to std::basic_ostream<char, std::char_traits<char>>::operator<<(std::basic_ostream<char, std::char_traits<char>> *, double)   [ ../src/adapt_output.cpp(1018,15) ]
+   remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ ../src/adapt_output.cpp(1018,15) ]
+LOOP END
+
+LOOP BEGIN at ../src/adapt_output.cpp(1022,5)
+   remark #26015: Exception can be thrown by the call to std::basic_ostream<char, std::char_traits<char>>::operator<<(std::basic_ostream<char, std::char_traits<char>> *, int)   [ ../src/adapt_output.cpp(1024,15) ]
+   remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ ../src/adapt_output.cpp(1024,15) ]
+LOOP END
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(233,7) inlined into ../src/adapt_output.cpp(1006,40)
+   remark #15523: loop was not vectorized: loop control variable __s was found, but loop iteration count cannot be computed before executing the loop
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(165,7) inlined into ../src/adapt_output.cpp(1006,40)
+   remark #15523: loop was not vectorized: loop control variable __i was found, but loop iteration count cannot be computed before executing the loop
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(233,7) inlined into ../src/adapt_output.cpp(1006,63)
+   remark #15523: loop was not vectorized: loop control variable __s was found, but loop iteration count cannot be computed before executing the loop
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(165,7) inlined into ../src/adapt_output.cpp(1006,63)
+   remark #15523: loop was not vectorized: loop control variable __i was found, but loop iteration count cannot be computed before executing the loop
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(233,7) inlined into ../src/adapt_output.cpp(1009,39)
+   remark #15523: loop was not vectorized: loop control variable __s was found, but loop iteration count cannot be computed before executing the loop
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(165,7) inlined into ../src/adapt_output.cpp(1009,39)
+   remark #15523: loop was not vectorized: loop control variable __i was found, but loop iteration count cannot be computed before executing the loop
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(233,7) inlined into ../src/adapt_output.cpp(1009,62)
+   remark #15523: loop was not vectorized: loop control variable __s was found, but loop iteration count cannot be computed before executing the loop
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(165,7) inlined into ../src/adapt_output.cpp(1009,62)
+   remark #15523: loop was not vectorized: loop control variable __i was found, but loop iteration count cannot be computed before executing the loop
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_construct.h(107,4) inlined into ../src/adapt_output.cpp(1035,12)
+   remark #15543: loop was not vectorized: loop with function call not considered an optimization candidate.
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_construct.h(107,4) inlined into ../src/adapt_output.cpp(1035,12)
+   remark #15543: loop was not vectorized: loop with function call not considered an optimization candidate.
+LOOP END
+===========================================================================
+
+Begin optimization report for: WriteBoundaryDataInSerial3(Array<double> *)
+
+    Report from: Vector optimizations [vec]
+
+
+LOOP BEGIN at ../src/adapt_output.cpp(1303,5)
+   remark #26015: Exception can be thrown by the call to std::basic_ostream<char, std::char_traits<char>>::operator<<(std::basic_ostream<char, std::char_traits<char>> *, double)   [ ../src/adapt_output.cpp(1305,16) ]
+   remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ ../src/adapt_output.cpp(1305,16) ]
+LOOP END
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(233,7) inlined into ../src/adapt_output.cpp(1298,23)
+   remark #15523: loop was not vectorized: loop control variable __s was found, but loop iteration count cannot be computed before executing the loop
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(165,7) inlined into ../src/adapt_output.cpp(1298,23)
+   remark #15523: loop was not vectorized: loop control variable __i was found, but loop iteration count cannot be computed before executing the loop
+LOOP END
+===========================================================================
+
+Begin optimization report for: WriteBoundaryDataInSerial(Array<double> *, Array<int> *, Array<int> *, double *, double *, double *)
+
+    Report from: Vector optimizations [vec]
+
+
+LOOP BEGIN at ../src/adapt_output.cpp(1371,9)
+   remark #26015: Exception can be thrown by the call to std::basic_ostream<char, std::char_traits<char>>::operator<<(std::basic_ostream<char, std::char_traits<char>> *, int)   [ ../src/adapt_output.cpp(1373,19) ]
+   remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ ../src/adapt_output.cpp(1373,19) ]
+LOOP END
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at ../src/adapt_output.cpp(1313,28)
+   remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ ../src/adapt_output.cpp(1321,39) ]
+
+   LOOP BEGIN at ../src/adapt_output.cpp(1328,9)
+      remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ ../src/adapt_output.cpp(1340,34) ]
+
+      LOOP BEGIN at ../src/adapt_output.cpp(1330,13)
+         remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ ../src/adapt_output.cpp(1340,34) ]
+
+         LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(1894,7) inlined into ../src/adapt_output.cpp(1334,42)
+            remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+         LOOP END
+      LOOP END
+   LOOP END
+
+   LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(233,7) inlined into ../src/adapt_output.cpp(1359,39)
+      remark #15523: loop was not vectorized: loop control variable __s was found, but loop iteration count cannot be computed before executing the loop
+   LOOP END
+
+   LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(165,7) inlined into ../src/adapt_output.cpp(1359,39)
+      remark #15523: loop was not vectorized: loop control variable __i was found, but loop iteration count cannot be computed before executing the loop
+   LOOP END
+
+   LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(233,7) inlined into ../src/adapt_output.cpp(1359,60)
+      remark #15523: loop was not vectorized: loop control variable __s was found, but loop iteration count cannot be computed before executing the loop
+   LOOP END
+
+   LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(165,7) inlined into ../src/adapt_output.cpp(1359,60)
+      remark #15523: loop was not vectorized: loop control variable __i was found, but loop iteration count cannot be computed before executing the loop
+   LOOP END
+
+   LOOP BEGIN at ../src/adapt_output.cpp(1366,32)
+      remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ /usr/include/c++/8/bits/stl_map.h(501,10) ]
+
+      LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(1894,7) inlined into ../src/adapt_output.cpp(1368,30)
+         remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+      LOOP END
+
+      LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(1894,7) inlined into ../src/adapt_output.cpp(1368,58)
+         remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+      LOOP END
+
+      LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(1894,7) inlined into ../src/adapt_output.cpp(1368,86)
+         remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+      LOOP END
+   LOOP END
+
+   LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(1877,7) inlined into ../src/adapt_output.cpp(1378,5)
+      remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ /usr/include/c++/8/bits/stl_tree.h(1879,4) ]
+   LOOP END
+
+   LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(1877,7) inlined into ../src/adapt_output.cpp(1378,5)
+      remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ /usr/include/c++/8/bits/stl_tree.h(1879,4) ]
+   LOOP END
+
+   LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(1877,7) inlined into ../src/adapt_output.cpp(1378,5)
+      remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ /usr/include/c++/8/bits/stl_tree.h(1879,4) ]
+   LOOP END
+
+   LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(1877,7) inlined into ../src/adapt_output.cpp(1378,5)
+      remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ /usr/include/c++/8/bits/stl_tree.h(1879,4) ]
+   LOOP END
+
+   LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(1877,7) inlined into ../src/adapt_output.cpp(1378,5)
+      remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ /usr/include/c++/8/bits/stl_tree.h(1879,4) ]
+   LOOP END
+LOOP END
+===========================================================================
+
+Begin optimization report for: std::_Rb_tree<std::map<int, double, std::less<int>, std::allocator<std::pair<const int, double>>>::key_type, std::map<int, double, std::less<int>, std::allocator<std::pair<const int, double>>>::value_type, std::_Select1st<std::map<int, double, std::less<int>, std::allocator<std::pair<const int, double>>>::value_type>, std::map<int, double, std::less<int>, std::allocator<std::pair<const int, double>>>::key_compare, std::map<int, double, std::less<int>, std::allocator<std::pair<const int, double>>>::_Pair_alloc_type>::_M_erase(std::_Rb_tree<std::map<int, double, std::less<int>, std::allocator<std::pair<const int, double>>>::key_type, std::map<int, double, std::less<int>, std::allocator<std::pair<const int, double>>>::value_type, std::_Select1st<std::map<int, double, std::less<int>, std::allocator<std::pair<const int, double>>>::value_type>, std::map<int, double, std::less<int>, std::allocator<std::pair<const int, double>>>::key_compare, std::map<int, double, std::less<int>, std::allocator<std::pair<const int, double>>>::_Pair_alloc_type> *, std::_Rb_tree<std::map<int, double, std::less<int>, std::allocator<std::pair<const int, double>>>::key_type, std::map<int, double, std::less<int>, std::allocator<std::pair<const int, double>>>::value_type, std::_Select1st<std::map<int, double, std::less<int>, std::allocator<std::pair<const int, double>>>::value_type>, std::map<int, double, std::less<int>, std::allocator<std::pair<const int, double>>>::key_compare, std::map<int, double, std::less<int>, std::allocator<std::pair<const int, double>>>::_Pair_alloc_type>::_Link_type)
+
+    Report from: Vector optimizations [vec]
+
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(1877,7)
+   remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+LOOP END
+===========================================================================
+
+Begin optimization report for: std::_Rb_tree<std::map<int, int, std::less<int>, std::allocator<std::pair<const int, int>>>::key_type, std::map<int, int, std::less<int>, std::allocator<std::pair<const int, int>>>::value_type, std::_Select1st<std::map<int, int, std::less<int>, std::allocator<std::pair<const int, int>>>::value_type>, std::map<int, int, std::less<int>, std::allocator<std::pair<const int, int>>>::key_compare, std::map<int, int, std::less<int>, std::allocator<std::pair<const int, int>>>::_Pair_alloc_type>::_M_erase(std::_Rb_tree<std::map<int, int, std::less<int>, std::allocator<std::pair<const int, int>>>::key_type, std::map<int, int, std::less<int>, std::allocator<std::pair<const int, int>>>::value_type, std::_Select1st<std::map<int, int, std::less<int>, std::allocator<std::pair<const int, int>>>::value_type>, std::map<int, int, std::less<int>, std::allocator<std::pair<const int, int>>>::key_compare, std::map<int, int, std::less<int>, std::allocator<std::pair<const int, int>>>::_Pair_alloc_type> *, std::_Rb_tree<std::map<int, int, std::less<int>, std::allocator<std::pair<const int, int>>>::key_type, std::map<int, int, std::less<int>, std::allocator<std::pair<const int, int>>>::value_type, std::_Select1st<std::map<int, int, std::less<int>, std::allocator<std::pair<const int, int>>>::value_type>, std::map<int, int, std::less<int>, std::allocator<std::pair<const int, int>>>::key_compare, std::map<int, int, std::less<int>, std::allocator<std::pair<const int, int>>>::_Pair_alloc_type>::_Link_type)
+
+    Report from: Vector optimizations [vec]
+
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(1877,7)
+   remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+LOOP END
+===========================================================================
+
+Begin optimization report for: std::_Rb_tree<std::map<int, Vert, std::less<int>, std::allocator<std::pair<const int, Vert>>>::key_type, std::map<int, Vert, std::less<int>, std::allocator<std::pair<const int, Vert>>>::value_type, std::_Select1st<std::map<int, Vert, std::less<int>, std::allocator<std::pair<const int, Vert>>>::value_type>, std::map<int, Vert, std::less<int>, std::allocator<std::pair<const int, Vert>>>::key_compare, std::map<int, Vert, std::less<int>, std::allocator<std::pair<const int, Vert>>>::_Pair_alloc_type>::_M_erase(std::_Rb_tree<std::map<int, Vert, std::less<int>, std::allocator<std::pair<const int, Vert>>>::key_type, std::map<int, Vert, std::less<int>, std::allocator<std::pair<const int, Vert>>>::value_type, std::_Select1st<std::map<int, Vert, std::less<int>, std::allocator<std::pair<const int, Vert>>>::value_type>, std::map<int, Vert, std::less<int>, std::allocator<std::pair<const int, Vert>>>::key_compare, std::map<int, Vert, std::less<int>, std::allocator<std::pair<const int, Vert>>>::_Pair_alloc_type> *, std::_Rb_tree<std::map<int, Vert, std::less<int>, std::allocator<std::pair<const int, Vert>>>::key_type, std::map<int, Vert, std::less<int>, std::allocator<std::pair<const int, Vert>>>::value_type, std::_Select1st<std::map<int, Vert, std::less<int>, std::allocator<std::pair<const int, Vert>>>::value_type>, std::map<int, Vert, std::less<int>, std::allocator<std::pair<const int, Vert>>>::key_compare, std::map<int, Vert, std::less<int>, std::allocator<std::pair<const int, Vert>>>::_Pair_alloc_type>::_Link_type)
+
+    Report from: Vector optimizations [vec]
+
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(1877,7)
+   remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+LOOP END
+===========================================================================
+
+Begin optimization report for: std::map<int, double, std::less<int>, std::allocator<std::pair<const int, double>>>::operator[](std::map<int, double, std::less<int>, std::allocator<std::pair<const int, double>>> *, const std::map<int, double, std::less<int>, std::allocator<std::pair<const int, double>>>::key_type &)
+
+    Report from: Vector optimizations [vec]
+
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(1894,7) inlined into /usr/include/c++/8/bits/stl_map.h(496,29)
+   remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(2058,7) inlined into /usr/include/c++/8/bits/stl_map.h(502,10)
+   remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(2058,7) inlined into /usr/include/c++/8/bits/stl_map.h(502,10)
+   remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(2058,7) inlined into /usr/include/c++/8/bits/stl_map.h(502,10)
+   remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+LOOP END
+===========================================================================
+
+Begin optimization report for: std::map<int, Vert, std::less<int>, std::allocator<std::pair<const int, Vert>>>::operator[](std::map<int, Vert, std::less<int>, std::allocator<std::pair<const int, Vert>>> *, const std::map<int, Vert, std::less<int>, std::allocator<std::pair<const int, Vert>>>::key_type &)
+
+    Report from: Vector optimizations [vec]
+
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(1894,7) inlined into /usr/include/c++/8/bits/stl_map.h(496,29)
+   remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(2058,7) inlined into /usr/include/c++/8/bits/stl_map.h(502,10)
+   remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(2058,7) inlined into /usr/include/c++/8/bits/stl_map.h(502,10)
+   remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(2058,7) inlined into /usr/include/c++/8/bits/stl_map.h(502,10)
+   remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+LOOP END
+===========================================================================
+
+Begin optimization report for: std::map<int, double, std::less<int>, std::allocator<std::pair<const int, double>>>::~map(std::map<int, double, std::less<int>, std::allocator<std::pair<const int, double>>> *) noexcept
+
+    Report from: Vector optimizations [vec]
+
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(1877,7) inlined into /usr/include/c++/8/bits/stl_map.h(301,7)
+   remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ /usr/include/c++/8/bits/stl_tree.h(1879,4) ]
+LOOP END
+===========================================================================
+
+Begin optimization report for: WriteBoundaryDataInSerial2(Array<double> *, Array<int> *, Array<int> *, double *)
+
+    Report from: Vector optimizations [vec]
+
+
+LOOP BEGIN at ../src/adapt_output.cpp(1451,9)
+   remark #26015: Exception can be thrown by the call to std::basic_ostream<char, std::char_traits<char>>::operator<<(std::basic_ostream<char, std::char_traits<char>> *, int)   [ ../src/adapt_output.cpp(1453,19) ]
+   remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ ../src/adapt_output.cpp(1453,19) ]
+LOOP END
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at ../src/adapt_output.cpp(1385,28)
+   remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ ../src/adapt_output.cpp(1393,39) ]
+
+   LOOP BEGIN at ../src/adapt_output.cpp(1402,9)
+      remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ ../src/adapt_output.cpp(1415,34) ]
+
+      LOOP BEGIN at ../src/adapt_output.cpp(1404,13)
+         remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ ../src/adapt_output.cpp(1415,34) ]
+
+         LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(1894,7) inlined into ../src/adapt_output.cpp(1409,42)
+            remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+         LOOP END
+      LOOP END
+   LOOP END
+
+   LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(233,7) inlined into ../src/adapt_output.cpp(1436,39)
+      remark #15523: loop was not vectorized: loop control variable __s was found, but loop iteration count cannot be computed before executing the loop
+   LOOP END
+
+   LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(165,7) inlined into ../src/adapt_output.cpp(1436,39)
+      remark #15523: loop was not vectorized: loop control variable __i was found, but loop iteration count cannot be computed before executing the loop
+   LOOP END
+
+   LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(233,7) inlined into ../src/adapt_output.cpp(1436,60)
+      remark #15523: loop was not vectorized: loop control variable __s was found, but loop iteration count cannot be computed before executing the loop
+   LOOP END
+
+   LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(165,7) inlined into ../src/adapt_output.cpp(1436,60)
+      remark #15523: loop was not vectorized: loop control variable __i was found, but loop iteration count cannot be computed before executing the loop
+   LOOP END
+
+   LOOP BEGIN at ../src/adapt_output.cpp(1446,32)
+      remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ /usr/include/c++/8/bits/stl_map.h(501,10) ]
+
+      LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(1894,7) inlined into ../src/adapt_output.cpp(1448,30)
+         remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+      LOOP END
+
+      LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(1894,7) inlined into ../src/adapt_output.cpp(1448,58)
+         remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+      LOOP END
+
+      LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(1894,7) inlined into ../src/adapt_output.cpp(1448,86)
+         remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+      LOOP END
+   LOOP END
+
+   LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(1877,7) inlined into ../src/adapt_output.cpp(1458,5)
+      remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ /usr/include/c++/8/bits/stl_tree.h(1879,4) ]
+   LOOP END
+
+   LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(1877,7) inlined into ../src/adapt_output.cpp(1458,5)
+      remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ /usr/include/c++/8/bits/stl_tree.h(1879,4) ]
+   LOOP END
+
+   LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(1877,7) inlined into ../src/adapt_output.cpp(1458,5)
+      remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ /usr/include/c++/8/bits/stl_tree.h(1879,4) ]
+   LOOP END
+
+   LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(1877,7) inlined into ../src/adapt_output.cpp(1458,5)
+      remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ /usr/include/c++/8/bits/stl_tree.h(1879,4) ]
+   LOOP END
+
+   LOOP BEGIN at /usr/include/c++/8/bits/stl_tree.h(1877,7) inlined into ../src/adapt_output.cpp(1458,5)
+      remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ /usr/include/c++/8/bits/stl_tree.h(1879,4) ]
+   LOOP END
+LOOP END
+===========================================================================

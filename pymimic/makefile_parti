@@ -9,7 +9,7 @@ PYTHON_LIB = /Users/dekelsch/homebrew/opt/python\@3.7/Frameworks/Python.framewor
 
 include ../module.mk
 
-MPICC = mpic++
+MPICC = icpc
 BREW = $(HOME)/homebrew/Cellar
 CXXFLAGS += -fPIC
 LDFLAGS += -L${PYTHON_LIB} -shared -ldl -framework CoreFoundation -lpython3.7m 

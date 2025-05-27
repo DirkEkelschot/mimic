@@ -1,0 +1,429 @@
+Intel(R) Advisor can now assist with vectorization and show optimization
+  report messages with your source code.
+See "https://software.intel.com/en-us/intel-advisor-xe" for details.
+
+Intel(R) C Intel(R) 64 Compiler for applications running on Intel(R) 64, Version 19.1.3.304 Build 20200925_000000
+
+Compiler options: -I/nobackupp19/dekelsch/Software/ParMmg/build/Mmg-prefix/src/Mmg-build/include -I/nobackupp19/dekelsch/Software/ParMmg/build/include -I/nobackupp19/dekelsch/parmetis-4.0.3/parmetis-install/include -I/nobackupp19/dekelsch/parmetis-4.0.3/metis/metis-install/include -I/nobackupp19/dekelsch/boost_1_71_0/boost-install/include -I/home1/dekelsch/Software/tinyxml -I/nobackupp19/dekelsch/CGNS-3.3.0/src/install/include -I/home1/dekelsch/local/lib/python3.12/site-packages/numpy/_core/include -I/home1/dekelsch/local/lib/python3.12/site-packages/mpi4py/include -I/home1/dekelsch/local/include/python3.12/ -std=c++17 -g -DMPI_NO_CPPBIND -fPIC -lm -lpthread -ldl -lutil -L/home1/dekelsch/local/lib/python3.12/ -O2 -Wall -axAVX,CORE-AVX2,CORE-AVX512 -qopt-report-phase=vec -qopt-report=5 -o PartiClass.so -L/nobackupp19/dekelsch/Software/ParMmg/build/Mmg-prefix/src/Mmg-build/lib -L/nobackupp19/dekelsch/Software/ParMmg/build/lib -L/nobackupp19/dekelsch/parmetis-4.0.3/parmetis-install/lib -L/nobackupp19/dekelsch/parmetis-4.0.3/metis/metis-install/lib -L/nobackupp19/dekelsch/boost_1_71_0/boost-install/stage/lib -L/home1/dekelsch/Software/tinyxml -L/nobackupp19/dekelsch/CGNS-3.3.0/src/install/lib -shared -lm -lpthread -ldl -lutil -L/home1/dekelsch/local/lib/python3.12/ -lmpi -lparmetis -lmetis -lhdf5 -mkl -lparmmg -lmmg -lcgns -lmpi
+
+Begin optimization report for: ComputeEnergy(int, double *, int, double *)
+
+    Report from: Vector optimizations [vec]
+
+
+LOOP BEGIN at energy.cpp(9,3)
+<Peeled loop for vectorization>
+   remark #15389: vectorization support: reference B[i] has unaligned access   [ energy.cpp(10,10) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15305: vectorization support: vector length 8
+   remark #15309: vectorization support: normalized vectorization overhead 1.000
+   remark #15355: vectorization support: E is double type reduction   [ energy.cpp(8,12) ]
+   remark #15301: PEEL LOOP WAS VECTORIZED
+   remark #15448: unmasked aligned unit stride loads: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 5 
+   remark #15477: vector cost: 0.620 
+   remark #15478: estimated potential speedup: 6.380 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at energy.cpp(9,3)
+   remark #15388: vectorization support: reference B[i] has aligned access   [ energy.cpp(10,10) ]
+   remark #15305: vectorization support: vector length 8
+   remark #15399: vectorization support: unroll factor set to 4
+   remark #15309: vectorization support: normalized vectorization overhead 1.750
+   remark #15355: vectorization support: E is double type reduction   [ energy.cpp(8,12) ]
+   remark #15300: LOOP WAS VECTORIZED
+   remark #15448: unmasked aligned unit stride loads: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 5 
+   remark #15477: vector cost: 0.620 
+   remark #15478: estimated potential speedup: 6.380 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at energy.cpp(9,3)
+<Remainder loop for vectorization>
+   remark #15389: vectorization support: reference B[i] has unaligned access   [ energy.cpp(10,10) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15305: vectorization support: vector length 8
+   remark #15309: vectorization support: normalized vectorization overhead 1.000
+   remark #15355: vectorization support: E is double type reduction   [ energy.cpp(8,12) ]
+   remark #15301: REMAINDER LOOP WAS VECTORIZED
+   remark #15448: unmasked aligned unit stride loads: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 5 
+   remark #15477: vector cost: 0.620 
+   remark #15478: estimated potential speedup: 6.380 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at energy.cpp(12,3)
+<Peeled loop for vectorization>
+   remark #15389: vectorization support: reference I[i] has unaligned access   [ energy.cpp(13,10) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15305: vectorization support: vector length 8
+   remark #15309: vectorization support: normalized vectorization overhead 1.000
+   remark #15355: vectorization support: E is double type reduction   [ energy.cpp(8,12) ]
+   remark #15301: PEEL LOOP WAS VECTORIZED
+   remark #15448: unmasked aligned unit stride loads: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 5 
+   remark #15477: vector cost: 0.620 
+   remark #15478: estimated potential speedup: 6.380 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at energy.cpp(12,3)
+   remark #15388: vectorization support: reference I[i] has aligned access   [ energy.cpp(13,10) ]
+   remark #15305: vectorization support: vector length 8
+   remark #15399: vectorization support: unroll factor set to 4
+   remark #15309: vectorization support: normalized vectorization overhead 1.750
+   remark #15355: vectorization support: E is double type reduction   [ energy.cpp(8,12) ]
+   remark #15300: LOOP WAS VECTORIZED
+   remark #15448: unmasked aligned unit stride loads: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 5 
+   remark #15477: vector cost: 0.620 
+   remark #15478: estimated potential speedup: 6.380 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at energy.cpp(12,3)
+<Remainder loop for vectorization>
+   remark #15389: vectorization support: reference I[i] has unaligned access   [ energy.cpp(13,10) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15305: vectorization support: vector length 8
+   remark #15309: vectorization support: normalized vectorization overhead 1.000
+   remark #15355: vectorization support: E is double type reduction   [ energy.cpp(8,12) ]
+   remark #15301: REMAINDER LOOP WAS VECTORIZED
+   remark #15448: unmasked aligned unit stride loads: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 5 
+   remark #15477: vector cost: 0.620 
+   remark #15478: estimated potential speedup: 6.380 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+===========================================================================
+
+Begin optimization report for: ComputeEnergy(int, double *, int, double *) [skylake_avx512]
+
+    Report from: Vector optimizations [vec]
+
+
+LOOP BEGIN at energy.cpp(9,3)
+<Peeled loop for vectorization>
+LOOP END
+
+LOOP BEGIN at energy.cpp(9,3)
+   remark #15389: vectorization support: reference B[i] has unaligned access   [ energy.cpp(10,10) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15305: vectorization support: vector length 4
+   remark #15399: vectorization support: unroll factor set to 4
+   remark #15309: vectorization support: normalized vectorization overhead 1.450
+   remark #15355: vectorization support: E is double type reduction   [ energy.cpp(8,12) ]
+   remark #15300: LOOP WAS VECTORIZED
+   remark #26013: Compiler has chosen to target XMM/YMM vector. Try using -qopt-zmm-usage=high to override
+   remark #15442: entire loop may be executed in remainder
+   remark #15450: unmasked unaligned unit stride loads: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 5 
+   remark #15477: vector cost: 1.250 
+   remark #15478: estimated potential speedup: 3.340 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at energy.cpp(9,3)
+<Remainder loop for vectorization>
+   remark #15389: vectorization support: reference B[i] has unaligned access   [ energy.cpp(10,10) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15305: vectorization support: vector length 4
+   remark #15309: vectorization support: normalized vectorization overhead 2.167
+   remark #15355: vectorization support: E is double type reduction   [ energy.cpp(8,12) ]
+   remark #15301: REMAINDER LOOP WAS VECTORIZED
+   remark #15442: entire loop may be executed in remainder
+   remark #15450: unmasked unaligned unit stride loads: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 5 
+   remark #15477: vector cost: 1.250 
+   remark #15478: estimated potential speedup: 3.340 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at energy.cpp(9,3)
+<Remainder loop for vectorization>
+LOOP END
+
+LOOP BEGIN at energy.cpp(12,3)
+<Peeled loop for vectorization>
+LOOP END
+
+LOOP BEGIN at energy.cpp(12,3)
+   remark #15389: vectorization support: reference I[i] has unaligned access   [ energy.cpp(13,10) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15305: vectorization support: vector length 4
+   remark #15399: vectorization support: unroll factor set to 4
+   remark #15309: vectorization support: normalized vectorization overhead 1.450
+   remark #15355: vectorization support: E is double type reduction   [ energy.cpp(8,12) ]
+   remark #15300: LOOP WAS VECTORIZED
+   remark #26013: Compiler has chosen to target XMM/YMM vector. Try using -qopt-zmm-usage=high to override
+   remark #15442: entire loop may be executed in remainder
+   remark #15450: unmasked unaligned unit stride loads: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 5 
+   remark #15477: vector cost: 1.250 
+   remark #15478: estimated potential speedup: 3.340 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at energy.cpp(12,3)
+<Remainder loop for vectorization>
+   remark #15389: vectorization support: reference I[i] has unaligned access   [ energy.cpp(13,10) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15305: vectorization support: vector length 4
+   remark #15309: vectorization support: normalized vectorization overhead 2.167
+   remark #15355: vectorization support: E is double type reduction   [ energy.cpp(8,12) ]
+   remark #15301: REMAINDER LOOP WAS VECTORIZED
+   remark #15442: entire loop may be executed in remainder
+   remark #15450: unmasked unaligned unit stride loads: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 5 
+   remark #15477: vector cost: 1.250 
+   remark #15478: estimated potential speedup: 3.340 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at energy.cpp(12,3)
+<Remainder loop for vectorization>
+LOOP END
+===========================================================================
+
+Begin optimization report for: ComputeEnergy(int, double *, int, double *) [haswell]
+
+    Report from: Vector optimizations [vec]
+
+
+LOOP BEGIN at energy.cpp(9,3)
+<Peeled loop for vectorization>
+LOOP END
+
+LOOP BEGIN at energy.cpp(9,3)
+   remark #15389: vectorization support: reference B[i] has unaligned access   [ energy.cpp(10,10) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15305: vectorization support: vector length 4
+   remark #15399: vectorization support: unroll factor set to 4
+   remark #15309: vectorization support: normalized vectorization overhead 1.450
+   remark #15355: vectorization support: E is double type reduction   [ energy.cpp(8,12) ]
+   remark #15300: LOOP WAS VECTORIZED
+   remark #15442: entire loop may be executed in remainder
+   remark #15450: unmasked unaligned unit stride loads: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 5 
+   remark #15477: vector cost: 1.250 
+   remark #15478: estimated potential speedup: 3.340 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at energy.cpp(9,3)
+<Remainder loop for vectorization>
+   remark #15389: vectorization support: reference B[i] has unaligned access   [ energy.cpp(10,10) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15305: vectorization support: vector length 4
+   remark #15309: vectorization support: normalized vectorization overhead 5.333
+   remark #15355: vectorization support: E is double type reduction   [ energy.cpp(8,12) ]
+   remark #15301: REMAINDER LOOP WAS VECTORIZED
+   remark #15442: entire loop may be executed in remainder
+   remark #15450: unmasked unaligned unit stride loads: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 5 
+   remark #15477: vector cost: 1.250 
+   remark #15478: estimated potential speedup: 3.340 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at energy.cpp(9,3)
+<Remainder loop for vectorization>
+LOOP END
+
+LOOP BEGIN at energy.cpp(12,3)
+<Peeled loop for vectorization>
+LOOP END
+
+LOOP BEGIN at energy.cpp(12,3)
+   remark #15389: vectorization support: reference I[i] has unaligned access   [ energy.cpp(13,10) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15305: vectorization support: vector length 4
+   remark #15399: vectorization support: unroll factor set to 4
+   remark #15309: vectorization support: normalized vectorization overhead 1.450
+   remark #15355: vectorization support: E is double type reduction   [ energy.cpp(8,12) ]
+   remark #15300: LOOP WAS VECTORIZED
+   remark #15442: entire loop may be executed in remainder
+   remark #15450: unmasked unaligned unit stride loads: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 5 
+   remark #15477: vector cost: 1.250 
+   remark #15478: estimated potential speedup: 3.340 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at energy.cpp(12,3)
+<Remainder loop for vectorization>
+   remark #15389: vectorization support: reference I[i] has unaligned access   [ energy.cpp(13,10) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15305: vectorization support: vector length 4
+   remark #15309: vectorization support: normalized vectorization overhead 5.333
+   remark #15355: vectorization support: E is double type reduction   [ energy.cpp(8,12) ]
+   remark #15301: REMAINDER LOOP WAS VECTORIZED
+   remark #15442: entire loop may be executed in remainder
+   remark #15450: unmasked unaligned unit stride loads: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 5 
+   remark #15477: vector cost: 1.250 
+   remark #15478: estimated potential speedup: 3.340 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at energy.cpp(12,3)
+<Remainder loop for vectorization>
+LOOP END
+===========================================================================
+
+Begin optimization report for: ComputeEnergy(int, double *, int, double *) [core_2nd_gen_avx]
+
+    Report from: Vector optimizations [vec]
+
+
+LOOP BEGIN at energy.cpp(9,3)
+<Peeled loop for vectorization>
+LOOP END
+
+LOOP BEGIN at energy.cpp(9,3)
+   remark #15388: vectorization support: reference B[i] has aligned access   [ energy.cpp(10,10) ]
+   remark #15305: vectorization support: vector length 4
+   remark #15399: vectorization support: unroll factor set to 4
+   remark #15309: vectorization support: normalized vectorization overhead 2.050
+   remark #15355: vectorization support: E is double type reduction   [ energy.cpp(8,12) ]
+   remark #15300: LOOP WAS VECTORIZED
+   remark #15442: entire loop may be executed in remainder
+   remark #15448: unmasked aligned unit stride loads: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 6 
+   remark #15477: vector cost: 1.250 
+   remark #15478: estimated potential speedup: 3.800 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at energy.cpp(9,3)
+<Remainder loop for vectorization>
+   remark #15388: vectorization support: reference B[i] has aligned access   [ energy.cpp(10,10) ]
+   remark #15305: vectorization support: vector length 4
+   remark #15309: vectorization support: normalized vectorization overhead 8.200
+   remark #15355: vectorization support: E is double type reduction   [ energy.cpp(8,12) ]
+   remark #15301: REMAINDER LOOP WAS VECTORIZED
+   remark #15442: entire loop may be executed in remainder
+   remark #15448: unmasked aligned unit stride loads: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 6 
+   remark #15477: vector cost: 1.250 
+   remark #15478: estimated potential speedup: 3.800 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at energy.cpp(9,3)
+<Remainder loop for vectorization>
+LOOP END
+
+LOOP BEGIN at energy.cpp(12,3)
+<Peeled loop for vectorization>
+LOOP END
+
+LOOP BEGIN at energy.cpp(12,3)
+   remark #15388: vectorization support: reference I[i] has aligned access   [ energy.cpp(13,10) ]
+   remark #15305: vectorization support: vector length 4
+   remark #15399: vectorization support: unroll factor set to 4
+   remark #15309: vectorization support: normalized vectorization overhead 2.050
+   remark #15355: vectorization support: E is double type reduction   [ energy.cpp(8,12) ]
+   remark #15300: LOOP WAS VECTORIZED
+   remark #15442: entire loop may be executed in remainder
+   remark #15448: unmasked aligned unit stride loads: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 6 
+   remark #15477: vector cost: 1.250 
+   remark #15478: estimated potential speedup: 3.800 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at energy.cpp(12,3)
+<Remainder loop for vectorization>
+   remark #15388: vectorization support: reference I[i] has aligned access   [ energy.cpp(13,10) ]
+   remark #15305: vectorization support: vector length 4
+   remark #15309: vectorization support: normalized vectorization overhead 8.200
+   remark #15355: vectorization support: E is double type reduction   [ energy.cpp(8,12) ]
+   remark #15301: REMAINDER LOOP WAS VECTORIZED
+   remark #15442: entire loop may be executed in remainder
+   remark #15448: unmasked aligned unit stride loads: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 6 
+   remark #15477: vector cost: 1.250 
+   remark #15478: estimated potential speedup: 3.800 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at energy.cpp(12,3)
+<Remainder loop for vectorization>
+LOOP END
+===========================================================================
+
+Begin optimization report for: ComputeEnergy(int, double *, int, double *) [generic]
+
+    Report from: Vector optimizations [vec]
+
+
+LOOP BEGIN at energy.cpp(9,3)
+<Peeled loop for vectorization>
+LOOP END
+
+LOOP BEGIN at energy.cpp(9,3)
+   remark #15388: vectorization support: reference B[i] has aligned access   [ energy.cpp(10,10) ]
+   remark #15305: vectorization support: vector length 2
+   remark #15399: vectorization support: unroll factor set to 4
+   remark #15309: vectorization support: normalized vectorization overhead 1.450
+   remark #15355: vectorization support: E is double type reduction   [ energy.cpp(8,12) ]
+   remark #15300: LOOP WAS VECTORIZED
+   remark #15442: entire loop may be executed in remainder
+   remark #15448: unmasked aligned unit stride loads: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 6 
+   remark #15477: vector cost: 2.500 
+   remark #15478: estimated potential speedup: 2.260 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at energy.cpp(9,3)
+<Remainder loop for vectorization>
+LOOP END
+
+LOOP BEGIN at energy.cpp(12,3)
+<Peeled loop for vectorization>
+LOOP END
+
+LOOP BEGIN at energy.cpp(12,3)
+   remark #15388: vectorization support: reference I[i] has aligned access   [ energy.cpp(13,10) ]
+   remark #15305: vectorization support: vector length 2
+   remark #15399: vectorization support: unroll factor set to 4
+   remark #15309: vectorization support: normalized vectorization overhead 1.450
+   remark #15355: vectorization support: E is double type reduction   [ energy.cpp(8,12) ]
+   remark #15300: LOOP WAS VECTORIZED
+   remark #15442: entire loop may be executed in remainder
+   remark #15448: unmasked aligned unit stride loads: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 6 
+   remark #15477: vector cost: 2.500 
+   remark #15478: estimated potential speedup: 2.260 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at energy.cpp(12,3)
+<Remainder loop for vectorization>
+LOOP END
+===========================================================================

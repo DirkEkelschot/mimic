@@ -20,6 +20,7 @@ class PartObjectLite{
             std::map<int,std::vector<double> > vertices, 
             std::map<int,int> eltype_map,
             std::vector<int> elTypes,
+            FaceSetPointer allbcFaces,
             int nE,
             int nV,
             MPI_Comm comm);
@@ -37,6 +38,8 @@ class PartObjectLite{
                 std::map<int,int>                   Elem2Type_uniform, 
                 MPI_Comm comm);
 
+        std::map<int,std::vector<int> > CommunicateAdjacencyInfoLocalPartition(MPI_Comm comm);
+
         std::set<int> getLocalElemSet();
        
         std::map<int,std::vector<int> > getElem2VertMap();
@@ -47,9 +50,14 @@ class PartObjectLite{
 
         std::map<int, std::vector<int> > getAdjacentElementLayer(std::map<int,std::vector<double> > xcn, MPI_Comm comm);
 
+        void GenerateFace2ElementMap(std::map<int,std::vector<int> > Face2Elem_i,  MPI_Comm comm);
+
+        void ComputeFaceMap(FaceSetPointer allbcFaces);
+
         private:
-
-
+        
+        int m_rank;
+        int m_size;
         int m_nElemGlobalPart;
         int m_Ne_glob;
         int m_Nf_glob;
@@ -76,6 +84,9 @@ class PartObjectLite{
         std::map<int,std::vector<int> >         m_Elem2Data;
         std::map<int,std::vector<int> >         m_Elem2Vert;
         std::map<int,std::vector<double> >      m_Elem2Centroid;
+        std::map<int,int>                       m_Elem2Rank;
+
+        std::map<int,std::vector<int> >         m_Face2Elem;
 
         int vloc; // running total number of vertices.
     };

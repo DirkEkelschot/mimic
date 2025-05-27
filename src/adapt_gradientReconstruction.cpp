@@ -502,7 +502,6 @@ std::map<int,std::vector<double> > ComputedUdx_LSQ_LS_US3D(PartObject* RePa,
                                                            std::map<int,std::vector<double> > ghosts,
                                                            int Nel,
                                                            int variable,
-                                                           int nvariables,
                                                            MPI_Comm comm,
                                                            int extrap)
 {
@@ -837,8 +836,11 @@ QRdata* Collect_QR_Data(PartObject* RePa,
             }
 
             qrd->Amat[elID] = A_cm;
+            qrd->Am[elID]   = nadj;
+            qrd->An[elID]   = 9; 
             qrd->bvec[elID] = bvec;
-        
+            qrd->bm[elID]   = nadj;
+
             nAccum = nAccum + nadj;
             //x = SolveQR_Lite(A_cm,nadj,9,bvec);
             // dudx_map[elID] = x;
@@ -884,8 +886,11 @@ QRdata* Collect_QR_Data(PartObject* RePa,
             }
 
             qrd->Amat[elID] = A_cm;
+            qrd->Am[elID]   = nadj;
+            qrd->An[elID]   = 3;
             qrd->bvec[elID] = bvec;
-        
+            qrd->bm[elID]   = nadj;
+            
             nAccum = nAccum + nadj;
         }   
     }

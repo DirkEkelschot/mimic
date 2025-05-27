@@ -1,0 +1,245 @@
+Intel(R) Advisor can now assist with vectorization and show optimization
+  report messages with your source code.
+See "https://software.intel.com/en-us/intel-advisor-xe" for details.
+
+Intel(R) C Intel(R) 64 Compiler for applications running on Intel(R) 64, Version 19.1.3.304 Build 20200925_000000
+
+Compiler options: -I/nobackupp19/dekelsch/Software/ParMmg/build/Mmg-prefix/src/Mmg-build/include -I/nobackupp19/dekelsch/Software/ParMmg/build/include -I/nobackupp19/dekelsch/parmetis-4.0.3/parmetis-install/include -I/nobackupp19/dekelsch/parmetis-4.0.3/metis/metis-install/include -I/nobackupp19/dekelsch/boost_1_71_0/boost-install/include -I/home1/dekelsch/Software/tinyxml -I/nobackupp19/dekelsch/CGNS-3.3.0/src/install/include -I/home1/dekelsch/local/lib/python3.12/site-packages/numpy/_core/include -I/home1/dekelsch/local/lib/python3.12/site-packages/mpi4py/include -I/home1/dekelsch/local/include/python3.12/ -std=c++17 -g -DMPI_NO_CPPBIND -fPIC -lm -lpthread -ldl -lutil -L/home1/dekelsch/local/lib/python3.12/ -O2 -Wall -axAVX,CORE-AVX2,CORE-AVX512 -qopt-report-phase=vec -qopt-report=5 -o PartiClass.so -L/nobackupp19/dekelsch/Software/ParMmg/build/Mmg-prefix/src/Mmg-build/lib -L/nobackupp19/dekelsch/Software/ParMmg/build/lib -L/nobackupp19/dekelsch/parmetis-4.0.3/parmetis-install/lib -L/nobackupp19/dekelsch/parmetis-4.0.3/metis/metis-install/lib -L/nobackupp19/dekelsch/boost_1_71_0/boost-install/stage/lib -L/home1/dekelsch/Software/tinyxml -L/nobackupp19/dekelsch/CGNS-3.3.0/src/install/lib -shared -lm -lpthread -ldl -lutil -L/home1/dekelsch/local/lib/python3.12/ -lmpi -lparmetis -lmetis -lhdf5 -mkl -lparmmg -lmmg -lcgns -lmpi
+
+Begin optimization report for: TiXmlElement::Parse(TiXmlElement *, const char *, TiXmlParsingData *, TiXmlEncoding)
+
+    Report from: Vector optimizations [vec]
+
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at ../src/tinyxmlparser.cpp(1083,2)
+   remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ ../src/tinyxmlparser.cpp(1142,20) ]
+LOOP END
+===========================================================================
+
+Begin optimization report for: TiXmlParsingData::Stamp(TiXmlParsingData *, const char *, TiXmlEncoding)
+
+    Report from: Vector optimizations [vec]
+
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at ../src/tinyxmlparser.cpp(212,2)
+   remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+LOOP END
+===========================================================================
+
+Begin optimization report for: TiXmlBase::ReadName(const char *, TiXmlString *, TiXmlEncoding)
+
+    Report from: Vector optimizations [vec]
+
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at ../src/tinyxmlparser.cpp(420,3)
+   remark #15543: loop was not vectorized: loop with function call not considered an optimization candidate.
+LOOP END
+===========================================================================
+
+Begin optimization report for: TiXmlElement::ReadValue(TiXmlElement *, const char *, TiXmlParsingData *, TiXmlEncoding)
+
+    Report from: Vector optimizations [vec]
+
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at ../src/tinyxmlparser.cpp(1187,2)
+   remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ ../src/tinyxml.h(1220,51) ]
+LOOP END
+===========================================================================
+
+Begin optimization report for: TiXmlText::Blank(const TiXmlText *) const
+
+    Report from: Vector optimizations [vec]
+
+
+LOOP BEGIN at ../src/tinyxmlparser.cpp(1633,30)
+   remark #15324: loop was not vectorized: unsigned types for induction variable and/or for lower/upper iteration bounds make loop uncountable
+LOOP END
+===========================================================================
+
+Begin optimization report for: TiXmlBase::SkipWhiteSpace(const char *, TiXmlEncoding)
+
+    Report from: Vector optimizations [vec]
+
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at ../src/tinyxmlparser.cpp(322,3)
+   remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+LOOP END
+
+LOOP BEGIN at ../src/tinyxmlparser.cpp(357,3)
+   remark #15523: loop was not vectorized: loop control variable p was found, but loop iteration count cannot be computed before executing the loop
+LOOP END
+===========================================================================
+
+Begin optimization report for: TiXmlComment::Parse(TiXmlComment *, const char *, TiXmlParsingData *, TiXmlEncoding)
+
+    Report from: Vector optimizations [vec]
+
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at ../src/tinyxmlparser.cpp(1380,2)
+   remark #15543: loop was not vectorized: loop with function call not considered an optimization candidate.
+LOOP END
+===========================================================================
+
+Begin optimization report for: TiXmlText::Parse(TiXmlText *, const char *, TiXmlParsingData *, TiXmlEncoding)
+
+    Report from: Vector optimizations [vec]
+
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at ../src/tinyxmlparser.cpp(1524,3)
+   remark #15543: loop was not vectorized: loop with function call not considered an optimization candidate.
+LOOP END
+===========================================================================
+
+Begin optimization report for: TiXmlBase::ReadText(const char *, TiXmlString *, bool, const char *, bool, TiXmlEncoding)
+
+    Report from: Vector optimizations [vec]
+
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at ../src/tinyxmlparser.cpp(602,3)
+   remark #15532: loop was not vectorized: compile time constraints prevent loop optimization. Consider using -O3.
+
+   LOOP BEGIN at ../src/tinyxml.h(351,4) inlined into ../src/tinyxmlparser.cpp(626,9)
+      remark #15523: loop was not vectorized: loop control variable i was found, but loop iteration count cannot be computed before executing the loop
+   LOOP END
+LOOP END
+
+LOOP BEGIN at ../src/tinyxmlparser.cpp(586,3)
+   remark #15532: loop was not vectorized: compile time constraints prevent loop optimization. Consider using -O3.
+
+   LOOP BEGIN at ../src/tinyxml.h(351,4) inlined into ../src/tinyxmlparser.cpp(592,8)
+      remark #15523: loop was not vectorized: loop control variable i was found, but loop iteration count cannot be computed before executing the loop
+   LOOP END
+LOOP END
+===========================================================================
+
+Begin optimization report for: TiXmlBase::GetEntity(const char *, char *, int *, TiXmlEncoding)
+
+    Report from: Vector optimizations [vec]
+
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at ../src/tinyxmlparser.cpp(464,4)
+   remark #15523: loop was not vectorized: loop control variable q was found, but loop iteration count cannot be computed before executing the loop
+LOOP END
+
+LOOP BEGIN at ../src/tinyxmlparser.cpp(491,4)
+   remark #15523: loop was not vectorized: loop control variable q was found, but loop iteration count cannot be computed before executing the loop
+LOOP END
+
+LOOP BEGIN at ../src/tinyxmlparser.cpp(515,2)
+   remark #15522: loop was not vectorized: loop control flow is too complex. Try using canonical loop form from OpenMP specification
+LOOP END
+===========================================================================
+
+Begin optimization report for: TiXmlDeclaration::Parse(TiXmlDeclaration *, const char *, TiXmlParsingData *, TiXmlEncoding)
+
+    Report from: Vector optimizations [vec]
+
+
+LOOP BEGIN at ../src/tinyxmlparser.cpp(1624,4)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ ../src/tinyxmlparser.cpp(1625,7) ]
+LOOP END
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at ../src/tinyxmlparser.cpp(1594,2)
+   remark #15333: loop was not vectorized: exception handling for a call prevents vectorization   [ ../src/tinyxmlparser.cpp(1618,15) ]
+LOOP END
+===========================================================================
+
+Begin optimization report for: TiXmlAttribute::Parse(TiXmlAttribute *, const char *, TiXmlParsingData *, TiXmlEncoding)
+
+    Report from: Vector optimizations [vec]
+
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at ../src/tinyxmlparser.cpp(1447,3)
+   remark #15543: loop was not vectorized: loop with function call not considered an optimization candidate.
+LOOP END
+===========================================================================
+
+Begin optimization report for: TiXmlBase::StringEqual(const char *, const char *, bool, TiXmlEncoding)
+
+    Report from: Vector optimizations [vec]
+
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at ../src/tinyxmlparser.cpp(551,3)
+   remark #15523: loop was not vectorized: loop control variable q was found, but loop iteration count cannot be computed before executing the loop
+LOOP END
+
+LOOP BEGIN at ../src/tinyxmlparser.cpp(562,3)
+   remark #15523: loop was not vectorized: loop control variable q was found, but loop iteration count cannot be computed before executing the loop
+LOOP END
+===========================================================================
+
+Begin optimization report for: TiXmlUnknown::Parse(TiXmlUnknown *, const char *, TiXmlParsingData *, TiXmlEncoding)
+
+    Report from: Vector optimizations [vec]
+
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at ../src/tinyxmlparser.cpp(1293,2)
+   remark #15543: loop was not vectorized: loop with function call not considered an optimization candidate.
+LOOP END
+===========================================================================
+
+Begin optimization report for: TiXmlDocument::Parse(TiXmlDocument *, const char *, TiXmlParsingData *, TiXmlEncoding)
+
+    Report from: Vector optimizations [vec]
+
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at ../src/tinyxmlparser.cpp(754,2)
+   remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+LOOP END
+===========================================================================

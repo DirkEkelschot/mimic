@@ -7,7 +7,11 @@
 
 struct QRdata{
     std::map<int,std::vector<double> > Amat;
+    std::map<int,int> Am;
+    std::map<int,int> An;
+
     std::map<int,std::vector<double> > bvec;
+    std::map<int,int> bm;
     int Nentries;
 };
 

@@ -175,7 +175,7 @@ static int PyPartition_init(PyPartition* self, PyObject *args, PyObject *kwds)
     int world_rank;
     MPI_Comm_rank(*comm_p, &world_rank);
     self->commu = *comm_p;
-    
+    /*
     US3D* us3d   = ReadUS3DData(cname,gname,dname,ReadFromStats,*comm_p,*comm_p_info);
     
     int Nve      = us3d->xcn->getNglob();
@@ -322,7 +322,7 @@ static int PyPartition_init(PyPartition* self, PyObject *args, PyObject *kwds)
                                  parmetis_pstate, ien_pstate, ife_pstate,
                                  us3d->xcn, xcn_pstate, Uivar, *comm_p);
 
-    
+    */
     
     
     
@@ -349,7 +349,8 @@ static void PyPartition_dealloc(PyPartition * self)
 
 static PyObject * PyPartition_getVertices(PyPartition* self, PyObject* args)
 {
-
+    PyObject *pList_verts = PyList_New(10);
+    /*
     std::vector<Vert*> verts = (self->ptrObj)->getLocalVerts();
     int nvert = verts.size();
     PyObject *pList_verts = PyList_New((nvert));
@@ -363,6 +364,7 @@ static PyObject * PyPartition_getVertices(PyPartition* self, PyObject* args)
         PyList_SetItem(pList_verts,i,coords);
 
     }
+    */
     
     return pList_verts;
 }
@@ -443,7 +445,10 @@ static PyObject * PyPartition_computeGradU(PyPartition* self, PyObject* args)
         return Py_False;
     
     //Convert dictionary into a C++ map of arrays.
+    PyObject *pDict_UState = PyDict_New();
 
+
+    /*
     std::map<int,Array<double>* > U_map = getMapOfArraysFromPyDict<double>(Umap);
 
     
@@ -476,14 +481,14 @@ static PyObject * PyPartition_computeGradU(PyPartition* self, PyObject* args)
     
     // Convert the C++ map to a dictionary.
     
-    PyObject *pDict_UState = PyDict_New();
+    
     for (int q = 0;q<LocElem.size();q++)
     {
         PyObject *key = PyLong_FromSsize_t(LocElem[q]);
         PyObject *val = PyFloat_FromDouble(Ustate[q]);
         PyDict_SetItem(pDict_UState,key,val);
     }
-    
+    */
     return pDict_UState;
 }
 
@@ -496,7 +501,7 @@ static PyObject * PyPartition_computeGradU(PyPartition* self, PyObject* args)
 
 static PyObject* PyPartition_gatherMeshOnRoot(PyPartition* self, PyObject* args)
 {
-    
+    /*
     PyObject* Umap;
     if (! PyArg_ParseTuple(args, "O", &Umap))
         return Py_False;
@@ -607,7 +612,7 @@ static PyObject* PyPartition_gatherMeshOnRoot(PyPartition* self, PyObject* args)
                 voffsets,
                 MPI_INT, 0, self->commu);
     
-    
+    */
     PyObject *pDict_UState = PyDict_New();
 
     

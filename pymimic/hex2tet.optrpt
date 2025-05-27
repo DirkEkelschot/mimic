@@ -1,0 +1,1391 @@
+Intel(R) Advisor can now assist with vectorization and show optimization
+  report messages with your source code.
+See "https://software.intel.com/en-us/intel-advisor-xe" for details.
+
+Intel(R) C Intel(R) 64 Compiler for applications running on Intel(R) 64, Version 19.1.3.304 Build 20200925_000000
+
+Compiler options: -I/nobackupp19/dekelsch/Software/ParMmg/build/Mmg-prefix/src/Mmg-build/include -I/nobackupp19/dekelsch/Software/ParMmg/build/include -I/nobackupp19/dekelsch/parmetis-4.0.3/parmetis-install/include -I/nobackupp19/dekelsch/parmetis-4.0.3/metis/metis-install/include -I/nobackupp19/dekelsch/boost_1_71_0/boost-install/include -I/home1/dekelsch/Software/tinyxml -I/nobackupp19/dekelsch/CGNS-3.3.0/src/install/include -I/home1/dekelsch/local/lib/python3.12/site-packages/numpy/_core/include -I/home1/dekelsch/local/lib/python3.12/site-packages/mpi4py/include -I/home1/dekelsch/local/include/python3.12/ -std=c++17 -g -DMPI_NO_CPPBIND -fPIC -lm -lpthread -ldl -lutil -L/home1/dekelsch/local/lib/python3.12/ -O2 -Wall -axAVX,CORE-AVX2,CORE-AVX512 -qopt-report-phase=vec -qopt-report=5 -o PartiClass.so -L/nobackupp19/dekelsch/Software/ParMmg/build/Mmg-prefix/src/Mmg-build/lib -L/nobackupp19/dekelsch/Software/ParMmg/build/lib -L/nobackupp19/dekelsch/parmetis-4.0.3/parmetis-install/lib -L/nobackupp19/dekelsch/parmetis-4.0.3/metis/metis-install/lib -L/nobackupp19/dekelsch/boost_1_71_0/boost-install/stage/lib -L/home1/dekelsch/Software/tinyxml -L/nobackupp19/dekelsch/CGNS-3.3.0/src/install/lib -shared -lm -lpthread -ldl -lutil -L/home1/dekelsch/local/lib/python3.12/ -lmpi -lparmetis -lmetis -lhdf5 -mkl -lparmmg -lmmg -lcgns -lmpi
+
+Begin optimization report for: H2T_chkorient(MMG5_pMesh, int *, int)
+
+    Report from: Vector optimizations [vec]
+
+
+LOOP BEGIN at ../src/hex2tet.cpp(102,5)
+   remark #15388: vectorization support: reference ph[i] has aligned access   [ ../src/hex2tet.cpp(103,7) ]
+   remark #15389: vectorization support: reference hexa[iadr+i] has unaligned access   [ ../src/hex2tet.cpp(103,15) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15305: vectorization support: vector length 8
+   remark #15427: loop was completely unrolled
+   remark #15309: vectorization support: normalized vectorization overhead 0.750
+   remark #15300: LOOP WAS VECTORIZED
+   remark #15449: unmasked aligned unit stride stores: 1 
+   remark #15450: unmasked unaligned unit stride loads: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 4 
+   remark #15477: vector cost: 0.500 
+   remark #15478: estimated potential speedup: 4.570 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at ../src/hex2tet.cpp(99,3)
+   remark #15543: loop was not vectorized: loop with function call not considered an optimization candidate.
+LOOP END
+===========================================================================
+
+Begin optimization report for: H2T_chkorient(MMG5_pMesh, int *, int) [skylake_avx512]
+
+    Report from: Vector optimizations [vec]
+
+
+LOOP BEGIN at ../src/hex2tet.cpp(102,5)
+   remark #15388: vectorization support: reference ph[i] has aligned access   [ ../src/hex2tet.cpp(103,7) ]
+   remark #15389: vectorization support: reference hexa[iadr+i] has unaligned access   [ ../src/hex2tet.cpp(103,15) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15305: vectorization support: vector length 8
+   remark #15427: loop was completely unrolled
+   remark #15309: vectorization support: normalized vectorization overhead 3.000
+   remark #15300: LOOP WAS VECTORIZED
+   remark #26013: Compiler has chosen to target XMM/YMM vector. Try using -qopt-zmm-usage=high to override
+   remark #15449: unmasked aligned unit stride stores: 1 
+   remark #15450: unmasked unaligned unit stride loads: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 4 
+   remark #15477: vector cost: 0.500 
+   remark #15478: estimated potential speedup: 2.000 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at ../src/hex2tet.cpp(99,3)
+   remark #15543: loop was not vectorized: loop with function call not considered an optimization candidate.
+LOOP END
+===========================================================================
+
+Begin optimization report for: H2T_chkorient(MMG5_pMesh, int *, int) [haswell]
+
+    Report from: Vector optimizations [vec]
+
+
+LOOP BEGIN at ../src/hex2tet.cpp(102,5)
+   remark #15388: vectorization support: reference ph[i] has aligned access   [ ../src/hex2tet.cpp(103,7) ]
+   remark #15389: vectorization support: reference hexa[iadr+i] has unaligned access   [ ../src/hex2tet.cpp(103,15) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15305: vectorization support: vector length 8
+   remark #15427: loop was completely unrolled
+   remark #15309: vectorization support: normalized vectorization overhead 0.750
+   remark #15300: LOOP WAS VECTORIZED
+   remark #15449: unmasked aligned unit stride stores: 1 
+   remark #15450: unmasked unaligned unit stride loads: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 4 
+   remark #15477: vector cost: 0.500 
+   remark #15478: estimated potential speedup: 4.570 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at ../src/hex2tet.cpp(99,3)
+   remark #15543: loop was not vectorized: loop with function call not considered an optimization candidate.
+LOOP END
+===========================================================================
+
+Begin optimization report for: H2T_chkorient(MMG5_pMesh, int *, int) [generic]
+
+    Report from: Vector optimizations [vec]
+
+
+LOOP BEGIN at ../src/hex2tet.cpp(102,5)
+   remark #15388: vectorization support: reference ph[i] has aligned access   [ ../src/hex2tet.cpp(103,7) ]
+   remark #15389: vectorization support: reference hexa[iadr+i] has unaligned access   [ ../src/hex2tet.cpp(103,15) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15305: vectorization support: vector length 4
+   remark #15427: loop was completely unrolled
+   remark #15399: vectorization support: unroll factor set to 2
+   remark #15309: vectorization support: normalized vectorization overhead 0.300
+   remark #15300: LOOP WAS VECTORIZED
+   remark #15449: unmasked aligned unit stride stores: 1 
+   remark #15450: unmasked unaligned unit stride loads: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 4 
+   remark #15477: vector cost: 1.250 
+   remark #15478: estimated potential speedup: 2.460 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at ../src/hex2tet.cpp(99,3)
+   remark #15543: loop was not vectorized: loop with function call not considered an optimization candidate.
+LOOP END
+===========================================================================
+
+Begin optimization report for: H2T_cuthex(MMG5_pMesh, pHedge, int *, int *, int)
+
+    Report from: Vector optimizations [vec]
+
+
+LOOP BEGIN at ../src/hex2tet.cpp(348,5)
+   remark #15388: vectorization support: reference p[ih] has aligned access   [ ../src/hex2tet.cpp(348,30) ]
+   remark #15389: vectorization support: reference listhexa[ih+9] has unaligned access   [ ../src/hex2tet.cpp(348,38) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15305: vectorization support: vector length 8
+   remark #15427: loop was completely unrolled
+   remark #15309: vectorization support: normalized vectorization overhead 0.750
+   remark #15300: LOOP WAS VECTORIZED
+   remark #15449: unmasked aligned unit stride stores: 1 
+   remark #15450: unmasked unaligned unit stride loads: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 4 
+   remark #15477: vector cost: 0.500 
+   remark #15478: estimated potential speedup: 4.570 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(358,3)
+   remark #15344: loop was not vectorized: vector dependence prevents vectorization
+   remark #15346: vector dependence: assumed ANTI dependence between ipil (362:5) and ipil (362:10)
+   remark #15346: vector dependence: assumed FLOW dependence between ipil (362:10) and ipil (362:5)
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(371,5)
+   remark #15388: vectorization support: reference ph[ih] has aligned access   [ ../src/hex2tet.cpp(371,25) ]
+   remark #15389: vectorization support: reference listhexa[k*9+ih] has unaligned access   [ ../src/hex2tet.cpp(371,34) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15305: vectorization support: vector length 8
+   remark #15427: loop was completely unrolled
+   remark #15309: vectorization support: normalized vectorization overhead 0.750
+   remark #15300: LOOP WAS VECTORIZED
+   remark #15449: unmasked aligned unit stride stores: 1 
+   remark #15450: unmasked unaligned unit stride loads: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 4 
+   remark #15477: vector cost: 0.500 
+   remark #15478: estimated potential speedup: 4.570 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(276,3) inlined into ../src/hex2tet.cpp(405,19)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ ../src/hex2tet.cpp(285,5) ]
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(415,11)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ ../src/hex2tet.cpp(418,13) ]
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(276,3) inlined into ../src/hex2tet.cpp(437,19)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ ../src/hex2tet.cpp(285,5) ]
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(447,11)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ ../src/hex2tet.cpp(450,13) ]
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(475,11)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ ../src/hex2tet.cpp(478,13) ]
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(577,11)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ ../src/hex2tet.cpp(580,13) ]
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(544,11)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ ../src/hex2tet.cpp(547,13) ]
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(654,5)
+   remark #15382: vectorization support: call to function printf(const char *, ...) cannot be vectorized   [ ../src/hex2tet.cpp(668,9) ]
+   remark #15344: loop was not vectorized: vector dependence prevents vectorization
+   remark #15346: vector dependence: assumed FLOW dependence between mark[adj/6] (663:9) and mark[adj/6] (660:7)
+   remark #15346: vector dependence: assumed ANTI dependence between mark[adj/6] (660:7) and mark[adj/6] (663:9)
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(682,5)
+   remark #15388: vectorization support: reference ph[i] has aligned access   [ ../src/hex2tet.cpp(682,22) ]
+   remark #15389: vectorization support: reference listhexa[k*9+i] has unaligned access   [ ../src/hex2tet.cpp(682,30) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15305: vectorization support: vector length 8
+   remark #15427: loop was completely unrolled
+   remark #15309: vectorization support: normalized vectorization overhead 0.750
+   remark #15300: LOOP WAS VECTORIZED
+   remark #15449: unmasked aligned unit stride stores: 1 
+   remark #15450: unmasked unaligned unit stride loads: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 4 
+   remark #15477: vector cost: 0.500 
+   remark #15478: estimated potential speedup: 4.570 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(686,5)
+   remark #15312: loop was not vectorized: data type unsupported on given target architecture
+   remark #15388: vectorization support: reference ph[i] has aligned access   [ ../src/hex2tet.cpp(687,26) ]
+   remark #15415: vectorization support: indirect load was generated for the variable <ppt->c[0]>, 64-bit indexed, part of address is read from memory   [ ../src/hex2tet.cpp(688,15) ]
+   remark #15415: vectorization support: indirect load was generated for the variable <ppt->c[1]>, 64-bit indexed, part of address is read from memory   [ ../src/hex2tet.cpp(688,41) ]
+   remark #15415: vectorization support: indirect load was generated for the variable <ppt->c[2]>, 64-bit indexed, part of address is read from memory   [ ../src/hex2tet.cpp(688,60) ]
+   remark #15305: vectorization support: vector length 8
+   remark #15427: loop was completely unrolled
+   remark #15309: vectorization support: normalized vectorization overhead 1.101
+   remark #15355: vectorization support: norm_alias_2F64 is double type reduction   [ ../src/hex2tet.cpp(685,5) ]
+   remark #15355: vectorization support: norm_alias_2F64 is double type reduction   [ ../src/hex2tet.cpp(685,12) ]
+   remark #15355: vectorization support: norm_alias_2F64 is double type reduction   [ ../src/hex2tet.cpp(685,19) ]
+   remark #15300: LOOP WAS VECTORIZED
+   remark #15448: unmasked aligned unit stride loads: 1 
+   remark #15462: unmasked indexed (or gather) loads: 3 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 19 
+   remark #15477: vector cost: 8.620 
+   remark #15478: estimated potential speedup: 1.040 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at ../src/hex2tet.cpp(365,3)
+   remark #15532: loop was not vectorized: compile time constraints prevent loop optimization. Consider using -O3.
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(680,3)
+   remark #15532: loop was not vectorized: compile time constraints prevent loop optimization. Consider using -O3.
+
+   LOOP BEGIN at ../src/hex2tet.cpp(698,5)
+      remark #15532: loop was not vectorized: compile time constraints prevent loop optimization. Consider using -O3.
+   LOOP END
+LOOP END
+===========================================================================
+
+Begin optimization report for: H2T_cuthex(MMG5_pMesh, pHedge, int *, int *, int) [skylake_avx512]
+
+    Report from: Vector optimizations [vec]
+
+
+LOOP BEGIN at ../src/hex2tet.cpp(348,5)
+   remark #15388: vectorization support: reference p[ih] has aligned access   [ ../src/hex2tet.cpp(348,30) ]
+   remark #15389: vectorization support: reference listhexa[ih+9] has unaligned access   [ ../src/hex2tet.cpp(348,38) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15305: vectorization support: vector length 8
+   remark #15427: loop was completely unrolled
+   remark #15309: vectorization support: normalized vectorization overhead 0.750
+   remark #15300: LOOP WAS VECTORIZED
+   remark #26013: Compiler has chosen to target XMM/YMM vector. Try using -qopt-zmm-usage=high to override
+   remark #15449: unmasked aligned unit stride stores: 1 
+   remark #15450: unmasked unaligned unit stride loads: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 4 
+   remark #15477: vector cost: 0.500 
+   remark #15478: estimated potential speedup: 4.570 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(358,3)
+   remark #15389: vectorization support: reference adjahex[i+1] has unaligned access   [ ../src/hex2tet.cpp(360,11) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15305: vectorization support: vector length 8
+   remark #15427: loop was completely unrolled
+   remark #15309: vectorization support: normalized vectorization overhead 0.286
+   remark #15300: LOOP WAS VECTORIZED
+   remark #15456: masked unaligned unit stride loads: 1 
+   remark #15457: masked unaligned unit stride stores: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 13 
+   remark #15477: vector cost: 2.620 
+   remark #15478: estimated potential speedup: 2.880 
+   remark #15488: --- end vector cost summary ---
+   remark #15497: vector compress: 1 
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(371,5)
+   remark #15388: vectorization support: reference ph[ih] has aligned access   [ ../src/hex2tet.cpp(371,25) ]
+   remark #15389: vectorization support: reference listhexa[k*9+ih] has unaligned access   [ ../src/hex2tet.cpp(371,34) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15305: vectorization support: vector length 8
+   remark #15427: loop was completely unrolled
+   remark #15309: vectorization support: normalized vectorization overhead 0.750
+   remark #15300: LOOP WAS VECTORIZED
+   remark #26013: Compiler has chosen to target XMM/YMM vector. Try using -qopt-zmm-usage=high to override
+   remark #15449: unmasked aligned unit stride stores: 1 
+   remark #15450: unmasked unaligned unit stride loads: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 4 
+   remark #15477: vector cost: 0.500 
+   remark #15478: estimated potential speedup: 4.570 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(276,3) inlined into ../src/hex2tet.cpp(405,19)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ ../src/hex2tet.cpp(285,5) ]
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(415,11)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ ../src/hex2tet.cpp(418,13) ]
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(276,3) inlined into ../src/hex2tet.cpp(437,19)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ ../src/hex2tet.cpp(285,5) ]
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(447,11)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ ../src/hex2tet.cpp(450,13) ]
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(475,11)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ ../src/hex2tet.cpp(478,13) ]
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(577,11)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ ../src/hex2tet.cpp(580,13) ]
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(544,11)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ ../src/hex2tet.cpp(547,13) ]
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(654,5)
+   remark #15382: vectorization support: call to function printf(const char *, ...) cannot be vectorized   [ ../src/hex2tet.cpp(668,9) ]
+   remark #15344: loop was not vectorized: vector dependence prevents vectorization
+   remark #15346: vector dependence: assumed FLOW dependence between mark[adj/6] (663:9) and mark[adj/6] (660:7)
+   remark #15346: vector dependence: assumed ANTI dependence between mark[adj/6] (660:7) and mark[adj/6] (663:9)
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(682,5)
+   remark #15388: vectorization support: reference ph[i] has aligned access   [ ../src/hex2tet.cpp(682,22) ]
+   remark #15389: vectorization support: reference listhexa[k*9+i] has unaligned access   [ ../src/hex2tet.cpp(682,30) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15305: vectorization support: vector length 8
+   remark #15427: loop was completely unrolled
+   remark #15309: vectorization support: normalized vectorization overhead 0.750
+   remark #15300: LOOP WAS VECTORIZED
+   remark #26013: Compiler has chosen to target XMM/YMM vector. Try using -qopt-zmm-usage=high to override
+   remark #15449: unmasked aligned unit stride stores: 1 
+   remark #15450: unmasked unaligned unit stride loads: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 4 
+   remark #15477: vector cost: 0.500 
+   remark #15478: estimated potential speedup: 4.570 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(686,5)
+   remark #15388: vectorization support: reference ph[i] has aligned access   [ ../src/hex2tet.cpp(687,26) ]
+   remark #15335: loop was not vectorized: vectorization possible but seems inefficient. Use vector always directive or -vec-threshold0 to override 
+   remark #15415: vectorization support: indirect load was generated for the variable <ppt->c[0]>, 64-bit indexed, part of address is read from memory   [ ../src/hex2tet.cpp(688,15) ]
+   remark #15415: vectorization support: indirect load was generated for the variable <ppt->c[1]>, 64-bit indexed, part of address is read from memory   [ ../src/hex2tet.cpp(688,41) ]
+   remark #15415: vectorization support: indirect load was generated for the variable <ppt->c[2]>, 64-bit indexed, part of address is read from memory   [ ../src/hex2tet.cpp(688,60) ]
+   remark #15305: vectorization support: vector length 4
+   remark #15309: vectorization support: normalized vectorization overhead 0.443
+   remark #15355: vectorization support: norm_alias_2F64 is double type reduction   [ ../src/hex2tet.cpp(685,5) ]
+   remark #15355: vectorization support: norm_alias_2F64 is double type reduction   [ ../src/hex2tet.cpp(685,12) ]
+   remark #15355: vectorization support: norm_alias_2F64 is double type reduction   [ ../src/hex2tet.cpp(685,19) ]
+   remark #15448: unmasked aligned unit stride loads: 1 
+   remark #15462: unmasked indexed (or gather) loads: 3 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 19 
+   remark #15477: vector cost: 32.750 
+   remark #15478: estimated potential speedup: 0.470 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at ../src/hex2tet.cpp(365,3)
+   remark #15532: loop was not vectorized: compile time constraints prevent loop optimization. Consider using -O3.
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(680,3)
+   remark #15532: loop was not vectorized: compile time constraints prevent loop optimization. Consider using -O3.
+
+   LOOP BEGIN at ../src/hex2tet.cpp(698,5)
+      remark #15532: loop was not vectorized: compile time constraints prevent loop optimization. Consider using -O3.
+   LOOP END
+LOOP END
+===========================================================================
+
+Begin optimization report for: H2T_cuthex(MMG5_pMesh, pHedge, int *, int *, int) [haswell]
+
+    Report from: Vector optimizations [vec]
+
+
+LOOP BEGIN at ../src/hex2tet.cpp(348,5)
+   remark #15388: vectorization support: reference p[ih] has aligned access   [ ../src/hex2tet.cpp(348,30) ]
+   remark #15389: vectorization support: reference listhexa[ih+9] has unaligned access   [ ../src/hex2tet.cpp(348,38) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15305: vectorization support: vector length 8
+   remark #15427: loop was completely unrolled
+   remark #15309: vectorization support: normalized vectorization overhead 0.750
+   remark #15300: LOOP WAS VECTORIZED
+   remark #15449: unmasked aligned unit stride stores: 1 
+   remark #15450: unmasked unaligned unit stride loads: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 4 
+   remark #15477: vector cost: 0.500 
+   remark #15478: estimated potential speedup: 4.570 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(358,3)
+   remark #15344: loop was not vectorized: vector dependence prevents vectorization
+   remark #15346: vector dependence: assumed ANTI dependence between ipil (362:5) and ipil (362:10)
+   remark #15346: vector dependence: assumed FLOW dependence between ipil (362:10) and ipil (362:5)
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(371,5)
+   remark #15388: vectorization support: reference ph[ih] has aligned access   [ ../src/hex2tet.cpp(371,25) ]
+   remark #15389: vectorization support: reference listhexa[k*9+ih] has unaligned access   [ ../src/hex2tet.cpp(371,34) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15305: vectorization support: vector length 8
+   remark #15427: loop was completely unrolled
+   remark #15309: vectorization support: normalized vectorization overhead 0.750
+   remark #15300: LOOP WAS VECTORIZED
+   remark #15449: unmasked aligned unit stride stores: 1 
+   remark #15450: unmasked unaligned unit stride loads: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 4 
+   remark #15477: vector cost: 0.500 
+   remark #15478: estimated potential speedup: 4.570 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(276,3) inlined into ../src/hex2tet.cpp(405,19)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ ../src/hex2tet.cpp(285,5) ]
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(415,11)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ ../src/hex2tet.cpp(418,13) ]
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(276,3) inlined into ../src/hex2tet.cpp(437,19)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ ../src/hex2tet.cpp(285,5) ]
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(447,11)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ ../src/hex2tet.cpp(450,13) ]
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(475,11)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ ../src/hex2tet.cpp(478,13) ]
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(577,11)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ ../src/hex2tet.cpp(580,13) ]
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(544,11)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ ../src/hex2tet.cpp(547,13) ]
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(654,5)
+   remark #15382: vectorization support: call to function printf(const char *, ...) cannot be vectorized   [ ../src/hex2tet.cpp(668,9) ]
+   remark #15344: loop was not vectorized: vector dependence prevents vectorization
+   remark #15346: vector dependence: assumed FLOW dependence between mark[adj/6] (663:9) and mark[adj/6] (660:7)
+   remark #15346: vector dependence: assumed ANTI dependence between mark[adj/6] (660:7) and mark[adj/6] (663:9)
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(682,5)
+   remark #15388: vectorization support: reference ph[i] has aligned access   [ ../src/hex2tet.cpp(682,22) ]
+   remark #15389: vectorization support: reference listhexa[k*9+i] has unaligned access   [ ../src/hex2tet.cpp(682,30) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15305: vectorization support: vector length 8
+   remark #15427: loop was completely unrolled
+   remark #15309: vectorization support: normalized vectorization overhead 0.750
+   remark #15300: LOOP WAS VECTORIZED
+   remark #15449: unmasked aligned unit stride stores: 1 
+   remark #15450: unmasked unaligned unit stride loads: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 4 
+   remark #15477: vector cost: 0.500 
+   remark #15478: estimated potential speedup: 4.570 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(686,5)
+   remark #15388: vectorization support: reference ph[i] has aligned access   [ ../src/hex2tet.cpp(687,26) ]
+   remark #15335: loop was not vectorized: vectorization possible but seems inefficient. Use vector always directive or -vec-threshold0 to override 
+   remark #15328: vectorization support: indirect load was emulated for the variable <ppt->c[0]>, 64-bit indexed, part of address is read from memory   [ ../src/hex2tet.cpp(688,15) ]
+   remark #15328: vectorization support: indirect load was emulated for the variable <ppt->c[1]>, 64-bit indexed, part of address is read from memory   [ ../src/hex2tet.cpp(688,41) ]
+   remark #15328: vectorization support: indirect load was emulated for the variable <ppt->c[2]>, 64-bit indexed, part of address is read from memory   [ ../src/hex2tet.cpp(688,60) ]
+   remark #15305: vectorization support: vector length 2
+   remark #15309: vectorization support: normalized vectorization overhead 1.024
+   remark #15355: vectorization support: norm_alias_2F64 is double type reduction   [ ../src/hex2tet.cpp(685,5) ]
+   remark #15355: vectorization support: norm_alias_2F64 is double type reduction   [ ../src/hex2tet.cpp(685,12) ]
+   remark #15355: vectorization support: norm_alias_2F64 is double type reduction   [ ../src/hex2tet.cpp(685,19) ]
+   remark #15450: unmasked unaligned unit stride loads: 1 
+   remark #15462: unmasked indexed (or gather) loads: 3 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 19 
+   remark #15477: vector cost: 21.000 
+   remark #15478: estimated potential speedup: 0.720 
+   remark #15487: type converts: 1 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at ../src/hex2tet.cpp(365,3)
+   remark #15532: loop was not vectorized: compile time constraints prevent loop optimization. Consider using -O3.
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(680,3)
+   remark #15532: loop was not vectorized: compile time constraints prevent loop optimization. Consider using -O3.
+
+   LOOP BEGIN at ../src/hex2tet.cpp(698,5)
+      remark #15532: loop was not vectorized: compile time constraints prevent loop optimization. Consider using -O3.
+   LOOP END
+LOOP END
+===========================================================================
+
+Begin optimization report for: H2T_cuthex(MMG5_pMesh, pHedge, int *, int *, int) [generic]
+
+    Report from: Vector optimizations [vec]
+
+
+LOOP BEGIN at ../src/hex2tet.cpp(348,5)
+   remark #15388: vectorization support: reference p[ih] has aligned access   [ ../src/hex2tet.cpp(348,30) ]
+   remark #15389: vectorization support: reference listhexa[ih+9] has unaligned access   [ ../src/hex2tet.cpp(348,38) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15305: vectorization support: vector length 4
+   remark #15427: loop was completely unrolled
+   remark #15399: vectorization support: unroll factor set to 2
+   remark #15309: vectorization support: normalized vectorization overhead 0.300
+   remark #15300: LOOP WAS VECTORIZED
+   remark #15449: unmasked aligned unit stride stores: 1 
+   remark #15450: unmasked unaligned unit stride loads: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 4 
+   remark #15477: vector cost: 1.250 
+   remark #15478: estimated potential speedup: 2.460 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(358,3)
+   remark #15344: loop was not vectorized: vector dependence prevents vectorization
+   remark #15346: vector dependence: assumed ANTI dependence between ipil (362:5) and ipil (362:10)
+   remark #15346: vector dependence: assumed FLOW dependence between ipil (362:10) and ipil (362:5)
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(371,5)
+   remark #15388: vectorization support: reference ph[ih] has aligned access   [ ../src/hex2tet.cpp(371,25) ]
+   remark #15389: vectorization support: reference listhexa[k*9+ih] has unaligned access   [ ../src/hex2tet.cpp(371,34) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15305: vectorization support: vector length 4
+   remark #15427: loop was completely unrolled
+   remark #15399: vectorization support: unroll factor set to 2
+   remark #15309: vectorization support: normalized vectorization overhead 0.300
+   remark #15300: LOOP WAS VECTORIZED
+   remark #15449: unmasked aligned unit stride stores: 1 
+   remark #15450: unmasked unaligned unit stride loads: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 4 
+   remark #15477: vector cost: 1.250 
+   remark #15478: estimated potential speedup: 2.460 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(276,3) inlined into ../src/hex2tet.cpp(405,19)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ ../src/hex2tet.cpp(285,5) ]
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(415,11)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ ../src/hex2tet.cpp(418,13) ]
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(276,3) inlined into ../src/hex2tet.cpp(437,19)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ ../src/hex2tet.cpp(285,5) ]
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(447,11)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ ../src/hex2tet.cpp(450,13) ]
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(475,11)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ ../src/hex2tet.cpp(478,13) ]
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(577,11)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ ../src/hex2tet.cpp(580,13) ]
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(544,11)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ ../src/hex2tet.cpp(547,13) ]
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(654,5)
+   remark #15382: vectorization support: call to function printf(const char *, ...) cannot be vectorized   [ ../src/hex2tet.cpp(668,9) ]
+   remark #15344: loop was not vectorized: vector dependence prevents vectorization
+   remark #15346: vector dependence: assumed FLOW dependence between mark[adj/6] (663:9) and mark[adj/6] (660:7)
+   remark #15346: vector dependence: assumed ANTI dependence between mark[adj/6] (660:7) and mark[adj/6] (663:9)
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(682,5)
+   remark #15388: vectorization support: reference ph[i] has aligned access   [ ../src/hex2tet.cpp(682,22) ]
+   remark #15389: vectorization support: reference listhexa[k*9+i] has unaligned access   [ ../src/hex2tet.cpp(682,30) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15305: vectorization support: vector length 4
+   remark #15427: loop was completely unrolled
+   remark #15399: vectorization support: unroll factor set to 2
+   remark #15309: vectorization support: normalized vectorization overhead 0.300
+   remark #15300: LOOP WAS VECTORIZED
+   remark #15449: unmasked aligned unit stride stores: 1 
+   remark #15450: unmasked unaligned unit stride loads: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 4 
+   remark #15477: vector cost: 1.250 
+   remark #15478: estimated potential speedup: 2.460 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(686,5)
+   remark #15388: vectorization support: reference ph[i] has aligned access   [ ../src/hex2tet.cpp(687,26) ]
+   remark #15335: loop was not vectorized: vectorization possible but seems inefficient. Use vector always directive or -vec-threshold0 to override 
+   remark #15328: vectorization support: indirect load was emulated for the variable <ppt->c[0]>, 64-bit indexed, part of address is read from memory   [ ../src/hex2tet.cpp(688,15) ]
+   remark #15328: vectorization support: indirect load was emulated for the variable <ppt->c[1]>, 64-bit indexed, part of address is read from memory   [ ../src/hex2tet.cpp(688,41) ]
+   remark #15328: vectorization support: indirect load was emulated for the variable <ppt->c[2]>, 64-bit indexed, part of address is read from memory   [ ../src/hex2tet.cpp(688,60) ]
+   remark #15305: vectorization support: vector length 2
+   remark #15309: vectorization support: normalized vectorization overhead 1.107
+   remark #15355: vectorization support: norm_alias_2F64 is double type reduction   [ ../src/hex2tet.cpp(685,5) ]
+   remark #15355: vectorization support: norm_alias_2F64 is double type reduction   [ ../src/hex2tet.cpp(685,12) ]
+   remark #15355: vectorization support: norm_alias_2F64 is double type reduction   [ ../src/hex2tet.cpp(685,19) ]
+   remark #15450: unmasked unaligned unit stride loads: 1 
+   remark #15462: unmasked indexed (or gather) loads: 3 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 22 
+   remark #15477: vector cost: 28.000 
+   remark #15478: estimated potential speedup: 0.610 
+   remark #15487: type converts: 1 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at ../src/hex2tet.cpp(365,3)
+   remark #15532: loop was not vectorized: compile time constraints prevent loop optimization. Consider using -O3.
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(680,3)
+   remark #15532: loop was not vectorized: compile time constraints prevent loop optimization. Consider using -O3.
+
+   LOOP BEGIN at ../src/hex2tet.cpp(698,5)
+      remark #15532: loop was not vectorized: compile time constraints prevent loop optimization. Consider using -O3.
+   LOOP END
+LOOP END
+===========================================================================
+
+Begin optimization report for: H2T_checkcaseopp(int *, int, int, pHedge)
+
+    Report from: Vector optimizations [vec]
+
+
+LOOP BEGIN at ../src/hex2tet.cpp(311,3)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ ../src/hex2tet.cpp(320,5) ]
+LOOP END
+===========================================================================
+
+Begin optimization report for: H2T_checkcase(int *, int, int, pHedge)
+
+    Report from: Vector optimizations [vec]
+
+
+LOOP BEGIN at ../src/hex2tet.cpp(276,3)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ ../src/hex2tet.cpp(285,5) ]
+LOOP END
+===========================================================================
+
+Begin optimization report for: H2T_edgePut(pHedge, int, int, int)
+
+    Report from: Vector optimizations [vec]
+
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at ../src/hex2tet.cpp(43,7)
+   remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+LOOP END
+===========================================================================
+
+Begin optimization report for: H2T_edgePoint(pHedge, int, int)
+
+    Report from: Vector optimizations [vec]
+
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at ../src/hex2tet.cpp(268,13)
+   remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+LOOP END
+===========================================================================
+
+Begin optimization report for: H2T_chkAdja(MMG5_pMesh, int *, int *, int)
+
+    Report from: Vector optimizations [vec]
+
+
+LOOP BEGIN at ../src/hex2tet.cpp(162,3)
+   remark #15344: loop was not vectorized: vector dependence prevents vectorization
+   remark #15346: vector dependence: assumed ANTI dependence between ipil (167:5) and ipil (167:10)
+   remark #15346: vector dependence: assumed FLOW dependence between ipil (167:10) and ipil (167:5)
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(171,3)
+   remark #15541: outer loop was not auto-vectorized: consider using SIMD directive
+
+   LOOP BEGIN at ../src/hex2tet.cpp(178,5)
+      remark #15344: loop was not vectorized: vector dependence prevents vectorization
+      remark #15346: vector dependence: assumed FLOW dependence between mark[adj/6] (188:9) and mark[adj/6] (185:7)
+      remark #15346: vector dependence: assumed ANTI dependence between mark[adj/6] (185:7) and mark[adj/6] (188:9)
+   LOOP END
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(197,3)
+<Peeled loop for vectorization>
+   remark #15305: vectorization support: vector length 16
+   remark #15309: vectorization support: normalized vectorization overhead 0.667
+   remark #15355: vectorization support: count is int type reduction   [ ../src/hex2tet.cpp(145,3) ]
+   remark #15301: PEEL LOOP WAS VECTORIZED
+   remark #15450: unmasked unaligned unit stride loads: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 12 
+   remark #15477: vector cost: 0.810 
+   remark #15478: estimated potential speedup: 11.460 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(197,3)
+   remark #15305: vectorization support: vector length 16
+   remark #15309: vectorization support: normalized vectorization overhead 3.154
+   remark #15355: vectorization support: count is int type reduction   [ ../src/hex2tet.cpp(145,3) ]
+   remark #15300: LOOP WAS VECTORIZED
+   remark #15450: unmasked unaligned unit stride loads: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 12 
+   remark #15477: vector cost: 0.810 
+   remark #15478: estimated potential speedup: 11.460 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(197,3)
+<Remainder loop for vectorization>
+   remark #15305: vectorization support: vector length 16
+   remark #15309: vectorization support: normalized vectorization overhead 0.667
+   remark #15355: vectorization support: count is int type reduction   [ ../src/hex2tet.cpp(145,3) ]
+   remark #15301: REMAINDER LOOP WAS VECTORIZED
+   remark #15450: unmasked unaligned unit stride loads: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 12 
+   remark #15477: vector cost: 0.810 
+   remark #15478: estimated potential speedup: 11.460 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+===========================================================================
+
+Begin optimization report for: H2T_chkAdja(MMG5_pMesh, int *, int *, int) [skylake_avx512]
+
+    Report from: Vector optimizations [vec]
+
+
+LOOP BEGIN at ../src/hex2tet.cpp(162,3)
+   remark #15389: vectorization support: reference adjahex[1+i] has unaligned access   [ ../src/hex2tet.cpp(163,12) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15305: vectorization support: vector length 8
+   remark #15427: loop was completely unrolled
+   remark #15309: vectorization support: normalized vectorization overhead 0.286
+   remark #15300: LOOP WAS VECTORIZED
+   remark #15456: masked unaligned unit stride loads: 1 
+   remark #15457: masked unaligned unit stride stores: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 13 
+   remark #15477: vector cost: 2.620 
+   remark #15478: estimated potential speedup: 2.880 
+   remark #15488: --- end vector cost summary ---
+   remark #15497: vector compress: 1 
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(171,3)
+   remark #15541: outer loop was not auto-vectorized: consider using SIMD directive
+
+   LOOP BEGIN at ../src/hex2tet.cpp(178,5)
+      remark #15344: loop was not vectorized: vector dependence prevents vectorization
+      remark #15346: vector dependence: assumed FLOW dependence between mark[adj/6] (188:9) and mark[adj/6] (185:7)
+      remark #15346: vector dependence: assumed ANTI dependence between mark[adj/6] (185:7) and mark[adj/6] (188:9)
+   LOOP END
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(197,3)
+<Peeled loop for vectorization>
+   remark #15305: vectorization support: vector length 8
+   remark #15309: vectorization support: normalized vectorization overhead 0.700
+   remark #15355: vectorization support: count is int type reduction   [ ../src/hex2tet.cpp(145,3) ]
+   remark #15301: PEEL LOOP WAS VECTORIZED
+   remark #15450: unmasked unaligned unit stride loads: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 12 
+   remark #15477: vector cost: 1.370 
+   remark #15478: estimated potential speedup: 7.570 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(197,3)
+   remark #15305: vectorization support: vector length 8
+   remark #15399: vectorization support: unroll factor set to 2
+   remark #15309: vectorization support: normalized vectorization overhead 1.591
+   remark #15355: vectorization support: count is int type reduction   [ ../src/hex2tet.cpp(145,3) ]
+   remark #15300: LOOP WAS VECTORIZED
+   remark #26013: Compiler has chosen to target XMM/YMM vector. Try using -qopt-zmm-usage=high to override
+   remark #15450: unmasked unaligned unit stride loads: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 12 
+   remark #15477: vector cost: 1.370 
+   remark #15478: estimated potential speedup: 7.570 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(197,3)
+<Remainder loop for vectorization>
+   remark #15305: vectorization support: vector length 8
+   remark #15309: vectorization support: normalized vectorization overhead 0.700
+   remark #15355: vectorization support: count is int type reduction   [ ../src/hex2tet.cpp(145,3) ]
+   remark #15301: REMAINDER LOOP WAS VECTORIZED
+   remark #15450: unmasked unaligned unit stride loads: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 12 
+   remark #15477: vector cost: 1.370 
+   remark #15478: estimated potential speedup: 7.570 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+===========================================================================
+
+Begin optimization report for: H2T_chkAdja(MMG5_pMesh, int *, int *, int) [haswell]
+
+    Report from: Vector optimizations [vec]
+
+
+LOOP BEGIN at ../src/hex2tet.cpp(162,3)
+   remark #15344: loop was not vectorized: vector dependence prevents vectorization
+   remark #15346: vector dependence: assumed ANTI dependence between ipil (167:5) and ipil (167:10)
+   remark #15346: vector dependence: assumed FLOW dependence between ipil (167:10) and ipil (167:5)
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(171,3)
+   remark #15541: outer loop was not auto-vectorized: consider using SIMD directive
+
+   LOOP BEGIN at ../src/hex2tet.cpp(178,5)
+      remark #15344: loop was not vectorized: vector dependence prevents vectorization
+      remark #15346: vector dependence: assumed FLOW dependence between mark[adj/6] (188:9) and mark[adj/6] (185:7)
+      remark #15346: vector dependence: assumed ANTI dependence between mark[adj/6] (185:7) and mark[adj/6] (188:9)
+   LOOP END
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(197,3)
+<Peeled loop for vectorization>
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(197,3)
+   remark #15305: vectorization support: vector length 8
+   remark #15399: vectorization support: unroll factor set to 2
+   remark #15309: vectorization support: normalized vectorization overhead 1.750
+   remark #15355: vectorization support: count is int type reduction   [ ../src/hex2tet.cpp(145,3) ]
+   remark #15300: LOOP WAS VECTORIZED
+   remark #15442: entire loop may be executed in remainder
+   remark #15450: unmasked unaligned unit stride loads: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 12 
+   remark #15477: vector cost: 1.250 
+   remark #15478: estimated potential speedup: 6.670 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(197,3)
+<Remainder loop for vectorization>
+   remark #15305: vectorization support: vector length 8
+   remark #15309: vectorization support: normalized vectorization overhead 3.455
+   remark #15355: vectorization support: count is int type reduction   [ ../src/hex2tet.cpp(145,3) ]
+   remark #15301: REMAINDER LOOP WAS VECTORIZED
+   remark #15442: entire loop may be executed in remainder
+   remark #15450: unmasked unaligned unit stride loads: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 12 
+   remark #15477: vector cost: 1.250 
+   remark #15478: estimated potential speedup: 6.670 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(197,3)
+<Remainder loop for vectorization>
+LOOP END
+===========================================================================
+
+Begin optimization report for: H2T_chkAdja(MMG5_pMesh, int *, int *, int) [generic]
+
+    Report from: Vector optimizations [vec]
+
+
+LOOP BEGIN at ../src/hex2tet.cpp(162,3)
+   remark #15344: loop was not vectorized: vector dependence prevents vectorization
+   remark #15346: vector dependence: assumed ANTI dependence between ipil (167:5) and ipil (167:10)
+   remark #15346: vector dependence: assumed FLOW dependence between ipil (167:10) and ipil (167:5)
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(171,3)
+   remark #15541: outer loop was not auto-vectorized: consider using SIMD directive
+
+   LOOP BEGIN at ../src/hex2tet.cpp(178,5)
+      remark #15344: loop was not vectorized: vector dependence prevents vectorization
+      remark #15346: vector dependence: assumed FLOW dependence between mark[adj/6] (188:9) and mark[adj/6] (185:7)
+      remark #15346: vector dependence: assumed ANTI dependence between mark[adj/6] (185:7) and mark[adj/6] (188:9)
+   LOOP END
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(197,3)
+<Peeled loop for vectorization>
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(197,3)
+   remark #15305: vectorization support: vector length 4
+   remark #15399: vectorization support: unroll factor set to 2
+   remark #15309: vectorization support: normalized vectorization overhead 2.050
+   remark #15355: vectorization support: count is int type reduction   [ ../src/hex2tet.cpp(145,3) ]
+   remark #15300: LOOP WAS VECTORIZED
+   remark #15442: entire loop may be executed in remainder
+   remark #15448: unmasked aligned unit stride loads: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 20 
+   remark #15477: vector cost: 2.500 
+   remark #15478: estimated potential speedup: 6.960 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(197,3)
+<Remainder loop for vectorization>
+   remark #15305: vectorization support: vector length 4
+   remark #15309: vectorization support: normalized vectorization overhead 3.417
+   remark #15355: vectorization support: count is int type reduction   [ ../src/hex2tet.cpp(145,3) ]
+   remark #15301: REMAINDER LOOP WAS VECTORIZED
+   remark #15442: entire loop may be executed in remainder
+   remark #15448: unmasked aligned unit stride loads: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 20 
+   remark #15477: vector cost: 2.500 
+   remark #15478: estimated potential speedup: 6.960 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(197,3)
+<Remainder loop for vectorization>
+LOOP END
+===========================================================================
+
+Begin optimization report for: H2T_hashHexa(int *, int *, int)
+
+    Report from: Vector optimizations [vec]
+
+
+LOOP BEGIN at ../src/hex2tet.cpp(778,3)
+<Peeled loop for vectorization>
+   remark #15389: vectorization support: reference hcode[k] has unaligned access   [ ../src/hex2tet.cpp(779,5) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15305: vectorization support: vector length 16
+   remark #15309: vectorization support: normalized vectorization overhead 1.167
+   remark #15301: PEEL LOOP WAS VECTORIZED
+   remark #15451: unmasked unaligned unit stride stores: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 3 
+   remark #15477: vector cost: 0.180 
+   remark #15478: estimated potential speedup: 12.320 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(778,3)
+   remark #15389: vectorization support: reference hcode[k] has unaligned access   [ ../src/hex2tet.cpp(779,5) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15305: vectorization support: vector length 16
+   remark #15309: vectorization support: normalized vectorization overhead 3.333
+   remark #15300: LOOP WAS VECTORIZED
+   remark #15451: unmasked unaligned unit stride stores: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 3 
+   remark #15477: vector cost: 0.180 
+   remark #15478: estimated potential speedup: 12.320 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(778,3)
+<Remainder loop for vectorization>
+   remark #15389: vectorization support: reference hcode[k] has unaligned access   [ ../src/hex2tet.cpp(779,5) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15305: vectorization support: vector length 16
+   remark #15309: vectorization support: normalized vectorization overhead 1.167
+   remark #15301: REMAINDER LOOP WAS VECTORIZED
+   remark #15451: unmasked unaligned unit stride stores: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 3 
+   remark #15477: vector cost: 0.180 
+   remark #15478: estimated potential speedup: 12.320 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(782,3)
+   remark #15344: loop was not vectorized: vector dependence prevents vectorization
+   remark #15346: vector dependence: assumed FLOW dependence between ph[iii] (785:7) and ph[H2T_hopp[i][imins]] (799:7)
+   remark #15346: vector dependence: assumed ANTI dependence between ph[H2T_hopp[i][imins]] (799:7) and ph[iii] (785:7)
+
+   LOOP BEGIN at ../src/hex2tet.cpp(784,5)
+   LOOP END
+
+   LOOP BEGIN at ../src/hex2tet.cpp(787,5)
+   LOOP END
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(821,5)
+   remark #15388: vectorization support: reference ph[iii] has aligned access   [ ../src/hex2tet.cpp(822,7) ]
+   remark #15389: vectorization support: reference listhexa[iadr+iii] has unaligned access   [ ../src/hex2tet.cpp(822,17) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15305: vectorization support: vector length 8
+   remark #15427: loop was completely unrolled
+   remark #15309: vectorization support: normalized vectorization overhead 0.750
+   remark #15300: LOOP WAS VECTORIZED
+   remark #15449: unmasked aligned unit stride stores: 1 
+   remark #15450: unmasked unaligned unit stride loads: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 7 
+   remark #15477: vector cost: 0.500 
+   remark #15478: estimated potential speedup: 8.000 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(840,7)
+   remark #15388: vectorization support: reference ph1[iii] has aligned access   [ ../src/hex2tet.cpp(841,9) ]
+   remark #15389: vectorization support: reference listhexa[iadr+iii] has unaligned access   [ ../src/hex2tet.cpp(841,20) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15305: vectorization support: vector length 8
+   remark #15427: loop was completely unrolled
+   remark #15309: vectorization support: normalized vectorization overhead 0.750
+   remark #15300: LOOP WAS VECTORIZED
+   remark #15449: unmasked aligned unit stride stores: 1 
+   remark #15450: unmasked unaligned unit stride loads: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 7 
+   remark #15477: vector cost: 0.500 
+   remark #15478: estimated potential speedup: 8.000 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at ../src/hex2tet.cpp(809,3)
+   remark #15532: loop was not vectorized: compile time constraints prevent loop optimization. Consider using -O3.
+
+   LOOP BEGIN at ../src/hex2tet.cpp(832,5)
+      remark #15532: loop was not vectorized: compile time constraints prevent loop optimization. Consider using -O3.
+   LOOP END
+LOOP END
+===========================================================================
+
+Begin optimization report for: H2T_hashHexa(int *, int *, int) [skylake_avx512]
+
+    Report from: Vector optimizations [vec]
+
+
+LOOP BEGIN at ../src/hex2tet.cpp(778,3)
+<Peeled loop for vectorization>
+   remark #15389: vectorization support: reference hcode[k] has unaligned access   [ ../src/hex2tet.cpp(779,5) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15335: peel loop was not vectorized: vectorization possible but seems inefficient. Use vector always directive or -vec-threshold0 to override 
+   remark #15305: vectorization support: vector length 4
+   remark #15309: vectorization support: normalized vectorization overhead 1.167
+   remark #15451: unmasked unaligned unit stride stores: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 3 
+   remark #15477: vector cost: 0.370 
+   remark #15478: estimated potential speedup: 5.840 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(778,3)
+   remark #15389: vectorization support: reference hcode[k] has unaligned access   [ ../src/hex2tet.cpp(779,5) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15305: vectorization support: vector length 8
+   remark #15309: vectorization support: normalized vectorization overhead 3.333
+   remark #15300: LOOP WAS VECTORIZED
+   remark #26013: Compiler has chosen to target XMM/YMM vector. Try using -qopt-zmm-usage=high to override
+   remark #15451: unmasked unaligned unit stride stores: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 3 
+   remark #15477: vector cost: 0.370 
+   remark #15478: estimated potential speedup: 5.840 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(778,3)
+<Remainder loop for vectorization>
+   remark #15389: vectorization support: reference hcode[k] has unaligned access   [ ../src/hex2tet.cpp(779,5) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15335: remainder loop was not vectorized: vectorization possible but seems inefficient. Use vector always directive or -vec-threshold0 to override 
+   remark #15305: vectorization support: vector length 4
+   remark #15309: vectorization support: normalized vectorization overhead 1.167
+   remark #15451: unmasked unaligned unit stride stores: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 3 
+   remark #15477: vector cost: 0.370 
+   remark #15478: estimated potential speedup: 5.840 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(782,3)
+   remark #15344: loop was not vectorized: vector dependence prevents vectorization
+   remark #15346: vector dependence: assumed FLOW dependence between ph[iii] (785:7) and ph[H2T_hopp[i][imins]] (799:7)
+   remark #15346: vector dependence: assumed ANTI dependence between ph[H2T_hopp[i][imins]] (799:7) and ph[iii] (785:7)
+
+   LOOP BEGIN at ../src/hex2tet.cpp(784,5)
+   LOOP END
+
+   LOOP BEGIN at ../src/hex2tet.cpp(787,5)
+   LOOP END
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(821,5)
+   remark #15388: vectorization support: reference ph[iii] has aligned access   [ ../src/hex2tet.cpp(822,7) ]
+   remark #15389: vectorization support: reference listhexa[iadr+iii] has unaligned access   [ ../src/hex2tet.cpp(822,17) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15305: vectorization support: vector length 8
+   remark #15427: loop was completely unrolled
+   remark #15309: vectorization support: normalized vectorization overhead 3.000
+   remark #15300: LOOP WAS VECTORIZED
+   remark #26013: Compiler has chosen to target XMM/YMM vector. Try using -qopt-zmm-usage=high to override
+   remark #15449: unmasked aligned unit stride stores: 1 
+   remark #15450: unmasked unaligned unit stride loads: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 7 
+   remark #15477: vector cost: 0.500 
+   remark #15478: estimated potential speedup: 3.500 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(840,7)
+   remark #15388: vectorization support: reference ph1[iii] has aligned access   [ ../src/hex2tet.cpp(841,9) ]
+   remark #15389: vectorization support: reference listhexa[iadr+iii] has unaligned access   [ ../src/hex2tet.cpp(841,20) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15305: vectorization support: vector length 8
+   remark #15427: loop was completely unrolled
+   remark #15309: vectorization support: normalized vectorization overhead 0.750
+   remark #15300: LOOP WAS VECTORIZED
+   remark #26013: Compiler has chosen to target XMM/YMM vector. Try using -qopt-zmm-usage=high to override
+   remark #15449: unmasked aligned unit stride stores: 1 
+   remark #15450: unmasked unaligned unit stride loads: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 7 
+   remark #15477: vector cost: 0.500 
+   remark #15478: estimated potential speedup: 8.000 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at ../src/hex2tet.cpp(809,3)
+   remark #15532: loop was not vectorized: compile time constraints prevent loop optimization. Consider using -O3.
+
+   LOOP BEGIN at ../src/hex2tet.cpp(832,5)
+      remark #15532: loop was not vectorized: compile time constraints prevent loop optimization. Consider using -O3.
+   LOOP END
+LOOP END
+===========================================================================
+
+Begin optimization report for: H2T_hashHexa(int *, int *, int) [haswell]
+
+    Report from: Vector optimizations [vec]
+
+
+LOOP BEGIN at ../src/hex2tet.cpp(778,3)
+<Peeled loop for vectorization>
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(778,3)
+   remark #15389: vectorization support: reference hcode[k] has unaligned access   [ ../src/hex2tet.cpp(779,5) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15305: vectorization support: vector length 8
+   remark #15309: vectorization support: normalized vectorization overhead 3.333
+   remark #15300: LOOP WAS VECTORIZED
+   remark #15442: entire loop may be executed in remainder
+   remark #15451: unmasked unaligned unit stride stores: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 3 
+   remark #15477: vector cost: 0.370 
+   remark #15478: estimated potential speedup: 5.840 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(778,3)
+<Remainder loop for vectorization>
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(782,3)
+   remark #15344: loop was not vectorized: vector dependence prevents vectorization
+   remark #15346: vector dependence: assumed FLOW dependence between ph[iii] (785:7) and ph[H2T_hopp[i][imins]] (799:7)
+   remark #15346: vector dependence: assumed ANTI dependence between ph[H2T_hopp[i][imins]] (799:7) and ph[iii] (785:7)
+
+   LOOP BEGIN at ../src/hex2tet.cpp(784,5)
+   LOOP END
+
+   LOOP BEGIN at ../src/hex2tet.cpp(787,5)
+   LOOP END
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(821,5)
+   remark #15388: vectorization support: reference ph[iii] has aligned access   [ ../src/hex2tet.cpp(822,7) ]
+   remark #15389: vectorization support: reference listhexa[iadr+iii] has unaligned access   [ ../src/hex2tet.cpp(822,17) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15305: vectorization support: vector length 8
+   remark #15427: loop was completely unrolled
+   remark #15309: vectorization support: normalized vectorization overhead 0.750
+   remark #15300: LOOP WAS VECTORIZED
+   remark #15449: unmasked aligned unit stride stores: 1 
+   remark #15450: unmasked unaligned unit stride loads: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 7 
+   remark #15477: vector cost: 0.500 
+   remark #15478: estimated potential speedup: 8.000 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(840,7)
+   remark #15388: vectorization support: reference ph1[iii] has aligned access   [ ../src/hex2tet.cpp(841,9) ]
+   remark #15389: vectorization support: reference listhexa[iadr+iii] has unaligned access   [ ../src/hex2tet.cpp(841,20) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15305: vectorization support: vector length 8
+   remark #15427: loop was completely unrolled
+   remark #15309: vectorization support: normalized vectorization overhead 0.750
+   remark #15300: LOOP WAS VECTORIZED
+   remark #15449: unmasked aligned unit stride stores: 1 
+   remark #15450: unmasked unaligned unit stride loads: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 7 
+   remark #15477: vector cost: 0.500 
+   remark #15478: estimated potential speedup: 8.000 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at ../src/hex2tet.cpp(809,3)
+   remark #15532: loop was not vectorized: compile time constraints prevent loop optimization. Consider using -O3.
+
+   LOOP BEGIN at ../src/hex2tet.cpp(832,5)
+      remark #15532: loop was not vectorized: compile time constraints prevent loop optimization. Consider using -O3.
+   LOOP END
+LOOP END
+===========================================================================
+
+Begin optimization report for: H2T_hashHexa(int *, int *, int) [generic]
+
+    Report from: Vector optimizations [vec]
+
+
+LOOP BEGIN at ../src/hex2tet.cpp(778,3)
+<Peeled loop for vectorization>
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(778,3)
+   remark #15388: vectorization support: reference hcode[k] has aligned access   [ ../src/hex2tet.cpp(779,5) ]
+   remark #15305: vectorization support: vector length 4
+   remark #15309: vectorization support: normalized vectorization overhead 3.333
+   remark #15300: LOOP WAS VECTORIZED
+   remark #15442: entire loop may be executed in remainder
+   remark #15449: unmasked aligned unit stride stores: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 3 
+   remark #15477: vector cost: 0.750 
+   remark #15478: estimated potential speedup: 3.680 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(778,3)
+<Remainder loop for vectorization>
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(782,3)
+   remark #15344: loop was not vectorized: vector dependence prevents vectorization
+   remark #15346: vector dependence: assumed FLOW dependence between ph[iii] (785:7) and ph[H2T_hopp[i][imins]] (799:7)
+   remark #15346: vector dependence: assumed ANTI dependence between ph[H2T_hopp[i][imins]] (799:7) and ph[iii] (785:7)
+
+   LOOP BEGIN at ../src/hex2tet.cpp(784,5)
+   LOOP END
+
+   LOOP BEGIN at ../src/hex2tet.cpp(787,5)
+   LOOP END
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(821,5)
+   remark #15388: vectorization support: reference ph[iii] has aligned access   [ ../src/hex2tet.cpp(822,7) ]
+   remark #15389: vectorization support: reference listhexa[iadr+iii] has unaligned access   [ ../src/hex2tet.cpp(822,17) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15305: vectorization support: vector length 4
+   remark #15427: loop was completely unrolled
+   remark #15399: vectorization support: unroll factor set to 2
+   remark #15309: vectorization support: normalized vectorization overhead 0.300
+   remark #15300: LOOP WAS VECTORIZED
+   remark #15449: unmasked aligned unit stride stores: 1 
+   remark #15450: unmasked unaligned unit stride loads: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 7 
+   remark #15477: vector cost: 1.250 
+   remark #15478: estimated potential speedup: 4.300 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at ../src/hex2tet.cpp(840,7)
+   remark #15388: vectorization support: reference ph1[iii] has aligned access   [ ../src/hex2tet.cpp(841,9) ]
+   remark #15389: vectorization support: reference listhexa[iadr+iii] has unaligned access   [ ../src/hex2tet.cpp(841,20) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15305: vectorization support: vector length 4
+   remark #15427: loop was completely unrolled
+   remark #15399: vectorization support: unroll factor set to 2
+   remark #15309: vectorization support: normalized vectorization overhead 0.300
+   remark #15300: LOOP WAS VECTORIZED
+   remark #15449: unmasked aligned unit stride stores: 1 
+   remark #15450: unmasked unaligned unit stride loads: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 7 
+   remark #15477: vector cost: 1.250 
+   remark #15478: estimated potential speedup: 4.300 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at ../src/hex2tet.cpp(809,3)
+   remark #15532: loop was not vectorized: compile time constraints prevent loop optimization. Consider using -O3.
+
+   LOOP BEGIN at ../src/hex2tet.cpp(832,5)
+      remark #15532: loop was not vectorized: compile time constraints prevent loop optimization. Consider using -O3.
+   LOOP END
+LOOP END
+===========================================================================

@@ -1,0 +1,1294 @@
+Intel(R) Advisor can now assist with vectorization and show optimization
+  report messages with your source code.
+See "https://software.intel.com/en-us/intel-advisor-xe" for details.
+
+Intel(R) C Intel(R) 64 Compiler for applications running on Intel(R) 64, Version 19.1.3.304 Build 20200925_000000
+
+Compiler options: -I/nobackupp19/dekelsch/Software/ParMmg/build/Mmg-prefix/src/Mmg-build/include -I/nobackupp19/dekelsch/Software/ParMmg/build/include -I/nobackupp19/dekelsch/parmetis-4.0.3/parmetis-install/include -I/nobackupp19/dekelsch/parmetis-4.0.3/metis/metis-install/include -I/nobackupp19/dekelsch/boost_1_71_0/boost-install/include -I/home1/dekelsch/Software/tinyxml -I/nobackupp19/dekelsch/CGNS-3.3.0/src/install/include -I/home1/dekelsch/local/lib/python3.12/site-packages/numpy/_core/include -I/home1/dekelsch/local/lib/python3.12/site-packages/mpi4py/include -I/home1/dekelsch/local/include/python3.12/ -std=c++17 -g -DMPI_NO_CPPBIND -fPIC -lm -lpthread -ldl -lutil -L/home1/dekelsch/local/lib/python3.12/ -O2 -Wall -axAVX,CORE-AVX2,CORE-AVX512 -qopt-report-phase=vec -qopt-report=5 -o PartiClass.so -L/nobackupp19/dekelsch/Software/ParMmg/build/Mmg-prefix/src/Mmg-build/lib -L/nobackupp19/dekelsch/Software/ParMmg/build/lib -L/nobackupp19/dekelsch/parmetis-4.0.3/parmetis-install/lib -L/nobackupp19/dekelsch/parmetis-4.0.3/metis/metis-install/lib -L/nobackupp19/dekelsch/boost_1_71_0/boost-install/stage/lib -L/home1/dekelsch/Software/tinyxml -L/nobackupp19/dekelsch/CGNS-3.3.0/src/install/lib -shared -lm -lpthread -ldl -lutil -L/home1/dekelsch/local/lib/python3.12/ -lmpi -lparmetis -lmetis -lhdf5 -mkl -lparmmg -lmmg -lcgns -lmpi
+
+Begin optimization report for: SolveQR(double *, int, int, Array<double> *)
+
+    Report from: Vector optimizations [vec]
+
+
+LOOP BEGIN at ../src/adapt_math.cpp(52,5)
+   remark #15344: loop was not vectorized: vector dependence prevents vectorization
+   remark #15346: vector dependence: assumed FLOW dependence between this (22:13) and b->data[i*b->ncol] (22:13)
+   remark #15346: vector dependence: assumed ANTI dependence between b->data[i*b->ncol] (22:13) and this (22:13)
+LOOP END
+
+LOOP BEGIN at ../src/adapt_math.cpp(65,5)
+   remark #15344: loop was not vectorized: vector dependence prevents vectorization
+   remark #15346: vector dependence: assumed FLOW dependence between this (22:13) and U11_V->data[i*U11_V->ncol] (22:13)
+   remark #15346: vector dependence: assumed ANTI dependence between U11_V->data[i*U11_V->ncol] (22:13) and this (22:13)
+LOOP END
+===========================================================================
+
+Begin optimization report for: SolveQR_Lite(std::vector<double, std::allocator<double>> *, std::vector<double, std::allocator<double>> *, int, int, std::vector<double, std::allocator<double>> *)
+
+    Report from: Vector optimizations [vec]
+
+
+LOOP BEGIN at ../src/adapt_math.cpp(87,5)
+   remark #15541: outer loop was not auto-vectorized: consider using SIMD directive
+
+   LOOP BEGIN at ../src/adapt_math.cpp(87,5)
+   <Multiversioned v2>
+      remark #15304: loop was not vectorized: non-vectorizable loop instance from multiversioning
+   LOOP END
+
+   LOOP BEGIN at ../src/adapt_math.cpp(87,5)
+   <Remainder, Multiversioned v2>
+   LOOP END
+LOOP END
+
+LOOP BEGIN at ../src/adapt_math.cpp(102,5)
+   remark #15541: outer loop was not auto-vectorized: consider using SIMD directive
+
+   LOOP BEGIN at ../src/adapt_math.cpp(102,5)
+   <Multiversioned v2>
+      remark #15304: loop was not vectorized: non-vectorizable loop instance from multiversioning
+   LOOP END
+
+   LOOP BEGIN at ../src/adapt_math.cpp(102,5)
+   <Remainder, Multiversioned v2>
+   LOOP END
+LOOP END
+===========================================================================
+
+Begin optimization report for: std::vector<double, std::allocator<double>>::vector(std::vector<double, std::allocator<double>> *, std::vector<double, std::allocator<double>>::size_type, const std::vector<double, std::allocator<double>>::value_type &, const std::vector<double, std::allocator<double>>::allocator_type &)
+
+    Report from: Vector optimizations [vec]
+
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_algobase.h(752,7) inlined into /usr/include/c++/8/bits/stl_vector.h(431,9)
+<Peeled loop for vectorization>
+   remark #15389: vectorization support: reference *__first has unaligned access   [ /usr/include/c++/8/bits/stl_algobase.h(754,3) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15335: peel loop was not vectorized: vectorization possible but seems inefficient. Use vector always directive or -vec-threshold0 to override 
+   remark #15305: vectorization support: vector length 2
+   remark #15309: vectorization support: normalized vectorization overhead 2.000
+   remark #15451: unmasked unaligned unit stride stores: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 4 
+   remark #15477: vector cost: 0.430 
+   remark #15478: estimated potential speedup: 7.180 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_algobase.h(752,7) inlined into /usr/include/c++/8/bits/stl_vector.h(431,9)
+   remark #15389: vectorization support: reference *__first has unaligned access   [ /usr/include/c++/8/bits/stl_algobase.h(754,3) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15305: vectorization support: vector length 16
+   remark #15309: vectorization support: normalized vectorization overhead 1.857
+   remark #15300: LOOP WAS VECTORIZED
+   remark #15451: unmasked unaligned unit stride stores: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 4 
+   remark #15477: vector cost: 0.430 
+   remark #15478: estimated potential speedup: 7.180 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_algobase.h(752,7) inlined into /usr/include/c++/8/bits/stl_vector.h(431,9)
+<Remainder loop for vectorization>
+   remark #15389: vectorization support: reference *__first has unaligned access   [ /usr/include/c++/8/bits/stl_algobase.h(754,3) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15305: vectorization support: vector length 8
+   remark #15309: vectorization support: normalized vectorization overhead 2.000
+   remark #15301: REMAINDER LOOP WAS VECTORIZED
+   remark #15451: unmasked unaligned unit stride stores: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 4 
+   remark #15477: vector cost: 0.430 
+   remark #15478: estimated potential speedup: 7.180 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+===========================================================================
+
+Begin optimization report for: std::vector<double, std::allocator<double>>::vector(std::vector<double, std::allocator<double>> *, std::vector<double, std::allocator<double>>::size_type, const std::vector<double, std::allocator<double>>::value_type &, const std::vector<double, std::allocator<double>>::allocator_type &) [skylake_avx512]
+
+    Report from: Vector optimizations [vec]
+
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_algobase.h(752,7) inlined into /usr/include/c++/8/bits/stl_vector.h(431,9)
+<Peeled loop for vectorization>
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_algobase.h(752,7) inlined into /usr/include/c++/8/bits/stl_vector.h(431,9)
+   remark #15388: vectorization support: reference *__first has aligned access   [ /usr/include/c++/8/bits/stl_algobase.h(754,3) ]
+   remark #15305: vectorization support: vector length 8
+   remark #15399: vectorization support: unroll factor set to 2
+   remark #15309: vectorization support: normalized vectorization overhead 0.929
+   remark #15300: LOOP WAS VECTORIZED
+   remark #26013: Compiler has chosen to target XMM/YMM vector. Try using -qopt-zmm-usage=high to override
+   remark #15442: entire loop may be executed in remainder
+   remark #15449: unmasked aligned unit stride stores: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 4 
+   remark #15477: vector cost: 0.870 
+   remark #15478: estimated potential speedup: 3.830 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_algobase.h(752,7) inlined into /usr/include/c++/8/bits/stl_vector.h(431,9)
+<Remainder loop for vectorization>
+   remark #15389: vectorization support: reference *__first has unaligned access   [ /usr/include/c++/8/bits/stl_algobase.h(754,3) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15305: vectorization support: vector length 4
+   remark #15309: vectorization support: normalized vectorization overhead 2.500
+   remark #15301: REMAINDER LOOP WAS VECTORIZED
+   remark #15442: entire loop may be executed in remainder
+   remark #15449: unmasked aligned unit stride stores: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 4 
+   remark #15477: vector cost: 0.870 
+   remark #15478: estimated potential speedup: 3.830 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_algobase.h(752,7) inlined into /usr/include/c++/8/bits/stl_vector.h(431,9)
+<Remainder loop for vectorization>
+LOOP END
+===========================================================================
+
+Begin optimization report for: std::vector<double, std::allocator<double>>::vector(std::vector<double, std::allocator<double>> *, std::vector<double, std::allocator<double>>::size_type, const std::vector<double, std::allocator<double>>::value_type &, const std::vector<double, std::allocator<double>>::allocator_type &) [haswell]
+
+    Report from: Vector optimizations [vec]
+
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_algobase.h(752,7) inlined into /usr/include/c++/8/bits/stl_vector.h(431,9)
+<Peeled loop for vectorization>
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_algobase.h(752,7) inlined into /usr/include/c++/8/bits/stl_vector.h(431,9)
+   remark #15388: vectorization support: reference *__first has aligned access   [ /usr/include/c++/8/bits/stl_algobase.h(754,3) ]
+   remark #15305: vectorization support: vector length 8
+   remark #15399: vectorization support: unroll factor set to 2
+   remark #15309: vectorization support: normalized vectorization overhead 0.929
+   remark #15300: LOOP WAS VECTORIZED
+   remark #15442: entire loop may be executed in remainder
+   remark #15449: unmasked aligned unit stride stores: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 4 
+   remark #15477: vector cost: 0.870 
+   remark #15478: estimated potential speedup: 3.830 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_algobase.h(752,7) inlined into /usr/include/c++/8/bits/stl_vector.h(431,9)
+<Remainder loop for vectorization>
+   remark #15389: vectorization support: reference *__first has unaligned access   [ /usr/include/c++/8/bits/stl_algobase.h(754,3) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15305: vectorization support: vector length 4
+   remark #15309: vectorization support: normalized vectorization overhead 2.500
+   remark #15301: REMAINDER LOOP WAS VECTORIZED
+   remark #15442: entire loop may be executed in remainder
+   remark #15449: unmasked aligned unit stride stores: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 4 
+   remark #15477: vector cost: 0.870 
+   remark #15478: estimated potential speedup: 3.830 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_algobase.h(752,7) inlined into /usr/include/c++/8/bits/stl_vector.h(431,9)
+<Remainder loop for vectorization>
+LOOP END
+===========================================================================
+
+Begin optimization report for: std::vector<double, std::allocator<double>>::vector(std::vector<double, std::allocator<double>> *, std::vector<double, std::allocator<double>>::size_type, const std::vector<double, std::allocator<double>>::value_type &, const std::vector<double, std::allocator<double>>::allocator_type &) [core_2nd_gen_avx]
+
+    Report from: Vector optimizations [vec]
+
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_algobase.h(752,7) inlined into /usr/include/c++/8/bits/stl_vector.h(431,9)
+<Peeled loop for vectorization>
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_algobase.h(752,7) inlined into /usr/include/c++/8/bits/stl_vector.h(431,9)
+   remark #15388: vectorization support: reference *__first has aligned access   [ /usr/include/c++/8/bits/stl_algobase.h(754,3) ]
+   remark #15305: vectorization support: vector length 8
+   remark #15399: vectorization support: unroll factor set to 2
+   remark #15309: vectorization support: normalized vectorization overhead 1.357
+   remark #15300: LOOP WAS VECTORIZED
+   remark #15442: entire loop may be executed in remainder
+   remark #15449: unmasked aligned unit stride stores: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 4 
+   remark #15477: vector cost: 0.870 
+   remark #15478: estimated potential speedup: 3.760 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_algobase.h(752,7) inlined into /usr/include/c++/8/bits/stl_vector.h(431,9)
+<Remainder loop for vectorization>
+   remark #15388: vectorization support: reference *__first has aligned access   [ /usr/include/c++/8/bits/stl_algobase.h(754,3) ]
+   remark #15305: vectorization support: vector length 4
+   remark #15309: vectorization support: normalized vectorization overhead 4.000
+   remark #15301: REMAINDER LOOP WAS VECTORIZED
+   remark #15442: entire loop may be executed in remainder
+   remark #15449: unmasked aligned unit stride stores: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 4 
+   remark #15477: vector cost: 0.870 
+   remark #15478: estimated potential speedup: 3.760 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_algobase.h(752,7) inlined into /usr/include/c++/8/bits/stl_vector.h(431,9)
+<Remainder loop for vectorization>
+LOOP END
+===========================================================================
+
+Begin optimization report for: std::vector<double, std::allocator<double>>::vector(std::vector<double, std::allocator<double>> *, std::vector<double, std::allocator<double>>::size_type, const std::vector<double, std::allocator<double>>::value_type &, const std::vector<double, std::allocator<double>>::allocator_type &) [generic]
+
+    Report from: Vector optimizations [vec]
+
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_algobase.h(752,7) inlined into /usr/include/c++/8/bits/stl_vector.h(431,9)
+<Peeled loop for vectorization>
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_algobase.h(752,7) inlined into /usr/include/c++/8/bits/stl_vector.h(431,9)
+   remark #15388: vectorization support: reference *__first has aligned access   [ /usr/include/c++/8/bits/stl_algobase.h(754,3) ]
+   remark #15305: vectorization support: vector length 2
+   remark #15399: vectorization support: unroll factor set to 4
+   remark #15309: vectorization support: normalized vectorization overhead 0.875
+   remark #15300: LOOP WAS VECTORIZED
+   remark #15442: entire loop may be executed in remainder
+   remark #15449: unmasked aligned unit stride stores: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 4 
+   remark #15477: vector cost: 2.000 
+   remark #15478: estimated potential speedup: 1.920 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_algobase.h(752,7) inlined into /usr/include/c++/8/bits/stl_vector.h(431,9)
+<Remainder loop for vectorization>
+LOOP END
+===========================================================================
+
+Begin optimization report for: isDiagonalMatrix(Array<double> *)
+
+    Report from: Vector optimizations [vec]
+
+
+LOOP BEGIN at ../src/adapt_math.cpp(181,34)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ ../src/adapt_math.cpp(185,24) ]
+LOOP END
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at ../src/adapt_math.cpp(180,30)
+   remark #15532: loop was not vectorized: compile time constraints prevent loop optimization. Consider using -O3.
+LOOP END
+===========================================================================
+
+Begin optimization report for: MatInv(Array<double> *)
+
+    Report from: Vector optimizations [vec]
+
+
+LOOP BEGIN at ../src/adapt_math.cpp(200,5)
+   remark #15541: outer loop was not auto-vectorized: consider using SIMD directive
+
+   LOOP BEGIN at ../src/adapt_math.cpp(202,9)
+      remark #15541: outer loop was not auto-vectorized: consider using SIMD directive
+
+      LOOP BEGIN at ../src/adapt_math.cpp(202,9)
+      <Multiversioned v2>
+         remark #15304: loop was not vectorized: non-vectorizable loop instance from multiversioning
+      LOOP END
+
+      LOOP BEGIN at ../src/adapt_math.cpp(202,9)
+      <Remainder, Multiversioned v2>
+      LOOP END
+   LOOP END
+LOOP END
+===========================================================================
+
+Begin optimization report for: UnitTestSVD()
+
+    Report from: Vector optimizations [vec]
+
+
+LOOP BEGIN at ../src/adapt_math.cpp(222,6)
+   remark #15389: vectorization support: reference A[_2] has unaligned access
+   remark #15388: vectorization support: reference at (222:13) has aligned access   [ ../src/adapt_math.cpp(222,13) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15305: vectorization support: vector length 8
+   remark #15309: vectorization support: normalized vectorization overhead 0.500
+   remark #15301: MATERIALIZED LOOP WAS VECTORIZED
+   remark #15448: unmasked aligned unit stride loads: 1 
+   remark #15451: unmasked unaligned unit stride stores: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 4 
+   remark #15477: vector cost: 0.750 
+   remark #15478: estimated potential speedup: 2.760 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at ../src/adapt_math.cpp(222,6)
+<Remainder loop for vectorization>
+   remark #15448: unmasked aligned unit stride loads: 1 
+   remark #15451: unmasked unaligned unit stride stores: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 4 
+   remark #15477: vector cost: 0.750 
+   remark #15478: estimated potential speedup: 2.760 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+===========================================================================
+
+Begin optimization report for: UnitTestSVD() [skylake_avx512]
+
+    Report from: Vector optimizations [vec]
+
+
+LOOP BEGIN at ../src/adapt_math.cpp(222,6)
+   remark #15389: vectorization support: reference A[_2] has unaligned access
+   remark #15388: vectorization support: reference at (222:13) has aligned access   [ ../src/adapt_math.cpp(222,13) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15305: vectorization support: vector length 4
+   remark #15399: vectorization support: unroll factor set to 2
+   remark #15309: vectorization support: normalized vectorization overhead 0.300
+   remark #15301: MATERIALIZED LOOP WAS VECTORIZED
+   remark #26013: Compiler has chosen to target XMM/YMM vector. Try using -qopt-zmm-usage=high to override
+   remark #15448: unmasked aligned unit stride loads: 1 
+   remark #15451: unmasked unaligned unit stride stores: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 4 
+   remark #15477: vector cost: 1.250 
+   remark #15478: estimated potential speedup: 2.110 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at ../src/adapt_math.cpp(222,6)
+<Remainder loop for vectorization>
+LOOP END
+===========================================================================
+
+Begin optimization report for: UnitTestSVD() [haswell]
+
+    Report from: Vector optimizations [vec]
+
+
+LOOP BEGIN at ../src/adapt_math.cpp(222,6)
+   remark #15389: vectorization support: reference A[_2] has unaligned access
+   remark #15388: vectorization support: reference at (222:13) has aligned access   [ ../src/adapt_math.cpp(222,13) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15305: vectorization support: vector length 4
+   remark #15399: vectorization support: unroll factor set to 2
+   remark #15309: vectorization support: normalized vectorization overhead 0.300
+   remark #15301: MATERIALIZED LOOP WAS VECTORIZED
+   remark #15448: unmasked aligned unit stride loads: 1 
+   remark #15451: unmasked unaligned unit stride stores: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 4 
+   remark #15477: vector cost: 1.250 
+   remark #15478: estimated potential speedup: 2.110 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at ../src/adapt_math.cpp(222,6)
+<Remainder loop for vectorization>
+LOOP END
+===========================================================================
+
+Begin optimization report for: UnitTestSVD() [generic]
+
+    Report from: Vector optimizations [vec]
+
+
+LOOP BEGIN at ../src/adapt_math.cpp(222,6)
+   remark #15389: vectorization support: reference A[_2] has unaligned access
+   remark #15388: vectorization support: reference at (222:13) has aligned access   [ ../src/adapt_math.cpp(222,13) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15305: vectorization support: vector length 2
+   remark #15399: vectorization support: unroll factor set to 4
+   remark #15309: vectorization support: normalized vectorization overhead 0.150
+   remark #15301: MATERIALIZED LOOP WAS VECTORIZED
+   remark #15448: unmasked aligned unit stride loads: 1 
+   remark #15451: unmasked unaligned unit stride stores: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 4 
+   remark #15477: vector cost: 2.500 
+   remark #15478: estimated potential speedup: 1.330 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at ../src/adapt_math.cpp(222,6)
+<Remainder loop for vectorization>
+LOOP END
+===========================================================================
+
+Begin optimization report for: UnitTestEigenDecomp()
+
+    Report from: Vector optimizations [vec]
+
+
+LOOP BEGIN at ../src/adapt_math.cpp(253,5)
+   remark #15389: vectorization support: reference M[_2] has unaligned access
+   remark #15388: vectorization support: reference at (253:12) has aligned access   [ ../src/adapt_math.cpp(253,12) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15305: vectorization support: vector length 8
+   remark #15309: vectorization support: normalized vectorization overhead 0.500
+   remark #15301: MATERIALIZED LOOP WAS VECTORIZED
+   remark #15448: unmasked aligned unit stride loads: 1 
+   remark #15451: unmasked unaligned unit stride stores: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 4 
+   remark #15477: vector cost: 0.750 
+   remark #15478: estimated potential speedup: 2.760 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at ../src/adapt_math.cpp(253,5)
+<Remainder loop for vectorization>
+   remark #15448: unmasked aligned unit stride loads: 1 
+   remark #15451: unmasked unaligned unit stride stores: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 4 
+   remark #15477: vector cost: 0.750 
+   remark #15478: estimated potential speedup: 2.760 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at ../src/adapt_math.cpp(263,5)
+   remark #15382: vectorization support: call to function std::operator<<<std::char_traits<char>>(std::basic_ostream<char, std::char_traits<char>> &, const char *) cannot be vectorized   [ ../src/adapt_math.cpp(265,19) ]
+   remark #15382: vectorization support: call to function std::basic_ostream<char, std::char_traits<char>>::operator<<(std::basic_ostream<char, std::char_traits<char>> *, double) cannot be vectorized   [ ../src/adapt_math.cpp(265,39) ]
+   remark #15382: vectorization support: call to function std::operator<<<std::char_traits<char>>(std::basic_ostream<char, std::char_traits<char>> &, const char *) cannot be vectorized   [ ../src/adapt_math.cpp(265,54) ]
+   remark #15382: vectorization support: call to function std::basic_ostream<char, std::char_traits<char>>::operator<<(std::basic_ostream<char, std::char_traits<char>> *, double) cannot be vectorized   [ ../src/adapt_math.cpp(265,63) ]
+   remark #15382: vectorization support: call to function std::operator<<<std::char_traits<char>>(std::basic_ostream<char, std::char_traits<char>> &, const char *) cannot be vectorized   [ ../src/adapt_math.cpp(265,78) ]
+   remark #15382: vectorization support: call to function std::basic_ostream<char, std::char_traits<char>>::operator<<(std::basic_ostream<char, std::char_traits<char>> *, std::basic_ostream<char, std::char_traits<char>>::__ostream_type &(*)(std::basic_ostream<char, std::char_traits<char>>::__ostream_type &)) cannot be vectorized   [ ../src/adapt_math.cpp(265,85) ]
+   remark #15344: loop was not vectorized: vector dependence prevents vectorization
+LOOP END
+
+LOOP BEGIN at ../src/adapt_math.cpp(271,5)
+   remark #15389: vectorization support: reference Vref[_2] has unaligned access
+   remark #15388: vectorization support: reference at (271:15) has aligned access   [ ../src/adapt_math.cpp(271,15) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15305: vectorization support: vector length 8
+   remark #15309: vectorization support: normalized vectorization overhead 0.500
+   remark #15301: MATERIALIZED LOOP WAS VECTORIZED
+   remark #15448: unmasked aligned unit stride loads: 1 
+   remark #15451: unmasked unaligned unit stride stores: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 4 
+   remark #15477: vector cost: 0.750 
+   remark #15478: estimated potential speedup: 2.760 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at ../src/adapt_math.cpp(271,5)
+<Remainder loop for vectorization>
+   remark #15448: unmasked aligned unit stride loads: 1 
+   remark #15451: unmasked unaligned unit stride stores: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 4 
+   remark #15477: vector cost: 0.750 
+   remark #15478: estimated potential speedup: 2.760 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at ../src/adapt_math.cpp(275,5)
+   remark #15389: vectorization support: reference iVref[_2] has unaligned access
+   remark #15388: vectorization support: reference at (275:16) has aligned access   [ ../src/adapt_math.cpp(275,16) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15305: vectorization support: vector length 8
+   remark #15309: vectorization support: normalized vectorization overhead 0.500
+   remark #15301: MATERIALIZED LOOP WAS VECTORIZED
+   remark #15448: unmasked aligned unit stride loads: 1 
+   remark #15451: unmasked unaligned unit stride stores: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 4 
+   remark #15477: vector cost: 0.750 
+   remark #15478: estimated potential speedup: 2.760 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at ../src/adapt_math.cpp(275,5)
+<Remainder loop for vectorization>
+   remark #15448: unmasked aligned unit stride loads: 1 
+   remark #15451: unmasked unaligned unit stride stores: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 4 
+   remark #15477: vector cost: 0.750 
+   remark #15478: estimated potential speedup: 2.760 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at ../src/adapt_math.cpp(280,5)
+   remark #15541: outer loop was not auto-vectorized: consider using SIMD directive
+
+   LOOP BEGIN at ../src/adapt_math.cpp(282,9)
+      remark #15382: vectorization support: call to function std::basic_ostream<char, std::char_traits<char>>::operator<<(std::basic_ostream<char, std::char_traits<char>> *, double) cannot be vectorized   [ ../src/adapt_math.cpp(284,23) ]
+      remark #15382: vectorization support: call to function std::operator<<<std::char_traits<char>>(std::basic_ostream<char, std::char_traits<char>> &, const char *) cannot be vectorized   [ ../src/adapt_math.cpp(284,40) ]
+      remark #15344: loop was not vectorized: vector dependence prevents vectorization
+   LOOP END
+
+   LOOP BEGIN at ../src/adapt_math.cpp(282,9)
+   LOOP END
+
+   LOOP BEGIN at ../src/adapt_math.cpp(282,9)
+   LOOP END
+LOOP END
+
+LOOP BEGIN at ../src/adapt_math.cpp(292,5)
+   remark #15541: outer loop was not auto-vectorized: consider using SIMD directive
+
+   LOOP BEGIN at ../src/adapt_math.cpp(294,9)
+      remark #15382: vectorization support: call to function std::basic_ostream<char, std::char_traits<char>>::operator<<(std::basic_ostream<char, std::char_traits<char>> *, double) cannot be vectorized   [ ../src/adapt_math.cpp(296,23) ]
+      remark #15382: vectorization support: call to function std::operator<<<std::char_traits<char>>(std::basic_ostream<char, std::char_traits<char>> &, const char *) cannot be vectorized   [ ../src/adapt_math.cpp(296,41) ]
+      remark #15344: loop was not vectorized: vector dependence prevents vectorization
+   LOOP END
+
+   LOOP BEGIN at ../src/adapt_math.cpp(294,9)
+   LOOP END
+
+   LOOP BEGIN at ../src/adapt_math.cpp(294,9)
+   LOOP END
+LOOP END
+===========================================================================
+
+Begin optimization report for: UnitTestEigenDecomp() [skylake_avx512]
+
+    Report from: Vector optimizations [vec]
+
+
+LOOP BEGIN at ../src/adapt_math.cpp(253,5)
+   remark #15389: vectorization support: reference M[_2] has unaligned access
+   remark #15388: vectorization support: reference at (253:12) has aligned access   [ ../src/adapt_math.cpp(253,12) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15305: vectorization support: vector length 4
+   remark #15399: vectorization support: unroll factor set to 2
+   remark #15309: vectorization support: normalized vectorization overhead 0.300
+   remark #15301: MATERIALIZED LOOP WAS VECTORIZED
+   remark #26013: Compiler has chosen to target XMM/YMM vector. Try using -qopt-zmm-usage=high to override
+   remark #15448: unmasked aligned unit stride loads: 1 
+   remark #15451: unmasked unaligned unit stride stores: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 4 
+   remark #15477: vector cost: 1.250 
+   remark #15478: estimated potential speedup: 2.110 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at ../src/adapt_math.cpp(253,5)
+<Remainder loop for vectorization>
+LOOP END
+
+LOOP BEGIN at ../src/adapt_math.cpp(263,5)
+   remark #15382: vectorization support: call to function std::operator<<<std::char_traits<char>>(std::basic_ostream<char, std::char_traits<char>> &, const char *) cannot be vectorized   [ ../src/adapt_math.cpp(265,19) ]
+   remark #15382: vectorization support: call to function std::basic_ostream<char, std::char_traits<char>>::operator<<(std::basic_ostream<char, std::char_traits<char>> *, double) cannot be vectorized   [ ../src/adapt_math.cpp(265,39) ]
+   remark #15382: vectorization support: call to function std::operator<<<std::char_traits<char>>(std::basic_ostream<char, std::char_traits<char>> &, const char *) cannot be vectorized   [ ../src/adapt_math.cpp(265,54) ]
+   remark #15382: vectorization support: call to function std::basic_ostream<char, std::char_traits<char>>::operator<<(std::basic_ostream<char, std::char_traits<char>> *, double) cannot be vectorized   [ ../src/adapt_math.cpp(265,63) ]
+   remark #15382: vectorization support: call to function std::operator<<<std::char_traits<char>>(std::basic_ostream<char, std::char_traits<char>> &, const char *) cannot be vectorized   [ ../src/adapt_math.cpp(265,78) ]
+   remark #15382: vectorization support: call to function std::basic_ostream<char, std::char_traits<char>>::operator<<(std::basic_ostream<char, std::char_traits<char>> *, std::basic_ostream<char, std::char_traits<char>>::__ostream_type &(*)(std::basic_ostream<char, std::char_traits<char>>::__ostream_type &)) cannot be vectorized   [ ../src/adapt_math.cpp(265,85) ]
+   remark #15344: loop was not vectorized: vector dependence prevents vectorization
+LOOP END
+
+LOOP BEGIN at ../src/adapt_math.cpp(271,5)
+   remark #15389: vectorization support: reference Vref[_2] has unaligned access
+   remark #15388: vectorization support: reference at (271:15) has aligned access   [ ../src/adapt_math.cpp(271,15) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15305: vectorization support: vector length 4
+   remark #15399: vectorization support: unroll factor set to 2
+   remark #15309: vectorization support: normalized vectorization overhead 0.300
+   remark #15301: MATERIALIZED LOOP WAS VECTORIZED
+   remark #26013: Compiler has chosen to target XMM/YMM vector. Try using -qopt-zmm-usage=high to override
+   remark #15448: unmasked aligned unit stride loads: 1 
+   remark #15451: unmasked unaligned unit stride stores: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 4 
+   remark #15477: vector cost: 1.250 
+   remark #15478: estimated potential speedup: 2.110 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at ../src/adapt_math.cpp(271,5)
+<Remainder loop for vectorization>
+LOOP END
+
+LOOP BEGIN at ../src/adapt_math.cpp(275,5)
+   remark #15389: vectorization support: reference iVref[_2] has unaligned access
+   remark #15388: vectorization support: reference at (275:16) has aligned access   [ ../src/adapt_math.cpp(275,16) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15305: vectorization support: vector length 4
+   remark #15399: vectorization support: unroll factor set to 2
+   remark #15309: vectorization support: normalized vectorization overhead 0.300
+   remark #15301: MATERIALIZED LOOP WAS VECTORIZED
+   remark #26013: Compiler has chosen to target XMM/YMM vector. Try using -qopt-zmm-usage=high to override
+   remark #15448: unmasked aligned unit stride loads: 1 
+   remark #15451: unmasked unaligned unit stride stores: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 4 
+   remark #15477: vector cost: 1.250 
+   remark #15478: estimated potential speedup: 2.110 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at ../src/adapt_math.cpp(275,5)
+<Remainder loop for vectorization>
+LOOP END
+
+LOOP BEGIN at ../src/adapt_math.cpp(280,5)
+   remark #15541: outer loop was not auto-vectorized: consider using SIMD directive
+
+   LOOP BEGIN at ../src/adapt_math.cpp(282,9)
+      remark #15382: vectorization support: call to function std::basic_ostream<char, std::char_traits<char>>::operator<<(std::basic_ostream<char, std::char_traits<char>> *, double) cannot be vectorized   [ ../src/adapt_math.cpp(284,23) ]
+      remark #15382: vectorization support: call to function std::operator<<<std::char_traits<char>>(std::basic_ostream<char, std::char_traits<char>> &, const char *) cannot be vectorized   [ ../src/adapt_math.cpp(284,40) ]
+      remark #15344: loop was not vectorized: vector dependence prevents vectorization
+   LOOP END
+
+   LOOP BEGIN at ../src/adapt_math.cpp(282,9)
+   LOOP END
+
+   LOOP BEGIN at ../src/adapt_math.cpp(282,9)
+   LOOP END
+LOOP END
+
+LOOP BEGIN at ../src/adapt_math.cpp(292,5)
+   remark #15541: outer loop was not auto-vectorized: consider using SIMD directive
+
+   LOOP BEGIN at ../src/adapt_math.cpp(294,9)
+      remark #15382: vectorization support: call to function std::basic_ostream<char, std::char_traits<char>>::operator<<(std::basic_ostream<char, std::char_traits<char>> *, double) cannot be vectorized   [ ../src/adapt_math.cpp(296,23) ]
+      remark #15382: vectorization support: call to function std::operator<<<std::char_traits<char>>(std::basic_ostream<char, std::char_traits<char>> &, const char *) cannot be vectorized   [ ../src/adapt_math.cpp(296,41) ]
+      remark #15344: loop was not vectorized: vector dependence prevents vectorization
+   LOOP END
+
+   LOOP BEGIN at ../src/adapt_math.cpp(294,9)
+   LOOP END
+
+   LOOP BEGIN at ../src/adapt_math.cpp(294,9)
+   LOOP END
+LOOP END
+===========================================================================
+
+Begin optimization report for: UnitTestEigenDecomp() [haswell]
+
+    Report from: Vector optimizations [vec]
+
+
+LOOP BEGIN at ../src/adapt_math.cpp(253,5)
+   remark #15389: vectorization support: reference M[_2] has unaligned access
+   remark #15388: vectorization support: reference at (253:12) has aligned access   [ ../src/adapt_math.cpp(253,12) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15305: vectorization support: vector length 4
+   remark #15399: vectorization support: unroll factor set to 2
+   remark #15309: vectorization support: normalized vectorization overhead 0.300
+   remark #15301: MATERIALIZED LOOP WAS VECTORIZED
+   remark #15448: unmasked aligned unit stride loads: 1 
+   remark #15451: unmasked unaligned unit stride stores: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 4 
+   remark #15477: vector cost: 1.250 
+   remark #15478: estimated potential speedup: 2.110 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at ../src/adapt_math.cpp(253,5)
+<Remainder loop for vectorization>
+LOOP END
+
+LOOP BEGIN at ../src/adapt_math.cpp(263,5)
+   remark #15382: vectorization support: call to function std::operator<<<std::char_traits<char>>(std::basic_ostream<char, std::char_traits<char>> &, const char *) cannot be vectorized   [ ../src/adapt_math.cpp(265,19) ]
+   remark #15382: vectorization support: call to function std::basic_ostream<char, std::char_traits<char>>::operator<<(std::basic_ostream<char, std::char_traits<char>> *, double) cannot be vectorized   [ ../src/adapt_math.cpp(265,39) ]
+   remark #15382: vectorization support: call to function std::operator<<<std::char_traits<char>>(std::basic_ostream<char, std::char_traits<char>> &, const char *) cannot be vectorized   [ ../src/adapt_math.cpp(265,54) ]
+   remark #15382: vectorization support: call to function std::basic_ostream<char, std::char_traits<char>>::operator<<(std::basic_ostream<char, std::char_traits<char>> *, double) cannot be vectorized   [ ../src/adapt_math.cpp(265,63) ]
+   remark #15382: vectorization support: call to function std::operator<<<std::char_traits<char>>(std::basic_ostream<char, std::char_traits<char>> &, const char *) cannot be vectorized   [ ../src/adapt_math.cpp(265,78) ]
+   remark #15382: vectorization support: call to function std::basic_ostream<char, std::char_traits<char>>::operator<<(std::basic_ostream<char, std::char_traits<char>> *, std::basic_ostream<char, std::char_traits<char>>::__ostream_type &(*)(std::basic_ostream<char, std::char_traits<char>>::__ostream_type &)) cannot be vectorized   [ ../src/adapt_math.cpp(265,85) ]
+   remark #15344: loop was not vectorized: vector dependence prevents vectorization
+LOOP END
+
+LOOP BEGIN at ../src/adapt_math.cpp(271,5)
+   remark #15389: vectorization support: reference Vref[_2] has unaligned access
+   remark #15388: vectorization support: reference at (271:15) has aligned access   [ ../src/adapt_math.cpp(271,15) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15305: vectorization support: vector length 4
+   remark #15399: vectorization support: unroll factor set to 2
+   remark #15309: vectorization support: normalized vectorization overhead 0.300
+   remark #15301: MATERIALIZED LOOP WAS VECTORIZED
+   remark #15448: unmasked aligned unit stride loads: 1 
+   remark #15451: unmasked unaligned unit stride stores: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 4 
+   remark #15477: vector cost: 1.250 
+   remark #15478: estimated potential speedup: 2.110 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at ../src/adapt_math.cpp(271,5)
+<Remainder loop for vectorization>
+LOOP END
+
+LOOP BEGIN at ../src/adapt_math.cpp(275,5)
+   remark #15389: vectorization support: reference iVref[_2] has unaligned access
+   remark #15388: vectorization support: reference at (275:16) has aligned access   [ ../src/adapt_math.cpp(275,16) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15305: vectorization support: vector length 4
+   remark #15399: vectorization support: unroll factor set to 2
+   remark #15309: vectorization support: normalized vectorization overhead 0.300
+   remark #15301: MATERIALIZED LOOP WAS VECTORIZED
+   remark #15448: unmasked aligned unit stride loads: 1 
+   remark #15451: unmasked unaligned unit stride stores: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 4 
+   remark #15477: vector cost: 1.250 
+   remark #15478: estimated potential speedup: 2.110 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at ../src/adapt_math.cpp(275,5)
+<Remainder loop for vectorization>
+LOOP END
+
+LOOP BEGIN at ../src/adapt_math.cpp(280,5)
+   remark #15541: outer loop was not auto-vectorized: consider using SIMD directive
+
+   LOOP BEGIN at ../src/adapt_math.cpp(282,9)
+      remark #15382: vectorization support: call to function std::basic_ostream<char, std::char_traits<char>>::operator<<(std::basic_ostream<char, std::char_traits<char>> *, double) cannot be vectorized   [ ../src/adapt_math.cpp(284,23) ]
+      remark #15382: vectorization support: call to function std::operator<<<std::char_traits<char>>(std::basic_ostream<char, std::char_traits<char>> &, const char *) cannot be vectorized   [ ../src/adapt_math.cpp(284,40) ]
+      remark #15344: loop was not vectorized: vector dependence prevents vectorization
+   LOOP END
+
+   LOOP BEGIN at ../src/adapt_math.cpp(282,9)
+   LOOP END
+
+   LOOP BEGIN at ../src/adapt_math.cpp(282,9)
+   LOOP END
+LOOP END
+
+LOOP BEGIN at ../src/adapt_math.cpp(292,5)
+   remark #15541: outer loop was not auto-vectorized: consider using SIMD directive
+
+   LOOP BEGIN at ../src/adapt_math.cpp(294,9)
+      remark #15382: vectorization support: call to function std::basic_ostream<char, std::char_traits<char>>::operator<<(std::basic_ostream<char, std::char_traits<char>> *, double) cannot be vectorized   [ ../src/adapt_math.cpp(296,23) ]
+      remark #15382: vectorization support: call to function std::operator<<<std::char_traits<char>>(std::basic_ostream<char, std::char_traits<char>> &, const char *) cannot be vectorized   [ ../src/adapt_math.cpp(296,41) ]
+      remark #15344: loop was not vectorized: vector dependence prevents vectorization
+   LOOP END
+
+   LOOP BEGIN at ../src/adapt_math.cpp(294,9)
+   LOOP END
+
+   LOOP BEGIN at ../src/adapt_math.cpp(294,9)
+   LOOP END
+LOOP END
+===========================================================================
+
+Begin optimization report for: UnitTestEigenDecomp() [generic]
+
+    Report from: Vector optimizations [vec]
+
+
+LOOP BEGIN at ../src/adapt_math.cpp(253,5)
+   remark #15389: vectorization support: reference M[_2] has unaligned access
+   remark #15388: vectorization support: reference at (253:12) has aligned access   [ ../src/adapt_math.cpp(253,12) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15305: vectorization support: vector length 2
+   remark #15399: vectorization support: unroll factor set to 4
+   remark #15309: vectorization support: normalized vectorization overhead 0.150
+   remark #15301: MATERIALIZED LOOP WAS VECTORIZED
+   remark #15448: unmasked aligned unit stride loads: 1 
+   remark #15451: unmasked unaligned unit stride stores: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 4 
+   remark #15477: vector cost: 2.500 
+   remark #15478: estimated potential speedup: 1.330 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at ../src/adapt_math.cpp(253,5)
+<Remainder loop for vectorization>
+LOOP END
+
+LOOP BEGIN at ../src/adapt_math.cpp(263,5)
+   remark #15382: vectorization support: call to function std::operator<<<std::char_traits<char>>(std::basic_ostream<char, std::char_traits<char>> &, const char *) cannot be vectorized   [ ../src/adapt_math.cpp(265,19) ]
+   remark #15382: vectorization support: call to function std::basic_ostream<char, std::char_traits<char>>::operator<<(std::basic_ostream<char, std::char_traits<char>> *, double) cannot be vectorized   [ ../src/adapt_math.cpp(265,39) ]
+   remark #15382: vectorization support: call to function std::operator<<<std::char_traits<char>>(std::basic_ostream<char, std::char_traits<char>> &, const char *) cannot be vectorized   [ ../src/adapt_math.cpp(265,54) ]
+   remark #15382: vectorization support: call to function std::basic_ostream<char, std::char_traits<char>>::operator<<(std::basic_ostream<char, std::char_traits<char>> *, double) cannot be vectorized   [ ../src/adapt_math.cpp(265,63) ]
+   remark #15382: vectorization support: call to function std::operator<<<std::char_traits<char>>(std::basic_ostream<char, std::char_traits<char>> &, const char *) cannot be vectorized   [ ../src/adapt_math.cpp(265,78) ]
+   remark #15382: vectorization support: call to function std::basic_ostream<char, std::char_traits<char>>::operator<<(std::basic_ostream<char, std::char_traits<char>> *, std::basic_ostream<char, std::char_traits<char>>::__ostream_type &(*)(std::basic_ostream<char, std::char_traits<char>>::__ostream_type &)) cannot be vectorized   [ ../src/adapt_math.cpp(265,85) ]
+   remark #15344: loop was not vectorized: vector dependence prevents vectorization
+LOOP END
+
+LOOP BEGIN at ../src/adapt_math.cpp(271,5)
+   remark #15389: vectorization support: reference Vref[_2] has unaligned access
+   remark #15388: vectorization support: reference at (271:15) has aligned access   [ ../src/adapt_math.cpp(271,15) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15305: vectorization support: vector length 2
+   remark #15399: vectorization support: unroll factor set to 4
+   remark #15309: vectorization support: normalized vectorization overhead 0.150
+   remark #15301: MATERIALIZED LOOP WAS VECTORIZED
+   remark #15448: unmasked aligned unit stride loads: 1 
+   remark #15451: unmasked unaligned unit stride stores: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 4 
+   remark #15477: vector cost: 2.500 
+   remark #15478: estimated potential speedup: 1.330 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at ../src/adapt_math.cpp(271,5)
+<Remainder loop for vectorization>
+LOOP END
+
+LOOP BEGIN at ../src/adapt_math.cpp(275,5)
+   remark #15389: vectorization support: reference iVref[_2] has unaligned access
+   remark #15388: vectorization support: reference at (275:16) has aligned access   [ ../src/adapt_math.cpp(275,16) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15305: vectorization support: vector length 2
+   remark #15399: vectorization support: unroll factor set to 4
+   remark #15309: vectorization support: normalized vectorization overhead 0.150
+   remark #15301: MATERIALIZED LOOP WAS VECTORIZED
+   remark #15448: unmasked aligned unit stride loads: 1 
+   remark #15451: unmasked unaligned unit stride stores: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 4 
+   remark #15477: vector cost: 2.500 
+   remark #15478: estimated potential speedup: 1.330 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at ../src/adapt_math.cpp(275,5)
+<Remainder loop for vectorization>
+LOOP END
+
+LOOP BEGIN at ../src/adapt_math.cpp(280,5)
+   remark #15541: outer loop was not auto-vectorized: consider using SIMD directive
+
+   LOOP BEGIN at ../src/adapt_math.cpp(282,9)
+      remark #15382: vectorization support: call to function std::basic_ostream<char, std::char_traits<char>>::operator<<(std::basic_ostream<char, std::char_traits<char>> *, double) cannot be vectorized   [ ../src/adapt_math.cpp(284,23) ]
+      remark #15382: vectorization support: call to function std::operator<<<std::char_traits<char>>(std::basic_ostream<char, std::char_traits<char>> &, const char *) cannot be vectorized   [ ../src/adapt_math.cpp(284,40) ]
+      remark #15344: loop was not vectorized: vector dependence prevents vectorization
+   LOOP END
+
+   LOOP BEGIN at ../src/adapt_math.cpp(282,9)
+   LOOP END
+
+   LOOP BEGIN at ../src/adapt_math.cpp(282,9)
+   LOOP END
+LOOP END
+
+LOOP BEGIN at ../src/adapt_math.cpp(292,5)
+   remark #15541: outer loop was not auto-vectorized: consider using SIMD directive
+
+   LOOP BEGIN at ../src/adapt_math.cpp(294,9)
+      remark #15382: vectorization support: call to function std::basic_ostream<char, std::char_traits<char>>::operator<<(std::basic_ostream<char, std::char_traits<char>> *, double) cannot be vectorized   [ ../src/adapt_math.cpp(296,23) ]
+      remark #15382: vectorization support: call to function std::operator<<<std::char_traits<char>>(std::basic_ostream<char, std::char_traits<char>> &, const char *) cannot be vectorized   [ ../src/adapt_math.cpp(296,41) ]
+      remark #15344: loop was not vectorized: vector dependence prevents vectorization
+   LOOP END
+
+   LOOP BEGIN at ../src/adapt_math.cpp(294,9)
+   LOOP END
+
+   LOOP BEGIN at ../src/adapt_math.cpp(294,9)
+   LOOP END
+LOOP END
+===========================================================================
+
+Begin optimization report for: std::char_traits<char>::length(const std::char_traits<char>::char_type *)
+
+    Report from: Vector optimizations [vec]
+
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(233,7) inlined into /usr/include/c++/8/bits/char_traits.h(327,6)
+   remark #15523: loop was not vectorized: loop control variable __s was found, but loop iteration count cannot be computed before executing the loop
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/char_traits.h(165,7) inlined into /usr/include/c++/8/bits/char_traits.h(328,11)
+   remark #15523: loop was not vectorized: loop control variable __i was found, but loop iteration count cannot be computed before executing the loop
+LOOP END
+===========================================================================
+
+Begin optimization report for: ComputeEigenDecomp(int, double *)
+
+    Report from: Vector optimizations [vec]
+
+
+LOOP BEGIN at ../src/adapt_math.cpp(134,3)
+   remark #15542: loop was not vectorized: inner loop was already vectorized
+
+   LOOP BEGIN at ../src/adapt_math.cpp(135,5)
+      remark #15389: vectorization support: reference V[i*n+j] has unaligned access   [ ../src/adapt_math.cpp(136,7) ]
+      remark #15381: vectorization support: unaligned access used inside loop body
+      remark #15415: vectorization support: non-unit strided load was generated for the variable <iV[j*n+i]>, stride is unknown to compiler   [ ../src/adapt_math.cpp(136,18) ]
+      remark #15305: vectorization support: vector length 8
+      remark #15309: vectorization support: normalized vectorization overhead 0.158
+      remark #15300: LOOP WAS VECTORIZED
+      remark #15451: unmasked unaligned unit stride stores: 1 
+      remark #15452: unmasked strided loads: 1 
+      remark #15475: --- begin vector cost summary ---
+      remark #15476: scalar cost: 5 
+      remark #15477: vector cost: 2.370 
+      remark #15478: estimated potential speedup: 2.010 
+      remark #15488: --- end vector cost summary ---
+   LOOP END
+
+   LOOP BEGIN at ../src/adapt_math.cpp(135,5)
+   <Remainder loop for vectorization>
+      remark #15389: vectorization support: reference V[i*n+j] has unaligned access   [ ../src/adapt_math.cpp(136,7) ]
+      remark #15381: vectorization support: unaligned access used inside loop body
+      remark #15335: remainder loop was not vectorized: vectorization possible but seems inefficient. Use vector always directive or -vec-threshold0 to override 
+      remark #15305: vectorization support: vector length 2
+      remark #15309: vectorization support: normalized vectorization overhead 0.326
+      remark #15451: unmasked unaligned unit stride stores: 1 
+      remark #15452: unmasked strided loads: 1 
+      remark #15475: --- begin vector cost summary ---
+      remark #15476: scalar cost: 5 
+      remark #15477: vector cost: 2.370 
+      remark #15478: estimated potential speedup: 2.010 
+      remark #15488: --- end vector cost summary ---
+   LOOP END
+LOOP END
+===========================================================================
+
+Begin optimization report for: ComputeEigenDecomp(int, double *) [skylake_avx512]
+
+    Report from: Vector optimizations [vec]
+
+
+LOOP BEGIN at ../src/adapt_math.cpp(134,3)
+   remark #15542: loop was not vectorized: inner loop was already vectorized
+
+   LOOP BEGIN at ../src/adapt_math.cpp(135,5)
+   <Peeled loop for vectorization>
+      remark #15389: vectorization support: reference V[i*n+j] has unaligned access   [ ../src/adapt_math.cpp(136,7) ]
+      remark #15381: vectorization support: unaligned access used inside loop body
+      remark #15335: peel loop was not vectorized: vectorization possible but seems inefficient. Use vector always directive or -vec-threshold0 to override 
+      remark #15305: vectorization support: vector length 2
+      remark #15309: vectorization support: normalized vectorization overhead 0.326
+      remark #15451: unmasked unaligned unit stride stores: 1 
+      remark #15452: unmasked strided loads: 1 
+      remark #15475: --- begin vector cost summary ---
+      remark #15476: scalar cost: 5 
+      remark #15477: vector cost: 2.500 
+      remark #15478: estimated potential speedup: 1.960 
+      remark #15488: --- end vector cost summary ---
+   LOOP END
+
+   LOOP BEGIN at ../src/adapt_math.cpp(135,5)
+      remark #15389: vectorization support: reference V[i*n+j] has unaligned access   [ ../src/adapt_math.cpp(136,7) ]
+      remark #15381: vectorization support: unaligned access used inside loop body
+      remark #15328: vectorization support: non-unit strided load was emulated for the variable <iV[j*n+i]>, stride is unknown to compiler   [ ../src/adapt_math.cpp(136,18) ]
+      remark #15305: vectorization support: vector length 2
+      remark #15309: vectorization support: normalized vectorization overhead 2.000
+      remark #15300: LOOP WAS VECTORIZED
+      remark #26013: Compiler has chosen to target XMM/YMM vector. Try using -qopt-zmm-usage=high to override
+      remark #15451: unmasked unaligned unit stride stores: 1 
+      remark #15452: unmasked strided loads: 1 
+      remark #15475: --- begin vector cost summary ---
+      remark #15476: scalar cost: 5 
+      remark #15477: vector cost: 2.500 
+      remark #15478: estimated potential speedup: 1.960 
+      remark #15488: --- end vector cost summary ---
+   LOOP END
+
+   LOOP BEGIN at ../src/adapt_math.cpp(135,5)
+   <Remainder loop for vectorization>
+      remark #15389: vectorization support: reference V[i*n+j] has unaligned access   [ ../src/adapt_math.cpp(136,7) ]
+      remark #15381: vectorization support: unaligned access used inside loop body
+      remark #15335: remainder loop was not vectorized: vectorization possible but seems inefficient. Use vector always directive or -vec-threshold0 to override 
+      remark #15305: vectorization support: vector length 2
+      remark #15309: vectorization support: normalized vectorization overhead 0.326
+      remark #15451: unmasked unaligned unit stride stores: 1 
+      remark #15452: unmasked strided loads: 1 
+      remark #15475: --- begin vector cost summary ---
+      remark #15476: scalar cost: 5 
+      remark #15477: vector cost: 2.500 
+      remark #15478: estimated potential speedup: 1.960 
+      remark #15488: --- end vector cost summary ---
+   LOOP END
+LOOP END
+===========================================================================
+
+Begin optimization report for: ComputeEigenDecomp(int, double *) [haswell]
+
+    Report from: Vector optimizations [vec]
+
+
+LOOP BEGIN at ../src/adapt_math.cpp(134,3)
+   remark #15542: loop was not vectorized: inner loop was already vectorized
+
+   LOOP BEGIN at ../src/adapt_math.cpp(135,5)
+   <Peeled loop for vectorization>
+   LOOP END
+
+   LOOP BEGIN at ../src/adapt_math.cpp(135,5)
+      remark #15389: vectorization support: reference V[i*n+j] has unaligned access   [ ../src/adapt_math.cpp(136,7) ]
+      remark #15381: vectorization support: unaligned access used inside loop body
+      remark #15328: vectorization support: non-unit strided load was emulated for the variable <iV[j*n+i]>, stride is unknown to compiler   [ ../src/adapt_math.cpp(136,18) ]
+      remark #15305: vectorization support: vector length 2
+      remark #15309: vectorization support: normalized vectorization overhead 2.000
+      remark #15300: LOOP WAS VECTORIZED
+      remark #15442: entire loop may be executed in remainder
+      remark #15451: unmasked unaligned unit stride stores: 1 
+      remark #15452: unmasked strided loads: 1 
+      remark #15475: --- begin vector cost summary ---
+      remark #15476: scalar cost: 5 
+      remark #15477: vector cost: 2.500 
+      remark #15478: estimated potential speedup: 1.960 
+      remark #15488: --- end vector cost summary ---
+   LOOP END
+
+   LOOP BEGIN at ../src/adapt_math.cpp(135,5)
+   <Remainder loop for vectorization>
+   LOOP END
+LOOP END
+===========================================================================
+
+Begin optimization report for: ComputeEigenDecomp(int, double *) [generic]
+
+    Report from: Vector optimizations [vec]
+
+
+LOOP BEGIN at ../src/adapt_math.cpp(134,3)
+   remark #15542: loop was not vectorized: inner loop was already vectorized
+
+   LOOP BEGIN at ../src/adapt_math.cpp(135,5)
+   <Peeled loop for vectorization>
+   LOOP END
+
+   LOOP BEGIN at ../src/adapt_math.cpp(135,5)
+      remark #15388: vectorization support: reference V[i*n+j] has aligned access   [ ../src/adapt_math.cpp(136,7) ]
+      remark #15328: vectorization support: non-unit strided load was emulated for the variable <iV[j*n+i]>, stride is unknown to compiler   [ ../src/adapt_math.cpp(136,18) ]
+      remark #15305: vectorization support: vector length 2
+      remark #15309: vectorization support: normalized vectorization overhead 2.000
+      remark #15300: LOOP WAS VECTORIZED
+      remark #15442: entire loop may be executed in remainder
+      remark #15449: unmasked aligned unit stride stores: 1 
+      remark #15452: unmasked strided loads: 1 
+      remark #15475: --- begin vector cost summary ---
+      remark #15476: scalar cost: 5 
+      remark #15477: vector cost: 2.500 
+      remark #15478: estimated potential speedup: 1.960 
+      remark #15488: --- end vector cost summary ---
+   LOOP END
+
+   LOOP BEGIN at ../src/adapt_math.cpp(135,5)
+   <Remainder loop for vectorization>
+   LOOP END
+LOOP END
+===========================================================================
+
+Begin optimization report for: std::__fill_n_a<std::_Vector_base<double, std::allocator<double>>::pointer, std::vector<double, std::allocator<double>>::size_type, std::vector<double, std::allocator<double>>::value_type>(std::_Vector_base<double, std::allocator<double>>::pointer, std::vector<double, std::allocator<double>>::size_type, const std::vector<double, std::allocator<double>>::value_type &)
+
+    Report from: Vector optimizations [vec]
+
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_algobase.h(752,7)
+<Peeled loop for vectorization>
+   remark #15389: vectorization support: reference *__first has unaligned access   [ /usr/include/c++/8/bits/stl_algobase.h(754,3) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15335: peel loop was not vectorized: vectorization possible but seems inefficient. Use vector always directive or -vec-threshold0 to override 
+   remark #15305: vectorization support: vector length 2
+   remark #15309: vectorization support: normalized vectorization overhead 2.000
+   remark #15451: unmasked unaligned unit stride stores: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 4 
+   remark #15477: vector cost: 0.430 
+   remark #15478: estimated potential speedup: 7.180 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_algobase.h(752,7)
+   remark #15389: vectorization support: reference *__first has unaligned access   [ /usr/include/c++/8/bits/stl_algobase.h(754,3) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15305: vectorization support: vector length 16
+   remark #15309: vectorization support: normalized vectorization overhead 1.857
+   remark #15300: LOOP WAS VECTORIZED
+   remark #15451: unmasked unaligned unit stride stores: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 4 
+   remark #15477: vector cost: 0.430 
+   remark #15478: estimated potential speedup: 7.180 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_algobase.h(752,7)
+<Remainder loop for vectorization>
+   remark #15389: vectorization support: reference *__first has unaligned access   [ /usr/include/c++/8/bits/stl_algobase.h(754,3) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15305: vectorization support: vector length 8
+   remark #15309: vectorization support: normalized vectorization overhead 2.000
+   remark #15301: REMAINDER LOOP WAS VECTORIZED
+   remark #15451: unmasked unaligned unit stride stores: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 4 
+   remark #15477: vector cost: 0.430 
+   remark #15478: estimated potential speedup: 7.180 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+===========================================================================
+
+Begin optimization report for: std::__fill_n_a<std::_Vector_base<double, std::allocator<double>>::pointer, std::vector<double, std::allocator<double>>::size_type, std::vector<double, std::allocator<double>>::value_type>(std::_Vector_base<double, std::allocator<double>>::pointer, std::vector<double, std::allocator<double>>::size_type, const std::vector<double, std::allocator<double>>::value_type &) [skylake_avx512]
+
+    Report from: Vector optimizations [vec]
+
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_algobase.h(752,7)
+<Peeled loop for vectorization>
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_algobase.h(752,7)
+   remark #15388: vectorization support: reference *__first has aligned access   [ /usr/include/c++/8/bits/stl_algobase.h(754,3) ]
+   remark #15305: vectorization support: vector length 8
+   remark #15399: vectorization support: unroll factor set to 2
+   remark #15309: vectorization support: normalized vectorization overhead 0.929
+   remark #15300: LOOP WAS VECTORIZED
+   remark #26013: Compiler has chosen to target XMM/YMM vector. Try using -qopt-zmm-usage=high to override
+   remark #15442: entire loop may be executed in remainder
+   remark #15449: unmasked aligned unit stride stores: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 4 
+   remark #15477: vector cost: 0.870 
+   remark #15478: estimated potential speedup: 3.830 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_algobase.h(752,7)
+<Remainder loop for vectorization>
+   remark #15389: vectorization support: reference *__first has unaligned access   [ /usr/include/c++/8/bits/stl_algobase.h(754,3) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15305: vectorization support: vector length 4
+   remark #15309: vectorization support: normalized vectorization overhead 2.500
+   remark #15301: REMAINDER LOOP WAS VECTORIZED
+   remark #15442: entire loop may be executed in remainder
+   remark #15449: unmasked aligned unit stride stores: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 4 
+   remark #15477: vector cost: 0.870 
+   remark #15478: estimated potential speedup: 3.830 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_algobase.h(752,7)
+<Remainder loop for vectorization>
+LOOP END
+===========================================================================
+
+Begin optimization report for: std::__fill_n_a<std::_Vector_base<double, std::allocator<double>>::pointer, std::vector<double, std::allocator<double>>::size_type, std::vector<double, std::allocator<double>>::value_type>(std::_Vector_base<double, std::allocator<double>>::pointer, std::vector<double, std::allocator<double>>::size_type, const std::vector<double, std::allocator<double>>::value_type &) [haswell]
+
+    Report from: Vector optimizations [vec]
+
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_algobase.h(752,7)
+<Peeled loop for vectorization>
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_algobase.h(752,7)
+   remark #15388: vectorization support: reference *__first has aligned access   [ /usr/include/c++/8/bits/stl_algobase.h(754,3) ]
+   remark #15305: vectorization support: vector length 8
+   remark #15399: vectorization support: unroll factor set to 2
+   remark #15309: vectorization support: normalized vectorization overhead 0.929
+   remark #15300: LOOP WAS VECTORIZED
+   remark #15442: entire loop may be executed in remainder
+   remark #15449: unmasked aligned unit stride stores: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 4 
+   remark #15477: vector cost: 0.870 
+   remark #15478: estimated potential speedup: 3.830 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_algobase.h(752,7)
+<Remainder loop for vectorization>
+   remark #15389: vectorization support: reference *__first has unaligned access   [ /usr/include/c++/8/bits/stl_algobase.h(754,3) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15305: vectorization support: vector length 4
+   remark #15309: vectorization support: normalized vectorization overhead 2.500
+   remark #15301: REMAINDER LOOP WAS VECTORIZED
+   remark #15442: entire loop may be executed in remainder
+   remark #15449: unmasked aligned unit stride stores: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 4 
+   remark #15477: vector cost: 0.870 
+   remark #15478: estimated potential speedup: 3.830 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_algobase.h(752,7)
+<Remainder loop for vectorization>
+LOOP END
+===========================================================================
+
+Begin optimization report for: std::__fill_n_a<std::_Vector_base<double, std::allocator<double>>::pointer, std::vector<double, std::allocator<double>>::size_type, std::vector<double, std::allocator<double>>::value_type>(std::_Vector_base<double, std::allocator<double>>::pointer, std::vector<double, std::allocator<double>>::size_type, const std::vector<double, std::allocator<double>>::value_type &) [core_2nd_gen_avx]
+
+    Report from: Vector optimizations [vec]
+
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_algobase.h(752,7)
+<Peeled loop for vectorization>
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_algobase.h(752,7)
+   remark #15388: vectorization support: reference *__first has aligned access   [ /usr/include/c++/8/bits/stl_algobase.h(754,3) ]
+   remark #15305: vectorization support: vector length 8
+   remark #15399: vectorization support: unroll factor set to 2
+   remark #15309: vectorization support: normalized vectorization overhead 1.357
+   remark #15300: LOOP WAS VECTORIZED
+   remark #15442: entire loop may be executed in remainder
+   remark #15449: unmasked aligned unit stride stores: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 4 
+   remark #15477: vector cost: 0.870 
+   remark #15478: estimated potential speedup: 3.760 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_algobase.h(752,7)
+<Remainder loop for vectorization>
+   remark #15388: vectorization support: reference *__first has aligned access   [ /usr/include/c++/8/bits/stl_algobase.h(754,3) ]
+   remark #15305: vectorization support: vector length 4
+   remark #15309: vectorization support: normalized vectorization overhead 4.000
+   remark #15301: REMAINDER LOOP WAS VECTORIZED
+   remark #15442: entire loop may be executed in remainder
+   remark #15449: unmasked aligned unit stride stores: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 4 
+   remark #15477: vector cost: 0.870 
+   remark #15478: estimated potential speedup: 3.760 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_algobase.h(752,7)
+<Remainder loop for vectorization>
+LOOP END
+===========================================================================
+
+Begin optimization report for: std::__fill_n_a<std::_Vector_base<double, std::allocator<double>>::pointer, std::vector<double, std::allocator<double>>::size_type, std::vector<double, std::allocator<double>>::value_type>(std::_Vector_base<double, std::allocator<double>>::pointer, std::vector<double, std::allocator<double>>::size_type, const std::vector<double, std::allocator<double>>::value_type &) [generic]
+
+    Report from: Vector optimizations [vec]
+
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_algobase.h(752,7)
+<Peeled loop for vectorization>
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_algobase.h(752,7)
+   remark #15388: vectorization support: reference *__first has aligned access   [ /usr/include/c++/8/bits/stl_algobase.h(754,3) ]
+   remark #15305: vectorization support: vector length 2
+   remark #15399: vectorization support: unroll factor set to 4
+   remark #15309: vectorization support: normalized vectorization overhead 0.875
+   remark #15300: LOOP WAS VECTORIZED
+   remark #15442: entire loop may be executed in remainder
+   remark #15449: unmasked aligned unit stride stores: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 4 
+   remark #15477: vector cost: 2.000 
+   remark #15478: estimated potential speedup: 1.920 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at /usr/include/c++/8/bits/stl_algobase.h(752,7)
+<Remainder loop for vectorization>
+LOOP END
+===========================================================================

@@ -350,7 +350,46 @@ int main(int argc, char** argv)
 
     //std::cout << world_rank << " qrd->Nentries " << qrd->Nentries << std::endl;
 
-    std::map<int,std::vector<double> > glob_data = GatherJaggedGlobalMapOnRoot_T(qrd->Amat,comm);
+    std::map<int,std::vector<double> > Amat_data = GatherJaggedGlobalMapOnRoot_T(qrd->Amat,comm);
+    std::map<int,std::vector<double> > bvec_data = GatherJaggedGlobalMapOnRoot_T(qrd->bvec,comm);
+    std::map<int,int> Am_data = AllGatherMap_T(qrd->Am,comm);
+    std::map<int,int> An_data = AllGatherMap_T(qrd->An,comm);
+    if(world_rank == 0)  
+    {
+        ofstream myfile;
+        ofstream myfile3;
+        ofstream myfile4;
+        myfile.open("Amats.dat");
+        myfile3.open("elID.dat");
+        myfile4.open("bvecs.dat");
+        std::cout << "glob_data  " << Amat_data.size() << " ntetra " << nElemsGlob_T << std::endl;
+        std::map<int,std::vector<double> >::iterator itd;
+
+        for(itd=Amat_data.begin();itd!=Amat_data.end();itd++)
+        {
+            int elid = itd->first;
+            myfile3 << itd->first;
+            for(int q=0;q<itd->second.size();q++)
+            {
+                myfile << itd->second[q] << " ";
+            }
+            for(int q=0;q<bvec_data[itd->first].size();q++)
+            {
+                myfile4 << bvec_data[itd->first][q] << " ";
+            }
+            myfile  << (double) Am_data[elid] << " ";
+            myfile  << (double) An_data[elid] << " ";
+            myfile  << std::endl;
+            myfile3 << std::endl;
+            myfile4 << std::endl;
+
+        }
+        myfile.close();
+        myfile3.close();
+        myfile4.close();
+
+    }
+
 
     MPI_Finalize();
         

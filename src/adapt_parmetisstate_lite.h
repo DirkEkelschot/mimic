@@ -50,10 +50,11 @@ inline ParallelState_Parmetis_Lite::ParallelState_Parmetis_Lite(std::map<int,std
     int nloc                = e2n.size();
     nElemTotal              = 0;
     MPI_Allreduce(&nloc, &nElemTotal, 1, MPI_INT, MPI_SUM, comm);
-
+    
     int npo_loc     = 0;
     int npo_loc_tot = 0;
-
+    //std::cout << "elTypes  " << elTypes.size() << std::endl;
+    
     if(elTypes[0] > 0 || elTypes[1] > 0)
     {
         ncommonnodes = 3;
@@ -64,7 +65,7 @@ inline ParallelState_Parmetis_Lite::ParallelState_Parmetis_Lite(std::map<int,std
     }
     
     ncommonnodes = 3; 
-    
+   
     elmwgt = std::vector<int>(nloc,0);
     std::map<int,std::vector<int> >::iterator itmiv;
     int i = 0;
@@ -156,6 +157,10 @@ inline ParallelState_Parmetis_Lite::ParallelState_Parmetis_Lite(std::map<int,std
 
         i++;
     }
+
+    /**/
+
+
 }// This is the constructor
 
 inline std::vector<int> ParallelState_Parmetis_Lite::getElmWgt( void )

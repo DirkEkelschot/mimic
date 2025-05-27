@@ -1,6 +1,7 @@
 #include <vtkPointData.h>
 #include <vtkCellData.h>
 #include <vtkTetra.h>
+#include <vtkHexahedron.h>
 #include <vtkHexagonalPrism.h>
 #include <vtkCellArray.h>
 #include <vtkUnstructuredGrid.h>
@@ -13,7 +14,25 @@
 using namespace std;
 
 
+void OutputHexahedralMeshOnRootVTK(MPI_Comm comm,
+                                string filename, 
+                                std::set<int> OwnedElem,
+                                std::map<int,std::vector<int> > gE2lV,
+                                std::map<int,std::vector<double> > loc_data,
+                                std::map<int,std::string > varnames,
+                                std::map<int, std::vector<double> > LocalVerts);
+
+
 void OutputTetraMeshOnRootVTK(MPI_Comm comm,
+                                string filename, 
+                                std::set<int> OwnedElem,
+                                std::map<int,std::vector<int> > gE2lV,
+                                std::map<int,std::vector<double> > loc_data,
+                                std::map<int,std::string > varnames,
+                                std::map<int, std::vector<double> > LocalVerts);
+
+
+void OutputHexahedralMeshPartitionVTK(MPI_Comm comm,
                                 string filename, 
                                 std::set<int> OwnedElem,
                                 std::map<int,std::vector<int> > gE2lV,
@@ -23,7 +42,7 @@ void OutputTetraMeshOnRootVTK(MPI_Comm comm,
 
 void OutputTetraMeshPartitionVTK(MPI_Comm comm,
                             string filename, 
-                            std::vector<int> OwnedElem,
+                            std::set<int> OwnedElem,
                             std::map<int,std::vector<int> > gE2lV,
                             std::map<int,std::vector<double> > loc_data,
                             std::map<int,std::string > varnames,

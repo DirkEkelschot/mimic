@@ -4446,7 +4446,6 @@ mesh* ReadUS3DMeshDataWithMetric(const char* fn_conn, const char* fn_grid, const
 
 
 
-
 mesh* ReadUS3DMeshData(const char* fn_conn, const char* fn_grid, const char* fn_data, int readFromStats, int StateVar, int RunNumber, MPI_Comm comm, MPI_Info info)
 {
     mesh* mRead = new mesh;
@@ -4537,7 +4536,7 @@ mesh* ReadUS3DMeshData(const char* fn_conn, const char* fn_grid, const char* fn_
 
             VtotState   = sqrt(uState*uState+vState*vState+wState*wState);
 
-            MState      = TState;
+            MState      = VtotState;
             
             std::vector<double> row_interior(2,0.0);
 
@@ -4600,10 +4599,10 @@ mesh* ReadUS3DMeshData(const char* fn_conn, const char* fn_grid, const char* fn_
 
             std::vector<double> row_interior(2,0.0);
 
-            row_interior[0] = 0.0;
+            row_interior[0] = VtotState;
             row_interior[1] = TState;
 
-            interior[elid] = row_interior;
+            interior[elid]  = row_interior;
         }
     }
     
@@ -4615,7 +4614,7 @@ mesh* ReadUS3DMeshData(const char* fn_conn, const char* fn_grid, const char* fn_
     for(int u=0;u<nghosts;u++)
     {
         int elid        = nElem+u;
-        rhoGhostState   = ghost[u][0];
+        rhoGhostState       = ghost[u][0];
         uGhostState          = ghost[u][uid];
         vGhostState          = ghost[u][vid];
         wGhostState          = ghost[u][wid];
@@ -4626,7 +4625,7 @@ mesh* ReadUS3DMeshData(const char* fn_conn, const char* fn_grid, const char* fn_
 
         std::vector<double> row_ghost(2,0.0);
 
-        row_ghost[0] = 0.0;
+        row_ghost[0] = VtotGhostState;
         row_ghost[1] = TGhostState;
 
         ghost_out[elid] = row_ghost;
@@ -5045,6 +5044,7 @@ mesh* ReadUS3DMeshData(const char* fn_conn, const char* fn_grid, const char* fn_
     mRead->nhexahedral    = hexCount;
     mRead->npyramid       = pyrCount;
 
+    //std::cout << "ReadUS3DMeshData " << tetCount << std::endl;
     /**/
     //delete zdefs;
     //delete znames;
@@ -6085,6 +6085,8 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
 
 
 
+
+
 US3D* ReadUS3DGrid(const char* fn_conn, const char* fn_grid, int readFromStats, MPI_Comm comm, MPI_Info info)
 {
     int size;
@@ -6396,4 +6398,20 @@ US3D* ReadUS3DGrid(const char* fn_conn, const char* fn_grid, int readFromStats, 
 
 
 
+
+std::vector<std::vector<double> > ReadHyperSolveHessianData(const char* hessian_data, int Nel, MPI_Comm comm, MPI_Info info)
+{
+    std::vector<std::vector<double> > T_hessian;
+     int size;
+    MPI_Comm_size(comm, &size);
+    // Get the rank of the process
+    int rank;
+    MPI_Comm_rank(comm, &rank);
+    T_hessian = ReadDataSetFromHyperSolveFileInParallel_Lite<double>(hessian_data,
+                                                                    "temperature", 
+                                                                    Nel, comm, info);
+
+    return T_hessian;
+                                                                                                      
+}
 
