@@ -22,7 +22,7 @@ PartObjectLite::PartObjectLite(std::map<int,std::vector<int> > Elem2Vert_uniform
 
     m_Ne_glob = nE;
     m_Nv_glob = nV;
-    std::cout << "Elem2Vert_uniform " << Elem2Vert_uniform.size() << std::endl;
+    //std::cout << "Elem2Vert_uniform " << Elem2Vert_uniform.size() << std::endl;
     DeterminePartitionLayout(Elem2Vert_uniform,elTypes,comm);
     
     DetermineElement2ProcMap(Elem2Vert_uniform, 
@@ -30,9 +30,10 @@ PartObjectLite::PartObjectLite(std::map<int,std::vector<int> > Elem2Vert_uniform
                              eltype_map, 
                              comm);
 
-    // std::map<int,std::vector<int> > Rank2Elem = CommunicateAdjacencyInfoLocalPartition(comm);
+    //std::map<int,std::vector<int> > Rank2Elem = CommunicateAdjacencyInfoLocalPartition(comm);
 
-    // ComputeFaceMap(allbcFaces);
+    ComputeFaceMap(comm, allbcFaces);
+
 }
 
 
@@ -737,7 +738,7 @@ void PartObjectLite::DetermineElement2ProcMap(std::map<int,std::vector<int> >   
 
 
 
-void PartObjectLite::ComputeFaceMap(FaceSetPointer allbcFaces)
+void PartObjectLite::ComputeFaceMap(MPI_Comm comm, FaceSetPointer allbcFaces)
 {
     std::vector<std::vector<int> > tetra_faces   = getTetraFaceMap(); 
     std::vector<std::vector<int> > prism_faces   = getPrismFaceMap(); 
@@ -748,7 +749,7 @@ void PartObjectLite::ComputeFaceMap(FaceSetPointer allbcFaces)
 
     FaceSetPointer m_FaceSetPointer;
     FaceSetPointer m_InteriorFaceSetPointer;
-    
+    FaceSetPointer m_SharedFaceSetPointer;
 
     int ishere = 0;
     int fintid = 0;
@@ -757,7 +758,6 @@ void PartObjectLite::ComputeFaceMap(FaceSetPointer allbcFaces)
     std::map<int,std::vector<int> >::iterator ite;
     int bcf  = 0;
     int intf = 0;
-    std::cout << "m_Elem2Vert " << m_Elem2Vert.size() << std::endl;
     for(ite=m_Elem2Vert.begin();ite!=m_Elem2Vert.end();ite++)
     {
         int elid                = ite->first;
@@ -805,7 +805,7 @@ void PartObjectLite::ComputeFaceMap(FaceSetPointer allbcFaces)
             FaceSharedPtr facePointer = std::shared_ptr<NekFace>(new NekFace(face_globvid));
             std::pair<FaceSetPointer::iterator, bool> testInsPointer;
             testInsPointer = m_FaceSetPointer.insert(facePointer);
-
+            // This if statement is check to make sure that the face that is being considered is NOT on the boundary.
             if(allbcFaces.find(facePointer)==allbcFaces.end())
             {
                 ishere++;
@@ -832,7 +832,106 @@ void PartObjectLite::ComputeFaceMap(FaceSetPointer allbcFaces)
         }
     }
 
-    std::cout << m_rank << " FaceCnt "<< m_FaceSetPointer.size() << " " << bcf << " " << intf << " " << fintid << " " << m_InteriorFaceSetPointer.size() << std::endl;
+    //FaceSetPointer m_FaceSetPointer;
+    // update faceid for the boundary faces
+
+    FaceSetPointer::iterator ftit;
+    int sharedF = 0;
+
+    std::vector<int> nVrtsPerSharedFace;    
+    std::vector<std::vector<int> > sharedFaces;
+    int offset_shared_vrts = 0;
+    for(ftit=m_InteriorFaceSetPointer.begin();ftit!=m_InteriorFaceSetPointer.end();ftit++)
+    {
+        int ofid = (*ftit)->GetFaceID();
+        // std::cout << "ofid "  << ofid << std::endl;
+        int rightFaceID = (*ftit)->GetFaceRightElement();
+
+        if(rightFaceID==-1)
+        {
+            std::vector<int> fvid                   = (*ftit)->GetEdgeIDs();
+            int nvrts_per_face                      = fvid.size();
+
+            nVrtsPerSharedFace.push_back(nvrts_per_face);
+            sharedFaces.push_back(fvid);
+            FaceSharedPtr facePointer               = std::shared_ptr<NekFace>(new NekFace(fvid));
+            std::pair<FaceSetPointer::iterator, bool> testInsPointerShared;
+            testInsPointerShared                    = m_SharedFaceSetPointer.insert(facePointer);
+
+            offset_shared_vrts                      = offset_shared_vrts+nvrts_per_face;
+            sharedF++;
+        }
+    }
+
+    
+    int nSharedFaces                                = nVrtsPerSharedFace.size();
+    DistributedParallelState* pstate_sharedFaces    = new DistributedParallelState(nSharedFaces,comm);
+    int nAllSharedFaces                             = pstate_sharedFaces->getNel();
+    std::vector<int> globalnVrtsPerSharedFace(nAllSharedFaces,0);
+
+
+    MPI_Allgatherv(&nVrtsPerSharedFace.data()[0],
+    nVrtsPerSharedFace.size(), MPI_INT,
+    &globalnVrtsPerSharedFace.data()[0],
+    pstate_sharedFaces->getNlocs(),
+    pstate_sharedFaces->getOffsets(),
+    MPI_INT,comm);
+
+    std::vector<int> shared_faces_flatten;
+    for (const auto& row : sharedFaces) 
+    {
+            shared_faces_flatten.insert(shared_faces_flatten.end(), row.begin(), row.end());
+    }
+    int nSharedFaceVrts                                = shared_faces_flatten.size();
+    DistributedParallelState* pstate_sharedFaceVrts    = new DistributedParallelState(nSharedFaceVrts,comm);
+    int nVrtsAllSharedFaces                            = pstate_sharedFaceVrts->getNel();
+    std::vector<int> globalSharedFaceVrts(nVrtsAllSharedFaces,0);
+
+
+    MPI_Allgatherv(&shared_faces_flatten.data()[0],
+    shared_faces_flatten.size(), MPI_INT,
+    &globalSharedFaceVrts.data()[0],
+    pstate_sharedFaceVrts->getNlocs(),
+    pstate_sharedFaceVrts->getOffsets(),
+    MPI_INT,comm);
+
+    
+    int off = 0;
+    for(int i=0;i<nAllSharedFaces;i++)
+    {
+        int nvrts_per_face        = globalnVrtsPerSharedFace[i];
+
+        std::vector<int> face_globvid(nvrts_per_face,0);
+        for(int j=0;j<nvrts_per_face;j++)
+        {
+            face_globvid[j] = globalSharedFaceVrts[off+j];
+        }
+        off = off + nvrts_per_face;
+
+        FaceSharedPtr facePointer = std::shared_ptr<NekFace>(new NekFace(face_globvid));
+        std::pair<FaceSetPointer::iterator, bool> testInsPointer = m_AllSharedFaceSetPointer.insert(facePointer);
+    }
+
+
+    // int shell = 0;
+    // int nshell = 0;
+
+    // for(ftit=m_AllSharedFaceSetPointer.begin();ftit!=m_AllSharedFaceSetPointer.end();ftit++)
+    // {
+    //     std::vector<int> fvid       = (*ftit)->GetEdgeIDs();
+    //     FaceSharedPtr facePointer   = std::shared_ptr<NekFace>(new NekFace(fvid));
+
+    //     if(allbcFaces.find(facePointer)==allbcFaces.end())
+    //     {
+    //         shell++;
+    //     }
+    //     else
+    //     {
+    //         nshell++;
+    //     }
+    // }
+
+    // std::cout << "shell " << shell << " " << nshell << " " << m_AllSharedFaceSetPointer.size() << " " << allbcFaces.size() << std::endl; 
 }
 
 
@@ -850,7 +949,7 @@ std::map<int,std::vector<int> >  PartObjectLite::CommunicateAdjacencyInfoLocalPa
     int nreq;
 
     std::set<int> toquery_elids;
-
+    std::cout << "m_Elem2Elem " << m_Elem2Elem.size() << std::endl;
     for(itm=m_Elem2Elem.begin();itm!=m_Elem2Elem.end();itm++)
     {
         int elid = itm->first;
@@ -1164,6 +1263,10 @@ std::map<int,std::vector<double> > PartObjectLite::getLocalVertsMap()
     return m_LocalVertsMap;
 }
 
+FaceSetPointer PartObjectLite::getAllSharedFaceMap()
+{
+    return m_AllSharedFaceSetPointer;
+}
 
 /*
 std::map<int, std::vector<int> > PartObjectLite::getAdjacentElementLayer(std::map<int,std::vector<double> > xcn, MPI_Comm comm)

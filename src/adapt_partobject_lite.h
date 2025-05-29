@@ -52,8 +52,9 @@ class PartObjectLite{
 
         void GenerateFace2ElementMap(std::map<int,std::vector<int> > Face2Elem_i,  MPI_Comm comm);
 
-        void ComputeFaceMap(FaceSetPointer allbcFaces);
+        void ComputeFaceMap(MPI_Comm comm, FaceSetPointer allbcFaces);
 
+        FaceSetPointer getAllSharedFaceMap();
         private:
         
         int m_rank;
@@ -87,6 +88,8 @@ class PartObjectLite{
         std::map<int,int>                       m_Elem2Rank;
 
         std::map<int,std::vector<int> >         m_Face2Elem;
+
+        FaceSetPointer                          m_AllSharedFaceSetPointer;
 
         int vloc; // running total number of vertices.
     };
