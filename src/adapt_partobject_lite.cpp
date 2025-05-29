@@ -838,7 +838,8 @@ void PartObjectLite::ComputeFaceMap(MPI_Comm comm, FaceSetPointer allbcFaces)
     FaceSetPointer::iterator ftit;
     int sharedF = 0;
 
-    std::vector<int> nVrtsPerSharedFace;    
+    std::vector<int> nVrtsPerSharedFace;
+    std::vector<int> SharedFaceRankID;       
     std::vector<std::vector<int> > sharedFaces;
     int offset_shared_vrts = 0;
     for(ftit=m_InteriorFaceSetPointer.begin();ftit!=m_InteriorFaceSetPointer.end();ftit++)
@@ -851,7 +852,7 @@ void PartObjectLite::ComputeFaceMap(MPI_Comm comm, FaceSetPointer allbcFaces)
         {
             std::vector<int> fvid                   = (*ftit)->GetEdgeIDs();
             int nvrts_per_face                      = fvid.size();
-
+            SharedFaceRankID.push_back(m_rank);
             nVrtsPerSharedFace.push_back(nvrts_per_face);
             sharedFaces.push_back(fvid);
             FaceSharedPtr facePointer               = std::shared_ptr<NekFace>(new NekFace(fvid));
@@ -868,11 +869,19 @@ void PartObjectLite::ComputeFaceMap(MPI_Comm comm, FaceSetPointer allbcFaces)
     DistributedParallelState* pstate_sharedFaces    = new DistributedParallelState(nSharedFaces,comm);
     int nAllSharedFaces                             = pstate_sharedFaces->getNel();
     std::vector<int> globalnVrtsPerSharedFace(nAllSharedFaces,0);
+    std::vector<int> globalSharedFaceRankID(nAllSharedFaces,0);
 
 
     MPI_Allgatherv(&nVrtsPerSharedFace.data()[0],
     nVrtsPerSharedFace.size(), MPI_INT,
     &globalnVrtsPerSharedFace.data()[0],
+    pstate_sharedFaces->getNlocs(),
+    pstate_sharedFaces->getOffsets(),
+    MPI_INT,comm);
+
+    MPI_Allgatherv(&SharedFaceRankID.data()[0],
+    nVrtsPerSharedFace.size(), MPI_INT,
+    &globalSharedFaceRankID.data()[0],
     pstate_sharedFaces->getNlocs(),
     pstate_sharedFaces->getOffsets(),
     MPI_INT,comm);
@@ -885,9 +894,8 @@ void PartObjectLite::ComputeFaceMap(MPI_Comm comm, FaceSetPointer allbcFaces)
     int nSharedFaceVrts                                = shared_faces_flatten.size();
     DistributedParallelState* pstate_sharedFaceVrts    = new DistributedParallelState(nSharedFaceVrts,comm);
     int nVrtsAllSharedFaces                            = pstate_sharedFaceVrts->getNel();
+
     std::vector<int> globalSharedFaceVrts(nVrtsAllSharedFaces,0);
-
-
     MPI_Allgatherv(&shared_faces_flatten.data()[0],
     shared_faces_flatten.size(), MPI_INT,
     &globalSharedFaceVrts.data()[0],
@@ -895,11 +903,12 @@ void PartObjectLite::ComputeFaceMap(MPI_Comm comm, FaceSetPointer allbcFaces)
     pstate_sharedFaceVrts->getOffsets(),
     MPI_INT,comm);
 
-    
+    int sharedFound = 0;
     int off = 0;
     for(int i=0;i<nAllSharedFaces;i++)
     {
         int nvrts_per_face        = globalnVrtsPerSharedFace[i];
+        int rank_id               = globalSharedFaceRankID[i];
 
         std::vector<int> face_globvid(nvrts_per_face,0);
         for(int j=0;j<nvrts_per_face;j++)
@@ -910,6 +919,22 @@ void PartObjectLite::ComputeFaceMap(MPI_Comm comm, FaceSetPointer allbcFaces)
 
         FaceSharedPtr facePointer = std::shared_ptr<NekFace>(new NekFace(face_globvid));
         std::pair<FaceSetPointer::iterator, bool> testInsPointer = m_AllSharedFaceSetPointer.insert(facePointer);
+
+        if(testInsPointer.second==false)
+        {
+            //std::cout << rank_id << " " << (*testInsPointer.first)->GetFaceRef() << std::endl;
+            sharedFound++;
+            if(rank_id < (*testInsPointer.first)->GetFaceRef())
+            {   
+                std::cout << "before " << rank_id << " " << (*testInsPointer.first)->GetFaceRef() << std::endl;
+                (*testInsPointer.first)->SetFaceRef(rank_id);
+                std::cout << "after " << rank_id << " " << (*testInsPointer.first)->GetFaceRef() << std::endl;
+            }   
+        }
+        else
+        {
+            (*testInsPointer.first)->SetFaceRef(rank_id);
+        }
     }
 
 
@@ -931,7 +956,7 @@ void PartObjectLite::ComputeFaceMap(MPI_Comm comm, FaceSetPointer allbcFaces)
     //     }
     // }
 
-    // std::cout << "shell " << shell << " " << nshell << " " << m_AllSharedFaceSetPointer.size() << " " << allbcFaces.size() << std::endl; 
+    std::cout << " " << m_AllSharedFaceSetPointer.size() << " " << sharedFound << std::endl; 
 }
 
 
