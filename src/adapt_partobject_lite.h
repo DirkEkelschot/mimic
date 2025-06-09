@@ -54,7 +54,42 @@ class PartObjectLite{
 
         void ComputeFaceMap(MPI_Comm comm, FaceSetPointer allbcFaces);
 
-        FaceSetPointer getAllSharedFaceMap();
+        FaceSetPointer getAllSharedAndInterFaceFaceMap();
+
+        FaceSetPointer getOwnedSharedAndInterFaceFaceMap();
+
+        FaceSetPointer getActualSharedFaceMap();
+        FaceSetPointer getExternalFacesForRankFaceMap();
+        
+        FaceSetPointer getOwnedInteriorFaceFaceMap();
+        FaceSetPointer getOwnedBoundaryFaceFaceMap();
+
+        FaceSetPointer getExternalInterFaceFaceMap();
+        FaceSetPointer getSharedFacesForRankMap();
+        
+        
+
+        std::vector<int> getownedSharedFacesOffsets();
+        std::vector<int> getownedSharedFacesNlocs();
+
+        std::vector<int> getownedInteriorFacesOffsets();
+        std::vector<int> getownedInteriorFacesNlocs();
+
+        std::map<int,int> getLocalVert2GlobalVert();
+        std::map<int,int> getGlobalVert2LocalVert();
+
+        void BuildPMMGCommunicationData(MPI_Comm comm, FaceSetPointer allbcFaces);
+
+        int** getParMMGCommFace2GlobalVertMap();
+        int** getParMMGCommFace2LocalVertMap();
+        int* getParMMGCommColorFace();
+        int* getParMMGCommNFacesPerColor();
+        int getParMMGNComm();
+        std::vector<int> getFace4ParMMG();
+        std::map<int,int> getLocalSharedFace2GlobalSharedFace();
+        std::map<int,int> getGlobalSharedFace2LocalSharedFace();
+        std::map<int,std::vector<int> > getSharedFaceMap();
+
         private:
         
         int m_rank;
@@ -88,10 +123,34 @@ class PartObjectLite{
         std::map<int,int>                       m_Elem2Rank;
 
         std::map<int,std::vector<int> >         m_Face2Elem;
-
+        FaceSetPointer                          m_SharedFacesForRank;
         FaceSetPointer                          m_AllSharedFaceSetPointer;
-
+        FaceSetPointer                          m_OwnedSharedFaceSetPointer;
+        FaceSetPointer                          m_NotOwnedSharedFaceSetPointer;
+        FaceSetPointer                          m_ActualSharedFaceSetPointer;
+        FaceSetPointer                          m_OwnedInteriorFaceSetPointer;
+        FaceSetPointer                          m_ExternalFaceForRankFaceSetPointer;
+        FaceSetPointer                          m_OwnedBoundaryFaceSetPointer;
+        FaceSetPointer                          m_ExternalInterFaceFace;
+        FaceSetPointer                          m_OverallFaceMapOnRank;
+        std::vector<int>                        m_ownedSharedFacesOffsets;
+        std::vector<int>                        m_NownedSharedFaces;
+        std::vector<int>                        m_ownedInteriorFacesOffsets;
+        std::vector<int>                        m_NownedInteriorFaces;
+        std::vector<int>                        m_faces4parmmg;
+        std::map<int,std::vector<int> >         m_ColorsFaces;
         int vloc; // running total number of vertices.
+
+        int m_ncomm;
+        int** m_ifc_tria_glo;
+        int** m_ifc_tria_loc;
+        int* m_color_face;
+        int* m_ntifc;
+
+        std::map<int,int> m_locShF2globShF;
+        std::map<int,int> m_globShF2locShF;
+
+        std::map<int,std::vector<int> > m_sharedFaceVerts;
     };
 
 

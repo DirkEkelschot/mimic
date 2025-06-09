@@ -603,7 +603,6 @@ void PrepareAdaption::buildUpdatedVertexAndFaceNumbering(MPI_Comm               
         shFaces_RankIDs[i] = rank;
     }
 
-    
     std::vector<int> TotalSharedFacesNew(Nt_shFaces_New,0);
     std::vector<int> TotalSharedFacesNew_RankID(Nt_shFaces_New,0);
     
@@ -658,7 +657,7 @@ void PrepareAdaption::buildUpdatedVertexAndFaceNumbering(MPI_Comm               
     {
         int faceID = itff->first;
         
-        if(itff->second.size()==2)
+        if(itff->second.size()==2) // Actual shared faces.
         {
             if(itff->second[0]==rank)
             {
@@ -684,7 +683,7 @@ void PrepareAdaption::buildUpdatedVertexAndFaceNumbering(MPI_Comm               
             
         }
         
-        if(itff->second.size()==1)
+        if(itff->second.size()==1)// Boundary faces.
         {         
              if(m_Face2Vert_New.find(faceID)!=m_Face2Vert_New.end())
             {
@@ -693,7 +692,6 @@ void PrepareAdaption::buildUpdatedVertexAndFaceNumbering(MPI_Comm               
                 m_locShF2globShF[f] = faceID;
                 f++;
             } 
-
             once++;  
         }
     }

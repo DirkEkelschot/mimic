@@ -24,6 +24,10 @@ class NekFace {
         void SetFaceRightElement(int re);
         int GetFaceLeftElement() const;
         int GetFaceRightElement() const;
+        void SetFaceLeftRank(int lr);
+        void SetFaceRightRank(int rr);
+        int GetFaceLeftRank() const;
+        int GetFaceRightRank() const;
         bool GetHandled() const;
         void SetHandled(bool H);
         bool operator==(const NekFace& otherFace) const;
@@ -37,6 +41,8 @@ class NekFace {
         int m_ref;
         int m_le;
         int m_re;
+        int m_lr;
+        int m_rr;
         bool handled;
         std::map<int,int> m_vcuts;
 };

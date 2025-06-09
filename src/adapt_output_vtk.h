@@ -1,6 +1,7 @@
 #include <vtkPointData.h>
 #include <vtkCellData.h>
 #include <vtkTetra.h>
+#include <vtkTriangle.h>
 #include <vtkHexahedron.h>
 #include <vtkHexagonalPrism.h>
 #include <vtkCellArray.h>
@@ -10,6 +11,7 @@
 #include <vtkDoubleArray.h>
 #include <vtkFloatArray.h>
 #include "adapt.h"
+#include "NekFace.h"
 #include <string>
 using namespace std;
 
@@ -46,6 +48,12 @@ void OutputTetraMeshPartitionVTK(MPI_Comm comm,
                             std::map<int,std::vector<int> > gE2lV,
                             std::map<int,std::vector<double> > loc_data,
                             std::map<int,std::string > varnames,
+                            std::map<int, std::vector<double> > LocalVerts);
+
+
+void OutputTriMeshPartitionVTK(MPI_Comm comm,
+                            string filename, 
+                            FaceSetPointer FaceMap,
                             std::map<int, std::vector<double> > LocalVerts);
 
 

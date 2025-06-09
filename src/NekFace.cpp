@@ -71,6 +71,24 @@ int NekFace::GetFaceRightElement() const
 {
     return m_re;
 }
+
+void NekFace::SetFaceLeftRank(int lr)
+{
+    m_lr = lr;
+}
+void NekFace::SetFaceRightRank(int rr)
+{
+    m_rr = rr;
+}
+int NekFace::GetFaceLeftRank() const
+{
+    return m_lr;
+}
+int NekFace::GetFaceRightRank() const
+{
+    return m_rr;
+}
+
 void NekFace::SetHandled(bool H)
 {
     handled = H;

@@ -492,6 +492,94 @@ void OutputTetraMeshPartitionVTK(MPI_Comm comm,
 
 
 
+
+void OutputTriMeshPartitionVTK(MPI_Comm comm,
+                            string filename, 
+                            FaceSetPointer FaceMap,
+                            std::map<int, std::vector<double> > LocalVerts)
+{
+
+    FaceSetPointer::iterator itit;
+    int world_size, world_rank;
+    MPI_Comm_size(comm, &world_size);
+    MPI_Comm_rank(comm, &world_rank);
+
+    // Convert filename to char array
+    const int length = filename.length();
+    char* filename_char = new char[length + 1];
+    strcpy(filename_char, filename.c_str());
+
+    // Create VTK data structures
+    vtkSmartPointer<vtkUnstructuredGrid> vtkmesh = vtkSmartPointer<vtkUnstructuredGrid>::New();
+    vtkSmartPointer<vtkCellArray> cellArray = vtkSmartPointer<vtkCellArray>::New();
+    vtkNew<vtkPoints> points;
+
+    // Create data arrays for variables
+    // std::map<int,vtkDoubleArray*> mapVars;
+    // for(auto& [key, name] : varnames) {
+    //     vtkDoubleArray* array = vtkDoubleArray::New();
+    //     array->SetNumberOfComponents(1);
+    //     array->SetName(name.c_str());
+    //     mapVars[key] = array;
+    // }
+
+    // Vertex mapping and population
+    std::map<int,int> g2lv;
+    int lvid = 0;
+    
+    for(itit=FaceMap.begin();itit!=FaceMap.end();itit++)
+    {
+        vtkNew<vtkTriangle> triangle;
+        std::vector<int> vrts = (*itit)->GetEdgeIDs();
+
+        //std::cout << (*itit)->GetFaceRef() << " reffie " << (*itit)->GetFaceID() << std::endl;
+        // Set triangle vertices (3 points instead of 4)
+        for(int q = 0; q < 3; q++) {  // Triangles have 3 vertices
+            int gvid = vrts[q];
+            
+            if(g2lv.find(gvid) == g2lv.end()) {
+                g2lv[gvid] = lvid;
+                points->InsertNextPoint(LocalVerts[gvid][0],
+                                        LocalVerts[gvid][1],
+                                        LocalVerts[gvid][2]);
+                lvid++;
+            }
+            triangle->GetPointIds()->SetId(q, g2lv[gvid]);
+        }
+        
+        cellArray->InsertNextCell(triangle);
+        
+        // // Add cell data
+        // for(auto& [var_id, array] : mapVars) {
+        //     array->InsertNextTuple(&loc_data[elid][var_id]);
+        // }
+    }
+
+    // Assemble the mesh
+    vtkmesh->SetPoints(points);
+    vtkmesh->SetCells(VTK_TRIANGLE, cellArray);  // Changed to triangle cell type
+    
+    // Add data arrays
+    // for(auto& [var_id, array] : mapVars) {
+    //     vtkmesh->GetCellData()->AddArray(array);
+    //     array->Delete();
+    // }
+
+    // Write output
+    vtkSmartPointer<vtkXMLUnstructuredGridWriter> writer = 
+        vtkSmartPointer<vtkXMLUnstructuredGridWriter>::New();
+    writer->SetFileName(filename_char);
+    writer->SetHeaderTypeToUInt64();
+    writer->SetDataModeToBinary();
+    writer->SetInputData(vtkmesh);
+    writer->Write();
+
+    // Cleanup
+    delete[] filename_char;
+}
+
+
+
 void OutputHexahedralMeshPartitionVTK(MPI_Comm comm,
     string filename, 
     std::set<int> OwnedElem,

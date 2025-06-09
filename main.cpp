@@ -447,6 +447,7 @@ int main(int argc, char** argv)
             std::map<int,int> localV2globalV                    = tetra_repart->getLocalVert2GlobalVert();
             std::map<int,std::vector<double> > LocalVertsMap    = tetra_repart->getLocalVertsMap();
             
+            
 
             start = clock();
 
@@ -547,7 +548,7 @@ int main(int argc, char** argv)
             std::set<int> m_ElemSet                             = tetra_repart->getLocalElemSet();
             std::map<int,int> localV2globalV                    = tetra_repart->getLocalVert2GlobalVert();
             std::map<int,std::vector<double> > LocalVertsMap    = tetra_repart->getLocalVertsMap();
-
+            std::cout << "nTetra " << m_ElemSet.size() << std::endl;
             start = clock();
             adaptionObject = new PrepareAdaption(tetra_repart, 
                                                 comm,

@@ -4,6 +4,7 @@
 #include "adapt_geometry.h"
 #include "adapt_operations.h"
 #include "adapt_prepareadaption.h"
+#include "adapt_partobject_lite.h"
 
 #ifndef ADAPT_TESTING_H
 #define ADAPT_TESTING_H
@@ -28,6 +29,21 @@ void RunParMMGandWriteTetraUS3Dformat(MPI_Comm comm,
                                         int &nLocIntVrts,
                                         int &nLocShVrts,
                                         std::map<int,int> tagE2gE_P);
+
+
+PMMG_pParMesh InitializeParMMGmeshFromHyperSolveInputs(MPI_Comm comm, 
+                                                        PartObjectLite* partition,
+                                                        FaceSetPointer ActualSharedFaces,
+                                                        FaceSetPointer InterFaceFaces,
+                                                        FaceSetPointer OwnedBoundaryFaces,
+                                                        int nInteriorSharedFaces,
+                                                        std::vector<std::vector<double> > t_metric);
+
+void RunParMMGAndTestPartitioningFromHyperSolveInputs(MPI_Comm comm,
+                                                        PMMG_pParMesh parmesh, 
+                                                        PartObjectLite* partition,
+                                                        FaceSetPointer ActualSharedFaces,
+                                                        Inputs* inputs);
 
 PMMG_pParMesh InitializeParMMGmesh(MPI_Comm comm, 
                                     std::set<int> loc_trace_faces,

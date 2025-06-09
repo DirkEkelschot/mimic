@@ -5,6 +5,9 @@
 #define MAX2(a,b)      (((a) > (b)) ? (a) : (b))
 #define MAX4(a,b,c,d)  (((MAX2(a,b)) > (MAX2(c,d))) ? (MAX2(a,b)) : (MAX2(c,d)))
 
+
+
+
 PMMG_pParMesh InitializeParMMGmesh(MPI_Comm comm, 
                                    std::set<int> loc_trace_faces,
                                    std::set<int> loc_trace_verts,
@@ -24,6 +27,7 @@ PMMG_pParMesh InitializeParMMGmesh(MPI_Comm comm,
     MPI_Comm_rank(comm, &world_rank);
     PMMG_pParMesh   parmesh;
     int k;
+    
     // This test assumes that the following two build requests on the tetra_repart object have been called before entering this routine
     // tetra_repart->buildInteriorSharedAndBoundaryFacesMaps(comm,pttrace, ranges_id);
     // tetra_repart->buildTag2GlobalElementMapsAndFace2LeftRightElementMap(comm,pttrace, ranges_id);
@@ -60,7 +64,7 @@ PMMG_pParMesh InitializeParMMGmesh(MPI_Comm comm,
     int nEdges      = 0;
     int nTriangles  = face4parmmg.size();
 
-    
+    std::cout << nTriangles << " = nTriangles   " << nVertices << " = nVertices " << nTetrahedra << " = nTetrahedra" << world_rank << std::endl;
     
     PMMG_Init_parMesh(PMMG_ARG_start,
                       PMMG_ARG_ppParMesh,&parmesh,
@@ -150,6 +154,7 @@ PMMG_pParMesh InitializeParMMGmesh(MPI_Comm comm,
     //std::cout << "bndIDmax " << bndIDmax << " -- " << bndid_vec.size() << std::endl;
     int found1 = 0;
     int found2 = 0;
+    std::cout << world_rank << " nTriangles. " << nTriangles << std::endl;
     for ( k=0; k<nTriangles; ++k )
     {
         
@@ -283,6 +288,7 @@ PMMG_pParMesh InitializeParMMGmesh(MPI_Comm comm,
         // std::cout << "face ref " << ref << std::endl;        
     }
 
+    std::cout << "tracebc " << tracebc << " " << world_rank << std::endl;
     glob_trace_verts.clear();
     //std::cout << "found1 found2 " << found1 << " " << found2 << std::endl;
     //std::cout << "fff " << fff << std::endl; 
@@ -743,6 +749,7 @@ void RunParMMGandWriteTetraUS3Dformat(MPI_Comm comm,
     }
 
     int nreq;
+
     if(world_rank != 0)
     {
         std::vector<int> collect_prism_ids_toberequested_vec(collect_prism_ids_toberequested.size(),0);
@@ -2308,10 +2315,705 @@ void RunParMMGAndTestPartitioning(MPI_Comm comm,
             }
         }
     }
-
-
-    /**/
-
-
 }
+
+
+
+
+
+
+
+
+
+PMMG_pParMesh InitializeParMMGmeshFromHyperSolveInputs(MPI_Comm comm, 
+                                                        PartObjectLite* partition,
+                                                        FaceSetPointer ActualSharedFaces,
+                                                        FaceSetPointer InterFaceFaces,
+                                                        FaceSetPointer OwnedBoundaryFaces,
+                                                        int nInteriorSharedFaces,
+                                                        std::vector<std::vector<double> > t_metric)
+{
+    int ier;
+    int world_size;
+    MPI_Comm_size(comm, &world_size);
+    // Get the rank of the process
+    int world_rank;
+    MPI_Comm_rank(comm, &world_rank);
+    PMMG_pParMesh   parmesh;
+    int k = 0;
+
+    std::map<int,std::vector<int> > gE2gV_t                     = partition->getElem2VertMap();
+    std::map<int,int> locv2tagvID                               = partition->getLocalVert2GlobalVert();
+    std::map<int,int> tagv2locvID                               = partition->getGlobalVert2LocalVert();
+    std::set<int> Owned_Elem_t                                  = partition->getLocalElemSet();
+    std::map<int,std::vector<double> > LocalVertsMap_t          = partition->getLocalVertsMap();
+    FaceSetPointer ExternalFacesForRank                         = partition->getExternalFacesForRankFaceMap();
+    FaceSetPointer OwnedBoundaryFaceFaceMap                     = partition->getOwnedBoundaryFaceFaceMap();
+    FaceSetPointer ExternalInterFaceFaceMap                     = partition->getExternalInterFaceFaceMap();
+    FaceSetPointer SharedFacesForRank                           = partition->getSharedFacesForRankMap();
+    std::map<int,std::vector<int> > sharedFace2Verts            = partition->getSharedFaceMap();
+
+    //std::cout << "numbers check " << world_rank << " " << ExternalFacesForRank.size() << " " << ExternalInterFaceFaceMap.size() << std::endl;
+
+    //int nTriangles  = OverallFaceMapOnRank.size()+OwnedBoundaryFaces.size();//ExternalFacesForRank.size()+OwnedBoundaryFaceFaceMap.size();
+    int nTriangles  = SharedFacesForRank.size()+OwnedBoundaryFaceFaceMap.size()+ExternalInterFaceFaceMap.size();//+ExternalInterFaceFaceMap.size();
+    int nTetrahedra = Owned_Elem_t.size();
+    int nVertices   = locv2tagvID.size();
+    int nEdges      = 0;
+    
+    //std::cout << "SharedFacesForRank " << SharedFacesForRank.size() << " " << OwnedBoundaryFaceFaceMap.size() << std::endl;
+
+
+    //std::cout << "SharedFacesForRank " << SharedFacesForRank.size() << " " << OwnedBoundaryFaceFaceMap.size() << " " << world_rank << std::endl;
+    
+    PMMG_Init_parMesh(PMMG_ARG_start,
+                      PMMG_ARG_ppParMesh,&parmesh,
+                      PMMG_ARG_pMesh,PMMG_ARG_pMet,
+                      PMMG_ARG_dim,3,PMMG_ARG_MPIComm,MPI_COMM_WORLD,
+                      PMMG_ARG_end);
+
+    if ( PMMG_Set_meshSize(parmesh,nVertices,nTetrahedra,0,nTriangles,0,nEdges) != 1 ) {
+      MPI_Finalize();
+      exit(EXIT_FAILURE);
+    }
+    //std::cout << nTriangles << " = nTriangles   " << nVertices << " = nVertices " << nTetrahedra << " = nTetrahedra" << world_rank << std::endl;
+
+    //std::cout << "LocalVertsMap_t " << LocalVertsMap_t.size() << " " <<   tagv2locvID.size() << " " << locv2tagvID.size() << std::endl;
+    // std::cout << "nVertices " << nVertices << " " << world_rank << std::endl;
+    //PMMG_Set_metSize(PMMG_pParMesh parmesh,int typEntity,int np,int typSol)
+    if ( PMMG_Set_metSize(parmesh,MMG5_Vertex,nVertices,MMG5_Tensor) != 1 ) exit(EXIT_FAILURE);
+    std::map<int,std::vector<double> >::iterator vrtit;
+    
+    //for (k=0; k<nVertices; ++k )
+    for(vrtit=LocalVertsMap_t.begin();vrtit!=LocalVertsMap_t.end();vrtit++)
+    {
+        int tagvid  = vrtit->first;
+        //int glovid  = tag2globalV[tagvid];
+        //int locvid  = globalv2localvID[glovid];
+        //std::cout << "locvid = " << locvid << " --- " << glovid << std::endl;
+        double vx  = LocalVertsMap_t[tagvid][0];
+        double vy  = LocalVertsMap_t[tagvid][1];
+        double vz  = LocalVertsMap_t[tagvid][2];
+        int locvid = tagv2locvID[tagvid];
+        // //std::cout <<"coords = "<< vx << " " << vy << " " << vz << std::endl;
+        
+        int vref = 86;
+
+        if ( PMMG_Set_vertex(parmesh,vx,vy,vz, vref, locvid+1) != 1 )
+        {
+        MPI_Finalize();
+        exit(EXIT_FAILURE);
+        }
+
+        std::vector<double> tensor(6,0);
+
+        // tensor[0] = t_metric[tagvid][0];
+        // tensor[1] = t_metric[tagvid][1];
+        // tensor[2] = t_metric[tagvid][2];
+        // tensor[3] = t_metric[tagvid][3];
+        // tensor[4] = t_metric[tagvid][4];
+        // tensor[5] = t_metric[tagvid][5];
+
+        tensor[0] = 1.0;
+        tensor[1] = 0.0;
+        tensor[2] = 0.0;
+        tensor[3] = 1.0;
+        tensor[4] = 0.0;
+        tensor[5] = 1.0;
+
+        if(PMMG_Set_tensorMet(parmesh,tensor[0],tensor[1],tensor[2],tensor[3],tensor[4],tensor[5],locvid+1)!=1)
+        {
+         MPI_Finalize();
+         exit(EXIT_FAILURE);
+        }
+    }
+    
+    FaceSetPointer::iterator ftit;
+    int faceID          = 0;
+    int bcf             = 0;
+    int SharedF         = 0;
+    int InternalF       = 0;
+    int InternalFreal   = 0;
+    int here = 0;
+    int foundaswell     = 0;
+    int dd = 0;
+    int ee = 0;
+    int nVrts = locv2tagvID.size();
+    k = 1;
+
+    for(ftit=ExternalFacesForRank.begin();ftit!=ExternalFacesForRank.end();ftit++)
+    {
+        FaceSetPointer::iterator ConsideredSharedFace = ActualSharedFaces.find((*ftit));
+        // Mechanism to match up the shell faces from the adapted tetrahedra to the fixed prisms.
+        if(ConsideredSharedFace!=ActualSharedFaces.end())
+        {
+            int ref 		          = (*ConsideredSharedFace)->GetFaceRef();
+            std::vector<int> faceVrts = (*ConsideredSharedFace)->GetEdgeIDs();
+
+            // std::cout << "REF " << ref << std::endl;
+        
+            int tagvid0   = faceVrts[0];
+            int tagvid1   = faceVrts[1];
+            int tagvid2   = faceVrts[2];
+
+            int locvid0   = tagv2locvID[tagvid0];
+            int locvid1   = tagv2locvID[tagvid1];
+            int locvid2   = tagv2locvID[tagvid2];
+
+            if ( PMMG_Set_triangle(parmesh,locvid0+1,locvid1+1,locvid2+1,ref,k) != 1 )
+            {
+                MPI_Finalize();
+                exit(EXIT_FAILURE);
+            }
+            k = k + 1;
+        }
+
+        FaceSetPointer::iterator ConsideredIntFace = ExternalInterFaceFaceMap.find((*ftit));
+
+        if(ConsideredIntFace!=ExternalInterFaceFaceMap.end())
+        {
+            int ref 		          = 10;//(*InterFaceFPointer)->GetFaceRef();
+            std::vector<int> faceVrts = (*ConsideredIntFace)->GetEdgeIDs();
+
+            int tagvid0   = faceVrts[0];
+            int tagvid1   = faceVrts[1];
+            int tagvid2   = faceVrts[2];
+
+            int locvid0   = tagv2locvID[tagvid0];
+            int locvid1   = tagv2locvID[tagvid1];
+            int locvid2   = tagv2locvID[tagvid2];
+            if ( PMMG_Set_triangle(parmesh,locvid0+1,locvid1+1,locvid2+1,ref,k) != 1 )
+            {
+
+                MPI_Finalize();
+                exit(EXIT_FAILURE);
+            }
+
+            PMMG_Set_requiredTriangle( parmesh, k );
+            k = k + 1;  
+            InternalFreal++;  
+        }
+    }
+
+    // for(ftit=SharedFacesForRank.begin();ftit!=SharedFacesForRank.end();ftit++)
+    // {
+    //     int ref 		          = (*ftit)->GetFaceRef();
+    //     std::vector<int> faceVrts = (*ftit)->GetEdgeIDs();
+
+    //     // std::cout << "REF " << ref << std::endl;
+    
+    //     int tagvid0   = faceVrts[0];
+    //     int tagvid1   = faceVrts[1];
+    //     int tagvid2   = faceVrts[2];
+
+    //     int locvid0   = tagv2locvID[tagvid0];
+    //     int locvid1   = tagv2locvID[tagvid1];
+    //     int locvid2   = tagv2locvID[tagvid2];
+
+    //     if ( PMMG_Set_triangle(parmesh,locvid0+1,locvid1+1,locvid2+1,ref,k) != 1 )
+    //     {
+    //         MPI_Finalize();
+    //         exit(EXIT_FAILURE);
+    //     }
+    //     k = k + 1;
+    // }
+
+
+    // for(ftit=ExternalInterFaceFaceMap.begin();ftit!=ExternalInterFaceFaceMap.end();ftit++)
+    // {
+    //     int ref 		          = 10;//(*InterFaceFPointer)->GetFaceRef();
+    //     std::vector<int> faceVrts = (*ftit)->GetEdgeIDs();
+
+    //     int tagvid0   = faceVrts[0];
+    //     int tagvid1   = faceVrts[1];
+    //     int tagvid2   = faceVrts[2];
+
+    //     int locvid0   = tagv2locvID[tagvid0];
+    //     int locvid1   = tagv2locvID[tagvid1];
+    //     int locvid2   = tagv2locvID[tagvid2];
+    //     if ( PMMG_Set_triangle(parmesh,locvid0+1,locvid1+1,locvid2+1,ref,k) != 1 )
+    //     {
+
+    //         MPI_Finalize();
+    //         exit(EXIT_FAILURE);
+    //     }
+
+    //     PMMG_Set_requiredTriangle( parmesh, k );
+    //     k = k + 1;  
+    //     InternalFreal++;  
+    // }
+
+    //std::cout << "ExternalFacesForRank " << ExternalFacesForRank.size() << " " << k<< " " << SharedFacesForRank.size() << " " <<ExternalInterFaceFaceMap.size() << std::endl;  
+    //std::cout << "InterInterFaceFPointer " << foundaswell << " " << InternalFreal << " " << dd << " " << ee << std::endl;
+    //std::cout << " here " << here << " " << nTriangles  << " " << world_rank << " InternalFreal " << InternalFreal << " " << ExternalFacesForRank.size() << " " << ExternalInterFaceFaceMap.size() << " " << bcf << std::endl;
+        
+    // if(ExternalFacesForRank.size()==k)
+    // {
+    //     std::cout << "all Shared interfaces are set correctly" << std::endl;
+    // }
+
+    int ibc2 = 0;
+    int ibc3 = 0;
+    int ibcother = 0;
+    for(ftit=OwnedBoundaryFaces.begin();ftit!=OwnedBoundaryFaces.end();ftit++)
+    {
+        int ref 		          = (*ftit)->GetFaceRef();
+        std::vector<int> faceVrts = (*ftit)->GetEdgeIDs();
+    
+        int tagvid0   = faceVrts[0];
+        int tagvid1   = faceVrts[1];
+        int tagvid2   = faceVrts[2];
+
+        int locvid0   = tagv2locvID[tagvid0];
+        int locvid1   = tagv2locvID[tagvid1];
+        int locvid2   = tagv2locvID[tagvid2];
+
+        //std::cout << "bc ref = " << ref << std::endl;
+        if ( PMMG_Set_triangle(parmesh,locvid0+1,locvid1+1,locvid2+1,ref,k) != 1 )
+        {
+            MPI_Finalize();
+            exit(EXIT_FAILURE);
+        }
+
+        if(ref == 2)
+        {
+            ibc2++;
+        }
+        if(ref == 3)
+        {
+            ibc3++;
+        }
+        
+        k = k + 1;
+    }
+
+    //std::cout << "ibcs = " << ibc2 << " " << ibc3 << " " << ibcother << " " << world_rank << std::endl;
+    //std::cout << "nTriangles " << world_rank << " " << OwnedBoundaryFaces.size() << " " << k << " " << OverallFaceMapOnRank.size() << " " << nTriangles<< std::endl;
+
+
+    int** m_ifc_tria_glo                                  = partition->getParMMGCommFace2GlobalVertMap();
+    int** m_ifc_tria_loc                                  = partition->getParMMGCommFace2LocalVertMap();
+    int* m_color_face                                     = partition->getParMMGCommColorFace();
+    int *m_ntifc                                          = partition->getParMMGCommNFacesPerColor();
+    int m_ncomm                                           = partition->getParMMGNComm();
+
+        
+    ier = PMMG_Set_numberOfFaceCommunicators(parmesh, m_ncomm);
+
+   
+    for(int icomm=0; icomm<m_ncomm; icomm++ )
+    {
+      //std::cout << "Initialization " << icomm << " " << ncomm << " " << ntifc[icomm] << " " << world_rank << std::endl;
+      // Set nb. of entities on interface and rank of the outward proc
+      ier = PMMG_Set_ithFaceCommunicatorSize(parmesh, icomm,
+                                             m_color_face[icomm],
+                                             m_ntifc[icomm]);
+
+        //Set local and global index for each entity on the interface
+      ier = PMMG_Set_ithFaceCommunicator_faces(parmesh, icomm,
+                                               m_ifc_tria_loc[icomm],
+                                               m_ifc_tria_glo[icomm], 1);
+    }
+
+    
+    
+    
+
+    std::map<int,std::vector<int> >::iterator ittet;
+    k = 0;
+    int vloc0,vloc1,vloc2,vloc3;
+    int vglo0,vglo1,vglo2,vglo3;
+    int vtag0,vtag1,vtag2,vtag3;
+    // for ( int t = 0;t < nTetrahedra; t++  )
+    std::set<int>::iterator its;
+    int t = 0;
+    
+    for(its=Owned_Elem_t.begin();its!=Owned_Elem_t.end();its++)
+    {
+        //From local element ID get the tag ID (initial global ID).
+        int gEid = *its; //Owned_Elem_t[t];
+        //Using the tag Element ID, get the tag Vertex ID.
+        vtag0 = gE2gV_t[gEid][0];
+        vtag1 = gE2gV_t[gEid][1];
+        vtag2 = gE2gV_t[gEid][2];
+        vtag3 = gE2gV_t[gEid][3];
+
+        //From the tag vertex ID, get the local vertex ID.
+
+        int vloc0 = tagv2locvID[vtag0];
+        int vloc1 = tagv2locvID[vtag1];
+        int vloc2 = tagv2locvID[vtag2];
+        int vloc3 = tagv2locvID[vtag3];
+
+        std::vector<double> P(4*3);
+        P[0*3+0]=LocalVertsMap_t[vtag0][0];   P[0*3+1]=LocalVertsMap_t[vtag0][1];    P[0*3+2]=LocalVertsMap_t[vtag0][2];
+        P[1*3+0]=LocalVertsMap_t[vtag1][0];   P[1*3+1]=LocalVertsMap_t[vtag1][1];    P[1*3+2]=LocalVertsMap_t[vtag1][2];
+        P[2*3+0]=LocalVertsMap_t[vtag2][0];   P[2*3+1]=LocalVertsMap_t[vtag2][1];    P[2*3+2]=LocalVertsMap_t[vtag2][2];
+        P[3*3+0]=LocalVertsMap_t[vtag3][0];   P[3*3+1]=LocalVertsMap_t[vtag3][1];    P[3*3+2]=LocalVertsMap_t[vtag3][2];
+
+        double Vtet = GetQualityTetrahedra(P);
+
+        //std::cout << "Vtet " << Vtet << "  " << vloc1+1 << " " << vloc2+1 << " " << vloc3+1 << std::endl;
+        
+        if(Vtet<0.0)
+        {
+            std::cout << " negative volume in Element " << t << " on rank " << world_rank  <<std::endl;
+        }
+        if ( PMMG_Set_tetrahedron(parmesh,vloc0+1,vloc1+1,vloc2+1,vloc3+1,1.0,t+1) != 1 )
+        {
+            MPI_Finalize();
+            exit(EXIT_FAILURE);
+        }
+        t++;
+    }
+    
+
+    return parmesh;
+    
+}
+
+
+
+
+
+void RunParMMGAndTestPartitioningFromHyperSolveInputs(MPI_Comm comm,
+                                  PMMG_pParMesh parmesh, 
+                                  PartObjectLite* partition,
+                                  FaceSetPointer ActualSharedFaces,
+                                  Inputs* inputs)
+{
+
+    FILE *inm;
+
+    int world_size;
+    MPI_Comm_size(comm, &world_size);
+    // Get the rank of the process
+    int world_rank;
+    MPI_Comm_rank(comm, &world_rank);
+
+    int ier, opt;
+
+    
+
+
+    std::set<int> Owned_Elem_t                          = partition->getLocalElemSet();
+    std::map<int,int> locv2tagvID                       = partition->getLocalVert2GlobalVert();
+    std::map<int,int> tagv2locvID                       = partition->getGlobalVert2LocalVert();
+    std::vector<int> face4parmmg                        = partition->getFace4ParMMG(); // checked
+    int** ifc_tria_glob                                 = partition->getParMMGCommFace2GlobalVertMap();
+    int** ifc_tria_loc                                  = partition->getParMMGCommFace2LocalVertMap();
+    int* color_face                                     = partition->getParMMGCommColorFace();
+    int *ntifc                                          = partition->getParMMGCommNFacesPerColor();
+    int ncomm                                           = partition->getParMMGNComm();
+
+    std::map<int,int> locShF2globShF                    = partition->getLocalSharedFace2GlobalSharedFace();
+    std::map<int,std::vector<int> > sharedface2vert     = partition->getSharedFaceMap();
+    //std::map<int,std::vector<int> > face2node         = partition->getFace2VertNewMap();
+    //FaceSetPointer OverallFaceMapOnRank                         = partition->getOverallFaceMapOnRank();
+    FaceSetPointer ExternalFacesForRank                         = partition->getExternalFacesForRankFaceMap();
+    FaceSetPointer OwnedBoundaryFaceFaceMap                     = partition->getOwnedBoundaryFaceFaceMap();
+    FaceSetPointer ExternalInterFaceFaceMap                     = partition->getExternalInterFaceFaceMap();
+    std::map<int,std::vector<int> > sharedFace2Verts            = partition->getSharedFaceMap();
+    FaceSetPointer SharedFacesForRank                           = partition->getSharedFacesForRankMap();
+
+    int nTriangles  = SharedFacesForRank.size()+OwnedBoundaryFaceFaceMap.size()+ExternalInterFaceFaceMap.size();//+ExternalInterFaceFaceMap.size();
+    // int nTriangles = OverallFaceMapOnRank.size();
+    int nVertices   = locv2tagvID.size();
+    int nTetrahedra = Owned_Elem_t.size();
+    int nEdges      = 0;
+    
+ 
+    int nVerticesIN   = 0;
+    int nTetrahedraIN = 0;
+    int nTrianglesIN  = 0;
+    int nEdgesIN      = 0;
+    
+    if ( PMMG_Get_meshSize(parmesh,&nVerticesIN,&nTetrahedraIN,NULL,&nTrianglesIN,NULL,
+                           &nEdgesIN) !=1 )
+    {
+        ier = PMMG_STRONGFAILURE;
+    }
+
+
+    
+    if( !PMMG_Set_iparameter( parmesh, PMMG_IPARAM_niter, 0 ) ) {
+      MPI_Finalize();
+      exit(EXIT_FAILURE);
+    };
+    
+    
+    if ( PMMG_Set_dparameter(parmesh,PMMG_DPARAM_hausd, inputs->hausd) != 1 )
+    {
+        MPI_Finalize();
+        exit(EXIT_FAILURE);
+    }
+    
+    
+    if ( PMMG_Set_dparameter(parmesh,PMMG_DPARAM_hgrad, inputs->hgrad) != 1 )
+    {
+        MPI_Finalize();
+        exit(EXIT_FAILURE);
+    }
+    
+    if( !PMMG_Set_dparameter( parmesh,  PMMG_DPARAM_hgradreq , -1.0 ) ){
+        MPI_Finalize();
+        exit(EXIT_FAILURE);
+    }
+
+    // std::cout << "nVertices input " << nVerticesIN << std::endl;
+    // std::cout << "nTetrahedra input " << nTetrahedraIN << std::endl;
+    // std::cout << "nTriangles input " << nTrianglesIN << std::endl;
+    // std::cout << "nEdges input " << nEdgesIN << std::endl;
+    if( !PMMG_Set_iparameter( parmesh, PMMG_IPARAM_globalNum, 1 ) ) {
+      MPI_Finalize();
+      exit(EXIT_FAILURE);
+    };
+
+    
+    int ierlib = PMMG_parmmglib_distributed( parmesh );
+    
+    
+    if(ierlib==0 && world_rank == 0)
+    {
+        std::cout << "SUCCESFULLY adapted the mesh in parallel!" << std::endl;
+    }
+    else if(ierlib==1 && world_rank == 0)
+    {
+        std::cout << "FAILED to adapt the mesh in parallel! "<< std::endl;
+    }
+
+    int nVerticesOUT   = 0;
+    int nTetrahedraOUT = 0;
+    int nTrianglesOUT  = 0;
+    int nEdgesOUT      = 0;
+
+
+    if ( PMMG_Get_meshSize(parmesh,&nVerticesOUT,&nTetrahedraOUT,NULL,&nTrianglesOUT,NULL,
+                           &nEdgesOUT) !=1 )
+    {
+        ier = PMMG_STRONGFAILURE;
+    }
+
+    /*
+    int             nodeGloNumber,nodeOwner;
+    std::map<int,int> loc2globVid;
+    std::map<int,int> glob2locVid;
+    std::vector<int> globIDs;
+    for(int k = 1; k <= nVerticesOUT; k++ )
+    {
+        if( !PMMG_Get_vertexGloNum( parmesh, &nodeGloNumber, &nodeOwner ) )
+        {
+            MPI_Finalize();
+            exit(EXIT_FAILURE);
+        }
+    
+        loc2globVid[k]=nodeGloNumber;
+        glob2locVid[nodeGloNumber]=k;
+        globIDs.push_back(nodeGloNumber);
+    }
+    
+    int *required = (int*)calloc(MAX4(nVerticesOUT,
+                                      nTetrahedraOUT,
+                                      nTrianglesOUT,
+                                      nEdgesOUT),sizeof(int));
+    
+    int *refOUT = (int*)calloc(MAX4(nVerticesOUT,
+                                    nTetrahedraOUT,
+                                    nTrianglesOUT,
+                                    nEdgesOUT),sizeof(int));
+    
+    int *corner = (int*)calloc(nVerticesOUT,sizeof(int));
+    int pos;
+    //int *refOUT = new int[nVerticesOUT];
+
+    std::vector<std::vector<int> > outT;
+    
+    double *vertOUT = (double*)calloc((nVerticesOUT)*3,sizeof(double));
+    //std::map<int,std::vector<double> > ref2coordinatesOUT;
+    for ( int k=0; k<nVerticesOUT; k++ )
+    {
+          pos = 3*k;
+          if ( PMMG_Get_vertex(parmesh,&(vertOUT[pos]),&(vertOUT[pos+1]),&(vertOUT[pos+2]),
+                               &(refOUT[k]),&(corner[k]),&(required[k])) != 1 ) {
+            fprintf(inm,"Unable to get mesh vertex %d \n",k);
+            ier = PMMG_STRONGFAILURE;
+          }
+    }
+
+    // RUN TEST TO SEE WHETHER ADAPTATION WAS SUCCESFULL
+
+
+
+    if(inputs->niter==0)
+    {
+        std::cout << "Check the input and outputted shared faces." << std::endl;
+        
+        int **out_tria_loc;
+        int *nitem_face_comm;
+        int next_face_comm;
+        ier = PMMG_Get_numberOfFaceCommunicators(parmesh,&next_face_comm);
+        int *color_node_out,*color_face_out;
+        color_face_out  = (int *) malloc(next_face_comm*sizeof(int));
+        nitem_face_comm = (int *) malloc(next_face_comm*sizeof(int));
+        for( int icomm=0; icomm<next_face_comm; icomm++ )
+          ier = PMMG_Get_ithFaceCommunicatorSize(parmesh, icomm,
+                                                 &color_face_out[icomm],
+                                                 &nitem_face_comm[icomm]);
+        
+        out_tria_loc = (int **) malloc(next_face_comm*sizeof(int *));
+        for( int icomm=0; icomm<next_face_comm; icomm++ )
+          out_tria_loc[icomm] = (int *) malloc(nitem_face_comm[icomm]*sizeof(int));
+        ier = PMMG_Get_FaceCommunicator_faces(parmesh, out_tria_loc);
+        
+        // Check matching of input interface nodes with the set ones
+
+        // FaceSharedPtr TestFacePointer = std::shared_ptr<NekFace>(new NekFace(vidstest));
+        // FaceSetPointer m_TestFaceSet;
+
+        // Get input triangle nodes
+        int** faceNodes2 = (int **) malloc(ncomm*sizeof(int *));
+        for( int icomm = 0; icomm < ncomm; icomm++ ) {
+          faceNodes2[icomm] = (int *) malloc(3*ntifc[icomm]*sizeof(int));
+          for(int i = 0; i < ntifc[icomm]; i++ ) {
+              
+            int faceID = ifc_tria_loc[icomm][i]-1;
+            int faceIDg = ifc_tria_glob[icomm][i]-1;
+            int faceID2 = locShF2globShF[faceID];
+
+            int v0 = sharedface2vert[faceID2][0];
+            int v1 = sharedface2vert[faceID2][1];
+            int v2 = sharedface2vert[faceID2][2];
+
+            int v0l   = tagv2locvID[v0];
+            int v1l   = tagv2locvID[v1];
+            int v2l   = tagv2locvID[v2];
+    
+            // int v0l = globalv2localvID[v0];
+            // int v1l = globalv2localvID[v1];
+            // int v2l = globalv2localvID[v2];
+
+            // FaceSharedPtr FacePointer = std::shared_ptr<NekFace>(new NekFace(vids));
+            // std::pair<FaceSetPointer::iterator, bool> testInsPointer;
+            // testInsPointer = m_TestFaceSet.insert(FacePointer);
+
+            faceNodes2[icomm][3*i]     = v0l+1; // tria_vert[3*(pos-1)];
+            faceNodes2[icomm][3*i+1]   = v1l+1; // tria_vert[3*(pos-1)+1];
+            faceNodes2[icomm][3*i+2]   = v2l+1; // tria_vert[3*(pos-1)+2];
+          }
+        }
+
+
+        // Check matching of input interface triangles with the set ones
+        if( !PMMG_Check_Set_FaceCommunicators(parmesh,ncomm,ntifc,
+                                              color_face,faceNodes2) ) {
+          printf("### FAILED:: Wrong set face communicators!\n");
+          MPI_Finalize();
+          exit(EXIT_FAILURE);
+        }
+        else
+        {
+            printf("### SUCCES:: Set the correct face communicators\n");
+        }
+        
+        int *ref2       = (int*)calloc(nTrianglesIN,sizeof(int));
+        int *required2  = (int*)calloc(nTrianglesIN,sizeof(int));
+        int *triaNodes2 = (int*)calloc(3*nTrianglesIN,sizeof(int));
+        
+        if ( PMMG_Get_triangles(parmesh,triaNodes2,ref2,required2) != 1 ) {
+          fprintf(stderr,"FAILED:: Unable to get mesh triangles\n");
+          ier = PMMG_STRONGFAILURE;
+        }
+        else
+        {
+            printf("### SUCCES:: retrieved all mesh triangles\n");
+        }
+        
+        int** faceNodes_out = (int **) malloc(next_face_comm*sizeof(int *));
+        for( int icomm = 0; icomm < next_face_comm; icomm++ )
+        {
+              faceNodes_out[icomm] = (int *) malloc(3*nitem_face_comm[icomm]*sizeof(int));
+              for(int i = 0; i < nitem_face_comm[icomm]; i++ )
+              {
+                  int pos = out_tria_loc[icomm][i];
+                  faceNodes_out[icomm][3*i]   = triaNodes2[3*(pos-1)];
+                  faceNodes_out[icomm][3*i+1] = triaNodes2[3*(pos-1)+1];
+                  faceNodes_out[icomm][3*i+2] = triaNodes2[3*(pos-1)+2];
+              }
+        }
+
+        
+        // Check matching of input interface triangles with the output ones
+        if( !PMMG_Check_Get_FaceCommunicators(parmesh,ncomm,ntifc,
+                                              color_face,faceNodes2,
+                                              next_face_comm,nitem_face_comm,
+                                              color_face_out,faceNodes_out) )
+        {
+          printf("### FAILED:: Wrong retrieved face communicators!\n");
+          MPI_Finalize();
+          exit(EXIT_FAILURE);
+        }
+        else
+        {
+            printf("### SUCCES:: retrieved the correct face communicators\n");
+        }
+        
+        int lvt = 0;
+        int lvt_o = 0;
+        std::map<int,int> sharedVrts_Owned;
+        std::map<int,int> sharedVert;
+        for( int icomm = 0; icomm < next_face_comm; icomm++ )
+        {
+            faceNodes_out[icomm] = (int *) malloc(3*nitem_face_comm[icomm]*sizeof(int));
+            int nPartFace                 = nPartFace + nitem_face_comm[icomm];
+            //rank2icomm[color_face_out[icomm]] = icomm;
+
+            if(world_rank < color_face_out[icomm])
+            {
+                int nTshared_owned = nTshared_owned + nitem_face_comm[icomm];
+
+                for(int i = 0; i < nitem_face_comm[icomm]; i++ )
+                {
+                    int ft   = out_tria_loc[icomm][i];
+                    int reff = ref2[ft-1];
+
+                    for(int k=0;k<3;k++)
+                    {
+                        int vt = triaNodes2[3*(ft-1)+k];
+                        faceNodes_out[icomm][3*i+k] = triaNodes2[3*(ft-1)+k];
+
+                        if(sharedVrts_Owned.find(vt)==sharedVrts_Owned.end())
+                        {
+                            sharedVrts_Owned[vt] = lvt_o;
+                            sharedVert[vt]       = lvt;
+
+                            lvt++;
+                            lvt_o++;
+                        }
+                    }
+                }
+            }
+            else
+            {
+                for(int i = 0; i < nitem_face_comm[icomm]; i++ )
+                {
+                    int ft = out_tria_loc[icomm][i];
+
+                    for(int k=0;k<3;k++)
+                    {
+                        int vt3 = triaNodes2[3*(ft-1)+k];
+                        faceNodes_out[icomm][3*i+k] = triaNodes2[3*(ft-1)+k];
+                        if(sharedVert.find(vt3)==sharedVert.end())
+                        {
+                            sharedVert[vt3] = lvt;
+                            lvt++;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    */
+}
+
+
 

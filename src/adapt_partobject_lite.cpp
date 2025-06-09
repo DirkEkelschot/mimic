@@ -34,6 +34,8 @@ PartObjectLite::PartObjectLite(std::map<int,std::vector<int> > Elem2Vert_uniform
 
     ComputeFaceMap(comm, allbcFaces);
 
+    BuildPMMGCommunicationData(comm, allbcFaces);
+
 }
 
 
@@ -748,9 +750,8 @@ void PartObjectLite::ComputeFaceMap(MPI_Comm comm, FaceSetPointer allbcFaces)
     int fcnt = 0;
 
     FaceSetPointer m_FaceSetPointer;
-    FaceSetPointer m_InteriorFaceSetPointer;
-    FaceSetPointer m_SharedFaceSetPointer;
-
+    FaceSetPointer m_InteriorFaceSetPointer_tmp;
+    
     int ishere = 0;
     int fintid = 0;
     std::vector<std::vector<int> > e2f_map;
@@ -758,6 +759,7 @@ void PartObjectLite::ComputeFaceMap(MPI_Comm comm, FaceSetPointer allbcFaces)
     std::map<int,std::vector<int> >::iterator ite;
     int bcf  = 0;
     int intf = 0;
+    //std::cout << "m_Elem2Vert " << m_Elem2Vert.size() << m_ElemSet.size() << std::endl;
     for(ite=m_Elem2Vert.begin();ite!=m_Elem2Vert.end();ite++)
     {
         int elid                = ite->first;
@@ -803,14 +805,36 @@ void PartObjectLite::ComputeFaceMap(MPI_Comm comm, FaceSetPointer allbcFaces)
             }
             
             FaceSharedPtr facePointer = std::shared_ptr<NekFace>(new NekFace(face_globvid));
-            std::pair<FaceSetPointer::iterator, bool> testInsPointer;
-            testInsPointer = m_FaceSetPointer.insert(facePointer);
+            // std::pair<FaceSetPointer::iterator, bool> testInsPointer;
+            // testInsPointer = m_FaceSetPointer.insert(facePointer);
+            
             // This if statement is check to make sure that the face that is being considered is NOT on the boundary.
-            if(allbcFaces.find(facePointer)==allbcFaces.end())
+
+            FaceSetPointer::iterator FaceFoundInBoundaries = allbcFaces.find(facePointer);
+
+            if(FaceFoundInBoundaries!=allbcFaces.end())
+            {
+                std::pair<FaceSetPointer::iterator, bool> BoundaryPointerShared = m_OwnedBoundaryFaceSetPointer.insert(facePointer);
+                int bFaceID = (*FaceFoundInBoundaries)->GetFaceID();
+                (*BoundaryPointerShared.first)->SetFaceID(bFaceID);
+
+                int bFaceRef = (*FaceFoundInBoundaries)->GetFaceRef();
+                // if(bFaceRef!=2 && bFaceRef!=3 && bFaceRef!=4)
+                // {
+                //     std::cout << "I guess wrong  " << " " << bFaceRef << std::endl;
+                // }
+                
+                // if(bFaceRef != 1 && bFaceRef != 2 && bFaceRef !=3)
+                // {
+                //     std::cout << "I guess wrong  " << " " << bFaceRef << std::endl;
+                // }
+                (*BoundaryPointerShared.first)->SetFaceRef(bFaceRef);
+            }
+            else
             {
                 ishere++;
                 std::pair<FaceSetPointer::iterator, bool> testInsPointer2;
-                testInsPointer2 = m_InteriorFaceSetPointer.insert(facePointer);
+                testInsPointer2 = m_InteriorFaceSetPointer_tmp.insert(facePointer);
 
                 if(testInsPointer2.second)
                 {
@@ -825,10 +849,6 @@ void PartObjectLite::ComputeFaceMap(MPI_Comm comm, FaceSetPointer allbcFaces)
                     intf=intf+1;
                 }
             }
-            else
-            {
-                bcf++;
-            }
         }
     }
 
@@ -839,49 +859,87 @@ void PartObjectLite::ComputeFaceMap(MPI_Comm comm, FaceSetPointer allbcFaces)
     int sharedF = 0;
 
     std::vector<int> nVrtsPerSharedFace;
-    std::vector<int> SharedFaceRankID;       
+    std::vector<int> SharedFaceRankID;   
+    std::vector<int> SharedFaceLeftElementID;       
     std::vector<std::vector<int> > sharedFaces;
     int offset_shared_vrts = 0;
-    for(ftit=m_InteriorFaceSetPointer.begin();ftit!=m_InteriorFaceSetPointer.end();ftit++)
+    std::vector<int> ownedInteriorFacesNlocs(m_size,0);
+    m_ownedInteriorFacesOffsets.resize(m_size);
+    for(ftit=m_InteriorFaceSetPointer_tmp.begin();ftit!=m_InteriorFaceSetPointer_tmp.end();ftit++)
     {
-        int ofid = (*ftit)->GetFaceID();
-        // std::cout << "ofid "  << ofid << std::endl;
+        int ofid        = (*ftit)->GetFaceID();
         int rightFaceID = (*ftit)->GetFaceRightElement();
+        int leftFaceID  = (*ftit)->GetFaceLeftElement();
 
-        if(rightFaceID==-1)
+        if(rightFaceID==-1) // shared face of partition or interface between boundary layer mesh and tetrahedra
         {
             std::vector<int> fvid                   = (*ftit)->GetEdgeIDs();
             int nvrts_per_face                      = fvid.size();
             SharedFaceRankID.push_back(m_rank);
+            SharedFaceLeftElementID.push_back(leftFaceID);
             nVrtsPerSharedFace.push_back(nvrts_per_face);
             sharedFaces.push_back(fvid);
             FaceSharedPtr facePointer               = std::shared_ptr<NekFace>(new NekFace(fvid));
-            std::pair<FaceSetPointer::iterator, bool> testInsPointerShared;
-            testInsPointerShared                    = m_SharedFaceSetPointer.insert(facePointer);
+            (*ftit)->SetFaceLeftElement(leftFaceID);
+
+            std::pair<FaceSetPointer::iterator, bool> testInsPointerShared = m_ExternalFaceForRankFaceSetPointer.insert(facePointer);
 
             offset_shared_vrts                      = offset_shared_vrts+nvrts_per_face;
             sharedF++;
         }
+        else
+        {
+            std::pair<FaceSetPointer::iterator, bool> testInsPointer = m_OwnedInteriorFaceSetPointer.insert((*ftit));
+        }
     }
 
+    // m_ExternalFaceForRankFaceSetPointer hold all the external faces for this particular rank.
+
+    ownedInteriorFacesNlocs[m_rank] = m_OwnedInteriorFaceSetPointer.size();
+    m_NownedInteriorFaces.resize(m_size,0);
+    MPI_Allreduce(ownedInteriorFacesNlocs.data(),  m_NownedInteriorFaces.data(),   m_size, MPI_INT, MPI_SUM, comm);
+    int offsetI = 0;
+    for(int i=0;i<m_size;i++)
+    {
+        m_ownedInteriorFacesOffsets[i] = offsetI;
+        offsetI = offsetI + m_NownedInteriorFaces[i];
+    }
+
+    int nLocalInterior = m_OwnedInteriorFaceSetPointer.size();
+    int nAllInterior = 0;
+    MPI_Allreduce(&nLocalInterior,  &nAllInterior,   1, MPI_INT, MPI_SUM, comm);
+
+
+    //==============================================================================================================================
+    //==============================================================================================================================
+    //==============================================================================================================================
+    // Next step is to figure out all the unique shared faces.
+    // This is done by communicating all the shared faces to all the ranks and loop over them to collect all UNIQUE face definitions.
     
     int nSharedFaces                                = nVrtsPerSharedFace.size();
     DistributedParallelState* pstate_sharedFaces    = new DistributedParallelState(nSharedFaces,comm);
     int nAllSharedFaces                             = pstate_sharedFaces->getNel();
     std::vector<int> globalnVrtsPerSharedFace(nAllSharedFaces,0);
     std::vector<int> globalSharedFaceRankID(nAllSharedFaces,0);
-
+    std::vector<int> globalSharedFaceLeftElementID(nAllSharedFaces,0);
 
     MPI_Allgatherv(&nVrtsPerSharedFace.data()[0],
-    nVrtsPerSharedFace.size(), MPI_INT,
+    nSharedFaces, MPI_INT,
     &globalnVrtsPerSharedFace.data()[0],
     pstate_sharedFaces->getNlocs(),
     pstate_sharedFaces->getOffsets(),
     MPI_INT,comm);
 
     MPI_Allgatherv(&SharedFaceRankID.data()[0],
-    nVrtsPerSharedFace.size(), MPI_INT,
+    nSharedFaces, MPI_INT,
     &globalSharedFaceRankID.data()[0],
+    pstate_sharedFaces->getNlocs(),
+    pstate_sharedFaces->getOffsets(),
+    MPI_INT,comm);
+
+     MPI_Allgatherv(&SharedFaceLeftElementID.data()[0],
+    nSharedFaces, MPI_INT,
+    &globalSharedFaceLeftElementID.data()[0],
     pstate_sharedFaces->getNlocs(),
     pstate_sharedFaces->getOffsets(),
     MPI_INT,comm);
@@ -905,10 +963,14 @@ void PartObjectLite::ComputeFaceMap(MPI_Comm comm, FaceSetPointer allbcFaces)
 
     int sharedFound = 0;
     int off = 0;
+    int itsin = 0;
+    int itsnotin = 0;
+    int owned_InterFace = 0;
     for(int i=0;i<nAllSharedFaces;i++)
     {
         int nvrts_per_face        = globalnVrtsPerSharedFace[i];
         int rank_id               = globalSharedFaceRankID[i];
+        int left_id               = globalSharedFaceLeftElementID[i];
 
         std::vector<int> face_globvid(nvrts_per_face,0);
         for(int j=0;j<nvrts_per_face;j++)
@@ -920,43 +982,137 @@ void PartObjectLite::ComputeFaceMap(MPI_Comm comm, FaceSetPointer allbcFaces)
         FaceSharedPtr facePointer = std::shared_ptr<NekFace>(new NekFace(face_globvid));
         std::pair<FaceSetPointer::iterator, bool> testInsPointer = m_AllSharedFaceSetPointer.insert(facePointer);
 
-        if(testInsPointer.second==false)
-        {
-            //std::cout << rank_id << " " << (*testInsPointer.first)->GetFaceRef() << std::endl;
-            sharedFound++;
-            if(rank_id < (*testInsPointer.first)->GetFaceRef())
-            {   
-                std::cout << "before " << rank_id << " " << (*testInsPointer.first)->GetFaceRef() << std::endl;
-                (*testInsPointer.first)->SetFaceRef(rank_id);
-                std::cout << "after " << rank_id << " " << (*testInsPointer.first)->GetFaceRef() << std::endl;
-            }   
-        }
-        else
+        if(testInsPointer.second) // new insertion
         {
             (*testInsPointer.first)->SetFaceRef(rank_id);
+            (*testInsPointer.first)->SetFaceLeftRank(rank_id);
+            (*testInsPointer.first)->SetFaceLeftElement(left_id);
+
+            // if(rank_id == m_rank)
+            // {
+            //     owned_InterFace++;
+            // }
+            // itsnotin++;
+        }
+        else // face already exists --> these faces are actually shared and do not include the InterFace (Shell) faces.
+        {
+            // if sharedFace is already in the set, check that its current rank ID is, if rank_id is lower, then update;
+            if(rank_id < (*testInsPointer.first)->GetFaceRef())
+            {   
+                // In this case the SetFaceLeftElement and SetFaceRightElement entries are set to the rank IDS.
+                (*testInsPointer.first)->SetFaceRightElement((*testInsPointer.first)->GetFaceLeftElement());
+                (*testInsPointer.first)->SetFaceLeftElement(left_id);
+                
+                (*testInsPointer.first)->SetFaceRightRank((*testInsPointer.first)->GetFaceRef());
+                //(*testInsPointer.first)->SetFaceRightRank((*testInsPointer.first)->GetFaceLeftRank());
+                (*testInsPointer.first)->SetFaceLeftRank(rank_id);
+                
+                (*testInsPointer.first)->SetFaceRef(rank_id);
+            }
+            else
+            {
+                
+                (*testInsPointer.first)->SetFaceLeftElement((*testInsPointer.first)->GetFaceLeftElement());
+                (*testInsPointer.first)->SetFaceRightElement(left_id);
+
+                (*testInsPointer.first)->SetFaceLeftRank((*testInsPointer.first)->GetFaceRef());
+                (*testInsPointer.first)->SetFaceRightRank(rank_id);
+                //std::cout << "get left right " << (*testInsPointer.first)->GetFaceLeftElement() << " " << (*testInsPointer.first)->GetFaceRightElement() << std::endl;  
+
+            }
+
+            std::pair<FaceSetPointer::iterator, bool> ActualSharedFPointer = m_ActualSharedFaceSetPointer.insert((*testInsPointer.first));
+
+
+            itsin++;
         }
     }
 
+    //==============================================================================================================================
+    //==============================================================================================================================
+    //==============================================================================================================================
+    // std::cout << m_rank << " " << owned_InterFace << std::endl;
 
-    // int shell = 0;
+    //itsin should be equal to (nAllSharedFaces-nshellFaces)/2
+    //std::cout << "nAllSharedFaces " << nAllSharedFaces << std::endl;
+    //std::cout << "its in " << itsin << " " << itsnotin << "  " << m_AllSharedFaceSetPointer.size() << " m_ActualSharedFaceSetPointer " << m_ActualSharedFaceSetPointer.size() << std::endl;
+    //============================================================================================
+    // int shell  = 0;
     // int nshell = 0;
+    int k = 0;
+    for(ftit=m_OwnedInteriorFaceSetPointer.begin();ftit!=m_OwnedInteriorFaceSetPointer.end();ftit++)
+    {   
+        int faceID = m_ownedInteriorFacesOffsets[m_rank] + k;
+        
+        m_faces4parmmg.push_back(faceID);
+        (*ftit)->SetFaceID(faceID);
 
-    // for(ftit=m_AllSharedFaceSetPointer.begin();ftit!=m_AllSharedFaceSetPointer.end();ftit++)
-    // {
-    //     std::vector<int> fvid       = (*ftit)->GetEdgeIDs();
-    //     FaceSharedPtr facePointer   = std::shared_ptr<NekFace>(new NekFace(fvid));
+        // std::vector<int> face = (*ftit)->GetEdgeIDs();
+        // FaceSharedPtr FaceNew = std::shared_ptr<NekFace>(new NekFace(face));
+        // FaceNew->SetFaceID(faceID);
+        // std::pair<FaceSetPointer::iterator, bool> OverallPointer = m_OverallFaceMapOnRank.insert(FaceNew);
+        k++;
+    }
+    //std::cout << "(*ActualSharedFPointer) BEFORE " << m_OverallFaceMapOnRank.size() << std::endl;
 
-    //     if(allbcFaces.find(facePointer)==allbcFaces.end())
-    //     {
-    //         shell++;
-    //     }
-    //     else
-    //     {
-    //         nshell++;
-    //     }
-    // }
 
-    std::cout << " " << m_AllSharedFaceSetPointer.size() << " " << sharedFound << std::endl; 
+    int sharedFOnRank = 0;
+    std::vector<int> ownedSharedFacesNlocs(m_size,0);
+    m_ownedSharedFacesOffsets.resize(m_size);
+    int fon  = 0;
+    int nfon = 0;
+    int fid  = nAllInterior;
+    // int fid  = 0;
+
+    for(ftit=m_ActualSharedFaceSetPointer.begin();ftit!=m_ActualSharedFaceSetPointer.end();ftit++)
+    {
+        int faceID = fid;
+        (*ftit)->SetFaceID(fid);        
+        std::vector<int> fvid       = (*ftit)->GetEdgeIDs();
+        int fref                    = faceID;//(*ftit)->GetFaceRef();
+        (*ftit)->SetFaceRef(fref);
+        int rankL                   = (*ftit)->GetFaceLeftRank();
+        int rankR                   = (*ftit)->GetFaceRightRank();
+        int elemL                   = (*ftit)->GetFaceLeftElement();
+        int elemR                   = (*ftit)->GetFaceRightElement();
+        // std::cout << "This is not set yet  " << fref << std::endl;
+        //m_faces4parmmg.push_back(fid);
+    
+        if(fref == m_rank)
+        {
+            FaceSharedPtr facePointerNew = std::shared_ptr<NekFace>(new NekFace(fvid));
+            facePointerNew->SetFaceRef(fref);
+            facePointerNew->SetFaceLeftRank(rankL);
+            facePointerNew->SetFaceRightRank(rankR);
+            facePointerNew->SetFaceLeftElement(elemL);
+            facePointerNew->SetFaceRightElement(elemR);
+            facePointerNew->SetFaceID(faceID);
+            std::pair<FaceSetPointer::iterator, bool> testInsPointer = m_OwnedSharedFaceSetPointer.insert(facePointerNew);
+        }
+        fid++;
+    }
+    
+    ownedSharedFacesNlocs[m_rank] = m_OwnedSharedFaceSetPointer.size();
+    m_NownedSharedFaces.resize(m_size,0);
+    MPI_Allreduce(ownedSharedFacesNlocs.data(),  m_NownedSharedFaces.data(),   m_size, MPI_INT, MPI_SUM, comm);
+    int offsetS = 0;
+    for(int i=0;i<m_size;i++)
+    {
+        m_ownedSharedFacesOffsets[i] = offsetS;
+        offsetS = offsetS + m_NownedSharedFaces[i];
+    }
+
+    int nLocalShared = m_OwnedSharedFaceSetPointer.size();
+    int nAllShared = 0;
+    MPI_Allreduce(&nLocalShared,  &nAllShared,   1, MPI_INT, MPI_SUM, comm);
+
+    //std::cout << "nAllInterior " << nAllShared+nAllInterior << std::endl;
+    // Interior Faces ID    -> Set in this funtion
+    // Shared Faces ID      -> Set in this funtion
+    // Inter Faces          -> NOT set in this function
+    // Boundary Faces       -> NOT set in this function
+
+    //============================================================================================
 }
 
 
@@ -974,7 +1130,7 @@ std::map<int,std::vector<int> >  PartObjectLite::CommunicateAdjacencyInfoLocalPa
     int nreq;
 
     std::set<int> toquery_elids;
-    std::cout << "m_Elem2Elem " << m_Elem2Elem.size() << std::endl;
+    //std::cout << "m_Elem2Elem " << m_Elem2Elem.size() << std::endl;
     for(itm=m_Elem2Elem.begin();itm!=m_Elem2Elem.end();itm++)
     {
         int elid = itm->first;
@@ -1086,6 +1242,177 @@ std::map<int,std::vector<int> >  PartObjectLite::CommunicateAdjacencyInfoLocalPa
         }
     }
     return Rank2Elem;  
+}
+
+
+
+
+
+
+
+void PartObjectLite::BuildPMMGCommunicationData(MPI_Comm comm, FaceSetPointer allbcFaces)
+{
+    int size;
+    MPI_Comm_size(comm, &size);
+    // Get the rank of the process
+    int rank;
+    MPI_Comm_rank(comm, &rank);
+
+    FaceSetPointer::iterator ftit;
+    // FaceSetPointer m_ExternalInterFaceFace;
+    int f_id = 0;
+    int local_fid = 0;
+    int f = 0;
+    int bcface          = 0;
+
+    for(ftit=m_ExternalFaceForRankFaceSetPointer.begin();ftit!=m_ExternalFaceForRankFaceSetPointer.end();ftit++)
+    {
+        FaceSetPointer::iterator ActualSharedFPointer = m_ActualSharedFaceSetPointer.find((*ftit));
+        (*ftit)->SetFaceID(f_id);
+        if(ActualSharedFPointer!=m_ActualSharedFaceSetPointer.end())
+        {
+            int faceID  = (*ActualSharedFPointer)->GetFaceID();
+            int rL      = (*ActualSharedFPointer)->GetFaceLeftRank();
+            int rR      = (*ActualSharedFPointer)->GetFaceRightRank();
+            // std::cout << "rankie " << rL << " " << rR << std::endl; 
+            int EL      = (*ActualSharedFPointer)->GetFaceLeftElement();
+            int ER      = (*ActualSharedFPointer)->GetFaceRightElement();
+            // m_faces4parmmg.push_back(faceID);
+            //std::cout << rL << " L vs R " << rR << " --::-- " << EL << " eL vs eR " << ER <<  std::endl; 
+            
+            if(m_globShF2locShF.find(faceID)==m_globShF2locShF.end())
+            {
+                m_faces4parmmg.push_back(faceID);
+                m_globShF2locShF[faceID] = f;
+                m_locShF2globShF[f] = faceID;
+                std::vector<int> facevrts(3,0);
+                facevrts[0] = (*ActualSharedFPointer)->GetEdgeIDs()[0];
+                facevrts[1] = (*ActualSharedFPointer)->GetEdgeIDs()[1];
+                facevrts[2] = (*ActualSharedFPointer)->GetEdgeIDs()[2];
+
+                //================================================================================================
+                std::vector<int> face = (*ActualSharedFPointer)->GetEdgeIDs();
+                FaceSharedPtr FaceNew = std::shared_ptr<NekFace>(new NekFace(face));
+                FaceNew->SetFaceID(faceID);
+                std::pair<FaceSetPointer::iterator, bool> OverallPointer = m_SharedFacesForRank.insert(FaceNew);
+
+                //(*OverallPointer.first)->SetFaceID(faceID);
+                //================================================================================================
+                
+                m_sharedFaceVerts[faceID] = facevrts;
+                f++;
+            }
+
+            if(rL == m_rank)
+            {
+                m_ColorsFaces[rR].push_back(faceID);
+            }
+            else if(rR==m_rank)
+            {
+                m_ColorsFaces[rL].push_back(faceID);
+            }
+            //externalF2locF[faceID] = local_fid;
+            //notinterface++;
+
+            // std::pair<FaceSetPointer::iterator, bool> OverallPointer = m_OverallFaceMapOnRank.insert((*ActualSharedFPointer));
+
+
+
+            local_fid++;
+        }
+        else
+        {
+            FaceSharedPtr facePointerNew = std::shared_ptr<NekFace>(new NekFace((*ftit)->GetEdgeIDs()));
+            std::pair<FaceSetPointer::iterator, bool> testInsPointer = m_ExternalInterFaceFace.insert(facePointerNew);
+        }
+
+
+        // FaceSetPointer::iterator FaceFoundInInterFace = InterFaceFaces.find((*ftit));
+        // if(FaceFoundInInterFace!=InterFaceFaces.end())
+        // {
+        //     interface++;
+        //     local_fid++;
+        // }
+
+        FaceSetPointer::iterator FaceFoundInBoundaries = allbcFaces.find((*ftit));
+        if(FaceFoundInBoundaries!=allbcFaces.end())
+        {
+            int faceID  = (*ActualSharedFPointer)->GetFaceID();
+            // (*FaceFoundInBoundaries)->SetFaceID(bcface);
+            m_faces4parmmg.push_back(faceID);
+            // bcface++;
+        }
+
+        f_id++;
+    }
+
+    int nLocalInterior = m_OwnedInteriorFaceSetPointer.size();
+    int nAllInterior = 0;
+    MPI_Allreduce(&nLocalInterior,  &nAllInterior,   1, MPI_INT, MPI_SUM, comm);
+    int FaceOffset = nAllInterior+m_ActualSharedFaceSetPointer.size();
+
+    std::vector<int> external_offset(m_size,0);
+    std::vector<int> external_nlocs(m_size,0);
+    std::vector<int> external_nlocs_reduce(m_size,0);
+
+    external_nlocs[m_rank] = m_ExternalInterFaceFace.size();
+    MPI_Allreduce(external_nlocs.data(),  external_nlocs_reduce.data(),   m_size, MPI_INT, MPI_SUM, comm);
+    int offsetInEx = 0;
+    for(int i=0;i<m_size;i++)
+    {
+        external_offset[i] = offsetInEx;
+        offsetInEx = offsetInEx + external_nlocs_reduce[i];
+    }
+
+
+    // int fid2 = 0;
+    // for(ftit=m_ExternalInterFaceFace.begin();ftit!=m_ExternalInterFaceFace.end();ftit++)
+    // {
+    //     int faceID = FaceOffset + external_offset[m_rank] + fid2;
+    //     (*ftit)->SetFaceID(faceID); 
+    //     (*ftit)->SetFaceRef(13); 
+    //      //================================================================================================
+    //     std::vector<int> face = (*ftit)->GetEdgeIDs();
+    //     FaceSharedPtr FaceNew = std::shared_ptr<NekFace>(new NekFace(face));
+    //     FaceNew->SetFaceID(faceID);
+    //     std::pair<FaceSetPointer::iterator, bool> OverallPointer = m_OverallFaceMapOnRank.insert(FaceNew);
+    //     //================================================================================================
+        
+    //     fid2++;
+    // }
+
+    //std::cout << m_rank << "  "<< m_ExternalInterFaceFace.size() << std::endl;
+
+    // std::cout << "bcface " << bcface << std::endl;
+
+    m_ncomm             = m_ColorsFaces.size();
+
+    m_color_face        = (int *) malloc(m_ncomm*sizeof(int));
+    m_ntifc             = (int *) malloc(m_ncomm*sizeof(int));
+    
+    m_ifc_tria_loc      = (int **)malloc(m_ncomm*sizeof(int *));
+    m_ifc_tria_glo      = (int **)malloc(m_ncomm*sizeof(int *));
+    
+    int icomm           = 0;
+    
+    std::map<int,std::vector<int> >::iterator itc;
+    
+    for(itc=m_ColorsFaces.begin();itc!=m_ColorsFaces.end();itc++)
+    {
+        m_color_face[icomm]     = itc->first;
+        m_ntifc[icomm]          =  itc->second.size();
+        m_ifc_tria_loc[icomm]   = (int *) malloc(itc->second.size()*sizeof(int));
+        m_ifc_tria_glo[icomm]   = (int *) malloc(itc->second.size()*sizeof(int));
+
+        //std::cout << "rank "<< m_rank << " is connected to "  << m_ncomm << " other ranks. #connection = " << icomm << " is rank " << itc->first << " and rank " <<m_rank << " shares " << itc->second.size() << " faces with rank " << itc->first<< std::endl;
+        for(int q=0;q<itc->second.size();q++)
+        {
+            m_ifc_tria_glo[icomm][q] = itc->second[q]+1;
+            m_ifc_tria_loc[icomm][q] = m_globShF2locShF[itc->second[q]]+1;
+        }
+
+        icomm++;
+    }
 }
 
 
@@ -1288,11 +1615,116 @@ std::map<int,std::vector<double> > PartObjectLite::getLocalVertsMap()
     return m_LocalVertsMap;
 }
 
-FaceSetPointer PartObjectLite::getAllSharedFaceMap()
+FaceSetPointer PartObjectLite::getAllSharedAndInterFaceFaceMap()
 {
     return m_AllSharedFaceSetPointer;
 }
 
+FaceSetPointer PartObjectLite::getOwnedSharedAndInterFaceFaceMap()
+{
+    return m_OwnedSharedFaceSetPointer;
+}
+
+FaceSetPointer PartObjectLite::getOwnedBoundaryFaceFaceMap()
+{
+    return m_OwnedBoundaryFaceSetPointer;
+}
+
+FaceSetPointer PartObjectLite::getExternalInterFaceFaceMap()
+{
+    return m_ExternalInterFaceFace;
+}
+
+FaceSetPointer PartObjectLite::getActualSharedFaceMap()
+{
+    return m_ActualSharedFaceSetPointer;
+}
+
+FaceSetPointer PartObjectLite::getOwnedInteriorFaceFaceMap()
+{
+    return m_OwnedInteriorFaceSetPointer;
+}
+
+FaceSetPointer PartObjectLite::getExternalFacesForRankFaceMap()
+{
+    return m_ExternalFaceForRankFaceSetPointer;
+}
+
+FaceSetPointer PartObjectLite::getSharedFacesForRankMap()
+{
+    return m_SharedFacesForRank;
+}
+
+std::vector<int> PartObjectLite::getownedInteriorFacesOffsets()
+{
+    return m_ownedInteriorFacesOffsets;
+}
+std::vector<int> PartObjectLite::getownedInteriorFacesNlocs()
+{
+    return m_NownedInteriorFaces;
+}
+
+std::vector<int> PartObjectLite::getownedSharedFacesOffsets()
+{
+    return m_ownedSharedFacesOffsets;
+}
+std::vector<int> PartObjectLite::getownedSharedFacesNlocs()
+{
+    return m_NownedSharedFaces;
+}
+
+std::map<int,int> PartObjectLite::getLocalVert2GlobalVert()
+{
+    return m_LocalV2GlobalV;
+}
+
+std::map<int,int> PartObjectLite::getGlobalVert2LocalVert()
+{
+    return m_GlobalV2LocalV;
+}
+
+int** PartObjectLite::getParMMGCommFace2GlobalVertMap()
+{
+    return m_ifc_tria_glo;
+}
+
+int** PartObjectLite::getParMMGCommFace2LocalVertMap()
+{
+    return m_ifc_tria_loc;
+}
+
+int* PartObjectLite::getParMMGCommColorFace()
+{
+    return m_color_face;
+}
+
+int* PartObjectLite::getParMMGCommNFacesPerColor()
+{
+    return m_ntifc;
+}
+int PartObjectLite::getParMMGNComm()
+{
+    return m_ncomm;
+}
+
+std::vector<int> PartObjectLite::getFace4ParMMG()
+{
+    return m_faces4parmmg;
+}
+
+std::map<int,int> PartObjectLite::getLocalSharedFace2GlobalSharedFace()
+{
+    return m_locShF2globShF;
+}
+std::map<int,int> PartObjectLite::getGlobalSharedFace2LocalSharedFace()
+{   
+    return m_globShF2locShF;
+}
+
+std::map<int,std::vector<int> > PartObjectLite::getSharedFaceMap()
+{
+    return m_sharedFaceVerts;
+}
 /*
 std::map<int, std::vector<int> > PartObjectLite::getAdjacentElementLayer(std::map<int,std::vector<double> > xcn, MPI_Comm comm)
 {
