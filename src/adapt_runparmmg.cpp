@@ -2429,15 +2429,17 @@ PMMG_pParMesh InitializeParMMGmeshFromHyperSolveInputs(MPI_Comm comm,
     }
     
     FaceSetPointer::iterator ftit;
+    
     int faceID          = 0;
     int bcf             = 0;
     int SharedF         = 0;
     int InternalF       = 0;
     int InternalFreal   = 0;
-    int here = 0;
+    int here            = 0;
     int foundaswell     = 0;
-    int dd = 0;
-    int ee = 0;
+    int dd              = 0;
+    int ee              = 0;
+
     int nVrts = locv2tagvID.size();
     k = 1;
 
@@ -2482,16 +2484,16 @@ PMMG_pParMesh InitializeParMMGmeshFromHyperSolveInputs(MPI_Comm comm,
             int locvid0   = tagv2locvID[tagvid0];
             int locvid1   = tagv2locvID[tagvid1];
             int locvid2   = tagv2locvID[tagvid2];
-            if ( PMMG_Set_triangle(parmesh,locvid0+1,locvid1+1,locvid2+1,ref,k) != 1 )
-            {
 
-                MPI_Finalize();
-                exit(EXIT_FAILURE);
-            }
+            // if ( PMMG_Set_triangle(parmesh,locvid0+1,locvid1+1,locvid2+1,ref,k) != 1 )
+            // {
+            //     MPI_Finalize();
+            //     exit(EXIT_FAILURE);
+            // }
 
-            PMMG_Set_requiredTriangle( parmesh, k );
-            k = k + 1;  
-            InternalFreal++;  
+            // PMMG_Set_requiredTriangle( parmesh, k );
+            // k = k + 1;  
+            //InternalFreal++;  
         }
     }
 
@@ -2519,30 +2521,30 @@ PMMG_pParMesh InitializeParMMGmeshFromHyperSolveInputs(MPI_Comm comm,
     // }
 
 
-    // for(ftit=ExternalInterFaceFaceMap.begin();ftit!=ExternalInterFaceFaceMap.end();ftit++)
-    // {
-    //     int ref 		          = 10;//(*InterFaceFPointer)->GetFaceRef();
-    //     std::vector<int> faceVrts = (*ftit)->GetEdgeIDs();
+    for(ftit=ExternalInterFaceFaceMap.begin();ftit!=ExternalInterFaceFaceMap.end();ftit++)
+    {
+        int ref 		          = 10;//(*InterFaceFPointer)->GetFaceRef();
+        std::vector<int> faceVrts = (*ftit)->GetEdgeIDs();
 
-    //     int tagvid0   = faceVrts[0];
-    //     int tagvid1   = faceVrts[1];
-    //     int tagvid2   = faceVrts[2];
+        int tagvid0   = faceVrts[0];
+        int tagvid1   = faceVrts[1];
+        int tagvid2   = faceVrts[2];
 
-    //     int locvid0   = tagv2locvID[tagvid0];
-    //     int locvid1   = tagv2locvID[tagvid1];
-    //     int locvid2   = tagv2locvID[tagvid2];
-    //     if ( PMMG_Set_triangle(parmesh,locvid0+1,locvid1+1,locvid2+1,ref,k) != 1 )
-    //     {
+        int locvid0   = tagv2locvID[tagvid0];
+        int locvid1   = tagv2locvID[tagvid1];
+        int locvid2   = tagv2locvID[tagvid2];
+        if ( PMMG_Set_triangle(parmesh,locvid0+1,locvid1+1,locvid2+1,ref,k) != 1 )
+        {
 
-    //         MPI_Finalize();
-    //         exit(EXIT_FAILURE);
-    //     }
+            MPI_Finalize();
+            exit(EXIT_FAILURE);
+        }
 
-    //     PMMG_Set_requiredTriangle( parmesh, k );
-    //     k = k + 1;  
-    //     InternalFreal++;  
-    // }
-
+        PMMG_Set_requiredTriangle( parmesh, k );
+        k = k + 1;  
+        InternalFreal++;  
+    }
+    //std::cout << "InternalFreal " << InternalFreal << std::endl;
     //std::cout << "ExternalFacesForRank " << ExternalFacesForRank.size() << " " << k<< " " << SharedFacesForRank.size() << " " <<ExternalInterFaceFaceMap.size() << std::endl;  
     //std::cout << "InterInterFaceFPointer " << foundaswell << " " << InternalFreal << " " << dd << " " << ee << std::endl;
     //std::cout << " here " << here << " " << nTriangles  << " " << world_rank << " InternalFreal " << InternalFreal << " " << ExternalFacesForRank.size() << " " << ExternalInterFaceFaceMap.size() << " " << bcf << std::endl;
@@ -2568,12 +2570,14 @@ PMMG_pParMesh InitializeParMMGmeshFromHyperSolveInputs(MPI_Comm comm,
         int locvid1   = tagv2locvID[tagvid1];
         int locvid2   = tagv2locvID[tagvid2];
 
-        //std::cout << "bc ref = " << ref << std::endl;
+
         if ( PMMG_Set_triangle(parmesh,locvid0+1,locvid1+1,locvid2+1,ref,k) != 1 )
         {
             MPI_Finalize();
             exit(EXIT_FAILURE);
         }
+
+        k = k + 1;
 
         if(ref == 2)
         {
@@ -2583,8 +2587,6 @@ PMMG_pParMesh InitializeParMMGmeshFromHyperSolveInputs(MPI_Comm comm,
         {
             ibc3++;
         }
-        
-        k = k + 1;
     }
 
     //std::cout << "ibcs = " << ibc2 << " " << ibc3 << " " << ibcother << " " << world_rank << std::endl;

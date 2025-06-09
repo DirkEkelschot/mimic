@@ -941,8 +941,8 @@ int main(int argc, char** argv)
     int ver, dim, NmbVer, NmbTri, NmbTet, NmbPri;
     
     //const char* fm = "hemihyb.su2";
-    // const char* fm = "hemi.su2";
-    const char* fm = "testbox2.su2";
+    const char* fm = "hemi.su2";
+    //const char* fm = "testbox2.su2";
     const char* fd = "hemihyb_test2.h5";
 
     Inputs* inputs = ReadXmlFile(comm, "metric.xml");
