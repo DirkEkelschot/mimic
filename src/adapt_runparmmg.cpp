@@ -2331,7 +2331,8 @@ PMMG_pParMesh InitializeParMMGmeshFromHyperSolveInputs(MPI_Comm comm,
                                                         FaceSetPointer InterFaceFaces,
                                                         FaceSetPointer OwnedBoundaryFaces,
                                                         int nInteriorSharedFaces,
-                                                        std::vector<std::vector<double> > t_metric)
+                                                        std::map<int, std::vector<double> > t_metric,
+                                                        Inputs* inputs)
 {
     int ier;
     int world_size;
@@ -2342,6 +2343,11 @@ PMMG_pParMesh InitializeParMMGmeshFromHyperSolveInputs(MPI_Comm comm,
     PMMG_pParMesh   parmesh;
     int k = 0;
 
+    int rec         = inputs->recursive;
+    int ext         = inputs->extended;
+    double hmin     = inputs->hmin;
+    double hmax     = inputs->hmax;
+    double Scale    = inputs->MetScale;
     std::map<int,std::vector<int> > gE2gV_t                     = partition->getElem2VertMap();
     std::map<int,int> locv2tagvID                               = partition->getLocalVert2GlobalVert();
     std::map<int,int> tagv2locvID                               = partition->getGlobalVert2LocalVert();
@@ -2405,21 +2411,77 @@ PMMG_pParMesh InitializeParMMGmeshFromHyperSolveInputs(MPI_Comm comm,
         exit(EXIT_FAILURE);
         }
 
+
+        Eig* eig = ComputeEigenDecomp(3, t_metric[tagvid].data());
+
+        std::vector<double> Dre(3,0.0);
+        Dre[0] = eig->Dre[0];
+        Dre[1] = eig->Dre[1];
+        Dre[2] = eig->Dre[2];
+        // eigvalues[elid] = Dre;
+        std::vector<double> eignval(3,0.0);
+        eignval[0] =  std::min(std::max(Scale*fabs(eig->Dre[0]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
+        eignval[1] =  std::min(std::max(Scale*fabs(eig->Dre[1]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
+        eignval[2] =  std::min(std::max(Scale*fabs(eig->Dre[2]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
+        
+        double Lambdamax = *std::max_element(eignval.begin(),eignval.end());
+        double Lambdamin = *std::min_element(eignval.begin(),eignval.end());
+        std::vector<std::vector<double> > Diag(3);
+        std::vector<std::vector<double> > EigVec(3);
+        
+        for(int k=0;k<3;k++)
+        {
+            std::vector<double> rowDiag(3,0.0);
+            rowDiag[k]      = eignval[k];
+            std::vector<double> rowEigVec(3,0.0);
+            Diag[k]         = rowDiag;
+            EigVec[k]       = rowEigVec;
+        }
+    
+        EigVec[0][0] = eig->V[0];   EigVec[0][1] = eig->V[1];   EigVec[0][2] = eig->V[2];
+        EigVec[1][0] = eig->V[3];   EigVec[1][1] = eig->V[4];   EigVec[1][2] = eig->V[5];
+        EigVec[2][0] = eig->V[6];   EigVec[2][1] = eig->V[7];   EigVec[2][2] = eig->V[8];
+
+        std::vector<std::vector<double> > iVR       = MatInv_Lite(EigVec);
+        std::vector<std::vector<double> > Rs        = MatMul_Lite(EigVec,Diag);  
+        std::vector<std::vector<double> > metric    = MatMul_Lite(Rs,iVR);
+
+        double detMetric        = metric[0][0]*(metric[1][1]*metric[2][2]-metric[2][1]*metric[1][2])
+                                - metric[0][1]*(metric[1][0]*metric[2][2]-metric[2][0]*metric[1][2])
+                                + metric[0][2]*(metric[1][0]*metric[2][1]-metric[2][0]*metric[1][1]);
+        
+        double pow              = -1.0/(2.0*6.0+3.0);
+        double eigRat           = Lambdamin/Lambdamax;
+        detMetric               = std::pow(detMetric,pow);
+
+        for(int i=0;i<3;i++)
+        {
+            for(int j=0;j<3;j++)
+            {
+                metric[i][j] = detMetric*metric[i][j];
+            }
+        }
+        
+
         std::vector<double> tensor(6,0);
 
-        // tensor[0] = t_metric[tagvid][0];
-        // tensor[1] = t_metric[tagvid][1];
-        // tensor[2] = t_metric[tagvid][2];
-        // tensor[3] = t_metric[tagvid][3];
-        // tensor[4] = t_metric[tagvid][4];
-        // tensor[5] = t_metric[tagvid][5];
+        tensor[0] = metric[0][0];
+        tensor[1] = metric[0][1];
+        tensor[2] = metric[0][2];
+        tensor[3] = metric[1][1];
+        tensor[4] = metric[1][2];
+        tensor[5] = metric[2][2];
 
-        tensor[0] = 1.0;
-        tensor[1] = 0.0;
-        tensor[2] = 0.0;
-        tensor[3] = 1.0;
-        tensor[4] = 0.0;
-        tensor[5] = 1.0;
+
+
+        
+
+        // tensor[0] = 1.0;
+        // tensor[1] = 0.0;
+        // tensor[2] = 0.0;
+        // tensor[3] = 1.0;
+        // tensor[4] = 0.0;
+        // tensor[5] = 1.0;
 
         if(PMMG_Set_tensorMet(parmesh,tensor[0],tensor[1],tensor[2],tensor[3],tensor[4],tensor[5],locvid+1)!=1)
         {
@@ -2445,14 +2507,14 @@ PMMG_pParMesh InitializeParMMGmeshFromHyperSolveInputs(MPI_Comm comm,
 
     for(ftit=ExternalFacesForRank.begin();ftit!=ExternalFacesForRank.end();ftit++)
     {
-        FaceSetPointer::iterator ConsideredSharedFace = ActualSharedFaces.find((*ftit));
+        FaceSetPointer::iterator ConsideredSharedFace = SharedFacesForRank.find((*ftit));
         // Mechanism to match up the shell faces from the adapted tetrahedra to the fixed prisms.
-        if(ConsideredSharedFace!=ActualSharedFaces.end())
+        if(ConsideredSharedFace!=SharedFacesForRank.end())
         {
             int ref 		          = (*ConsideredSharedFace)->GetFaceRef();
             std::vector<int> faceVrts = (*ConsideredSharedFace)->GetEdgeIDs();
-
-            // std::cout << "REF " << ref << std::endl;
+            
+            //std::cout << "REF " << ref << std::endl;
         
             int tagvid0   = faceVrts[0];
             int tagvid1   = faceVrts[1];
@@ -2469,32 +2531,34 @@ PMMG_pParMesh InitializeParMMGmeshFromHyperSolveInputs(MPI_Comm comm,
             }
             k = k + 1;
         }
+        // std::vector<int> faceVrts                   = (*ConsideredSharedFace)->GetEdgeIDs();
+        // FaceSharedPtr TestFacePointer               = std::shared_ptr<NekFace>(new NekFace(faceVrts));
 
-        FaceSetPointer::iterator ConsideredIntFace = ExternalInterFaceFaceMap.find((*ftit));
+        // FaceSetPointer::iterator ConsideredIntFace  = ExternalInterFaceFaceMap.find((*ftit));
+        
+        // if(ConsideredIntFace!=ExternalInterFaceFaceMap.end())
+        // {
+        //     int ref 		          = 10;//(*InterFaceFPointer)->GetFaceRef();
+        //     std::vector<int> faceVrts = (*ConsideredIntFace)->GetEdgeIDs();
 
-        if(ConsideredIntFace!=ExternalInterFaceFaceMap.end())
-        {
-            int ref 		          = 10;//(*InterFaceFPointer)->GetFaceRef();
-            std::vector<int> faceVrts = (*ConsideredIntFace)->GetEdgeIDs();
+        //     int tagvid0   = faceVrts[0];
+        //     int tagvid1   = faceVrts[1];
+        //     int tagvid2   = faceVrts[2];
 
-            int tagvid0   = faceVrts[0];
-            int tagvid1   = faceVrts[1];
-            int tagvid2   = faceVrts[2];
+        //     int locvid0   = tagv2locvID[tagvid0];
+        //     int locvid1   = tagv2locvID[tagvid1];
+        //     int locvid2   = tagv2locvID[tagvid2];
 
-            int locvid0   = tagv2locvID[tagvid0];
-            int locvid1   = tagv2locvID[tagvid1];
-            int locvid2   = tagv2locvID[tagvid2];
+        //     if ( PMMG_Set_triangle(parmesh,locvid0+1,locvid1+1,locvid2+1,ref,k) != 1 )
+        //     {
+        //         MPI_Finalize();
+        //         exit(EXIT_FAILURE);
+        //     }
 
-            // if ( PMMG_Set_triangle(parmesh,locvid0+1,locvid1+1,locvid2+1,ref,k) != 1 )
-            // {
-            //     MPI_Finalize();
-            //     exit(EXIT_FAILURE);
-            // }
-
-            // PMMG_Set_requiredTriangle( parmesh, k );
-            // k = k + 1;  
-            //InternalFreal++;  
-        }
+        //     PMMG_Set_requiredTriangle( parmesh, k );
+        //     k = k + 1;  
+        //     InternalFreal++;  
+        // }
     }
 
     // for(ftit=SharedFacesForRank.begin();ftit!=SharedFacesForRank.end();ftit++)
@@ -2502,7 +2566,7 @@ PMMG_pParMesh InitializeParMMGmeshFromHyperSolveInputs(MPI_Comm comm,
     //     int ref 		          = (*ftit)->GetFaceRef();
     //     std::vector<int> faceVrts = (*ftit)->GetEdgeIDs();
 
-    //     // std::cout << "REF " << ref << std::endl;
+    //     std::cout << "REF " << ref << std::endl;
     
     //     int tagvid0   = faceVrts[0];
     //     int tagvid1   = faceVrts[1];
@@ -2539,11 +2603,14 @@ PMMG_pParMesh InitializeParMMGmeshFromHyperSolveInputs(MPI_Comm comm,
             MPI_Finalize();
             exit(EXIT_FAILURE);
         }
-
+        //std::cout << "k = " << k << std::endl;
         PMMG_Set_requiredTriangle( parmesh, k );
         k = k + 1;  
-        InternalFreal++;  
+        //InternalFreal++;  
     }
+
+    //std::cout << "ExternalInterFaceFaceMap " << ExternalInterFaceFaceMap.size() << " " << world_rank << " " << InternalFreal << std::endl;
+
     //std::cout << "InternalFreal " << InternalFreal << std::endl;
     //std::cout << "ExternalFacesForRank " << ExternalFacesForRank.size() << " " << k<< " " << SharedFacesForRank.size() << " " <<ExternalInterFaceFaceMap.size() << std::endl;  
     //std::cout << "InterInterFaceFPointer " << foundaswell << " " << InternalFreal << " " << dd << " " << ee << std::endl;
@@ -2712,11 +2779,11 @@ void RunParMMGAndTestPartitioningFromHyperSolveInputs(MPI_Comm comm,
     std::map<int,std::vector<int> > sharedface2vert     = partition->getSharedFaceMap();
     //std::map<int,std::vector<int> > face2node         = partition->getFace2VertNewMap();
     //FaceSetPointer OverallFaceMapOnRank                         = partition->getOverallFaceMapOnRank();
-    FaceSetPointer ExternalFacesForRank                         = partition->getExternalFacesForRankFaceMap();
-    FaceSetPointer OwnedBoundaryFaceFaceMap                     = partition->getOwnedBoundaryFaceFaceMap();
-    FaceSetPointer ExternalInterFaceFaceMap                     = partition->getExternalInterFaceFaceMap();
-    std::map<int,std::vector<int> > sharedFace2Verts            = partition->getSharedFaceMap();
-    FaceSetPointer SharedFacesForRank                           = partition->getSharedFacesForRankMap();
+    FaceSetPointer ExternalFacesForRank                 = partition->getExternalFacesForRankFaceMap();
+    FaceSetPointer OwnedBoundaryFaceFaceMap             = partition->getOwnedBoundaryFaceFaceMap();
+    FaceSetPointer ExternalInterFaceFaceMap             = partition->getExternalInterFaceFaceMap();
+    std::map<int,std::vector<int> > sharedFace2Verts    = partition->getSharedFaceMap();
+    FaceSetPointer SharedFacesForRank                   = partition->getSharedFacesForRankMap();
 
     int nTriangles  = SharedFacesForRank.size()+OwnedBoundaryFaceFaceMap.size()+ExternalInterFaceFaceMap.size();//+ExternalInterFaceFaceMap.size();
     // int nTriangles = OverallFaceMapOnRank.size();
@@ -2738,7 +2805,7 @@ void RunParMMGAndTestPartitioningFromHyperSolveInputs(MPI_Comm comm,
 
 
     
-    if( !PMMG_Set_iparameter( parmesh, PMMG_IPARAM_niter, 0 ) ) {
+    if( !PMMG_Set_iparameter( parmesh, PMMG_IPARAM_niter, inputs->niter ) ) {
       MPI_Finalize();
       exit(EXIT_FAILURE);
     };
@@ -2796,7 +2863,7 @@ void RunParMMGAndTestPartitioningFromHyperSolveInputs(MPI_Comm comm,
         ier = PMMG_STRONGFAILURE;
     }
 
-    /*
+    
     int             nodeGloNumber,nodeOwner;
     std::map<int,int> loc2globVid;
     std::map<int,int> glob2locVid;
@@ -3014,7 +3081,7 @@ void RunParMMGAndTestPartitioningFromHyperSolveInputs(MPI_Comm comm,
             }
         }
     }
-    */
+    /**/
 }
 
 

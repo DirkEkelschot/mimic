@@ -1271,7 +1271,8 @@ void PartObjectLite::BuildPMMGCommunicationData(MPI_Comm comm, FaceSetPointer al
         (*ftit)->SetFaceID(f_id);
         if(ActualSharedFPointer!=m_ActualSharedFaceSetPointer.end())
         {
-            int faceID  = (*ActualSharedFPointer)->GetFaceID();
+            int faceID   = (*ActualSharedFPointer)->GetFaceID();
+            int faceref  = (*ActualSharedFPointer)->GetFaceRef();
             int rL      = (*ActualSharedFPointer)->GetFaceLeftRank();
             int rR      = (*ActualSharedFPointer)->GetFaceRightRank();
             // std::cout << "rankie " << rL << " " << rR << std::endl; 
@@ -1294,6 +1295,7 @@ void PartObjectLite::BuildPMMGCommunicationData(MPI_Comm comm, FaceSetPointer al
                 std::vector<int> face = (*ActualSharedFPointer)->GetEdgeIDs();
                 FaceSharedPtr FaceNew = std::shared_ptr<NekFace>(new NekFace(face));
                 FaceNew->SetFaceID(faceID);
+                FaceNew->SetFaceRef(faceref);
                 std::pair<FaceSetPointer::iterator, bool> OverallPointer = m_SharedFacesForRank.insert(FaceNew);
 
                 //(*OverallPointer.first)->SetFaceID(faceID);
@@ -1596,6 +1598,145 @@ void PartObjectLite::GenerateFace2ElementMap(std::map<int,std::vector<int> > Fac
             offset = offset + ncol;
         }
     }
+}
+
+
+
+std::map<int,std::vector<double> > PartObjectLite::RedistributeVertexDataForPartition(MPI_Comm comm, int m_Nv_glob, std::map<int, std::vector<double> > t_hessian)
+{
+    std::map<int,std::vector<double> > owned_hessian;
+
+
+    int ndatasize = t_hessian.begin()->second.size();
+    int size;
+    MPI_Comm_size(comm, &size);
+    // Get the rank of the process
+    int rank;
+    MPI_Comm_rank(comm, &rank);
+
+    ParallelState* vert_pstate = new ParallelState(m_Nv_glob,comm);
+    int* new_V_offsets = new int[size];
+
+    for(int i=0;i<size;i++)
+    {
+        new_V_offsets[i] = vert_pstate->getOffsets()[i]-1;
+    }
+
+    std::map<int,std::vector<int> > rank2req_vert;
+    std::vector<int> vertIDs_on_rank;
+    std::map<int,std::vector<double> >::iterator itm;
+    for(itm=m_LocalVertsMap.begin();itm!=m_LocalVertsMap.end();itm++)
+    {
+        int vid = itm->first;
+        int rv  = FindRank(new_V_offsets,size,vid);
+
+        if (rv!=rank)// if vertex is present on other rank, add it to vertIDs_on_rank map..
+        {
+            rank2req_vert[rv].push_back(vid); // add the vertex id that needs to be requested from rank r.
+        }
+        else
+        {
+            vertIDs_on_rank.push_back(vid);  // add the vertex to list that is already available on rank.
+            owned_hessian[vid] = t_hessian[vid];
+        }
+    }
+
+    std::cout << " owned_hessian " <<  owned_hessian.size() << std::endl;
+    
+    ScheduleObj* part_schedule = DoScheduling(rank2req_vert,comm);
+
+    std::map<int,std::vector<int> >  reqstd_ids_per_rank;
+    std::map<int,std::vector<int> >::iterator it;
+
+    for(int q=0;q<size;q++)
+    {
+        if(rank==q)
+        {
+            int i=0;
+            for (it = rank2req_vert.begin(); it != rank2req_vert.end(); it++)
+            {
+                int n_req           = it->second.size();
+                int dest            = it->first;
+
+                //MPI_Send(&dest, 1, MPI_INT, dest, 9876+10*dest, comm);
+                MPI_Send(&n_req, 1, MPI_INT, dest, 6547+10*dest, comm);
+                //MPI_Send(&it->second.data()[0], n_req, MPI_INT, dest, 9876+dest*2, comm);
+                MPI_Send(&it->second.data()[0], n_req, MPI_INT, dest, 6547*2+dest*2, comm);
+
+                i++;
+            }
+        }
+        else if (part_schedule->SendFromRank2Rank[q].find( rank ) != part_schedule->SendFromRank2Rank[q].end())
+        {
+            int n_reqstd_ids;
+            MPI_Recv(&n_reqstd_ids, 1, MPI_INT, q, 6547+10*rank, comm, MPI_STATUS_IGNORE);
+            //MPI_Recv(&TotRecvVert_IDs[RecvAlloc_offset_map_v[q]], n_reqstd_ids, MPI_INT, q, 9876+rank*2, comm, MPI_STATUS_IGNORE);
+
+            std::vector<int> recv_reqstd_ids(n_reqstd_ids);
+            MPI_Recv(&recv_reqstd_ids[0], n_reqstd_ids, MPI_INT, q, 6547*2+rank*2, comm, MPI_STATUS_IGNORE);
+            reqstd_ids_per_rank[q] = recv_reqstd_ids;
+        }
+    }
+
+    int offset_xcn = 0;
+    std::map<int,int > recv_back_Nverts;
+    std::map<int,std::vector<double> > recv_back_data;
+
+    for(int q=0;q<size;q++)
+    {
+        if(rank == q)
+        {
+            for (it = reqstd_ids_per_rank.begin(); it != reqstd_ids_per_rank.end(); it++)
+            {
+                int nv_send = it->second.size();
+                //double* vert_send = new double[nv_send*3];
+                int ncol = t_hessian[it->second[0]].size();
+
+                std::vector<double> vert_send(nv_send*ncol);
+                offset_xcn        = vert_pstate->getOffset(rank);
+                for(int u=0;u<it->second.size();u++)
+                {
+                    for(int s=0;s<t_hessian[it->second[u]].size();s++)
+                    {
+                        vert_send[u*ncol+s]=t_hessian[it->second[u]][s];
+                    }     
+                }
+                int dest = it->first;
+                MPI_Send(&nv_send, 1, MPI_INT, dest, 6547+1000*dest, comm);
+                MPI_Send(&vert_send.data()[0], nv_send*ncol, MPI_DOUBLE, dest, 6547+dest*8888, comm);
+            }
+        }
+        if(part_schedule->RecvRankFromRank[q].find( rank ) != part_schedule->RecvRankFromRank[q].end())
+        {
+            int n_recv_back;
+            MPI_Recv(&n_recv_back, 1, MPI_INT, q, 6547+1000*rank, comm, MPI_STATUS_IGNORE);
+            std::vector<double> recv_back_arr(n_recv_back*ndatasize);
+            MPI_Recv(&recv_back_arr.data()[0], n_recv_back*ndatasize, MPI_DOUBLE, q, 6547+rank*8888, comm, MPI_STATUS_IGNORE);
+
+            recv_back_Nverts[q]      = n_recv_back;
+            recv_back_data[q]        = recv_back_arr;
+        }
+    }
+
+
+    int vfor = 0;
+    std::map<int,std::vector<int> >::iterator it_f;
+    for(it_f=rank2req_vert.begin();it_f!=rank2req_vert.end();it_f++)
+    {
+        int Nv = it_f->second.size();
+        for(int s=0;s<Nv;s++)
+        {   
+            int vid = it_f->second[s];
+            std::vector<double> StateVec(ndatasize,0.0);
+            for(int p=0;p<ndatasize;p++)
+            {
+                StateVec[p]=recv_back_data[it_f->first][s*ndatasize+p];
+            }
+            owned_hessian[vid] = StateVec;
+        }
+    }
+
+    return owned_hessian;
 }
 
 

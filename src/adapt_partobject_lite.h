@@ -89,7 +89,8 @@ class PartObjectLite{
         std::map<int,int> getLocalSharedFace2GlobalSharedFace();
         std::map<int,int> getGlobalSharedFace2LocalSharedFace();
         std::map<int,std::vector<int> > getSharedFaceMap();
-
+        std::map<int,std::vector<double> > RedistributeVertexDataForPartition(MPI_Comm comm, int m_Nv_glob, std::map<int, std::vector<double> > t_hessian);
+        
         private:
         
         int m_rank;

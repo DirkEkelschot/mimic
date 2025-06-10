@@ -37,7 +37,8 @@ PMMG_pParMesh InitializeParMMGmeshFromHyperSolveInputs(MPI_Comm comm,
                                                         FaceSetPointer InterFaceFaces,
                                                         FaceSetPointer OwnedBoundaryFaces,
                                                         int nInteriorSharedFaces,
-                                                        std::vector<std::vector<double> > t_metric);
+                                                        std::map<int, std::vector<double> > t_metric,
+                                                        Inputs* inputs);
 
 void RunParMMGAndTestPartitioningFromHyperSolveInputs(MPI_Comm comm,
                                                         PMMG_pParMesh parmesh, 

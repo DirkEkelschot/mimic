@@ -294,7 +294,7 @@ std::vector<std::vector<T> > ReadDataSetFromHyperSolveFileInParallel_Lite(const 
 */
 
 template<typename T>
-std::vector<std::vector<T> > ReadDataSetFromHyperSolveFileInParallel_Lite(const char* file_name, const char* dataset_name, int Nel, MPI_Comm comm, MPI_Info info)
+std::map<int, std::vector<T> > ReadDataSetFromHyperSolveFileInParallel_Lite(const char* file_name, const char* dataset_name, int Nel, MPI_Comm comm, MPI_Info info)
 {
     // std::vector<std::vector<T> > Av;
     int size;
@@ -336,7 +336,7 @@ std::vector<std::vector<T> > ReadDataSetFromHyperSolveFileInParallel_Lite(const 
     int nloc                = int(N/size) + ( rank < N%size );
     //  compute offset of rows for each proc;
     int offset              = rank*int(N/size) + MIN(rank, N%size);
-    std::vector<std::vector<T> > Av(nloc);
+    std::map<int, std::vector<T> > Av;
     
     T* A_ptmp = new T[nloc*ncol];    
 
@@ -376,7 +376,7 @@ std::vector<std::vector<T> > ReadDataSetFromHyperSolveFileInParallel_Lite(const 
         {
             A_Row[j] = A_ptmp[i*ncol+j];
         }
-        Av[i] = A_Row;
+        Av[offset+i] = A_Row;
     }
     
     H5Dclose(dset_id);
@@ -389,7 +389,7 @@ std::vector<std::vector<T> > ReadDataSetFromHyperSolveFileInParallel_Lite(const 
 }
 
 
-std::vector<std::vector<double> > ReadHyperSolveHessianData(const char* hessian_data, int Nel, MPI_Comm comm, MPI_Info info);
+std::map<int, std::vector<double> > ReadHyperSolveHessianData(const char* hessian_data, int Nel, MPI_Comm comm, MPI_Info info);
 
 
 template<typename T>

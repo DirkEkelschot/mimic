@@ -6399,9 +6399,9 @@ US3D* ReadUS3DGrid(const char* fn_conn, const char* fn_grid, int readFromStats, 
 
 
 
-std::vector<std::vector<double> > ReadHyperSolveHessianData(const char* hessian_data, int Nel, MPI_Comm comm, MPI_Info info)
+std::map<int, std::vector<double> > ReadHyperSolveHessianData(const char* hessian_data, int Nel, MPI_Comm comm, MPI_Info info)
 {
-    std::vector<std::vector<double> > T_hessian;
+    std::map<int, std::vector<double> > T_hessian;
      int size;
     MPI_Comm_size(comm, &size);
     // Get the rank of the process

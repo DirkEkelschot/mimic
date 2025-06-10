@@ -941,9 +941,9 @@ int main(int argc, char** argv)
     int ver, dim, NmbVer, NmbTri, NmbTet, NmbPri;
     
     //const char* fm = "hemihyb.su2";
-    const char* fm = "hemi.su2";
+    const char* fm = "mesh/hemi.su2";
     //const char* fm = "testbox2.su2";
-    const char* fd = "hemihyb_test2.h5";
+    const char* fd = "mesh/hemi.h5";
 
     Inputs* inputs = ReadXmlFile(comm, "metric.xml");
 
@@ -1064,8 +1064,9 @@ int main(int argc, char** argv)
     MPI_Bcast(&ntetraElem, 1, MPI_INT, 0, MPI_COMM_WORLD);
     MPI_Bcast(&notherElem, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
-    std::vector<std::vector<double> > t_hessian = ReadHyperSolveHessianData(fd,nvrts,comm,info);
+    std::map<int, std::vector<double> > t_hessian = ReadHyperSolveHessianData(fd,nvrts,comm,info);
     
+    // std::cout << "read hessian " << t_hessian.size() << " " << nvrts << std::endl;
     // std::cout << "t_hessian " << t_hessian.size() << " " << t_hessian[0].size()<< std::endl;
     
     ParallelState* pstate_tetraElem = new ParallelState(ntetraElem,comm);
@@ -1098,7 +1099,9 @@ int main(int argc, char** argv)
     
     PartObjectLite* partitionT = new PartObjectLite(tetUniMesh->e2v, tetUniMesh->vert_local, tetUniMesh->eltype_map, tetUniMesh->eltype_vec, allbcFacesNew, Ne, Nv, comm);
     //PartObjectLite* partitionP = new PartObjectLite(blUniMesh->e2v,   blUniMesh->vert_local,  blUniMesh->eltype_map,  blUniMesh->eltype_vec, allbcFacesNew, Ne, Nv, comm);
+    std::map<int,std::vector<double> > t_hessian_new = partitionT->RedistributeVertexDataForPartition(comm, nvrts, t_hessian);
 
+    //std::cout << "Check redistributed data " << partitionT->getLocalVertsMap().size() << " " << t_hessian_new.size() << std::endl;
     FaceSetPointer::iterator ftit;
     FaceSetPointer sharedTfaces = partitionT->getAllSharedAndInterFaceFaceMap();
     //FaceSetPointer sharedPfaces = partitionP->getAllSharedAndInterFaceFaceMap();
@@ -1297,7 +1300,8 @@ int main(int argc, char** argv)
                                                                      InterFaceFaces, 
                                                                      m_OwnedBoundaryFaceSetPointer, 
                                                                      nTotalInteriorFacesT, 
-                                                                     t_hessian);
+                                                                     t_hessian_new,
+                                                                     inputs);
 
     RunParMMGAndTestPartitioningFromHyperSolveInputs(comm, parmesh, partitionT, ActualSharedFaceSetPointerT, inputs);
     
