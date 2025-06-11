@@ -626,15 +626,20 @@ void PartObjectLite::DetermineElement2ProcMap(std::map<int,std::vector<int> >   
         {
 
             glob_v  = Elem2Vert_uniform[el_id][p];
-
+            loc_v   = m_GlobalV2LocalV[glob_v];
             tmp_globv.push_back(glob_v);
             tmp_locv.push_back(loc_v);
             Pijk[p*3+0]     = m_LocalVertsMap[glob_v][0];
             Pijk[p*3+1]     = m_LocalVertsMap[glob_v][1];
             Pijk[p*3+2]     = m_LocalVertsMap[glob_v][2];
 
+            //m_GlobalVert2Elem[glob_v].push_back(el_id); 
+            //globVerts2globElem[glob_v].push_back(el_id);
 
-            m_GlobalVert2Elem[glob_v].push_back(el_id); //globVerts2globElem[glob_v].push_back(el_id);
+            //m_Elem2LocalVert[el_id].push_back(loc_v);
+            m_Elem2LocalVert[el_id].push_back(loc_v); //globElem2locVerts[el_id].push_back(loc_v);
+
+
         }
 
         std::vector<double> Vijk    = ComputeCentroidCoord(Pijk,nvPerEl);
@@ -655,7 +660,7 @@ void PartObjectLite::DetermineElement2ProcMap(std::map<int,std::vector<int> >   
     
 
         //=======================================
-        m_Elem2Vert[el_id]      = tmp_globv;
+        m_Elem2Vert[el_id]         = tmp_globv;
         // m_Elem2Face[el_id]      = tmp_globf;
         // m_Elem2Elem[el_id]      = tmp_globe;
         // m_Elem2Data[el_id]      = rowdata;
@@ -689,7 +694,7 @@ void PartObjectLite::DetermineElement2ProcMap(std::map<int,std::vector<int> >   
             glob_v  = TotRecvVerts_IDs[cnv+p];
             loc_v   = m_GlobalV2LocalV[glob_v];
 
-            // m_Elem2LocalVert[el_id].push_back(loc_v);
+            m_Elem2LocalVert[el_id].push_back(loc_v);
             // m_GlobalVert2Elem[glob_v].push_back(el_id);
 
             Pijk[p*3+0] = m_LocalVertsMap[glob_v][0];
@@ -1297,8 +1302,8 @@ void PartObjectLite::BuildPMMGCommunicationData(MPI_Comm comm, FaceSetPointer al
                 FaceNew->SetFaceID(faceID);
                 FaceNew->SetFaceRef(faceref);
                 std::pair<FaceSetPointer::iterator, bool> OverallPointer = m_SharedFacesForRank.insert(FaceNew);
-
-                //(*OverallPointer.first)->SetFaceID(faceID);
+                (*OverallPointer.first)->SetFaceRef(faceref);
+                (*OverallPointer.first)->SetFaceID(faceID);
                 //================================================================================================
                 
                 m_sharedFaceVerts[faceID] = facevrts;
@@ -1317,8 +1322,6 @@ void PartObjectLite::BuildPMMGCommunicationData(MPI_Comm comm, FaceSetPointer al
             //notinterface++;
 
             // std::pair<FaceSetPointer::iterator, bool> OverallPointer = m_OverallFaceMapOnRank.insert((*ActualSharedFPointer));
-
-
 
             local_fid++;
         }
@@ -1367,21 +1370,21 @@ void PartObjectLite::BuildPMMGCommunicationData(MPI_Comm comm, FaceSetPointer al
     }
 
 
-    // int fid2 = 0;
-    // for(ftit=m_ExternalInterFaceFace.begin();ftit!=m_ExternalInterFaceFace.end();ftit++)
-    // {
-    //     int faceID = FaceOffset + external_offset[m_rank] + fid2;
-    //     (*ftit)->SetFaceID(faceID); 
-    //     (*ftit)->SetFaceRef(13); 
-    //      //================================================================================================
-    //     std::vector<int> face = (*ftit)->GetEdgeIDs();
-    //     FaceSharedPtr FaceNew = std::shared_ptr<NekFace>(new NekFace(face));
-    //     FaceNew->SetFaceID(faceID);
-    //     std::pair<FaceSetPointer::iterator, bool> OverallPointer = m_OverallFaceMapOnRank.insert(FaceNew);
-    //     //================================================================================================
+    int fid2 = 0;
+    for(ftit=m_ExternalInterFaceFace.begin();ftit!=m_ExternalInterFaceFace.end();ftit++)
+    {
+        int faceID = FaceOffset + external_offset[m_rank] + fid2;
+        (*ftit)->SetFaceID(faceID); 
+        (*ftit)->SetFaceRef(13); 
+         //================================================================================================
+        // std::vector<int> face = (*ftit)->GetEdgeIDs();
+        // FaceSharedPtr FaceNew = std::shared_ptr<NekFace>(new NekFace(face));
+        // FaceNew->SetFaceID(faceID);
+        // std::pair<FaceSetPointer::iterator, bool> OverallPointer = m_OverallFaceMapOnRank.insert(FaceNew);
+        //================================================================================================
         
-    //     fid2++;
-    // }
+        fid2++;
+    }
 
     //std::cout << m_rank << "  "<< m_ExternalInterFaceFace.size() << std::endl;
 
@@ -1640,8 +1643,6 @@ std::map<int,std::vector<double> > PartObjectLite::RedistributeVertexDataForPart
             owned_hessian[vid] = t_hessian[vid];
         }
     }
-
-    std::cout << " owned_hessian " <<  owned_hessian.size() << std::endl;
     
     ScheduleObj* part_schedule = DoScheduling(rank2req_vert,comm);
 
@@ -1739,8 +1740,10 @@ std::map<int,std::vector<double> > PartObjectLite::RedistributeVertexDataForPart
     return owned_hessian;
 }
 
-
-
+std::map<int,std::vector<int> > PartObjectLite::getElem2LocalVertMap()
+{
+    return m_Elem2LocalVert;
+}
 std::set<int> PartObjectLite::getLocalElemSet()
 {
     return m_ElemSet;

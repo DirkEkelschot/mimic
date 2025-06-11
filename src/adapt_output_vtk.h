@@ -50,6 +50,17 @@ void OutputTetraMeshPartitionVTK(MPI_Comm comm,
                             std::map<int,std::string > varnames,
                             std::map<int, std::vector<double> > LocalVerts);
 
+void OutputTetraMeshNoSolutionPartitionVTK(MPI_Comm comm,
+                            string filename, 
+                            std::set<int> OwnedElem,
+                            std::map<int,std::vector<int> > gE2lV,
+                            std::map<int, std::vector<double> > LocalVerts);
+
+void OutputTetraMeshNoSolutionOnRootVTK(MPI_Comm comm,
+                                string filename, 
+                                std::set<int> OwnedElem,
+                                std::map<int,std::vector<int> > gE2lV,
+                                std::map<int, std::vector<double> > LocalVerts);
 
 void OutputTriMeshPartitionVTK(MPI_Comm comm,
                             string filename, 

@@ -77,6 +77,8 @@ class PartObjectLite{
 
         std::map<int,int> getLocalVert2GlobalVert();
         std::map<int,int> getGlobalVert2LocalVert();
+            
+        std::map<int,std::vector<int> > getElem2LocalVertMap();
 
         void BuildPMMGCommunicationData(MPI_Comm comm, FaceSetPointer allbcFaces);
 
@@ -122,7 +124,7 @@ class PartObjectLite{
         std::map<int,std::vector<int> >         m_Elem2Vert;
         std::map<int,std::vector<double> >      m_Elem2Centroid;
         std::map<int,int>                       m_Elem2Rank;
-
+        std::map<int,std::vector<int> >         m_Elem2LocalVert;
         std::map<int,std::vector<int> >         m_Face2Elem;
         FaceSetPointer                          m_SharedFacesForRank;
         FaceSetPointer                          m_AllSharedFaceSetPointer;

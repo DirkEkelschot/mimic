@@ -1305,6 +1305,208 @@ int main(int argc, char** argv)
 
     RunParMMGAndTestPartitioningFromHyperSolveInputs(comm, parmesh, partitionT, ActualSharedFaceSetPointerT, inputs);
     
+    int nVerticesOUT   = 0;
+    int nTetrahedraOUT = 0;
+    int nTrianglesOUT  = 0;
+    int nEdgesOUT      = 0;
+
+
+    if ( PMMG_Get_meshSize(parmesh,&nVerticesOUT,&nTetrahedraOUT,NULL,&nTrianglesOUT,NULL,
+                           &nEdgesOUT) !=1 )
+    {
+        ier = PMMG_STRONGFAILURE;
+    }
+
+    DistributedParallelState* pstate_AdaptedTetraElem = new DistributedParallelState(nTetrahedraOUT,comm);
+
+    std::map<int,std::vector<double> > LocalVerts_Adapted;
+    std::map<int,std::vector<double> > LocalVerts_Adapted_GlobalID;
+
+    int nodeGloNumber,nodeOwner;
+    std::map<int,int> loc2globVid;
+    std::map<int,int> glob2locVid;
+    std::vector<int> globIDs;
+    for(int k = 1; k <= nVerticesOUT; k++ )
+    {
+        if( !PMMG_Get_vertexGloNum( parmesh, &nodeGloNumber, &nodeOwner ) )
+        {
+            MPI_Finalize();
+            exit(EXIT_FAILURE);
+        }
+    
+        loc2globVid[k]=nodeGloNumber;
+        glob2locVid[nodeGloNumber]=k;
+        globIDs.push_back(nodeGloNumber);
+    }
+
+    std::vector<int> required_v(nVerticesOUT,0);
+    std::vector<int> corner_v(nVerticesOUT,0);
+    std::vector<int> refOUT_v(nVerticesOUT,0);
+    for(int i=0;i<nVerticesOUT;i++)
+    {
+        std::vector<double> coords(3,0.0);
+        
+        if ( PMMG_Get_vertex(parmesh,&(coords[0]),&(coords[1]),&(coords[2]),
+                               &(refOUT_v[k]),&(corner_v[k]),&(required_v[k])) != 1 )
+        {
+            fprintf(inm,"Unable to get mesh vertex %d \n",k);
+            ier = PMMG_STRONGFAILURE;
+        }
+
+        LocalVerts_Adapted[i] = coords;
+        LocalVerts_Adapted_GlobalID[loc2globVid[i+1]] = coords;
+
+    }
+
+    // std::map<int,std::vector<int> > LocalVerts_Adapted;
+    std::map<int,int> local_v_map;
+    std::map<int,std::vector<int> > gE2lV_Adapted;
+    std::map<int,std::vector<int> > gE2gV_Adapted;
+    std::set<int> OwnedElem_Adapted;
+    std::vector<int> ref(nTetrahedraOUT,0);
+    std::vector<int> required(nTetrahedraOUT,0);
+    int locvid = 0;
+    for(int i=0;i<nTetrahedraOUT;i++)
+    {
+        int offset = pstate_AdaptedTetraElem->getOffsets()[world_rank];
+        int elid = offset + i;
+        OwnedElem_Adapted.insert(elid);
+
+        std::vector<int> LocalVertids(4,0);
+        std::vector<int> GlobalVertids(4,0);
+        if ( PMMG_Get_tetrahedron(parmesh, &(LocalVertids[0]),&(LocalVertids[1]), &(LocalVertids[2]),&(LocalVertids[3]), &(ref[i]),&(required[i])) != 1 ) 
+        {
+          fprintf(inm,"Unable to get mesh tetra %d \n",k);
+          ier = PMMG_STRONGFAILURE;
+        }
+
+        // std::vector<int> locvids_vec(4,0);
+        // for(int s=0;s<4;s++)
+        // {
+        //     if(local_v_map.find(vertids[s])==local_v_map.end())
+        //     {
+        //         local_v_map[vertids[s]]=locvid;
+        //         locvids_vec[s] = locvid;
+        //         locvid++;
+        //     }
+        //     else
+        //     {
+        //         int locids_tmp = local_v_map[vertids[s]];
+        //         locvids_vec[s] = locids_tmp;   
+        //     }
+        // }
+
+        //gE2lV_Adapted[elid] = locvids_vec;
+        LocalVertids[0] = LocalVertids[0]-1;
+        LocalVertids[1] = LocalVertids[1]-1;
+        LocalVertids[2] = LocalVertids[2]-1;
+        LocalVertids[3] = LocalVertids[3]-1;
+
+
+        GlobalVertids[0] = loc2globVid[LocalVertids[0]+1];
+        GlobalVertids[1] = loc2globVid[LocalVertids[1]+1];
+        GlobalVertids[2] = loc2globVid[LocalVertids[2]+1];
+        GlobalVertids[3] = loc2globVid[LocalVertids[3]+1];
+
+        gE2lV_Adapted[elid] = LocalVertids;
+        gE2gV_Adapted[elid] = GlobalVertids;
+        //std::cout << elid << std::endl;
+        //LocalVerts_Adapted[elid]=vertids;
+    }
+    
+    std::map<int,std::vector<double> > t_hessian_on_element;
+    std::map<int,std::vector<int> >::iterator itm;
+    std::map<int,std::vector<int> > gE2gV_t = partitionT->getElem2VertMap();
+    
+    for(itm=gE2gV_t.begin();itm!=gE2gV_t.end();itm++)
+    {
+        int elid = itm->first;
+        int nvrt = itm->second.size();
+
+        double h00 = 0.0;double h01 = 0.0;double h02 = 0.0;
+        double h10 = 0.0;double h11 = 0.0;double h12 = 0.0;
+        double h20 = 0.0;double h21 = 0.0;double h22 = 0.0;
+        
+        int t = 0;
+        for(int q=0;q<nvrt;q++)
+        {
+            int vid = itm->second[q];
+            h00 = h00 + t_hessian_new[vid][0];
+            h01 = h01 + t_hessian_new[vid][1];
+            h02 = h02 + t_hessian_new[vid][2];
+            h10 = h10 + t_hessian_new[vid][3];
+            h11 = h11 + t_hessian_new[vid][4];
+            h12 = h12 + t_hessian_new[vid][5];
+            h20 = h20 + t_hessian_new[vid][6];
+            h21 = h21 + t_hessian_new[vid][7];
+            h22 = h22 + t_hessian_new[vid][8];
+
+        }
+
+        std::vector<double> hess_elem(9,0.0);
+        hess_elem[0] = h00/nvrt;
+        hess_elem[1] = h01/nvrt;
+        hess_elem[2] = h02/nvrt;
+        hess_elem[3] = h10/nvrt;
+        hess_elem[4] = h11/nvrt;
+        hess_elem[5] = h12/nvrt;
+        hess_elem[6] = h20/nvrt;
+        hess_elem[7] = h21/nvrt;
+        hess_elem[8] = h22/nvrt;
+
+
+        t_hessian_on_element[elid] = hess_elem;
+
+    }
+    /**/
+
+    std::map<int,std::string > varnamesGrad;
+
+    varnamesGrad[0]     = "dU2dx2";
+    varnamesGrad[1]     = "dU2dxdy";
+    varnamesGrad[2]     = "dU2dxdz";
+    varnamesGrad[3]     = "dU2dydx";
+    varnamesGrad[4]     = "dU2dy2";
+    varnamesGrad[5]     = "dU2dydz";
+    varnamesGrad[6]     = "dU2dzdx";
+    varnamesGrad[7]     = "dU2dzdy";
+    varnamesGrad[8]     = "dU2dz2";
+
+    string fm_NOTadaptedTetra = "NOTadaptedTetra_" + std::to_string(world_rank) + ".vtu";
+    
+    OutputTetraMeshPartitionVTK(comm,
+                            fm_NOTadaptedTetra, 
+                            partitionT->getLocalElemSet(), 
+                            gE2gV_t, 
+                            t_hessian_on_element, 
+                            varnamesGrad, 
+                            partitionT->getLocalVertsMap());
+
+
+    string fm_adaptedTetra = "adaptedTetra_" + std::to_string(world_rank) + ".vtu";
+    OutputTetraMeshNoSolutionPartitionVTK(comm,
+                             fm_adaptedTetra, 
+                             OwnedElem_Adapted,
+                             gE2lV_Adapted,
+                             LocalVerts_Adapted);
+
+    string fm_adaptedRootTetra = "adaptedTetraRoot_" + std::to_string(world_rank) + ".vtu";
+
+    OutputTetraMeshNoSolutionOnRootVTK(comm,
+                             fm_adaptedRootTetra, 
+                             OwnedElem_Adapted,
+                             gE2gV_Adapted,
+                             LocalVerts_Adapted_GlobalID);
+    
+    string fm_NOTadaptedTetraOnRoot = "NOTadaptedTetraRoot_" + std::to_string(world_rank) + ".vtu";
+    OutputTetraMeshOnRootVTK(comm,
+                            fm_NOTadaptedTetraOnRoot, 
+                            partitionT->getLocalElemSet(), 
+                            gE2gV_t, 
+                            t_hessian_on_element, 
+                            varnamesGrad, 
+                            partitionT->getLocalVertsMap());
+
     // PMMG_pParMesh InitializeParMMGmeshFromHyperSolveInputs(MPI_Comm comm, 
     //                                                     PartObjectLite* partition,
     //                                                     std::vector<int> face4parmmg,
