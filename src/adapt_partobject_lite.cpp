@@ -1869,6 +1869,13 @@ std::map<int,std::vector<int> > PartObjectLite::getSharedFaceMap()
 {
     return m_sharedFaceVerts;
 }
+
+PartObjectLite::~PartObjectLite()
+{
+
+}
+
+
 /*
 std::map<int, std::vector<int> > PartObjectLite::getAdjacentElementLayer(std::map<int,std::vector<double> > xcn, MPI_Comm comm)
 {

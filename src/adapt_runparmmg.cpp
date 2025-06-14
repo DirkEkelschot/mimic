@@ -2394,16 +2394,14 @@ PMMG_pParMesh InitializeParMMGmeshFromHyperSolveInputs(MPI_Comm comm,
     for(vrtit=LocalVertsMap_t.begin();vrtit!=LocalVertsMap_t.end();vrtit++)
     {
         int tagvid  = vrtit->first;
-        //int glovid  = tag2globalV[tagvid];
-        //int locvid  = globalv2localvID[glovid];
-        //std::cout << "locvid = " << locvid << " --- " << glovid << std::endl;
+
         double vx  = LocalVertsMap_t[tagvid][0];
         double vy  = LocalVertsMap_t[tagvid][1];
         double vz  = LocalVertsMap_t[tagvid][2];
+
         int locvid = tagv2locvID[tagvid];
-        // //std::cout <<"coords = "<< vx << " " << vy << " " << vz << std::endl;
         
-        int vref = 86;
+        int vref = 0;
 
         if ( PMMG_Set_vertex(parmesh,vx,vy,vz, vref, locvid+1) != 1 )
         {
@@ -2492,7 +2490,7 @@ PMMG_pParMesh InitializeParMMGmeshFromHyperSolveInputs(MPI_Comm comm,
 
     int nVrts = locv2tagvID.size();
     k = 1;
-    
+    int shrd = 0;
     for(ftit=ExternalFacesForRank.begin();ftit!=ExternalFacesForRank.end();ftit++)
     {
         FaceSetPointer::iterator ConsideredSharedFace = SharedFacesForRank.find((*ftit));
@@ -2523,7 +2521,10 @@ PMMG_pParMesh InitializeParMMGmeshFromHyperSolveInputs(MPI_Comm comm,
                 exit(EXIT_FAILURE);
             }
             k = k + 1;
+
+            shrd++;
         }
+
         // std::vector<int> faceVrts                   = (*ConsideredSharedFace)->GetEdgeIDs();
         // FaceSharedPtr TestFacePointer               = std::shared_ptr<NekFace>(new NekFace(faceVrts));
 
@@ -2553,6 +2554,9 @@ PMMG_pParMesh InitializeParMMGmeshFromHyperSolveInputs(MPI_Comm comm,
         //     InternalFreal++;  
         // }
     }
+
+
+    std::cout << "shrd " << world_rank << " " << shrd << std::endl;
     
     /*
     for(ftit=SharedFacesForRank.begin();ftit!=SharedFacesForRank.end();ftit++)
@@ -2613,7 +2617,8 @@ PMMG_pParMesh InitializeParMMGmeshFromHyperSolveInputs(MPI_Comm comm,
 
     // }
 
-    
+    std::set<int> unique_interface_vrts;
+
     for(ftit=ExternalInterFaceFaceMap.begin();ftit!=ExternalInterFaceFaceMap.end();ftit++)
     {
         int ref 		          = 10;//(*InterFaceFPointer)->GetFaceRef();
@@ -2626,6 +2631,29 @@ PMMG_pParMesh InitializeParMMGmeshFromHyperSolveInputs(MPI_Comm comm,
         int locvid0   = tagv2locvID[tagvid0];
         int locvid1   = tagv2locvID[tagvid1];
         int locvid2   = tagv2locvID[tagvid2];
+
+        for(int s=0;s<3;s++)
+        {
+            int tagvid      = faceVrts[s];
+
+            if(unique_interface_vrts.find(tagvid)==unique_interface_vrts.end())
+            {
+                unique_interface_vrts.insert(tagvid);
+
+                int locvid      = tagv2locvID[tagvid];
+                int vref        = tagvid;
+                double vx       = LocalVertsMap_t[tagvid][0];
+                double vy       = LocalVertsMap_t[tagvid][1];
+                double vz       = LocalVertsMap_t[tagvid][2];
+
+                if ( PMMG_Set_vertex(parmesh,vx,vy,vz, vref, locvid+1) != 1 )
+                {
+                    MPI_Finalize();
+                    exit(EXIT_FAILURE);
+                }
+            }
+        }
+
         if ( PMMG_Set_triangle(parmesh,locvid0+1,locvid1+1,locvid2+1,ref,k) != 1 )
         {
 
@@ -2927,7 +2955,7 @@ void RunParMMGAndTestPartitioningFromHyperSolveInputs(MPI_Comm comm,
     std::vector<std::vector<int> > outT;
     
     double *vertOUT = (double*)calloc((nVerticesOUT)*3,sizeof(double));
-    //std::map<int,std::vector<double> > ref2coordinatesOUT;
+
     for ( int k=0; k<nVerticesOUT; k++ )
     {
           pos = 3*k;
@@ -2939,8 +2967,6 @@ void RunParMMGAndTestPartitioningFromHyperSolveInputs(MPI_Comm comm,
     }
 
     // RUN TEST TO SEE WHETHER ADAPTATION WAS SUCCESFULL
-
-
 
     if(inputs->niter==0)
     {

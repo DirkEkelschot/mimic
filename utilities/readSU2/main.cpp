@@ -54,6 +54,230 @@
 
 
 
+
+
+
+void WriteCompleteSU2Mesh(MPI_Comm comm, const char* fm, 
+                         std::map<int,std::vector<double> > nodes_to_write, 
+                         std::map<int, std::vector<int> > elements_to_write, 
+                         std::map<int,std::vector<std::vector<int> > > boundaryfaces_to_write, 
+                         std::map<int,char*> bctags )
+{
+    std::ofstream mesh_file(fm);
+    std::map<int,std::vector<int> >::iterator itmi;
+    std::map<int,std::vector<std::vector<int> > >::iterator itmii;
+    std::map<int,std::vector<double> >::iterator itmd;
+    // 3D mesh declaration
+
+
+    // % Problem dimension
+    // NDIME= 3    
+    // %
+    // % Inner element connectivity
+    // %
+
+    mesh_file << "% Problem dimension"<<std::endl;
+    mesh_file << "NDIME= 3"<<std::endl;
+    mesh_file << "%"<<std::endl;
+    mesh_file << "% Inner element connectivity"<<std::endl;
+    mesh_file << "%"<<std::endl;
+
+     // Write elements section
+    mesh_file << "NELEM= " << elements_to_write.size() << "\n";
+
+    for(itmi=elements_to_write.begin();itmi!=elements_to_write.end();itmi++)
+    {
+        mesh_file << 10 << std::setw(9) << itmi->second[0]-1 << std::setw(9) << itmi->second[1]-1 << std::setw(9) << itmi->second[2]-1 << std::setw(9) << itmi->second[3]-1 << std::setw(9) << itmi->first << "\n";
+    }
+
+
+
+    mesh_file << "NPOIN= " << nodes_to_write.size() << "\n";
+
+
+
+    for(itmd=nodes_to_write.begin();itmd!=nodes_to_write.end();itmd++)
+    {
+        mesh_file << std::setw(24) << setprecision(16) << itmd->second[0] << std::setw(24) << itmd->second[1] << std::setw(24) << itmd->second[2] << std::setw(9) << itmd->first-1 << std::endl;
+    }
+
+    // for (const auto& node : nodes_to_write) {
+    //     mesh_file << node[0] << " " << node[1] << " " << node[2] << "\n";
+    // }
+    
+    // Create hexahedral elements (12 = 3D hex)
+    
+    // std::vector<std::vector<int>> elements = {
+    //     {12, 0,1,2,3,4,5,6,7}  // Single hex element for demonstration
+    // };
+    
+   
+    
+    // Define boundary markers (14 = 3D quad element)
+
+
+    //mesh_file << "NMARK= 3\n";
+    mesh_file << "NMARK= " << bctags.size() << "\n";
+
+    std::map<int,char*>::iterator itchar;
+    for(itchar=bctags.begin();itchar!=bctags.end();itchar++)
+    {
+        std::cout << itchar->first << " " << itchar->second << std::endl;
+    }
+    for(itmii=boundaryfaces_to_write.begin();itmii!=boundaryfaces_to_write.end();itmii++)
+    {
+        std::cout << itmii->first << std::endl;
+    }
+
+    for(itmii=boundaryfaces_to_write.begin();itmii!=boundaryfaces_to_write.end();itmii++)
+    {
+        std::cout << "itmii->first " << itmii->first << " " << bctags[itmii->first]  << std::endl; 
+        mesh_file << "MARKER_TAG=" << bctags[itmii->first] << "\n";
+        mesh_file << "MARKER_ELEMS=" << itmii->second.size() << "\n";
+
+        for(int q=0;q<itmii->second.size();q++)
+        {
+            mesh_file << 5 << std::setw(17) << itmii->second[q][0]-1 << std::setw(17) << itmii->second[q][1]-1 << std::setw(17) << itmii->second[q][2]-1 << std::endl;
+        }
+    }
+    
+    // // Inlet (front and back faces)
+    // mesh_file << "MARKER_TAG= inlet\n";
+    // mesh_file << "MARKER_ELEMS= 2\n";
+    // mesh_file << "14 0 1 5 4\n";  // Front face
+    // mesh_file << "14 3 2 6 7\n";  // Back face
+    
+    // // Outlet (left and right faces)
+    // mesh_file << "MARKER_TAG= outlet\n";
+    // mesh_file << "MARKER_ELEMS= 2\n";
+    // mesh_file << "14 0 3 7 4\n";  // Left face
+    // mesh_file << "14 1 2 6 5\n";  // Right face
+    
+    // // Walls (top and bottom faces + ends)
+    // mesh_file << "MARKER_TAG= walls\n";
+    // mesh_file << "MARKER_ELEMS= 3\n";
+    // mesh_file << "14 4 5 6 7\n";  // Top face
+    // mesh_file << "14 0 1 2 3\n";  // Bottom face
+    // mesh_file << "14 2 3 7 6\n";  // End face
+    
+    mesh_file.close();
+}
+
+
+
+
+
+
+
+
+void WriteTetraSU2Mesh(MPI_Comm comm, const char* fm, std::map<int,std::vector<double> > nodes_to_write, std::map<int, std::vector<int> > elements_to_write, std::map<int,std::vector<std::vector<int> > > boundaryfaces_to_write, std::map<int,char*> bctags )
+{
+    std::ofstream mesh_file(fm);
+    std::map<int,std::vector<int> >::iterator itmi;
+    std::map<int,std::vector<std::vector<int> > >::iterator itmii;
+    std::map<int,std::vector<double> >::iterator itmd;
+    // 3D mesh declaration
+
+
+    // % Problem dimension
+    // NDIME= 3    
+    // %
+    // % Inner element connectivity
+    // %
+
+    mesh_file << "% Problem dimension"<<std::endl;
+    mesh_file << "NDIME= 3"<<std::endl;
+    mesh_file << "%"<<std::endl;
+    mesh_file << "% Inner element connectivity"<<std::endl;
+    mesh_file << "%"<<std::endl;
+
+     // Write elements section
+    mesh_file << "NELEM= " << elements_to_write.size() << "\n";
+
+    for(itmi=elements_to_write.begin();itmi!=elements_to_write.end();itmi++)
+    {
+        mesh_file << 10 << std::setw(9) << itmi->second[0]-1 << std::setw(9) << itmi->second[1]-1 << std::setw(9) << itmi->second[2]-1 << std::setw(9) << itmi->second[3]-1 << std::setw(9) << itmi->first << "\n";
+    }
+
+
+
+    mesh_file << "NPOIN= " << nodes_to_write.size() << "\n";
+
+
+
+    for(itmd=nodes_to_write.begin();itmd!=nodes_to_write.end();itmd++)
+    {
+        mesh_file << std::setw(24) << setprecision(16) << itmd->second[0] << std::setw(24) << itmd->second[1] << std::setw(24) << itmd->second[2] << std::setw(9) << itmd->first-1 << std::endl;
+    }
+
+    // for (const auto& node : nodes_to_write) {
+    //     mesh_file << node[0] << " " << node[1] << " " << node[2] << "\n";
+    // }
+    
+    // Create hexahedral elements (12 = 3D hex)
+    
+    // std::vector<std::vector<int>> elements = {
+    //     {12, 0,1,2,3,4,5,6,7}  // Single hex element for demonstration
+    // };
+    
+   
+    
+    // Define boundary markers (14 = 3D quad element)
+
+
+    //mesh_file << "NMARK= 3\n";
+    mesh_file << "NMARK= " << bctags.size() << "\n";
+
+    std::map<int,char*>::iterator itchar;
+    for(itchar=bctags.begin();itchar!=bctags.end();itchar++)
+    {
+        std::cout << itchar->first << " " << itchar->second << std::endl;
+    }
+    for(itmii=boundaryfaces_to_write.begin();itmii!=boundaryfaces_to_write.end();itmii++)
+    {
+        std::cout << itmii->first << std::endl;
+    }
+
+    for(itmii=boundaryfaces_to_write.begin();itmii!=boundaryfaces_to_write.end();itmii++)
+    {
+        std::cout << "itmii->first " << itmii->first << " " << bctags[itmii->first]  << std::endl; 
+        mesh_file << "MARKER_TAG=" << bctags[itmii->first] << "\n";
+        mesh_file << "MARKER_ELEMS=" << itmii->second.size() << "\n";
+
+        for(int q=0;q<itmii->second.size();q++)
+        {
+            mesh_file << 5 << std::setw(17) << itmii->second[q][0]-1 << std::setw(17) << itmii->second[q][1]-1 << std::setw(17) << itmii->second[q][2]-1 << std::endl;
+        }
+    }
+    
+    // // Inlet (front and back faces)
+    // mesh_file << "MARKER_TAG= inlet\n";
+    // mesh_file << "MARKER_ELEMS= 2\n";
+    // mesh_file << "14 0 1 5 4\n";  // Front face
+    // mesh_file << "14 3 2 6 7\n";  // Back face
+    
+    // // Outlet (left and right faces)
+    // mesh_file << "MARKER_TAG= outlet\n";
+    // mesh_file << "MARKER_ELEMS= 2\n";
+    // mesh_file << "14 0 3 7 4\n";  // Left face
+    // mesh_file << "14 1 2 6 5\n";  // Right face
+    
+    // // Walls (top and bottom faces + ends)
+    // mesh_file << "MARKER_TAG= walls\n";
+    // mesh_file << "MARKER_ELEMS= 3\n";
+    // mesh_file << "14 4 5 6 7\n";  // Top face
+    // mesh_file << "14 0 1 2 3\n";  // Bottom face
+    // mesh_file << "14 2 3 7 6\n";  // End face
+    
+    mesh_file.close();
+}
+
+
+
+
+
+
+
 void ReadSU2Mesh(MPI_Comm comm,
                 const char* fm,
                 std::vector<std::vector<int> > &elements,
@@ -357,6 +581,9 @@ void ReadSU2Mesh(MPI_Comm comm,
             }
         }
     }
+
+
+    bcTags[10]="interface";
 
     std::cout << "bcfaces_root " << bcfaces_root.size() << std::endl;
 
@@ -1098,7 +1325,7 @@ int main(int argc, char** argv)
     int Nv = nvrts;
     
     PartObjectLite* partitionT = new PartObjectLite(tetUniMesh->e2v, tetUniMesh->vert_local, tetUniMesh->eltype_map, tetUniMesh->eltype_vec, allbcFacesNew, Ne, Nv, comm);
-    //PartObjectLite* partitionP = new PartObjectLite(blUniMesh->e2v,   blUniMesh->vert_local,  blUniMesh->eltype_map,  blUniMesh->eltype_vec, allbcFacesNew, Ne, Nv, comm);
+    PartObjectLite* partitionP = new PartObjectLite(blUniMesh->e2v,   blUniMesh->vert_local,  blUniMesh->eltype_map,  blUniMesh->eltype_vec, allbcFacesNew, Ne, Nv, comm);
     std::map<int,std::vector<double> > t_hessian_new = partitionT->RedistributeVertexDataForPartition(comm, nvrts, t_hessian);
 
     //std::cout << "Check redistributed data " << partitionT->getLocalVertsMap().size() << " " << t_hessian_new.size() << std::endl;
@@ -1146,153 +1373,17 @@ int main(int argc, char** argv)
                              filename_interface, 
                              ExternalInterFaceFace,
                              partitionT->getLocalVertsMap());
-    // std::cout << "nTotalInteriorFacesT " << nTotalInteriorFacesT << std::endl; 
-    // if(world_rank == (world_size-1))
-    // {
-    //     for(ftit=OwnedInteriorTfaces.begin();ftit!=OwnedInteriorTfaces.end();ftit++)
-    //     {
-    //         std::cout << "interior face id " << (*ftit)->GetFaceID() << " " << nAllInteriorT << std::endl;
-    //     }
-    // }
     
-    //=========================================================================================================================
-    //=========================================================================================================================
-    // This part builds the InterFaceFaceSet that holds the faces between the boundary layer mesh and the remaining tetrahedra;
-    //=========================================================================================================================
-    //=========================================================================================================================
-
-    FaceSetPointer InterFaceFaces;
-    
-    
-    int interFaceID = 0;
-    // if(sharedPfaces.size()>=sharedTfaces.size())
-    // {
-    //     for(ftit=sharedPfaces.begin();ftit!=sharedPfaces.end();ftit++)
-    //     {
-    //         std::vector<int> fvid                                           = (*ftit)->GetEdgeIDs();
-    //         FaceSharedPtr facePointer                                       = std::shared_ptr<NekFace>(new NekFace(fvid));
-    //         FaceSetPointer::iterator FaceFoundInTetra                       = sharedTfaces.find((*ftit));
-
-    //         if(FaceFoundInTetra!=sharedTfaces.end())
-    //         {   
-    //             std::pair<FaceSetPointer::iterator, bool> testInsPointer    = InterFaceFaces.insert(facePointer);
-    //             (*testInsPointer.first)->SetFaceID(nTotalInteriorFacesT+interFaceID);
-    //             (*testInsPointer.first)->SetFaceLeftElement((*FaceFoundInTetra)->GetFaceLeftElement());
-    //             (*testInsPointer.first)->SetFaceRightElement((*ftit)->GetFaceLeftElement());
-    //             interFaceID++;
-
-    //         }   
-    //     }
-    // }
-    // else
-    // {
-    //     for(ftit=sharedTfaces.begin();ftit!=sharedTfaces.end();ftit++)
-    //     {
-    //         std::vector<int> fvid                                           = (*ftit)->GetEdgeIDs();
-    //         FaceSharedPtr facePointer                                       = std::shared_ptr<NekFace>(new NekFace(fvid));
-    //         FaceSetPointer::iterator FaceFoundInBoundaryLayer               = sharedPfaces.find((*ftit));
-
-    //         if(FaceFoundInBoundaryLayer!=sharedPfaces.end())
-    //         {   
-    //             std::pair<FaceSetPointer::iterator, bool> testInsPointer    = InterFaceFaces.insert(facePointer);
-    //             (*testInsPointer.first)->SetFaceID(nTotalInteriorFacesT+interFaceID);
-    //             (*testInsPointer.first)->SetFaceLeftElement((*ftit)->GetFaceLeftElement());
-    //             (*testInsPointer.first)->SetFaceRightElement((*FaceFoundInBoundaryLayer)->GetFaceLeftElement());
-    //             interFaceID++;
-    //         }
-    //     }
-    // }
 
 
 
-    //std::cout << "interFaceID " << nTotalInteriorFacesT+interFaceID << std::endl;
 
     //=========================================================================================================================
     //=========================================================================================================================
     //=========================================================================================================================
     //=========================================================================================================================
 
-    //std::cout << InterFaceFaces.size()/4 << std::endl;
-
-    //int nTotalInteriorFaces = OwnedInteriorFaceOffsets[world_size-1]+OwnedInteriorFaceNlocs[world_size-1];
-
-    //std::map<int, std::vector<int> >        m_ColorsFaces;
     FaceSetPointer m_OwnedBoundaryFaceSetPointer        = partitionT->getOwnedBoundaryFaceFaceMap();
-    /*
-    //FaceSetPointer ActualSharedFaceSetPointerP          = partitionP->getActualSharedFaceMap();
-    FaceSetPointer ExternalFaceForRankFaceSetPointer    = partitionT->getExternalFacesForRankFaceMap();
-    
-    int fnd = 0;
-    std::map<int,int> m_globShF2locShF;
-    int f = 0;
-    int interface       = 0;
-    int notinterface    = 0;
-    int bcface          = 0;
-    // ExternalFaceForRankFaceSetPointer doesnt have any left or right elements set;
-
-    std::map<int,int> externalF2locF;
-    int f_id = 0;
-    std::vector<int> face4pmmg;
-    int local_fid = 0;
-    for(ftit=ExternalFaceForRankFaceSetPointer.begin();ftit!=ExternalFaceForRankFaceSetPointer.end();ftit++)
-    {
-        FaceSetPointer::iterator ActualSharedFPointer = ActualSharedFaceSetPointerT.find((*ftit));
-        (*ftit)->SetFaceID(f_id);
-        if(ActualSharedFPointer!=ActualSharedFaceSetPointerT.end())
-        {
-            int faceID  = (*ActualSharedFPointer)->GetFaceID();
-            int rL      = (*ActualSharedFPointer)->GetFaceLeftRank();
-            int rR      = (*ActualSharedFPointer)->GetFaceRightRank();
-            int EL      = (*ActualSharedFPointer)->GetFaceLeftElement();
-            int ER      = (*ActualSharedFPointer)->GetFaceRightElement();
-            face4pmmg.push_back(faceID);
-            //std::cout << rL << " L vs R " << rR << " --::-- " << EL << " eL vs eR " << ER <<  std::endl; 
-            
-            if(m_globShF2locShF.find(faceID)==m_globShF2locShF.end())
-            {
-                m_globShF2locShF[faceID] = f;
-                f++;
-            }
-
-            if(rL == world_rank)
-            {
-                m_ColorsFaces[rR].push_back(faceID);
-            }
-            else if(rR==world_rank)
-            {
-                m_ColorsFaces[rL].push_back(faceID);
-            }
-            //externalF2locF[faceID] = local_fid;
-            notinterface++;
-            local_fid++;
-        }
-
-        FaceSetPointer::iterator FaceFoundInInterFace = InterFaceFaces.find((*ftit));
-        if(FaceFoundInInterFace!=InterFaceFaces.end())
-        {
-            interface++;
-            local_fid++;
-        }
-
-        FaceSetPointer::iterator FaceFoundInBoundaries = allbcFaces.find((*ftit));
-        if(FaceFoundInBoundaries!=allbcFaces.end())
-        {
-            (*FaceFoundInBoundaries)->SetFaceID(bcface);
-            bcface++;
-        }
-
-        f_id++;
-    }
-
-    //std::cout << "interface = " << interface << " " << bcface << std::endl;
-
-    int nAllFaces           = nAllInteriorT + nAllInteriorP + ActualSharedFaceSetPointerT.size() + ActualSharedFaceSetPointerP.size() + allbcFaces.size() + InterFaceFaces.size();
-    int TotalInternalFaces  = nAllInteriorT + nAllInteriorP + ActualSharedFaceSetPointerT.size() + ActualSharedFaceSetPointerP.size() + InterFaceFaces.size();
-    double justInternal     = (double)nAllInteriorT+(double)nAllInteriorP;
-    double sharedExternal   = (double)ActualSharedFaceSetPointerT.size() + (double)ActualSharedFaceSetPointerP.size() + (double)allbcFaces.size() + (double)InterFaceFaces.size();
-    */
-    //std::cout << "Total number of faces = " << nAllFaces << " " << TotalInternalFaces  << std::endl;
-    //std::cout << sharedExternal/justInternal*100 << " " << (int)sharedExternal << " " << (int)justInternal << std::endl;
 
     PMMG_pParMesh parmesh = InitializeParMMGmeshFromHyperSolveInputs(comm, 
                                                                      partitionT, 
@@ -1304,7 +1395,9 @@ int main(int argc, char** argv)
                                                                      inputs);
 
     RunParMMGAndTestPartitioningFromHyperSolveInputs(comm, parmesh, partitionT, ActualSharedFaceSetPointerT, inputs);
-    
+
+
+    //=================================================================================================================
     int nVerticesOUT   = 0;
     int nTetrahedraOUT = 0;
     int nTrianglesOUT  = 0;
@@ -1325,7 +1418,11 @@ int main(int argc, char** argv)
     int nodeGloNumber,nodeOwner;
     std::map<int,int> loc2globVid;
     std::map<int,int> glob2locVid;
+
+    std::map<int,int> loc2globVid_complete;
+    std::map<int,int> glob2locVid_complete;
     std::vector<int> globIDs;
+    
     for(int k = 1; k <= nVerticesOUT; k++ )
     {
         if( !PMMG_Get_vertexGloNum( parmesh, &nodeGloNumber, &nodeOwner ) )
@@ -1336,23 +1433,38 @@ int main(int argc, char** argv)
     
         loc2globVid[k]=nodeGloNumber;
         glob2locVid[nodeGloNumber]=k;
+
+        loc2globVid_complete[k]=nodeGloNumber;
+        glob2locVid_complete[nodeGloNumber]=k;
         globIDs.push_back(nodeGloNumber);
     }
+
+    int max_gvid = *std::max_element(globIDs.begin(), globIDs.end());
+    int max_vid = 0;
+    MPI_Allreduce(&max_gvid,  &max_vid, 1, MPI_INT, MPI_MAX, comm);
+
+    //std::cout << "max vid " << max_gvid << " " << max_vid << std::endl;
 
     std::vector<int> required_v(nVerticesOUT,0);
     std::vector<int> corner_v(nVerticesOUT,0);
     std::vector<int> refOUT_v(nVerticesOUT,0);
+
+    std::map<int,int> vid2ref;
+
     for(int i=0;i<nVerticesOUT;i++)
     {
         std::vector<double> coords(3,0.0);
         
         if ( PMMG_Get_vertex(parmesh,&(coords[0]),&(coords[1]),&(coords[2]),
-                               &(refOUT_v[k]),&(corner_v[k]),&(required_v[k])) != 1 )
+                               &(refOUT_v[i]),&(corner_v[i]),&(required_v[i])) != 1 )
         {
             fprintf(inm,"Unable to get mesh vertex %d \n",k);
             ier = PMMG_STRONGFAILURE;
         }
-
+        // if(refOUT_v[i]!=0)
+        // {
+        //     std::cout << "refOUT_v[k] " << refOUT_v[i] << std::endl;
+        // }
         LocalVerts_Adapted[i] = coords;
         LocalVerts_Adapted_GlobalID[loc2globVid[i+1]] = coords;
 
@@ -1380,38 +1492,18 @@ int main(int argc, char** argv)
           ier = PMMG_STRONGFAILURE;
         }
 
-        // std::vector<int> locvids_vec(4,0);
-        // for(int s=0;s<4;s++)
-        // {
-        //     if(local_v_map.find(vertids[s])==local_v_map.end())
-        //     {
-        //         local_v_map[vertids[s]]=locvid;
-        //         locvids_vec[s] = locvid;
-        //         locvid++;
-        //     }
-        //     else
-        //     {
-        //         int locids_tmp = local_v_map[vertids[s]];
-        //         locvids_vec[s] = locids_tmp;   
-        //     }
-        // }
+        GlobalVertids[0] = loc2globVid[LocalVertids[0]];
+        GlobalVertids[1] = loc2globVid[LocalVertids[1]];
+        GlobalVertids[2] = loc2globVid[LocalVertids[2]];
+        GlobalVertids[3] = loc2globVid[LocalVertids[3]];
 
-        //gE2lV_Adapted[elid] = locvids_vec;
         LocalVertids[0] = LocalVertids[0]-1;
         LocalVertids[1] = LocalVertids[1]-1;
         LocalVertids[2] = LocalVertids[2]-1;
         LocalVertids[3] = LocalVertids[3]-1;
 
-
-        GlobalVertids[0] = loc2globVid[LocalVertids[0]+1];
-        GlobalVertids[1] = loc2globVid[LocalVertids[1]+1];
-        GlobalVertids[2] = loc2globVid[LocalVertids[2]+1];
-        GlobalVertids[3] = loc2globVid[LocalVertids[3]+1];
-
         gE2lV_Adapted[elid] = LocalVertids;
         gE2gV_Adapted[elid] = GlobalVertids;
-        //std::cout << elid << std::endl;
-        //LocalVerts_Adapted[elid]=vertids;
     }
     
     std::map<int,std::vector<double> > t_hessian_on_element;
@@ -1458,54 +1550,328 @@ int main(int argc, char** argv)
         t_hessian_on_element[elid] = hess_elem;
 
     }
+
+    int bc0 = 0;
+    int bc1 = 0;
+    int bc2 = 0;
+    int bc3 = 0;
+    int bc4 = 0;
+    int bc10 = 0;
+    int nreq2   = 0;
+    int *required2  = (int*)calloc(nTrianglesOUT,sizeof(int));
+    // int *faceRefs   = (int*)calloc(nTrianglesOUT,sizeof(int));
+    
+    std::vector<int> freq(nTrianglesOUT,0);
+    std::vector<int> fref(nTrianglesOUT,0);
+    std::vector<int> fsize(nTrianglesOUT,0);
+    std::vector<int> fvrt;
+    // std::map<int,std::vector<int> > boundaryfaces_to_write;
+    // std::map<int,std::vector<int> > boundaryfaces_to_write_size;
+    int reqq = 0;
+    for ( k=0; k<nTrianglesOUT; k++ )
+    {
+        std::vector<int> face(3,0);
+        if ( PMMG_Get_triangle(parmesh,&(face[0]),
+                                        &(face[1]),
+                                        &(face[2]),
+                                        &(fref[k]),
+                                        &(required2[k])) != 1 )
+        {
+            fprintf(inm,"Unable to get mesh triangle %d \n",k);
+            ier = PMMG_STRONGFAILURE;
+        }
+
+        if(fref[k]==0)
+        {
+            bc0++;
+        }
+        if(fref[k]==1)
+        {
+            bc1++;
+        }
+        if(fref[k]==2)
+        {
+            bc2++;
+        }
+        if(fref[k]==3)
+        {
+            bc3++;
+        }
+        if(fref[k]==4)
+        {
+            bc4++;
+        }
+        if(fref[k]==10)
+        {
+            bc10++;
+        }
+
+        if(required2[k]==1)
+        {
+             for(int b=0;b<face.size();b++)
+            {
+                if((face[b]-1)>nVerticesOUT)
+                {
+                    std::cout << "(" << face[b] << " -> ref = " << refOUT_v[face[b]-1]<< ") ";
+                    std::cout << std::endl;
+                }
+            }
+            
+            reqq++;
+        }
+
+        std::vector<int> face_glob(3,0);
+        face_glob[0] = loc2globVid[face[0]];
+        face_glob[1] = loc2globVid[face[1]];
+        face_glob[2] = loc2globVid[face[2]];
+
+        
+        fsize[k] = face_glob.size();
+        for(int b=0;b<face_glob.size();b++)
+        {
+            fvrt.push_back(face_glob[b]);
+        }
+        
+        if ( required2 && required2[k] )  nreq2++;
+    }
+    std::cout << "reqq " << world_rank << " " << reqq << std::endl; 
+    
+    // After this point, we can start figuring out what the boundary layer mesh vertex IDs are since we have now collected to vertices that on the interface
+    std::map<int,std::vector<double> > LocalVerts_BL = partitionT->getLocalVertsMap();
+    std::map<int,std::vector<double> >::iterator itmb;
+
+    
+    int vert_offset = max_vid;
+    for(itmb=LocalVerts_BL.begin();itmb!=LocalVerts_BL.end();itmb++)
+    {
+        int tagid = itmb->first;
+
+        if(interface_vrts.find(tagid)==interface_vrts.end())
+        {
+
+        }
+    }
+
+
+
+
+
+
+
+    int nreq2_total = 0;
+    MPI_Allreduce(&nreq2,  &nreq2_total, 1, MPI_INT, MPI_SUM, comm);
+    int bc0_total = 0;
+    MPI_Allreduce(&bc0,  &bc0_total, 1, MPI_INT, MPI_SUM, comm);
+    int bc1_total = 0;
+    MPI_Allreduce(&bc1,  &bc1_total, 1, MPI_INT, MPI_SUM, comm);
+    int bc2_total = 0;
+    MPI_Allreduce(&bc2,  &bc2_total, 1, MPI_INT, MPI_SUM, comm);
+    int bc3_total = 0;
+    MPI_Allreduce(&bc3,  &bc3_total, 1, MPI_INT, MPI_SUM, comm);
+    int bc4_total = 0;
+    MPI_Allreduce(&bc4,  &bc4_total, 1, MPI_INT, MPI_SUM, comm);
+    int bc10_total = 0;
+    MPI_Allreduce(&bc10,  &bc10_total, 1, MPI_INT, MPI_SUM, comm);
+    std::cout << "world_rank  " << nreq2_total << " on rank " << world_rank << " bc0 " << bc0 << " " << bc0_total << " " << bc1_total << " " << bc2_total << " " << bc3_total << " " << bc4_total << " bc10 " << bc10_total << std::endl;
+
+    std::map<int,std::vector<int> > boundaryfaces_to_write_copy;
+    std::map<int,std::vector<int> > boundaryfaces_to_write_size_copy;
+
+    std::map<int,std::vector<int> >::iterator itmm;
+
+    DistributedParallelState* bfaces_sizes = new DistributedParallelState(fsize.size(),comm);
+    DistributedParallelState* bfaces_verts = new DistributedParallelState(fvrt.size(),comm);
+
+    std::vector<int> BfacesSizeOnRoot;
+    std::vector<int> BfacesVrtsOnRoot;
+    std::vector<int> BfacesRefOnRoot;
+
+    if(world_rank == 0)
+    {
+        std::cout << "bfaces_sizes->getNel() " << bfaces_sizes->getNel() << std::endl;
+        BfacesSizeOnRoot.resize(bfaces_sizes->getNel());
+        BfacesVrtsOnRoot.resize(bfaces_verts->getNel());
+        BfacesRefOnRoot.resize(bfaces_sizes->getNel());
+    }
+
+    MPI_Gatherv(&fsize.data()[0],
+                fsize.size(),
+                MPI_INT,
+                &BfacesSizeOnRoot.data()[0],
+                bfaces_sizes->getNlocs(),
+                bfaces_sizes->getOffsets(),
+                MPI_INT, 0, comm);
+
+    MPI_Gatherv(&fvrt.data()[0],
+                fvrt.size(),
+                MPI_INT,
+                &BfacesVrtsOnRoot.data()[0],
+                bfaces_verts->getNlocs(),
+                bfaces_verts->getOffsets(),
+                MPI_INT, 0, comm);
+    
+    MPI_Gatherv(&fref.data()[0],
+                fref.size(),
+                MPI_INT,
+                &BfacesRefOnRoot.data()[0],
+                bfaces_sizes->getNlocs(),
+                bfaces_sizes->getOffsets(),
+                MPI_INT, 0, comm);
+
+
+
+    std::map<int,std::vector<std::vector<int> > > boundaryMap_global;
+    FaceSetPointer bfacesOut;
+
+    std::map<int,std::vector<std::vector<int> > > bcFacesPerRefTetra;
+
+    if(world_rank == 0)
+    {
+        int offset = 0;
+        
+
+        for(int i=0;i<BfacesSizeOnRoot.size();i++)
+        {
+            int fz      = BfacesSizeOnRoot[i];
+            int fref    = BfacesRefOnRoot[i];
+
+            std::vector<int> face(fz,0);
+
+            for(int j=0;j<fz;j++)
+            {
+                face[j] = BfacesVrtsOnRoot[offset+j];
+            }
+
+            FaceSharedPtr facePointer = std::shared_ptr<NekFace>(new NekFace(face));
+
+            FaceSetPointer::iterator testInsPointer2 = bfacesOut.find(facePointer);
+            if(testInsPointer2==bfacesOut.end())
+            {
+                std::pair<FaceSetPointer::iterator, bool> testInsPointer;
+                testInsPointer      = bfacesOut.insert(facePointer);
+
+                if(fref!=0)
+                {
+                    bcFacesPerRefTetra[fref].push_back(face);
+                }
+                
+            }
+
+
+
+            offset = offset+fz;
+        }
+
+    }
+
+    //std::cout << "bcFacesPerRef. "<< bcFacesPerRef.size() << std::endl;
+    //============================================================================================
     /**/
 
-    std::map<int,std::string > varnamesGrad;
+    // std::map<int,std::string > varnamesGrad;
 
-    varnamesGrad[0]     = "dU2dx2";
-    varnamesGrad[1]     = "dU2dxdy";
-    varnamesGrad[2]     = "dU2dxdz";
-    varnamesGrad[3]     = "dU2dydx";
-    varnamesGrad[4]     = "dU2dy2";
-    varnamesGrad[5]     = "dU2dydz";
-    varnamesGrad[6]     = "dU2dzdx";
-    varnamesGrad[7]     = "dU2dzdy";
-    varnamesGrad[8]     = "dU2dz2";
+    // varnamesGrad[0]     = "dU2dx2";
+    // varnamesGrad[1]     = "dU2dxdy";
+    // varnamesGrad[2]     = "dU2dxdz";
+    // varnamesGrad[3]     = "dU2dydx";
+    // varnamesGrad[4]     = "dU2dy2";
+    // varnamesGrad[5]     = "dU2dydz";
+    // varnamesGrad[6]     = "dU2dzdx";
+    // varnamesGrad[7]     = "dU2dzdy";
+    // varnamesGrad[8]     = "dU2dz2";
 
-    string fm_NOTadaptedTetra = "NOTadaptedTetra_" + std::to_string(world_rank) + ".vtu";
+    // string fm_NOTadaptedTetra = "NOTadaptedTetra_" + std::to_string(world_rank) + ".vtu";
     
-    OutputTetraMeshPartitionVTK(comm,
-                            fm_NOTadaptedTetra, 
-                            partitionT->getLocalElemSet(), 
-                            gE2gV_t, 
-                            t_hessian_on_element, 
-                            varnamesGrad, 
-                            partitionT->getLocalVertsMap());
+    // OutputTetraMeshPartitionVTK(comm,
+    //                         fm_NOTadaptedTetra, 
+    //                         partitionT->getLocalElemSet(), 
+    //                         gE2gV_t, 
+    //                         t_hessian_on_element, 
+    //                         varnamesGrad, 
+    //                         partitionT->getLocalVertsMap());
 
 
-    string fm_adaptedTetra = "adaptedTetra_" + std::to_string(world_rank) + ".vtu";
-    OutputTetraMeshNoSolutionPartitionVTK(comm,
-                             fm_adaptedTetra, 
-                             OwnedElem_Adapted,
-                             gE2lV_Adapted,
-                             LocalVerts_Adapted);
+    // string fm_adaptedTetra = "adaptedTetra_" + std::to_string(world_rank) + ".vtu";
+    // OutputTetraMeshNoSolutionPartitionVTK(comm,
+    //                          fm_adaptedTetra, 
+    //                          OwnedElem_Adapted,
+    //                          gE2lV_Adapted,
+    //                          LocalVerts_Adapted);
 
-    string fm_adaptedRootTetra = "adaptedTetraRoot_" + std::to_string(world_rank) + ".vtu";
+    // string fm_adaptedRootTetra = "adaptedTetraRoot_" + std::to_string(world_rank) + ".vtu";
 
-    OutputTetraMeshNoSolutionOnRootVTK(comm,
-                             fm_adaptedRootTetra, 
-                             OwnedElem_Adapted,
-                             gE2gV_Adapted,
-                             LocalVerts_Adapted_GlobalID);
+    // OutputTetraMeshNoSolutionOnRootVTK(comm,
+    //                          fm_adaptedRootTetra, 
+    //                          OwnedElem_Adapted,
+    //                          gE2gV_Adapted,
+    //                          LocalVerts_Adapted_GlobalID);
     
-    string fm_NOTadaptedTetraOnRoot = "NOTadaptedTetraRoot_" + std::to_string(world_rank) + ".vtu";
-    OutputTetraMeshOnRootVTK(comm,
-                            fm_NOTadaptedTetraOnRoot, 
-                            partitionT->getLocalElemSet(), 
-                            gE2gV_t, 
-                            t_hessian_on_element, 
-                            varnamesGrad, 
-                            partitionT->getLocalVertsMap());
+    // string fm_NOTadaptedTetraOnRoot = "NOTadaptedTetraRoot_" + std::to_string(world_rank) + ".vtu";
+    // OutputTetraMeshOnRootVTK(comm,
+    //                         fm_NOTadaptedTetraOnRoot, 
+    //                         partitionT->getLocalElemSet(), 
+    //                         gE2gV_t, 
+    //                         t_hessian_on_element, 
+    //                         varnamesGrad, 
+    //                         partitionT->getLocalVertsMap());
+
+    
+    // std::map<int,std::vector<int> > gE2lVOnRoot     = GatherGlobalMapOnRoot_T(gE2lV_tmp,comm);
+    // std::map<int,std::vector<double> > glob_data    = GatherGlobalMapOnRoot_T(loc_data,comm);
+
+    std::map<int,std::vector<double> > VertsOnRootTetra                 = GatherGlobalMapOnRoot_T(LocalVerts_Adapted_GlobalID,comm);
+    std::map<int,std::vector<int> > TetraOnRoot                         = GatherGlobalMapOnRoot_T(gE2gV_Adapted,comm);
+
+    std::map<int,std::vector<int> > boundaryfaces_to_write_global       = GatherGlobalMapOnRoot_T(boundaryfaces_to_write_copy,comm);
+    std::map<int,std::vector<int> > boundaryfaces_to_write_size_global  = GatherGlobalMapOnRoot_T(boundaryfaces_to_write_size_copy,comm);
+
+
+    std::map<int,std::vector<std::vector<int> > > BoundariesOnRoot_global;
+    // std::map<int,std::vector<std::vector<int> > >::iterator itmii;
+    // for(itmii=boundaryfaces_to_write.begin();itmii!=boundaryfaces_to_write.end();itmii++)
+    // {
+    //     std::vector<std::vector<int> > BoundariesOnRoot_i    = GatherJaggedGlobalVectorOnRoot_T(itmii->second,comm);
+
+    //     BoundariesOnRoot_global[itmii->first] = BoundariesOnRoot_i;
+    // }
+
+    
+
+    if(world_rank == 0)
+    {
+        std::cout << "VertsOnRoot " << VertsOnRootTetra.size() << " " << boundaryfaces_to_write_global.size() << " " << boundaryfaces_to_write_size_global.size() << std::endl; 
+
+        std::map<int,std::vector<int> >::iterator tim;
+        
+        // for(tim=boundaryfaces_to_write_size_global.begin();tim!=boundaryfaces_to_write_size_global.end();tim++)
+        // {
+        //     int bref  = tim->first;
+        //     int nface = tim->second.size();
+        //     std::cout << "bref " << bref << " " << nface << " " << boundaryfaces_to_write_global[bref].size() << std::endl;
+        //     int offset = 0;
+        //     for(int q=0;q<nface;q++)
+        //     {
+        //         int nvrt = tim->second[q];
+        //         std::vector<int> faceOnRoot(nvrt,0);
+        //         for(int k=0;k<nvrt;k++)
+        //         {
+        //             faceOnRoot[k] = boundaryfaces_to_write_global[bref][offset+k];
+        //         }
+                
+        //         boundaryMap_global[bref].push_back(faceOnRoot);
+
+        //         offset = offset + nvrt;
+        //     }
+        // }
+    }
+    
+    
+    if(world_rank == 0)
+    {
+        const char* fdo = "mimic_hemi.su2";
+        
+        WriteTetraSU2Mesh(comm, fdo, VertsOnRootTetra, TetraOnRoot, bcFacesPerRefTetra, bcTags);
+    }
 
     // PMMG_pParMesh InitializeParMMGmeshFromHyperSolveInputs(MPI_Comm comm, 
     //                                                     PartObjectLite* partition,
