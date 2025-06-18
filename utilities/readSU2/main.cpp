@@ -204,10 +204,17 @@ void WriteTetraSU2Mesh(MPI_Comm comm, const char* fm, std::map<int,std::vector<d
     mesh_file << "NPOIN= " << nodes_to_write.size() << "\n";
 
 
-
+    int i = 0;
     for(itmd=nodes_to_write.begin();itmd!=nodes_to_write.end();itmd++)
     {
+        // if(i<1100)
+        // {
+        //     std::cout << " nodes_to_write. " << itmd->first << std::endl;
+        // }
+        
         mesh_file << std::setw(24) << setprecision(16) << itmd->second[0] << std::setw(24) << itmd->second[1] << std::setw(24) << itmd->second[2] << std::setw(9) << itmd->first-1 << std::endl;
+    
+        // i++;
     }
 
     // for (const auto& node : nodes_to_write) {
@@ -1388,7 +1395,6 @@ int main(int argc, char** argv)
     PMMG_pParMesh parmesh = InitializeParMMGmeshFromHyperSolveInputs(comm, 
                                                                      partitionT, 
                                                                      ActualSharedFaceSetPointerT, 
-                                                                     InterFaceFaces, 
                                                                      m_OwnedBoundaryFaceSetPointer, 
                                                                      nTotalInteriorFacesT, 
                                                                      t_hessian_new,
@@ -1430,7 +1436,10 @@ int main(int argc, char** argv)
             MPI_Finalize();
             exit(EXIT_FAILURE);
         }
-    
+        if(nodeGloNumber==0)
+        {
+            std::cout << "node zero " << std::endl;
+        }
         loc2globVid[k]=nodeGloNumber;
         glob2locVid[nodeGloNumber]=k;
 
@@ -1440,10 +1449,10 @@ int main(int argc, char** argv)
     }
 
     int max_gvid = *std::max_element(globIDs.begin(), globIDs.end());
-    int max_vid = 0;
-    MPI_Allreduce(&max_gvid,  &max_vid, 1, MPI_INT, MPI_MAX, comm);
+    int max_vid_T = 0;
+    MPI_Allreduce(&max_gvid,  &max_vid_T, 1, MPI_INT, MPI_MAX, comm);
 
-    //std::cout << "max vid " << max_gvid << " " << max_vid << std::endl;
+    //std::cout << "max vid " << max_gvid << " " << max_vid_T << std::endl;
 
     std::vector<int> required_v(nVerticesOUT,0);
     std::vector<int> corner_v(nVerticesOUT,0);
@@ -1568,14 +1577,17 @@ int main(int argc, char** argv)
     // std::map<int,std::vector<int> > boundaryfaces_to_write;
     // std::map<int,std::vector<int> > boundaryfaces_to_write_size;
     int reqq = 0;
+
+    std::map<int,int> InterFaceVertsTag2Glob;
+
     for ( k=0; k<nTrianglesOUT; k++ )
     {
         std::vector<int> face(3,0);
         if ( PMMG_Get_triangle(parmesh,&(face[0]),
-                                        &(face[1]),
-                                        &(face[2]),
-                                        &(fref[k]),
-                                        &(required2[k])) != 1 )
+                                       &(face[1]),
+                                       &(face[2]),
+                                       &(fref[k]),
+                                       &(required2[k])) != 1 )
         {
             fprintf(inm,"Unable to get mesh triangle %d \n",k);
             ier = PMMG_STRONGFAILURE;
@@ -1608,25 +1620,26 @@ int main(int argc, char** argv)
 
         if(required2[k]==1)
         {
+		
              for(int b=0;b<face.size();b++)
-            {
-                if((face[b]-1)>nVerticesOUT)
+             {
+		        int gvid_glob   = loc2globVid[face[b]]; 
+                int tag         = refOUT_v[face[b]-1];
+                if(InterFaceVertsTag2Glob.find(tag)==InterFaceVertsTag2Glob.end())
                 {
-                    std::cout << "(" << face[b] << " -> ref = " << refOUT_v[face[b]-1]<< ") ";
-                    std::cout << std::endl;
+                    InterFaceVertsTag2Glob[tag] = gvid_glob;
                 }
-            }
-            
-            reqq++;
+             }
+             reqq++;
         }
 
         std::vector<int> face_glob(3,0);
         face_glob[0] = loc2globVid[face[0]];
         face_glob[1] = loc2globVid[face[1]];
         face_glob[2] = loc2globVid[face[2]];
+        fsize[k]     = face_glob.size();
 
-        
-        fsize[k] = face_glob.size();
+
         for(int b=0;b<face_glob.size();b++)
         {
             fvrt.push_back(face_glob[b]);
@@ -1634,23 +1647,179 @@ int main(int argc, char** argv)
         
         if ( required2 && required2[k] )  nreq2++;
     }
+
     std::cout << "reqq " << world_rank << " " << reqq << std::endl; 
     
-    // After this point, we can start figuring out what the boundary layer mesh vertex IDs are since we have now collected to vertices that on the interface
-    std::map<int,std::vector<double> > LocalVerts_BL = partitionT->getLocalVertsMap();
-    std::map<int,std::vector<double> >::iterator itmb;
+    int reqq_glob = 0; 
+    MPI_Allreduce(&reqq,  &reqq_glob, 1, MPI_INT, MPI_MAX, comm); 
 
+    std::map<int,int> InterFaceVertsTag2Glob_All = AllGatherMap_T(InterFaceVertsTag2Glob,comm);
+
+    // After this point, we can start figuring out what the boundary layer mesh vertex IDs are since we have now collected to vertices that on the interface
+    std::map<int,std::vector<double> > LocalVerts_T  = partitionT->getLocalVertsMap();
+
+    std::map<int,std::vector<double> > LocalVerts_BL = partitionP->getLocalVertsMap();
+    std::map<int,int> SharedVertsMap_g2l             = partitionP->getActualSharedVerts_Global2LocalMap();
+    std::map<int,int> SharedVertsMap_l2g             = partitionP->getActualSharedVerts_Global2LocalMap();
+
+    std::map<int,int>::iterator it;
+    //std::map<int,int> SharedVertsMap_new;
+    // 
+    // for(it=SharedVertsMap.begin();it!=SharedVertsMap.end();it++)
+    // {
+    //     int vid = it->first;
+    //     if(InterFaceVertsTag2Glob_All.find(vid)==InterFaceVertsTag2Glob_All.end())
+    //     {
+    //         SharedVertsMap_new[vid] = SharedVertsMap[vid];
+    //     }
+    // }
+
+    //std::cout << "update shared verts " << SharedVertsMap.size() << " " << SharedVertsMap_new.size() << std::endl;
+
+    std::set<int> OwnedNonSharedVertsMap             = partitionP->getOwnedNonSharedVertsMap();
+
+
+    DistributedParallelState* nonSharedVrts_P   = new DistributedParallelState(OwnedNonSharedVertsMap.size(),comm);
+    DistributedParallelState* AllVrts_P         = new DistributedParallelState(LocalVerts_BL.size(),comm);
+    DistributedParallelState* AllVrts_T         = new DistributedParallelState(LocalVerts_T.size(),comm);
+
+    std::set<int>::iterator itr;
+    int loc_int_v = 0;
+    std::map<int,std::vector<double> >::iterator itmb;
+    std::map<int,int> InteriorVrtsTag2Glob;
+    std::map<int,int> InteriorVrtsGlob2Tag;
+    int st1     = 0;
+    int st2     = 0;
+    int st3     = 0;
+    int st4     = 0;
+    int count   = 0;
+
+
+    std::map<int,int> captured;
     
-    int vert_offset = max_vid;
     for(itmb=LocalVerts_BL.begin();itmb!=LocalVerts_BL.end();itmb++)
     {
-        int tagid = itmb->first;
+        int tagvid = itmb->first;
 
-        if(interface_vrts.find(tagid)==interface_vrts.end())
+        if(SharedVertsMap_g2l.find(tagvid)==SharedVertsMap_g2l.end()) // Make sure it in actually a vertex on an interior face and that its not shared with a shared face.
         {
-
+            if(InterFaceVertsTag2Glob_All.find(tagvid)==InterFaceVertsTag2Glob_All.end()) // make sure its not on the interface that is already taken into account by the tetrahedra
+            {
+                InteriorVrtsTag2Glob[tagvid] = loc_int_v; // if its not included in either sets, then count it as interior vert;
+                loc_int_v++;
+                st1++;
+            } 
+            else
+            {
+                // if vert ID is in InterFaceVertsTag2Glob_All, that means it is in the interface between boundary layer mesh and tetrahedra and it already has a global vert ID assigned.
+                InteriorVrtsTag2Glob[tagvid] = InterFaceVertsTag2Glob_All[tagvid]; 
+                //captured[tagvid] = InterFaceVertsTag2Glob_All[tagvid];
+                //st2++;
+            }
+        }
+        else
+        {
+            if(InterFaceVertsTag2Glob_All.find(tagvid)!=InterFaceVertsTag2Glob_All.end())
+            {
+                // if vert ID is in InterFaceVertsTag2Glob_All, that means it is in the interface between boundary layer mesh and tetrahedra and it already has a global vert ID assigned.
+                InteriorVrtsTag2Glob[tagvid] = InterFaceVertsTag2Glob_All[tagvid]; 
+                //captured[tagvid] = InterFaceVertsTag2Glob_All[tagvid];
+                //st4++;
+            } 
+            // else
+            // {
+            //     // if we are here, that means we are dealing with a shared vertex and we need to assign a new ID to it depending on how many interior verts are counted.
+            //     st3++;
+            // }
         }
     }
+
+    // DistributedParallelState* dist_st1        = new DistributedParallelState(st1,comm);
+    // DistributedParallelState* dist_st2        = new DistributedParallelState(st2,comm);
+    // DistributedParallelState* dist_st3        = new DistributedParallelState(st3,comm);
+    // DistributedParallelState* dist_st4        = new DistributedParallelState(st4,comm);
+
+    DistributedParallelState* IntVrts_P = new DistributedParallelState(loc_int_v,comm);
+    //std::cout <<world_rank << " BEFORE compare vert size "<< InteriorVrtsTag2Glob.size() << " " << LocalVerts_BL.size() << std::endl;
+
+    // int nfound = 0;
+    // std::set<int> foc;
+
+    // std::set<int> fo;
+    // int nf = 0;
+    // int nf0 = 0;
+    int loc_shared_v = 0;
+    for(itmb=LocalVerts_BL.begin();itmb!=LocalVerts_BL.end();itmb++)
+    {
+        int tagvid = itmb->first;
+        // int loc_int_v_tmp = itmb->second;
+
+        if(SharedVertsMap_g2l.find(tagvid)==SharedVertsMap_g2l.end()) // Make sure it in actually a vertex on an interior face and that its not shared with a shared face.
+        {
+            if(InterFaceVertsTag2Glob_All.find(tagvid)==InterFaceVertsTag2Glob_All.end()) // make sure its not on the interface that is already taken into account by the tetrahedra
+            {   
+                int loc_int_v_tmp = InteriorVrtsTag2Glob[tagvid];
+                InteriorVrtsTag2Glob[tagvid]                                                        = max_vid_T+IntVrts_P->getOffsets()[world_rank] + loc_int_v_tmp;
+                InteriorVrtsGlob2Tag[max_vid_T+IntVrts_P->getOffsets()[world_rank] + loc_int_v_tmp] = tagvid;
+            }
+        }
+        else
+        {
+            if(InterFaceVertsTag2Glob_All.find(tagvid)==InterFaceVertsTag2Glob_All.end()) // make sure its not on the interface that is already taken into account by the tetrahedra
+            {
+                int loc_shared_v                                                                    = SharedVertsMap_g2l[tagvid];
+                InteriorVrtsTag2Glob[tagvid]                                                        = max_vid_T+IntVrts_P->getOffsets()[world_size] + loc_shared_v;
+                InteriorVrtsGlob2Tag[max_vid_T+IntVrts_P->getOffsets()[world_rank] + loc_shared_v]  = tagvid;
+            }
+        }
+    }
+
+
+    //std::cout <<world_rank << " AFTER compare vert size "<< InteriorVrtsTag2Glob.size() << " " << LocalVerts_BL.size() << std::endl;
+
+    // std::map<int,int> captured_glob = AllGatherMap_T(captured,comm);
+    // std::map<int,int> InteriorVrtsTag2Glob_glob = AllGatherMap_T(InteriorVrtsTag2Glob,comm);
+    // DistributedParallelState* IntVrts_P_filter = new DistributedParallelState(fo.size(),comm);
+    // DistributedParallelState* IntVrts_P_filterOC = new DistributedParallelState(foc.size(),comm);
+
+    // int foundhereInt = 0;
+    // for(itr=OwnedNonSharedVertsMap.begin();itr!=OwnedNonSharedVertsMap.end();itr++)
+    // {
+    //     int tagv = (*itr);
+    //     if(InterFaceVertsTag2Glob.find(tagv)!=InterFaceVertsTag2Glob.end())
+    //     {
+    //         foundhereInt++;
+    //     }
+    // }
+
+    // std::map<int,int>::iterator itrm;
+    // int foundhereSha = 0;
+    // std::map<int,int> dualset;
+    // for(itrm=SharedVertsMap.begin();itrm!=SharedVertsMap.end();itrm++)
+    // {
+    //     int tagv = itrm->first;
+    //     if(InterFaceVertsTag2Glob_All.find(tagv)!=InterFaceVertsTag2Glob_All.end())
+    //     {
+    //         dualset[tagv] = foundhereSha;
+    //         foundhereSha++;
+    //     }
+    // }
+
+    // std::map<int,int> dualset_All = AllGatherMap_T(dualset,comm);
+    // DistributedParallelState* D_filter = new DistributedParallelState(InteriorVrtsTag2Glob.size(),comm);  
+    // std::cout << " loc_int_v  " << captured.size() << " " << InteriorVrtsTag2Glob.size() << " " << D_filter->getNel() << " " << SharedVertsMap.size() << std::endl;
+    // std::cout << " nf " << world_rank << " - " << st1 << " " << st2 << " " << st3 << " " << dist_st1->getNel() << " " << dist_st2->getNel() << " " << dist_st3->getNel() << " " << SharedVertsMap.size() << " " << dualset_All.size() << " captured " << captured.size() << " " << captured_glob.size() << " " << InteriorVrtsTag2Glob.size() << std::endl;
+    
+    // std::cout << world_rank << " st1 = " << st1 << " st2 = " << st2 << " st3 = " << st3 << " st4 = " << st4 << " " << LocalVerts_BL.size() << " " << st1+st2+st3+st4 << " " << IntVrts_P->getNel() << std::endl; 
+    // std::cout << world_rank << " dist st - " << dist_st1->getNel() << " " << dist_st2->getNel() << " " << dist_st3->getNel() << " " << dist_st4->getNel() << std::endl; 
+    // std::cout << "total vrt " << InteriorVrtsTag2Glob.size() + captured.size() << " " << InteriorVrtsTag2Glob.size() << " " << captured.size() << " " << st3 << std::endl;
+    // //std::cout << " ref value = " << 484990 << "InterFaceVertsTag2Glob_All " << InterFaceVertsTag2Glob_All.size() << " " << SharedVertsMap.size() << " " << IntVrts_P_filter->getNel() << " "  << std::endl;
+
+    int vert_offset = max_vid_T;
+    std::map<int,int> loc2glob_P;
+    // vertid -> int + shared + bc --> int+bc equal to nonSharedVerts;
+
+    
 
 
 
@@ -1672,7 +1841,7 @@ int main(int argc, char** argv)
     MPI_Allreduce(&bc4,  &bc4_total, 1, MPI_INT, MPI_SUM, comm);
     int bc10_total = 0;
     MPI_Allreduce(&bc10,  &bc10_total, 1, MPI_INT, MPI_SUM, comm);
-    std::cout << "world_rank  " << nreq2_total << " on rank " << world_rank << " bc0 " << bc0 << " " << bc0_total << " " << bc1_total << " " << bc2_total << " " << bc3_total << " " << bc4_total << " bc10 " << bc10_total << std::endl;
+    //std::cout << "world_rank  " << nreq2_total << " on rank " << world_rank << " bc0 " << bc0 << " " << bc0_total << " " << bc1_total << " " << bc2_total << " " << bc3_total << " " << bc4_total << " bc10 " << bc10_total << std::endl;
 
     std::map<int,std::vector<int> > boundaryfaces_to_write_copy;
     std::map<int,std::vector<int> > boundaryfaces_to_write_size_copy;
@@ -1756,12 +1925,8 @@ int main(int argc, char** argv)
                 }
                 
             }
-
-
-
             offset = offset+fz;
         }
-
     }
 
     //std::cout << "bcFacesPerRef. "<< bcFacesPerRef.size() << std::endl;

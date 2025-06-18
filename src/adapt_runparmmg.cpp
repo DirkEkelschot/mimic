@@ -2328,7 +2328,6 @@ void RunParMMGAndTestPartitioning(MPI_Comm comm,
 PMMG_pParMesh InitializeParMMGmeshFromHyperSolveInputs(MPI_Comm comm, 
                                                         PartObjectLite* partition,
                                                         FaceSetPointer ActualSharedFaces,
-                                                        FaceSetPointer InterFaceFaces,
                                                         FaceSetPointer OwnedBoundaryFaces,
                                                         int nInteriorSharedFaces,
                                                         std::map<int, std::vector<double> > t_metric,
@@ -2409,7 +2408,6 @@ PMMG_pParMesh InitializeParMMGmeshFromHyperSolveInputs(MPI_Comm comm,
         exit(EXIT_FAILURE);
         }
 
-
         Eig* eig = ComputeEigenDecomp(3, t_metric[tagvid].data());
 
         std::vector<double> Dre(3,0.0);
@@ -2418,9 +2416,9 @@ PMMG_pParMesh InitializeParMMGmeshFromHyperSolveInputs(MPI_Comm comm,
         Dre[2] = eig->Dre[2];
         // eigvalues[elid] = Dre;
         std::vector<double> eignval(3,0.0);
-        eignval[0] =  std::min(std::max(Scale*fabs(eig->Dre[0]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
-        eignval[1] =  std::min(std::max(Scale*fabs(eig->Dre[1]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
-        eignval[2] =  std::min(std::max(Scale*fabs(eig->Dre[2]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
+        eignval[0] = std::min(std::max(Scale*fabs(eig->Dre[0]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
+        eignval[1] = std::min(std::max(Scale*fabs(eig->Dre[1]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
+        eignval[2] = std::min(std::max(Scale*fabs(eig->Dre[2]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
         
         double Lambdamax = *std::max_element(eignval.begin(),eignval.end());
         double Lambdamin = *std::min_element(eignval.begin(),eignval.end());
@@ -2440,9 +2438,9 @@ PMMG_pParMesh InitializeParMMGmeshFromHyperSolveInputs(MPI_Comm comm,
         EigVec[1][0] = eig->V[3];   EigVec[1][1] = eig->V[4];   EigVec[1][2] = eig->V[5];
         EigVec[2][0] = eig->V[6];   EigVec[2][1] = eig->V[7];   EigVec[2][2] = eig->V[8];
 
-        std::vector<std::vector<double> > iVR       = MatInv_Lite(EigVec);
-        std::vector<std::vector<double> > Rs        = MatMul_Lite(EigVec,Diag);  
-        std::vector<std::vector<double> > metric    = MatMul_Lite(Rs,iVR);
+        std::vector<std::vector<double> > iVR    = MatInv_Lite(EigVec);
+        std::vector<std::vector<double> > Rs     = MatMul_Lite(EigVec,Diag);  
+        std::vector<std::vector<double> > metric = MatMul_Lite(Rs,iVR);
 
         double detMetric        = metric[0][0]*(metric[1][1]*metric[2][2]-metric[2][1]*metric[1][2])
                                 - metric[0][1]*(metric[1][0]*metric[2][2]-metric[2][0]*metric[1][2])
@@ -2617,8 +2615,8 @@ PMMG_pParMesh InitializeParMMGmeshFromHyperSolveInputs(MPI_Comm comm,
 
     // }
 
-    std::set<int> unique_interface_vrts;
-
+    std::map<int,int> unique_interface_vrts;
+    std::map<int,int>::iterator itss;
     for(ftit=ExternalInterFaceFaceMap.begin();ftit!=ExternalInterFaceFaceMap.end();ftit++)
     {
         int ref 		          = 10;//(*InterFaceFPointer)->GetFaceRef();
@@ -2638,13 +2636,13 @@ PMMG_pParMesh InitializeParMMGmeshFromHyperSolveInputs(MPI_Comm comm,
 
             if(unique_interface_vrts.find(tagvid)==unique_interface_vrts.end())
             {
-                unique_interface_vrts.insert(tagvid);
-
                 int locvid      = tagv2locvID[tagvid];
                 int vref        = tagvid;
                 double vx       = LocalVertsMap_t[tagvid][0];
                 double vy       = LocalVertsMap_t[tagvid][1];
                 double vz       = LocalVertsMap_t[tagvid][2];
+
+                unique_interface_vrts[tagvid] = locvid;
 
                 if ( PMMG_Set_vertex(parmesh,vx,vy,vz, vref, locvid+1) != 1 )
                 {
@@ -2666,6 +2664,9 @@ PMMG_pParMesh InitializeParMMGmeshFromHyperSolveInputs(MPI_Comm comm,
         //InternalFreal++;  
     }
 
+    std::map<int,int> unique_interface_vrts_glob = AllGatherMap_T(unique_interface_vrts,comm);
+
+    std::cout << "unique_interface_vrts_glob. " << unique_interface_vrts_glob.size() << std::endl;
     //std::cout << "ExternalInterFaceFaceMap " << ExternalInterFaceFaceMap.size() << " " << world_rank << " " << InternalFreal << std::endl;
 
     //std::cout << "InternalFreal " << InternalFreal << std::endl;
@@ -2693,7 +2694,6 @@ PMMG_pParMesh InitializeParMMGmeshFromHyperSolveInputs(MPI_Comm comm,
         int locvid0   = tagv2locvID[tagvid0];
         int locvid1   = tagv2locvID[tagvid1];
         int locvid2   = tagv2locvID[tagvid2];
-
 
         if ( PMMG_Set_triangle(parmesh,locvid0+1,locvid1+1,locvid2+1,ref,k) != 1 )
         {
@@ -2835,7 +2835,7 @@ void RunParMMGAndTestPartitioningFromHyperSolveInputs(MPI_Comm comm,
     std::map<int,int> locShF2globShF                    = partition->getLocalSharedFace2GlobalSharedFace();
     std::map<int,std::vector<int> > sharedface2vert     = partition->getSharedFaceMap();
     //std::map<int,std::vector<int> > face2node         = partition->getFace2VertNewMap();
-    //FaceSetPointer OverallFaceMapOnRank                         = partition->getOverallFaceMapOnRank();
+    //FaceSetPointer OverallFaceMapOnRank               = partition->getOverallFaceMapOnRank();
     FaceSetPointer ExternalFacesForRank                 = partition->getExternalFacesForRankFaceMap();
     FaceSetPointer OwnedBoundaryFaceFaceMap             = partition->getOwnedBoundaryFaceFaceMap();
     FaceSetPointer ExternalInterFaceFaceMap             = partition->getExternalInterFaceFaceMap();
@@ -3102,7 +3102,7 @@ void RunParMMGAndTestPartitioningFromHyperSolveInputs(MPI_Comm comm,
 
                     for(int k=0;k<3;k++)
                     {
-                        int vt = triaNodes2[3*(ft-1)+k];
+                        int vt                      = triaNodes2[3*(ft-1)+k];
                         faceNodes_out[icomm][3*i+k] = triaNodes2[3*(ft-1)+k];
 
                         if(sharedVrts_Owned.find(vt)==sharedVrts_Owned.end())

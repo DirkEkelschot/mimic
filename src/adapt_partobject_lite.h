@@ -59,6 +59,10 @@ class PartObjectLite{
         FaceSetPointer getOwnedSharedAndInterFaceFaceMap();
 
         FaceSetPointer getActualSharedFaceMap();
+        std::map<int,int> getActualSharedVerts_Global2LocalMap();
+        std::map<int,int> getActualSharedVerts_Local2GlobalMap();
+        std::set<int> getOwnedSharedVertsMap();
+        std::set<int> getOwnedNonSharedVertsMap();
         FaceSetPointer getExternalFacesForRankFaceMap();
         
         FaceSetPointer getOwnedInteriorFaceFaceMap();
@@ -136,6 +140,10 @@ class PartObjectLite{
         FaceSetPointer                          m_OwnedBoundaryFaceSetPointer;
         FaceSetPointer                          m_ExternalInterFaceFace;
         FaceSetPointer                          m_OverallFaceMapOnRank;
+        std::map<int,int>                       m_ActualSharedVerts_g2l;
+        std::map<int,int>                       m_ActualSharedVerts_l2g;
+        std::set<int>                           m_OwnedSharedVerts;
+        std::set<int>                           m_OwnedNonSharedVerts;
         std::vector<int>                        m_ownedSharedFacesOffsets;
         std::vector<int>                        m_NownedSharedFaces;
         std::vector<int>                        m_ownedInteriorFacesOffsets;
