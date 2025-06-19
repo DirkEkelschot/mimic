@@ -59,7 +59,9 @@
 
 void WriteCompleteSU2Mesh(MPI_Comm comm, const char* fm, 
                          std::map<int,std::vector<double> > nodes_to_write, 
+                         std::map<int,std::vector<double> > bl_nodes_to_write,
                          std::map<int, std::vector<int> > elements_to_write, 
+                         std::map<int, std::vector<int> > bl_elements_to_write,
                          std::map<int,std::vector<std::vector<int> > > boundaryfaces_to_write, 
                          std::map<int,char*> bctags )
 {
@@ -82,21 +84,31 @@ void WriteCompleteSU2Mesh(MPI_Comm comm, const char* fm,
     mesh_file << "% Inner element connectivity"<<std::endl;
     mesh_file << "%"<<std::endl;
 
+    std::cout << "# of tetra = " << elements_to_write.size() << "# of hex/prism/pyramids = " << bl_elements_to_write.size() << std::endl;
      // Write elements section
-    mesh_file << "NELEM= " << elements_to_write.size() << "\n";
+    mesh_file << "NELEM= " << elements_to_write.size()+bl_elements_to_write.size() << "\n";
 
     for(itmi=elements_to_write.begin();itmi!=elements_to_write.end();itmi++)
+    {
+        mesh_file << 10 << std::setw(9) << itmi->second[0]-1 << std::setw(9) << itmi->second[1]-1 << std::setw(9) << itmi->second[2]-1 << std::setw(9) << itmi->second[3]-1 << std::setw(9) << itmi->first << "\n";
+    }
+    for(itmi=bl_elements_to_write.begin();itmi!=bl_elements_to_write.end();itmi++)
     {
         mesh_file << 10 << std::setw(9) << itmi->second[0]-1 << std::setw(9) << itmi->second[1]-1 << std::setw(9) << itmi->second[2]-1 << std::setw(9) << itmi->second[3]-1 << std::setw(9) << itmi->first << "\n";
     }
 
 
 
-    mesh_file << "NPOIN= " << nodes_to_write.size() << "\n";
+    std::cout << "# of nodes for tetra = " << nodes_to_write.size() << "# of nodes for hex/prism/pyramids = " << bl_nodes_to_write.size() << std::endl;
+    mesh_file << "NPOIN= " << nodes_to_write.size()+bl_nodes_to_write.size() << "\n";
 
 
 
     for(itmd=nodes_to_write.begin();itmd!=nodes_to_write.end();itmd++)
+    {
+        mesh_file << std::setw(24) << setprecision(16) << itmd->second[0] << std::setw(24) << itmd->second[1] << std::setw(24) << itmd->second[2] << std::setw(9) << itmd->first-1 << std::endl;
+    }
+        for(itmd=bl_nodes_to_write.begin();itmd!=bl_nodes_to_write.end();itmd++)
     {
         mesh_file << std::setw(24) << setprecision(16) << itmd->second[0] << std::setw(24) << itmd->second[1] << std::setw(24) << itmd->second[2] << std::setw(9) << itmd->first-1 << std::endl;
     }
@@ -1261,7 +1273,7 @@ int main(int argc, char** argv)
         nelem = elements.size();
         elements.clear();
         nvrts = nodes.size();
-        //std::cout << "nelem " << nelem <<  " " << nvrts << std::endl;
+        std::cout << "nelem " << nelem <<  " " << nvrts << std::endl;
 
         for (const auto& row : bcfaces_root) 
         {
@@ -1661,18 +1673,19 @@ int main(int argc, char** argv)
     std::map<int,std::vector<double> > LocalVerts_BL = partitionP->getLocalVertsMap();
     std::map<int,int> SharedVertsMap_g2l             = partitionP->getActualSharedVerts_Global2LocalMap();
     std::map<int,int> SharedVertsMap_l2g             = partitionP->getActualSharedVerts_Global2LocalMap();
-
+    std::map<int,int> SharedVertsMap_g2l_new;
     std::map<int,int>::iterator it;
-    //std::map<int,int> SharedVertsMap_new;
-    // 
-    // for(it=SharedVertsMap.begin();it!=SharedVertsMap.end();it++)
-    // {
-    //     int vid = it->first;
-    //     if(InterFaceVertsTag2Glob_All.find(vid)==InterFaceVertsTag2Glob_All.end())
-    //     {
-    //         SharedVertsMap_new[vid] = SharedVertsMap[vid];
-    //     }
-    // }
+    std::map<int,int> SharedVertsMap_new;
+    int loc_shared_vid = 0;
+    for(it=SharedVertsMap_g2l.begin();it!=SharedVertsMap_g2l.end();it++)
+    {
+        int vid = it->first;
+        if(InterFaceVertsTag2Glob_All.find(vid)==InterFaceVertsTag2Glob_All.end())
+        {
+            SharedVertsMap_g2l_new[vid] = loc_shared_vid;
+            loc_shared_vid++;
+        }
+    }
 
     //std::cout << "update shared verts " << SharedVertsMap.size() << " " << SharedVertsMap_new.size() << std::endl;
 
@@ -1695,16 +1708,18 @@ int main(int argc, char** argv)
     int count   = 0;
 
 
-    std::map<int,int> captured;
-    
+    std::map<int,int> interiorTag2Glob;
+    std::map<int,int> interiorGlob2Tag;
+
     for(itmb=LocalVerts_BL.begin();itmb!=LocalVerts_BL.end();itmb++)
     {
         int tagvid = itmb->first;
 
-        if(SharedVertsMap_g2l.find(tagvid)==SharedVertsMap_g2l.end()) // Make sure it in actually a vertex on an interior face and that its not shared with a shared face.
+        if(SharedVertsMap_g2l_new.find(tagvid)==SharedVertsMap_g2l_new.end()) // Make sure it in actually a vertex on an interior face and that its not shared with a shared face.
         {
             if(InterFaceVertsTag2Glob_All.find(tagvid)==InterFaceVertsTag2Glob_All.end()) // make sure its not on the interface that is already taken into account by the tetrahedra
             {
+                interiorTag2Glob[tagvid] = loc_int_v;
                 InteriorVrtsTag2Glob[tagvid] = loc_int_v; // if its not included in either sets, then count it as interior vert;
                 loc_int_v++;
                 st1++;
@@ -1739,7 +1754,64 @@ int main(int argc, char** argv)
     // DistributedParallelState* dist_st3        = new DistributedParallelState(st3,comm);
     // DistributedParallelState* dist_st4        = new DistributedParallelState(st4,comm);
 
-    DistributedParallelState* IntVrts_P = new DistributedParallelState(loc_int_v,comm);
+    DistributedParallelState* IntVrts_P = new DistributedParallelState(interiorTag2Glob.size(),comm);
+    std::map<int,int> interiorTag2Glob_update;
+    std::map<int,int> sharedTag2Glob_update;
+    std::map<int,std::vector<double> > LocalVerts_BL_GlobalID;
+
+
+    //std::map<int,std::vector<double> > AllVertsOnRootBL = GatherGlobalMapOnRoot_T(LocalVerts_BL,comm);
+    std::map<int,std::vector<double> > SharedVertCoordsOnRoot = partitionP->GatherSharedVertCoordsOnRoot(comm);
+    
+    for(it=interiorTag2Glob.begin();it!=interiorTag2Glob.end();it++)
+    {
+        int tagvid        = it->first;
+        int loc_int_v_tmp = it->second;
+        int glo_int_v_tmp = max_vid_T+IntVrts_P->getOffsets()[world_rank] + loc_int_v_tmp;
+
+        interiorTag2Glob_update[tagvid]                 = glo_int_v_tmp;
+        interiorGlob2Tag[glo_int_v_tmp]                 = tagvid;
+
+        LocalVerts_BL_GlobalID[glo_int_v_tmp] = LocalVerts_BL[tagvid];
+    }
+
+    std::map<int,std::vector<double> > AllVertsOnRootBL_update = GatherGlobalMapOnRoot_T(LocalVerts_BL_GlobalID,comm);
+
+
+    int nfound = 0;
+    if(world_rank == 0)
+    {
+        for(it=SharedVertsMap_g2l_new.begin();it!=SharedVertsMap_g2l_new.end();it++)
+        {
+            int tagvid        = it->first;
+            int loc_int_v_tmp = it->second;
+            int glo_shared_v  = max_vid_T + IntVrts_P->getNel() + loc_int_v_tmp;
+            
+            sharedTag2Glob_update[tagvid]           = glo_shared_v;
+            interiorGlob2Tag[glo_shared_v]          = tagvid;
+
+            if(AllVertsOnRootBL_update.find(glo_shared_v)==AllVertsOnRootBL_update.end())
+            {
+                AllVertsOnRootBL_update[glo_shared_v] = SharedVertCoordsOnRoot[tagvid];
+            }
+            else
+            {
+                std::cout << glo_shared_v << std::endl;
+                nfound++;
+            }
+            
+        }
+    }
+
+    std::cout << "AllVertsOnRootBL_update " << AllVertsOnRootBL_update.size() << " " << nfound << std::endl;
+    
+
+    //DistributedParallelState* IntVrts_PV      = new DistributedParallelState(interiorTag2Glob_update.size(),comm);
+    //DistributedParallelState* IntVrts_PV_test = new DistributedParallelState(SharedVertsMap_g2l_new.size(),comm);
+
+    //std::cout << SharedVertsMap_g2l_new.size() << " " << IntVrts_P->getNel() << " " << IntVrts_PV->getNel() << " Interior vertices on this rank " << world_rank << std::endl;
+
+
     //std::cout <<world_rank << " BEFORE compare vert size "<< InteriorVrtsTag2Glob.size() << " " << LocalVerts_BL.size() << std::endl;
 
     // int nfound = 0;
@@ -1748,33 +1820,73 @@ int main(int argc, char** argv)
     // std::set<int> fo;
     // int nf = 0;
     // int nf0 = 0;
+    /*
     int loc_shared_v = 0;
+
+    std::map<int,std::vector<double> > LocalVerts_BL_GlobalID;
+
     for(itmb=LocalVerts_BL.begin();itmb!=LocalVerts_BL.end();itmb++)
     {
         int tagvid = itmb->first;
         // int loc_int_v_tmp = itmb->second;
 
-        if(SharedVertsMap_g2l.find(tagvid)==SharedVertsMap_g2l.end()) // Make sure it in actually a vertex on an interior face and that its not shared with a shared face.
+        if(SharedVertsMap_g2l_new.find(tagvid)==SharedVertsMap_g2l_new.end()) // Make sure it in actually a vertex on an interior face and that its not shared with a shared face.
         {
             if(InterFaceVertsTag2Glob_All.find(tagvid)==InterFaceVertsTag2Glob_All.end()) // make sure its not on the interface that is already taken into account by the tetrahedra
             {   
                 int loc_int_v_tmp = InteriorVrtsTag2Glob[tagvid];
-                InteriorVrtsTag2Glob[tagvid]                                                        = max_vid_T+IntVrts_P->getOffsets()[world_rank] + loc_int_v_tmp;
-                InteriorVrtsGlob2Tag[max_vid_T+IntVrts_P->getOffsets()[world_rank] + loc_int_v_tmp] = tagvid;
+                int glo_int_v_tmp = max_vid_T+IntVrts_P->getOffsets()[world_rank] + loc_int_v_tmp;
+
+                InteriorVrtsTag2Glob[tagvid]            = glo_int_v_tmp;
+                InteriorVrtsGlob2Tag[glo_int_v_tmp]     = tagvid;
+                LocalVerts_BL_GlobalID[glo_int_v_tmp]   = LocalVerts_BL[tagvid];
             }
         }
         else
         {
             if(InterFaceVertsTag2Glob_All.find(tagvid)==InterFaceVertsTag2Glob_All.end()) // make sure its not on the interface that is already taken into account by the tetrahedra
             {
-                int loc_shared_v                                                                    = SharedVertsMap_g2l[tagvid];
+                
+                int loc_shared_v                                                                    = SharedVertsMap_g2l_new[tagvid];
+                int glo_shared_v                                                                    = max_vid_T+IntVrts_P->getOffsets()[world_size] + loc_shared_v;
                 InteriorVrtsTag2Glob[tagvid]                                                        = max_vid_T+IntVrts_P->getOffsets()[world_size] + loc_shared_v;
                 InteriorVrtsGlob2Tag[max_vid_T+IntVrts_P->getOffsets()[world_rank] + loc_shared_v]  = tagvid;
+
+                LocalVerts_BL_GlobalID[glo_shared_v]   = LocalVerts_BL[tagvid];
             }
         }
     }
 
+    
+    std::map<int,std::vector<int> > gE2gV_p         = partitionP->getElem2VertMap();
+    DistributedParallelState* DistributedBLElements = new DistributedParallelState(gE2gV_p.size(),comm);
+    DistributedParallelState* DistributedTElements  = new DistributedParallelState(nTetrahedraOUT,comm);
+    
+    std::map<int,std::vector<int> > gE2gV_Adapted_BL;
+    int loc_elem_id = 0;
+    for(itm=gE2gV_p.begin();itm!=gE2gV_p.end();itm++)
+    {
+        int elid = DistributedTElements->getNel()+DistributedBLElements->getOffsets()[world_rank] + loc_elem_id;
+        std::vector<int> LocalVertids = itm->second;
+        std::vector<int> GlobalVertids(LocalVertids.size(),0);
+        
+        for(int q=0;q<LocalVertids.size();q++)
+        {
+            int tagv = LocalVertids[q];
+            if(InteriorVrtsTag2Glob.find(tagv)!=InteriorVrtsTag2Glob.end())
+            {
+                GlobalVertids[q] = InteriorVrtsTag2Glob[tagv];
+            }
+            else
+            {
+                GlobalVertids[q] = loc2globVid[tagv];
+            }
+        }
+        gE2gV_Adapted_BL[elid] = GlobalVertids;
 
+        loc_elem_id = loc_elem_id + 1;
+    }
+    */
     //std::cout <<world_rank << " AFTER compare vert size "<< InteriorVrtsTag2Glob.size() << " " << LocalVerts_BL.size() << std::endl;
 
     // std::map<int,int> captured_glob = AllGatherMap_T(captured,comm);
@@ -1984,12 +2096,12 @@ int main(int argc, char** argv)
     // std::map<int,std::vector<int> > gE2lVOnRoot     = GatherGlobalMapOnRoot_T(gE2lV_tmp,comm);
     // std::map<int,std::vector<double> > glob_data    = GatherGlobalMapOnRoot_T(loc_data,comm);
 
+    std::map<int,std::vector<double> > VertsOnRootBL;//                    = GatherGlobalMapOnRoot_T(LocalVerts_BL_GlobalID,comm);
     std::map<int,std::vector<double> > VertsOnRootTetra                 = GatherGlobalMapOnRoot_T(LocalVerts_Adapted_GlobalID,comm);
     std::map<int,std::vector<int> > TetraOnRoot                         = GatherGlobalMapOnRoot_T(gE2gV_Adapted,comm);
-
+    std::map<int,std::vector<int> > BLOnRoot;//                            = GatherGlobalMapOnRoot_T(gE2gV_Adapted_BL,comm);
     std::map<int,std::vector<int> > boundaryfaces_to_write_global       = GatherGlobalMapOnRoot_T(boundaryfaces_to_write_copy,comm);
     std::map<int,std::vector<int> > boundaryfaces_to_write_size_global  = GatherGlobalMapOnRoot_T(boundaryfaces_to_write_size_copy,comm);
-
 
     std::map<int,std::vector<std::vector<int> > > BoundariesOnRoot_global;
     // std::map<int,std::vector<std::vector<int> > >::iterator itmii;
@@ -2000,11 +2112,11 @@ int main(int argc, char** argv)
     //     BoundariesOnRoot_global[itmii->first] = BoundariesOnRoot_i;
     // }
 
-    
+    //std::cout << "gE2gV_Adapted_BL " << gE2gV_Adapted_BL.size() << " " << BLOnRoot.size() << std::endl;
 
     if(world_rank == 0)
     {
-        std::cout << "VertsOnRoot " << VertsOnRootTetra.size() << " " << boundaryfaces_to_write_global.size() << " " << boundaryfaces_to_write_size_global.size() << std::endl; 
+        std::cout << "VertsOnRoot " << VertsOnRootTetra.size() << " " << VertsOnRootBL.size() << " " << boundaryfaces_to_write_global.size() << " " << boundaryfaces_to_write_size_global.size() << std::endl; 
 
         std::map<int,std::vector<int> >::iterator tim;
         
@@ -2035,7 +2147,9 @@ int main(int argc, char** argv)
     {
         const char* fdo = "mimic_hemi.su2";
         
-        WriteTetraSU2Mesh(comm, fdo, VertsOnRootTetra, TetraOnRoot, bcFacesPerRefTetra, bcTags);
+        //WriteTetraSU2Mesh(comm, fdo, VertsOnRootTetra, TetraOnRoot, bcFacesPerRefTetra, bcTags);
+
+        WriteCompleteSU2Mesh(comm, fdo, VertsOnRootTetra, VertsOnRootBL, TetraOnRoot, BLOnRoot, bcFacesPerRefTetra, bcTags);
     }
 
     // PMMG_pParMesh InitializeParMMGmeshFromHyperSolveInputs(MPI_Comm comm, 

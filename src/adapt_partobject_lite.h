@@ -57,7 +57,7 @@ class PartObjectLite{
         FaceSetPointer getAllSharedAndInterFaceFaceMap();
 
         FaceSetPointer getOwnedSharedAndInterFaceFaceMap();
-
+        std::map<int,std::vector<double> > GatherSharedVertCoordsOnRoot(MPI_Comm comm);
         FaceSetPointer getActualSharedFaceMap();
         std::map<int,int> getActualSharedVerts_Global2LocalMap();
         std::map<int,int> getActualSharedVerts_Local2GlobalMap();

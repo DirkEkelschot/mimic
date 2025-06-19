@@ -1169,7 +1169,35 @@ void PartObjectLite::ComputeFaceMap(MPI_Comm comm, FaceSetPointer allbcFaces)
     }
 }
 
+std::map<int,std::vector<double> > PartObjectLite::GatherSharedVertCoordsOnRoot(MPI_Comm comm)
+{
 
+    int size;
+    MPI_Comm_size(comm, &size);
+    // Get the rank of the process
+    int rank;
+    MPI_Comm_rank(comm, &rank);
+
+    std::map<int,std::vector<double> > send2root;
+    std::map<int,int>::iterator itm;
+    for(itm=m_ActualSharedVerts_g2l.begin();itm!=m_ActualSharedVerts_g2l.end();itm++)
+    {
+        int vid = itm->first;
+        
+        if(m_LocalVertsMap.find(vid) == m_LocalVertsMap.end())
+        {
+            send2root[vid] = m_LocalVertsMap[vid];
+        }
+    }
+
+
+    std::map<int,std::vector<double> > SharedVertCoordsOnRoot = GatherGlobalMapOnRoot_T(send2root,comm);
+
+    std::cout << "SharedVertCoordsOnRoot " << SharedVertCoordsOnRoot.size() << " " << m_ActualSharedVerts_g2l.size() << std::endl;
+
+    return SharedVertCoordsOnRoot;
+
+}
 
 std::map<int,std::vector<int> >  PartObjectLite::CommunicateAdjacencyInfoLocalPartition(MPI_Comm comm)
 {
