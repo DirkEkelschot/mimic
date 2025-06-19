@@ -108,8 +108,10 @@ void WriteCompleteSU2Mesh(MPI_Comm comm, const char* fm,
     {
         mesh_file << std::setw(24) << setprecision(16) << itmd->second[0] << std::setw(24) << itmd->second[1] << std::setw(24) << itmd->second[2] << std::setw(9) << itmd->first-1 << std::endl;
     }
-        for(itmd=bl_nodes_to_write.begin();itmd!=bl_nodes_to_write.end();itmd++)
+    for(itmd=bl_nodes_to_write.begin();itmd!=bl_nodes_to_write.end();itmd++)
     {
+        //std::cout << std::setw(24) << setprecision(16) << itmd->second[0] << std::setw(24) << itmd->second[1] << std::setw(24) << itmd->second[2] << std::setw(9) << itmd->first-1 << std::endl;
+
         mesh_file << std::setw(24) << setprecision(16) << itmd->second[0] << std::setw(24) << itmd->second[1] << std::setw(24) << itmd->second[2] << std::setw(9) << itmd->first-1 << std::endl;
     }
 
@@ -1660,7 +1662,7 @@ int main(int argc, char** argv)
         if ( required2 && required2[k] )  nreq2++;
     }
 
-    std::cout << "reqq " << world_rank << " " << reqq << std::endl; 
+    //std::cout << "reqq " << world_rank << " " << reqq << std::endl; 
     
     int reqq_glob = 0; 
     MPI_Allreduce(&reqq,  &reqq_glob, 1, MPI_INT, MPI_MAX, comm); 
@@ -1697,7 +1699,7 @@ int main(int argc, char** argv)
     DistributedParallelState* AllVrts_T         = new DistributedParallelState(LocalVerts_T.size(),comm);
 
     std::set<int>::iterator itr;
-    int loc_int_v = 0;
+    int loc_int_v = 1;
     std::map<int,std::vector<double> >::iterator itmb;
     std::map<int,int> InteriorVrtsTag2Glob;
     std::map<int,int> InteriorVrtsGlob2Tag;
@@ -1762,13 +1764,18 @@ int main(int argc, char** argv)
 
     //std::map<int,std::vector<double> > AllVertsOnRootBL = GatherGlobalMapOnRoot_T(LocalVerts_BL,comm);
     std::map<int,std::vector<double> > SharedVertCoordsOnRoot = partitionP->GatherSharedVertCoordsOnRoot(comm);
-    
+    //std::cout << "max_vid_T " << max_vid_T << std::endl;
     for(it=interiorTag2Glob.begin();it!=interiorTag2Glob.end();it++)
     {
         int tagvid        = it->first;
         int loc_int_v_tmp = it->second;
-        int glo_int_v_tmp = max_vid_T+IntVrts_P->getOffsets()[world_rank] + loc_int_v_tmp;
 
+        
+        int glo_int_v_tmp = max_vid_T+IntVrts_P->getOffsets()[world_rank] + loc_int_v_tmp;
+        // if(loc_int_v_tmp == 0)
+        // {
+        //     std::cout << "glo_int_v_tmp " << glo_int_v_tmp << " " << loc_int_v_tmp << " " << world_rank << std::endl;
+        // }
         interiorTag2Glob_update[tagvid]                 = glo_int_v_tmp;
         interiorGlob2Tag[glo_int_v_tmp]                 = tagvid;
 
@@ -1777,7 +1784,7 @@ int main(int argc, char** argv)
 
     std::map<int,std::vector<double> > AllVertsOnRootBL_update = GatherGlobalMapOnRoot_T(LocalVerts_BL_GlobalID,comm);
 
-
+    std::cout << max_vid_T << " " << IntVrts_P->getNel() << " " << SharedVertsMap_g2l_new.size() << std::endl;
     int nfound = 0;
     if(world_rank == 0)
     {
@@ -1785,7 +1792,7 @@ int main(int argc, char** argv)
         {
             int tagvid        = it->first;
             int loc_int_v_tmp = it->second;
-            int glo_shared_v  = max_vid_T + IntVrts_P->getNel() + loc_int_v_tmp;
+            int glo_shared_v  = max_vid_T + IntVrts_P->getNel() + loc_int_v_tmp + 1;
             
             sharedTag2Glob_update[tagvid]           = glo_shared_v;
             interiorGlob2Tag[glo_shared_v]          = tagvid;
@@ -1793,6 +1800,7 @@ int main(int argc, char** argv)
             if(AllVertsOnRootBL_update.find(glo_shared_v)==AllVertsOnRootBL_update.end())
             {
                 AllVertsOnRootBL_update[glo_shared_v] = SharedVertCoordsOnRoot[tagvid];
+                //std::cout << SharedVertCoordsOnRoot[tagvid][0] << " " << SharedVertCoordsOnRoot[tagvid][1] << " " << SharedVertCoordsOnRoot[tagvid][2] << std::endl;  
             }
             else
             {
@@ -1803,7 +1811,7 @@ int main(int argc, char** argv)
         }
     }
 
-    std::cout << "AllVertsOnRootBL_update " << AllVertsOnRootBL_update.size() << " " << nfound << std::endl;
+    //std::cout << "AllVertsOnRootBL_update " << AllVertsOnRootBL_update.size() << " " << nfound << std::endl;
     
 
     //DistributedParallelState* IntVrts_PV      = new DistributedParallelState(interiorTag2Glob_update.size(),comm);
@@ -2116,7 +2124,7 @@ int main(int argc, char** argv)
 
     if(world_rank == 0)
     {
-        std::cout << "VertsOnRoot " << VertsOnRootTetra.size() << " " << VertsOnRootBL.size() << " " << boundaryfaces_to_write_global.size() << " " << boundaryfaces_to_write_size_global.size() << std::endl; 
+        std::cout << "VertsOnRoot " <<AllVertsOnRootBL_update.size()+VertsOnRootTetra.size() << " = "<< VertsOnRootTetra.size() << " + " << AllVertsOnRootBL_update.size() << " " << boundaryfaces_to_write_global.size() << " " << boundaryfaces_to_write_size_global.size() << std::endl; 
 
         std::map<int,std::vector<int> >::iterator tim;
         
@@ -2149,7 +2157,7 @@ int main(int argc, char** argv)
         
         //WriteTetraSU2Mesh(comm, fdo, VertsOnRootTetra, TetraOnRoot, bcFacesPerRefTetra, bcTags);
 
-        WriteCompleteSU2Mesh(comm, fdo, VertsOnRootTetra, VertsOnRootBL, TetraOnRoot, BLOnRoot, bcFacesPerRefTetra, bcTags);
+        WriteCompleteSU2Mesh(comm, fdo, VertsOnRootTetra, AllVertsOnRootBL_update, TetraOnRoot, BLOnRoot, bcFacesPerRefTetra, bcTags);
     }
 
     // PMMG_pParMesh InitializeParMMGmeshFromHyperSolveInputs(MPI_Comm comm, 

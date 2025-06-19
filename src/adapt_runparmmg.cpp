@@ -2554,7 +2554,7 @@ PMMG_pParMesh InitializeParMMGmeshFromHyperSolveInputs(MPI_Comm comm,
     }
 
 
-    std::cout << "shrd " << world_rank << " " << shrd << std::endl;
+    //std::cout << "shrd " << world_rank << " " << shrd << std::endl;
     
     /*
     for(ftit=SharedFacesForRank.begin();ftit!=SharedFacesForRank.end();ftit++)
@@ -2666,7 +2666,7 @@ PMMG_pParMesh InitializeParMMGmeshFromHyperSolveInputs(MPI_Comm comm,
 
     std::map<int,int> unique_interface_vrts_glob = AllGatherMap_T(unique_interface_vrts,comm);
 
-    std::cout << "unique_interface_vrts_glob. " << unique_interface_vrts_glob.size() << std::endl;
+    //std::cout << "unique_interface_vrts_glob. " << unique_interface_vrts_glob.size() << std::endl;
     //std::cout << "ExternalInterFaceFaceMap " << ExternalInterFaceFaceMap.size() << " " << world_rank << " " << InternalFreal << std::endl;
 
     //std::cout << "InternalFreal " << InternalFreal << std::endl;

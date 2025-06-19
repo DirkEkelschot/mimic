@@ -1184,7 +1184,7 @@ std::map<int,std::vector<double> > PartObjectLite::GatherSharedVertCoordsOnRoot(
     {
         int vid = itm->first;
         
-        if(m_LocalVertsMap.find(vid) == m_LocalVertsMap.end())
+        if(m_LocalVertsMap.find(vid) != m_LocalVertsMap.end())
         {
             send2root[vid] = m_LocalVertsMap[vid];
         }
@@ -1193,7 +1193,7 @@ std::map<int,std::vector<double> > PartObjectLite::GatherSharedVertCoordsOnRoot(
 
     std::map<int,std::vector<double> > SharedVertCoordsOnRoot = GatherGlobalMapOnRoot_T(send2root,comm);
 
-    std::cout << "SharedVertCoordsOnRoot " << SharedVertCoordsOnRoot.size() << " " << m_ActualSharedVerts_g2l.size() << std::endl;
+    //std::cout << "SharedVertCoordsOnRoot " << SharedVertCoordsOnRoot.size() << " " << m_ActualSharedVerts_g2l.size() << std::endl;
 
     return SharedVertCoordsOnRoot;
 
