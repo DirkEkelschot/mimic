@@ -151,7 +151,7 @@ void WriteCompleteSU2Mesh(MPI_Comm comm, const char* fm,
 
 
     //mesh_file << "NMARK= 3\n";
-    mesh_file << "NMARK= " << bctags.size() << "\n";
+    mesh_file << "NMARK= " << bctags.size()-1 << "\n";
 
     std::map<int,char*>::iterator itchar;
     for(itchar=bctags.begin();itchar!=bctags.end();itchar++)
@@ -165,13 +165,25 @@ void WriteCompleteSU2Mesh(MPI_Comm comm, const char* fm,
 
     for(itmii=boundaryfaces_to_write.begin();itmii!=boundaryfaces_to_write.end();itmii++)
     {
-        std::cout << "itmii->first " << itmii->first << " " << bctags[itmii->first]  << std::endl; 
-        mesh_file << "MARKER_TAG=" << bctags[itmii->first] << "\n";
-        mesh_file << "MARKER_ELEMS=" << itmii->second.size() << "\n";
-
-        for(int q=0;q<itmii->second.size();q++)
+        if(itmii->first!=10)
         {
-            mesh_file << 5 << std::setw(17) << itmii->second[q][0]-1 << std::setw(17) << itmii->second[q][1]-1 << std::setw(17) << itmii->second[q][2]-1 << std::endl;
+            std::cout << "itmii->first " << itmii->first << " " << bctags[itmii->first]  << std::endl; 
+
+            mesh_file << "MARKER_TAG=" << bctags[itmii->first] << "\n";
+            mesh_file << "MARKER_ELEMS=" << itmii->second.size() << "\n";
+            
+            // for(int q=0;q<itmii->second.size();q++)
+            // {
+            //     if(itmii->second[q].size()==3)
+            //     {
+            //         mesh_file << 5 << std::setw(17) << itmii->second[q][0]-1 << std::setw(17) << itmii->second[q][1]-1 << std::setw(17) << itmii->second[q][2]-1 << std::endl;
+            //     }
+            //     if(itmii->second[q].size()==4)
+            //     {
+            //         mesh_file << 9 << std::setw(17) << itmii->second[q][0]-1 << std::setw(17) << itmii->second[q][1]-1 << std::setw(17) << itmii->second[q][2]-1 << std::setw(17) << itmii->second[q][3]-1 << std::endl;
+
+            //     }
+            // }
         }
     }
     
@@ -1598,8 +1610,9 @@ int main(int argc, char** argv)
     // int *faceRefs   = (int*)calloc(nTrianglesOUT,sizeof(int));
     
     std::vector<int> freq(nTrianglesOUT,0);
-    std::vector<int> fref(nTrianglesOUT,0);
-    std::vector<int> fsize(nTrianglesOUT,0);
+    std::vector<int> fref_tmp(nTrianglesOUT,0);
+    std::vector<int> fref;
+    std::vector<int> fsize;
     std::vector<int> fvrt;
     // std::map<int,std::vector<int> > boundaryfaces_to_write;
     // std::map<int,std::vector<int> > boundaryfaces_to_write_size;
@@ -1613,34 +1626,34 @@ int main(int argc, char** argv)
         if ( PMMG_Get_triangle(parmesh,&(face[0]),
                                        &(face[1]),
                                        &(face[2]),
-                                       &(fref[k]),
+                                       &(fref_tmp[k]),
                                        &(required2[k])) != 1 )
         {
             fprintf(inm,"Unable to get mesh triangle %d \n",k);
             ier = PMMG_STRONGFAILURE;
         }
 
-        if(fref[k]==0)
+        if(fref_tmp[k]==0)
         {
             bc0++;
         }
-        if(fref[k]==1)
+        if(fref_tmp[k]==1)
         {
             bc1++;
         }
-        if(fref[k]==2)
+        if(fref_tmp[k]==2)
         {
             bc2++;
         }
-        if(fref[k]==3)
+        if(fref_tmp[k]==3)
         {
             bc3++;
         }
-        if(fref[k]==4)
+        if(fref_tmp[k]==4)
         {
             bc4++;
         }
-        if(fref[k]==10)
+        if(fref_tmp[k]==10)
         {
             bc10++;
         }
@@ -1664,9 +1677,8 @@ int main(int argc, char** argv)
         face_glob[0] = loc2globVid[face[0]];
         face_glob[1] = loc2globVid[face[1]];
         face_glob[2] = loc2globVid[face[2]];
-        fsize[k]     = face_glob.size();
-
-
+        fsize.push_back(face_glob.size());
+        fref.push_back(fref_tmp[k]);
         for(int b=0;b<face_glob.size();b++)
         {
             fvrt.push_back(face_glob[b]);
@@ -1675,8 +1687,8 @@ int main(int argc, char** argv)
         if ( required2 && required2[k] )  nreq2++;
     }
 
-    //std::cout << "reqq " << world_rank << " " << reqq << std::endl; 
-    
+
+
     int reqq_glob = 0; 
     MPI_Allreduce(&reqq,  &reqq_glob, 1, MPI_INT, MPI_MAX, comm); 
 
@@ -1737,45 +1749,16 @@ int main(int argc, char** argv)
                 loc_int_v++;
                 st1++;
             } 
-            // else
-            // {
-            //     // if vert ID is in InterFaceVertsTag2Glob_All, that means it is in the interface between boundary layer mesh and tetrahedra and it already has a global vert ID assigned.
-            //     //InteriorVrtsTag2Glob[tagvid] = InterFaceVertsTag2Glob_All[tagvid]; 
-            //     //captured[tagvid] = InterFaceVertsTag2Glob_All[tagvid];
-            //     //st2++;
-            // }
         }
-        // else
-        // {
-        //     if(InterFaceVertsTag2Glob_All.find(tagvid)!=InterFaceVertsTag2Glob_All.end())
-        //     {
-        //         // if vert ID is in InterFaceVertsTag2Glob_All, that means it is in the interface between boundary layer mesh and tetrahedra and it already has a global vert ID assigned.
-        //         //InteriorVrtsTag2Glob[tagvid] = InterFaceVertsTag2Glob_All[tagvid]; 
-        //         //captured[tagvid] = InterFaceVertsTag2Glob_All[tagvid];
-        //         //st4++;
-        //     } 
-        //     // else
-        //     // {
-        //     //     // if we are here, that means we are dealing with a shared vertex and we need to assign a new ID to it depending on how many interior verts are counted.
-        //     //     st3++;
-        //     // }
-        // }
     }
 
-    // DistributedParallelState* dist_st1        = new DistributedParallelState(st1,comm);
-    // DistributedParallelState* dist_st2        = new DistributedParallelState(st2,comm);
-    // DistributedParallelState* dist_st3        = new DistributedParallelState(st3,comm);
-    // DistributedParallelState* dist_st4        = new DistributedParallelState(st4,comm);
 
     DistributedParallelState* IntVrts_P = new DistributedParallelState(interiorTag2Glob.size(),comm);
     std::map<int,int> interiorTag2Glob_update;
     std::map<int,int> sharedTag2Glob_update;
     std::map<int,std::vector<double> > LocalVerts_BL_GlobalID;
 
-
-    //std::map<int,std::vector<double> > AllVertsOnRootBL = GatherGlobalMapOnRoot_T(LocalVerts_BL,comm);
     std::map<int,std::vector<double> > SharedVertCoordsOnRoot = partitionP->GatherSharedVertCoordsOnRoot(comm);
-    //std::cout << "max_vid_T " << max_vid_T << std::endl;
     for(it=InteriorVrtsTag2Glob.begin();it!=InteriorVrtsTag2Glob.end();it++)
     {
         int tagvid        = it->first;
@@ -1783,10 +1766,7 @@ int main(int argc, char** argv)
 
         
         int glo_int_v_tmp = max_vid_T+IntVrts_P->getOffsets()[world_rank] + loc_int_v_tmp;
-        // if(loc_int_v_tmp == 0)
-        // {
-        //     std::cout << "glo_int_v_tmp " << glo_int_v_tmp << " " << loc_int_v_tmp << " " << world_rank << std::endl;
-        // }
+        
         interiorTag2Glob_update[tagvid]                 = glo_int_v_tmp;
         interiorGlob2Tag[glo_int_v_tmp]                 = tagvid;
 
@@ -1794,8 +1774,6 @@ int main(int argc, char** argv)
     }
 
     std::map<int,std::vector<double> > AllVertsOnRootBL_update = GatherGlobalMapOnRoot_T(LocalVerts_BL_GlobalID,comm);
-    //std::map<int,std::vector<double> > AllVertsOnRootBL_update = GatherJaggedGlobalMapOnRoot_T(LocalVerts_BL_GlobalID,comm);
-    std::cout << max_vid_T << " " << IntVrts_P->getNel() << " " << SharedVertsMap_g2l_new.size() << " AllVertsOnRootBL_update " << AllVertsOnRootBL_update.size() << std::endl;
     int nfound = 0;
     
     if(world_rank == 0)
@@ -1812,7 +1790,6 @@ int main(int argc, char** argv)
             if(AllVertsOnRootBL_update.find(glo_shared_v)==AllVertsOnRootBL_update.end())
             {
                 AllVertsOnRootBL_update[glo_shared_v] = SharedVertCoordsOnRoot[tagvid];
-                //std::cout << SharedVertCoordsOnRoot[tagvid][0] << " " << SharedVertCoordsOnRoot[tagvid][1] << " " << SharedVertCoordsOnRoot[tagvid][2] << std::endl;  
             }
             else
             {
@@ -1823,62 +1800,6 @@ int main(int argc, char** argv)
     }
 
     std::map<int,int> sharedTag2Glob_update_glob = AllGatherMap_T(sharedTag2Glob_update,comm);
-
-    std::cout << "sharedTag2Glob_update_glob " << sharedTag2Glob_update_glob.size() << std::endl;
-    //std::cout << "AllVertsOnRootBL_update " << AllVertsOnRootBL_update.size() << " " << nfound << std::endl;
-    
-
-    //DistributedParallelState* IntVrts_PV      = new DistributedParallelState(interiorTag2Glob_update.size(),comm);
-    //DistributedParallelState* IntVrts_PV_test = new DistributedParallelState(SharedVertsMap_g2l_new.size(),comm);
-
-    //std::cout << SharedVertsMap_g2l_new.size() << " " << IntVrts_P->getNel() << " " << IntVrts_PV->getNel() << " Interior vertices on this rank " << world_rank << std::endl;
-
-
-    //std::cout <<world_rank << " BEFORE compare vert size "<< InteriorVrtsTag2Glob.size() << " " << LocalVerts_BL.size() << std::endl;
-
-    // int nfound = 0;
-    // std::set<int> foc;
-
-    // std::set<int> fo;
-    // int nf = 0;
-    // int nf0 = 0;
-    
-    // int loc_shared_v = 0;
-
-    // std::map<int,std::vector<double> > LocalVerts_BL_GlobalID;
-
-    // for(itmb=LocalVerts_BL.begin();itmb!=LocalVerts_BL.end();itmb++)
-    // {
-    //     int tagvid = itmb->first;
-    //     // int loc_int_v_tmp = itmb->second;
-
-    //     if(SharedVertsMap_g2l_new.find(tagvid)==SharedVertsMap_g2l_new.end()) // Make sure it in actually a vertex on an interior face and that its not shared with a shared face.
-    //     {
-    //         if(InterFaceVertsTag2Glob_All.find(tagvid)==InterFaceVertsTag2Glob_All.end()) // make sure its not on the interface that is already taken into account by the tetrahedra
-    //         {   
-    //             int loc_int_v_tmp = InteriorVrtsTag2Glob[tagvid];
-    //             int glo_int_v_tmp = max_vid_T+IntVrts_P->getOffsets()[world_rank] + loc_int_v_tmp;
-
-    //             InteriorVrtsTag2Glob[tagvid]            = glo_int_v_tmp;
-    //             InteriorVrtsGlob2Tag[glo_int_v_tmp]     = tagvid;
-    //             LocalVerts_BL_GlobalID[glo_int_v_tmp]   = LocalVerts_BL[tagvid];
-    //         }
-    //     }
-    //     else
-    //     {
-    //         if(InterFaceVertsTag2Glob_All.find(tagvid)==InterFaceVertsTag2Glob_All.end()) // make sure its not on the interface that is already taken into account by the tetrahedra
-    //         {
-                
-    //             int loc_shared_v                                                                    = SharedVertsMap_g2l_new[tagvid];
-    //             int glo_shared_v                                                                    = max_vid_T+IntVrts_P->getOffsets()[world_size] + loc_shared_v;
-    //             InteriorVrtsTag2Glob[tagvid]                                                        = max_vid_T+IntVrts_P->getOffsets()[world_size] + loc_shared_v;
-    //             InteriorVrtsGlob2Tag[max_vid_T+IntVrts_P->getOffsets()[world_rank] + loc_shared_v]  = tagvid;
-
-    //             LocalVerts_BL_GlobalID[glo_shared_v]   = LocalVerts_BL[tagvid];
-    //         }
-    //     }
-    // }
-
     
     std::map<int,std::vector<int> > gE2gV_p         = partitionP->getElem2VertMap();
     DistributedParallelState* DistributedBLElements = new DistributedParallelState(gE2gV_p.size(),comm);
@@ -1891,10 +1812,7 @@ int main(int argc, char** argv)
         int elid = DistributedTElements->getNel()+DistributedBLElements->getOffsets()[world_rank] + loc_elem_id;
         std::vector<int> LocalVertids = itm->second;
         std::vector<int> GlobalVertids(LocalVertids.size(),0);
-        // if(LocalVertids.size() != 8)
-        // {
-        //     std::cout << "LocalVertids.size() " << LocalVertids.size() << " " << elid << " " << world_rank << std::endl;
-        // }
+
         for(int q=0;q<LocalVertids.size();q++)
         {
             int tagv = LocalVertids[q];
@@ -1902,7 +1820,6 @@ int main(int argc, char** argv)
             if(interiorTag2Glob_update.find(tagv)!=interiorTag2Glob_update.end())
             {
                 GlobalVertids[q] = interiorTag2Glob_update[tagv];
-                //std::cout << "InteriorVrtsTag2Glob[tagv] " << InteriorVrtsTag2Glob[tagv] <<std::endl;
             }
             else if(sharedTag2Glob_update_glob.find(tagv)!=sharedTag2Glob_update_glob.end())
             {
@@ -1921,59 +1838,8 @@ int main(int argc, char** argv)
 
         loc_elem_id = loc_elem_id + 1;
     }
-    /**/
-    //std::cout <<world_rank << " AFTER compare vert size "<< InteriorVrtsTag2Glob.size() << " " << LocalVerts_BL.size() << std::endl;
-
-    // std::map<int,int> captured_glob = AllGatherMap_T(captured,comm);
-    // std::map<int,int> InteriorVrtsTag2Glob_glob = AllGatherMap_T(InteriorVrtsTag2Glob,comm);
-    // DistributedParallelState* IntVrts_P_filter = new DistributedParallelState(fo.size(),comm);
-    // DistributedParallelState* IntVrts_P_filterOC = new DistributedParallelState(foc.size(),comm);
-
-    // int foundhereInt = 0;
-    // for(itr=OwnedNonSharedVertsMap.begin();itr!=OwnedNonSharedVertsMap.end();itr++)
-    // {
-    //     int tagv = (*itr);
-    //     if(InterFaceVertsTag2Glob.find(tagv)!=InterFaceVertsTag2Glob.end())
-    //     {
-    //         foundhereInt++;
-    //     }
-    // }
-
-    // std::map<int,int>::iterator itrm;
-    // int foundhereSha = 0;
-    // std::map<int,int> dualset;
-    // for(itrm=SharedVertsMap.begin();itrm!=SharedVertsMap.end();itrm++)
-    // {
-    //     int tagv = itrm->first;
-    //     if(InterFaceVertsTag2Glob_All.find(tagv)!=InterFaceVertsTag2Glob_All.end())
-    //     {
-    //         dualset[tagv] = foundhereSha;
-    //         foundhereSha++;
-    //     }
-    // }
-
-    // std::map<int,int> dualset_All = AllGatherMap_T(dualset,comm);
-    // DistributedParallelState* D_filter = new DistributedParallelState(InteriorVrtsTag2Glob.size(),comm);  
-    // std::cout << " loc_int_v  " << captured.size() << " " << InteriorVrtsTag2Glob.size() << " " << D_filter->getNel() << " " << SharedVertsMap.size() << std::endl;
-    // std::cout << " nf " << world_rank << " - " << st1 << " " << st2 << " " << st3 << " " << dist_st1->getNel() << " " << dist_st2->getNel() << " " << dist_st3->getNel() << " " << SharedVertsMap.size() << " " << dualset_All.size() << " captured " << captured.size() << " " << captured_glob.size() << " " << InteriorVrtsTag2Glob.size() << std::endl;
     
-    // std::cout << world_rank << " st1 = " << st1 << " st2 = " << st2 << " st3 = " << st3 << " st4 = " << st4 << " " << LocalVerts_BL.size() << " " << st1+st2+st3+st4 << " " << IntVrts_P->getNel() << std::endl; 
-    // std::cout << world_rank << " dist st - " << dist_st1->getNel() << " " << dist_st2->getNel() << " " << dist_st3->getNel() << " " << dist_st4->getNel() << std::endl; 
-    // std::cout << "total vrt " << InteriorVrtsTag2Glob.size() + captured.size() << " " << InteriorVrtsTag2Glob.size() << " " << captured.size() << " " << st3 << std::endl;
-    // //std::cout << " ref value = " << 484990 << "InterFaceVertsTag2Glob_All " << InterFaceVertsTag2Glob_All.size() << " " << SharedVertsMap.size() << " " << IntVrts_P_filter->getNel() << " "  << std::endl;
-
-    int vert_offset = max_vid_T;
-    std::map<int,int> loc2glob_P;
-    // vertid -> int + shared + bc --> int+bc equal to nonSharedVerts;
-
     
-
-
-
-
-
-
-
     int nreq2_total = 0;
     MPI_Allreduce(&nreq2,  &nreq2_total, 1, MPI_INT, MPI_SUM, comm);
     int bc0_total = 0;
@@ -1989,6 +1855,49 @@ int main(int argc, char** argv)
     int bc10_total = 0;
     MPI_Allreduce(&bc10,  &bc10_total, 1, MPI_INT, MPI_SUM, comm);
 
+
+
+    FaceSetPointer OwnedBoundaryFaceFaceMap = partitionP->getOwnedBoundaryFaceFaceMap();
+    FaceSetPointer::iterator P_bcface;
+
+    for(P_bcface=OwnedBoundaryFaceFaceMap.begin();P_bcface!=OwnedBoundaryFaceFaceMap.end();P_bcface++)
+    {
+        std::vector<int> face = (*P_bcface)->GetEdgeIDs();
+        int fref_id = (*P_bcface)->GetFaceRef();
+
+        //std::cout << "P_bcface " << fref_id << std::endl;
+
+        for(int b=0;b<face.size();b++)
+        {   
+            int tagvid      = face[b];
+            int globvid = -1;
+            if(interiorTag2Glob_update.find(tagvid)!=interiorTag2Glob_update.end())
+            {
+                globvid = interiorTag2Glob_update[tagvid];
+            }
+            else if(sharedTag2Glob_update_glob.find(tagvid)!=sharedTag2Glob_update_glob.end())
+            {
+                globvid = sharedTag2Glob_update_glob[tagvid];
+            }
+            else if(InterFaceVertsTag2Glob_All.find(tagvid)!=InterFaceVertsTag2Glob_All.end())
+            {
+                globvid = InterFaceVertsTag2Glob_All[tagvid];
+            }
+            else
+            {
+                std::cout << "Error: tagv not found in any of the maps " << tagvid << std::endl;
+            }
+            fvrt.push_back(globvid);
+        }
+
+        fsize.push_back(face.size());
+        fref.push_back(fref_id);
+        
+    }
+
+
+
+
     std::map<int,std::vector<int> > boundaryfaces_to_write_copy;
     std::map<int,std::vector<int> > boundaryfaces_to_write_size_copy;
 
@@ -2003,7 +1912,6 @@ int main(int argc, char** argv)
 
     if(world_rank == 0)
     {
-        std::cout << "bfaces_sizes->getNel() " << bfaces_sizes->getNel() << std::endl;
         BfacesSizeOnRoot.resize(bfaces_sizes->getNel());
         BfacesVrtsOnRoot.resize(bfaces_verts->getNel());
         BfacesRefOnRoot.resize(bfaces_sizes->getNel());
@@ -2043,7 +1951,6 @@ int main(int argc, char** argv)
     if(world_rank == 0)
     {
         int offset = 0;
-        
 
         for(int i=0;i<BfacesSizeOnRoot.size();i++)
         {
