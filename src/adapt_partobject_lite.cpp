@@ -244,7 +244,10 @@ void PartObjectLite::DetermineElement2ProcMap(std::map<int,std::vector<int> >   
         p_id        = itmii->second;
         int el_type = Elem2Type_uniform[el_id];
         nvPerEl     = Elem2Vert_uniform[el_id].size();
-
+        // if(el_type != 10)
+        // {
+        //     std::cout << "el_id " << el_id << " p_id " << p_id << " nvPerEl " << nvPerEl << " el_type " << el_type << " " << nvPerEl << std::endl;
+        // }
         if(p_id!=rank) // If element is not on this rank and needs to be send to other rank (p_id), add it to rank to element map.
         {
             elms_to_send_to_ranks[p_id].push_back(el_id); // rank to element map.
@@ -657,8 +660,8 @@ void PartObjectLite::DetermineElement2ProcMap(std::map<int,std::vector<int> >   
         //     tmp_globf.push_back(glob_f);
         //     tmp_globe.push_back(glob_e);
         // }
-    
 
+       
         //=======================================
         m_Elem2Vert[el_id]         = tmp_globv;
         // m_Elem2Face[el_id]      = tmp_globf;

@@ -37,7 +37,7 @@ std::map<int,std::vector<T> > GatherJaggedGlobalMapOnRoot_T(std::map<int,std::ve
         mapvec_size = mapvec_size + itt->second.size();
     }
 
-    // int rowsize                         = mappie.begin()->second.size();
+    // int rowsize                          = mappie.begin()->second.size();
     DistributedParallelState* distrimap     = new DistributedParallelState(mapSizeLoc,mpi_comm);
     int mapSizeTot                          = distrimap->getNel();
     DistributedParallelState* distrEntrymap = new DistributedParallelState(mapvec_size,mpi_comm);
