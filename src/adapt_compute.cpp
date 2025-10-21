@@ -3,18 +3,93 @@
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #define MAX(a,b) (((a)>(b))?(a):(b))
 
-void NegateVec3D(Vec3D* a)
+
+std::vector<std::vector<double> > MatInv_Lite(std::vector<std::vector<double> > A)
 {
-    a->c0 = -a->c0;
-    a->c1 = -a->c1;
-    a->c2 = -a->c2;
+    int n = A.size();
+    int size = n*n;
+    double WORK [size];
+    int info;
+    int Pivot[n];
+    std::vector<double> R_tmp(n*n,0.0);
+    for(int i=0;i<n;i++)
+    {
+        for(int j=0;j<n;j++)
+        {
+            R_tmp[n*i+j] = A[i][j];
+        }
+    }
+    
+    dgetrf_(&n, &n, R_tmp.data(), &n, Pivot, &info);
+    dgetri_(&n, R_tmp.data(), &n, Pivot, WORK, &size, &info);
+
+    std::vector<std::vector<double> > R(n);
+
+    for(int i=0;i<n;i++)
+    {
+        std::vector<double> row(n,0.0);
+        for(int j=0;j<3;j++)
+        {
+            row[j] = R_tmp[i*n+j];
+        }
+
+        R[i] = row;
+    }
+    
+    return R;
+}
+
+std::vector<std::vector<double> > MatMul_Lite(std::vector<std::vector<double> > A, 
+                           std::vector<std::vector<double> > B)
+{
+    
+    int n = A.size();
+    int o = A[0].size();
+    int m = B.size();
+    int k = B[0].size();
+
+    if(k!=o)
+    {
+        throw std::runtime_error("error :: Dimensions of A and B do not correspond.");
+    }
+
+    std::vector<std::vector<double> > R(n);
+    //Array<double>* R = new Array<double>(n,m);
+    
+    double res = 0.0;
+    for(int i=0;i<n;i++)
+    {
+        std::vector<double> row(m,0.0);
+
+        for(int j=0;j<m;j++)
+        {
+            res = 0.0;
+            for(int k=0;k<o;k++)
+            {
+                res = res + A[i][k]*B[k][j];
+            }
+            row[j] = res;
+        }
+
+        R[i] = row;
+
+    }
+    return R;
+}
+
+
+
+void NegateVec3D(std::vector<double> a)
+{
+    a[0] = -a[0];
+    a[1] = -a[1];
+    a[2] = -a[2];
     
 }
 
-double DotVec3D(Vec3D* a, Vec3D* b)
+double DotVec3D(std::vector<double> a, std::vector<double> b)
 {
-    double res = a->c0*b->c0+a->c1*b->c1+a->c2*b->c2;
-    
+    double res = a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
     return res;
 }
 
@@ -192,68 +267,65 @@ double ComputeJ(double*P, int ElType){
 }
 
 
-double ComputeEdgeLength(Vert* v0, Vert* v1)
+double ComputeEdgeLength(std::vector<double> v0, std::vector<double> v1)
 {
-    return sqrt((v0->x - v1->x) * (v0->x - v1->x)+
-                (v0->y - v1->y) * (v0->y - v1->y)+
-                (v0->z - v1->z) * (v0->z - v1->z));
+    return sqrt((v0[0] - v1[0]) * (v0[0] - v1[0])+
+                (v0[1] - v1[1]) * (v0[1] - v1[1])+
+                (v0[2] - v1[2]) * (v0[2] - v1[2]));
 }
 
 
-double ComputeTetVolume(double *P)
+double ComputeTetVolume(std::vector<double> P)
 {
-    Vert* a = new Vert;
-    Vert* b = new Vert;
-    Vert* c = new Vert;
-    Vert* d = new Vert;
+    std::vector<double> a(3);
+    std::vector<double> b(3);
+    std::vector<double> c(3);
+    std::vector<double> d(3);
     
-    a->x = P[0*3+0]; b->x = P[1*3+0];
-    a->y = P[0*3+1]; b->y = P[1*3+1];
-    a->z = P[0*3+2]; b->z = P[1*3+2];
+    a[0] = P[0*3+0]; b[0] = P[1*3+0];
+    a[1] = P[0*3+1]; b[1] = P[1*3+1];
+    a[2] = P[0*3+2]; b[2] = P[1*3+2];
     
-    c->x = P[2*3+0]; d->x = P[3*3+0];
-    c->y = P[2*3+1]; d->y = P[3*3+1];
-    c->z = P[2*3+2]; d->z = P[3*3+2];
+    c[0] = P[2*3+0]; d[0] = P[3*3+0];
+    c[1] = P[2*3+1]; d[1] = P[3*3+1];
+    c[2] = P[2*3+2]; d[2] = P[3*3+2];
     
-    Vert* t = new Vert;
-    t->x = (a->x-d->x);
-    t->y = (a->y-d->y);
-    t->z = (a->z-d->z);
     
-    Vec3D* s = new Vec3D;
-    s->c0 = (b->x-d->x);
-    s->c1 = (b->y-d->y);
-    s->c2 = (b->z-d->z);
+    std::vector<double> t(3);
+    t[0] = (a[0]-d[0]);
+    t[1] = (a[1]-d[1]);
+    t[2] = (a[2]-d[2]);
     
-    Vec3D* r= new Vec3D;
-    r->c0 = (c->x-d->x);
-    r->c1 = (c->y-d->y);
-    r->c2 = (c->z-d->z);
+    
+    std::vector<double> s(3);
+    s[0] = (b[0]-d[0]);
+    s[1] = (b[1]-d[1]);
+    s[2] = (b[2]-d[2]);
+    
+    
+    std::vector<double> r(3);
+    r[0] = (c[0]-d[0]);
+    r[1] = (c[1]-d[1]);
+    r[2] = (c[2]-d[2]);
     
     
     double cross[3];
 
         //Cross cross formula
-    cross[0] = (s->c1 * r->c2) - (s->c2 * r->c1);
-    cross[1] = (s->c2 * r->c0) - (s->c0 * r->c2);
-    cross[2] = (s->c0 * r->c1) - (s->c1 * r->c0);
+    cross[0] = (s[1] * r[2]) - (s[2] * r[1]);
+    cross[1] = (s[2] * r[0]) - (s[0] * r[2]);
+    cross[2] = (s[0] * r[1]) - (s[1] * r[0]);
     
-    double V = fabs(t->x*cross[0]+t->y*cross[1]+t->z*cross[2])/6.0;
+    double V = fabs(t[0]*cross[0]+t[1]*cross[1]+t[2]*cross[2])/6.0;
     //delete t,s,r;
-    delete t;
-    delete s;
-    delete r;
-    delete a;
-    delete b;
-    delete c;
-    delete d;
+
     //delete[] cross;
     return V;
     
     
 }
 
-double ComputeVolumeHexCell(double *P)
+double ComputeVolumeHexCell(std::vector<double> P)
 {
     
     double L01=0.0;
@@ -268,45 +340,45 @@ double ComputeVolumeHexCell(double *P)
     double b0,b1,b2,b3;
     double H12=0.0,H47=0.0,H30=0.0,H56=0.0;
     
-    Vert* v0 = new Vert;
-    Vert* v1 = new Vert;
+    std::vector<double> v0(3);
+    std::vector<double> v1(3);
     
-    v0->x = P[0*3+0]; v1->x = P[1*3+0];
-    v0->y = P[0*3+1]; v1->y = P[1*3+1];
-    v0->z = P[0*3+2]; v1->z = P[1*3+2];
+    v0[0] = P[0*3+0]; v1[0] = P[1*3+0];
+    v0[1] = P[0*3+1]; v1[1] = P[1*3+1];
+    v0[2] = P[0*3+2]; v1[2] = P[1*3+2];
     
     L01 = ComputeEdgeLength(v0,v1);
     
-    v0->x = P[1*3+0]; v1->x = P[5*3+0];
-    v0->y = P[1*3+1]; v1->y = P[5*3+1];
-    v0->z = P[1*3+2]; v1->z = P[5*3+2];
+    v0[0] = P[1*3+0]; v1[0] = P[5*3+0];
+    v0[1] = P[1*3+1]; v1[1] = P[5*3+1];
+    v0[2] = P[1*3+2]; v1[2] = P[5*3+2];
     
     L15 = ComputeEdgeLength(v0,v1);
     
-    v0->x = P[1*3+0]; v1->x = P[2*3+0];
-    v0->y = P[1*3+1]; v1->y = P[2*3+1];
-    v0->z = P[1*3+2]; v1->z = P[2*3+2];
+    v0[0] = P[1*3+0]; v1[0] = P[2*3+0];
+    v0[1] = P[1*3+1]; v1[1] = P[2*3+1];
+    v0[2] = P[1*3+2]; v1[2] = P[2*3+2];
     
     H12 = ComputeEdgeLength(v0,v1);
     b0 = 0.5*L01*L15;
     double vol0 = 1.0/3.0*b0*H12;
     //==================================================
 
-    v0->x = P[0*3+0]; v1->x = P[4*3+0];
-    v0->y = P[0*3+1]; v1->y = P[4*3+1];
-    v0->z = P[0*3+2]; v1->z = P[4*3+2];
+    v0[0] = P[0*3+0]; v1[0] = P[4*3+0];
+    v0[1] = P[0*3+1]; v1[1] = P[4*3+1];
+    v0[2] = P[0*3+2]; v1[2] = P[4*3+2];
     
     L04 = ComputeEdgeLength(v0,v1);
     
-    v0->x = P[4*3+0]; v1->x = P[5*3+0];
-    v0->y = P[4*3+1]; v1->y = P[5*3+1];
-    v0->z = P[4*3+2]; v1->z = P[5*3+2];
+    v0[0] = P[4*3+0]; v1[0] = P[5*3+0];
+    v0[1] = P[4*3+1]; v1[1] = P[5*3+1];
+    v0[2] = P[4*3+2]; v1[2] = P[5*3+2];
     
     L45 = ComputeEdgeLength(v0,v1);
     
-    v0->x = P[4*3+0]; v1->x = P[7*3+0];
-    v0->y = P[4*3+1]; v1->y = P[7*3+1];
-    v0->z = P[4*3+2]; v1->z = P[7*3+2];
+    v0[0] = P[4*3+0]; v1[0] = P[7*3+0];
+    v0[1] = P[4*3+1]; v1[1] = P[7*3+1];
+    v0[2] = P[4*3+2]; v1[2] = P[7*3+2];
     
     H47 = ComputeEdgeLength(v0,v1);
     b1 = 0.5*L04*L45;
@@ -314,21 +386,21 @@ double ComputeVolumeHexCell(double *P)
     
     //==================================================
     
-    v0->x = P[3*3+0]; v1->x = P[7*3+0];
-    v0->y = P[3*3+1]; v1->y = P[7*3+1];
-    v0->z = P[3*3+2]; v1->z = P[7*3+2];
+    v0[0] = P[3*3+0]; v1[0] = P[7*3+0];
+    v0[1] = P[3*3+1]; v1[1] = P[7*3+1];
+    v0[2] = P[3*3+2]; v1[2] = P[7*3+2];
     
     L37 = ComputeEdgeLength(v0,v1);
     
-    v0->x = P[2*3+0]; v1->x = P[3*3+0];
-    v0->y = P[2*3+1]; v1->y = P[3*3+1];
-    v0->z = P[2*3+2]; v1->z = P[3*3+2];
+    v0[0] = P[2*3+0]; v1[0] = P[3*3+0];
+    v0[1] = P[2*3+1]; v1[1] = P[3*3+1];
+    v0[2] = P[2*3+2]; v1[2] = P[3*3+2];
     
     L23 = ComputeEdgeLength(v0,v1);
     
-    v0->x = P[3*3+0]; v1->x = P[0*3+0];
-    v0->y = P[3*3+1]; v1->y = P[0*3+1];
-    v0->z = P[3*3+2]; v1->z = P[0*3+2];
+    v0[0] = P[3*3+0]; v1[0] = P[0*3+0];
+    v0[1] = P[3*3+1]; v1[1] = P[0*3+1];
+    v0[2] = P[3*3+2]; v1[2] = P[0*3+2];
    
     H30 = ComputeEdgeLength(v0,v1);
     b2 = 0.5*L37*L23;
@@ -336,106 +408,101 @@ double ComputeVolumeHexCell(double *P)
     
     //==================================================
     
-    v0->x = P[2*3+0]; v1->x = P[6*3+0];
-    v0->y = P[2*3+1]; v1->y = P[6*3+1];
-    v0->z = P[2*3+2]; v1->z = P[6*3+2];
+    v0[0] = P[2*3+0]; v1[0] = P[6*3+0];
+    v0[1] = P[2*3+1]; v1[1] = P[6*3+1];
+    v0[2] = P[2*3+2]; v1[2] = P[6*3+2];
     
     L26 = ComputeEdgeLength(v0,v1);
     
-    v0->x = P[6*3+0]; v1->x = P[7*3+0];
-    v0->y = P[6*3+1]; v1->y = P[7*3+1];
-    v0->z = P[6*3+2]; v1->z = P[7*3+2];
+    v0[0] = P[6*3+0]; v1[0] = P[7*3+0];
+    v0[1] = P[6*3+1]; v1[1] = P[7*3+1];
+    v0[2] = P[6*3+2]; v1[2] = P[7*3+2];
     
     L67 = ComputeEdgeLength(v0,v1);
     
-    v0->x = P[5*3+0]; v1->x = P[6*3+0];
-    v0->y = P[5*3+1]; v1->y = P[6*3+1];
-    v0->z = P[5*3+2]; v1->z = P[6*3+2];
+    v0[0] = P[5*3+0]; v1[0] = P[6*3+0];
+    v0[1] = P[5*3+1]; v1[1] = P[6*3+1];
+    v0[2] = P[5*3+2]; v1[2] = P[6*3+2];
     
     H56 = ComputeEdgeLength(v0,v1);
     b3 = 0.5*L26*L67;
     double vol3 = 1.0/3.0*b3*H56;
-    delete v0;
-    delete v1;
+
     return vol0+vol1+vol2+vol3;
 }
 
 
 
 
-double ComputeVolumeTetCell(double *P)
+double ComputeVolumeTetCell(std::vector<double> P)
 {
-    Vert* a = new Vert;
-    Vert* b = new Vert;
-    Vert* c = new Vert;
-    Vert* d = new Vert;
+
     
-    a->x = P[0*3+0]; b->x = P[1*3+0];
-    a->y = P[0*3+1]; b->y = P[1*3+1];
-    a->z = P[0*3+2]; b->z = P[1*3+2];
+    std::vector<double> a(3);
+    std::vector<double> b(3);
+    std::vector<double> c(3);
+    std::vector<double> d(3);
     
-    c->x = P[2*3+0]; d->x = P[3*3+0];
-    c->y = P[2*3+1]; d->y = P[3*3+1];
-    c->z = P[2*3+2]; d->z = P[3*3+2];
+    a[0] = P[0*3+0]; b[0] = P[1*3+0];
+    a[1] = P[0*3+1]; b[1] = P[1*3+1];
+    a[2] = P[0*3+2]; b[2] = P[1*3+2];
     
-    Vert* t = new Vert;
-    t->x = (a->x-d->x);
-    t->y = (a->y-d->y);
-    t->z = (a->z-d->z);
+    c[0] = P[2*3+0]; d[0] = P[3*3+0];
+    c[1] = P[2*3+1]; d[1] = P[3*3+1];
+    c[2] = P[2*3+2]; d[2] = P[3*3+2];
     
-    Vec3D* s = new Vec3D;
-    s->c0 = (b->x-d->x);
-    s->c1 = (b->y-d->y);
-    s->c2 = (b->z-d->z);
+    std::vector<double> t(3);
+    t[0] = (a[0]-d[0]);
+    t[1] = (a[1]-d[1]);
+    t[2] = (a[2]-d[2]);
     
-    Vec3D* r= new Vec3D;
-    r->c0 = (c->x-d->x);
-    r->c1 = (c->y-d->y);
-    r->c2 = (c->z-d->z);
+    std::vector<double> s(3);
+    s[0] = (b[0]-d[0]);
+    s[1] = (b[1]-d[1]);
+    s[2] = (b[2]-d[2]);
+    
+    std::vector<double> r(3);
+    r[0] = (c[0]-d[0]);
+    r[1] = (c[1]-d[1]);
+    r[2] = (c[2]-d[2]);
     
     
-    double cross[3];
+    std::vector<double> cross(3);
 
         //Cross cross formula
-    cross[0] = (s->c1 * r->c2) - (s->c2 * r->c1);
-    cross[1] = (s->c2 * r->c0) - (s->c0 * r->c2);
-    cross[2] = (s->c0 * r->c1) - (s->c1 * r->c0);
+    cross[0] = (s[1] * r[2]) - (s[2] * r[1]);
+    cross[1] = (s[2] * r[0]) - (s[0] * r[2]);
+    cross[2] = (s[0] * r[1]) - (s[1] * r[0]);
     
-    double V = fabs(t->x*cross[0]+t->y*cross[1]+t->z*cross[2])/6.0;
+    double V = fabs(t[0]*cross[0]+t[1]*cross[1]+t[2]*cross[2])/6.0;
     
-    delete a;
-    delete b;
-    delete c;
-    delete d;
-    delete t;
-    delete s;
-    delete r;
+
     
     return V;
 }
 
 
 
-double ComputeVolumePrismCell(double *P)
+double ComputeVolumePrismCell(std::vector<double> P)
 {
-    Vert* v0 = new Vert;
-    Vert* v1 = new Vert;
-    Vert* v2 = new Vert;
-    Vert* v3 = new Vert;
-    Vert* v4 = new Vert;
-    Vert* v5 = new Vert;
+    std::vector<double> v0(3);
+    std::vector<double> v1(3);
+    std::vector<double> v2(3);
+    std::vector<double> v3(3);
+    std::vector<double> v4(3);
+    std::vector<double> v5(3);
     
-    v0->x = P[0*3+0]; v1->x = P[1*3+0];
-    v0->y = P[0*3+1]; v1->y = P[1*3+1];
-    v0->z = P[0*3+2]; v1->z = P[1*3+2];
+    v0[0] = P[0*3+0]; v1[0] = P[1*3+0];
+    v0[1] = P[0*3+1]; v1[1] = P[1*3+1];
+    v0[2] = P[0*3+2]; v1[2] = P[1*3+2];
     
-    v2->x = P[2*3+0]; v3->x = P[3*3+0];
-    v2->y = P[2*3+1]; v3->y = P[3*3+1];
-    v2->z = P[2*3+2]; v3->z = P[3*3+2];
+    v2[0] = P[2*3+0]; v3[0] = P[3*3+0];
+    v2[1] = P[2*3+1]; v3[1] = P[3*3+1];
+    v2[2] = P[2*3+2]; v3[2] = P[3*3+2];
     
-    v4->x = P[4*3+0]; v5->x = P[5*3+0];
-    v4->y = P[4*3+1]; v5->y = P[5*3+1];
-    v4->z = P[4*3+2]; v5->z = P[5*3+2];
+    v4[0] = P[4*3+0]; v5[0] = P[5*3+0];
+    v4[1] = P[4*3+1]; v5[1] = P[5*3+1];
+    v4[2] = P[4*3+2]; v5[2] = P[5*3+2];
     
     double La  = ComputeEdgeLength(v0,v2);
     
@@ -460,12 +527,7 @@ double ComputeVolumePrismCell(double *P)
 //    double A = A0+A1+A2+A3+A4;
     double V = A0*(ha+hb+hc)/3.0;
     
-    delete v0;
-    delete v1;
-    delete v2;
-    delete v3;
-    delete v4;
-    delete v5;
+
     
     return V;
     
@@ -483,9 +545,10 @@ double ComputeVolumePrismCell(double *P)
         J[6], J[7], J[8]]
 */
 // J is computed using the 8-point isoparametric mapping for a hex. The 8-point rule should be sufficient since everything is linear anyways.
-Vert* ComputeCenterCoord(double*P, int np)
+std::vector<double> ComputeCenterCoord(std::vector<double> P, int np)
 {
-    Vert* V = new Vert;
+ 
+    std::vector<double> V(3);
     
     int * ref = new int[np*3];
         
@@ -515,17 +578,17 @@ Vert* ComputeCenterCoord(double*P, int np)
     double mu  = 0;
     double ksi = 0;
     
-    V->x = 0.0;
-    V->y = 0.0;
-    V->z = 0.0;
+    V[0] = 0.0;
+    V[1] = 0.0;
+    V[2] = 0.0;
 
     for(int i = 0; i < np; i++)
     {
         N[i] = 1.0/8.0*(1+ref[i*3+0]*eta)*(1+ref[i*3+1]*mu)*(1+ref[i*3+2]*ksi);
                         
-        V->x = V->x+N[i]*P[i*3+0];
-        V->y = V->y+N[i]*P[i*3+1];
-        V->z = V->z+N[i]*P[i*3+2];
+        V[0] = V[0]+N[i]*P[i*3+0];
+        V[1] = V[1]+N[i]*P[i*3+1];
+        V[2] = V[2]+N[i]*P[i*3+2];
     }
     
     delete[] ref;
@@ -534,31 +597,31 @@ Vert* ComputeCenterCoord(double*P, int np)
 }
 
 
-Vert* ComputeCentroidCoord(double*P, int np)
+std::vector<double> ComputeCentroidCoord(std::vector<double> P, int np)
 {
-    Vert* V = new Vert;
+    std::vector<double> V(3);
     //V = ComputeCenterCoord(P, np);
-    V->x = 0.0;
-    V->y = 0.0;
-    V->z = 0.0;
+    V[0] = 0.0;
+    V[1] = 0.0;
+    V[2] = 0.0;
 
     for(int i = 0; i < np; i++)
     {
 
-        V->x = V->x+P[i*3+0];
-        V->y = V->y+P[i*3+1];
-        V->z = V->z+P[i*3+2];
+        V[0] = V[0]+P[i*3+0];
+        V[1] = V[1]+P[i*3+1];
+        V[2] = V[2]+P[i*3+2];
     }
 
-    V->x = V->x/np;
-    V->y = V->y/np;
-    V->z = V->z/np;
+    V[0] = V[0]/np;
+    V[1] = V[1]/np;
+    V[2] = V[2]/np;
     
     return V;
 }
 
 
-double* ComputeJAtCenter(double*P, int np)
+double* ComputeJAtCenter(std::vector<double> P, int np)
 {
     //Vert V;
     double * J = new double[9];
@@ -569,10 +632,10 @@ double* ComputeJAtCenter(double*P, int np)
     int * ref = new int[np*3];
         
     // Allocate the arrays for the mapping function and its derivatives.
-    double * N      = new double[np];
-    double * dNdeta = new double[np];
-    double * dNdmu  = new double[np];
-    double * dNdksi = new double[np];
+    std::vector<double> N(np);
+    std::vector<double> dNdeta(np);
+    std::vector<double> dNdmu(np);
+    std::vector<double> dNdksi(np);
     
     for(int i=0;i<np;i++)
     {
@@ -688,7 +751,7 @@ double* ComputeJAtCenter(double*P, int np)
 //}
 
 
-double GetQualityTetrahedra(double* P)
+double GetQualityTetrahedra(std::vector<double> P)
 {
     double       h1,h2,h3,h4,h5,h6,det,vol,rap,v1,v2,v3,num;
     double       cal,abx,aby,abz,acx,acy,acz,adx,ady,adz;
@@ -783,7 +846,7 @@ double GetQualityTetrahedra(double* P)
     return cal;
 }
 
-Array<double>* ComputeJAtCenter_tet_v2(double*P)
+Array<double>* ComputeJAtCenter_tet_v2(std::vector<double> P)
 {
 
     Array<double>* a = new Array<double>(3,3);
@@ -819,7 +882,7 @@ Array<double>* ComputeJAtCenter_tet_v2(double*P)
     
     return M;
 }
-double ComputeDeterminantJ_tet_v2(double*P)
+double ComputeDeterminantJ_tet_v2(std::vector<double> P)
 {
     Array<double>* JP1 = ComputeJAtCenter_tet_v2(P);
 
@@ -842,7 +905,7 @@ double ComputeDeterminantJ_tet_v2(double*P)
     return DetJ;
 }
 
-double ComputeDeterminantJ_tet(double*P)
+double ComputeDeterminantJ_tet(std::vector<double> P)
 {
     double* J0=new double[9];
     std::vector<double> dJvec;
@@ -924,7 +987,7 @@ double ComputeDeterminantJ_tet(double*P)
 }
 
 
-double ComputeDeterminantJ(double*P, int np)
+double ComputeDeterminantJ(std::vector<double> P, int np)
 {
     double* JP1 = ComputeJAtCenter(P, np);
     
@@ -945,7 +1008,8 @@ Array<double>* ComputeDeterminantofJacobian(ParArray<int>* ien, Array<double>* x
     int nel_loc = ien->getNrow();
     int ncol = ien->getNcol();
     Array<double>* detJ = new Array<double>(nel_loc,1);
-    double* P = new double[np*3];
+    //double* P = new double[np*3];
+    std::vector<double> P(np*3);
     int Vid, Vlid;
     for(int i=0;i<nel_loc;i++)
     {
@@ -968,7 +1032,7 @@ Array<double>* ComputeDeterminantofJacobian(ParArray<int>* ien, Array<double>* x
         //std::cout << J[6] << " " << J[7] << " " << J[8] << std::endl;
         //std::cout << "================================" << std::endl;
     }
-    delete[] P;
+    //delete[] P;
     
     return detJ;
 }
@@ -988,8 +1052,8 @@ double* ComputeVolumeCellsSerial(Array<double>* xcn, Array<int>* ien, MPI_Comm c
     int Nelements = Nel;
     double * vol_cells = new double[Nelements];
     int np = 8;
-    double* P = new double[np*3];
-    
+    //double* P = new double[np*3];
+    std::vector<double> P(np*3);
     
     double vhex = 0.0;
     
@@ -1011,7 +1075,7 @@ double* ComputeVolumeCellsSerial(Array<double>* xcn, Array<int>* ien, MPI_Comm c
         
     }
     
-    delete[] P;
+    //delete[] P;
     
     return vol_cells;
     
@@ -1036,8 +1100,8 @@ double* ComputeVolumeCellsReducedToVerts(Array<double>* xcn, Array<int>* ien)
     
     
     int np = 8;
-    double* P = new double[np*3];
-    
+    //double* P = new double[np*3];
+    std::vector<double> P(np*3);
     double vhex = 0.0;
     
     int Vid;
@@ -1071,7 +1135,7 @@ double* ComputeVolumeCellsReducedToVerts(Array<double>* xcn, Array<int>* ien)
     
     delete[] vert_cnt;
     delete[] sum_vol;
-    delete[] P;
+    //delete[] P;
     
     return vol_verts;
 }
@@ -1080,8 +1144,8 @@ double* ComputeVolumeCellsReducedToVerts(Array<double>* xcn, Array<int>* ien)
 
 void UnitTestJacobian()
 {
-    double* Hex = new double[8*3];
-    
+    //double* Hex = new double[8*3];
+    std::vector<double> Hex(8*3);
     Hex[0*3+0] = 0;     Hex[0*3+1] = 0;     Hex[0*3+2] = 0;
     Hex[1*3+0] = 0.5;   Hex[1*3+1] = 0;     Hex[1*3+2] = 0;
     Hex[2*3+0] = 0.5;   Hex[2*3+1] = 0.5;   Hex[2*3+2] = 0;
@@ -1111,6 +1175,246 @@ void UnitTestJacobian()
 }
 
 
+
+std::map<int,std::vector<double> > ComputeMetric_Lite(MPI_Comm comm, 
+                        PartObject* tetra_repart,
+                        std::map<int,std::vector<double> > tetra_grad, 
+                        std::map<int,std::vector<double> > &eigvalues, 
+                        Inputs* inputs)
+{
+    int size;
+    MPI_Comm_size(comm, &size);
+    // Get the rank of the process
+    int rank;
+    MPI_Comm_rank(comm, &rank);
+    // Preparing the metric tensor field.
+    std::vector<double> eignval(3,0.0);
+    double po = 6.0;
+
+    int rec         = inputs->recursive;
+    int ext         = inputs->extended;
+    double hmin     = inputs->hmin;
+    double hmax     = inputs->hmax;
+    double Scale    = inputs->MetScale;
+    std::map<int,std::vector<double> > metric_vmap;
+
+
+
+    std::map<int,std::vector<double> >::iterator itmidv;
+    std::set<int> Owned_Elem_t                           = tetra_repart->getLocalElemSet();
+    std::map<int,std::vector<int> > gE2gV_t              = tetra_repart->getElem2VertMap();
+    std::map<int,std::map<int,double> > node2element_map = tetra_repart->GetNode2ElementMap();
+
+
+    // for(int i=0;i<Owned_Elem_t.size();i++)
+    std::set<int>::iterator ites;
+    // std::cout << "rank  " << rank << " node2element_map " << node2element_map.size() << std::endl;  
+    for(ites=Owned_Elem_t.begin();ites!=Owned_Elem_t.end();ites++)
+    {
+        int elid = *ites;//Owned_Elem_t[i];
+        int nv   = gE2gV_t[elid].size();
+        for(int j=0;j<nv;j++)
+        {
+            int gvid = gE2gV_t[elid][j];
+
+            if(node2element_map.find(gvid)!=node2element_map.end())
+            {
+                
+                std::map<int,double>::iterator its;
+                std::map<int,double> elems = node2element_map[gvid];
+                double gval         = 0.0;
+                int nc              = 0;
+                std::vector<double> row_tmp(6,0.0);
+
+                for(its=elems.begin();its!=elems.end();its++)
+                {
+                    int elid = its->first;
+                    if(tetra_grad.find(elid)!=tetra_grad.end())
+                    {
+                        for(int k=0;k<6;k++)
+                        {
+                            row_tmp[k]=row_tmp[k]+tetra_grad[elid][3+k];   
+                        }
+                        
+                        nc++;
+                    }   
+                }
+                
+                for(int k=0;k<6;k++)
+                {
+                    row_tmp[k]  = row_tmp[k]/nc;
+                }
+
+                std::vector<double> row(9,0.0);
+
+                row[0]=row_tmp[0];  row[1]=row_tmp[1];  row[2]=row_tmp[2];
+                row[3]=row_tmp[1];  row[4]=row_tmp[3];  row[5]=row_tmp[4];
+                row[6]=row_tmp[2];  row[7]=row_tmp[4];  row[8]=row_tmp[5];
+                
+                Eig* eig = ComputeEigenDecomp(3, row.data());
+                std::vector<double> Dre(3,0.0);
+                Dre[0] = eig->Dre[0];
+                Dre[1] = eig->Dre[1];
+                Dre[2] = eig->Dre[2];
+                eigvalues[elid] = Dre;
+
+                eignval[0] =  std::min(std::max(Scale*fabs(eig->Dre[0]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
+                eignval[1] =  std::min(std::max(Scale*fabs(eig->Dre[1]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
+                eignval[2] =  std::min(std::max(Scale*fabs(eig->Dre[2]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
+                
+                double Lambdamax = *std::max_element(eignval.begin(),eignval.end());
+                double Lambdamin = *std::min_element(eignval.begin(),eignval.end());
+                //std::cout << "eign " << eignval[0] << " " << eignval[1] << " " << eignval[2] << " --> " << eig->Dre[0] << " " << eig->Dre[1] << " " << eig->Dre[2] << std::endl;
+                std::vector<std::vector<double> > Diag(3);
+                std::vector<std::vector<double> > EigVec(3);
+                
+                for(int k=0;k<3;k++)
+                {
+                    std::vector<double> rowDiag(3,0.0);
+                    rowDiag[k]      = eignval[k];
+                    std::vector<double> rowEigVec(3,0.0);
+                    Diag[k]         = rowDiag;
+                    EigVec[k]       = rowEigVec;
+                }
+
+                EigVec[0][0] = eig->V[0];   EigVec[0][1] = eig->V[1];   EigVec[0][2] = eig->V[2];
+                EigVec[1][0] = eig->V[3];   EigVec[1][1] = eig->V[4];   EigVec[1][2] = eig->V[5];
+                EigVec[2][0] = eig->V[6];   EigVec[2][1] = eig->V[7];   EigVec[2][2] = eig->V[8];
+
+                std::vector<std::vector<double> > iVR       = MatInv_Lite(EigVec);
+                std::vector<std::vector<double> > Rs        = MatMul_Lite(EigVec,Diag);  
+                std::vector<std::vector<double> > metric    = MatMul_Lite(Rs,iVR);
+
+                double detMetric        = metric[0][0]*(metric[1][1]*metric[2][2]-metric[2][1]*metric[1][2])
+                                        - metric[0][1]*(metric[1][0]*metric[2][2]-metric[2][0]*metric[1][2])
+                                        + metric[0][2]*(metric[1][0]*metric[2][1]-metric[2][0]*metric[1][1]);
+
+                // if(rank == 0)
+                // {
+                //     std::cout << std::endl;
+                //     std::cout << metric[0][0] << " " << metric[0][1] << " " << metric[0][2] << std::endl;
+                //     std::cout << metric[1][0] << " " << metric[1][1] << " " << metric[1][2] << std::endl;
+                //     std::cout << metric[2][0] << " " << metric[2][1] << " " << metric[2][2] << std::endl;
+                //     std::cout << std::endl;
+                // }
+                
+                double pow              = -1.0/(2.0*po+3.0);
+                double eigRat           = Lambdamin/Lambdamax;
+                detMetric               = 1.0;//std::pow(detMetric,pow);
+
+                for(int i=0;i<3;i++)
+                {
+                    for(int j=0;j<3;j++)
+                    {
+                        metric[i][j] = detMetric*metric[i][j];
+                    }
+                }
+
+                std::vector<double> metricVec(6,0.0);
+
+                metricVec[0] = metric[0][0];
+                metricVec[1] = metric[0][1];
+                metricVec[2] = metric[0][2];
+                metricVec[3] = metric[1][1];
+                metricVec[4] = metric[1][2];
+                metricVec[5] = metric[2][2];
+
+                metric_vmap[gvid] = metricVec;
+
+                delete[] eig->Dre;
+                delete[] eig->Dim;
+                delete[] eig->V;
+                delete[] eig->iV;
+            }
+        }
+    }
+
+
+
+    //==================================================================================================
+    // std::map<int,std::vector<double> > metric_diagnose;
+    // for(int i=0;i<Owned_Elem_t.size();i++)
+    // {
+    //     int elid = Owned_Elem_t[i];
+
+    //     std::vector<double> metric_tmp(9,0.0);
+    //     std::vector<double> row_tmp(6,0.0);
+    //     for(int k=0;k<6;k++)
+    //     {
+    //         row_tmp[k]=row_tmp[k]+tetra_grad[elid][3+k];
+    //     }
+
+
+    //     metric_tmp[0]=row_tmp[0];  metric_tmp[1]=row_tmp[1];  metric_tmp[2]=row_tmp[2];
+    //     metric_tmp[3]=row_tmp[1];  metric_tmp[4]=row_tmp[3];  metric_tmp[5]=row_tmp[4];
+    //     metric_tmp[6]=row_tmp[2];  metric_tmp[7]=row_tmp[4];  metric_tmp[8]=row_tmp[5];
+
+    
+    //     Eig* eig = ComputeEigenDecomp(3, metric_tmp.data());
+    //     eignval[0] =  std::min(std::max(fabs(Scale*eig->Dre[0]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
+    //     eignval[1] =  std::min(std::max(fabs(Scale*eig->Dre[1]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
+    //     eignval[2] =  std::min(std::max(fabs(Scale*eig->Dre[2]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
+        
+    //     double Lambdamax = *std::max_element(eignval.begin(),eignval.end());
+    //     double Lambdamin = *std::min_element(eignval.begin(),eignval.end());
+
+    //     std::vector<std::vector<double> > Diag(3);
+    //     std::vector<std::vector<double> > EigVec(3);
+        
+    //     for(int k=0;k<3;k++)
+    //     {
+    //         std::vector<double> rowDiag(3,0.0);
+    //         rowDiag[k] = eignval[k];
+    //         std::vector<double> rowEigVec(3,0.0);
+    //         Diag[k]      = rowDiag;
+    //         EigVec[k]    = rowEigVec;
+    //     }
+    
+    //     EigVec[0][0] = eig->V[0];   EigVec[0][1] = eig->V[1];   EigVec[0][2] = eig->V[2];
+    //     EigVec[1][0] = eig->V[3];   EigVec[1][1] = eig->V[4];   EigVec[1][2] = eig->V[5];
+    //     EigVec[2][0] = eig->V[6];   EigVec[2][1] = eig->V[7];   EigVec[2][2] = eig->V[8];
+
+    //     std::vector<std::vector<double> > iVR       = MatInv_Lite(EigVec);
+    //     std::vector<std::vector<double> > Rs        = MatMul_Lite(EigVec,Diag);  
+    //     std::vector<std::vector<double> > metric    = MatMul_Lite(Rs,iVR);
+
+    //     double detMetric        = metric[0][0]*(metric[1][1]*metric[2][2]-metric[2][1]*metric[1][2])
+    //                             - metric[0][1]*(metric[1][0]*metric[2][2]-metric[2][0]*metric[1][2])
+    //                             + metric[0][2]*(metric[1][0]*metric[2][1]-metric[2][0]*metric[1][1]);
+        
+    //     double pow              = -1.0/(2.0*po+3.0);
+    //     double eigRat           = Lambdamin/Lambdamax;
+    //     detMetric               = std::pow(detMetric,pow);
+
+    //     for(int i=0;i<3;i++)
+    //     {
+    //         for(int j=0;j<3;j++)
+    //         {
+    //             metric_tmp[i*3+j] = detMetric*metric[i][j];
+    //         }
+    //     }
+
+    //     metric_diagnose[elid] = metric_tmp;
+    // }
+
+    // string filename_metric = "metric_" + std::to_string(world_rank) + ".vtu";
+    // std::map<int,std::string > varnames_metric;
+    // varnames_metric[0] = "m00";    varnames_metric[1] = "m01";    varnames_metric[2] = "m02";
+    // varnames_metric[3] = "m10";    varnames_metric[4] = "m11";    varnames_metric[5] = "m12";
+    // varnames_metric[6] = "m20";    varnames_metric[7] = "m21";    varnames_metric[8] = "m22";
+
+    // OutputTetraMeshPartitionVTK(comm,
+    //                         filename_metric, 
+    //                         Owned_Elem_t, 
+    //                         gE2gV_t, 
+    //                         metric_diagnose, 
+    //                         varnames_metric, 
+    //                         LocalVertsMap_t);
+    //==================================================================================================
+
+    return metric_vmap;
+
+}
 
 
 
@@ -1287,6 +1591,132 @@ void ComputeMetricWithWake(Partition* Pa,
 
     delete[] Hmet;
 }
+
+
+
+
+
+
+
+
+
+
+std::map<int,std::vector<double> > ComputeElementMetric_Lite(MPI_Comm comm, 
+                        PartObject* tetra_repart,
+                        std::map<int,std::vector<double> > tetra_grad,
+                        std::map<int,std::vector<double> > &eigvalues, 
+                        Inputs* inputs)
+{
+    int size;
+    MPI_Comm_size(comm, &size);
+    // Get the rank of the process
+    int rank;
+    MPI_Comm_rank(comm, &rank);
+    // Preparing the metric tensor field.
+    std::vector<double> eignval(3,0.0);
+    double po = 6.0;
+
+    int rec         = inputs->recursive;
+    int ext         = inputs->extended;
+    double hmin     = inputs->hmin;
+    double hmax     = inputs->hmax;
+    double Scale    = inputs->MetScale;
+    std::map<int,std::vector<double> > metric_vmap;
+
+    std::map<int,std::vector<double> >::iterator itmidv;
+    std::set<int> Owned_Elem_t                                  = tetra_repart->getLocalElemSet();
+    std::map<int,std::vector<int> > gE2gV_t                     = tetra_repart->getElem2VertMap();
+    // std::map<int,std::map<int,double> > node2element_map     = tetra_repart->GetNode2ElementMap();
+    std::set<int>::iterator its;
+    // for(int i=0;i<Owned_Elem_t.size();i++)
+    for(its=Owned_Elem_t.begin();its!=Owned_Elem_t.end();its++)
+    {
+        int elid = *its;
+
+        std::vector<double> row(9,0.0);
+
+        row[0]=tetra_grad[elid][3];  row[1]=tetra_grad[elid][4];  row[2]=tetra_grad[elid][5];
+        row[3]=tetra_grad[elid][4];  row[4]=tetra_grad[elid][6];  row[5]=tetra_grad[elid][7];
+        row[6]=tetra_grad[elid][5];  row[7]=tetra_grad[elid][7];  row[8]=tetra_grad[elid][8];
+        
+        Eig* eig = ComputeEigenDecomp(3, row.data());
+
+        std::vector<double> Dre(3,0.0);
+        Dre[0] = eig->Dre[0];
+        Dre[1] = eig->Dre[1];
+        Dre[2] = eig->Dre[2];
+        eigvalues[elid] = Dre;
+
+        eignval[0] =  std::min(std::max(Scale*fabs(eig->Dre[0]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
+        eignval[1] =  std::min(std::max(Scale*fabs(eig->Dre[1]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
+        eignval[2] =  std::min(std::max(Scale*fabs(eig->Dre[2]),1.0/(hmax*hmax)),1.0/(hmin*hmin));
+        
+        double Lambdamax = *std::max_element(eignval.begin(),eignval.end());
+        double Lambdamin = *std::min_element(eignval.begin(),eignval.end());
+        //std::cout << "eign " << eignval[0] << " " << eignval[1] << " " << eignval[2] << " --> " << eig->Dre[0] << " " << eig->Dre[1] << " " << eig->Dre[2] << std::endl;
+        std::vector<std::vector<double> > Diag(3);
+        std::vector<std::vector<double> > EigVec(3);
+        
+        for(int k=0;k<3;k++)
+        {
+            std::vector<double> rowDiag(3,0.0);
+            rowDiag[k]      = eignval[k];
+            std::vector<double> rowEigVec(3,0.0);
+            Diag[k]         = rowDiag;
+            EigVec[k]       = rowEigVec;
+        }
+    
+        EigVec[0][0] = eig->V[0];   EigVec[0][1] = eig->V[1];   EigVec[0][2] = eig->V[2];
+        EigVec[1][0] = eig->V[3];   EigVec[1][1] = eig->V[4];   EigVec[1][2] = eig->V[5];
+        EigVec[2][0] = eig->V[6];   EigVec[2][1] = eig->V[7];   EigVec[2][2] = eig->V[8];
+
+        std::vector<std::vector<double> > iVR       = MatInv_Lite(EigVec);
+        std::vector<std::vector<double> > Rs        = MatMul_Lite(EigVec,Diag);  
+        std::vector<std::vector<double> > metric    = MatMul_Lite(Rs,iVR);
+
+        double detMetric        = metric[0][0]*(metric[1][1]*metric[2][2]-metric[2][1]*metric[1][2])
+                                - metric[0][1]*(metric[1][0]*metric[2][2]-metric[2][0]*metric[1][2])
+                                + metric[0][2]*(metric[1][0]*metric[2][1]-metric[2][0]*metric[1][1]);
+        
+        double pow              = -1.0/(2.0*po+3.0);
+        double eigRat           = Lambdamin/Lambdamax;
+        detMetric               = std::pow(detMetric,pow);
+
+        for(int i=0;i<3;i++)
+        {
+            for(int j=0;j<3;j++)
+            {
+                metric[i][j] = detMetric*metric[i][j];
+            }
+        }
+        
+        std::vector<double> metricVec(6,0.0);
+
+        metricVec[0] = metric[0][0];
+        metricVec[1] = metric[0][1];
+        metricVec[2] = metric[0][2];
+        metricVec[3] = metric[1][1];
+        metricVec[4] = metric[1][2];
+        metricVec[5] = metric[2][2];
+
+        
+        
+
+        metric_vmap[elid] = metricVec;
+
+        delete[] eig->Dre;
+        delete[] eig->Dim;
+        delete[] eig->V;
+        delete[] eig->iV;
+    }
+
+    return metric_vmap;
+}
+
+
+
+
+
 
 
 
@@ -1502,14 +1932,15 @@ Array<double>* ComputeVolumes(Partition* Pa)
 {
     int i,j,k;
     int loc_vid;
-    std::map<int,int> gE2lE                 = Pa->getGlobalElement2LocalElement();
-    std::vector<int> Loc_Elem               = Pa->getLocElem();
-    int nLocElem                            = Loc_Elem.size();
-    std::map<int,std::vector<int> > gE2lV   = Pa->getGlobElem2LocVerts();
-    std::vector<Vert*> locVerts              = Pa->getLocalVerts();
+    std::map<int,int> gE2lE                    = Pa->getGlobalElement2LocalElement();
+    std::vector<int> Loc_Elem                  = Pa->getLocElem();
+    int nLocElem                               = Loc_Elem.size();
+    std::map<int,std::vector<int> > gE2lV      = Pa->getGlobElem2LocVerts();
+    std::vector<std::vector<double> > locVerts = Pa->getLocalVerts();
     Array<double>* Volumes = new Array<double>(nLocElem,1);
     std::vector<int> vijkIDs;
-    double* Pijk = new double[8*3];
+    //double* Pijk = new double[8*3];
+    std::vector<double> Pijk(8*3);
     for(i=0;i<nLocElem;i++)
     {
        int gEl = Loc_Elem[i];
@@ -1519,16 +1950,16 @@ Array<double>* ComputeVolumes(Partition* Pa)
        for(k=0;k<vijkIDs.size();k++)
        {
           loc_vid     = vijkIDs[k];
-          Pijk[k*3+0] = locVerts[loc_vid]->x;
-          Pijk[k*3+1] = locVerts[loc_vid]->y;
-          Pijk[k*3+2] = locVerts[loc_vid]->z;
+          Pijk[k*3+0] = locVerts[loc_vid][0];
+          Pijk[k*3+1] = locVerts[loc_vid][1];
+          Pijk[k*3+2] = locVerts[loc_vid][2];
        }
 
        double Vol = ComputeVolumeHexCell(Pijk);
        Volumes->setVal(i,0,Vol);
     }
     
-    delete[] Pijk;
+    //delete[] Pijk;
     return Volumes;
 }
 

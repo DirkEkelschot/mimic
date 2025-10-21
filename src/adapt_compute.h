@@ -2,14 +2,20 @@
 #include "adapt_partition.h"
 #include "adapt_math.h"
 #include "adapt.h"
-
+#include "adapt_inputs.h"
+#include "adapt_repartition.h"
+#include "adapt_partobject.h"
 #ifndef ADAPT_COMPUTE_H
 #define ADAPT_COMPUTE_H
 
+std::vector<std::vector<double> > MatMul_Lite(std::vector<std::vector<double> > A, 
+                           std::vector<std::vector<double> > B);
 
-void NegateVec3D(Vec3D* a);
+std::vector<std::vector<double> > MatInv_Lite(std::vector<std::vector<double> > A);
 
-double DotVec3D(Vec3D* a, Vec3D* b);
+void NegateVec3D(std::vector<double> a);
+
+double DotVec3D(std::vector<double> a, std::vector<double> b);
 
 Array<double>* MatInv(Array<double>* A);
 
@@ -22,17 +28,17 @@ This needs to be done when linking C programs to Fortran. The reason is name man
 AKA name decoration
 */
 extern "C" {
-double ComputeJ(double*P, int ElType);
+double ComputeJ(std::vector<double> P, int ElType);
 }
 
-double ComputeEdgeLength(Vert* v0, Vert* v1);
+double ComputeEdgeLength(std::vector<double> v0, std::vector<double> v1);
 
-double ComputeVolumeHexCell(double *P);
-double ComputeVolumeTetCell(double *P);
-double ComputeVolumePrismCell(double *P);
+double ComputeVolumeHexCell(std::vector<double> P);
+double ComputeVolumeTetCell(std::vector<double> P);
+double ComputeVolumePrismCell(std::vector<double> P);
 
-double ComputeDeterminantJ_tet_v2(double*P);
-Array<double>* ComputeJAtCenter_tet_v2(double*P);
+double ComputeDeterminantJ_tet_v2(std::vector<double> P);
+Array<double>* ComputeJAtCenter_tet_v2(std::vector<double> P);
 
 // This function outputs J as an array of 9 values where the matrix is defined as:
 
@@ -42,30 +48,43 @@ Array<double>* ComputeJAtCenter_tet_v2(double*P);
         J[6], J[7], J[8]]
 */
 // J is computed using the 8-point isoparametric mapping for a hex. The 8-point rule should be sufficient since everything is linear anyways.
-Vert* ComputeCenterCoord(double*P, int np);
-Vert* ComputeCentroidCoord(double*P, int np);
+std::vector<double> ComputeCenterCoord(std::vector<double> P, int np);
+std::vector<double> ComputeCentroidCoord(std::vector<double> P, int np);
 
 extern "C" {
-double* ComputeJAtCenter(double*P, int np);
+double* ComputeJAtCenter(std::vector<double> P, int np);
 }
 
-double GetQualityTetrahedra(double* P);
+double GetQualityTetrahedra(std::vector<double> P);
 
-double ComputeDeterminantJ_tet(double*P);
+double ComputeDeterminantJ_tet(std::vector<double> P);
 
-double ComputeDeterminantJ(double*P, int np);
+double ComputeDeterminantJ(std::vector<double> P, int np);
 
-double ComputeDeterminantJ(double*P, int np);
+double ComputeDeterminantJ(std::vector<double> P, int np);
 
 Array<double>* ComputeDeterminantofJacobian(ParArray<int>* ien, Array<double>* xcn);
 
 double* ComputeVolumeCells(Array<double>* xcn, Array<int>* ien, MPI_Comm comm);
 
-double ComputeTetVolume(double *P);
+double ComputeTetVolume(std::vector<double> P);
 
 double* ComputeVolumeCellsReducedToVerts(Array<double>* xcn, Array<int>* ien);
 
 void UnitTestJacobian();
+
+std::map<int,std::vector<double> > ComputeMetric_Lite(MPI_Comm comm, 
+                        PartObject* tetra_repart,
+                        std::map<int,std::vector<double> > tetra_grad,
+                        std::map<int,std::vector<double> > &eigvalues, 
+                        Inputs* inputs);
+        
+std::map<int,std::vector<double> > ComputeElementMetric_Lite(MPI_Comm comm, 
+                        PartObject* tetra_repart,
+                        std::map<int,std::vector<double> > tetra_grad, 
+                        std::map<int,std::vector<double> > &eigvalues, 
+                        Inputs* inputs);
+
 
 void ComputeMetricWithWake(Partition* Pa,
                    MPI_Comm comm,

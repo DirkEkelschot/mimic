@@ -116,6 +116,8 @@ int trtrs(char uplo, char trans, char diag, int n, int nrhs, double* A, int lda,
 
 Array<double>* SolveQR(double* A, int m, int n, Array<double>* b);
 
+std::vector<double> SolveQR_Lite(std::vector<double> A, int m, int n, std::vector<double> b);
+
 void EigenDecomp(int n, double * A,  double * WR, double * WI, double * V, double * iV );
 
 bool isDiagonalMatrix(Array<double>* Msq);

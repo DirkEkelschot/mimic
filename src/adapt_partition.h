@@ -71,11 +71,11 @@ class Partition {
     std::vector<int> getLocAndAdj_Elem_Nv();
     ParArray<int>* getLocalPartition();
     Array<int>* getGlobalPartition();
-    std::vector<Vert*> getLocalVerts();
+    std::vector<std::vector<double> > getLocalVerts();
     std::map<int,std::map<int,double> > getNode2NodeMap();
     std::map<int,std::map<int,double> > getNode2NodeMap_V2();
     std::map<int,std::set<int> > getSecondLayerAdjacency();
-    Vert* getLocalVert(int v_loc_id);
+    std::vector<double> getLocalVert(int v_loc_id);
     void ComputeNode2NodeMap();
     void ComputeNode2NodeMap_V2();
     std::vector<std::vector<int> > getLocalElem2GlobalVert();
@@ -127,8 +127,8 @@ class Partition {
     i_part_map* getIFREFpartmap();
     i_part_map* getIE_Nfpartmap();
     
-    std::map<int,std::map<int,double> > getNode2Element(i_part_map* iee_part_map_input, std::map<int,Vert*> ElemCentroids, std::map<int,double> ElemVolumes);
-    std::map<int,std::map<int,double> > getNode2Element_V2(i_part_map* iee_part_map_input, std::map<int,Vert*> ElemCentroids, std::map<int,double> ElemVolumes);
+    std::map<int,std::map<int,double> > getNode2Element(i_part_map* iee_part_map_input, std::map<int,std::vector<double> > ElemCentroids, std::map<int,double> ElemVolumes);
+    std::map<int,std::map<int,double> > getNode2Element_V2(i_part_map* iee_part_map_input, std::map<int,std::vector<double> > ElemCentroids, std::map<int,double> ElemVolumes);
     
    private:
       MPI_Comm comm_p;
@@ -170,7 +170,7 @@ class Partition {
       //Array<int>* LocAndAdj_Elem;
       ParArray<int>* part;
       Array<int>* part_global;
-      std::vector<Vert*> LocalVerts;
+      std::vector<std::vector<double> > LocalVerts;
 
       std::set<int> unique_vertIDs_on_rank_set;
       std::vector<int> unique_verts_on_rank_vec;
@@ -213,7 +213,7 @@ class Partition {
       std::map<int,std::vector<int> > part_tot_recv_elIDs;
       std::map<int,std::vector<double> > part_tot_recv_varias;
       std::map<int,std::vector<int> > reqstd_adj_ids_per_rank;
-      std::map<int,std::map<int,Vert*> > node2elem_map;
+      std::map<int,std::map<int,std::vector<double> > > node2elem_map;
       std::map<int,std::map<int,double> > node2elemVol_map;
       std::map<int,std::map<int,double> > node2node_map;
       i_part_map* if_Erank_part_map;

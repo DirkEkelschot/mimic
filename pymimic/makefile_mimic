@@ -1,0 +1,35 @@
+.PHONY: default
+default: build test
+
+PYTHON = /Users/dekelsch/brew-4.1.24/Cellar/python@3.12/3.12.11/bin/python3.12
+NUMPY_INCLUDE  = ${shell ${PYTHON} -c 'import numpy; print( numpy.get_include() )'}
+MPI4PY_INCLUDE = ${shell ${PYTHON} -c 'import mpi4py; print( mpi4py.get_include() )'}
+PYTHON_INCLUDE = /Users/dekelsch/brew-4.1.24/Cellar/python@3.12/3.12.11/Frameworks/Python.framework/Versions/3.12/include/python3.12
+PYTHON_LIB = /Users/dekelsch/brew-4.1.24/Cellar/python@3.12/3.12.11/Frameworks/Python.framework/Versions/3.12/lib
+
+include ../module.mk
+
+MPICC = mpic++
+BREW = $(HOME)/brew-4.1.24/Cellar
+CXXFLAGS += -fPIC
+LDFLAGS += -L${PYTHON_LIB} -shared -ldl -framework CoreFoundation -lpython3.12m 
+SOURCES=energy.cpp ../src/*.cpp
+.PHONY: build 
+build: mimic.so
+mimic.so: mimic.cpp
+	${MPICC} ${CXXFLAGS} -I${NUMPY_INCLUDE} -I${MPI4PY_INCLUDE} -I${PYTHON_INCLUDE} -o $@ $< $(SOURCES) ${LDFLAGS} ${LDLIBS}
+
+
+MPIEXEC = mpiexec
+NP_FLAG = -n
+NP = 4
+.PHONY: test
+test: build
+	${MPIEXEC} -f hostfile ${NP_FLAG} ${NP} ${PYTHON} mimic.py
+
+
+.PHONY: clean
+clean:
+	${RM} *.png*
+	${RM} *.dat*
+	${RM} mimic.so

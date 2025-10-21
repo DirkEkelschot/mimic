@@ -1,798 +1,169 @@
 #include "adapt_parops.h"
 #include "adapt_operations.h"
+#include "adapt_parmetisstate_lite.h"
 
-Array<double>* GetOptimizedMMG3DMeshOnRoot(Partition* P, US3D* us3d, std::map<int,Array<double>*> mv_map, MPI_Comm comm)
+
+void RedistributeMeshtThroughRoot(std::map<int,std::vector<int> > elements, int nvpelement, MPI_Comm comm)
 {
     int world_size;
     MPI_Comm_size(comm, &world_size);
     // Get the rank of the process
     int world_rank;
     MPI_Comm_rank(comm, &world_rank);
-    int i,j;
-    //MMG_Mesh* mmg = new MMG_Mesh;
-    
-    Domain* pDom = P->getPartitionDomain();
-    std::map<int,std::vector<int> > v2e = pDom->vert2elem;
 
-    std::map<int,Array<double>* >::iterator grit;
-    Array<int>* lE2gE = new Array<int>(mv_map.size(),1);
-    Array<double>* mv = new Array<double>(mv_map.size(),6);
-    i = 0;
-    for(grit=mv_map.begin();grit!=mv_map.end();grit++)
+    int nelements = elements.size();
+    //============================================================================================
+    //============================================================================================
+    //============================================================================================
+    //============================================================================================
+    std::vector<int> ien_tetra(nelements*nvpelement,0);
+    std::map<int,std::vector<int> >::iterator itmiv;
+    int cnt=0;
+    for(itmiv=elements.begin();itmiv!=elements.end();itmiv++)
     {
-        //std::cout << "(rowxcol) =(" << grit->second->getNrow() << " " << grit->second->getNcol() << ") -> " << grit->second->getVal(0,0) << " " << grit->second->getVal(0,1) << " " << grit->second->getVal(0,2) << " " << grit->second->getVal(1,0) << " " << grit->second->getVal(1,1) << " " << grit->second->getVal(1,2) << " " << grit->second->getVal(2,0)  << " " << grit->second->getVal(2,1) << " " << grit->second->getVal(2,2) << std::endl;
-        
-        lE2gE->setVal(i,0,grit->first);
-        mv->setVal(i,0,grit->second->getVal(0,0));
-        mv->setVal(i,1,grit->second->getVal(0,1));
-        mv->setVal(i,2,grit->second->getVal(0,2));
-        mv->setVal(i,3,grit->second->getVal(1,1));
-        mv->setVal(i,4,grit->second->getVal(1,2));
-        mv->setVal(i,5,grit->second->getVal(2,2));
-        i++;
-    }
-    
-    int* lid_nlocs      = new int[world_size];
-    int* red_lid_nlocs  = new int[world_size];
-    int* lid_offsets    = new int[world_size];
-
-    int* mv_nlocs      = new int[world_size];
-    int* red_mv_nlocs  = new int[world_size];
-    int* mv_offsets    = new int[world_size];
-
-
-    
-    for(i=0;i<world_size;i++)
-    {
-        lid_nlocs[i] = 0;
-        mv_nlocs[i]  = 0;
-        
-        if(i==world_rank)
+        int nv = itmiv->second.size();
+        for(int i=0;i<nv;i++)
         {
-            lid_nlocs[i] = mv->getNrow();
-            mv_nlocs[i]  = mv->getNrow()*6;
+            ien_tetra[cnt+i] = itmiv->second[i];
         }
-        else
-        {
-            lid_nlocs[i] = 0;
-            mv_nlocs[i]  = 0;
-        }
+        cnt=cnt+nv;
     }
 
-    MPI_Allreduce(mv_nlocs, red_mv_nlocs, world_size, MPI_INT, MPI_SUM, comm);
-    MPI_Allreduce(lid_nlocs, red_lid_nlocs, world_size, MPI_INT, MPI_SUM, comm);
-    
-    int offset_lid = 0;
-    int offset_mv  = 0;
-    
-    for(i=0;i<world_size;i++)
-    {
-        lid_offsets[i] = offset_lid;
-        offset_lid = offset_lid+red_lid_nlocs[i];
-        
-        mv_offsets[i] = offset_mv;
-        offset_mv = offset_mv+red_mv_nlocs[i];
-    }
+    DistributedParallelState* elements_dist = new DistributedParallelState(nelements*nvpelement,comm);
+    int nelements_total_tmp                      = elements_dist->getNel();
+    int nelements_total = (int) nelements_total_tmp/nvpelement;
+    ParallelState* elements_ideal_dist = new ParallelState(nelements_total,comm);
+    int nelements_ideal = elements_ideal_dist->getNloc(world_rank);
 
-    Array<int>*  lE2gE_g;
-    Array<double>*  mv_g;
+    std::vector<int> ien_tetra_glob;
 
-    int n_glob_lid = offset_lid;
-
+    std::cout << "nelements_ideal " << nelements << " " << nelements_ideal << " " << nelements_total_tmp << " "   << nelements_total << std::endl; 
     if(world_rank == 0)
     {
-        lE2gE_g   = new Array<int>(n_glob_lid,1);
-        mv_g      = new Array<double>(n_glob_lid,6);
+        ien_tetra_glob = std::vector<int>(nelements_total*nvpelement);
     }
     else
     {
-        lE2gE_g   = new Array<int>(1,1);
-        mv_g      = new Array<double>(1,1);
+        ien_tetra_glob = std::vector<int>(1);
     }
-    int ncol_lid = 1;
-    MPI_Gatherv(&lE2gE->data[0],
-                lE2gE->getNrow()*ncol_lid,
+
+    MPI_Gatherv(ien_tetra.data(),
+                nelements*nvpelement,
                 MPI_INT,
-                &lE2gE_g->data[0],
-                red_lid_nlocs,
-                lid_offsets,
+                ien_tetra_glob.data(),
+                elements_dist->getNlocs(),
+                elements_dist->getOffsets(),
                 MPI_INT, 0, comm);
 
-    int ncol_mv = 6;
-    MPI_Gatherv(&mv->data[0],
-                mv->getNrow()*ncol_mv,
-                MPI_DOUBLE,
-                &mv_g->data[0],
-                red_mv_nlocs,
-                mv_offsets,
-                MPI_DOUBLE, 0, comm);
-    
-    
-    
-    
-    Array<double>* xcn_g;
-    Array<int>* ien_g;
-    Array<int>* iet_g;
 
+    std::vector<int> ien_tetra_ideal(nelements_ideal*nvpelement);
+    std::vector<int> nlocs_new(world_size);
+    std::vector<int> offsets_new(world_size);
 
-    
-    int nvg   = us3d->xcn->getNglob();
-    int nElem = us3d->ien->getNglob();
-    ParallelState* xcn_pstate = P->getXcnParallelState();
-    ParallelState* ien_pstate = P->getIenParallelState();
-    if(world_rank == 0)
-    {
-        xcn_g = new Array<double>(nvg,3);
-        ien_g = new Array<int>(nElem,8);
-        iet_g = new Array<int>(nElem,1);
-
-    }
-    else
-    {
-        xcn_g = new Array<double>(1,1);
-        ien_g = new Array<int>(1,1);
-        iet_g = new Array<int>(1,1);
-    }
-    
-    int* iet_nlocs      = new int[world_size];
-    int* iet_offsets    = new int[world_size];
-    int* ien_nlocs      = new int[world_size];
-    int* ien_offsets    = new int[world_size];
-    int* xcn_nlocs      = new int[world_size];
-    int* xcn_offsets    = new int[world_size];
-
-    
-
-    
-    
     for(int i=0;i<world_size;i++)
     {
-        xcn_nlocs[i]   = xcn_pstate->getNlocs()[i]*3;
-        xcn_offsets[i] = xcn_pstate->getOffsets()[i]*3;
-
-        ien_nlocs[i]   = ien_pstate->getNlocs()[i]*8;
-        ien_offsets[i] = ien_pstate->getOffsets()[i]*8;
-        
-        iet_nlocs[i]   = ien_pstate->getNlocs()[i]*1;
-        iet_offsets[i] = ien_pstate->getOffsets()[i]*1;
+        nlocs_new[i]   = elements_ideal_dist->getNlocs()[i]*nvpelement;
+        offsets_new[i] = elements_ideal_dist->getOffsets()[i]*nvpelement;
     }
 
-    MPI_Gatherv(&us3d->xcn->data[0],
-                us3d->xcn->getNrow()*3,
-                MPI_DOUBLE,
-                &xcn_g->data[0],
-                xcn_nlocs,
-                xcn_offsets,
-                MPI_DOUBLE, 0, comm);
-
-
-    MPI_Gatherv(&us3d->ien->data[0],
-                us3d->ien->getNrow()*8,
+    MPI_Scatterv(&ien_tetra_glob.data()[0],
+                nlocs_new.data(),
+                offsets_new.data(),
                 MPI_INT,
-                &ien_g->data[0],
-                ien_nlocs,
-                ien_offsets,
+                &ien_tetra_ideal.data()[0],
+                nelements_ideal*nvpelement,
                 MPI_INT, 0, comm);
-    
-    MPI_Gatherv(&us3d->iet->data[0],
-                us3d->iet->getNrow()*1,
-                MPI_INT,
-                &iet_g->data[0],
-                iet_nlocs,
-                iet_offsets,
-                MPI_INT, 0, comm);
-    
-    int NtetLoc = us3d->elTypes->getVal(0,0);
-//    int NprismLoc = us3d->elTypes->getVal(1,0);
-//    int NhexLoc = us3d->elTypes->getVal(2,0);
-//
-//
-    int Ntetras = 0;
-    int Nprisms = 0;
-    int Nhexes = 0;
 
-    
-    MPI_Reduce(&NtetLoc,   &Ntetras,   1, MPI_INT, MPI_SUM, 0, comm);
-//    MPI_Reduce(&NprismLoc, &Nprisms,   1, MPI_INT, MPI_SUM, 0,  comm);
-//    MPI_Reduce(&NhexLoc,   &Nhexes,    1, MPI_INT, MPI_SUM, 0,  comm);
-    //std::cout << "RANK = " << NtetLoc << " " << Ntetras << std::endl;
+    std::map<int,std::vector<int> > elements_ideal;
 
-    Array<double>* Mg;
-    Array<int>* tel;
-    
-    if(world_rank == 0)
+    int offset_el_ideal = elements_ideal_dist->getOffsets()[world_rank];
+    for(int i=0;i<nelements_ideal;i++)
     {
-        Mg  = new Array<double>(us3d->xcn->getNglob(),6);
-        
-        for(int u=0;u<n_glob_lid;u++)
+        int gelid = i+offset_el_ideal;
+        //std::cout << world_rank << " " << gelid << std::endl;
+        std::vector<int> row(nvpelement,0);
+        for(int j=0;j<nvpelement;j++)
         {
-            int gvid     = lE2gE_g->getVal(u,0);
-            Mg->setVal(gvid,0,mv_g->getVal(u,0));
-            Mg->setVal(gvid,1,mv_g->getVal(u,1));
-            Mg->setVal(gvid,2,mv_g->getVal(u,2));
-            Mg->setVal(gvid,3,mv_g->getVal(u,3));
-            Mg->setVal(gvid,4,mv_g->getVal(u,4));
-            Mg->setVal(gvid,5,mv_g->getVal(u,5));
+            row[j] = ien_tetra_ideal[i*nvpelement+j];
         }
-        
-        
-//        std::string filename = "MetricRoot.dat";
-//        std::ofstream myfile;
-//        myfile.open(filename);
-//        myfile << "TITLE=\"volume_part_"  + std::to_string(world_rank) +  ".tec\"" << std::endl;
-//        myfile <<"VARIABLES = \"X\", \"Y\", \"Z\", \"M00\", \"M01\", \"M02\", \"M11\", \"M12\", \"M22\"" << std::endl;
-//        myfile <<"ZONE N = " << us3d->xcn->getNglob() << ", E = " << Ntetras << ", DATAPACKING = POINT, ZONETYPE = FETETRAHEDRON" << std::endl;
-//        
-//        string filename2 = "metric.dat";
-//        ofstream myfile2;
-//        myfile2.open(filename2);
-//
-//        string filename3 = "elements.dat";
-//        ofstream myfile3;
-//        myfile3.open(filename3);
-//        int tel = 0;
-//        for(int i=0;i<us3d->xcn->getNglob();i++)
-//        {
-//            myfile <<     xcn_g->getVal(i,0) << " " << xcn_g->getVal(i,1) << " " << xcn_g->getVal(i,2)
-//                    << " " << Mg->getVal(i,0) << " " <<    Mg->getVal(i,1) << " " << Mg->getVal(i,2)
-//                    << " " << Mg->getVal(i,3) << " " <<    Mg->getVal(i,4) << " " << Mg->getVal(i,5) << std::endl;
-//            
-//            myfile2 <<std::setprecision(16)<< Mg->getVal(i,0) << " " <<    Mg->getVal(i,1) << " " << Mg->getVal(i,2)
-//                    << " " << Mg->getVal(i,3) << " " <<    Mg->getVal(i,4) << " " << Mg->getVal(i,5) << std::endl;
-//        }
-//        for(int i=0;i<ien_g->getNrow();i++)
-//        {
-//            if(iet_g->getVal(i,0)==2)
-//            {
-//                myfile <<  ien_g->getVal(i,0)+1 << " " <<
-//                           ien_g->getVal(i,1)+1 << " " <<
-//                           ien_g->getVal(i,2)+1 << " " <<
-//                           ien_g->getVal(i,3)+1 << " " << std::endl;
-//                tel++;
-//            }
-//            
-//            
-//            myfile3 << ien_g->getVal(i,0)+1 << " " <<
-//                       ien_g->getVal(i,1)+1 << " " <<
-//                       ien_g->getVal(i,2)+1 << " " <<
-//                       ien_g->getVal(i,3)+1 << " " <<
-//                       ien_g->getVal(i,4)+1 << " " <<
-//                       ien_g->getVal(i,5)+1 << " " <<
-//                       ien_g->getVal(i,6)+1 << " " <<
-//                       ien_g->getVal(i,7)+1 << std::endl;
-//        }
-//        myfile.close();
-//        myfile2.close();
-//        myfile3.close();
-        
-    }
-    else
-    {
-        Mg = new Array<double>(1,1);
+        elements_ideal[gelid] = row;
     }
 
-    delete xcn_g;
-    delete ien_g;
-    delete iet_g;
-    //delete pDom;
-    delete lE2gE_g;
-    delete mv_g;
-    delete lE2gE;
-    delete mv;
+    std::vector<int> elTypes(3,0);
+    elTypes[0] = 1;
+
+    ParallelState_Parmetis_Lite* pstate_parmetis = new ParallelState_Parmetis_Lite(elements_ideal, 
+                                elTypes,  
+                                comm);
+
+    //ParallelState_Parmetis* pstate_parmetis2 = new ParallelState_Parmetis(ien,comm,8);
+//
+    int nloc = elements_ideal.size();
+    idx_t numflag_[] = {0};
+    idx_t *numflag = numflag_;
+    idx_t ncommonnodes_[] = {pstate_parmetis->getNcommonNodes()};
+    idx_t *ncommonnodes = ncommonnodes_;
+    int edgecut      = 0;
+    idx_t *xadj_par      = NULL;
+    idx_t *adjncy_par    = NULL;
+    idx_t options_[] = {0, 0, 0};
+    idx_t *options   = options_;
+    idx_t wgtflag_[] = {2};
+    idx_t *wgtflag   = wgtflag_;
+    real_t ubvec_[]  = {1.1};
+    real_t *ubvec    = ubvec_;
+
+    std::vector<int> elmwgt = pstate_parmetis->getElmWgt();
     
-    delete[] iet_nlocs;
-    delete[] iet_offsets;
-    delete[] ien_nlocs;
-    delete[] ien_offsets;
-    delete[] xcn_nlocs;
-    delete[] xcn_offsets;
-    delete[] mv_nlocs;
-    delete[] red_mv_nlocs;
-    delete[] mv_offsets;
-    
-    return Mg;
+    int np           = world_size;
+    idx_t ncon_[]    = {1};
+    idx_t *ncon      = ncon_;
+    real_t *tpwgts   = new real_t[np*ncon[0]];
+
+    for(int i=0; i<np*ncon[0]; i++)
+    {
+        tpwgts[i] = 1.0/np;
+    }
+
+    idx_t nparts_[] = {np};
+    idx_t *nparts = nparts_;
+    int* part_arr = new int[nloc];
+    real_t itr_[]    = {1.05};
+    real_t *itr = itr_;
+
+    idx_t *vsize = NULL;
+    idx_t *adjwgt = NULL;
+
+    ParMETIS_V3_Mesh2Dual(pstate_parmetis->getElmdist().data(),
+                          pstate_parmetis->getEptr().data(),
+                          pstate_parmetis->getEind().data(),
+                          numflag,ncommonnodes,
+                          &xadj_par,&adjncy_par,&comm);
+
+    for(int i=0;i<nloc;i++)
+    {
+        std::cout << "RANK " << world_rank  << " iloc = " << i << " :: (" << xadj_par[i] << " " << xadj_par[i+1] << ") ";
+        for(int j=xadj_par[i];j<xadj_par[i+1];j++)
+        {
+            std::cout << adjncy_par[j] << " ";
+        }
+        std::cout << std::endl;
+    }
+
+    ParMETIS_V3_PartKway(pstate_parmetis->getElmdist().data(),
+                         xadj_par,
+                         adjncy_par,
+                         elmwgt.data(), NULL, wgtflag, numflag,
+                         ncon, nparts,
+                         tpwgts, ubvec, options,
+                         &edgecut, part_arr, &comm);
+
+    // std::cout << tetra_id << " prims vs. " << prism_id << std::endl;
+
+    //============================================================================================
+    //============================================================================================
+    //============================================================================================
+    //============================================================================================
 }
 
 
-Mesh* ReduceMeshToRoot(ParArray<int>* ien,
-                       ParArray<int>* ief,
-                       ParArray<double>* xcn,
-                       ParArray<int>* ifn,
-                       ParArray<int>* ife,
-                       ParArray<int>* if_ref,
-                       MPI_Comm comm, MPI_Info info)
-{
-    
-    Mesh* us3d_root = new Mesh;
-    int world_size;
-    MPI_Comm_size(comm, &world_size);
-    // Get the rank of the process
-    int world_rank;
-    MPI_Comm_rank(comm, &world_rank);
-    
-    Array<double>*  xcn_g;
-    Array<int>*     ief_g;
-    Array<int>*     ien_g;
-    Array<int>*     ifn_g;
-    Array<int>*     if_ref_g;
-    Array<int>*     ife_g;
-    
-    if(world_rank == 0)
-    {
-        xcn_g       = new Array<double>(xcn->getNglob(),3);
-        ief_g       = new Array<int>(ief->getNglob(),6);
-        ien_g       = new Array<int>(ien->getNglob(),8);
-        if_ref_g    = new Array<int>(ifn->getNglob(),1);
-        ifn_g       = new Array<int>(ifn->getNglob(),4);
-        ife_g       = new Array<int>(ifn->getNglob(),2);
-    }
-    else
-    {
-        xcn_g    = new Array<double>(1,1);
-        ief_g    = new Array<int>(1,1);
-        ien_g    = new Array<int>(1,1);
-        if_ref_g = new Array<int>(1,1);
-        ifn_g    = new Array<int>(1,1);
-        ife_g    = new Array<int>(1,1);
-    }
-
-    int* ien_nlocs      = new int[world_size];
-    int* red_ien_nlocs  = new int[world_size];
-    int* ien_offsets    = new int[world_size];
-    
-    int* ief_nlocs      = new int[world_size];
-    int* ief_offsets    = new int[world_size];
-    int* red_ief_nlocs  = new int[world_size];
-
-    int* xcn_nlocs      = new int[world_size];
-    int* xcn_offsets    = new int[world_size];
-    int* red_xcn_nlocs  = new int[world_size];
-
-    int* ifn_nlocs      = new int[world_size];
-    int* ifn_offsets    = new int[world_size];
-    int* red_ifn_nlocs  = new int[world_size];
-
-    int* if_ref_nlocs   = new int[world_size];
-    int* if_ref_offsets = new int[world_size];
-    int* red_if_ref_nlocs  = new int[world_size];
-
-    int* ife_nlocs       = new int[world_size];
-    int* ife_offsets     = new int[world_size];
-    int* red_ife_nlocs   = new int[world_size];
-    
-    for(int i=0;i<world_size;i++)
-    {
-        ien_nlocs[i] = 0;
-        ief_nlocs[i] = 0;
-        xcn_nlocs[i] = 0;
-        
-        if(i==world_rank)
-        {
-            ien_nlocs[i] = ien->getNrow()*8;
-            ief_nlocs[i] = ief->getNrow()*6;
-            xcn_nlocs[i] = xcn->getNrow()*3;
-            ifn_nlocs[i] = ifn->getNrow()*4;
-            ife_nlocs[i] = ife->getNrow()*2;
-            if_ref_nlocs[i] = ifn->getNrow()*1;
-        }
-        else
-        {
-            ien_nlocs[i]    = 0;
-            ief_nlocs[i]    = 0;
-            xcn_nlocs[i]    = 0;
-            ifn_nlocs[i]    = 0;
-            ife_nlocs[i]    = 0;
-            if_ref_nlocs[i] = 0;
-        }
-    }
-    
-    MPI_Allreduce(ien_nlocs, red_ien_nlocs, world_size, MPI_INT, MPI_SUM, comm);
-    MPI_Allreduce(ief_nlocs, red_ief_nlocs, world_size, MPI_INT, MPI_SUM, comm);
-    MPI_Allreduce(xcn_nlocs, red_xcn_nlocs, world_size, MPI_INT, MPI_SUM, comm);
-    MPI_Allreduce(ifn_nlocs, red_ifn_nlocs, world_size, MPI_INT, MPI_SUM, comm);
-    MPI_Allreduce(ife_nlocs, red_ife_nlocs, world_size, MPI_INT, MPI_SUM, comm);
-    MPI_Allreduce(if_ref_nlocs, red_if_ref_nlocs, world_size, MPI_INT, MPI_SUM, comm);
-    
-    int ien_o=0;
-    int ief_o=0;
-    int xcn_o=0;
-    int ifn_o=0;
-    int ife_o=0;
-    int if_ref_o=0;
-    
-    for(int i=0;i<world_size;i++)
-    {
-        ien_offsets[i] = ien_o;
-        ief_offsets[i] = ief_o;
-        xcn_offsets[i] = xcn_o;
-        ifn_offsets[i] = ifn_o;
-        ife_offsets[i] = ife_o;
-        if_ref_offsets[i] = if_ref_o;
-        
-        ien_o = ien_o + red_ien_nlocs[i];
-        ief_o = ief_o + red_ief_nlocs[i];
-        xcn_o = xcn_o + red_xcn_nlocs[i];
-        ifn_o = ifn_o + red_ifn_nlocs[i];
-        ife_o = ife_o + red_ife_nlocs[i];
-        if_ref_o = if_ref_o + red_if_ref_nlocs[i];
-    }
-
-    MPI_Gatherv(&xcn->data[0],
-                xcn->getNrow()*3,
-                MPI_DOUBLE,
-                &xcn_g->data[0],
-                red_xcn_nlocs,
-                xcn_offsets,
-                MPI_DOUBLE, 0, comm);
-
-    MPI_Gatherv(&ief->data[0],
-                ief->getNrow()*6,
-                MPI_INT,
-                &ief_g->data[0],
-                red_ief_nlocs,
-                ief_offsets,
-                MPI_INT, 0, comm);
-
-    MPI_Gatherv(&ien->data[0],
-                ien->getNrow()*8,
-                MPI_INT,
-                &ien_g->data[0],
-                red_ien_nlocs,
-                ien_offsets,
-                MPI_INT, 0, comm);
-
-    MPI_Gatherv(&ifn->data[0],
-                ifn->getNrow()*4,
-                MPI_INT,
-                &ifn_g->data[0],
-                red_ifn_nlocs,
-                ifn_offsets,
-                MPI_INT, 0, comm);
-
-    MPI_Gatherv(&if_ref->data[0],
-                if_ref->getNrow()*1,
-                MPI_INT,
-                &if_ref_g->data[0],
-                red_if_ref_nlocs,
-                if_ref_offsets,
-                MPI_INT, 0, comm);
-
-    MPI_Gatherv(&ife->data[0],
-                ife->getNrow()*2,
-                MPI_INT,
-                &ife_g->data[0],
-                red_ife_nlocs,
-                ife_offsets,
-                MPI_INT, 0, comm);
-    
-    us3d_root->xcn      = xcn_g;
-    us3d_root->ief      = ief_g;
-    us3d_root->ien      = ien_g;
-    us3d_root->if_ref   = if_ref_g;
-    us3d_root->ifn      = ifn_g;
-    us3d_root->ife      = ife_g;
-    
-    return us3d_root;
-}
-
-
-Array<int>* GatherTetrahedraOnRoot(std::map<int,std::vector<int> > Ate, MPI_Comm comm, MPI_Info info)
-{
-
-
-    
-    int world_size;
-    MPI_Comm_size(comm, &world_size);
-    // Get the rank of the process
-    int world_rank;
-    MPI_Comm_rank(comm, &world_rank);
-    int i,j;
-    
-    std::map<int,std::vector<int> >::iterator grit;
-    Array<int>* lE2gE_tet = new Array<int>(Ate.size(),1);
-    Array<int>* ien_tet = new Array<int>(Ate.size(),4);
-    
-    std::cout << "ien_tet " << ien_tet->getNrow() << std::endl;
-    i = 0;
-    
-    for(grit=Ate.begin();grit!=Ate.end();grit++)
-    {
-        lE2gE_tet->setVal(i,0,grit->first);
-        ien_tet->setVal(i,0,grit->second[0]);
-        ien_tet->setVal(i,1,grit->second[1]);
-        ien_tet->setVal(i,2,grit->second[2]);
-        ien_tet->setVal(i,3,grit->second[3]);
-        i++;
-    }
-    
-    int* lid_tet_nlocs      = new int[world_size];
-    int* ien_tet_nlocs      = new int[world_size];
-    
-    int* red_lid_tet_nlocs  = new int[world_size];
-    int* red_ien_tet_nlocs  = new int[world_size];
-    
-    int* lid_tet_offsets = new int[world_size];
-    int* ien_tet_offsets = new int[world_size];
-    
-    for(i=0;i<world_size;i++)
-    {
-        lid_tet_nlocs[i] = 0;
-        ien_tet_nlocs[i] = 0;
-        
-        if(i==world_rank)
-        {
-            lid_tet_nlocs[i] = Ate.size();
-            ien_tet_nlocs[i] = Ate.size()*4;
-        }
-        else
-        {
-            lid_tet_nlocs[i] = 0;
-            ien_tet_nlocs[i] = 0;
-        }
-    }
-
-    MPI_Allreduce(lid_tet_nlocs, red_lid_tet_nlocs, world_size, MPI_INT, MPI_SUM, comm);
-    MPI_Allreduce(ien_tet_nlocs, red_ien_tet_nlocs, world_size, MPI_INT, MPI_SUM, comm);
-    
-    int offset_lid_tet = 0;
-    int offset_ien_tet  = 0;
-    for(i=0;i<world_size;i++)
-    {
-        lid_tet_offsets[i] = offset_lid_tet;
-        ien_tet_offsets[i] = offset_ien_tet;
-        
-        offset_lid_tet = offset_lid_tet+red_lid_tet_nlocs[i];
-        offset_ien_tet = offset_ien_tet+red_ien_tet_nlocs[i];
-    }
-
-    Array<int>*  lE2gE_tet_g;
-    Array<int>*  ien_tet_g;
-
-    int n_glob_lid_tet = offset_lid_tet;
-    int n_glob_ien_tet = offset_ien_tet;
-    if(world_rank == 0)
-    {
-        lE2gE_tet_g   = new Array<int>(n_glob_lid_tet,1);
-        ien_tet_g   = new Array<int>(n_glob_ien_tet,4);
-    }
-    else
-    {
-        lE2gE_tet_g   = new Array<int>(1,1);
-        ien_tet_g   = new Array<int>(1,1);
-    }
-    
-    int ncol_lid = 1;
-    MPI_Gatherv(&lE2gE_tet->data[0],
-                lE2gE_tet->getNrow()*1,
-                MPI_INT,
-                &lE2gE_tet_g->data[0],
-                red_lid_tet_nlocs,
-                lid_tet_offsets,
-                MPI_INT, 0, comm);
-//
-    
-//
-    MPI_Gatherv(&ien_tet->data[0],
-                ien_tet->getNrow()*4,
-                MPI_INT,
-                &ien_tet_g->data[0],
-                red_ien_tet_nlocs,
-                ien_tet_offsets,
-                MPI_INT, 0, comm);
-
-    delete lE2gE_tet_g;
-    delete lE2gE_tet;
-    delete ien_tet;
-    
-    /**/
-    
-    return ien_tet_g;
-
-}
-
-std::map<int,std::vector<int> > GatherElementsOnRoot(std::map<int,std::vector<int> >Apr, std::map<int,std::vector<int> > Ate, MPI_Comm comm, MPI_Info info)
-{
-    
-    std::map<int,std::vector<int> > elements;
-
-    
-    int world_size;
-    MPI_Comm_size(comm, &world_size);
-    // Get the rank of the process
-    int world_rank;
-    MPI_Comm_rank(comm, &world_rank);
-    int i,j;
-    
-    std::map<int,std::vector<int> >::iterator grit;
-    Array<int>* lE2gE_tet = new Array<int>(Ate.size(),1);
-    Array<int>* lE2gE_pri = new Array<int>(Apr.size(),1);
-
-    Array<int>* ien_tet = new Array<int>(Ate.size(),4);
-    Array<int>* ien_pri = new Array<int>(Apr.size(),6);
-    i = 0;
-    for(grit=Ate.begin();grit!=Ate.end();grit++)
-    {
-        lE2gE_tet->setVal(i,0,grit->first);
-        ien_tet->setVal(i,0,grit->second[0]);
-        ien_tet->setVal(i,1,grit->second[1]);
-        ien_tet->setVal(i,2,grit->second[2]);
-        ien_tet->setVal(i,3,grit->second[3]);
-        i++;
-    }
-    
-    i = 0;
-    for(grit=Apr.begin();grit!=Apr.end();grit++)
-    {
-        lE2gE_pri->setVal(i,0,grit->first);
-        ien_pri->setVal(i,0,grit->second[0]);
-        ien_pri->setVal(i,1,grit->second[1]);
-        ien_pri->setVal(i,2,grit->second[2]);
-        ien_pri->setVal(i,3,grit->second[3]);
-        ien_pri->setVal(i,4,grit->second[4]);
-        ien_pri->setVal(i,5,grit->second[5]);
-        //std::cout << grit->second[0] << " " << grit->second[1] << " " << grit->second[2] << " " << grit->second[3] << " " << grit->second[4] << " " << grit->second[5] << std::endl;
-        i++;
-    }
-    
-    int* lid_tet_nlocs      = new int[world_size];
-    int* lid_pri_nlocs      = new int[world_size];
-    int* ien_tet_nlocs      = new int[world_size];
-    int* ien_pri_nlocs      = new int[world_size];
-    
-    int* red_lid_tet_nlocs  = new int[world_size];
-    int* red_lid_pri_nlocs  = new int[world_size];
-    int* red_ien_tet_nlocs  = new int[world_size];
-    int* red_ien_pri_nlocs  = new int[world_size];
-    
-    int* lid_tet_offsets = new int[world_size];
-    int* lid_pri_offsets = new int[world_size];
-    int* ien_tet_offsets = new int[world_size];
-    int* ien_pri_offsets = new int[world_size];
-
-    for(i=0;i<world_size;i++)
-    {
-        lid_tet_nlocs[i] = 0;
-        lid_pri_nlocs[i] = 0;
-        ien_tet_nlocs[i] = 0;
-        ien_pri_nlocs[i] = 0;
-
-        
-        if(i==world_rank)
-        {
-            lid_tet_nlocs[i] = Ate.size();
-            lid_pri_nlocs[i] = Apr.size();
-            ien_tet_nlocs[i] = Ate.size()*4;
-            ien_pri_nlocs[i] = Apr.size()*6;
-        }
-        else
-        {
-            lid_tet_nlocs[i] = 0;
-            lid_pri_nlocs[i] = 0;
-            ien_tet_nlocs[i] = 0;
-            ien_pri_nlocs[i] = 0;
-        }
-    }
-
-    MPI_Allreduce(lid_tet_nlocs, red_lid_tet_nlocs, world_size, MPI_INT, MPI_SUM, comm);
-    MPI_Allreduce(lid_pri_nlocs, red_lid_pri_nlocs, world_size, MPI_INT, MPI_SUM, comm);
-    MPI_Allreduce(ien_tet_nlocs, red_ien_tet_nlocs, world_size, MPI_INT, MPI_SUM, comm);
-    MPI_Allreduce(ien_pri_nlocs, red_ien_pri_nlocs, world_size, MPI_INT, MPI_SUM, comm);
-    
-    int offset_lid_tet = 0;
-    int offset_lid_pri = 0;
-    int offset_ien_tet  = 0;
-    int offset_ien_pri  = 0;
-    for(i=0;i<world_size;i++)
-    {
-        lid_tet_offsets[i] = offset_lid_tet;
-        lid_pri_offsets[i] = offset_lid_pri;
-        ien_tet_offsets[i] = offset_ien_tet;
-        ien_pri_offsets[i] = offset_ien_pri;
-        
-        offset_lid_tet = offset_lid_tet+red_lid_tet_nlocs[i];
-        offset_lid_pri = offset_lid_pri+red_lid_pri_nlocs[i];
-        offset_ien_tet = offset_ien_tet+red_ien_tet_nlocs[i];
-        offset_ien_pri = offset_ien_pri+red_ien_pri_nlocs[i];
-    }
-
-    Array<int>*  lE2gE_tet_g;
-    Array<int>*  lE2gE_pri_g;
-    Array<int>*  ien_tet_g;
-    Array<int>*  ien_pri_g;
-
-    int n_glob_lid_tet = offset_lid_tet;
-    int n_glob_lid_pri = offset_lid_pri;
-    int n_glob_ien_tet = offset_ien_tet;
-    int n_glob_ien_pri = offset_ien_pri;
-    if(world_rank == 0)
-    {
-        lE2gE_tet_g   = new Array<int>(n_glob_lid_tet,1);
-        lE2gE_pri_g   = new Array<int>(n_glob_lid_pri,1);
-        ien_tet_g   = new Array<int>(n_glob_ien_tet,4);
-        ien_pri_g   = new Array<int>(n_glob_ien_pri,6);
-    }
-    else
-    {
-        lE2gE_tet_g   = new Array<int>(1,1);
-        lE2gE_pri_g   = new Array<int>(1,1);
-        ien_tet_g   = new Array<int>(1,1);
-        ien_pri_g   = new Array<int>(1,1);
-    }
-    
-    int ncol_lid = 1;
-    MPI_Gatherv(&lE2gE_tet->data[0],
-                lE2gE_tet->getNrow()*1,
-                MPI_INT,
-                &lE2gE_tet_g->data[0],
-                red_lid_tet_nlocs,
-                lid_tet_offsets,
-                MPI_INT, 0, comm);
-//
-    MPI_Gatherv(&lE2gE_pri->data[0],
-                lE2gE_pri->getNrow()*1,
-                MPI_INT,
-                &lE2gE_pri_g->data[0],
-                red_lid_pri_nlocs,
-                lid_pri_offsets,
-                MPI_INT, 0, comm);
-//
-    MPI_Gatherv(&ien_tet->data[0],
-                ien_tet->getNrow()*4,
-                MPI_INT,
-                &ien_tet_g->data[0],
-                red_ien_tet_nlocs,
-                ien_tet_offsets,
-                MPI_INT, 0, comm);
-
-    MPI_Gatherv(&ien_pri->data[0],
-                ien_pri->getNrow()*6,
-                MPI_INT,
-                &ien_pri_g->data[0],
-                red_ien_pri_nlocs,
-                ien_pri_offsets,
-                MPI_INT, 0, comm);
-
-
-
-    for(int i=0;i<lE2gE_tet_g->getNrow();i++)
-    {
-        int gEl = lE2gE_tet_g->getVal(i,0);
-        std::vector<int> tet(4);
-        tet[0] = ien_tet_g->getVal(i,0);
-        tet[1] = ien_tet_g->getVal(i,1);
-        tet[2] = ien_tet_g->getVal(i,2);
-        tet[3] = ien_tet_g->getVal(i,3);
-        elements[gEl] = tet;
-    }
-
-    for(int i=0;i<lE2gE_pri_g->getNrow();i++)
-    {
-        int gEl = lE2gE_pri_g->getVal(i,0);
-        std::vector<int> pri(6);
-        pri[0] = ien_pri_g->getVal(i,0);
-        pri[1] = ien_pri_g->getVal(i,1);
-        pri[2] = ien_pri_g->getVal(i,2);
-        pri[3] = ien_pri_g->getVal(i,3);
-        pri[4] = ien_pri_g->getVal(i,4);
-        pri[5] = ien_pri_g->getVal(i,5);
-        
-        elements[gEl] = pri;
-    }
-
-
-    delete lE2gE_tet_g;
-    delete lE2gE_pri_g;
-    delete ien_tet_g;
-    delete ien_pri_g;
-
-    delete lE2gE_tet;
-    delete lE2gE_pri;
-    delete ien_tet;
-    delete ien_pri;
-    
-    /**/
-    
-    
-    return elements;
-
-}

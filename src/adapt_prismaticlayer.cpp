@@ -12,7 +12,7 @@ PrismaticLayer::PrismaticLayer(std::map<int,std::vector<int> > elements,
 							   std::map<int,std::vector<int> > if_Erank_part_map,
                                std::map<int,std::vector<int> > ushell,
                                std::map<int,int> tag2locV,
-                               std::vector<Vert*> locVerts,
+                               std::vector<std::vector<double> > locVerts,
                                std::map<int,int> shellvert2ref_glob,
 							   std::map<int,std::vector<int> > ranges_id, 
                                MPI_Comm comm )
@@ -314,14 +314,14 @@ PrismaticLayer::PrismaticLayer(std::map<int,std::vector<int> > elements,
         ownedVs[itmm->second] = ownedVs[itmm->second]+1;
     }
 
-    std::map<int,int> sharedFmap;
-    int iFshared = distLocalFaces->getNel()-f2r.size();
+    // std::map<int,int> sharedFmap;
+    // int iFshared = distLocalFaces->getNel()-f2r.size();
 
-    for(itvv=f2r.begin();itvv!=f2r.end();itvv++)
-    {
-        sharedFmap[itvv->first] = iFshared;
-        iFshared++;
-    }
+    // for(itvv=f2r.begin();itvv!=f2r.end();itvv++)
+    // {
+    //     sharedFmap[itvv->first] = iFshared;
+    //     iFshared++;
+    // }
     
     DistributedParallelState* ElementDistr = new DistributedParallelState(elements.size(),comm);
     
@@ -351,6 +351,7 @@ PrismaticLayer::PrismaticLayer(std::map<int,std::vector<int> > elements,
 
     
     int notowned = 0;
+    std::cout << "gvid " << gvid << std::endl;
     for(prit=elements.begin();prit!=elements.end();prit++)
     {
         int gEl       = prit->first;
@@ -735,9 +736,9 @@ PrismaticLayer::PrismaticLayer(std::map<int,std::vector<int> > elements,
     {
         int tag = iitm->first;
         int lvpart                   = tag2locV[tag];
-        xc                           = locVerts[lvpart]->x;
-        yc                           = locVerts[lvpart]->y;
-        zc                           = locVerts[lvpart]->z;
+        xc                           = locVerts[lvpart][0];
+        yc                           = locVerts[lvpart][1];
+        zc                           = locVerts[lvpart][2];
         
         xcn_int->setVal(vert,0,xc);
         xcn_int->setVal(vert,1,yc);
@@ -754,9 +755,9 @@ PrismaticLayer::PrismaticLayer(std::map<int,std::vector<int> > elements,
     {
         int tag = iitm->first;
         int lvpart                   = tag2locV[tag];
-        xc                           = locVerts[lvpart]->x;
-        yc                           = locVerts[lvpart]->y;
-        zc                           = locVerts[lvpart]->z;
+        xc                           = locVerts[lvpart][0];
+        yc                           = locVerts[lvpart][1];
+        zc                           = locVerts[lvpart][2];
         
         xcn_shared->setVal(vertsh,0,xc);
         xcn_shared->setVal(vertsh,1,yc);

@@ -4,6 +4,133 @@
 using namespace std;
 
 
+std::map<int,int> AllGatherMap_I(std::map<int,int> mappie, MPI_Comm mpi_comm)
+{
+    int mapSizeLoc = mappie.size();
+    DistributedParallelState* distrimap = new DistributedParallelState(mapSizeLoc,mpi_comm);
+    int mapSizeTot = distrimap->getNel();
+    
+    int* key_loc = new int[mapSizeLoc];
+    int* val_loc = new int[mapSizeLoc];
+    int* key_tot = new int[mapSizeTot];
+    int* val_tot = new int[mapSizeTot];
+    int i = 0;
+    
+    std::map<int,int>::iterator itred;
+    for(itred=mappie.begin();itred!=mappie.end();itred++)
+    {
+        key_loc[i] = itred->first;
+        val_loc[i] = itred->second;
+        i++;
+    }
+    
+    int* offsets = distrimap->getOffsets();
+    int* nlocs   = distrimap->getNlocs();
+    
+    
+    MPI_Allgatherv(key_loc,
+                   mapSizeLoc,
+                   MPI_INT,
+                   key_tot,
+                   nlocs,
+                   offsets,
+                   MPI_INT, mpi_comm);
+    
+    
+    MPI_Allgatherv(val_loc,
+                   mapSizeLoc,
+                   MPI_INT,
+                   val_tot,
+                   nlocs,
+                   offsets,
+                   MPI_INT, mpi_comm);
+    
+    int key,val;
+    std::map<int,int> mappie_glob;
+    for(int i=0;i<mapSizeTot;i++)
+    {
+        key = key_tot[i];
+        val = val_tot[i];
+
+        
+        
+        if(mappie_glob.find(key)==mappie_glob.end())
+        {
+        	mappie_glob[key] = val;
+        }
+    }
+    
+    delete[] key_loc;
+    delete[] val_loc;
+    delete[] key_tot;
+    delete[] val_tot;
+
+    return mappie_glob;
+}
+
+std::map<int,double> AllGatherMap_D(std::map<int,double> mappie, MPI_Comm mpi_comm)
+{
+    int mapSizeLoc = mappie.size();
+    DistributedParallelState* distrimap = new DistributedParallelState(mapSizeLoc,mpi_comm);
+    int mapSizeTot = distrimap->getNel();
+    
+    int* key_loc = new int[mapSizeLoc];
+    double* val_loc = new double[mapSizeLoc];
+    int* key_tot = new int[mapSizeTot];
+    double* val_tot = new double[mapSizeTot];
+    int i = 0;
+    
+    std::map<int,double>::iterator itred;
+    for(itred=mappie.begin();itred!=mappie.end();itred++)
+    {
+        key_loc[i] = itred->first;
+        val_loc[i] = itred->second;
+        i++;
+    }
+    
+    int* offsets = distrimap->getOffsets();
+    int* nlocs   = distrimap->getNlocs();
+    
+    
+    MPI_Allgatherv(key_loc,
+                   mapSizeLoc,
+                   MPI_DOUBLE,
+                   key_tot,
+                   nlocs,
+                   offsets,
+                   MPI_DOUBLE, mpi_comm);
+    
+    
+    MPI_Allgatherv(val_loc,
+                   mapSizeLoc,
+                   MPI_DOUBLE,
+                   val_tot,
+                   nlocs,
+                   offsets,
+                   MPI_DOUBLE, mpi_comm);
+    
+    int key;
+    double val;
+    std::map<int,double> mappie_glob;
+    for(int i=0;i<mapSizeTot;i++)
+    {
+        key = key_tot[i];
+        val = val_tot[i];
+        
+        if(mappie_glob.find(key)==mappie_glob.end())
+        {
+        	mappie_glob[key] = val;
+        }
+    }
+    
+    delete[] key_loc;
+    delete[] val_loc;
+    delete[] key_tot;
+    delete[] val_tot;
+
+    return mappie_glob;
+}
+
 
 
 int FindRank(int* arr, int size, int val)

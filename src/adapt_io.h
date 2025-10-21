@@ -41,8 +41,12 @@ inline hid_t h5tools_get_native_type(hid_t type)
 return(p_type);
 }
 
-double* ReadDataSetDoubleFromFile(const char* file_name, const char* dataset_name);
 
+double* ReadDataSetDoubleFromFile(const char* file_name, const char* dataset_name);
+mesh* ReadUS3DMeshDataWithMetric(const char* fn_conn, const char* fn_grid, const char* fn_data, int readFromStats, int StateVar, int RunNumber, MPI_Comm comm, MPI_Info info);
+mesh* ReadUS3DMeshData(const char* fn_conn, const char* fn_grid, const char* fn_data, int readFromStats, int StateVar, int RunNumber, MPI_Comm comm, MPI_Info info);
+mesh* ReadUS3DMesh(const char* fn_conn, const char* fn_grid, int readFromStats, int StateVar, MPI_Comm comm, MPI_Info info);
+std::vector<int> ReadDataSetSizeFromFileInParallel(const char* file_name, const char* dataset_name, MPI_Comm comm, MPI_Info info);
 
 
 template<typename T>
@@ -120,6 +124,272 @@ Array<T>* ReadDataSetFromGroupFromFile(const char* file_name, const char* group_
     return A_t;
 }
 
+
+template<typename T>
+std::vector<std::vector<T> > ReadDataSetFromGroupFromFile_Lite(const char* file_name, const char* group_name, const char* dataset_name)
+{
+    hid_t status;
+    hid_t file_id        = H5Fopen(file_name, H5F_ACC_RDONLY,H5P_DEFAULT);
+    hid_t group_id       = H5Gopen(file_id,group_name,H5P_DEFAULT);
+    hid_t dset_id        = H5Dopen(group_id,dataset_name,H5P_DEFAULT);
+    
+    hid_t dspace         = H5Dget_space(dset_id);
+    int ndims            = H5Sget_simple_extent_ndims(dspace);
+    hsize_t dims[ndims];
+    H5Sget_simple_extent_dims(dspace, dims, NULL);
+    
+    int nrow            = dims[0];
+    int ncol            = dims[1];
+    
+    hid_t memspace_id   = H5Screate_simple( 2, dims, NULL );
+    hid_t file_space_id = H5Dget_space(dset_id);
+
+    T* A_t;
+
+    std::vector<std::vector<T> > A_tret;
+    
+    if(hid_from_type<T>()==H5T_STRING)
+    {
+        hid_t type = H5Dget_type(dset_id);
+        hid_t native_type = h5tools_get_native_type(type);
+        int n_element = dims[0];
+        size_t type_size = std::max(H5Tget_size(type), H5Tget_size(native_type));
+        
+        A_t = new T[n_element*type_size];
+        status = H5Dread(dset_id, native_type, H5S_ALL, H5S_ALL, H5P_DEFAULT, A_t);
+        
+        status = H5Tclose(native_type);
+        status = H5Tclose(type);
+
+        A_tret = std::vector<std::vector<T> >(n_element);
+
+        for(int i=0;i<n_element;i++)
+        {
+            std::vector<T> A_tretrow(type_size);
+            for(int j=0;j<type_size;j++)
+            {
+                A_tretrow[j] = A_t[i*type_size+j];
+            }
+
+            A_tret[i] = A_tretrow;
+        }
+        delete[] A_t;
+
+    }
+    else
+    {
+        A_t = new T[nrow*ncol];
+        
+        status = H5Dread(dset_id, hid_from_type<T>(), memspace_id, file_space_id, H5P_DEFAULT, A_t);
+
+        A_tret = std::vector<std::vector<T> >(nrow);
+
+        for(int i=0;i<nrow;i++)
+        {
+            std::vector<T> A_tretrow(ncol);
+            for(int j=0;j<ncol;j++)
+            {
+                A_tretrow[j] = A_t[i*ncol+j];
+            }
+
+            A_tret[i] = A_tretrow;
+        }
+        delete[] A_t;
+    }
+     
+    status = H5Dclose(dset_id);
+    status = H5Gclose(group_id);
+    status = H5Fclose(file_id);
+    return A_tret;
+}
+
+/*
+template<typename T> 
+std::vector<std::vector<T> > ReadDataSetFromHyperSolveFileInParallel_Lite(const char* file_name, const char* dataset_name, int Nel, MPI_Comm comm, MPI_Info info)
+{
+    std::vector<std::vector<T> > Av;
+    
+//     int size;
+//     MPI_Comm_size(comm, &size);
+
+//     // Get the rank of the process;
+//     int rank;
+//     MPI_Comm_rank(comm, &rank);
+//     herr_t ret;
+//     std::vector<std::vector<T> > Av;
+    
+//     //double stime;
+//     hid_t file_id        = H5Fopen(file_name, H5F_ACC_RDONLY,H5P_DEFAULT);
+//     hid_t group_id       = H5Gopen(file_id,"/",H5P_DEFAULT);
+//     hid_t dset_id        = H5Dopen(group_id,dataset_name,H5P_DEFAULT);
+// //    hid_t attr           = H5Aopen(run_id,"stats_time", H5P_DEFAULT);
+// //    ret                  = H5Aread(attr, H5T_NATIVE_DOUBLE, &stime);
+// //    
+    
+//     hid_t dspace         = H5Dget_space(dset_id);
+//     int ndims            = H5Sget_simple_extent_ndims(dspace);
+//     hsize_t dims[ndims];
+//     H5Sget_simple_extent_dims(dspace, dims, NULL);
+//     int nrow             = dims[0];
+//     int ncol             = dims[1];
+//     int N = nrow;
+//     int g_offset = 0;
+    
+//     int nloc                = int(N/size) + ( rank < N%size );
+//     //  compute offset of rows for each proc;
+//     int offset              = rank*int(N/size) + MIN(rank, N%size);
+
+//     std::vector<std::vector<T> > Av(nloc);
+    
+//     T* A_ptmp = new T[nloc*ncol];    
+
+
+
+//     hsize_t              offsets[2];
+//     hsize_t              counts[2];
+//     offsets[0]           = offset;
+//     offsets[1]           = 0;
+//     counts[0]            = nloc;
+//     counts[1]            = ncol;
+    
+//     ret=H5Sselect_hyperslab(dspace, H5S_SELECT_SET, offsets, NULL, counts, NULL);
+    
+//     hsize_t     dimsm[2];
+//     dimsm[0] = nloc;
+//     dimsm[1] = ncol;
+    
+//     hid_t memspace = H5Screate_simple (2, dimsm, NULL);
+    
+//     hsize_t     offsets_out[2];
+//     hsize_t     counts_out[2];
+//     offsets_out[0] = 0;
+//     offsets_out[1] = 0;
+//     counts_out[0]  = nloc;
+//     counts_out[1]  = ncol;
+    
+//     ret = H5Sselect_hyperslab (memspace, H5S_SELECT_SET, offsets_out, NULL,counts_out, NULL);
+        
+//     ret = H5Dread (dset_id, hid_from_type<T>(), memspace, dspace, H5P_DEFAULT, A_ptmp);
+    
+    
+
+//     for(int i=0;i<nloc;i++)
+//     {
+//         std::vector<T> A_Row(ncol);
+        
+//         for(int j=0;j<ncol;j++)
+//         {
+//             A_Row[j] = A_ptmp[i*ncol+j];
+//         }
+//         Av[i] = A_Row;
+//     }
+    
+//     H5Dclose(dset_id);
+//     H5Fclose(file_id);
+    
+//     delete[] A_ptmp;
+    
+    return Av;
+}
+*/
+
+template<typename T>
+std::map<int, std::vector<T> > ReadDataSetFromHyperSolveFileInParallel_Lite(const char* file_name, const char* dataset_name, int Nel, MPI_Comm comm, MPI_Info info)
+{
+    // std::vector<std::vector<T> > Av;
+    int size;
+    MPI_Comm_size(comm, &size);
+
+    // Get the rank of the process;
+    int rank;
+    MPI_Comm_rank(comm, &rank);
+    herr_t ret;
+    
+    double stime;
+    hid_t file_id        = H5Fopen(file_name, H5F_ACC_RDONLY,H5P_DEFAULT);
+    // hid_t group_id       = H5Gopen(file_id,"/",H5P_DEFAULT);
+    hid_t dset_id        = H5Dopen(file_id,"/temperature-hessian",H5P_DEFAULT);
+    // hid_t attr           = H5Aopen(run_id,"stats_time", H5P_DEFAULT);
+    // ret                  = H5Aread(attr, H5T_NATIVE_DOUBLE, &stime);
+//    
+    
+    hid_t dspace         = H5Dget_space(dset_id);
+    int ndims            = H5Sget_simple_extent_ndims(dspace);
+    hsize_t dims[ndims];
+    H5Sget_simple_extent_dims(dspace, dims, NULL);
+    int ncol;
+    int nrow;
+    if(ndims == 1)
+    {
+        nrow             = dims[0];
+        ncol             = 1;
+    }
+    if(ndims == 2)
+    {
+        nrow             = dims[0];
+        ncol             = dims[1];
+    }
+
+    int N = nrow;
+    int g_offset = 0;
+    
+    int nloc                = int(N/size) + ( rank < N%size );
+    //  compute offset of rows for each proc;
+    int offset              = rank*int(N/size) + MIN(rank, N%size);
+    std::map<int, std::vector<T> > Av;
+    
+    T* A_ptmp = new T[nloc*ncol];    
+
+    hsize_t              offsets[2];
+    hsize_t              counts[2];
+    offsets[0]           = offset;
+    offsets[1]           = 0;
+    counts[0]            = nloc;
+    counts[1]            = ncol;
+    
+    ret=H5Sselect_hyperslab(dspace, H5S_SELECT_SET, offsets, NULL, counts, NULL);
+    
+    hsize_t     dimsm[2];
+    dimsm[0] = nloc;
+    dimsm[1] = ncol;
+    
+    hid_t memspace = H5Screate_simple (2, dimsm, NULL);
+    
+    hsize_t     offsets_out[2];
+    hsize_t     counts_out[2];
+    offsets_out[0] = 0;
+    offsets_out[1] = 0;
+    counts_out[0]  = nloc;
+    counts_out[1]  = ncol;
+    
+    ret = H5Sselect_hyperslab (memspace, H5S_SELECT_SET, offsets_out, NULL,counts_out, NULL);
+        
+    ret = H5Dread (dset_id, hid_from_type<T>(), memspace, dspace, H5P_DEFAULT, A_ptmp);
+    
+    
+
+    for(int i=0;i<nloc;i++)
+    {
+        std::vector<T> A_Row(ncol);
+        
+        for(int j=0;j<ncol;j++)
+        {
+            A_Row[j] = A_ptmp[i*ncol+j];
+        }
+        Av[offset+i] = A_Row;
+    }
+    
+    H5Dclose(dset_id);
+    H5Fclose(file_id);
+    
+    delete[] A_ptmp;
+    /**/
+    return Av;
+
+}
+
+
+std::map<int, std::vector<double> > ReadHyperSolveHessianData(const char* hessian_data, int Nel, MPI_Comm comm, MPI_Info info);
 
 
 template<typename T>
@@ -267,6 +537,79 @@ Array<T>* ReadUS3DGhostCellsFromRun(const char* file_name, const char* run_name,
 
 
 
+template<typename T>
+std::vector<std::vector<T> > ReadUS3DGhostCellsFromRun_Lite(const char* file_name, const char* run_name,const char* dataset_name, int Nel)
+{
+    
+    herr_t ret;
+    hid_t file_id        = H5Fopen(file_name, H5F_ACC_RDONLY,H5P_DEFAULT);
+    hid_t group_id       = H5Gopen(file_id,"solution",H5P_DEFAULT);
+    hid_t run_id         = H5Gopen(group_id,run_name,H5P_DEFAULT);
+    hid_t dset_id        = H5Dopen(run_id,dataset_name,H5P_DEFAULT);
+    hid_t dspace         = H5Dget_space(dset_id);
+    int ndims            = H5Sget_simple_extent_ndims(dspace);
+    
+    hsize_t dims[ndims];
+    H5Sget_simple_extent_dims(dspace, dims, NULL);
+    int nrow             = dims[0];
+    int ncol             = dims[1];
+    int N = nrow-Nel;
+    int g_offset = Nel;
+    
+    hsize_t offset[2];   // hyperslab offset in the file
+    hsize_t count[2];    // size of the hyperslab in the file
+    offset[0] = g_offset;
+    offset[1] = 0;
+    count[0]  = N;
+    count[1]  = ncol;
+    
+    ret = H5Sselect_hyperslab(dspace, H5S_SELECT_SET, offset, NULL, count, NULL);
+    /*
+    * Define the memory dataspace.
+    */
+    hsize_t     dimsm[2];              /* memory space dimensions */
+    dimsm[0] = N;
+    dimsm[1] = ncol;
+    hid_t memspace = H5Screate_simple (2, dimsm, NULL);
+    /*
+    * Define memory hyperslab.
+    */
+    hsize_t      offset_out[2];   // hyperslab offset in memory
+    hsize_t      count_out[2];    // size of the hyperslab in memory
+    offset_out[0] = 0;
+    offset_out[1] = 0;
+    count_out[0]  = N;
+    count_out[1]  = ncol;
+    
+    ret = H5Sselect_hyperslab (memspace, H5S_SELECT_SET, offset_out, NULL,count_out, NULL);
+    
+    T* A_t = new T[N*ncol];
+
+    ret = H5Dread (dset_id, hid_from_type<T>(), memspace, dspace, H5P_DEFAULT, A_t);
+    
+
+    std::vector<std::vector<T> > A_tg(N);
+
+    for(int i=0;i<N;i++)
+    {
+        std::vector<T> A_tgRow(ncol);
+        
+        for(int j=0;j<ncol;j++)
+        {
+            A_tgRow[j] = A_t[i*ncol+j];
+        }
+        A_tg[i] = A_tgRow;
+    }
+
+    delete[] A_t;
+
+    return A_tg;
+}
+
+
+
+
+
 
 
 
@@ -349,6 +692,8 @@ ParArray<T>* ReadDataSetFromRunInFileInParallel(const char* file_name, const cha
     counts_out[0]  = A_ptmp->getNloc(rank);
     counts_out[1]  = ncol;
     
+
+
     ret = H5Sselect_hyperslab (memspace, H5S_SELECT_SET, offsets_out, NULL,counts_out, NULL);
         
     ret = H5Dread (dset_id, hid_from_type<T>(), memspace, dspace, H5P_DEFAULT, A_ptmp->data);
@@ -390,6 +735,117 @@ ParArray<T>* ReadDataSetFromRunInFileInParallel(const char* file_name, const cha
 
 
 
+
+
+template<typename T>
+std::vector<std::vector<T> > ReadDataSetFromRunInFileInParallel_Lite(const char* file_name, const char* run_name,const char* dataset_name, int g, int Nel, MPI_Comm comm, MPI_Info info)
+{
+    int size;
+    MPI_Comm_size(comm, &size);
+
+    // Get the rank of the process;
+    int rank;
+    MPI_Comm_rank(comm, &rank);
+    herr_t ret;
+    //double stime;
+    hid_t file_id        = H5Fopen(file_name, H5F_ACC_RDONLY,H5P_DEFAULT);
+    hid_t group_id       = H5Gopen(file_id,"solution",H5P_DEFAULT);
+    hid_t run_id         = H5Gopen(group_id,run_name,H5P_DEFAULT);
+    hid_t dset_id        = H5Dopen(run_id,dataset_name,H5P_DEFAULT);
+//    hid_t attr           = H5Aopen(run_id,"stats_time", H5P_DEFAULT);
+//    ret                  = H5Aread(attr, H5T_NATIVE_DOUBLE, &stime);
+//    
+    
+    hid_t dspace         = H5Dget_space(dset_id);
+    int ndims            = H5Sget_simple_extent_ndims(dspace);
+    hsize_t dims[ndims];
+    H5Sget_simple_extent_dims(dspace, dims, NULL);
+    int nrow             = dims[0];
+    int ncol             = dims[1];
+    int N = nrow;
+    int g_offset = 0;
+    if (strcmp(dataset_name, "interior") == 0)
+    {
+        if(g == 1)
+        {
+            g_offset = Nel;
+            N = nrow-Nel;
+        }
+        else{
+            g_offset = 0;
+            N = Nel;
+        }
+        
+    }
+    
+    if (strcmp(dataset_name, "stats-mean") == 0)
+    {
+        if(g == 1)
+        {
+            g_offset = Nel;
+            N = nrow-Nel;
+        }
+        else{
+            g_offset = 0;
+            N = Nel;
+        }
+        
+    }
+    
+    int nloc                = int(N/size) + ( rank < N%size );
+    //  compute offset of rows for each proc;
+    int offset              = rank*int(N/size) + MIN(rank, N%size);
+
+    T* A_ptmp = new T[nloc*ncol];    
+
+
+
+    hsize_t              offsets[2];
+    hsize_t              counts[2];
+    offsets[0]           = offset;
+    offsets[1]           = 0;
+    counts[0]            = nloc;
+    counts[1]            = ncol;
+    
+    ret=H5Sselect_hyperslab(dspace, H5S_SELECT_SET, offsets, NULL, counts, NULL);
+    
+    hsize_t     dimsm[2];
+    dimsm[0] = nloc;
+    dimsm[1] = ncol;
+    
+    hid_t memspace = H5Screate_simple (2, dimsm, NULL);
+    
+    hsize_t     offsets_out[2];
+    hsize_t     counts_out[2];
+    offsets_out[0] = 0;
+    offsets_out[1] = 0;
+    counts_out[0]  = nloc;
+    counts_out[1]  = ncol;
+    
+    ret = H5Sselect_hyperslab (memspace, H5S_SELECT_SET, offsets_out, NULL,counts_out, NULL);
+        
+    ret = H5Dread (dset_id, hid_from_type<T>(), memspace, dspace, H5P_DEFAULT, A_ptmp);
+    
+    std::vector<std::vector<T> > Av(nloc);
+
+    for(int i=0;i<nloc;i++)
+    {
+        std::vector<T> A_Row(ncol);
+        
+        for(int j=0;j<ncol;j++)
+        {
+            A_Row[j] = A_ptmp[i*ncol+j];
+        }
+        Av[i] = A_Row;
+    }
+    
+    H5Dclose(dset_id);
+    H5Fclose(file_id);
+    
+    delete[] A_ptmp;
+
+    return Av;
+}
 
 
 
@@ -472,6 +928,107 @@ ParArray<T>* ReadDataSetFromFileInParallel(const char* file_name, const char* da
     
     return PA;
 }
+
+
+
+
+
+
+template<typename T>
+std::vector<std::vector<T> > ReadDataSetFromFileInParallel_Lite(const char* file_name, const char* dataset_name, MPI_Comm comm, MPI_Info info)
+{
+    
+    // Get the size of the process;
+    int size;
+    MPI_Comm_size(comm, &size);
+
+    // Get the rank of the process;
+    int rank;
+    MPI_Comm_rank(comm, &rank);
+    
+    //std::cout << rank << " " << size << std::endl;
+    
+    hid_t acc_tpl1          = H5Pcreate (H5P_FILE_ACCESS);
+    herr_t ret;
+    //herr_t ret            = H5Pset_fapl_mpio(acc_tpl1, comm, info);
+    //herr_t ret            = H5Pset_dxpl_mpio(,comm,info);
+    acc_tpl1                = H5P_DEFAULT;
+    // Open file and data set to get dimensions of array;
+    
+    hid_t file_id           = H5Fopen(file_name, H5F_ACC_RDONLY,H5P_DEFAULT);
+    hid_t dset_id           = H5Dopen(file_id,dataset_name,H5P_DEFAULT);
+    hid_t dspace            = H5Dget_space(dset_id);
+    int ndims               = H5Sget_simple_extent_ndims(dspace);
+    
+    hsize_t dims[ndims];
+    H5Sget_simple_extent_dims(dspace, dims, NULL);
+    int nrow                = dims[0];
+    int ncol                = dims[1];
+    int N                   = nrow;
+    int nloc                = int(N/size) + ( rank < N%size );
+    //  compute offset of rows for each proc;
+    int offset              = rank*int(N/size) + MIN(rank, N%size);
+    //ParArray<T>* PA         = new ParArray<T>(N,ncol,comm);
+    
+    hsize_t              offsets[2];
+    hsize_t              counts[2];
+    offsets[0]           = offset;
+    offsets[1]           = 0;
+    counts[0]            = nloc;
+    counts[1]            = ncol;
+    
+    ret=H5Sselect_hyperslab(dspace, H5S_SELECT_SET, offsets, NULL, counts, NULL);
+    
+    hsize_t     dimsm[2];
+    dimsm[0] = nloc;
+    dimsm[1] = ncol;
+    
+    hid_t memspace = H5Screate_simple (2, dimsm, NULL);
+    
+    hsize_t     offsets_out[2];
+    hsize_t     counts_out[2];
+    offsets_out[0] = 0;
+    offsets_out[1] = 0;
+    counts_out[0]  = nloc;
+    counts_out[1]  = ncol;
+     
+    ret = H5Sselect_hyperslab (memspace, H5S_SELECT_SET, offsets_out, NULL,counts_out, NULL);
+
+    //T* PA = new T[nrow*ncol];
+    std::vector<T> PA(nloc*ncol);
+
+    ret = H5Dread (dset_id, hid_from_type<T>(), memspace, dspace, H5P_DEFAULT, &PA.data()[0]);
+
+    std::vector<std::vector<T> > PAv(nloc);
+
+    for(int i=0;i<nloc;i++)
+    {
+        std::vector<T> PavRow(ncol);
+        
+        for(int j=0;j<ncol;j++)
+        {
+            PavRow[j] = PA[i*ncol+j];
+        }
+
+        PAv[i] = PavRow;
+    }
+    PA.clear();
+    H5Sclose(dspace);
+    H5Sclose(memspace);
+
+    H5Dclose(dset_id);
+    H5Fclose(file_id);
+
+    //delete[] PA;
+    return PAv;
+}
+
+
+
+
+
+
+
 
 
 
@@ -700,8 +1257,9 @@ int ProvideBoundaryID(int findex, std::map<int,std::vector<int> > ranges);
 
 US3D* ReadUS3DGrid(const char* fn_conn, const char* fn_grid, int ReadFromStats, MPI_Comm comm, MPI_Info info);
 
-
 US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data, int ReadFromStats, int StateVar, MPI_Comm comm, MPI_Info info);
+
+
 
 
 

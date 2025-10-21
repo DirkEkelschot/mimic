@@ -23,7 +23,7 @@ class PrismaticLayer {
 					   std::map<int,std::vector<int> > if_Erank_part_map,
                        std::map<int,std::vector<int> > ushell,
                        std::map<int,int> tag2locV,
-                       std::vector<Vert*> locVerts,
+                       std::vector<std::vector<double> > locVerts,
                        std::map<int,int> shellvert2ref_glob,
 					   std::map<int,std::vector<int> > range_id, 
                        MPI_Comm comm);

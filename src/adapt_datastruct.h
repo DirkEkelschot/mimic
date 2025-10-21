@@ -5,7 +5,32 @@
 #ifndef ADAPT_DATASTRUCT_H
 #define ADAPT_DATASTRUCT_H
 
+struct QRdata{
+    std::map<int,std::vector<double> > Amat;
+    std::map<int,int> Am;
+    std::map<int,int> An;
 
+    std::map<int,std::vector<double> > bvec;
+    std::map<int,int> bm;
+    int Nentries;
+};
+
+struct Inputs{
+    double hgrad;
+    double hmin;
+    double hmax;
+    double MetScale;
+    double hausd;
+    int ReadFromStats;
+    int RunWakRefinement;
+    double hwake;
+    int niter;
+    int recursive;
+    int extended;
+    int StateVar;
+    int RunNumber;
+    int MetricProvided;
+};
 
 
 struct Element{
@@ -31,16 +56,16 @@ struct Vert
 };
 
 
-struct Mesh{
-    Array<double>* xcn;
-    Array<int>* ief;
-    Array<int>* ien;
-    Array<int>* iet;
-    Array<int>* if_ref;
-    Array<int>* ifn;
-    Array<int>* ife;
-    Array<int>* if_Nv;
-};
+// struct Mesh{
+//     Array<double>* xcn;
+//     Array<int>* ief;
+//     Array<int>* ien;
+//     Array<int>* iet;
+//     Array<int>* if_ref;
+//     Array<int>* ifn;
+//     Array<int>* ife;
+//     Array<int>* if_Nv;
+// };
 
 
 
@@ -82,6 +107,55 @@ struct US3D{
 };
 
 
+struct mesh{
+    
+    int nElem;
+    int nFace;
+    int nVert;
+    std::map<int,std::vector<double> > xcn;
+    std::vector<int> elTypes;
+    std::map<int,std::vector<int> > ien;
+    std::map<int,std::vector<int> > ief;
+    std::map<int,std::vector<int> > iee;
+    std::map<int,std::vector<int> > ifn;
+    std::map<int,std::vector<int> > ife;
+
+    std::map<int,int> ie_Nv;
+    std::map<int,int> ie_Nf;
+    std::map<int,std::vector<int> > if_Nv;
+    std::map<int,std::vector<int> > if_ref;
+    std::map<int,int> iet;
+    std::map<int,std::vector<double> > interior;
+    std::map<int,std::vector<double> > ghost;
+
+    std::vector<int> element2rank;
+    std::vector<int> ie_tetCnt;
+
+    std::map<std::set<int>,int> tria_ref_map;
+    std::map<std::set<int>,int> quad_ref_map;
+    std::map<int,int> vert_ref_map;
+    
+    std::map<int,std::vector<int> > ranges_id;
+    std::map<int,std::vector<int> > ranges_ref;
+    std::map<int,int> zone2bcref;
+    std::map<int,char*> zone2name;
+
+    std::map<int,std::string> znames_map;
+    std::map<std::string,int> znames_map_inv;
+
+    std::map<int,std::vector<int> > bref2zone;
+    std::vector<std::vector<char> > znames;
+    std::vector<std::vector<int> > zdefs;
+    std::vector<int> bnd_m;
+    int* bnd_map;
+    std::map<int,std::vector<int> > face_map_gen;
+    std::map<int,std::vector<int> > bnd_face_map;
+    int nBnd;
+    int ntetra;
+    int nhexahedral;
+    int nprism;
+    int npyramid;
+};
 
 
 
@@ -96,7 +170,7 @@ struct Vec3D
 struct Domain
 {
     std::map<int,std::vector<int> > ushell;
-    std::map<int,Vert* > ushell_centroid;
+    std::map<int,std::vector<double> > ushell_centroid;
     int ncomm;
     std::vector<int> faces_ref;
     std::vector<std::vector<int> > faces_part;

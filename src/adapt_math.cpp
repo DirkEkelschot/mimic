@@ -72,6 +72,42 @@ Array<double>* SolveQR(double* A, int m, int n, Array<double>* b)
 }
 
 
+std::vector<double> SolveQR_Lite(std::vector<double> A, int m, int n, std::vector<double> b)
+{
+    int nrow = m;
+    int ncol = n;
+    
+    int info = 0;
+    
+    double tau[ncol];
+    int lwork=1;
+    double iwork;
+    //Array<double>* b_copy = new Array<double>(m,1);
+    std::vector<double> b_copy(m,0.0);
+    for(int i=0;i<m;i++)
+    {
+        b_copy[i] = b[i];
+    }
+    // DGEQRF for Q*R=A, i.e., A and tau hold R and Householder reflectors
+
+    geqrf(nrow, ncol, A.data(), nrow, tau);
+    
+    ormqr('L', 'T', nrow, 1, ncol, A.data(), nrow, tau, b_copy.data(), nrow);
+    
+    trtrs('U', 'N', 'N', ncol, 1, A.data(), nrow, b_copy.data(), nrow);
+    
+    std::vector<double> out(ncol,0.0);
+
+
+    for(int i = 0;i<ncol;i++)
+    {
+        out[i] = b_copy[i];
+    }
+   
+    return out;
+}
+
+
 
 Eig* ComputeEigenDecomp(int n, double * A)
 {
@@ -98,7 +134,7 @@ Eig* ComputeEigenDecomp(int n, double * A)
   for ( i = 0; i < n; i++)
     for ( j = 0; j < n; j++)
       V[i*n+j] = iV[j*n+i];
-  
+    /**/
     // Compute inverse of V1
     memcpy( iV, V, n*n*sizeof(double) );
     dgetrf_(&n, &n, iV, &n, Pivot, &info);

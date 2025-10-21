@@ -1,0 +1,89 @@
+#FIND_LIBRARY(PARMMG_LIBRARY NAMES parmmg)
+#FIND_PATH(PARMMG_INCLUDE_DIR parmmg.h)
+
+SET(TPSRC   ${CMAKE_SOURCE_DIR}/ThirdParty)
+SET(TPBUILD ${CMAKE_BINARY_DIR}/ThirdParty)
+SET(TPDIST  ${CMAKE_BINARY_DIR}/ThirdParty/dist)
+
+
+IF(PARMMG_LIBRARY AND PARMMG_INCLUDE_DIR)
+        SET(BUILD_PARMMG OFF)
+ELSE()
+        SET(BUILD_PARMMG ON)
+ENDIF()
+
+OPTION(THIRDPARTY_BUILD_PARMMG
+        "Build TetGen library from ThirdParty." ${BUILD_PARMMG})
+
+set(HDF5_LIBRARIES ${HDF5_LIBRARY})
+set(HDF5_INCLUDE_DIRS ${HDF5_INCLUDE_DIR})
+
+MESSAGE("HDF5_INCLUDE_DIR ---> " ${HDF5_INCLUDE_DIR} " " ${HDF5_LIBRARY} " " ${HDF5_DIR} )
+
+IF (THIRDPARTY_BUILD_PARMMG)
+        INCLUDE(ExternalProject)
+        UNSET(PATCH CACHE)
+        FIND_PROGRAM(PATCH patch)
+        IF(NOT PATCH)
+                MESSAGE(FATAL_ERROR
+                "'patch' tool for modifying files not found. Cannot build Tetgen.")
+        ENDIF()
+        MARK_AS_ADVANCED(PATCH)
+
+        EXTERNALPROJECT_ADD(
+                ParMmg
+                PREFIX ${CMAKE_SOURCE_DIR}/Thirdparty
+                GIT_REPOSITORY https://github.com/MmgTools/ParMmg.git
+                GIT_TAG master
+                STAMP_DIR ${TPBUILD}/stamp
+            	DOWNLOAD_DIR ${TPSRC}
+            	SOURCE_DIR ${TPSRC}/ParMmg
+            	BINARY_DIR ${TPBUILD}/ParMmg 
+            	TMP_DIR ${TPBUILD}/ParMmg-tmp
+            	INSTALL_DIR ${TPDIST}
+		CONFIGURE_COMMAND ${CMAKE_COMMAND}
+                -G ${CMAKE_GENERATOR}
+                -DCMAKE_C_COMPILER=${MPI_C} -DCMAKE_CXX_COMPILER=${MPI_CXX} 
+                -DCMAKE_CXX_COMPILER:FILEPATH=${MPI_CXX}
+		-DCMAKE_C_COMPILER:FILEPATH=${MPI_C}
+                -DCMAKE_CXX_COMPILER:FILEPATH=${MPI_CXX} 
+                -DCMAKE_INSTALL_PREFIX:PATH=${TPDIST}
+                -DUSE_HDF5=ON
+                -DHDF5_DIR:PATH=${HDF5_DIR}
+                -DHDF5_INCLUDE_DIR:PATH=${HDF5_INCLUDE_DIR}
+                -DHDF5_LIBRARY:FILEPATH=${HDF5_LIBRARY}
+                -DHDF5_HL_LIBRARY:FILEPATH=${HDF5_LIBRARY}
+		-DDOWNLOAD_MMG=OFF -DMMG_DIR=${TPDIST}
+                -DDOWNLOAD_METIS=OFF -DMETIS_DIR=${DEFAULT_METIS_ROOT}
+                ${TPSRC}/ParMmg
+                -DUSE_VTK=OFF
+                -DBUILD_SHARED_LIBS=ON
+                -DCMAKE_INSTALL_LIBDIR=lib
+                DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+                BUILD_COMMAND make -j14
+                )
+
+        #THIRDPARTY_LIBRARY(PARMMG_LIBRARY STATIC ParMmg
+        #    DESCRIPTION "ParMmg library")
+        SET(PARMMG_INCLUDE_DIR ${TPDIST}/include CACHE FILEPATH
+            "ParMmg include directory" FORCE)
+        SET(PARMMG_LIBRARY ${TPDIST}/lib CACHE FILEPATH
+            "PARMMG lib directory" FORCE)
+	MESSAGE(STATUS "Build ParMmg: ${PARMMG_LIBRARY}")
+        SET(ParMMMG_CONFIG_INCLUDE_DIR ${TPINC})
+	
+ENDIF()
+
+IF(NOT DEFAULT_HDF5_ROOT)
+ADD_DEPENDENCIES(ParMmg hdf5-1_14_3)
+ENDIF()
+ADD_DEPENDENCIES(ParMmg mmg)
+ADD_DEPENDENCIES(mimic ParMmg)
+MARK_AS_ADVANCED(PARMMG_LIBRARY)
+MARK_AS_ADVANCED(PARMMG_INCLUDE_DIR)
+INCLUDE_DIRECTORIES(${PARMMG_INCLUDE_DIR})
+#MARK_AS_ADVANCED(MMG_LIBRARY)
+#MARK_AS_ADVANCED(MMG_INCLUDE_DIR)
+#INCLUDE_DIRECTORIES(${MMG_INCLUDE_DIR})
+#INCLUDE_DIRECTORIES(${MMG_INCLUDE_DIRS})
+

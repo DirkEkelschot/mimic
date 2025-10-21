@@ -28,9 +28,9 @@ class Mesh_Topology {
         ~Mesh_Topology();
         void DetermineBoundaryLayerElements(Partition* Pa, Array<int>* ife_in, int nLayer, int bID, MPI_Comm comm);
         std::map<int,std::vector<int> > getScheme_E2V();
-        std::map<int,vector<Vec3D*> > getNormals();
-        std::map<int,vector<Vec3D*> > getRvectors();
-        std::map<int,vector<Vec3D*> > getdXfXc();
+        std::map<int,vector<std::vector<double> > > getNormals();
+        std::map<int,vector<std::vector<double> > > getRvectors();
+        std::map<int,vector<std::vector<double> > > getdXfXc();
         std::map<int,vector<double> > getdr();
         std::map<int,vector<double> > getdS();
         Array<int>* getIFN();
@@ -42,15 +42,15 @@ class Mesh_Topology {
         std::map<int,std::vector<int> > getRef2Face();
         std::map<int,int> getVert2Ref();
         std::map<int,std::vector<int> > getRef2Vert();
-        std::map<int,std::vector<Vert*> > getVfacevector();
+        std::map<int,std::vector<std::vector<double> > > getVfacevector();
         Mesh_Topology_BL* getBLMeshTopology();
-        std::map<int,Vert*> getGhostVerts();
+        std::map<int,std::vector<double> > getGhostVerts();
     
     private:
-        std::map<int,std::vector<Vert*> > vfacevector;
-        std::map<int,std::vector<Vec3D*> > normals;
-        std::map<int,std::vector<Vec3D*> > rvector;
-        std::map<int,std::vector<Vec3D*> > dxfxc;
+        std::map<int,std::vector<std::vector<double> > > vfacevector;
+        std::map<int,std::vector<std::vector<double> > > normals;
+        std::map<int,std::vector<std::vector<double> > > rvector;
+        std::map<int,std::vector<std::vector<double> > > dxfxc;
         std::map<int,std::vector<double> > dr;
         std::map<int,std::vector<double> > dS;
         std::map<int,double> Vol;
@@ -65,7 +65,7 @@ class Mesh_Topology {
         std::map<int,std::vector<int> > BLlayers; 
         Mesh_Topology_BL* mesh_topo_bl;
         std::map<int,std::vector<int> > E2V_scheme;
-        std::map<int,Vert*> ghostVerts;
+        std::map<int,std::vector<double> > ghostVerts;
     
         MPI_Comm c;
 };

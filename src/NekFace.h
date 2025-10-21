@@ -3,6 +3,9 @@
 #include "adapt_array.h"
 #include "adapt_hashutils.h"
 
+#ifndef NEKFACE_H
+#define NEKFACE_H
+
 class NekFace {
     public:
         NekFace();
@@ -21,6 +24,10 @@ class NekFace {
         void SetFaceRightElement(int re);
         int GetFaceLeftElement() const;
         int GetFaceRightElement() const;
+        void SetFaceLeftRank(int lr);
+        void SetFaceRightRank(int rr);
+        int GetFaceLeftRank() const;
+        int GetFaceRightRank() const;
         bool GetHandled() const;
         void SetHandled(bool H);
         bool operator==(const NekFace& otherFace) const;
@@ -34,6 +41,8 @@ class NekFace {
         int m_ref;
         int m_le;
         int m_re;
+        int m_lr;
+        int m_rr;
         bool handled;
         std::map<int,int> m_vcuts;
 };
@@ -96,3 +105,4 @@ struct FaceHashPointer : std::unary_function<FaceSharedPtr, std::size_t>
 typedef std::unordered_set<NekFace, FaceHash> FaceSet;
 //typedef std::map<NekFace, FaceHash, int> FaceMap;
 typedef std::unordered_set<FaceSharedPtr, FaceHashPointer> FaceSetPointer;
+#endif

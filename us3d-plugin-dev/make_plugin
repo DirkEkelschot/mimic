@@ -1,0 +1,1 @@
+make all install DEBUG=on PREFIX=/nobackupp19/dekelsch/us3d-plugin-dev/install
