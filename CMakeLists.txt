@@ -337,6 +337,7 @@ target_link_libraries(mimic ${VTK_LIBRARIES})
 ENDIF()
 
 add_subdirectory(unit_tests)
+add_subdirectory(utilities)
 
 #=================================================================================================
 

@@ -1,0 +1,39 @@
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <vector>
+#include <string>
+#include <unordered_map>
+#include "src/adapt.h"
+#include "src/adapt_io.h"
+
+int main(int argc, char** argv)
+{
+
+    MPI_Init(NULL, NULL);
+    FILE            *inm;
+    MPI_Comm comm = MPI_COMM_WORLD;
+    MPI_Info info = MPI_INFO_NULL;
+    int world_size;
+    MPI_Comm_size(comm, &world_size);
+    // Get the rank of the process
+    int world_rank;
+    MPI_Comm_rank(comm, &world_rank);
+
+    const char* us3d_grid_file = "mesh/grid.h5";
+    std::vector<std::vector<double> > pyfr_xcn;
+    std::vector<std::vector<int> > pyfr_ien_tet;
+    std::vector<std::vector<double> > us3d_xcn;
+    us3d_xcn = ReadDataSetFromFileInParallel_Lite<double>(us3d_grid_file,"xcn",comm,info);
+
+    const char* pyfr_grid_file = "mesh/hemisphere.pyfrm";
+
+    pyfr_xcn     = ReadVerticesFromPyFRMeshFileInParallel_Lite<double>(pyfr_grid_file,"nodes",comm,info);
+    pyfr_ien_tet = ReadElementsFromPyFRMeshFileInParallel_Lite<int>(pyfr_grid_file,"eles","pri",comm,info);
+
+
+    std::cout << "rank : " << world_rank << " reads in " << us3d_xcn.size() << " " << pyfr_xcn.size() << " vertices " << std::endl;
+
+    MPI_Finalize();
+
+}

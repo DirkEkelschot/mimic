@@ -28,8 +28,7 @@ IF (BUILD_METIS)
 
     ExternalProject_Add(
         metis
-        URL https://karypis.github.io/glaros/files/sw/parmetis/parmetis-4.0.3.tar.gz
-        URL_MD5 5465e67079419a69e0116de24fce58fe
+        URL https://karypis.github.io/glaros/files/sw/metis/metis-5.1.0.tar.gz
         SOURCE_DIR ${TPSRC}/metis
         BINARY_DIR ${TPSRC}/metis
         INSTALL_DIR ${TPDIST}/metis

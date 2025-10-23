@@ -18,8 +18,10 @@ OPTION(THIRDPARTY_BUILD_METIS
 find_library(GKLIB_LIBRARY libGKlib.a ${TPDIST}/gklib/lib)
 
 MESSAGE("TPBUILD" ${TPBUILD}) 
-MESSAGE("TPSRC" ${TPSRC}) 
-
+#MESSAGE("TPSRC --- CONFIGURE_COMMAND " ${TPSRC} " CONFIGURE_COMMAND " ${CONFIGURE_COMMAND}) 
+if (CMAKE_VERSION VERSION_GREATER "3.23.4")
+    cmake_policy(SET CMP0135 NEW)
+endif()
 
 IF (THIRDPARTY_BUILD_METIS)
         INCLUDE(ExternalProject)
@@ -34,28 +36,27 @@ IF (THIRDPARTY_BUILD_METIS)
         SET(METIS_BUILD_DIR ${TPBUILD}/metis)
         SET(METIS_INSTALL_DIR ${TPDIST}/metis)
 
-        EXTERNALPROJECT_ADD(
-                metis
-                GIT_REPOSITORY https://github.com/KarypisLab/METIS.git
-                GIT_TAG master
-                SOURCE_DIR ${TPSRC}/metis
-                BINARY_DIR ${TPSRC}/metis
-            	INSTALL_DIR ${TPDIST}
-                CONFIGURE_COMMAND make config shared=1 prefix=${TPDIST}/metis gklib_path=${TPDIST}/gklib
-                BUILD_COMMAND make CFLAGS="-I${TPDIST}/gklib/include" -C ${TPSRC}/metis gklib_path=${TPDIST}/gklib
-                INSTALL_COMMAND make CFLAGS="-I${TPDIST}/gklib/include" -C ${TPSRC}/metis install gklib_path=${TPDIST}/gklib
-                DEPENDS gklib
-		)
-        #THIRDPARTY_LIBRARY(METIS_LIBRARY STATIC metis
-        #    DESCRIPTION " library")
+        ExternalProject_Add(
+                        metis
+                        URL https://karypis.github.io/glaros/files/sw/metis/metis-5.1.0.tar.gz
+                        URL_MD5 5465e67079419a69e0116de24fce58fe
+                        UPDATE_COMMAND ""
+                        CONFIGURE_COMMAND ${CMAKE_MAKE_PROGRAM} config prefix=../../../Metis-install
+                        BUILD_IN_SOURCE 1
+                        BUILD_COMMAND unset MFLAGS && unset MAKEFLAGS && unset MAKELEVEL && ${CMAKE_MAKE_PROGRAM}
+                        INSTALL_COMMAND unset MFLAGS && unset MAKEFLAGS && unset MAKELEVEL && ${CMAKE_MAKE_PROGRAM} install
+                        DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+                        )
+        THIRDPARTY_LIBRARY(METIS_LIBRARY STATIC metis
+            DESCRIPTION " library")
 
-        #MESSAGE(STATUS "Build METIS: ${METIS_LIBRARY}")
-        #SET(METIS_CONFIG_INCLUDE_DIR ${TPINC})
+        MESSAGE(STATUS "Build METIS: ${METIS_LIBRARY}")
+        SET(METIS_CONFIG_INCLUDE_DIR ${TPINC})
 ENDIF()
 #ADD_DEPENDENCIES(thirdparty METIS)
-#MARK_AS_ADVANCED(METIS_LIBRARY)
-#MARK_AS_ADVANCED(METIS_INCLUDE_DIR)
-#INCLUDE_DIRECTORIES(${METIS_INCLUDE_DIR})
+MARK_AS_ADVANCED(METIS_LIBRARY)
+MARK_AS_ADVANCED(METIS_INCLUDE_DIR)
+INCLUDE_DIRECTORIES(${METIS_INCLUDE_DIR})
 
 
 
