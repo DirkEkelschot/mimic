@@ -1,7 +1,7 @@
 
 file(GLOB SRC_FILES "${CMAKE_SOURCE_DIR}/src/*.cpp")
 
-set(TEST_NAME "mimic.pyfrm")
+set(TEST_NAME "useESP")
 
 add_executable(${TEST_NAME} main.cpp ${SRC_FILES})
 target_include_directories(${TEST_NAME} PRIVATE ${CMAKE_SOURCE_DIR})
@@ -36,15 +36,18 @@ include_directories(${METIS_INCLUDE_DIR})
 include_directories(${HDF5_INCLUDE_DIR})
 include_directories(${MMG_INCLUDE_DIRS})
 include_directories(${VTK_INCLUDE_DIRS})
+include_directories(${ESP_INCLUDE_DIR})
 
 find_package(LAPACK)
 target_link_libraries(${TEST_NAME} ${LAPACK_LIBRARIES})
 target_link_libraries(${TEST_NAME} ${METIS_LIBRARY})
 target_link_libraries(${TEST_NAME} ${PARMETIS_LIBRARY})
 target_link_libraries(${TEST_NAME} ${HDF5_LIBRARY})
+target_link_libraries(${TEST_NAME} ${ESP_LIBRARY}/libegads${LIB_EXT})
 target_link_libraries(${TEST_NAME} ${MMG_LIBRARY}/libmmg3d${LIB_EXT})
 target_link_libraries(${TEST_NAME} ${PARMMG_LIBRARY}/libparmmg${LIB_EXT})
-
-#add_test(NAME mimic.msh COMMAND mimic.msh)
+MESSAGE("================" ${ESP_LIBRARY}/libegads${LIB_EXT})
+MESSAGE("================" ${ESP_INCLUDE_DIR})
+#add_test(NAME useESP COMMAND useESP)
 
 

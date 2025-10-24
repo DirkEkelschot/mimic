@@ -338,6 +338,11 @@ ENDIF()
 
 add_subdirectory(unit_tests)
 add_subdirectory(utilities)
+INCLUDE (cmake/ThirdPartyOCCT.cmake)
+INCLUDE (cmake/ThirdPartyESP.cmake)
+
+include_directories(${ESP_INCLUDE_DIR})
+target_link_libraries(mimic ${ESP_LIBRARY}/libegads${LIB_EXT})
 
 #=================================================================================================
 

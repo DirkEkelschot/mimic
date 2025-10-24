@@ -21,7 +21,7 @@
 #include "src/adapt_operations.h"
 #include "src/adapt_partobject.h"
 #include "src/adapt_prepareadaption.h"
-
+#include <egads.h>
 //#include "/Users/dekelsch/mimic_libmesh/utilities/partitionTetrahedra/build/ThirdParty/dist/include/libmeshb7.h"
 
 
@@ -85,7 +85,8 @@ int main(int argc, char** argv)
     std::map<int,int> prism2type;   
     double dur_max,time_taken;
     bool prism_ifn;
-
+    ego context;
+    int status = EG_open(&context);
     if(inputs->MetricProvided==1)
     {
         meshRead = ReadUS3DMeshDataWithMetric(fn_conn,fn_grid,fn_data,

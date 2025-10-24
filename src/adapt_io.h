@@ -89,12 +89,6 @@ struct NodeEntry {
 };
 
 
-//H5T_ENUM { H5T_STD_I8LE; "FALSE" 0; "TRUE" 1; } "curved";
-
-struct PairEntry {
-    int16_t first;
-    int16_t second;
-};
 
 #pragma pack(push, 1)
 struct FaceEntry {
@@ -107,12 +101,15 @@ struct PrismEntry {
     int8_t curved;                            // boundary/internal flag
     FaceEntry faces[5]; // fixed-size array of attribute pairs
 };
+
+struct TetEntry {
+    int64_t nodes[4];             // node indices for this prism
+    int8_t curved;                            // boundary/internal flag
+    FaceEntry faces[4]; // fixed-size array of attribute pairs
+};
+
 #pragma pack(pop)
-// struct TetEntry {
-//     int64_t node_indices[4];             // node indices for this prism
-//     int8_t curved;                            // boundary/internal flag
-//     PairEntry metadata[3]; // fixed-size array of attribute pairs
-// };
+
 
 
 //===============================================================================================================
@@ -121,114 +118,6 @@ struct PrismEntry {
 //===============================================================================================================
 //===============================================================================================================
 
-template<typename T>
-std::vector<std::vector<T> > ReadElementsFromPyFRMeshFileInParallel_Lite(const char* file_name, const char* group_name, const char* dataset_name, MPI_Comm comm, MPI_Info info)
-{
-    std::vector<std::vector<T> > PAv;
-    // Get the size of the process;
-    int size;
-    MPI_Comm_size(comm, &size);
-
-    // Get the rank of the process;
-    int rank;
-    MPI_Comm_rank(comm, &rank);
-    
-    //std::cout << rank << " " << size << std::endl;
-    
-    hid_t acc_tpl1          = H5Pcreate (H5P_FILE_ACCESS);
-    herr_t ret;
-    //herr_t ret            = H5Pset_fapl_mpio(acc_tpl1, comm, info);
-    //herr_t ret            = H5Pset_dxpl_mpio(,comm,info);
-    acc_tpl1                = H5P_DEFAULT;
-    // Open file and data set to get dimensions of array;
-    
-    hid_t file_id           = H5Fopen(file_name, H5F_ACC_RDONLY,H5P_DEFAULT);
-    hid_t group_id          = H5Gopen(file_id,group_name,H5P_DEFAULT);
-    hid_t dset_id           = H5Dopen(group_id,dataset_name,H5P_DEFAULT);
-    hid_t dspace            = H5Dget_space(dset_id);
-    // int ndims            = H5Sget_simple_extent_ndims(dspace);
-    hsize_t dims[1];
-    H5Sget_simple_extent_dims(dspace, dims, NULL);
-    size_t N = dims[0]; 
-    hsize_t nloc                = int(N/size) + ( rank < N%size );
-    //  compute offset of rows for each proc;
-    hsize_t offset              = rank*int(N/size) + MIN(rank, N%size);
-
-    
-
-    //std::vector<PrismEntry> elements(N);
-
-    // hid_t face_tid = H5Tcreate(H5T_COMPOUND, sizeof(FaceEntry));
-    // H5Tinsert(face_tid, "cidx", offsetof(FaceEntry, cidx), H5T_NATIVE_INT16);
-    // H5Tinsert(face_tid, "off", offsetof(FaceEntry, off), H5T_NATIVE_INT64);
-    //============================================================================
-    if (strcmp(dataset_name, "pri") == 0)
-    {
-        // Face compound type
-        hid_t face_tid = H5Tcreate(H5T_COMPOUND, sizeof(FaceEntry));
-        H5Tinsert(face_tid, "cidx", offsetof(FaceEntry, cidx), H5T_NATIVE_INT16);
-        H5Tinsert(face_tid, "off", offsetof(FaceEntry, off), H5T_NATIVE_INT64);
-
-        // Array types
-        hid_t arr_nodes_tid = H5Tarray_create(H5T_NATIVE_INT64, 1, (const hsize_t[]){6});
-        hid_t arr_faces_tid = H5Tarray_create(face_tid, 1, (const hsize_t[]){5});
-
-        // The main compound type
-        hid_t prism_tid = H5Tcreate(H5T_COMPOUND, sizeof(PrismEntry));
-        H5Tinsert(prism_tid, "nodes", offsetof(PrismEntry, nodes), arr_nodes_tid);
-        H5Tinsert(prism_tid, "curved", offsetof(PrismEntry, curved), H5T_NATIVE_INT8);
-        H5Tinsert(prism_tid, "faces", offsetof(PrismEntry, faces), arr_faces_tid);
-
-        hsize_t offsets[1] = { offset };     // offset for this process
-        hsize_t counts[1]  = { nloc };      // number of rows for this process
-        printf("sizeof(PrismEntry) = %zu\n", sizeof(PrismEntry));
-        printf("offsetof(PrismEntry, nodes) = %zu, sizeof(nodes) = %zu\n", 
-            offsetof(PrismEntry, nodes), sizeof(((PrismEntry*)0)->nodes));
-        printf("offsetof(PrismEntry, curved) = %zu, sizeof(curved) = %zu\n", 
-            offsetof(PrismEntry, curved), sizeof(((PrismEntry*)0)->curved));
-        printf("offsetof(PrismEntry, faces) = %zu, sizeof(faces) = %zu\n", 
-            offsetof(PrismEntry, faces), sizeof(((PrismEntry*)0)->faces));
-        printf("sizeof(FaceEntry) = %zu\n", sizeof(FaceEntry));
-
-        H5Sselect_hyperslab(dspace, H5S_SELECT_SET, offsets, NULL, counts, NULL);
-
-        // // Create a corresponding memory space
-        hid_t mspace = H5Screate_simple(1, counts, NULL);
-
-        // // Allocate storage for the local chunk
-        // // // Read the chunk
-        std::cout << "nloc. "<< nloc << std::endl;
-        std::vector<PrismEntry> elements_loc(nloc);
-        H5Dread(dset_id, prism_tid, mspace, dspace, H5P_DEFAULT, elements_loc.data());
-
-        //std::vector<T> output(nloc*6);
-        for (const PrismEntry& element : elements_loc) {
-            
-            std::cout << element.nodes[0] << " " << element.nodes[1] << " " << element.nodes[2] << " " << element.nodes[3] << " " << element.nodes[4] << " " << element.nodes[5] << std::endl;
-        }
-    }
-
-    // for (size_t i = 0; i < nloc; ++i)
-    // {
-    //     std::vector<T> single_prism(elements_loc[i].node_indices,
-    //                             elements_loc[i].node_indices + 6);
-    //     PAv.push_back(single_prism);
-    // }
-
-    // Proper resource management:
-    // H5Tclose(arr_node_tid);
-    // H5Tclose(pair_tid);
-    // H5Tclose(prism_tid);
-    // H5Gclose(group_id);
-    // H5Dclose(dset_id);
-    // H5Fclose(file_id);
-    // H5Sclose(dspace);
-    // H5Pclose(acc_tpl1);
-    //============================================================================
-
-    
-    return PAv;
-}
 
 
 
@@ -1516,6 +1405,7 @@ US3D* ReadUS3DGrid(const char* fn_conn, const char* fn_grid, int ReadFromStats, 
 US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data, int ReadFromStats, int StateVar, MPI_Comm comm, MPI_Info info);
 
 
+std::map<int, std::vector<int> > ReadElementsFromPyFRMeshFileInParallel_Lite(const char* file_name, const char* group_name, const char* dataset_name, MPI_Comm comm, MPI_Info info);
 
 
 
