@@ -336,6 +336,8 @@ target_link_libraries(mimic ${VTK_LIBRARIES})
 
 ENDIF()
 
+
+MESSAGE("==========================++++++==  " ${VTK_INCLUDE_DIRS})
 add_subdirectory(unit_tests)
 add_subdirectory(utilities)
 INCLUDE (cmake/ThirdPartyOCCT.cmake)

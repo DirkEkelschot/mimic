@@ -52,7 +52,7 @@ IF (THIRDPARTY_BUILD_VTK)
                 BUILD_COMMAND make -j14
                 DOWNLOAD_EXTRACT_TIMESTAMP TRUE
                 )
-        SET(VTK_INCLUDE_DIRS ${TPDIST}/include CACHE FILEPATH
+        SET(VTK_INCLUDE_DIRS ${TPDIST}/include/vtk-9.4 CACHE FILEPATH
             "VTK include directory" FORCE)
         SET(VTK_LIBRARY ${TPDIST}/lib CACHE FILEPATH
             "VTK lib directory" FORCE)

@@ -2,6 +2,8 @@
 #include <memory>
 #include "adapt_array.h"
 #include "adapt_hashutils.h"
+#include <algorithm>
+#include <cstddef>
 
 #ifndef NEKFACE_H
 #define NEKFACE_H
@@ -59,20 +61,20 @@ bool operator==(FaceSharedPtr const &p1,
 
 
 
-struct FaceHash : std::unary_function<NekFace, std::size_t>
-{
-    std::size_t operator()(const NekFace &vf) const
-    {
+struct FaceHash {
+    using argument_type = NekFace;
+    using result_type = std::size_t;
+
+    std::size_t operator()(const NekFace &vf) const noexcept {
         std::vector<int> eid = vf.GetEdgeIDs();
         unsigned int nVert = eid.size();
         std::size_t seed = 0;
         std::vector<unsigned int> ids(nVert);
 
-        for (int i = 0; i < nVert; ++i)
-        {
-            ids[i] = eid[i];
+        for (unsigned int i = 0; i < nVert; ++i) {
+            ids[i] = static_cast<unsigned int>(eid[i]);
         }
-        
+
         std::sort(ids.begin(), ids.end());
         hash_range(seed, ids.begin(), ids.end());
 
@@ -81,27 +83,26 @@ struct FaceHash : std::unary_function<NekFace, std::size_t>
 };
 
 
-struct FaceHashPointer : std::unary_function<FaceSharedPtr, std::size_t>
-{
-    std::size_t operator()(const FaceSharedPtr &vf) const
-    {
+struct FaceHashPointer {
+    using argument_type = FaceSharedPtr;
+    using result_type = std::size_t;
+
+    std::size_t operator()(const FaceSharedPtr &vf) const noexcept {
         std::vector<int> eid = vf->GetEdgeIDs();
         unsigned int nVert = eid.size();
         std::size_t seed = 0;
         std::vector<unsigned int> ids(nVert);
 
-        for (int i = 0; i < nVert; ++i)
-        {
-            ids[i] = eid[i];
+        for (unsigned int i = 0; i < nVert; ++i) {
+            ids[i] = static_cast<unsigned int>(eid[i]);
         }
-        
+
         std::sort(ids.begin(), ids.end());
         hash_range(seed, ids.begin(), ids.end());
 
         return seed;
     }
 };
-
 typedef std::unordered_set<NekFace, FaceHash> FaceSet;
 //typedef std::map<NekFace, FaceHash, int> FaceMap;
 typedef std::unordered_set<FaceSharedPtr, FaceHashPointer> FaceSetPointer;

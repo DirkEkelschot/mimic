@@ -10,7 +10,7 @@ set(BOOST_INCLUDE_DIR ${DEFAULT_BOOST_ROOT}/include)
 set(BOOST_LIBRARY_DIR ${DEFAULT_BOOST_ROOT}/stage/lib)
 
 
-IF(NOT VTK_DIR)
+IF(THIRDPARTY_BUILD_VTK)
 
 set(VTK_LIBRARIES
   ${VTK_LIBRARY}/libvtksys-9.4${LIB_EXT}
@@ -28,7 +28,7 @@ target_link_libraries(${TEST_NAME} VTK::CommonCore VTK::CommonDataModel VTK::IOL
 
 ENDIF()
 
-MESSAGE("VTK_LIBRARIES " ${PARMETIS_INCLUDE_DIR})
+MESSAGE("VTK_LIBRARIES " ${VTK_LIBRARIES})
 
 include_directories(${BOOST_INCLUDE_DIR})
 include_directories(${PARMETIS_INCLUDE_DIR})
@@ -42,6 +42,7 @@ target_link_libraries(${TEST_NAME} ${LAPACK_LIBRARIES})
 target_link_libraries(${TEST_NAME} ${METIS_LIBRARY})
 target_link_libraries(${TEST_NAME} ${PARMETIS_LIBRARY})
 target_link_libraries(${TEST_NAME} ${HDF5_LIBRARY})
+target_link_libraries(${TEST_NAME} ${VTK_LIBRARIES})
 target_link_libraries(${TEST_NAME} ${MMG_LIBRARY}/libmmg3d${LIB_EXT})
 target_link_libraries(${TEST_NAME} ${PARMMG_LIBRARY}/libparmmg${LIB_EXT})
 
