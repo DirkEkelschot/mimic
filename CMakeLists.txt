@@ -287,7 +287,7 @@ target_link_libraries(mimic ${PARMMG_LIBRARY}/libparmmg${LIB_EXT})
 
 
 
-IF(VTK_DIR)
+IF(NOT THIRDPARTY_BUILD_VTK)
 
 
   find_package(VTK 
