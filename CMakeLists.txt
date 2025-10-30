@@ -16,13 +16,11 @@ set(CMAKE_CXX_COMPILER ${DEFAULT_MPI_ROOT}/bin/mpicxx)
 # set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_FLAGS "-fPIC")
 
-file(GLOB SRC CONFIGURE_DEPENDS "src/*.cpp" "main.cpp")
-#find_package(MPI REQUIRED)
+
+file(GLOB SRC_FILES "${CMAKE_SOURCE_DIR}/src/*.cpp")
 
 
 	
-#add_executable(gradient_reconstrution_test unit_tests/gradient_reconstrution_test/main.cpp)
-#add_test(NAME GradientReconstructionTest COMMAND gradient_reconstrution_test)
 
 
 
@@ -62,12 +60,10 @@ endforeach()
 INCLUDE (cmake/adaptCommon.cmake)
 
 
-add_executable(mimic ${SRC})
+
 
 find_package(LAPACK)
-target_link_libraries(mimic ${LAPACK_LIBRARIES})
 
-#include_directories(${MPI_CXX_INCLUDE_PATH})
 set(Boost_INCLUDE_DIR ${DEFAULT_BOOST_ROOT}/include)
 set(Boost_LIBRARY_DIR ${DEFAULT_BOOST_ROOT}/lib)
 include_directories(${Boost_INCLUDE_DIR})
@@ -90,12 +86,9 @@ if(NOT EXISTS "${MPI_LIBRARY}")
   message(FATAL_ERROR "mpi library not found")
 endif()
 include_directories(${MPI_INCLUDE_DIR})
-target_link_libraries(mimic ${MPI_LIBRARY})
-MESSAGE("MPI_INCLUDE_DIR " ${MPI_INCLUDE_DIR})
-MESSAGE("MPI_LIBRARY " ${MPI_LIBRARY})
 
 
-#find_package(MPI REQUIRED)
+
 
 #=================================================================================================
 
@@ -127,6 +120,7 @@ ELSEIF(NOT DEFAULT_PARMETIS_ROOT OR NOT DEFAULT_METIS_ROOT)
   MESSAGE(FATAL_ERROR [=[
 Configuration failed!
 Install METIS and PARMETIS and set DEFAULT_METIS_ROOT and DEFAULT_PARMETIS_ROOT equal to the installing paths.
+For more information on how to install METIS and PARMETIS, see the README.md file.
 Modify the paths listed below in machine.cmake:
  - DEFAULT_METIS_ROOT=/path/to/metis/
  - DEFAULT_PARMETIS_ROOT=/path/to/parmetis/
@@ -140,7 +134,6 @@ set(PARMETIS_LIBRARIES ${PARMETIS_LIBRARY} ${METIS_LIBRARY})
 set(PARMETIS_INCLUDE_DIRS ${PARMETIS_INCLUDE_DIR} ${METIS_INCLUDE_DIR})
 
 include_directories(${PARMETIS_INCLUDE_DIRS})
-target_link_libraries(mimic ${PARMETIS_LIBRARIES})
 
 
 #=================================================================================================
@@ -171,9 +164,6 @@ IF(DEFAULT_HDF5_ROOT)
   SET(HDF5_INCLUDE_DIRS ${HDF5_LIBRARY})
   SET(HDF5_LIBRARIES ${HDF5_INCLUDE_DIR})
   include_directories(${HDF5_INCLUDE_DIR})
-  target_link_libraries(mimic ${HDF5_LIBRARY})
-  target_link_libraries(mimic ${HDF5_HL_LIBRARY})
-  # MESSAGE("HDF5_HL_LIBRARY   " ${HDF5_HL_LIBRARY})
 
 ENDIF()
 
@@ -202,7 +192,6 @@ IF(DEFAULT_MMG_ROOT)
 
   include_directories(${MMGS_INCLUDE_DIR})
   include_directories(${MMG3D_INCLUDE_DIR})
-  target_link_libraries(mimic ${MMG_LIBRARY}/libmmg3d${LIB_EXT})
 
 ELSE()
 
@@ -215,7 +204,7 @@ ENDIF()
 
 #=================================================================================================
 
-MESSAGE("===========================" ${DEFAULT_HDF5_ROOT})
+
 IF(DEFAULT_PARMMG_ROOT)
   
   find_path(PARMMG_INCLUDE_DIR parmmg.h PATHS "${DEFAULT_PARMMG_ROOT}/include")
@@ -232,7 +221,7 @@ ELSE()
 
   IF(NOT DEFAULT_HDF5_ROOT)
     MESSAGE("Installing HDF5 in the ThirdPary directory...")
-    MESSAGE("HDF5 requires ZLIB as well and ZLIB is installed in the ThirdParty directoty.")
+    MESSAGE("HDF5 requires ZLIB as well and ZLIB is installed in the ThirdParty directory.")
 
     MESSAGE("Loading cmake/ThirdPartyZLIB.cmake")
     INCLUDE (cmake/ThirdPartyZLIB.cmake)
@@ -241,7 +230,6 @@ ELSE()
     INCLUDE (cmake/ThirdPartyHDF5.cmake)
 
     include_directories(${HDF5_INCLUDE_DIR})
-    target_link_libraries(mimic ${HDF5_LIBRARY})
 
     IF(NOT DEFAULT_MMG_ROOT)
       MESSAGE("Loading cmake/ThirdPartyMMG.cmake")
@@ -249,7 +237,6 @@ ELSE()
 
       include_directories(${MMGS_INCLUDE_DIR})
       include_directories(${MMG3D_INCLUDE_DIR})
-      target_link_libraries(mimic ${MMG_LIBRARY}/libmmg3d${LIB_EXT})
 
     ENDIF()
   
@@ -266,7 +253,6 @@ ELSE()
 
       include_directories(${MMGS_INCLUDE_DIR})
       include_directories(${MMG3D_INCLUDE_DIR})
-      target_link_libraries(mimic ${MMG_LIBRARY}/libmmg3d${LIB_EXT})
 
     ENDIF()
   
@@ -281,13 +267,12 @@ ELSE()
 ENDIF()
 
 include_directories(${PARMMG_INCLUDE_DIR})
-target_link_libraries(mimic ${PARMMG_LIBRARY}/libparmmg${LIB_EXT})
 
 #=================================================================================================
 
 
 
-IF(NOT THIRDPARTY_BUILD_VTK)
+IF(VTK_DIR)
 
 
   find_package(VTK 
@@ -303,23 +288,12 @@ IF(NOT THIRDPARTY_BUILD_VTK)
 
 
   MESSAGE("VTK found in user specified path:" ${VTK_LIBRARY})
-  target_link_libraries(mimic VTK::CommonCore VTK::CommonDataModel VTK::IOLegacy VTK::IOXML VTK::ParallelCore VTK::IOParallelXML)
 
 ELSE()
 
   MESSAGE("Loading cmake/ThirdPartyVTK.cmake")
   INCLUDE (cmake/ThirdPartyVTK.cmake)
 
-  include_directories(${VTK_INCLUDE_DIRS})
-
-
-  #target_link_libraries(mimic ${VTK_LIBRARY}/libvtksys-9.4${LIB_EXT})
-  #target_link_libraries(mimic ${VTK_LIBRARY}/libvtkCommonCore-9.4${LIB_EXT})
-  #target_link_libraries(mimic ${VTK_LIBRARY}/libvtkCommonDataModel-9.4${LIB_EXT})
-  #target_link_libraries(mimic ${VTK_LIBRARY}/libvtkIOLegacy-9.4${LIB_EXT})
-  #target_link_libraries(mimic ${VTK_LIBRARY}/libvtkIOXML-9.4${LIB_EXT})
-  #target_link_libraries(mimic ${VTK_LIBRARY}/libvtkParallelCore-9.4${LIB_EXT})
-  #target_link_libraries(mimic ${VTK_LIBRARY}/libvtkIOParallelXML-9.4${LIB_EXT})
 	
 set(VTK_LIBRARIES
   ${VTK_LIBRARY}/libvtksys-9.4${LIB_EXT}
@@ -332,19 +306,34 @@ set(VTK_LIBRARIES
 )
 
 include_directories(${VTK_INCLUDE_DIRS})
-target_link_libraries(mimic ${VTK_LIBRARIES})
 
 ENDIF()
 
+OPTION(BUILD_MIMIC_US3D
+        "Build MIMIC for US3D." OFF)
+OPTION(BUILD_MIMIC_HYPERSOLVE
+        "Build MIMIC for HyperSolve." OFF)
 
-MESSAGE("==========================++++++==  " ${VTK_INCLUDE_DIRS})
 add_subdirectory(unit_tests)
-add_subdirectory(utilities)
-INCLUDE (cmake/ThirdPartyOCCT.cmake)
-INCLUDE (cmake/ThirdPartyESP.cmake)
 
-include_directories(${ESP_INCLUDE_DIR})
-target_link_libraries(mimic ${ESP_LIBRARY}/libegads${LIB_EXT})
+IF(BUILD_MIMIC_US3D)
+	add_subdirectory(mimic.us3d)
+ENDIF()
+IF(BUILD_MIMIC_HYPERSOLVE)
+	add_subdirectory(mimic.hs)
+ENDIF()
+
+
+
+OPTION(BUILD_UTILITIES
+        "Build MIMIC utilities." OFF)
+
+IF(BUILD_UTILITIES)
+	add_subdirectory(utilities)
+ENDIF()
+
+
+
 
 #=================================================================================================
 

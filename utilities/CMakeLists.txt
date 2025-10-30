@@ -23,7 +23,6 @@ target_link_libraries(${TEST_NAME} VTK::CommonCore VTK::CommonDataModel VTK::IOL
 
 ENDIF()
 
-MESSAGE("VTK_LIBRARIES " ${VTK_LIBRARIES})
 
 include_directories(${BOOST_INCLUDE_DIR})
 include_directories(${PARMETIS_INCLUDE_DIR})
@@ -35,7 +34,4 @@ include_directories(${ESP_INCLUDE_DIR})
 
 find_package(LAPACK)
 
-add_subdirectory(mimic.su2)
-add_subdirectory(mimic.msh)
-add_subdirectory(mimic.pyfrm)
 add_subdirectory(useESP)

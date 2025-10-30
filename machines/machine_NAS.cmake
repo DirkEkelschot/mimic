@@ -6,11 +6,5 @@ set (DEFAULT_XML_ROOT /home1/dekelsch/Software/tinyxml)
 set (VTK_DIR /nasa/pkgsrc/toss4/2023Q3/lib/cmake/vtk-9.2)
 set (VTK_INCLUDE_DIRS /nasa/pkgsrc/toss4/2023Q3/include/vtk-9.2)
 set (DEFAULT_HDF5_ROOT /nasa/hdf5/1.12.0_mpt)
-
-
-#set(DEFAULT_EGADS_ROOT /nobackupp19/dekelsch/Software/EngSketchPad)
-#set(DEFAULT_OPENCASCADE_ROOT /nobackupp19/dekelsch/Software/OCCT-7_8_1/install)
-
-
 #set (DEFAULT_MMG_ROOT )
 #set (DEFAULT_PARMMG_ROOT )

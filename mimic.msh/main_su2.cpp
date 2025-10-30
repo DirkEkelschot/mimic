@@ -21,11 +21,6 @@
 #include "../../src/adapt_operations.h"
 #include "../../src/adapt_partobject_lite.h"
 #include "../../src/adapt.h"
-
-// extern "C" {
-// #include "egads.h"
-// }
-#include <egads.h>
 // #include <cstdio>
 #include <stdio.h>
 //#include "/Users/dekelsch/mimic_libmesh/utilities/partitionTetrahedra/build/ThirdParty/dist/include/libmeshb7.h"
@@ -160,6 +155,7 @@ void WriteCompleteSU2Mesh(MPI_Comm comm, const char* fm,
 
 
     //mesh_file << "NMARK= 3\n";
+
     mesh_file << "%"<<std::endl;
     mesh_file << "% Boundary elements"<<std::endl;
     mesh_file << "%"<<std::endl;
@@ -181,21 +177,21 @@ void WriteCompleteSU2Mesh(MPI_Comm comm, const char* fm,
         {
             std::cout << "itmii->first " << itmii->first << " " << bctags[itmii->first]  << std::endl; 
 
-            mesh_file << "MARKER_TAG= " << bctags[itmii->first] << "\n";
-            mesh_file << "MARKER_ELEMS= " << itmii->second.size() << "\n";
+            mesh_file << "MARKER_TAG=" << bctags[itmii->first] << "\n";
+            mesh_file << "MARKER_ELEMS=" << itmii->second.size() << "\n";
             
-            for(int q=0;q<itmii->second.size();q++)
-            {
-                if(itmii->second[q].size()==3)
-                {
-                    mesh_file << 5 << std::setw(17) << itmii->second[q][0]-1 << std::setw(17) << itmii->second[q][1]-1 << std::setw(17) << itmii->second[q][2]-1 << std::endl;
-                }
-                if(itmii->second[q].size()==4)
-                {
-                    mesh_file << 9 << std::setw(17) << itmii->second[q][0]-1 << std::setw(17) << itmii->second[q][1]-1 << std::setw(17) << itmii->second[q][2]-1 << std::setw(17) << itmii->second[q][3]-1 << std::endl;
+            // for(int q=0;q<itmii->second.size();q++)
+            // {
+            //     if(itmii->second[q].size()==3)
+            //     {
+            //         mesh_file << 5 << std::setw(17) << itmii->second[q][0]-1 << std::setw(17) << itmii->second[q][1]-1 << std::setw(17) << itmii->second[q][2]-1 << std::endl;
+            //     }
+            //     if(itmii->second[q].size()==4)
+            //     {
+            //         mesh_file << 9 << std::setw(17) << itmii->second[q][0]-1 << std::setw(17) << itmii->second[q][1]-1 << std::setw(17) << itmii->second[q][2]-1 << std::setw(17) << itmii->second[q][3]-1 << std::endl;
 
-                }
-            }
+            //     }
+            // }
         }
     }
     
@@ -1207,25 +1203,7 @@ UniformMesh* ScatterElements(MPI_Comm comm, ParallelState* pstate_Elem, Parallel
 }
 
 
-void printTopology(ego object, int depth = 0) {
-    ego geom;
-    int oclass, mtype, nchild, *senses;
-    double data;
-    ego *children;
 
-    int status = EG_getTopology(object, &geom, &oclass, &mtype, &data, &nchild, &children, &senses);
-    if (status != EGADS_SUCCESS) return;
-
-    // indent for clarity
-    for (int i = 0; i < depth; ++i) std::cout << "  ";
-    std::cout << "oclass=" << oclass << " mtype=" << mtype << " nchild=" << nchild << std::endl;
-
-    // Recurse on each child
-    for (int i = 0; i < nchild; ++i) {
-        printTopology(children[i], depth + 1);
-    }
-    // Free memory if needed per EGADS version
-}
 
 
 int main(int argc, char** argv)
@@ -1247,81 +1225,10 @@ int main(int argc, char** argv)
     int debug = 1;
 
 
-    ego context;
-    int status = EG_open(&context);
-    if (status != EGADS_SUCCESS) {
-        // Handle error
-    }
-    ego model = NULL;
-    int bitFlag = 16;
-    const char* filename = "hls.iges"; // Path to your CAD file
-    status = EG_loadModel(context, bitFlag, filename, &model);
-
-    //std::cout << "status " << status << " " << EGADS_SUCCESS << std::endl; 
-    if (status != EGADS_SUCCESS) {
-        std::cout << "Not able to load the model " << filename << std::endl;
-    }
-
-    // int oclass, mtype, nBodies;
-    // double data[4];
-    // ego *bodies = NULL;
-    // int *senses = NULL;
-
-
-    int nBodies;
-    ego* bodies = NULL;
-    status = EG_getBodyTopos(model, NULL, BODY, &nBodies, &bodies);
-    std::cout << "Number of bodies: " << nBodies << std::endl;
-    int nFaces;
-    ego* faces = NULL;
-    status = EG_getBodyTopos(model, NULL, FACE, &nFaces, &faces);
-    std::cout << "Number of nFaces: " << nFaces << std::endl;
-
-    int nEdges = 0;
-    ego* edges = NULL;
-    status = EG_getBodyTopos(model, NULL, EDGE, &nEdges, &edges);
-    std::cout << "Number of nEdges: " << nEdges << std::endl;
-
-    int nShells = 0;
-    ego* shells = NULL;
-    status = EG_getBodyTopos(model, NULL, SHELL, &nShells, &shells);
-    std::cout << "Number of nShells: " << nShells << std::endl;
-
-
-    printTopology(model);
-// nEdges should now be 12
-    //std::cout << "Number of bodies: " << nBodies << " " << nFaces << std::endl;
-    // status = EG_getTopology(model, NULL, &oclass, &mtype, data, &nBodies, &bodies, &senses);
-    // if (EG_getTopology(model, NULL, &oclass, &mtype, data, &nBodies, &bodies, &senses) != EGADS_SUCCESS) {
-    //     std::cout << "EG_getTopology failed." << std::endl;
-    //     EG_deleteObject(model);
-    //     EG_close(context);
-    //     return 1;
-    // }
-    // int nBodies;
-    // ego *bodies;
-    // status = EG_getTopology(model, NULL, NULL, &nBodies, &bodies, NULL, NULL, NULL);
-    // if (status != EGADS_SUCCESS || nBodies < 1) { /* handle error */ }
-
-    // int nFaces;
-    // ego *faces;
-    // status = EG_getBodyTopos(bodies[0], NULL, FACE, &nFaces, &faces);
-    // if (status != EGADS_SUCCESS || nFaces < 1) { /* handle error */ }
-
-    /*
-    int attribute_type;
-    const int *ints;
-    const char *strings;
-    int egads_status;
-
     int64_t LibIdx;
     int ver, dim, NmbVer, NmbTri, NmbTet, NmbPri;
     
-    //const char* fm = "hemihyb.su2";
-    const char* fm = "mesh/mesh.su2";
-    //const char* fm = "testbox2.su2";
-    const char* fd = "mesh/solution.h5";
-
+    const char* fm = "mesh/hemisphere.msh";
     Inputs* inputs = ReadXmlFile(comm, "metric.xml");
 
     std::vector<std::vector<int> > elements;
@@ -1475,9 +1382,7 @@ int main(int argc, char** argv)
     int Nv = nvrts;
     
     PartObjectLite* partitionT = new PartObjectLite(tetUniMesh->e2v, tetUniMesh->vert_local, tetUniMesh->eltype_map, tetUniMesh->eltype_vec, allbcFacesNew, Ne, Nv, comm);
-    
-    
-    //PartObjectLite* partitionP = new PartObjectLite(blUniMesh->e2v,   blUniMesh->vert_local,  blUniMesh->eltype_map,  blUniMesh->eltype_vec, allbcFacesNew, Ne, Nv, comm);
+    PartObjectLite* partitionP = new PartObjectLite(blUniMesh->e2v,   blUniMesh->vert_local,  blUniMesh->eltype_map,  blUniMesh->eltype_vec, allbcFacesNew, Ne, Nv, comm);
     std::map<int,std::vector<double> > t_hessian_new = partitionT->RedistributeVertexDataForPartition(comm, nvrts, t_hessian);
 
     //std::cout << "Check redistributed data " << partitionT->getLocalVertsMap().size() << " " << t_hessian_new.size() << std::endl;
@@ -1520,11 +1425,11 @@ int main(int argc, char** argv)
     // MPI_Allreduce(&nLocalInteriorP,  &nAllInteriorP,   1, MPI_INT, MPI_SUM, comm);
     // int nTotalInteriorFacesP = nAllInteriorP+ActualSharedFaceSetPointerP.size();
 
-    // string filename_interface = "interface_" + std::to_string(world_rank) + ".vtu";
-    // OutputTriMeshPartitionVTK(comm,
-    //                          filename_interface, 
-    //                          ExternalInterFaceFace,
-    //                          partitionT->getLocalVertsMap());
+    string filename_interface = "interface_" + std::to_string(world_rank) + ".vtu";
+    OutputTriMeshPartitionVTK(comm,
+                             filename_interface, 
+                             ExternalInterFaceFace,
+                             partitionT->getLocalVertsMap());
     
 
     //=========================================================================================================================
@@ -1787,7 +1692,7 @@ int main(int argc, char** argv)
     }
 
 
-    
+
     int reqq_glob = 0; 
     MPI_Allreduce(&reqq,  &reqq_glob, 1, MPI_INT, MPI_MAX, comm); 
 
@@ -1796,203 +1701,203 @@ int main(int argc, char** argv)
     // After this point, we can start figuring out what the boundary layer mesh vertex IDs are since we have now collected to vertices that on the interface
     std::map<int,std::vector<double> > LocalVerts_T  = partitionT->getLocalVertsMap();
 
-    // std::map<int,std::vector<double> > LocalVerts_BL = partitionP->getLocalVertsMap();
-    // std::map<int,int> SharedVertsMap_g2l             = partitionP->getActualSharedVerts_Global2LocalMap();
-    // std::map<int,int> SharedVertsMap_l2g             = partitionP->getActualSharedVerts_Global2LocalMap();
-    // std::map<int,int> SharedVertsMap_g2l_new;
-    // std::map<int,int>::iterator it;
-    // std::map<int,int> SharedVertsMap_new;
-    // int loc_shared_vid = 0;
-    // for(it=SharedVertsMap_g2l.begin();it!=SharedVertsMap_g2l.end();it++)
-    // {
-    //     int vid = it->first;
-    //     if(InterFaceVertsTag2Glob_All.find(vid)==InterFaceVertsTag2Glob_All.end())
-    //     {
-    //         SharedVertsMap_g2l_new[vid] = loc_shared_vid;
-    //         loc_shared_vid++;
-    //     }
-    // }
+    std::map<int,std::vector<double> > LocalVerts_BL = partitionP->getLocalVertsMap();
+    std::map<int,int> SharedVertsMap_g2l             = partitionP->getActualSharedVerts_Global2LocalMap();
+    std::map<int,int> SharedVertsMap_l2g             = partitionP->getActualSharedVerts_Global2LocalMap();
+    std::map<int,int> SharedVertsMap_g2l_new;
+    std::map<int,int>::iterator it;
+    std::map<int,int> SharedVertsMap_new;
+    int loc_shared_vid = 0;
+    for(it=SharedVertsMap_g2l.begin();it!=SharedVertsMap_g2l.end();it++)
+    {
+        int vid = it->first;
+        if(InterFaceVertsTag2Glob_All.find(vid)==InterFaceVertsTag2Glob_All.end())
+        {
+            SharedVertsMap_g2l_new[vid] = loc_shared_vid;
+            loc_shared_vid++;
+        }
+    }
 
-    // //std::cout << "update shared verts " << SharedVertsMap.size() << " " << SharedVertsMap_new.size() << std::endl;
+    //std::cout << "update shared verts " << SharedVertsMap.size() << " " << SharedVertsMap_new.size() << std::endl;
 
-    // std::set<int> OwnedNonSharedVertsMap             = partitionP->getOwnedNonSharedVertsMap();
-    // DistributedParallelState* nonSharedVrts_P   = new DistributedParallelState(OwnedNonSharedVertsMap.size(),comm);
-    // DistributedParallelState* AllVrts_P         = new DistributedParallelState(LocalVerts_BL.size(),comm);
-    // DistributedParallelState* AllVrts_T         = new DistributedParallelState(LocalVerts_T.size(),comm);
+    std::set<int> OwnedNonSharedVertsMap             = partitionP->getOwnedNonSharedVertsMap();
+    DistributedParallelState* nonSharedVrts_P   = new DistributedParallelState(OwnedNonSharedVertsMap.size(),comm);
+    DistributedParallelState* AllVrts_P         = new DistributedParallelState(LocalVerts_BL.size(),comm);
+    DistributedParallelState* AllVrts_T         = new DistributedParallelState(LocalVerts_T.size(),comm);
 
-    // std::set<int>::iterator itr;
-    // int loc_int_v = 1;
-    // std::map<int,std::vector<double> >::iterator itmb;
-    // std::map<int,int> InteriorVrtsTag2Glob;
-    // std::map<int,int> InteriorVrtsGlob2Tag;
-    // int st1     = 0;
-    // int st2     = 0;
-    // int st3     = 0;
-    // int st4     = 0;
-    // int count   = 0;
-
-
-    // std::map<int,int> interiorTag2Glob;
-    // std::map<int,int> interiorGlob2Tag;
-
-    // for(itmb=LocalVerts_BL.begin();itmb!=LocalVerts_BL.end();itmb++)
-    // {
-    //     int tagvid = itmb->first;
-
-    //     if(SharedVertsMap_g2l_new.find(tagvid)==SharedVertsMap_g2l_new.end()) // Make sure it in actually a vertex on an interior face and that its not shared with a shared face.
-    //     {
-    //         if(InterFaceVertsTag2Glob_All.find(tagvid)==InterFaceVertsTag2Glob_All.end()) // make sure its not on the interface that is already taken into account by the tetrahedra
-    //         {
-    //             interiorTag2Glob[tagvid] = loc_int_v;
-    //             InteriorVrtsTag2Glob[tagvid] = loc_int_v; // if its not included in either sets, then count it as interior vert;
-    //             loc_int_v++;
-    //             st1++;
-    //         } 
-    //     }
-    // }
+    std::set<int>::iterator itr;
+    int loc_int_v = 1;
+    std::map<int,std::vector<double> >::iterator itmb;
+    std::map<int,int> InteriorVrtsTag2Glob;
+    std::map<int,int> InteriorVrtsGlob2Tag;
+    int st1     = 0;
+    int st2     = 0;
+    int st3     = 0;
+    int st4     = 0;
+    int count   = 0;
 
 
-    // DistributedParallelState* IntVrts_P = new DistributedParallelState(interiorTag2Glob.size(),comm);
-    // std::map<int,int> interiorTag2Glob_update;
-    // std::map<int,int> sharedTag2Glob_update;
-    // std::map<int,std::vector<double> > LocalVerts_BL_GlobalID;
+    std::map<int,int> interiorTag2Glob;
+    std::map<int,int> interiorGlob2Tag;
 
-    // std::map<int,std::vector<double> > SharedVertCoordsOnRoot = partitionP->GatherSharedVertCoordsOnRoot(comm);
-    // for(it=InteriorVrtsTag2Glob.begin();it!=InteriorVrtsTag2Glob.end();it++)
-    // {
-    //     int tagvid        = it->first;
-    //     int loc_int_v_tmp = it->second;
+    for(itmb=LocalVerts_BL.begin();itmb!=LocalVerts_BL.end();itmb++)
+    {
+        int tagvid = itmb->first;
+
+        if(SharedVertsMap_g2l_new.find(tagvid)==SharedVertsMap_g2l_new.end()) // Make sure it in actually a vertex on an interior face and that its not shared with a shared face.
+        {
+            if(InterFaceVertsTag2Glob_All.find(tagvid)==InterFaceVertsTag2Glob_All.end()) // make sure its not on the interface that is already taken into account by the tetrahedra
+            {
+                interiorTag2Glob[tagvid] = loc_int_v;
+                InteriorVrtsTag2Glob[tagvid] = loc_int_v; // if its not included in either sets, then count it as interior vert;
+                loc_int_v++;
+                st1++;
+            } 
+        }
+    }
+
+
+    DistributedParallelState* IntVrts_P = new DistributedParallelState(interiorTag2Glob.size(),comm);
+    std::map<int,int> interiorTag2Glob_update;
+    std::map<int,int> sharedTag2Glob_update;
+    std::map<int,std::vector<double> > LocalVerts_BL_GlobalID;
+
+    std::map<int,std::vector<double> > SharedVertCoordsOnRoot = partitionP->GatherSharedVertCoordsOnRoot(comm);
+    for(it=InteriorVrtsTag2Glob.begin();it!=InteriorVrtsTag2Glob.end();it++)
+    {
+        int tagvid        = it->first;
+        int loc_int_v_tmp = it->second;
 
         
-    //     int glo_int_v_tmp = max_vid_T+IntVrts_P->getOffsets()[world_rank] + loc_int_v_tmp;
+        int glo_int_v_tmp = max_vid_T+IntVrts_P->getOffsets()[world_rank] + loc_int_v_tmp;
         
-    //     interiorTag2Glob_update[tagvid]                 = glo_int_v_tmp;
-    //     interiorGlob2Tag[glo_int_v_tmp]                 = tagvid;
+        interiorTag2Glob_update[tagvid]                 = glo_int_v_tmp;
+        interiorGlob2Tag[glo_int_v_tmp]                 = tagvid;
 
-    //     LocalVerts_BL_GlobalID[glo_int_v_tmp] = LocalVerts_BL[tagvid];
-    // }
+        LocalVerts_BL_GlobalID[glo_int_v_tmp] = LocalVerts_BL[tagvid];
+    }
 
-    // std::map<int,std::vector<double> > AllVertsOnRootBL_update = GatherGlobalMapOnRoot_T(LocalVerts_BL_GlobalID,comm);
-    // int nfound = 0;
+    std::map<int,std::vector<double> > AllVertsOnRootBL_update = GatherGlobalMapOnRoot_T(LocalVerts_BL_GlobalID,comm);
+    int nfound = 0;
     
-    // if(world_rank == 0)
-    // {
-    //     for(it=SharedVertsMap_g2l_new.begin();it!=SharedVertsMap_g2l_new.end();it++)
-    //     {
-    //         int tagvid        = it->first;
-    //         int loc_int_v_tmp = it->second;
-    //         int glo_shared_v  = max_vid_T + IntVrts_P->getNel() + loc_int_v_tmp + 1;
+    if(world_rank == 0)
+    {
+        for(it=SharedVertsMap_g2l_new.begin();it!=SharedVertsMap_g2l_new.end();it++)
+        {
+            int tagvid        = it->first;
+            int loc_int_v_tmp = it->second;
+            int glo_shared_v  = max_vid_T + IntVrts_P->getNel() + loc_int_v_tmp + 1;
             
-    //         sharedTag2Glob_update[tagvid]           = glo_shared_v;
-    //         interiorGlob2Tag[glo_shared_v]          = tagvid;
+            sharedTag2Glob_update[tagvid]           = glo_shared_v;
+            interiorGlob2Tag[glo_shared_v]          = tagvid;
 
-    //         if(AllVertsOnRootBL_update.find(glo_shared_v)==AllVertsOnRootBL_update.end())
-    //         {
-    //             AllVertsOnRootBL_update[glo_shared_v] = SharedVertCoordsOnRoot[tagvid];
-    //         }
-    //         else
-    //         {
-    //             std::cout << glo_shared_v << std::endl;
-    //             nfound++;
-    //         }   
-    //     }
-    // }
+            if(AllVertsOnRootBL_update.find(glo_shared_v)==AllVertsOnRootBL_update.end())
+            {
+                AllVertsOnRootBL_update[glo_shared_v] = SharedVertCoordsOnRoot[tagvid];
+            }
+            else
+            {
+                std::cout << glo_shared_v << std::endl;
+                nfound++;
+            }   
+        }
+    }
 
-    // std::map<int,int> sharedTag2Glob_update_glob = AllGatherMap_T(sharedTag2Glob_update,comm);
+    std::map<int,int> sharedTag2Glob_update_glob = AllGatherMap_T(sharedTag2Glob_update,comm);
     
-    // std::map<int,std::vector<int> > gE2gV_p         = partitionP->getElem2VertMap();
-    // DistributedParallelState* DistributedBLElements = new DistributedParallelState(gE2gV_p.size(),comm);
-    // DistributedParallelState* DistributedTElements  = new DistributedParallelState(nTetrahedraOUT,comm);
+    std::map<int,std::vector<int> > gE2gV_p         = partitionP->getElem2VertMap();
+    DistributedParallelState* DistributedBLElements = new DistributedParallelState(gE2gV_p.size(),comm);
+    DistributedParallelState* DistributedTElements  = new DistributedParallelState(nTetrahedraOUT,comm);
     
-    // std::map<int,std::vector<int> > gE2gV_Adapted_BL;
-    // int loc_elem_id = 0;
-    // for(itm=gE2gV_p.begin();itm!=gE2gV_p.end();itm++)
-    // {
-    //     int elid = DistributedTElements->getNel()+DistributedBLElements->getOffsets()[world_rank] + loc_elem_id;
-    //     std::vector<int> LocalVertids = itm->second;
-    //     std::vector<int> GlobalVertids(LocalVertids.size(),0);
+    std::map<int,std::vector<int> > gE2gV_Adapted_BL;
+    int loc_elem_id = 0;
+    for(itm=gE2gV_p.begin();itm!=gE2gV_p.end();itm++)
+    {
+        int elid = DistributedTElements->getNel()+DistributedBLElements->getOffsets()[world_rank] + loc_elem_id;
+        std::vector<int> LocalVertids = itm->second;
+        std::vector<int> GlobalVertids(LocalVertids.size(),0);
 
-    //     for(int q=0;q<LocalVertids.size();q++)
-    //     {
-    //         int tagv = LocalVertids[q];
+        for(int q=0;q<LocalVertids.size();q++)
+        {
+            int tagv = LocalVertids[q];
 
-    //         if(interiorTag2Glob_update.find(tagv)!=interiorTag2Glob_update.end())
-    //         {
-    //             GlobalVertids[q] = interiorTag2Glob_update[tagv];
-    //         }
-    //         else if(sharedTag2Glob_update_glob.find(tagv)!=sharedTag2Glob_update_glob.end())
-    //         {
-    //             GlobalVertids[q] = sharedTag2Glob_update_glob[tagv];
-    //         }
-    //         else if(InterFaceVertsTag2Glob_All.find(tagv)!=InterFaceVertsTag2Glob_All.end())
-    //         {
-    //             GlobalVertids[q] = InterFaceVertsTag2Glob_All[tagv];
-    //         }
-    //         else
-    //         {
-    //             std::cout << "Error: tagv not found in any of the maps " << tagv << std::endl;
-    //         }
-    //     }
-    //     gE2gV_Adapted_BL[elid] = GlobalVertids;
+            if(interiorTag2Glob_update.find(tagv)!=interiorTag2Glob_update.end())
+            {
+                GlobalVertids[q] = interiorTag2Glob_update[tagv];
+            }
+            else if(sharedTag2Glob_update_glob.find(tagv)!=sharedTag2Glob_update_glob.end())
+            {
+                GlobalVertids[q] = sharedTag2Glob_update_glob[tagv];
+            }
+            else if(InterFaceVertsTag2Glob_All.find(tagv)!=InterFaceVertsTag2Glob_All.end())
+            {
+                GlobalVertids[q] = InterFaceVertsTag2Glob_All[tagv];
+            }
+            else
+            {
+                std::cout << "Error: tagv not found in any of the maps " << tagv << std::endl;
+            }
+        }
+        gE2gV_Adapted_BL[elid] = GlobalVertids;
 
-    //     loc_elem_id = loc_elem_id + 1;
-    // }
+        loc_elem_id = loc_elem_id + 1;
+    }
     
     
-    // int nreq2_total = 0;
-    // MPI_Allreduce(&nreq2,  &nreq2_total, 1, MPI_INT, MPI_SUM, comm);
-    // int bc0_total = 0;
-    // MPI_Allreduce(&bc0,  &bc0_total, 1, MPI_INT, MPI_SUM, comm);
-    // int bc1_total = 0;
-    // MPI_Allreduce(&bc1,  &bc1_total, 1, MPI_INT, MPI_SUM, comm);
-    // int bc2_total = 0;
-    // MPI_Allreduce(&bc2,  &bc2_total, 1, MPI_INT, MPI_SUM, comm);
-    // int bc3_total = 0;
-    // MPI_Allreduce(&bc3,  &bc3_total, 1, MPI_INT, MPI_SUM, comm);
-    // int bc4_total = 0;
-    // MPI_Allreduce(&bc4,  &bc4_total, 1, MPI_INT, MPI_SUM, comm);
-    // int bc10_total = 0;
-    // MPI_Allreduce(&bc10,  &bc10_total, 1, MPI_INT, MPI_SUM, comm);
+    int nreq2_total = 0;
+    MPI_Allreduce(&nreq2,  &nreq2_total, 1, MPI_INT, MPI_SUM, comm);
+    int bc0_total = 0;
+    MPI_Allreduce(&bc0,  &bc0_total, 1, MPI_INT, MPI_SUM, comm);
+    int bc1_total = 0;
+    MPI_Allreduce(&bc1,  &bc1_total, 1, MPI_INT, MPI_SUM, comm);
+    int bc2_total = 0;
+    MPI_Allreduce(&bc2,  &bc2_total, 1, MPI_INT, MPI_SUM, comm);
+    int bc3_total = 0;
+    MPI_Allreduce(&bc3,  &bc3_total, 1, MPI_INT, MPI_SUM, comm);
+    int bc4_total = 0;
+    MPI_Allreduce(&bc4,  &bc4_total, 1, MPI_INT, MPI_SUM, comm);
+    int bc10_total = 0;
+    MPI_Allreduce(&bc10,  &bc10_total, 1, MPI_INT, MPI_SUM, comm);
 
 
 
-    // FaceSetPointer OwnedBoundaryFaceFaceMap = partitionP->getOwnedBoundaryFaceFaceMap();
-    // FaceSetPointer::iterator P_bcface;
+    FaceSetPointer OwnedBoundaryFaceFaceMap = partitionP->getOwnedBoundaryFaceFaceMap();
+    FaceSetPointer::iterator P_bcface;
 
-    // for(P_bcface=OwnedBoundaryFaceFaceMap.begin();P_bcface!=OwnedBoundaryFaceFaceMap.end();P_bcface++)
-    // {
-    //     std::vector<int> face = (*P_bcface)->GetEdgeIDs();
-    //     int fref_id = (*P_bcface)->GetFaceRef();
+    for(P_bcface=OwnedBoundaryFaceFaceMap.begin();P_bcface!=OwnedBoundaryFaceFaceMap.end();P_bcface++)
+    {
+        std::vector<int> face = (*P_bcface)->GetEdgeIDs();
+        int fref_id = (*P_bcface)->GetFaceRef();
 
-    //     //std::cout << "P_bcface " << fref_id << std::endl;
+        //std::cout << "P_bcface " << fref_id << std::endl;
 
-    //     for(int b=0;b<face.size();b++)
-    //     {   
-    //         int tagvid      = face[b];
-    //         int globvid = -1;
-    //         if(interiorTag2Glob_update.find(tagvid)!=interiorTag2Glob_update.end())
-    //         {
-    //             globvid = interiorTag2Glob_update[tagvid];
-    //         }
-    //         else if(sharedTag2Glob_update_glob.find(tagvid)!=sharedTag2Glob_update_glob.end())
-    //         {
-    //             globvid = sharedTag2Glob_update_glob[tagvid];
-    //         }
-    //         else if(InterFaceVertsTag2Glob_All.find(tagvid)!=InterFaceVertsTag2Glob_All.end())
-    //         {
-    //             globvid = InterFaceVertsTag2Glob_All[tagvid];
-    //         }
-    //         else
-    //         {
-    //             std::cout << "Error: tagv not found in any of the maps " << tagvid << std::endl;
-    //         }
-    //         fvrt.push_back(globvid);
-    //     }
+        for(int b=0;b<face.size();b++)
+        {   
+            int tagvid      = face[b];
+            int globvid = -1;
+            if(interiorTag2Glob_update.find(tagvid)!=interiorTag2Glob_update.end())
+            {
+                globvid = interiorTag2Glob_update[tagvid];
+            }
+            else if(sharedTag2Glob_update_glob.find(tagvid)!=sharedTag2Glob_update_glob.end())
+            {
+                globvid = sharedTag2Glob_update_glob[tagvid];
+            }
+            else if(InterFaceVertsTag2Glob_All.find(tagvid)!=InterFaceVertsTag2Glob_All.end())
+            {
+                globvid = InterFaceVertsTag2Glob_All[tagvid];
+            }
+            else
+            {
+                std::cout << "Error: tagv not found in any of the maps " << tagvid << std::endl;
+            }
+            fvrt.push_back(globvid);
+        }
 
-    //     fsize.push_back(face.size());
-    //     fref.push_back(fref_id);
+        fsize.push_back(face.size());
+        fref.push_back(fref_id);
         
-    // }
+    }
 
 
 
@@ -2050,7 +1955,7 @@ int main(int argc, char** argv)
     if(world_rank == 0)
     {
         int offset = 0;
-        std::cout << "BfacesSizeOnRoot.size(). " << BfacesSizeOnRoot.size() << std::endl;
+
         for(int i=0;i<BfacesSizeOnRoot.size();i++)
         {
             int fz      = BfacesSizeOnRoot[i];
@@ -2083,7 +1988,7 @@ int main(int argc, char** argv)
 
     //std::cout << "bcFacesPerRef. "<< bcFacesPerRef.size() << std::endl;
     //============================================================================================
-    
+    /**/
 
     // std::map<int,std::string > varnamesGrad;
 
@@ -2139,7 +2044,7 @@ int main(int argc, char** argv)
     std::map<int,std::vector<double> > VertsOnRootBL;//                 = GatherGlobalMapOnRoot_T(LocalVerts_BL_GlobalID,comm);
     std::map<int,std::vector<double> > VertsOnRootTetra                 = GatherGlobalMapOnRoot_T(LocalVerts_Adapted_GlobalID,comm);
     std::map<int,std::vector<int> > TetraOnRoot                         = GatherGlobalMapOnRoot_T(gE2gV_Adapted,comm);
-    std::map<int,std::vector<int> > BLOnRoot;//                         = GatherJaggedGlobalMapOnRoot_T(gE2gV_Adapted_BL,comm);
+    std::map<int,std::vector<int> > BLOnRoot                            = GatherJaggedGlobalMapOnRoot_T(gE2gV_Adapted_BL,comm);
     std::map<int,std::vector<int> > boundaryfaces_to_write_global       = GatherGlobalMapOnRoot_T(boundaryfaces_to_write_copy,comm);
     std::map<int,std::vector<int> > boundaryfaces_to_write_size_global  = GatherGlobalMapOnRoot_T(boundaryfaces_to_write_size_copy,comm);
 
@@ -2153,7 +2058,7 @@ int main(int argc, char** argv)
     // }
 
     //std::cout << "gE2gV_Adapted_BL " << gE2gV_Adapted_BL.size() << " " << BLOnRoot.size() << std::endl;
-    std::map<int,std::vector<double> > AllVertsOnRootBL_update;
+
     if(world_rank == 0)
     {
         std::cout << "VertsOnRoot " <<AllVertsOnRootBL_update.size()+VertsOnRootTetra.size() << " = "<< VertsOnRootTetra.size() << " + " << AllVertsOnRootBL_update.size() << " " << boundaryfaces_to_write_global.size() << " " << boundaryfaces_to_write_size_global.size() << std::endl; 
@@ -2185,7 +2090,7 @@ int main(int argc, char** argv)
     
     if(world_rank == 0)
     {
-        const char* fdo = "mimic_mesh.su2";
+        const char* fdo = "mimic_hemi.su2";
         
         //WriteTetraSU2Mesh(comm, fdo, VertsOnRootTetra, TetraOnRoot, bcFacesPerRefTetra, bcTags);
 
@@ -2244,8 +2149,8 @@ int main(int argc, char** argv)
     //     (*ftit)->SetFaceID(nTotalInteriorFaces+nTotalSharedFaces+fid);
     //     fid++;
     // }
-    */
 
+*/
 
     MPI_Finalize();
         

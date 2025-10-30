@@ -62,7 +62,7 @@ ENDIF()
 #SET(VTK_LIB ${TPDIST}/lib)
 
 
-ADD_DEPENDENCIES(mimic VTK-9.4.2)
+#ADD_DEPENDENCIES(mimic VTK-9.4.2)
 SET(VTK_DIR   ${TPDIST}lib/cmake/vtk-9.4)
 SET(VTK_LIBRARIES ${TPDIST}/lib CACHE FILEPATH
             "VTK lib directory" FORCE)
