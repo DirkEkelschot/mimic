@@ -1,7 +1,0 @@
-set(DEFAULT_MPI_ROOT /nasa/hpe/mpt/2.30_rhel810)
-set(DEFAULT_METIS_ROOT /nobackupp19/dekelsch/mimic-devel/parmetis-4.0.3/metis/metis-install)
-set(DEFAULT_PARMETIS_ROOT /nobackupp19/dekelsch/mimic-devel/parmetis-4.0.3/parmetis-install)
-set(DEFAULT_BOOST_ROOT /nobackupp19/dekelsch/mimic-devel/boost_1_83_0/boost-install)
-set(DEFAULT_METIS-5.1.0_ROOT /nobackupp19/dekelsch/mimic-devel/metis-5.1.0/build)
-set (VTK_INCLUDE_DIRS /nasa/pkgsrc/toss4/2023Q3/include/vtk-9.2)
-set (VTK_DIR /nasa/pkgsrc/toss4/2023Q3/lib/cmake/vtk-9.2)

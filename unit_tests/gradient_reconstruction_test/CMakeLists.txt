@@ -23,7 +23,7 @@ set(VTK_LIBRARIES
 )
 
 ELSE()
-find_package(VTK)
+
 target_link_libraries(${TEST_NAME} VTK::CommonCore VTK::CommonDataModel VTK::IOLegacy VTK::IOXML VTK::ParallelCore VTK::IOParallelXML)
 
 ENDIF()
