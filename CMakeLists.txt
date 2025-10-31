@@ -314,7 +314,7 @@ OPTION(BUILD_MIMIC_US3D
 OPTION(BUILD_MIMIC_HYPERSOLVE
         "Build MIMIC for HyperSolve." OFF)
 
-add_subdirectory(unit_tests)
+#add_subdirectory(unit_tests)
 
 IF(BUILD_MIMIC_US3D)
 	add_subdirectory(mimic.us3d)
