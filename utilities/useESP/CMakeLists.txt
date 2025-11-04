@@ -3,8 +3,8 @@ set(TEST_NAME "useESP")
 add_executable(${TEST_NAME} main.cpp ${SRC_FILES})
 target_include_directories(${TEST_NAME} PRIVATE ${CMAKE_SOURCE_DIR})
 
-INCLUDE (cmake/ThirdPartyOCCT.cmake)
-INCLUDE (cmake/ThirdPartyESP.cmake)
+INCLUDE (../../cmake/ThirdPartyOCCT.cmake)
+INCLUDE (../../cmake/ThirdPartyESP.cmake)
 
 include_directories(${ESP_INCLUDE_DIR})
 

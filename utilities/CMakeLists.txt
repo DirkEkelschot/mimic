@@ -34,4 +34,5 @@ include_directories(${ESP_INCLUDE_DIR})
 
 find_package(LAPACK)
 
-add_subdirectory(useESP)
+add_subdirectory(tesselatePrisms)
+add_subdirectory(tesselateRemainder)

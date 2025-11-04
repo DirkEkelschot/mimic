@@ -53,11 +53,21 @@ IF (THIRDPARTY_BUILD_OpenCascade)
 		-DZLIB_DIR=${TPDIST}
                 -DCMAKE_OSX_ARCHITECTURES=${CMAKE_OSX_ARCHITECTURES}
                 -DCMAKE_INSTALL_LIBDIR=lib
-                ${TPSRC}/OCCT-7_9_1
+                # CRITICAL: Enable all required modules
+                -DBUILD_MODULE_FoundationClasses=ON
+                -DBUILD_MODULE_ModelingData=ON
+                -DBUILD_MODULE_ModelingAlgorithms=ON
+                -DBUILD_MODULE_Visualization=ON
+                -DBUILD_MODULE_ApplicationFramework=ON
+                -DBUILD_MODULE_DataExchange=ON          # THIS IS THE KEY ONE!
+                # Optional but recommended
+                -DBUILD_MODULE_Draw=OFF                  # Drawing/testing (not needed)
+                -DBUILD_DOC_Overview=OFF                 # Documentation (not needed)
+		${TPSRC}/OCCT-7_9_1
                 BUILD_COMMAND make -j14
                 DOWNLOAD_EXTRACT_TIMESTAMP TRUE
                 )
-        SET(OCCT_INCLUDE_DIR ${TPDIST}/include CACHE FILEPATH
+        SET(OCCT_INCLUDE_DIR ${TPDIST}/include/opencascade CACHE FILEPATH
             "OCCT include directory" FORCE)
         SET(OCCT_LIBRARY ${TPDIST}/lib CACHE FILEPATH
             "OCCT lib directory" FORCE)
@@ -66,8 +76,9 @@ IF (THIRDPARTY_BUILD_OpenCascade)
 ENDIF()
 #SET(VTK_LIB ${TPDIST}/lib)
 
+MESSAGE("OCCT_INCLUDE_DIR OCCT_INCLUDE_DIROCCT_INCLUDE_DIROCCT_INCLUDE_DIR.   " ${OCCT_INCLUDE_DIR})
 
-ADD_DEPENDENCIES(mimic OCCT-7_9_1)
+#ADD_DEPENDENCIES(mimic OCCT-7_9_1)
 #SET(VTK_DIR   ${TPDIST}lib/cmake/vtk-9.4)
 #SET(VTK_LIBRARIES ${TPDIST}/lib CACHE FILEPATH
 #            "VTK lib directory" FORCE)
