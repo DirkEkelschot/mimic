@@ -1,0 +1,457 @@
+\documentclass[preprint, 3p, number]{elsarticle}
+
+
+\usepackage{mathtools,cancel}
+
+
+\usepackage[pdftex]{color}
+\usepackage[font=footnotesize,labelfont=bf]{caption}
+\usepackage[font=footnotesize,labelfont=bf]{subcaption}
+
+
+
+\usepackage{xcolor}
+\usepackage{listings} % Display code / shell commands
+\usepackage{lstautogobble}
+%\newcommand{\shellcommand}[1]{\begin{lstlisting} \#1 \end{lstlisting}
+\lstdefinestyle{BashInputStyle}{
+  language=bash,
+  basicstyle=\small\ttfamily,
+%  numbers=left,
+%  numberstyle=\tiny,
+%  numbersep=3pt,
+  frame=single,
+  columns=fullflexible,
+  backgroundcolor=\color{yellow!10},
+  linewidth=\linewidth,
+  xleftmargin=0.05\linewidth,
+  keepspaces=true,
+  framesep=5pt,
+  rulecolor=\color{black!30},
+  aboveskip=10pt,
+  autogobble=true
+}
+\lstdefinestyle{C++Style}{
+  language=C++,
+  basicstyle=\ttfamily\footnotesize,
+  numbers=left,
+  numberstyle=\tiny,
+  numbersep=3pt,
+  frame=,
+  columns=fullflexible,
+  backgroundcolor=\color{black!05},
+  linewidth=0.95\linewidth,
+  xleftmargin=0.1\linewidth,
+  showspaces=false,
+  showstringspaces=false,
+  breaklines=true,
+  keywordstyle=\color{blue}\ttfamily,
+  stringstyle=\color{red}\ttfamily,
+  commentstyle=\color{violet}\ttfamily,
+  morecomment=[l][\color{teal}]{\#}
+}
+\definecolor{gray}{rgb}{0.4,0.4,0.4}
+\definecolor{darkblue}{rgb}{0.0,0.0,0.6}
+\definecolor{cyan}{rgb}{0.0,0.6,0.6}
+\definecolor{maroon}{rgb}{0.5,0.0,0.0}
+\definecolor{darkgreen}{rgb}{0.0,0.5,0.0}
+\lstdefinelanguage{XML}
+{
+  basicstyle=\ttfamily\footnotesize,
+  morestring=[b]",
+  moredelim=[s][\bfseries\color{maroon}]{<}{\ },
+  moredelim=[s][\bfseries\color{maroon}]{</}{>},
+  moredelim=[l][\bfseries\color{maroon}]{/>},
+  moredelim=[l][\bfseries\color{maroon}]{>},
+  morecomment=[s]{<?}{?>},
+  morecomment=[s]{<!--}{-->},
+  commentstyle=\color{gray},
+  stringstyle=\color{orange},
+  identifierstyle=\color{darkblue},
+  showstringspaces=false
+}
+\lstdefinestyle{XMLStyle}{
+  language=XML,
+  basicstyle=\ttfamily\footnotesize,
+  numbers=left,
+  numberstyle=\tiny,
+  numbersep=3pt,
+  frame=,
+  columns=fullflexible,
+  backgroundcolor=\color{black!05},
+  linewidth=\linewidth,
+  xleftmargin=0.05\linewidth,
+  keepspaces=true
+}
+\lstset{%
+    escapeinside={(*}{*)},%
+	breaklines=true,
+}
+
+
+\begin{document}
+\begin{frontmatter}
+% \section{US3D flow solver}
+% The US3D flow solver is a Computational Fluid Dynamics (CFD) simulation software that is used to study compressible flows with chemical and thermal non-equilibrium effects~\cite{Nompelis:05,Candler:15}.
+% Simularly to the DPLR simulation code \cite{Wright1998}, US3D uses a second-order finite volume method to discretize the compressible Navier-Stokes equations.
+% Both aerothermal CFD codes are able to simulate thermochemical nonequilibrium in the gas phase.
+% In contrast to the DPLR implementation, US3D is able to run on unstructured meshes that consists of multiple different element shapes like hexahedra, prisms, tetrahedra and pyramids.
+%  For simplicity, we consider just the compressible Navier-Stokes equations within a computational domain $\Omega$ described by the three-dimensional coordinates $(x_1,x_2,x_3)$. The compressible Navier-Stokes equations are: 
+% \begin{equation}
+%     \frac{\partial {\boldsymbol{u}}}{\partial t} +\nabla \cdot(\boldsymbol{F}_i(\boldsymbol{u})-\boldsymbol{F}_v(\boldsymbol{u},\nabla\boldsymbol{u}))= 0 \in \Omega
+% \end{equation}
+% where the state vector $\boldsymbol{u}=\{\rho,\rho u_1,\rho u_2,\rho u_3,\rho E\}^t$ and the inviscid flux, $\boldsymbol{F}_i$, and the viscous flux , $\boldsymbol{F}_v$, is given by
+% \begin{equation}
+%    \boldsymbol{F}_i
+% =
+%    \begin{Bmatrix} 
+%    \rho u_1 & \rho u_2 & \rho u_3   \\
+%    p+\rho u_1^2 & \rho u_1u_2 & \rho u_1u_3   \\
+%    \rho u_1u_2 & p+\rho u_2^2 & \rho u_2u_3   \\
+%    \rho u_1u_3 & \rho u_2u_3 & p+\rho u_3^2   \\
+%    u(p+\rho E) & v(p+\rho E) & w(p+\rho E)   \\
+%    \end{Bmatrix} \  
+%    \boldsymbol{F}_v
+% =
+%    \begin{Bmatrix} 
+%    0 & 0 & 0  \\
+%    \sigma_{11} & \sigma_{12} & \sigma_{13} \\
+%   \sigma_{21} & \sigma_{22} & \sigma_{23} \\
+%   \sigma_{31} & \sigma_{32} & \sigma_{33} \\
+%    \boldsymbol{v}\cdot\boldsymbol{\sigma}_{1}+k\frac{\partial T}{\partial x} & \boldsymbol{v}\cdot\boldsymbol{\sigma}_{2}+k\frac{\partial T}{\partial y} & \boldsymbol{v}\cdot\boldsymbol{\sigma}_{3}+k\frac{\partial T}{\partial z} \\
+%    \end{Bmatrix} 
+% \end{equation}
+% where $\boldsymbol{\sigma}_i = [\sigma_{i,1},\sigma_{i,2},\sigma_{i,3}]^t$ and the entries $\sigma_{i,j} = 2\mu(\partial_{x_j} u_i+\partial_{x_i} u_j+\frac{1}{3}\partial_{x_k} u_k\delta_{i,j})$.
+% US3D is able to use high-order low dissipation numerical flux methods like the Kinetic Energy Consistent (KEC) flux implementation~\cite{Subbareddy:09}. Furthermore, there is an extensive turbulence modeling suite for wall-modeled large-eddy simulations ranging from the Spalart-Alamaras (SA)~\cite{Spalart:92} to Improved Delayed Detached Eddy Simulation (IDDES) \cite{Schur:2008}.
+
+
+
+\title{Metric Informed Mesh Improvement Capability (MIMIC)\\
+\large User guide version 1}
+
+%% use optional labels to link authors explicitly to addresses:
+%% \author[label1,label2]{}
+%% \affiliation[label1]{organization={},
+%%             addressline={},
+%%             city={},
+%%             postcode={},
+%%             state={},
+%%             country={}}
+%%
+%% \affiliation[label2]{organization={},
+%%             addressline={},
+%%             city={},
+%%             postcode={},
+%%             state={},
+%%             country={}}
+
+\author{Dirk Ekelschot}
+
+\affiliation{organization={Analytical Mechanics Associates},%Department and Organization
+            addressline={Moffett Field}, 
+            city={},
+            postcode={94040}, 
+            state={California},
+            country={United States}}
+
+\begin{abstract}
+This document describes the Metric Informed Mesh Improvement Capability (\textsc{MIMIC})~\cite{Ekelschot:22} for the US3D flow solver~\cite{Nompelis:05,Candler:15}. \textsc{MIMIC} consists of three main components. First, it computes the metric tensor field based on a provided mesh and initial solution field. The metric describes the magnitude and the direction of the local discretization error. Second, it passes the calculated metric tensor field to an open-source anisotropic mesh adaptation Application Programming Interface (API) called \textsc{ParMMG} \cite{Cirrottola:19,Cirrottola:21}.
+\textsc{ParMMG} then computes a new mesh that is aligned with the underlying metric. It essentially derives a mesh that is anisotropically aligned with the metric field in order to reduce the local error.
+The last component involves the output into \textsc{HDF5} format where the distributed adapted mesh is stored in a single mesh file that is compatible with the US3D flow solver.
+In this way a new flow solution can be calculated on the adapted mesh.
+\end{abstract}
+
+\end{frontmatter}
+% \section{Metric-based mesh adaptation}
+
+\tableofcontents
+
+\section{What is the metric field in the context of anisotropic mesh adaptation?}
+\par The goal of metric-based mesh adaptation is to derive a mesh that optimally fits the underlying set of equations and the numerical scheme used to achieve the optimal solution resolution while keeping the computational cost low. Metric-based mesh adaptation achieves this by aligning and sizing the local edges in the mesh with the directionality and size of the local interpolation error. This idea has been first introduced by Hecht and Mohammadi \cite{hecht:97} and various formulations for error indicators that prescribe the desired orientation and mesh size followed \cite{Loseille2010,Loseille:14,Marcum2014,Barral2015,Alauzet:16,Barral:17,Park:2020a,Loseille2007c,Loseille2011a,Loseille2011b}. In this work, we use the formulation introduced by \cite{Loseille2007c,Loseille2011a,Loseille2011b}:
+\begin{equation}\label{eq:rootEQ0}
+\|{\bf u}_h-\boldsymbol{\Pi}_h{\bf u}_h\|_{L_p} \leq N^{-\frac{2}{3}}\left(\int_\Omega \left(\det{|{\bf H}_a|}\right)^{\frac{p}{2p+3}}d\Omega\right)^{\frac{2p+3}{3p}}
+\end{equation}
+The formulation given in Equation~(\ref{eq:rootEQ0}) relies on the fact that the local interpolation error for a given flow quantity is approximated by the Hessian, ${\bf H}_a$. In the examples shown in this paper, we use the local Mach number. The local metric tensor at each vertex of the mesh is then approximated by:
+\begin{eqnarray}\label{eq:rootEQ}
+{\bf M}_{a} = {\boldsymbol{D}_{L_p}}\left(\det{|{\bf H}_a|}\right)^{\frac{1}{2p+3}}{\bf R}({\bf x})|{\Lambda}|({\bf x}) {\bf R}({\bf x})^{-1}
+\end{eqnarray}
+where $|{\Lambda}|$ is a diagonal matrix with modified eigenvalues $h_i^{-2} =  \min(\max(\xi|\lambda_i({\bf x})|,h_{max}^{-2}),h_{min}^{-2})$. The values for $h_{min}$ and $h_{max}$ are set by the user and define the minimum and maximum allowed edge length in the mesh. The scalar $\xi$ can be used to amplify the metric field. 
+The global scaling constant, $\boldsymbol{D}_{L_p}$ is defined as:
+\begin{equation}
+    \boldsymbol{D}_{L_p} = N^{\frac{2}{3}}\int_\Omega\left(det(|{\boldsymbol H}_a|)^{\frac{p}{2p+3}}\right)^{-\frac{2}{3}}
+\end{equation}
+and is evaluated by integrating the determinant on the Hessian over the computational domain, $\Omega$.
+\par The Hessian is reconstructed using a weighted least-squares gradient reconstruction approach. 
+For a scalar $u_{0}$ at a vertex $\boldsymbol{x}_0=[x_{0},y_{0},z_{0}]^t$, we approximate the gradients, $\partial{{\bf u}}_{\boldsymbol{x},0}=[\partial u/\partial x,\partial u/\partial y,\partial u/\partial z]_{0}^t$,
+by considering the solution values, $u_i$, in the centers of the neighboring elements, ${\boldsymbol{x}_i=[x_{i},y_{i},z_{i}]^t}$, where $1 \leq i \leq n$ and where $n$ represents the number of surrounding neighboring elements for $\boldsymbol{x}_0$. 
+By considering the Taylor series expansion of the solution at $\boldsymbol{x}_i$, and considering the local stencil of direct neighboring elements, we can approximate the gradient at $\boldsymbol{x}_0$ by solving the following overdetermined linear system:
+\begin{equation}\label{eq:overdet}
+{\bf W} \partial{{\bf u}}_{\boldsymbol{x},0} = {\bf S}
+\end{equation}
+where the matrix ${\bf W}$ and the right-hand side ${\bf S}$ are defined as:
+\begin{equation}\label{eq:matrixrhs}
+{\bf W}=
+    \begin{bmatrix}
+w_{1}a_1, & w_{1}b_1 & w_{1}c_1\\
+w_{2}a_2, & w_{2}b_2 & w_{2}c_2\\
+\vdots & \ddots & \\
+w_{n}a_n, & w_{n}b_n & w_{n}c_n\\
+\end{bmatrix}
+\qquad,
+{\bf S}=
+\begin{bmatrix}
+w_{1}(u_{1}-u_{0})\\
+w_{2}(u_{2}-u_{0})\\
+\vdots \\
+w_{n}(u_{n}-u_{0})\\
+\end{bmatrix}
+\end{equation}
+where $w_{i}$ denotes the inverse distance between the neighboring vertex $\boldsymbol{x}_{i}$ and $\boldsymbol{x}_{0}$ and
+where the Taylor series coefficients $a_i$, $b_i$ and $c_i$ are defined by $\boldsymbol{x}_i$ and $\boldsymbol{x}_0$ as follows:
+\begin{eqnarray}
+a_n=(x_n-x_0)\\
+b_n=(y_n-y_0)\\
+c_n=(z_n-z_0)
+\end{eqnarray}
+Equation~(\ref{eq:overdet}) is solved using QR factorization. Once the gradients are reconstructed, we can repeat this process to reconstruct the second derivatives i.e. Hessian at each location in the computational mesh. The Hessian is then diagonalized in order to obtain the eigenvalues and eigenvectors. The absolute Hessian is created by recombining the absolute values of the eigenvalues with the eigenvectors in order to ensure that the Hessian is symmetric positive definite as shown in Equation~(\ref{eq:rootEQ}). The eigenvalues essentially prescribe the local sizing of the element in each direction while the eigenvectors prescribe the local orientation of the element. 
+
+\par More recently, an extended stencil has been implemented in \textsc{MIMIC} that considers the solution values of the neighboring elements of neighbors as well.
+This allows us to expand the gradient vector to also include the second derivatives:
+\begin{equation}
+\partial{{\bf u}}_{\boldsymbol{x},0}  = \left[\frac{\partial u}{\partial x},\frac{\partial u}{\partial y},\frac{\partial u}{\partial z},\frac{\partial^2 u}{\partial x^2},\frac{\partial^2 u}{\partial xy},\frac{\partial^2 u}{\partial xz},\frac{\partial^2 u}{\partial y^2},\frac{\partial^2 u}{\partial yx},\frac{\partial^2 u}{\partial z^2}\right]^t
+\end{equation}
+The matrix ${\bf W}$ and right-hand side ${\bf S}$ in Equation~(\ref{eq:overdet}) can now be expanded so that we can perform a quadratic gradient reconstruction. Considering more than nine surrounding data points, so $n > 9$, $\bf W$ becomes:
+\begin{equation}\label{eq:overdetquad}
+   {\bf W} = \begin{bmatrix}
+w_{1}a_1, & w_{1}b_1 & w_{1}c_1& w_{1}a_2^2 & w_{1}a_1 b_1 & w_{1}a_1 c_1 & w_{1}b_1^2 & w_{1}c_1 b_1 & w_{1}c_1^2\\
+w_{2}a_2, & w_{2}b_2 & w_{2}c_2& w_{n}a_2^2 & w_{2}a_2 b_2 & w_{2}a_2 c_2 & w_{2}b_2^2 & w_{2}c_2 b_2 & w_{2}c_2^2\\
+\vdots & \ddots & \\
+w_{n}a_n, & w_{n}b_n & w_{n}c_n & w_{n}a_n^2 & w_{n}a_n b_n & w_{n}a_n c_n & w_{n}b_n^2 & w_{n}c_n b_n & w_{n}c_n^2\\
+\end{bmatrix}
+\end{equation}
+The right-hand-side vector ${\bf S}$ remains the same form as what is shown in Equation~(\ref{eq:matrixrhs}) but it now also includes additional coefficients that correspond to the solution values in the neighboring elements of neighbors.
+With the quadratic gradient reconstruction approach we are able to reconstruct both the first and second order gradients in one loop over the elements and no recursive gradient reconstruction is required. 
+The results shown in the next section all utilize the new quadratic gradient reconstruction methodology in order to construct the metric tensor field.
+% \begin{figure}[hbt!]
+% %\begin{wrapfigure}{r}{0.4\textwidth}
+% 	\centering
+% % 	\begin{subfigure}{0.41\linewidth}\centering
+% % 		\includegraphics[scale=.10]{hex_scheme.pdf}
+% % 		\caption{Gradient reconstruction scheme based on the solution at the center of the surrounding hexahedral element.}
+% % 		\end{subfigure}
+% % 		\begin{subfigure}{0.41\linewidth}\centering
+% 		\includegraphics[scale=.15]{tet_scheme.pdf}
+% 			\caption{Gradient reconstruction scheme based on the solution at the center and the solution at the vertices of the surrounding tetrahedral elements.}
+% % 		\end{subfigure}
+% 	\caption{Sketch of the vertices that are used to approximate the gradient using the least-squares formulation.}
+% 	\label{fig:scheme}
+% %\end{wrapfigure}
+% \end{figure}
+\section{Metric-aligned mesh generation using \textsc{ParMMG}}\label{sec:parmmg}
+% \subsection*{Mesh adaptation workflow}
+\par Once the metric tensor field is computed, we provide it to the anisotropic mesh adaptation library \textsc{ParMMG}.
+The \textsc{ParMMG} library is the parallel version of the open-source mesh adaptation \textsc{MMG3D} and it performs anisotropic Delaunay mesh adaptation in parallel based on the provided metric tensor field \cite{Dobrzynski:08}. The adaptation is performed solely on tetrahedral shaped elements. 
+At the start of the adaptation procedure, the mesh is partitioned and each partition carries out a local adaptation keeping the shared faces between partitions fixed.
+\textsc{ParMMG} makes sure that the vertices on those shared interfaces are accounted for as well by iteratively re-partitioning and re-adapting the mesh. Hence, after each partition is done adapting, a re-partitioning of the global mesh is carried out such that the vertices and faces that were shared are now internal and therefore taken into account during the next adaptation phase.
+Typically four to six re-partitioning iterations are used for each adaptation iteration in order to ensure that all vertices in the mesh are accounted for.
+
+
+% \subsection*{MIMICWorkflow}
+% \par The workflow of metric-based mesh adaptation for a US3D flow simulation is as follows: we start by generating a hybrid (prisms and tetrahedra) mesh with a fixed prismatic boundary layer mesh near the body and unstructured tetrahedra away from the body. The prisms will be kept fixed and only the tetrahedra will be adapted. The starting mesh that is used to compute the first initial coarse flow solution on is shown in Figure~\ref{fig:initmesh}.
+% \begin{figure}[hbt!]
+%   \centering
+% \includegraphics[height=5cm]{fc_final2.pdf}\label{fig:metric_adaptation}
+% \end{figure}
+\section{\textsc{MIMIC} Workflow}
+
+First, a coarse initial hybrid mesh, $\mathcal{T}_0$, is generated that consists of prisms and tetraheda.
+We define a prismatic boundary layer mesh in order to maintain a specified resolution of the mesh that is consistent with the $y^+$ requirements for a given flow configuration and vehicle geometry.
+The wall spacing is determined using the definition of $y^+$:
+\begin{equation}\label{eq:yplus}
+y_w = \frac{y^+ \nu}{u_{\tau}}
+\end{equation}
+where the friction velocity is given by $u_{\tau}=f(Re^{1/7})$ is approximated using simple flat-plate boundary layer theory.
+The rest of the computational domain is tessellated using tetrahedra. 
+A first stationary state, $\mathcal{S}_0$, is calculated using this coarse mesh.
+$\mathcal{S}_0$ provides a first indication of where the important flow features like the bow shock and shear layers will be located in the computational domain. 
+The metric tensor field is computed in parallel using this first coarse solution approximation.
+Next, the tetrahedra are separated from the prisms and are redistributed over the available processors before providing them to \textsc{ParMMG}. 
+This redistribution is done to ensure optimal load-balancing when carrying out the adaptation procedure.
+The distributed prisms are stored in memory and once \textsc{ParMMG} has computed a new anisotropic tetrahedra mesh, we patch the adapted tetrahedra back onto the distributed prisms.
+The new adapted mesh, $\mathcal{T}_1$, is outputted.
+We then interpolate the stationary state $\mathcal{S}_0$ that was obtained using $\mathcal{T}_0$ onto $\mathcal{T}_1$ and use that interpolated solution, $\mathcal{S}_{1,init}$, as a new initial condition. 
+$\mathcal{S}_{1,init}$ is then used to obtain a new stationary state, $\mathcal{S}_{1}$, on $\mathcal{T}_{1}$. 
+This process is carried out iteratively to improve the resolution of the solution.
+The process discussed in this subsection is described in further detail in \cite{Ekelschot:22}.
+The results shown in \cite{Ekelschot:22} demonstrates the first application of iterative anisotropic mesh adaptation in the context of atmospheric entry simulations using the US3D flow solver. 
+The workflow is demonstrated in the flow chart shown in
+Figure~\ref{fig:flow_chart}:
+\begin{figure}[hbt!]
+\centering
+    \includegraphics[scale=.3]{fc_final2.pdf}
+    \caption{Flow chart showing the integration of metric-based mesh adaptation into {US3D}.}
+	\label{fig:flow_chart}
+\end{figure}
+
+
+
+% \begin{figure}
+% \centering
+%      \begin{subfigure}[b]{0.47\textwidth}
+%          \centering
+%          \includegraphics[width=\textwidth]{Mesh_a0.png}
+%          \caption{$\mathcal{T}_0$ (Base mesh).}
+%          \label{fig:curvedmesh}
+%      \end{subfigure}
+%       \begin{subfigure}[b]{0.47\textwidth}
+%          \centering
+%          \includegraphics[width=\textwidth]{MeanMach_a0.png}
+%          \caption{Mach contours on $\mathcal{T}_0$.}
+%          \label{fig:curvedmesh}
+%      \end{subfigure}
+%      \begin{subfigure}[b]{0.47\textwidth}
+%          \centering
+%          \includegraphics[width=\textwidth]{Mesh_a1.png}
+%          \caption{$\mathcal{T}_1$.}
+%          \label{fig:curvedmesh}
+%      \end{subfigure}
+%      \begin{subfigure}[b]{0.47\textwidth}
+%          \centering
+%          \includegraphics[width=\textwidth]{MeanMach_a1.png}
+%          \caption{Mach contours on $\mathcal{T}_1$.}
+%          \label{fig:curvedmesh}
+%      \end{subfigure}
+%           \begin{subfigure}[b]{0.47\textwidth}
+%          \centering
+%          \includegraphics[width=\textwidth]{Mesh_a2.png}
+%          \caption{$\mathcal{T}_2$.}
+%          \label{fig:curvedmesh}
+%      \end{subfigure}
+%      \begin{subfigure}[b]{0.47\textwidth}
+%          \centering
+%          \includegraphics[width=\textwidth]{MeanMach_a2.png}
+%          \caption{Mach contours on $\mathcal{T}_2$.}
+%          \label{fig:curvedmesh}
+%      \end{subfigure}
+%     \caption{Computational domain around a hemisphere}
+%     \label{fig:hemispheredomain}
+% \end{figure}
+
+
+\section{\textsc{MIMIC} input file}
+\par The computational domain or mesh is stored in the {\it grid.h5} and {\it conn.h5} file while the solution data that corresponds to a given {\it grid.h5} and {\it conn.h5} is stored in the {\it data.h5} file.
+MIMIC reads the mesh and solution information together with a {\it metric.xml} file that contains all the input parameters that MIMIC requires in order to derive the metric field. 
+An example of the {\it metric.xml} input file is given below:
+\begin{lstlisting}[style=XmlStyle]
+<?xml version="1.0" encoding="utf-8" ?>
+<MIMIC>
+    <PARAMETERS>
+        <P> hGradation = 1.8            </P>
+        <P> hMinimum = 1.0e-05          </P>
+        <P> hMaximum = 0.1              </P>
+        <P> Scaling = 10.0              </P>
+        <P> HausDorff = 0.01            </P>
+        <P> UseStatistics = 1           </P>
+        <P> WakeRefinement = 0          </P>
+        <P> hWake = 0.00025             </P> 
+        <P> nIterations = 6             </P>
+        <P> RecursiveReconstruction = 1 </P>
+        <P> ExtendedScheme = 0          </P>
+        <P> StateVariable = 0           </P>
+    </PARAMETERS>
+</MIMIC>
+\end{lstlisting}\\
+The variables listed in the {\it metric.xml} file are briefly described below:\\
+\\
+{\bf hGradation}\\
+Prescribes the growth rate of the local neighboring element size. Consider an element, $e_i$, in the mesh and its connectivity/neighboring elements. This factor essentially perscribes what the maximum allowable neighboring element size is with respect to $e_i$. 
+It allows the user to control either a gradual or rapid element size change locally within the mesh.\\
+\\
+{\bf hMinimum and \bf hMaximum}\\
+Prescribes the miminum and maximum allowable edge length in the mesh. These values correspond to $h_{min}$ and $h_{max}$ in Equation~(\ref{eq:rootEQ}). The values set in the {\it metric.xml} are dimensional and therefore require the user to consider the size of the geometry and the computational domain.
+The values for {\bf hMinimum} and {\bf hMaximum} are typically derived based on a characteristic length of the geometry.\\
+\\
+{\bf Scaling}\\
+Prescribes the multiplication factor $\xi$ in Equation~(\ref{eq:rootEQ}) and essentially allows the user to amplify the metric tensor field.\\
+\\
+{\bf Hausdorff}\\
+Prescribes the maximum distance between the piecewise linear representation of the boundary and the reconstructed ideal boundary. This value is typically set to 0.01 for geometries that have a characteric length of order 1.\\
+\\
+{\bf UseStatistics (is equal to 0 or 1)}\\
+This value is set to 0 if we want to adapt the mesh based on instantaneous solution data. Alternatively, the value can be set to 1 provided that US3D was run using the FLOW\_STATS libary. This library essentially outputs the instantaneous value, the mean value and standard deviation for a set of state and derived variables.\\
+\\
+{\bf WakeRefinement (is equal to 0 or 1)}\\
+The value is set to 1 if the user wants to adapt the mesh in the wake of the considered geometry. Note that in order to switch on {\bf WakeRefinement}, the user needs to have {\bf UseStatistics = 1} since the wake refinement is carried out based on the turbulent kinetic energy (TKE). The TKE is calculated based on the velocity perturbations which will only be recorded in the {\it data.h5} file once {\bf UseStatistics = 1}:
+\begin{equation}\label{eq:TKE}
+    k_t = \frac{1}{2}\left(\overline{u_1^\prime u_1^\prime}+\overline{u_2^\prime u_2^\prime}+\overline{u_3^\prime u_3^\prime}\right)
+\end{equation}
+where $\overline{u_i^\prime u_i^\prime}$ represents the root-mean-square (RMS) of the velocity fluctuation $u_i^\prime$.The TKE is used here to localize where the flow is mostly turbulent and blends in isotropic mesh refinement by combining an isotropic (${\bf M}_{i}$) and an anisotropic metric (${\bf M}_{a}$) contribution using a simple linear weighting parameter. The reformulated metric is written as:
+\begin{equation}\label{eq:metcombo}
+   {\bf M}_{a+i}= \xi{\bf M}_{i}+(1-\xi){\bf M}_{a}
+\end{equation}
+where $\xi = k_t/{k_{t,{max}}}$. The metric tensor essentially tends to become more isotropic once $\xi$ increases and gets closer to $1$. \\
+\\
+{\bf hWake}\\
+As described in the previous section, the wake refinement strategy blends in an isotropic metric tensor (${\bf M}_{i}$) which is defined as:
+\begin{equation}
+  {\bf M}_{i}  = \begin{pmatrix}
+h_w^{-2} & 0 & 0\\
+0 & h_w^{-2} & 0\\
+0 & 0 & h_w^{-2}
+\end{pmatrix}
+\end{equation}
+The value for {\bf hWake} essentially describes the isotropic wake refinement spacing since $h_w={\bf hWake}$. Note that this is again a dimensional value and requires the user to consider the size of the geometry and computational domain.\\
+\\
+{\bf nIterations}\\
+As mentioned in section~\ref{sec:parmmg}, the mesh is partitioned and each partition of the mesh is parsed into the ParMMG API. ParMMG then adapts each partition individually keeping the partition interfaces fixed. 
+After the mesh is adapted on each partition, the mesh is reassembled.
+After reassembling, the mesh is re-partitioned again in order to include the partition interfaces in the next adaptation iteration.
+The value for {\bf nIterations} prescribes how often this repartitioning is done. 
+This value is typically 4-5 however this number should be increased to 8-9 when the adaptation is run using many CPUs ($\mathcal{O}(10^3)$) and the number of elements per partition is decreasing.\\
+\\
+{\bf RecursiveReconstruction (is equal to 0 or 1)}\\
+\\
+This value is set to 0 if we want to use Equation~(\ref{eq:overdet}) in combination with Equation~(\ref{eq:overdetquad}). In that case we reconstruct the second order derivatives that are required to construct the Hessian directly by increasing the local connectivity stencil. {\bf RecursiveReconstruction} is set to 1 if we want to run the conventional way and apply linear weighted Least Square Gradient reconstruction iteratively.\\
+\\
+{\bf ExtendedScheme (is equal to 0 or 1)}\\
+\\
+This value is set to 1 only if the user wants to use Equation~(\ref{eq:overdet}) in combination with Equation~(\ref{eq:overdetquad}). Note that {\bf RecursiveReconstruction} should be set to 0.\\
+\\
+{\bf StateVariable (is equal to 0 or 1)}\\
+This value is set to 0 if the user wants to adapt based on the Mach number. This value is set to 1 if we want to adapt based on the temperature.
+
+
+
+\section{How to run \textsc{MIMIC} in the context of a US3D flow simulation}
+Assuming that a US3D simulation was performed and a {\it grid.h5} file, a {\it conn.h5} file, a {\it data.h5} file and a {\it metric.xml} are all stored in a base simulation directory. In order to run MIMIC, the following steps in the command line need to be performed in order to run a first adaptation cycle.
+\begin{lstlisting}[style=XmlStyle]
+cd path/to/where/base/simulation/data/is/located/
+mkdir adaptationIteration1
+cd adaptationIteration1
+mkdir inputs
+cd inputs
+ln -s ../../grid.h5 
+ln -s ../../conn.h5 
+ln -s ../../data.h5
+mv ../../metric.xml .
+cd ../
+mpiexec -np 4 /path/to/where/mimic/executable/is/located/.mimic
+\end{lstlisting}
+Here it is assumed that we use 4 processors to run the adaptation. However, this number can be increased depending on the size of the mesh.
+Once these 11 steps are executed, a new {\it grid.h5} file is created that contains the adapted mesh information. 
+\begin{lstlisting}[style=XmlStyle]
+mpiexec -np 20 us3d-prepar --grid=grid.h5 --conn=conn.h5
+mpiexec -np 1 us3d-interp --sdir=../ --ddir=../adaptationIteration1/ --method=1
+mv data.h5 data_restart.h5
+\end{lstlisting}
+The first step here generates the required connectivity file ({\it conn.h5}).
+The second step interpolates the initially computed solution onto the new adapted mesh and stores this interpolated solution in a {\it data.h5} file.
+The third step renames the {\it data.h5} to {\it data\_restart.h5}. From this point we can compute a new statistically converged solution on the new {\it grid.h5} using the following command.
+\begin{lstlisting}[style=XmlStyle]
+mpiexec -np 200 us3d --restart=data_restart.h5
+\end{lstlisting}
+For any questions regarding MIMIC, feel free to contact me by e-mail: {\bf  dirk.ekelschot@nasa.gov}.
+\bibliographystyle{elsarticle-num}
+\bibliography{sample2}
+
+\end{document} 
