@@ -33,6 +33,6 @@ include_directories(${VTK_INCLUDE_DIRS})
 include_directories(${ESP_INCLUDE_DIR})
 
 find_package(LAPACK)
-
+add_subdirectory(tesselateSurf)
 add_subdirectory(tesselatePrisms)
 add_subdirectory(tesselateRemainder)
