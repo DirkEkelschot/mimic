@@ -149,7 +149,8 @@ def project_mesh_nodes_to_cad(surface_tags, cad_surfaces):
         total_nodes += len(node_tags)
         
         for i, node_tag in enumerate(node_tags):
-            x = node_coords[3*i]
+        
+            x = node_coords[3*i + 0]
             y = node_coords[3*i + 1]
             z = node_coords[3*i + 2]
             
@@ -219,9 +220,10 @@ if __name__ == "__main__":
     p90 = [x_max,R*np.cos(twotheta), R*np.sin(twotheta)]
     
     n_steps_line   = 50
-    n_mesh0        = 50
-    n_mesh1        = 50
-    n_mesh2        = 50
+    
+    n_mesh0        = 10
+    n_mesh1        =  5
+    n_mesh2        = 20
     
     p0_phys = project_to_nearest_surface(square_coords[0], all_surfaces)
     p1_phys = project_to_nearest_surface(square_coords[1], all_surfaces)
@@ -270,10 +272,10 @@ if __name__ == "__main__":
     surface_tag = generateTransfiniteSurfaceMesh(curves, n_mesh0, n_mesh1)
 
     curves2 = [line4_spline, line5_spline, line6_spline, line2_spline]
-    surface_tag2 = generateTransfiniteSurfaceMesh(curves2, n_mesh0, n_mesh1)
+    surface_tag2 = generateTransfiniteSurfaceMesh(curves2, n_mesh1, n_mesh0)
     
     curves3 = [line7_spline, line8_spline, line1_spline, line6_spline]
-    surface_tag3 = generateTransfiniteSurfaceMesh(curves3, n_mesh1, n_mesh2)
+    surface_tag3 = generateTransfiniteSurfaceMesh(curves3, n_mesh1, n_mesh1)
     
     gmsh.model.occ.synchronize()
     gmsh.model.mesh.setCompound(2, [surface_tag, surface_tag2, surface_tag3])

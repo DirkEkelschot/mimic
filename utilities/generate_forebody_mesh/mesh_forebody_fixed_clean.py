@@ -85,6 +85,54 @@ def circle_line(n_points, x_plane, R, start_alpha, alpha, startc, endc):
     return circle_points
 
 
+def project_mesh_nodes_to_cad(surface_tags, cad_surfaces):
+    """
+    Project mesh nodes to CAD by modifying them in-place.
+    Uses the lower-level node access API.
+    """
+    print("\n🔧 Projecting mesh nodes to CAD surface...")
+    
+    total_nodes = 0
+    total_moved = 0
+    
+    # Collect all nodes that need to be moved
+    all_node_updates = {}  # node_tag -> (x, y, z)
+    
+    for surf_tag in surface_tags:
+        node_tags, node_coords, _ = gmsh.model.mesh.getNodes(2, surf_tag, includeBoundary=True)
+        total_nodes += len(node_tags)
+        
+        for i, node_tag in enumerate(node_tags):
+        
+            x = node_coords[3*i + 0]
+            y = node_coords[3*i + 1]
+            z = node_coords[3*i + 2]
+            
+            # Find closest point on CAD
+            projected = project_to_nearest_surface([x, y, z], cad_surfaces)
+            
+            if projected is not None:
+                distance = np.linalg.norm(np.array([x, y, z]) - np.array(projected))
+                if distance > 1e-10:
+                    all_node_updates[node_tag] = projected
+                    total_moved += 1
+    
+    # Now update all nodes
+    # We need to use setNode (singular) for each node
+    print(f"  Updating {total_moved}/{total_nodes} nodes...")
+    
+    for node_tag, (px, py, pz) in all_node_updates.items():
+        try:
+            # setNode(tag, x, y, z) - singular, updates one node
+            gmsh.model.mesh.setNode(int(node_tag), [px, py, pz], [])
+        except Exception as e:
+            print(f"    Warning: Could not update node {node_tag}: {e}")
+            pass
+    
+    print(f"✓ Projected {total_moved} nodes to CAD surface")
+
+
+
 def generateTransfiniteSurfaceMesh(curves,nmesh0,nmesh1):
     wire = gmsh.model.occ.addWire(curves, checkClosed=True)
     stag = gmsh.model.occ.addSurfaceFilling(wire)
@@ -118,6 +166,29 @@ def generateTransfiniteSurfaceMesh(curves,nmesh0,nmesh1):
     return stag
 
 
+def mirrorTransfiniteSurfaceMesh(axes,surface_tag):
+
+    mirrored = gmsh.model.occ.copy([(2, surface_tag)])
+    gmsh.model.occ.mirror(mirrored, axes[0], axes[1], axes[2], axes[3])  # Mirror across plane with normal (0,1,0) through origin
+    gmsh.model.occ.synchronize()
+    # Extract mirrored surface tags
+    mirrored_tags = [s[1] for s in mirrored]
+    surface_tag_m1 = mirrored_tags[0]  # Mirror of surface_tag
+    # Set transfinite properties on mirrored surfaces
+    # For surface_tag_m1 (mirror of surface 1)
+    boundary = gmsh.model.getBoundary([(2, surface_tag_m1)], oriented=False, recursive=False)
+    boundary_curves = [abs(c[1]) for c in boundary]
+    if len(boundary_curves) == 4:
+        gmsh.model.mesh.setTransfiniteCurve(boundary_curves[0], n_mesh0)
+        gmsh.model.mesh.setTransfiniteCurve(boundary_curves[1], n_mesh1)
+        gmsh.model.mesh.setTransfiniteCurve(boundary_curves[2], n_mesh0)
+        gmsh.model.mesh.setTransfiniteCurve(boundary_curves[3], n_mesh1)
+        gmsh.model.mesh.setTransfiniteSurface(surface_tag_m1)
+        gmsh.model.mesh.setRecombine(2, surface_tag_m1)
+        
+    return mirrored_tags
+        
+
 if __name__ == "__main__":
     
     gmsh.initialize()
@@ -149,9 +220,9 @@ if __name__ == "__main__":
 
     square_coords = [
         np.array([0, 0, 0]),
-        np.array([0, 0, 1]),
-        np.array([0, 1, 1]),
-        np.array([0, 1, 0])
+        np.array([0, 0, 0.8]),
+        np.array([0, 0.8, 0.8]),
+        np.array([0, 0.8, 0])
     ]
 
     R = y_max
@@ -162,10 +233,10 @@ if __name__ == "__main__":
     p45 = [x_max,R*np.cos(theta), R*np.sin(theta)]
     p90 = [x_max,R*np.cos(twotheta), R*np.sin(twotheta)]
     
-    n_steps_line  = 10
-    n_mesh0        = 10
-    n_mesh1        = 10
-    n_mesh2        = 10
+    n_steps_line   = 10
+    n_mesh0        = 20
+    n_mesh1        = 20
+    n_mesh2        = 20
     
     p0_phys = project_to_nearest_surface(square_coords[0], all_surfaces)
     p1_phys = project_to_nearest_surface(square_coords[1], all_surfaces)
@@ -239,19 +310,48 @@ if __name__ == "__main__":
                
     surface_tag3 = generateTransfiniteSurfaceMesh(curves3,n_mesh1,n_mesh2)
     
+    gmsh.model.occ.synchronize()
+    
+    
+    #==========================================================================================
+    axesZ = [0,0,1,0];
+    stagsZ = [mirrorTransfiniteSurfaceMesh(axesZ,surface_tag)[0],
+              mirrorTransfiniteSurfaceMesh(axesZ,surface_tag2)[0],
+              mirrorTransfiniteSurfaceMesh(axesZ,surface_tag3)[0]]
+    
+    #==========================================================================================
+    axesY = [0,1,0,0];
+    stagsY = [mirrorTransfiniteSurfaceMesh(axesY,surface_tag)[0],
+             mirrorTransfiniteSurfaceMesh(axesY,surface_tag2)[0],
+             mirrorTransfiniteSurfaceMesh(axesY,surface_tag3)[0],
+             mirrorTransfiniteSurfaceMesh(axesY,stagsZ[0])[0],
+             mirrorTransfiniteSurfaceMesh(axesY,stagsZ[1])[0],
+             mirrorTransfiniteSurfaceMesh(axesY,stagsZ[2])[0]]
+    #==========================================================================================
+    
+    # Update physical group to include mirrored surfaces
+    all_surface_tags = [surface_tag, surface_tag2, surface_tag3] + stagsZ + stagsY
+    gmsh.model.occ.synchronize()
+    
+    gmsh.model.mesh.setCompound(2, [surface_tag, surface_tag2, surface_tag3] + stagsZ + stagsY)
+#    gmsh.model.mesh.setCompound(2, all_surface_tags)
+   
     # Optional: Set mesh algorithm
     gmsh.option.setNumber("Mesh.Algorithm", 8)  # Frontal-Delaunay for quads
     gmsh.option.setNumber("Mesh.RecombineAll", 1)
 
-    all_curve_tags = [line0_spline, line1_spline, line2_spline, line3_spline,
-                  line4_spline, line5_spline, line6_spline, line7_spline, line8_spline]
-
-    gmsh.model.addPhysicalGroup(1, all_curve_tags, 2)
+#    all_curve_tags = [line0_spline, line1_spline, line2_spline, line3_spline,
+#                  line4_spline, line5_spline, line6_spline, line7_spline, line8_spline]
+#
+#    gmsh.model.addPhysicalGroup(1, all_curve_tags, 2)
     # Create a physical group for export so only this surface is written
-    gmsh.model.addPhysicalGroup(2, [surface_tag,surface_tag2,surface_tag3], 1)
+    gmsh.model.addPhysicalGroup(2, [surface_tag,surface_tag2,surface_tag3] + stagsZ + stagsY, 1)
     gmsh.model.setPhysicalName(2, 1, "StructuredPatch")
 
     gmsh.model.mesh.generate(2)
+    
+    project_mesh_nodes_to_cad([surface_tag, surface_tag2, surface_tag3] + stagsZ  + stagsY, all_surfaces)
+    
 
     gmsh.write("projected_square_patch.msh")
     gmsh.write("projected_square_patch.vtk")
