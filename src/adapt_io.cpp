@@ -3932,13 +3932,21 @@ std::map<int, std::vector<int> > ReadElementsFromPyFRMeshFileInParallel_Lite(con
     //  compute offset of rows for each proc;
     hsize_t offset              = rank*int(N/size) + MIN(rank, N%size);
 
+    // Detect element order by checking the dataset type
+    hid_t dtype = H5Dget_type(dset_id);
+    hid_t nodes_member_type = H5Tget_member_type(dtype, 0); // Get the 'nodes' field type
+    int nodes_array_rank = H5Tget_array_ndims(nodes_member_type);
+    hsize_t nodes_array_dims[1];
+    H5Tget_array_dims(nodes_member_type, nodes_array_dims);
+    int num_nodes = nodes_array_dims[0];
     
+    // Determine order: 4 nodes = first order tet, 6 nodes = first order pri, 10 nodes = second order
+    bool is_second_order = (num_nodes == 10);
+    int num_corner_nodes = (strcmp(dataset_name, "pri") == 0) ? 6 : 4;
+    
+    H5Tclose(nodes_member_type);
+    H5Tclose(dtype);
 
-    //std::vector<PrismEntry> elements(N);
-
-    // hid_t face_tid = H5Tcreate(H5T_COMPOUND, sizeof(FaceEntry));
-    // H5Tinsert(face_tid, "cidx", offsetof(FaceEntry, cidx), H5T_NATIVE_INT16);
-    // H5Tinsert(face_tid, "off", offsetof(FaceEntry, off), H5T_NATIVE_INT64);
     //============================================================================
     if (strcmp(dataset_name, "pri") == 0)
     {
@@ -3947,56 +3955,71 @@ std::map<int, std::vector<int> > ReadElementsFromPyFRMeshFileInParallel_Lite(con
         H5Tinsert(face_tid, "cidx", offsetof(FaceEntry, cidx), H5T_NATIVE_INT16);
         H5Tinsert(face_tid, "off", offsetof(FaceEntry, off), H5T_NATIVE_INT64);
 
-        // Array types
-        hid_t arr_nodes_tid = H5Tarray_create(H5T_NATIVE_INT64, 1, (const hsize_t[]){6});
-        hid_t arr_faces_tid = H5Tarray_create(face_tid, 1, (const hsize_t[]){5});
-
-        // The main compound type
-        hid_t prism_tid = H5Tcreate(H5T_COMPOUND, sizeof(PrismEntry));
-        H5Tinsert(prism_tid, "nodes", offsetof(PrismEntry, nodes), arr_nodes_tid);
-        H5Tinsert(prism_tid, "curved", offsetof(PrismEntry, curved), H5T_NATIVE_INT8);
-        H5Tinsert(prism_tid, "faces", offsetof(PrismEntry, faces), arr_faces_tid);
-
         hsize_t offsets[1] = { offset };     // offset for this process
         hsize_t counts[1]  = { nloc };      // number of rows for this process
-        // printf("sizeof(PrismEntry) = %zu\n", sizeof(PrismEntry));
-        // printf("offsetof(PrismEntry, nodes) = %zu, sizeof(nodes) = %zu\n", 
-        //     offsetof(PrismEntry, nodes), sizeof(((PrismEntry*)0)->nodes));
-        // printf("offsetof(PrismEntry, curved) = %zu, sizeof(curved) = %zu\n", 
-        //     offsetof(PrismEntry, curved), sizeof(((PrismEntry*)0)->curved));
-        // printf("offsetof(PrismEntry, faces) = %zu, sizeof(faces) = %zu\n", 
-        //     offsetof(PrismEntry, faces), sizeof(((PrismEntry*)0)->faces));
-        // printf("sizeof(FaceEntry) = %zu\n", sizeof(FaceEntry));
 
         H5Sselect_hyperslab(dspace, H5S_SELECT_SET, offsets, NULL, counts, NULL);
-
-        // // Create a corresponding memory space
         hid_t mspace = H5Screate_simple(1, counts, NULL);
 
-        // // Allocate storage for the local chunk
-        // // // Read the chunk
-        std::cout << "nloc. "<< nloc << std::endl;
-        std::vector<PrismEntry> elements_loc(nloc);
-        H5Dread(dset_id, prism_tid, mspace, dspace, H5P_DEFAULT, elements_loc.data());
+        std::cout << "Reading prism elements, order: " << (is_second_order ? "2" : "1") << ", nloc: " << nloc << std::endl;
 
-        //std::vector<T> output(nloc*6);
-        int i = 0;
-        for (const PrismEntry& element : elements_loc) {
+        if (is_second_order) {
+            // Second order prism: 10 nodes, 4 faces
+            hid_t arr_nodes_tid = H5Tarray_create(H5T_NATIVE_INT64, 1, (const hsize_t[]){10});
+            hid_t arr_faces_tid = H5Tarray_create(face_tid, 1, (const hsize_t[]){4});
+            hid_t prism_tid = H5Tcreate(H5T_COMPOUND, sizeof(PrismEntry_O2));
+            H5Tinsert(prism_tid, "nodes", offsetof(PrismEntry_O2, nodes), arr_nodes_tid);
+            H5Tinsert(prism_tid, "curved", offsetof(PrismEntry_O2, curved), H5T_NATIVE_INT8);
+            H5Tinsert(prism_tid, "faces", offsetof(PrismEntry_O2, faces), arr_faces_tid);
 
-            std::vector<int> row(6,0);
-            int elid = offset + i;
+            std::vector<PrismEntry_O2> elements_loc(nloc);
+            H5Dread(dset_id, prism_tid, mspace, dspace, H5P_DEFAULT, elements_loc.data());
 
-            row[0] = element.nodes[0];
-            row[1] = element.nodes[1];
-            row[2] = element.nodes[2];
-            row[3] = element.nodes[3];
-            row[4] = element.nodes[4];
-            row[5] = element.nodes[5];
+            int i = 0;
+            for (const PrismEntry_O2& element : elements_loc) {
+                std::vector<int> row(6, 0);
+                int elid = offset + i;
+                // Extract only corner nodes (first 6)
+                for (int j = 0; j < 6; j++) {
+                    row[j] = element.nodes[j];
+                }
+                PAv[elid] = row;
+                i++;
+            }
 
-            PAv[elid] = row;
+            H5Tclose(arr_faces_tid);
+            H5Tclose(arr_nodes_tid);
+            H5Tclose(prism_tid);
+        } else {
+            // First order prism: 6 nodes, 5 faces
+            hid_t arr_nodes_tid = H5Tarray_create(H5T_NATIVE_INT64, 1, (const hsize_t[]){6});
+            hid_t arr_faces_tid = H5Tarray_create(face_tid, 1, (const hsize_t[]){5});
+            hid_t prism_tid = H5Tcreate(H5T_COMPOUND, sizeof(PrismEntry_O1));
+            H5Tinsert(prism_tid, "nodes", offsetof(PrismEntry_O1, nodes), arr_nodes_tid);
+            H5Tinsert(prism_tid, "curved", offsetof(PrismEntry_O1, curved), H5T_NATIVE_INT8);
+            H5Tinsert(prism_tid, "faces", offsetof(PrismEntry_O1, faces), arr_faces_tid);
 
-            int i = i + 1;
+            std::vector<PrismEntry_O1> elements_loc(nloc);
+            H5Dread(dset_id, prism_tid, mspace, dspace, H5P_DEFAULT, elements_loc.data());
+
+            int i = 0;
+            for (const PrismEntry_O1& element : elements_loc) {
+                std::vector<int> row(6, 0);
+                int elid = offset + i;
+                for (int j = 0; j < 6; j++) {
+                    row[j] = element.nodes[j];
+                }
+                PAv[elid] = row;
+                i++;
+            }
+
+            H5Tclose(arr_faces_tid);
+            H5Tclose(arr_nodes_tid);
+            H5Tclose(prism_tid);
         }
+
+        H5Tclose(face_tid);
+        H5Sclose(mspace);
     }
 
 
@@ -4007,54 +4030,71 @@ std::map<int, std::vector<int> > ReadElementsFromPyFRMeshFileInParallel_Lite(con
         H5Tinsert(face_tid, "cidx", offsetof(FaceEntry, cidx), H5T_NATIVE_INT16);
         H5Tinsert(face_tid, "off", offsetof(FaceEntry, off), H5T_NATIVE_INT64);
 
-        // Array types
-        hid_t arr_nodes_tid = H5Tarray_create(H5T_NATIVE_INT64, 1, (const hsize_t[]){4});
-        hid_t arr_faces_tid = H5Tarray_create(face_tid, 1, (const hsize_t[]){4});
-
-        // The main compound type
-        hid_t prism_tid = H5Tcreate(H5T_COMPOUND, sizeof(TetEntry));
-        H5Tinsert(prism_tid, "nodes", offsetof(TetEntry, nodes), arr_nodes_tid);
-        H5Tinsert(prism_tid, "curved", offsetof(TetEntry, curved), H5T_NATIVE_INT8);
-        H5Tinsert(prism_tid, "faces", offsetof(TetEntry, faces), arr_faces_tid);
-
         hsize_t offsets[1] = { offset };     // offset for this process
         hsize_t counts[1]  = { nloc };      // number of rows for this process
-        // printf("sizeof(TetEntry) = %zu\n", sizeof(TetEntry));
-        // printf("offsetof(TetEntry, nodes) = %zu, sizeof(nodes) = %zu\n", 
-        //     offsetof(TetEntry, nodes), sizeof(((TetEntry*)0)->nodes));
-        // printf("offsetof(TetEntry, curved) = %zu, sizeof(curved) = %zu\n", 
-        //     offsetof(TetEntry, curved), sizeof(((TetEntry*)0)->curved));
-        // printf("offsetof(TetEntry, faces) = %zu, sizeof(faces) = %zu\n", 
-        //     offsetof(TetEntry, faces), sizeof(((TetEntry*)0)->faces));
-        // printf("sizeof(FaceEntry) = %zu\n", sizeof(FaceEntry));
 
         H5Sselect_hyperslab(dspace, H5S_SELECT_SET, offsets, NULL, counts, NULL);
-
-        // // Create a corresponding memory space
         hid_t mspace = H5Screate_simple(1, counts, NULL);
 
-        // // Allocate storage for the local chunk
-        // // // Read the chunk
-        std::cout << "nloc. "<< nloc << std::endl;
-        std::vector<TetEntry> elements_loc(nloc);
-        H5Dread(dset_id, prism_tid, mspace, dspace, H5P_DEFAULT, elements_loc.data());
+        std::cout << "Reading tetrahedron elements, order: " << (is_second_order ? "2" : "1") << ", nloc: " << nloc << std::endl;
 
-        //std::vector<T> output(nloc*6);
-        int i = 0;
-        for (const TetEntry& element : elements_loc) {
-            
-            std::vector<int> row(4,0);
-            int elid = offset + i;
+        if (is_second_order) {
+            // Second order tetrahedron: 10 nodes, 4 faces
+            hid_t arr_nodes_tid = H5Tarray_create(H5T_NATIVE_INT64, 1, (const hsize_t[]){10});
+            hid_t arr_faces_tid = H5Tarray_create(face_tid, 1, (const hsize_t[]){4});
+            hid_t tet_tid = H5Tcreate(H5T_COMPOUND, sizeof(TetEntry_O2));
+            H5Tinsert(tet_tid, "nodes", offsetof(TetEntry_O2, nodes), arr_nodes_tid);
+            H5Tinsert(tet_tid, "curved", offsetof(TetEntry_O2, curved), H5T_NATIVE_INT8);
+            H5Tinsert(tet_tid, "faces", offsetof(TetEntry_O2, faces), arr_faces_tid);
 
-            row[0] = element.nodes[0];
-            row[1] = element.nodes[1];
-            row[2] = element.nodes[2];
-            row[3] = element.nodes[3];
+            std::vector<TetEntry_O2> elements_loc(nloc);
+            H5Dread(dset_id, tet_tid, mspace, dspace, H5P_DEFAULT, elements_loc.data());
 
-            PAv[elid] = row;
+            int i = 0;
+            for (const TetEntry_O2& element : elements_loc) {
+                std::vector<int> row(4, 0);
+                int elid = offset + i;
+                // Extract only corner nodes (first 4)
+                for (int j = 0; j < 4; j++) {
+                    row[j] = element.nodes[j];
+                }
+                PAv[elid] = row;
+                i++;
+            }
 
-            int i = i + 1;
+            H5Tclose(arr_faces_tid);
+            H5Tclose(arr_nodes_tid);
+            H5Tclose(tet_tid);
+        } else {
+            // First order tetrahedron: 4 nodes, 4 faces
+            hid_t arr_nodes_tid = H5Tarray_create(H5T_NATIVE_INT64, 1, (const hsize_t[]){4});
+            hid_t arr_faces_tid = H5Tarray_create(face_tid, 1, (const hsize_t[]){4});
+            hid_t tet_tid = H5Tcreate(H5T_COMPOUND, sizeof(TetEntry_O1));
+            H5Tinsert(tet_tid, "nodes", offsetof(TetEntry_O1, nodes), arr_nodes_tid);
+            H5Tinsert(tet_tid, "curved", offsetof(TetEntry_O1, curved), H5T_NATIVE_INT8);
+            H5Tinsert(tet_tid, "faces", offsetof(TetEntry_O1, faces), arr_faces_tid);
+
+            std::vector<TetEntry_O1> elements_loc(nloc);
+            H5Dread(dset_id, tet_tid, mspace, dspace, H5P_DEFAULT, elements_loc.data());
+
+            int i = 0;
+            for (const TetEntry_O1& element : elements_loc) {
+                std::vector<int> row(4, 0);
+                int elid = offset + i;
+                for (int j = 0; j < 4; j++) {
+                    row[j] = element.nodes[j];
+                }
+                PAv[elid] = row;
+                i++;
+            }
+
+            H5Tclose(arr_faces_tid);
+            H5Tclose(arr_nodes_tid);
+            H5Tclose(tet_tid);
         }
+
+        H5Tclose(face_tid);
+        H5Sclose(mspace);
     }
 
     // for (size_t i = 0; i < nloc; ++i)
@@ -4065,18 +4105,124 @@ std::map<int, std::vector<int> > ReadElementsFromPyFRMeshFileInParallel_Lite(con
     // }
 
     // Proper resource management:
-    // H5Tclose(arr_node_tid);
-    // H5Tclose(pair_tid);
-    // H5Tclose(prism_tid);
-    // H5Gclose(group_id);
-    // H5Dclose(dset_id);
-    // H5Fclose(file_id);
-    // H5Sclose(dspace);
-    // H5Pclose(acc_tpl1);
+    H5Sclose(dspace);
+    H5Dclose(dset_id);
+    H5Gclose(group_id);
+    H5Fclose(file_id);
+    H5Pclose(acc_tpl1);
     //============================================================================
 
     
     return PAv;
+}
+
+
+std::vector<std::vector<std::vector<float> > > ReadSolutionFromPyFRFileInParallel_Lite(const char* file_name, const char* element_type, int order, MPI_Comm comm, MPI_Info info)
+{
+    std::vector<std::vector<std::vector<float> > > solution_data;
+    
+    // Get the size of the process;
+    int size;
+    MPI_Comm_size(comm, &size);
+
+    // Get the rank of the process;
+    int rank;
+    MPI_Comm_rank(comm, &rank);
+    
+    // Open file and navigate to solution group
+    hid_t file_id = H5Fopen(file_name, H5F_ACC_RDONLY, H5P_DEFAULT);
+    hid_t soln_group_id = H5Gopen(file_id, "soln", H5P_DEFAULT);
+    
+    // Construct dataset name (e.g., "p1-tet" for first order, "p2-tet" for second order)
+    std::string dataset_name;
+    if (order == 0) {
+        // Auto-detect: try p2 first, then p1
+        std::string p2_name = std::string("p2-") + std::string(element_type);
+        std::string p1_name = std::string("p1-") + std::string(element_type);
+        
+        if (H5Lexists(soln_group_id, p2_name.c_str(), H5P_DEFAULT) > 0) {
+            dataset_name = p2_name;
+            if (rank == 0) std::cout << "Auto-detected second order solution: " << dataset_name << std::endl;
+        } else if (H5Lexists(soln_group_id, p1_name.c_str(), H5P_DEFAULT) > 0) {
+            dataset_name = p1_name;
+            if (rank == 0) std::cout << "Auto-detected first order solution: " << dataset_name << std::endl;
+        } else {
+            if (rank == 0) {
+                std::cerr << "Error: Could not find solution dataset for element type: " << element_type << std::endl;
+            }
+            H5Gclose(soln_group_id);
+            H5Fclose(file_id);
+            return solution_data;
+        }
+    } else {
+        dataset_name = std::string("p") + std::to_string(order) + std::string("-") + std::string(element_type);
+    }
+    
+    hid_t dset_id = H5Dopen(soln_group_id, dataset_name.c_str(), H5P_DEFAULT);
+    if (dset_id < 0) {
+        if (rank == 0) {
+            std::cerr << "Error: Could not open dataset: " << dataset_name << std::endl;
+        }
+        H5Gclose(soln_group_id);
+        H5Fclose(file_id);
+        return solution_data;
+    }
+    
+    // Get dataset dimensions
+    hid_t dspace = H5Dget_space(dset_id);
+    int ndims = H5Sget_simple_extent_ndims(dspace);
+    hsize_t dims[ndims];
+    H5Sget_simple_extent_dims(dspace, dims, NULL);
+    
+    size_t n_elements = dims[0];  // Number of elements
+    size_t n_vars = dims[1];      // Number of variables (typically 5 for Euler: rho, rho*u, rho*v, rho*w, rho*E)
+    size_t n_pts = dims[2];       // Number of solution points per element
+    
+    // Partition elements across processes
+    hsize_t nloc = int(n_elements/size) + (rank < n_elements%size);
+    hsize_t offset = rank*int(n_elements/size) + MIN(rank, n_elements%size);
+    
+    std::cout << "Rank " << rank << ": Reading solution data - elements: " << n_elements 
+              << ", vars: " << n_vars << ", pts: " << n_pts 
+              << ", local: " << nloc << ", offset: " << offset << std::endl;
+    
+    if (nloc > 0) {
+        // Select hyperslab for this process
+        hsize_t offsets[3] = {offset, 0, 0};
+        hsize_t counts[3] = {nloc, n_vars, n_pts};
+        H5Sselect_hyperslab(dspace, H5S_SELECT_SET, offsets, NULL, counts, NULL);
+        
+        // Create memory space
+        hid_t mspace = H5Screate_simple(3, counts, NULL);
+        
+        // Allocate buffer for local data
+        std::vector<float> buffer(nloc * n_vars * n_pts);
+        
+        // Read data
+        H5Dread(dset_id, H5T_NATIVE_FLOAT, mspace, dspace, H5P_DEFAULT, buffer.data());
+        
+        // Reshape data into nested vector structure: solution[element][variable][solution_point]
+        solution_data.resize(nloc);
+        for (size_t i = 0; i < nloc; i++) {
+            solution_data[i].resize(n_vars);
+            for (size_t j = 0; j < n_vars; j++) {
+                solution_data[i][j].resize(n_pts);
+                for (size_t k = 0; k < n_pts; k++) {
+                    solution_data[i][j][k] = buffer[i * n_vars * n_pts + j * n_pts + k];
+                }
+            }
+        }
+        
+        H5Sclose(mspace);
+    }
+    
+    // Cleanup
+    H5Sclose(dspace);
+    H5Dclose(dset_id);
+    H5Gclose(soln_group_id);
+    H5Fclose(file_id);
+    
+    return solution_data;
 }
 
 

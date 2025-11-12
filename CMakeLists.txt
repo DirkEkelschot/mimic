@@ -313,7 +313,8 @@ OPTION(BUILD_MIMIC_US3D
         "Build MIMIC for US3D." OFF)
 OPTION(BUILD_MIMIC_HYPERSOLVE
         "Build MIMIC for HyperSolve." OFF)
-
+OPTION(BUILD_MIMIC_PYFR
+        "Build MIMIC for PyFR." OFF)
 #add_subdirectory(unit_tests)
 
 IF(BUILD_MIMIC_US3D)
@@ -322,7 +323,9 @@ ENDIF()
 IF(BUILD_MIMIC_HYPERSOLVE)
 	add_subdirectory(mimic.hs)
 ENDIF()
-
+IF(BUILD_MIMIC_PYFR)
+        add_subdirectory(mimic.pyfrm)
+ENDIF()
 
 
 OPTION(BUILD_UTILITIES

@@ -8,35 +8,6 @@ MPICC_PATH=$(which mpicc)
 MPI_PREFIX=${MPICC_PATH%/bin/mpicc}
 echo "MPI build that is used: $MPI_PREFIX"
 
-git clone https://github.com/KarypisLab/GKlib.git gklib
-cd gklib
-mkdir gklib-install
-make config cc=mpicc prefix=${ROOT}/gklib/gklib-install
-make
-make install
-ln -s ${ROOT}/gklib/gklib-install/lib64/libGKlib.a ${ROOT}/gklib/gklib-install/lib/libGKlib.a
-cd ..
-
-git clone https://github.com/KarypisLab/METIS.git metis
-cd metis
-mkdir metis-install
-make config cc=mpicc gklib_path=${ROOT}/gklib/gklib-install prefix=${ROOT}/metis/metis-install
-make
-make install
-cd ..
-
-git clone https://github.com/KarypisLab/ParMETIS.git parmetis
-cd parmetis
-mkdir build
-cd build
-cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
-      -DCMAKE_C_COMPILER=mpicc \
-      -DGKLIB_PATH=${ROOT}/gklib/gklib-install \
-      -DMETIS_PATH=${ROOT}/metis/metis-install \
-      -DCMAKE_INSTALL_PREFIX=${ROOT}/parmetis/build ..
-make
-make install
-cd ../../
 
 #========================Build metis-5.1.0======================================
 
@@ -53,6 +24,25 @@ cmake -DCMAKE_VERBOSE_MAKEFILE=1 \
 make
 make install
 cd ../../
+
+
+
+
+
+curl -O https://karypis.github.io/glaros/files/sw/parmetis/parmetis-4.0.3.tar.gz
+tar -xvf parmetis-4.0.3.tar.gz
+cd parmetis-4.0.3/metis
+mkdir metis-install
+make config prefix=${ROOT}/parmetis-4.0.3/metis/metis-install
+make
+make install
+
+cd ${ROOT}/parmetis-4.0.3
+mkdir parmetis-install
+make config prefix=${ROOT}/parmetis-4.0.3/parmetis-install
+make
+make install
+
 
 #========================Build boost c++ libraries==============================
 
@@ -81,9 +71,3 @@ else
 fi
 
 
-#touch machine.cmake
-#echo "set(DEFAULT_MPI_ROOT ${MPI_PREFIX})" > machine.cmake
-#echo "set(DEFAULT_METIS_ROOT ${ROOT}/metis/metis-install)" >> machine.cmake
-#echo "set(DEFAULT_PARMETIS_ROOT ${ROOT}/parmetis/build)" >> machine.cmake
-#echo "set(DEFAULT_METIS-5.1.0_ROOT ${ROOT}/metis-5.1.0/build)" >> machine.cmake
-#echo "set(DEFAULT_BOOST_ROOT ${ROOT}/boost_1_83_0/boost-install)" >> machine.cmake

@@ -96,16 +96,30 @@ struct FaceEntry {
    int64_t off;
 };
 
-struct PrismEntry {
-    int64_t nodes[6];             // node indices for this prism
-    int8_t curved;                            // boundary/internal flag
-    FaceEntry faces[5]; // fixed-size array of attribute pairs
+// First order structures
+struct PrismEntry_O1 {
+    int64_t nodes[6];             // node indices for this prism (first order)
+    int8_t curved;                // boundary/internal flag
+    FaceEntry faces[5];           // fixed-size array of attribute pairs
 };
 
-struct TetEntry {
-    int64_t nodes[4];             // node indices for this prism
-    int8_t curved;                            // boundary/internal flag
-    FaceEntry faces[4]; // fixed-size array of attribute pairs
+struct TetEntry_O1 {
+    int64_t nodes[4];             // node indices for this tetrahedron (first order)
+    int8_t curved;                // boundary/internal flag
+    FaceEntry faces[4];           // fixed-size array of attribute pairs
+};
+
+// Second order structures
+struct PrismEntry_O2 {
+    int64_t nodes[10];            // node indices for this prism (second order: 6 corners + 4 edge midpoints)
+    int8_t curved;                // boundary/internal flag
+    FaceEntry faces[4];           // fixed-size array of attribute pairs
+};
+
+struct TetEntry_O2 {
+    int64_t nodes[10];            // node indices for this tetrahedron (second order: 4 corners + 6 edge midpoints)
+    int8_t curved;                // boundary/internal flag
+    FaceEntry faces[4];           // fixed-size array of attribute pairs
 };
 
 #pragma pack(pop)
@@ -1406,6 +1420,15 @@ US3D* ReadUS3DData(const char* fn_conn, const char* fn_grid, const char* fn_data
 
 
 std::map<int, std::vector<int> > ReadElementsFromPyFRMeshFileInParallel_Lite(const char* file_name, const char* group_name, const char* dataset_name, MPI_Comm comm, MPI_Info info);
+
+// Read PyFR solution data from data.pyfrs file
+// Parameters:
+//   file_name: path to the data.pyfrs file
+//   element_type: element type string (e.g., "tet" or "pri")
+//   order: polynomial order (1 for first order, 2 for second order). If 0, auto-detect from available datasets
+// Returns: vector of elements, each element contains vector of variables, each variable contains vector of solution points
+// Format: solution[element][variable][solution_point]
+std::vector<std::vector<std::vector<float> > > ReadSolutionFromPyFRFileInParallel_Lite(const char* file_name, const char* element_type, int order, MPI_Comm comm, MPI_Info info);
 
 
 
