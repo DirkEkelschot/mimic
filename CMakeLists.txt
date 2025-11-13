@@ -59,9 +59,9 @@ endforeach()
 
 INCLUDE (cmake/adaptCommon.cmake)
 
-#INCLUDE (cmake/ThirdPartyTetGen.cmake)
-
-
+INCLUDE (cmake/ThirdPartyOCCT.cmake)
+INCLUDE (cmake/ThirdPartyESP.cmake)
+INCLUDE (cmake/ThirdPartyTetGen.cmake)
 find_package(LAPACK)
 
 set(Boost_INCLUDE_DIR ${DEFAULT_BOOST_ROOT}/include)
@@ -315,6 +315,11 @@ OPTION(BUILD_MIMIC_HYPERSOLVE
         "Build MIMIC for HyperSolve." OFF)
 OPTION(BUILD_MIMIC_PYFR
         "Build MIMIC for PyFR." OFF)
+
+#OPTION(BUILD_MIMIC_BASEMESHGEN
+#        "Build MIMIC for BASEMESHGEN." OFF)
+add_subdirectory(BaseMeshGenerator)
+
 #add_subdirectory(unit_tests)
 
 IF(BUILD_MIMIC_US3D)
@@ -326,7 +331,9 @@ ENDIF()
 IF(BUILD_MIMIC_PYFR)
         add_subdirectory(mimic.pyfrm)
 ENDIF()
-
+#IF(BUILD_MIMIC_BASEMESHGEN)
+#        add_subdirectory(BaseMeshGenerator)
+#ENDIF()
 
 OPTION(BUILD_UTILITIES
         "Build MIMIC utilities." OFF)

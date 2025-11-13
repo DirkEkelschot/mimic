@@ -415,18 +415,10 @@ int main(int argc, char *argv[])
         }
         
         // Get tessellation stats
-        int state = 0;
-        int nface_tess = 0;
-        ego geom = NULL;
+        int state, nface_tess;
         status = EG_statusTessBody(tessellations[ibody], &geom, &state, &nface_tess);
         if (status == EGADS_SUCCESS) {
-            if (nface_tess > 0 && nface_tess < 10000) {  // Sanity check
-                printf("  Successfully tessellated %d faces\n", nface_tess);
-            } else {
-                printf("  Warning: Invalid nface_tess value: %d (expected 1-10000)\n", nface_tess);
-            }
-        } else {
-            printf("  Warning: EG_statusTessBody failed (status = %d)\n", status);
+            printf("  Successfully tessellated %d faces\n", nface_tess);
         }
     }
     
@@ -437,28 +429,10 @@ int main(int argc, char *argv[])
     for (int ibody = 0; ibody < nbody; ibody++) {
         if (tessellations[ibody] == NULL) continue;
         
-        int state = 0;
-        int nface_tess = 0;
-        ego geom = NULL;
-        status = EG_statusTessBody(tessellations[ibody], &geom, &state, &nface_tess);
-        if (status != EGADS_SUCCESS) {
-            printf("Warning: EG_statusTessBody failed for body %d (status = %d)\n", ibody + 1, status);
-            continue;
-        }
-        
-        if (nface_tess <= 0 || nface_tess > 10000) {
-            printf("Warning: Body %d has invalid nface_tess value: %d (expected 1-10000)\n", ibody + 1, nface_tess);
-            continue;
-        }
-        
-        printf("  Extracting tessellation from %d faces...\n", nface_tess);
+        int state, nface_tess;
+        EG_statusTessBody(tessellations[ibody], &geom, &state, &nface_tess);
         
         for (int iface = 1; iface <= nface_tess; iface++) {
-            // Additional safety check
-            if (iface < 1 || iface > 10000) {
-                printf("Warning: Invalid face index %d, skipping\n", iface);
-                break;
-            }
             int npnt, ntri;
             const double *xyz, *uv;
             const int *ptype, *pindex, *tris, *tric;
@@ -467,18 +441,7 @@ int main(int argc, char *argv[])
                                    &npnt, &xyz, &uv, &ptype, &pindex,
                                    &ntri, &tris, &tric);
             
-            if (status != EGADS_SUCCESS) {
-                printf("Warning: EG_getTessFace failed for body %d, face %d (status = %d)\n", 
-                       ibody + 1, iface, status);
-                continue;
-            }
-            
-            // Validate pointers
-            if (xyz == NULL || tris == NULL) {
-                printf("Warning: Null pointers from EG_getTessFace for body %d, face %d\n", 
-                       ibody + 1, iface);
-                continue;
-            }
+            if (status != EGADS_SUCCESS) continue;
             
             int base_idx = surface_vertices.size();
             
@@ -624,7 +587,6 @@ int main(int argc, char *argv[])
         double dx3 = surface_vertices[i0].x - surface_vertices[i2].x;
         double dy3 = surface_vertices[i0].y - surface_vertices[i2].y;
         double dz3 = surface_vertices[i0].z - surface_vertices[i2].z;
-        
         double e3 = sqrt(dx3*dx3 + dy3*dy3 + dz3*dz3);
         
         double max_e = fmax(e1, fmax(e2, e3));

@@ -6,21 +6,36 @@ SET(TPBUILD ${CMAKE_BINARY_DIR}/ThirdParty)
 SET(TPDIST  ${CMAKE_BINARY_DIR}/ThirdParty/dist)
 
 
-
-IF(OCCT_LIBRARY AND OCCT_INCLUDE_DIR)
-        SET(BUILD_OCCT OFF)
-ELSE()
-        SET(BUILD_OCCT ON)
-ENDIF()
-
-
+SET(BUILD_OCCT ON)
 
 OPTION(THIRDPARTY_BUILD_OpenCascade
         "Build OpenCascade library from ThirdParty." ${BUILD_OCCT})
 
 
 MESSAGE("BUILDING OCCT THIRDPARTY_BUILD_OpenCascade " ${BUILD_OCCT} ${THIRDPARTY_BUILD_OpenCascade})
+MESSAGE("CMAKE_C_COMPILER: " ${CMAKE_C_COMPILER})
+MESSAGE("CMAKE_CXX_COMPILER: " ${CMAKE_CXX_COMPILER})
 
+# Determine which compiler to use for OCCT build
+# Prefer MPI wrappers if available, otherwise use the CMAKE compilers
+IF(DEFINED MPI_C AND MPI_C)
+    SET(OCCT_C_COMPILER ${MPI_C})
+ELSEIF(CMAKE_C_COMPILER)
+    SET(OCCT_C_COMPILER ${CMAKE_C_COMPILER})
+ELSE()
+    MESSAGE(FATAL_ERROR "No C compiler specified. Set CMAKE_C_COMPILER or MPI_C.")
+ENDIF()
+
+IF(DEFINED MPI_CXX AND MPI_CXX)
+    SET(OCCT_CXX_COMPILER ${MPI_CXX})
+ELSEIF(CMAKE_CXX_COMPILER)
+    SET(OCCT_CXX_COMPILER ${CMAKE_CXX_COMPILER})
+ELSE()
+    MESSAGE(FATAL_ERROR "No C++ compiler specified. Set CMAKE_CXX_COMPILER or MPI_CXX.")
+ENDIF()
+
+MESSAGE("OCCT will use C compiler: " ${OCCT_C_COMPILER})
+MESSAGE("OCCT will use C++ compiler: " ${OCCT_CXX_COMPILER})
 
 IF (THIRDPARTY_BUILD_OpenCascade)
         INCLUDE(ExternalProject)
@@ -28,7 +43,7 @@ IF (THIRDPARTY_BUILD_OpenCascade)
         FIND_PROGRAM(PATCH patch)
         IF(NOT PATCH)
                 MESSAGE(FATAL_ERROR
-                "'patch' tool for modifying files not found. Cannot build Tetgen.")
+                "'patch' tool for modifying files not found. Cannot build OCCT.")
         ENDIF()
         MARK_AS_ADVANCED(PATCH)
         
@@ -45,9 +60,8 @@ IF (THIRDPARTY_BUILD_OpenCascade)
             	INSTALL_DIR ${TPDIST}
 		CONFIGURE_COMMAND ${CMAKE_COMMAND}
                 -G ${CMAKE_GENERATOR}
-                -DCMAKE_C_COMPILER=${MPI_C} -DCMAKE_CXX_COMPILER=${MPI_CXX} 
-                -DCMAKE_CXX_COMPILER:FILEPATH=${MPI_CXX}
-		-DCMAKE_C_COMPILER:FILEPATH=${MPI_C}
+                -DCMAKE_C_COMPILER=${OCCT_C_COMPILER}
+                -DCMAKE_CXX_COMPILER=${OCCT_CXX_COMPILER} 
                 -DCMAKE_INSTALL_PREFIX:PATH=${TPDIST}
                 -DVTK_ENABLE_PARALLEL=ON
 		-DZLIB_DIR=${TPDIST}
