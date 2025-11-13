@@ -26,19 +26,19 @@ int main(int argc, char** argv)
     std::map<int, std::vector<int> > pyfr_ien_tet;
     std::map<int, std::vector<int> > pyfr_ien_pri;
     std::vector<std::vector<double> > us3d_xcn;
-    
+    std::vector<std::vector<std::vector<float> > > pyfr_data;
     // us3d_xcn = ReadDataSetFromFileInParallel_Lite<double>(us3d_grid_file,"xcn",comm,info);
 
     const char* pyfr_grid_file = "inputs/mesh.pyfrm";
     const char* pyfr_data_file = "inputs/data.pyfrs";
 
-    pyfr_xcn     = ReadVerticesFromPyFRMeshFileInParallel_Lite<double>(pyfr_grid_file,"nodes",comm,info);
+    pyfr_xcn        = ReadVerticesFromPyFRMeshFileInParallel_Lite<double>(pyfr_grid_file,"nodes",comm,info);
     // pyfr_ien_pri = ReadElementsFromPyFRMeshFileInParallel_Lite(pyfr_grid_file,"eles","pri",comm,info);
-    pyfr_ien_tet = ReadElementsFromPyFRMeshFileInParallel_Lite(pyfr_grid_file,"eles","tet",comm,info);
-    std::vector<std::vector<std::vector<float> > > pyfr_data = ReadSolutionFromPyFRFileInParallel_Lite(pyfr_data_file, "tet", 1, comm, info);
+    pyfr_ien_tet    = ReadElementsFromPyFRMeshFileInParallel_Lite(pyfr_grid_file,"eles","tet",comm,info);
+    pyfr_data       = ReadSolutionFromPyFRFileInParallel_Lite(pyfr_data_file, "tet", 1, comm, info);
 
     // std::cout << "pyfr_ien_tet " << pyfr_ien_pri.size() << "pyfr_ien_tet " << pyfr_ien_tet.size()  << std::endl;
-    // // PartObjectLite* partitionP = new PartObjectLite(pyfr_ien_pri, pyfr_xcn, tetUniMesh->eltype_map, tetUniMesh->eltype_vec, allbcFacesNew, Ne, Nv, comm);
+    PartObjectLite* partitionP = new PartObjectLite(pyfr_ien_pri, pyfr_xcn, tetUniMesh->eltype_map, tetUniMesh->eltype_vec, allbcFacesNew, Ne, Nv, comm);
     // // PartObjectLite* partitionT = new PartObjectLite(pyfr_ien_tet, pyfr_xcn, tetUniMesh->eltype_map, tetUniMesh->eltype_vec, allbcFacesNew, Ne, Nv, comm);
 
 

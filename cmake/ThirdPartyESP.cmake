@@ -14,13 +14,6 @@ SET(THIRDPARTY_BUILD_ESP ON)
 
 IF (THIRDPARTY_BUILD_ESP)
         INCLUDE(ExternalProject)
-#        UNSET(PATCH CACHE)
-#        FIND_PROGRAM(PATCH patch)
-#        IF(NOT PATCH)
-#                MESSAGE(FATAL_ERROR
-#                "'patch' tool for modifying files not found. Cannot build ESP.")
-#        ENDIF()
-#        MARK_AS_ADVANCED(PATCH)
 
         EXTERNALPROJECT_ADD(
                 ESP
