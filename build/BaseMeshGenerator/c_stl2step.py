@@ -9,14 +9,16 @@ from OCC.Core.TopAbs import TopAbs_FACE
 from OCC.Core.GProp import GProp_GProps
 from OCC.Core import BRepGProp
 import sys
+from pathlib import Path
 
 # Get input/output files from command line or use defaults
 if len(sys.argv) >= 2:
     input_stl = sys.argv[1]
+    # Convert input filename to Path object to use with_suffix
+    output_step = Path(input_stl).with_suffix('.step')
 else:
     input_stl = "100031.stl"
-
-output_step = sys.argv[1].with_suffix('.step')
+    output_step = "output.step"
 
 print(f"Reading STL file: {input_stl}")
 
@@ -360,17 +362,19 @@ print(f"\nFinal number of faces in STEP file: {final_face_count}")
 print(f"Reduction: {initial_face_count} -> {final_face_count} ({100.0 * (1.0 - final_face_count / initial_face_count):.1f}% reduction)")
 
 # Write STEP
-print(f"Writing STEP file: {output_step}")
+# Convert Path object to string for writing
+output_step_str = str(output_step)
+print(f"Writing STEP file: {output_step_str}")
 step_writer = STEPControl_Writer()
 status = step_writer.Transfer(final_shape, 1)  # 1 = STEPControl_AsIs
 
 if status != 1:
     print(f"Warning: Transfer status: {status}")
 
-status = step_writer.Write(output_step)
+status = step_writer.Write(output_step_str)
 
 if status != 1:
-    print(f"Error: Failed to write STEP file: {output_step}")
+    print(f"Error: Failed to write STEP file: {output_step_str}")
     sys.exit(1)
 
 print("Conversion successful!")
