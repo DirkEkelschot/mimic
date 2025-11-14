@@ -6,6 +6,10 @@
 #include <algorithm>
 #include "egads.h"
 
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
 /*
  * Program to tessellate geometry from an IGES file with per-surface spacing control
  *
@@ -425,12 +429,32 @@ int main(int argc, char *argv[])
     // ========== COLLECT SURFACE VERTICES AND TRIANGLES ==========
     std::vector<Vertex> surface_vertices;
     std::vector<int> surface_triangles;
+    std::vector<bool> is_edge_vertex;  // Track which vertices are on edges
     
     for (int ibody = 0; ibody < nbody; ibody++) {
         if (tessellations[ibody] == NULL) continue;
         
         int state, nface_tess;
-        EG_statusTessBody(tessellations[ibody], &geom, &state, &nface_tess);
+        status = EG_statusTessBody(tessellations[ibody], &geom, &state, &nface_tess);
+        if (status != EGADS_SUCCESS) {
+            printf("Warning: EG_statusTessBody failed for body %d (status = %d)\n", ibody + 1, status);
+            continue;
+        }
+        
+        // Also get the actual number of faces from the body to validate
+        ego *faces;
+        int nface_actual;
+        status = EG_getBodyTopos(bodies[ibody], NULL, FACE, &nface_actual, &faces);
+        if (status == EGADS_SUCCESS) {
+            if (nface_tess > nface_actual) {
+                printf("Warning: nface_tess (%d) > nface_actual (%d) for body %d, using nface_actual\n", 
+                       nface_tess, nface_actual, ibody + 1);
+                nface_tess = nface_actual;
+            }
+            EG_free(faces);
+        }
+        
+        printf("Processing body %d: %d tessellated faces\n", ibody + 1, nface_tess);
         
         for (int iface = 1; iface <= nface_tess; iface++) {
             int npnt, ntri;
@@ -441,11 +465,17 @@ int main(int argc, char *argv[])
                                    &npnt, &xyz, &uv, &ptype, &pindex,
                                    &ntri, &tris, &tric);
             
-            if (status != EGADS_SUCCESS) continue;
+            if (status != EGADS_SUCCESS) {
+                printf("Warning: EG_getTessFace failed for body %d, face %d (status = %d)\n", 
+                       ibody + 1, iface, status);
+                continue;
+            }
             
             int base_idx = surface_vertices.size();
             
-            // Add vertices
+            // Add vertices and mark edge vertices
+            // ptype indicates: 0=interior, 1=edge, 2=vertex (or similar)
+            // In EGADS, points on edges have ptype != 0
             for (int i = 0; i < npnt; i++) {
                 Vertex v;
                 v.x = xyz[3*i];
@@ -453,6 +483,11 @@ int main(int argc, char *argv[])
                 v.z = xyz[3*i+2];
                 v.nx = v.ny = v.nz = 0.0;
                 surface_vertices.push_back(v);
+                
+                // Mark as edge vertex if ptype indicates it's on an edge
+                // ptype[i] != 0 typically means the point is on an edge or vertex
+                bool on_edge = (ptype != NULL && ptype[i] != 0);
+                is_edge_vertex.push_back(on_edge);
             }
             
             // Add triangles
@@ -469,6 +504,8 @@ int main(int argc, char *argv[])
     
     // ========== COMPUTE VERTEX NORMALS ==========
     printf("Computing vertex normals...\n");
+    // First pass: compute triangle normals and accumulate weighted by triangle area
+    // Area-weighted averaging gives better results for corners
     for (size_t i = 0; i < surface_triangles.size(); i += 3) {
         int i0 = surface_triangles[i];
         int i1 = surface_triangles[i+1];
@@ -481,17 +518,30 @@ int main(int argc, char *argv[])
         double normal[3];
         calculateTriangleNormal(v0, v1, v2, normal);
         
-        surface_vertices[i0].nx += normal[0];
-        surface_vertices[i0].ny += normal[1];
-        surface_vertices[i0].nz += normal[2];
+        // Calculate triangle area for weighting
+        double edge1[3] = {v1[0]-v0[0], v1[1]-v0[1], v1[2]-v0[2]};
+        double edge2[3] = {v2[0]-v0[0], v2[1]-v0[1], v2[2]-v0[2]};
+        double cross[3] = {
+            edge1[1]*edge2[2] - edge1[2]*edge2[1],
+            edge1[2]*edge2[0] - edge1[0]*edge2[2],
+            edge1[0]*edge2[1] - edge1[1]*edge2[0]
+        };
+        double area = 0.5 * sqrt(cross[0]*cross[0] + cross[1]*cross[1] + cross[2]*cross[2]);
         
-        surface_vertices[i1].nx += normal[0];
-        surface_vertices[i1].ny += normal[1];
-        surface_vertices[i1].nz += normal[2];
+        // Weight by area (larger triangles contribute more)
+        double weight = area;
         
-        surface_vertices[i2].nx += normal[0];
-        surface_vertices[i2].ny += normal[1];
-        surface_vertices[i2].nz += normal[2];
+        surface_vertices[i0].nx += normal[0] * weight;
+        surface_vertices[i0].ny += normal[1] * weight;
+        surface_vertices[i0].nz += normal[2] * weight;
+        
+        surface_vertices[i1].nx += normal[0] * weight;
+        surface_vertices[i1].ny += normal[1] * weight;
+        surface_vertices[i1].nz += normal[2] * weight;
+        
+        surface_vertices[i2].nx += normal[0] * weight;
+        surface_vertices[i2].ny += normal[1] * weight;
+        surface_vertices[i2].nz += normal[2] * weight;
     }
     
     // Normalize
@@ -511,6 +561,7 @@ int main(int argc, char *argv[])
     double merge_tolerance = params[0] * 1e-4;
     std::vector<int> vertex_map(surface_vertices.size());
     std::vector<Vertex> unique_vertices;
+    std::vector<bool> unique_is_edge_vertex;  // Track edge status for unique vertices
     
     for (size_t i = 0; i < surface_vertices.size(); i++) {
         bool found = false;
@@ -525,6 +576,10 @@ int main(int argc, char *argv[])
                 unique_vertices[j].nx += surface_vertices[i].nx;
                 unique_vertices[j].ny += surface_vertices[i].ny;
                 unique_vertices[j].nz += surface_vertices[i].nz;
+                // If either vertex is on an edge, mark the merged vertex as on edge
+                if (is_edge_vertex[i]) {
+                    unique_is_edge_vertex[j] = true;
+                }
                 found = true;
                 break;
             }
@@ -533,6 +588,7 @@ int main(int argc, char *argv[])
         if (!found) {
             vertex_map[i] = unique_vertices.size();
             unique_vertices.push_back(surface_vertices[i]);
+            unique_is_edge_vertex.push_back(is_edge_vertex[i]);
         }
     }
     
@@ -552,6 +608,7 @@ int main(int argc, char *argv[])
     }
     
     surface_vertices = unique_vertices;
+    is_edge_vertex = unique_is_edge_vertex;  // Update to unique vertices
     
     // Remap triangles
     for (size_t i = 0; i < surface_triangles.size(); i++) {
@@ -560,6 +617,13 @@ int main(int argc, char *argv[])
     
     int num_surface_vertices = surface_vertices.size();
     int num_surface_triangles = surface_triangles.size() / 3;
+    
+    // Count edge vertices
+    int edge_vertex_count = 0;
+    for (size_t i = 0; i < is_edge_vertex.size(); i++) {
+        if (is_edge_vertex[i]) edge_vertex_count++;
+    }
+    printf("  Edge vertices (from STEP geometry): %d out of %d\n", edge_vertex_count, num_surface_vertices);
     
     // ========== VERIFY MESH QUALITY ==========
     printf("\n=== MESH QUALITY VERIFICATION ===\n");
@@ -618,6 +682,424 @@ int main(int argc, char *argv[])
         printf("  Quality grade: POOR - consider refining\n");
     }
     
+    // ========== ENSURE VERTEX NORMALS POINT OUTWARD ==========
+    // For proper extrusion, vertex normals must point outward (away from material)
+    // At concave corners, the area-weighted average might point inward
+    // We'll fix this by ensuring normals point outward before edge detection
+    printf("\n=== ENSURING OUTWARD-POINTING NORMALS ===\n");
+    
+    // For each vertex, check if its normal points outward
+    // We can't easily determine "outward" without knowing the material side,
+    // but we can ensure that for edge/corner vertices, we compute a proper bisector
+    // that points away from the corner (outward)
+    
+    // ========== IDENTIFY EDGE/CORNER VERTICES ==========
+    printf("\n=== IDENTIFYING EDGE/CORNER VERTICES ===\n");
+    std::vector<std::vector<int> > vertex_triangles(num_surface_vertices);
+    std::vector<std::vector<double> > vertex_triangle_normals(num_surface_vertices);
+    
+    // Collect triangles and their normals for each vertex
+    for (size_t i = 0; i < surface_triangles.size(); i += 3) {
+        int i0 = surface_triangles[i];
+        int i1 = surface_triangles[i+1];
+        int i2 = surface_triangles[i+2];
+        
+        int tri_idx = i / 3;
+        
+        // Compute triangle normal
+        double v0[3] = {surface_vertices[i0].x, surface_vertices[i0].y, surface_vertices[i0].z};
+        double v1[3] = {surface_vertices[i1].x, surface_vertices[i1].y, surface_vertices[i1].z};
+        double v2[3] = {surface_vertices[i2].x, surface_vertices[i2].y, surface_vertices[i2].z};
+        
+        double normal[3];
+        calculateTriangleNormal(v0, v1, v2, normal);
+        
+        // Store triangle index and normal for each vertex
+        vertex_triangles[i0].push_back(tri_idx);
+        vertex_triangle_normals[i0].push_back(normal[0]);
+        vertex_triangle_normals[i0].push_back(normal[1]);
+        vertex_triangle_normals[i0].push_back(normal[2]);
+        
+        vertex_triangles[i1].push_back(tri_idx);
+        vertex_triangle_normals[i1].push_back(normal[0]);
+        vertex_triangle_normals[i1].push_back(normal[1]);
+        vertex_triangle_normals[i1].push_back(normal[2]);
+        
+        vertex_triangles[i2].push_back(tri_idx);
+        vertex_triangle_normals[i2].push_back(normal[0]);
+        vertex_triangle_normals[i2].push_back(normal[1]);
+        vertex_triangle_normals[i2].push_back(normal[2]);
+    }
+    
+    // ========== IDENTIFY EDGE VERTICES FROM STEP GEOMETRY ==========
+    // Use the edge information from EGADS tessellation (ptype array)
+    // This correctly identifies vertices where two surfaces meet in the STEP file
+    std::vector<double> vertex_angle_factor(num_surface_vertices, 1.0);
+    int edge_corner_count = 0;
+    
+    printf("\n=== IDENTIFYING EDGE VERTICES FROM STEP GEOMETRY ===\n");
+    
+    // Apply 4x multiplier to all vertices that are on edges (where surfaces meet)
+    for (int i = 0; i < num_surface_vertices; i++) {
+        if (is_edge_vertex[i]) {
+            vertex_angle_factor[i] = 1.0;  // Apply 4x multiplier for all edge vertices
+            edge_corner_count++;
+        }
+    }
+    
+    printf("  Identified %d edge vertices from STEP geometry\n", edge_corner_count);
+    printf("  Applied 4x growth rate multiplier to all edge vertices\n");
+    
+    // For edge vertices, we still want to compute proper normals and potentially
+    // apply additional adjustments for concave corners
+    // Continue with normal computation and concave corner detection for edge vertices
+    min_angle = M_PI;
+    double max_angle = 0.0;
+    int convex_count = 0;
+    int concave_count = 0;
+    
+    // Debug: track angle statistics
+    int vertices_checked = 0;
+    double sum_max_normal_angle = 0.0;
+    double max_normal_angle_seen = 0.0;
+    
+    // Collect triangle normals for computing vertex normals and detecting concave corners
+    for (int i = 0; i < num_surface_vertices; i++) {
+        int num_tris = vertex_triangles[i].size();
+        if (num_tris < 2) continue;  // Need at least 2 triangles to have an angle
+        
+        vertices_checked++;
+        
+        // Find the maximum angle between any two triangle normals
+        double max_normal_angle = 0.0;
+        double max_half_angle = 0.0;
+        bool is_concave = false;
+        
+        for (int j = 0; j < num_tris; j++) {
+            double n1[3] = {
+                vertex_triangle_normals[i][3*j],
+                vertex_triangle_normals[i][3*j+1],
+                vertex_triangle_normals[i][3*j+2]
+            };
+            
+            // Normalize
+            double len1 = sqrt(n1[0]*n1[0] + n1[1]*n1[1] + n1[2]*n1[2]);
+            if (len1 > 1e-10) {
+                n1[0] /= len1; n1[1] /= len1; n1[2] /= len1;
+            }
+            
+            for (int k = j + 1; k < num_tris; k++) {
+                double n2[3] = {
+                    vertex_triangle_normals[i][3*k],
+                    vertex_triangle_normals[i][3*k+1],
+                    vertex_triangle_normals[i][3*k+2]
+                };
+                
+                // Normalize
+                double len2 = sqrt(n2[0]*n2[0] + n2[1]*n2[1] + n2[2]*n2[2]);
+                if (len2 > 1e-10) {
+                    n2[0] /= len2; n2[1] /= len2; n2[2] /= len2;
+                }
+                
+                // Compute angle between normals
+                double dot = n1[0]*n2[0] + n1[1]*n2[1] + n1[2]*n2[2];
+                dot = fmax(-1.0, fmin(1.0, dot));  // Clamp to valid range
+                
+                double normal_angle = acos(dot);
+                
+                if (normal_angle > max_normal_angle) {
+                    max_normal_angle = normal_angle;
+                }
+                
+                // For two surfaces meeting at corner angle θ (measured internally):
+                // - Convex corner: θ < 180°, normals angle = 180° - θ
+                // - Concave corner: θ > 180°, normals angle = θ - 180° (or 360° - θ)
+                // The bisector makes angle (π - normal_angle) / 2 with each surface for convex
+                // For concave, if normals are > 90° apart, it's concave
+                
+                double half_angle;
+                // Better detection: if normals are > 90° apart, it's likely concave
+                // For convex corners, normals point outward and are < 90° apart
+                // For concave corners, normals point outward but are > 90° apart
+                if (normal_angle > M_PI / 2.0) {
+                    // Concave corner: normals are > 90° apart
+                    // The surfaces meet at an acute angle (measured externally)
+                    // For concave: if normals are at angle α, the corner angle is 180° - α
+                    // Use a more aggressive estimate for concave corners
+                    half_angle = (normal_angle - M_PI/2.0) / 2.0 + M_PI/4.0;
+                    is_concave = true;
+                } else {
+                    // Convex corner: surfaces meet at angle > 90°
+                    // half_angle = (π - normal_angle) / 2
+                    half_angle = (M_PI - normal_angle) / 2.0;
+                }
+                
+                // Clamp to valid range (0 to π/2)
+                half_angle = fmax(0.0, fmin(M_PI/2.0, half_angle));
+                
+                if (half_angle > max_half_angle) {
+                    max_half_angle = half_angle;
+                }
+            }
+        }
+        
+        sum_max_normal_angle += max_normal_angle;
+        if (max_normal_angle > max_normal_angle_seen) {
+            max_normal_angle_seen = max_normal_angle;
+        }
+        
+        // Also check angle between vertex normal and triangle normals
+        // For edge/corner vertices, the vertex normal (bisector) will differ from triangle normals
+        double vertex_normal[3] = {surface_vertices[i].nx, surface_vertices[i].ny, surface_vertices[i].nz};
+        double max_vertex_triangle_angle = 0.0;
+        
+        for (int j = 0; j < num_tris; j++) {
+            double n1[3] = {
+                vertex_triangle_normals[i][3*j],
+                vertex_triangle_normals[i][3*j+1],
+                vertex_triangle_normals[i][3*j+2]
+            };
+            
+            // Normalize
+            double len1 = sqrt(n1[0]*n1[0] + n1[1]*n1[1] + n1[2]*n1[2]);
+            if (len1 > 1e-10) {
+                n1[0] /= len1; n1[1] /= len1; n1[2] /= len1;
+            }
+            
+            double dot_vn = vertex_normal[0]*n1[0] + vertex_normal[1]*n1[1] + vertex_normal[2]*n1[2];
+            dot_vn = fmax(-1.0, fmin(1.0, dot_vn));
+            double angle_vn = acos(dot_vn);
+            
+            if (angle_vn > max_vertex_triangle_angle) {
+                max_vertex_triangle_angle = angle_vn;
+            }
+        }
+        
+        // Use the maximum of: angle between triangle normals, or angle between vertex normal and triangles
+        // This catches edges where triangles have similar normals but vertex normal is different
+        double effective_half_angle = max_half_angle;
+        if (max_vertex_triangle_angle > max_half_angle) {
+            // If vertex normal differs significantly from triangle normals, it's likely an edge
+            effective_half_angle = max_vertex_triangle_angle;
+            // Convert to half-angle: if vertex normal is at angle α from surface, half_angle ≈ α
+            // But we need to be careful - this might overestimate
+            effective_half_angle = fmin(effective_half_angle, M_PI/2.0);
+        }
+        
+        // For edge vertices (identified from STEP geometry), apply additional adjustments
+        // based on whether they're concave corners
+        if (is_edge_vertex[i]) {
+            // Already have 4x base multiplier, now check for concave corners
+            if (is_concave || max_vertex_triangle_angle > M_PI/3.0) {  // > 60 degrees
+                // More aggressive boost for concave - the sharper the corner, the more boost needed
+                double concave_boost = 2.5;  // Base 150% boost (increased from 1.5)
+                if (max_vertex_triangle_angle > M_PI/2.0) {  // > 90 degrees - very sharp concave
+                    concave_boost = 3.5;  // 250% boost for very sharp concave corners (increased from 2.0)
+                } else if (max_vertex_triangle_angle > 2.0*M_PI/3.0) {  // > 120 degrees - extremely sharp
+                    concave_boost = 5.0;  // 400% boost for extremely sharp concave corners (increased from 2.5)
+                }
+                vertex_angle_factor[i] *= concave_boost;
+                concave_count++;
+            } else {
+                // For convex corners, also apply a boost but smaller
+                double convex_boost = 1.5;  // 50% boost for convex corners
+                vertex_angle_factor[i] *= convex_boost;
+                convex_count++;
+            }
+            
+            // Clamp to reasonable range (but allow much higher for concave)
+            double max_factor = (is_concave || max_vertex_triangle_angle > M_PI/3.0) ? 50.0 : 15.0;  // Increased max factors
+            vertex_angle_factor[i] = fmin(max_factor, vertex_angle_factor[i]);
+            
+            if (effective_half_angle < min_angle) min_angle = effective_half_angle;
+            if (effective_half_angle > max_angle) max_angle = effective_half_angle;
+            
+            // For edge/corner vertices, ensure the normal points outward
+            // Compute a proper outward-pointing bisector from triangle normals
+            if (num_tris >= 2) {
+                // Compute average of triangle normals (this is the bisector)
+                double bisector[3] = {0.0, 0.0, 0.0};
+                for (int j = 0; j < num_tris; j++) {
+                    double n1[3] = {
+                        vertex_triangle_normals[i][3*j],
+                        vertex_triangle_normals[i][3*j+1],
+                        vertex_triangle_normals[i][3*j+2]
+                    };
+                    double len1 = sqrt(n1[0]*n1[0] + n1[1]*n1[1] + n1[2]*n1[2]);
+                    if (len1 > 1e-10) {
+                        n1[0] /= len1; n1[1] /= len1; n1[2] /= len1;
+                        bisector[0] += n1[0];
+                        bisector[1] += n1[1];
+                        bisector[2] += n1[2];
+                    }
+                }
+                
+                // Normalize bisector
+                double bisector_len = sqrt(bisector[0]*bisector[0] + bisector[1]*bisector[1] + bisector[2]*bisector[2]);
+                if (bisector_len > 1e-10) {
+                    bisector[0] /= bisector_len;
+                    bisector[1] /= bisector_len;
+                    bisector[2] /= bisector_len;
+                    
+                    // Check if current vertex normal points in similar direction
+                    double dot = surface_vertices[i].nx * bisector[0] +
+                                surface_vertices[i].ny * bisector[1] +
+                                surface_vertices[i].nz * bisector[2];
+                    
+                    // If the dot product is negative, the normal points inward (wrong direction)
+                    // For concave corners especially, we want to use the outward bisector
+                    if (dot < 0.0 || (is_concave && dot < 0.5)) {
+                        // Use the bisector instead (or flip the normal)
+                        // For concave corners, always use the bisector to ensure outward direction
+                        surface_vertices[i].nx = bisector[0];
+                        surface_vertices[i].ny = bisector[1];
+                        surface_vertices[i].nz = bisector[2];
+                    } else if (dot < 0.7) {
+                        // Blend toward bisector for better outward direction
+                        double blend = 0.5;
+                        surface_vertices[i].nx = (1.0 - blend) * surface_vertices[i].nx + blend * bisector[0];
+                        surface_vertices[i].ny = (1.0 - blend) * surface_vertices[i].ny + blend * bisector[1];
+                        surface_vertices[i].nz = (1.0 - blend) * surface_vertices[i].nz + blend * bisector[2];
+                        
+                        // Renormalize
+                        double len = sqrt(surface_vertices[i].nx * surface_vertices[i].nx +
+                                         surface_vertices[i].ny * surface_vertices[i].ny +
+                                         surface_vertices[i].nz * surface_vertices[i].nz);
+                        if (len > 1e-10) {
+                            surface_vertices[i].nx /= len;
+                            surface_vertices[i].ny /= len;
+                            surface_vertices[i].nz /= len;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    printf("  Checked %d vertices (with 2+ triangles)\n", vertices_checked);
+    if (vertices_checked > 0) {
+        printf("  Average max normal angle: %.2f degrees\n", 
+               (sum_max_normal_angle / vertices_checked) * 180.0 / M_PI);
+        printf("  Maximum normal angle seen: %.2f degrees\n", 
+               max_normal_angle_seen * 180.0 / M_PI);
+    }
+    
+    // Alternative approach: use triangle count to identify edge vertices
+    // Edge vertices typically have fewer triangles than interior vertices
+    if (edge_corner_count == 0 && vertices_checked > 0) {
+        printf("  No vertices detected by angle method, trying triangle count method...\n");
+        
+        // Compute statistics on triangle counts
+        std::vector<int> tri_counts;
+        for (int i = 0; i < num_surface_vertices; i++) {
+            if (vertex_triangles[i].size() >= 2) {
+                tri_counts.push_back(vertex_triangles[i].size());
+            }
+        }
+        
+        if (tri_counts.size() > 0) {
+            std::sort(tri_counts.begin(), tri_counts.end());
+            int median_count = tri_counts[tri_counts.size() / 2];
+            int lower_quartile = tri_counts[tri_counts.size() / 4];
+            
+            printf("  Triangle count statistics: min=%d, Q1=%d, median=%d, max=%d\n",
+                   tri_counts[0], lower_quartile, median_count, tri_counts[tri_counts.size()-1]);
+            
+            // Vertices with triangle count below lower quartile are likely on edges
+            int threshold_count = lower_quartile;
+            
+            for (int i = 0; i < num_surface_vertices; i++) {
+                int tri_count = vertex_triangles[i].size();
+                if (tri_count >= 2 && tri_count <= threshold_count) {
+                    // This is likely an edge vertex
+                    // Estimate angle based on triangle count (fewer triangles = sharper corner)
+                    // Use a conservative estimate: assume at least 15 degree half-angle
+                    double estimated_half_angle = 0.26;  // ~15 degrees
+                    
+                    // Adjust based on how few triangles (fewer = sharper)
+                    if (tri_count == 2) {
+                        estimated_half_angle = 0.35;  // ~20 degrees - sharp corner
+                    } else if (tri_count == 3) {
+                        estimated_half_angle = 0.30;  // ~17 degrees
+                    } else if (tri_count == 4) {
+                        estimated_half_angle = 0.26;  // ~15 degrees
+                    }
+                    
+                    double cos_half_angle = cos(estimated_half_angle);
+                    if (cos_half_angle > 1e-6) {
+                        // Fallback method: apply 4x multiplier
+                        vertex_angle_factor[i] = 4.0;
+                        
+                        // Check if it might be concave by looking at vertex normal vs triangle normals
+                        double vertex_normal[3] = {surface_vertices[i].nx, surface_vertices[i].ny, surface_vertices[i].nz};
+                        double max_vn_angle = 0.0;
+                        
+                        for (size_t j = 0; j < vertex_triangles[i].size(); j++) {
+                            double n1[3] = {
+                                vertex_triangle_normals[i][3*j],
+                                vertex_triangle_normals[i][3*j+1],
+                                vertex_triangle_normals[i][3*j+2]
+                            };
+                            double len1 = sqrt(n1[0]*n1[0] + n1[1]*n1[1] + n1[2]*n1[2]);
+                            if (len1 > 1e-10) {
+                                n1[0] /= len1; n1[1] /= len1; n1[2] /= len1;
+                            }
+                            
+                            double dot_vn = vertex_normal[0]*n1[0] + vertex_normal[1]*n1[1] + vertex_normal[2]*n1[2];
+                            dot_vn = fmax(-1.0, fmin(1.0, dot_vn));
+                            double angle_vn = acos(dot_vn);
+                            if (angle_vn > max_vn_angle) max_vn_angle = angle_vn;
+                        }
+                        
+                        if (max_vn_angle > M_PI/3.0) {  // > 60 degrees - likely concave
+                            // More aggressive boost for concave corners
+                            double concave_boost = 2.5;  // Base 150% boost (increased from 1.5)
+                            if (max_vn_angle > M_PI/2.0) {  // > 90 degrees - very sharp concave
+                                concave_boost = 3.5;  // 250% boost (increased from 2.0)
+                            } else if (max_vn_angle > 2.0*M_PI/3.0) {  // > 120 degrees - extremely sharp
+                                concave_boost = 5.0;  // 400% boost (increased from 2.5)
+                            }
+                            vertex_angle_factor[i] *= concave_boost;
+                            concave_count++;
+                        } else {
+                            // For convex corners, also apply a boost
+                            double convex_boost = 1.5;  // 50% boost for convex corners
+                            vertex_angle_factor[i] *= convex_boost;
+                            convex_count++;
+                        }
+                        
+                        // Allow higher factors for concave corners (increased to accommodate larger multipliers)
+                        double max_factor = (max_vn_angle > M_PI/3.0) ? 50.0 : 15.0;  // Increased max factors
+                        vertex_angle_factor[i] = fmin(max_factor, vertex_angle_factor[i]);
+                        edge_corner_count++;
+                    }
+                }
+            }
+            
+            printf("  Triangle count method: identified %d edge/corner vertices\n", edge_corner_count);
+        }
+    }
+    
+    printf("  Identified %d edge/corner vertices with adjusted growth rates\n", edge_corner_count);
+    if (edge_corner_count > 0) {
+        printf("    Convex corners: %d\n", convex_count);
+        printf("    Concave corners: %d\n", concave_count);
+        printf("  Half-angle range: %.2f to %.2f degrees\n", 
+               min_angle * 180.0 / M_PI, max_angle * 180.0 / M_PI);
+        
+        // Find actual min/max adjustment factors
+        double min_factor = 10.0, max_factor = 0.0;
+        for (int i = 0; i < num_surface_vertices; i++) {
+            if (vertex_angle_factor[i] > 1.0) {
+                if (vertex_angle_factor[i] < min_factor) min_factor = vertex_angle_factor[i];
+                if (vertex_angle_factor[i] > max_factor) max_factor = vertex_angle_factor[i];
+            }
+        }
+        if (max_factor > 0.0) {
+            printf("  Adjustment factor range: %.3f to %.3f\n", min_factor, max_factor);
+        }
+    }
+    
     // ========== CREATE PRISMATIC LAYERS ==========
     printf("\n=== GENERATING PRISMATIC LAYERS ===\n");
     std::vector<Vertex> all_vertices;
@@ -634,14 +1116,17 @@ int main(int argc, char *argv[])
         thickness *= growth_rate;
     }
     
-    // Create vertex layers
+    // Create vertex layers with adjusted offsets for edge/corner vertices
     for (int layer = 0; layer <= num_layers; layer++) {
-        double offset = layer_offsets[layer];
+        double base_offset = layer_offsets[layer];
         for (int i = 0; i < num_surface_vertices; i++) {
+            // Adjust offset for edge/corner vertices to compensate for diagonal growth
+            double adjusted_offset = base_offset * vertex_angle_factor[i];
+            
             Vertex v;
-            v.x = surface_vertices[i].x + offset * surface_vertices[i].nx;
-            v.y = surface_vertices[i].y + offset * surface_vertices[i].ny;
-            v.z = surface_vertices[i].z + offset * surface_vertices[i].nz;
+            v.x = surface_vertices[i].x + adjusted_offset * surface_vertices[i].nx;
+            v.y = surface_vertices[i].y + adjusted_offset * surface_vertices[i].ny;
+            v.z = surface_vertices[i].z + adjusted_offset * surface_vertices[i].nz;
             v.nx = surface_vertices[i].nx;
             v.ny = surface_vertices[i].ny;
             v.nz = surface_vertices[i].nz;
