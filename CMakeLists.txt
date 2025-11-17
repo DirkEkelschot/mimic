@@ -20,10 +20,6 @@ set(CMAKE_CXX_FLAGS "-fPIC")
 file(GLOB SRC_FILES "${CMAKE_SOURCE_DIR}/src/*.cpp")
 
 
-	
-
-
-
 if(APPLE)
     message("Building on macOS or iOS")
     set(LIB_EXT ".dylib" CACHE STRING "Dynamic library extension")
@@ -58,7 +54,6 @@ endforeach()
 
 
 INCLUDE (cmake/adaptCommon.cmake)
-
 INCLUDE (cmake/ThirdPartyOCCT.cmake)
 INCLUDE (cmake/ThirdPartyESP.cmake)
 INCLUDE (cmake/ThirdPartyTetGen.cmake)
@@ -318,8 +313,8 @@ OPTION(BUILD_MIMIC_PYFR
 
 #OPTION(BUILD_MIMIC_BASEMESHGEN
 #        "Build MIMIC for BASEMESHGEN." OFF)
-add_subdirectory(BaseMeshGenerator)
-
+add_subdirectory(BoundaryLayerMeshGenerator)
+add_subdirectory(VolumeMeshGenerator)
 #add_subdirectory(unit_tests)
 
 IF(BUILD_MIMIC_US3D)

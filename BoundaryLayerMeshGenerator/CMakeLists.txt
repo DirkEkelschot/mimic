@@ -1,4 +1,4 @@
-set(TEST_NAME "baseMeshGenerator")
+set(TEST_NAME "BoundaryLayerMeshGenerator")
 
 add_executable(${TEST_NAME} main.cpp ${SRC_FILES})
 target_include_directories(${TEST_NAME} PRIVATE ${CMAKE_SOURCE_DIR})

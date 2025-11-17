@@ -4,6 +4,7 @@
 #include <vector>
 #include <map>
 #include <algorithm>
+#include <string>
 #include "egads.h"
 
 #ifndef M_PI
@@ -51,6 +52,104 @@ void calculateTriangleNormal(const double* v0, const double* v1, const double* v
     if (len > 1e-10) {
         normal[0] /= len; normal[1] /= len; normal[2] /= len;
     }
+}
+
+// Write the outer layer of triangles (after extrusion) to a VTK file
+void writeOuterLayerVTK(const std::vector<Vertex>& all_vertices,
+                        const std::vector<int>& surface_triangles,
+                        int num_layers,
+                        int num_surface_vertices,
+                        const char* filename) {
+    FILE *fp = fopen(filename, "w");
+    if (!fp) {
+        printf("Error: Could not open file %s for writing outer layer\n", filename);
+        return;
+    }
+    
+    // Calculate the starting index for the outer layer vertices
+    int outer_layer_start = num_layers * num_surface_vertices;
+    int num_triangles = surface_triangles.size() / 3;
+    int num_vertices = num_surface_vertices;
+    
+    // Write VTK header
+    fprintf(fp, "# vtk DataFile Version 3.0\n");
+    fprintf(fp, "Outer layer triangles after extrusion\n");
+    fprintf(fp, "ASCII\n");
+    fprintf(fp, "DATASET UNSTRUCTURED_GRID\n");
+    
+    // Write points
+    fprintf(fp, "POINTS %d float\n", num_vertices);
+    for (int i = 0; i < num_vertices; i++) {
+        const Vertex& v = all_vertices[outer_layer_start + i];
+        fprintf(fp, "%.9f %.9f %.9f\n", v.x, v.y, v.z);
+    }
+    
+    // Write cells (triangles)
+    fprintf(fp, "\nCELLS %d %d\n", num_triangles, num_triangles * 4);
+    for (int i = 0; i < num_triangles; i++) {
+        int i0 = surface_triangles[3*i];
+        int i1 = surface_triangles[3*i+1];
+        int i2 = surface_triangles[3*i+2];
+        fprintf(fp, "3 %d %d %d\n", i0, i1, i2);
+    }
+    
+    // Write cell types (5 = triangle)
+    fprintf(fp, "\nCELL_TYPES %d\n", num_triangles);
+    for (int i = 0; i < num_triangles; i++) {
+        fprintf(fp, "5\n");
+    }
+    
+    fclose(fp);
+    printf("  Outer layer VTK written to %s (%d triangles)\n", filename, num_triangles);
+}
+
+// Write the outer layer of triangles (after extrusion) to a Gmsh MSH file (version 2.2)
+void writeOuterLayerMSH(const std::vector<Vertex>& all_vertices,
+                        const std::vector<int>& surface_triangles,
+                        int num_layers,
+                        int num_surface_vertices,
+                        const char* filename) {
+    FILE *fp = fopen(filename, "w");
+    if (!fp) {
+        printf("Error: Could not open file %s for writing outer layer\n", filename);
+        return;
+    }
+    
+    // Calculate the starting index for the outer layer vertices
+    int outer_layer_start = num_layers * num_surface_vertices;
+    int num_triangles = surface_triangles.size() / 3;
+    int num_vertices = num_surface_vertices;
+    
+    // Write MSH format header
+    fprintf(fp, "$MeshFormat\n");
+    fprintf(fp, "2.2 0 8\n");
+    fprintf(fp, "$EndMeshFormat\n");
+    
+    // Write nodes (1-indexed in MSH format)
+    fprintf(fp, "$Nodes\n");
+    fprintf(fp, "%d\n", num_vertices);
+    for (int i = 0; i < num_vertices; i++) {
+        const Vertex& v = all_vertices[outer_layer_start + i];
+        fprintf(fp, "%d %.9f %.9f %.9f\n", i + 1, v.x, v.y, v.z);
+    }
+    fprintf(fp, "$EndNodes\n");
+    
+    // Write elements (triangles, element type 2)
+    // Format: element_number element_type number_of_tags tag1 tag2 node1 node2 node3
+    // For triangles: element_type = 2, typically 2 tags (physical entity, elementary entity)
+    fprintf(fp, "$Elements\n");
+    fprintf(fp, "%d\n", num_triangles);
+    for (int i = 0; i < num_triangles; i++) {
+        int i0 = surface_triangles[3*i] + 1;     // Convert to 1-indexed
+        int i1 = surface_triangles[3*i+1] + 1;
+        int i2 = surface_triangles[3*i+2] + 1;
+        // Element type 2 = triangle, 2 tags: physical=1, elementary=1
+        fprintf(fp, "%d 2 2 1 1 %d %d %d\n", i + 1, i0, i1, i2);
+    }
+    fprintf(fp, "$EndElements\n");
+    
+    fclose(fp);
+    printf("  Outer layer MSH written to %s (%d triangles)\n", filename, num_triangles);
 }
 
 // Get the surface type from EGADS
@@ -1155,6 +1254,21 @@ int main(int argc, char *argv[])
     
     printf("  Total vertices: %d\n", (int)all_vertices.size());
     printf("  Total prisms: %d\n", (int)prism_cells.size()/6);
+    
+    // ========== WRITE OUTER LAYER TRIANGLES ==========
+    printf("\n=== WRITING OUTER LAYER ===\n");
+    // Generate output filenames for outer layer
+    std::string output_vtk = argv[2];
+    std::string base_name = output_vtk;
+    size_t last_dot = base_name.find_last_of(".");
+    if (last_dot != std::string::npos) {
+        base_name = base_name.substr(0, last_dot);
+    }
+    std::string output_outer_vtk = base_name + "_outer.vtk";
+    std::string output_outer_msh = base_name + "_outer.msh";
+    
+    writeOuterLayerVTK(all_vertices, surface_triangles, num_layers, num_surface_vertices, output_outer_vtk.c_str());
+    writeOuterLayerMSH(all_vertices, surface_triangles, num_layers, num_surface_vertices, output_outer_msh.c_str());
     
     // ========== WRITE VTK FILE ==========
     printf("\n=== WRITING OUTPUT ===\n");
